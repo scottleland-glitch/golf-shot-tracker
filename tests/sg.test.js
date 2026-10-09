@@ -394,10 +394,14 @@ test('keyApproach: one entry per hole (par 5 two long shots, missed-then-chip, d
   assert.deepStrictEqual(pick(A([4, [R(400, 'tee'), R(150, 'fairway'), R(15, 'rough', 'shortleft'), R(4, 'green'), R(1, 'holed')]])), [2, false, false, false, 'shortleft', 0, 'rough', 15]);
   // drive the green
   assert.deepStrictEqual(pick(A([4, [R(300, 'tee'), R(20, 'green', 'right'), R(2, 'green'), R(1, 'holed')]])), [1, true, true, false, 'right', 20, 'green', 0]);
-  // tee shot to 25 yd, chip on in 2 -> the tee shot is the approach, missed the green (the hole is still GIR)
-  assert.deepStrictEqual(pick(A([4, [R(330, 'tee'), R(25, 'rough', 'right'), R(5, 'green'), R(1, 'holed')]])), [1, false, true, false, 'right', 0, 'rough', 25]);
-  // approach OB, re-hit onto the green -> the re-hit (hit, not GIR)
-  assert.deepStrictEqual(pick(A([4, [R(400, 'tee'), R(170, 'fairway'), R('', 'ob', 'right'), R(10, 'green'), R(1, 'holed')]])), [3, true, false, false, '', 10, 'green', 0]);
+  // tee shot to 25 yd, chip on in 2 -> GIR, so green hit with the shot before the first putt (the chip)
+  assert.deepStrictEqual(pick(A([4, [R(330, 'tee'), R(25, 'rough', 'right'), R(5, 'green'), R(1, 'holed')]])), [2, true, true, false, '', 5, 'green', 0]);
+  // approach OB, re-hit onto the green in 4 -> not GIR: missed, using the shot before (the OB one)
+  assert.deepStrictEqual(pick(A([4, [R(400, 'tee'), R(170, 'fairway'), R('', 'ob', 'right'), R(10, 'green'), R(1, 'holed')]])), [2, false, false, false, 'right', 0, 'ob', 170]);
+  // never on the green, not GIR: 60-yd pitch finishes 15 yd off and is chipped in -> missed, the shot before = the 240-yd approach
+  assert.deepStrictEqual(pick(A([4, [R(420, 'tee'), R(240, 'rough'), R(60, 'rough', 'short'), R(15, 'holedx')]])), [2, false, false, false, 'short', 0, 'rough', 60]);
+  // approach misses, chip misses again, second chip onto the green -> the shot before the green-reaching shot (1st chip)
+  assert.deepStrictEqual(pick(A([4, [R(400, 'tee'), R(150, 'fairway'), R(20, 'rough', 'left'), R(8, 'rough', 'long'), R(4, 'green'), R(1, 'holed')]])), [3, false, false, false, 'long', 0, 'rough', 8]);
   // chip-in from off the green after the approach (Scott's rule: reached the green) and eagle hole-out
   assert.deepStrictEqual(pick(A([4, [R(400, 'tee'), R(120, 'fairway'), R(15, 'holedx')]])), [2, true, true, true, '', 0, 'green', 0]);
   assert.deepStrictEqual(pick(A([4, [R(360, 'tee'), R(110, 'holedx')]])), [2, true, true, true, '', 0, 'green', 0]);
@@ -426,6 +430,7 @@ test('pin map consistency on random rounds: badges sum = holes, hit + missed = h
       const on = S.pinHoles.filter(x => x.pin === p); sum += on.length;
       assert.ok(on.every(x => x.appr), 'every hole has an approach entry');
       assert.strictEqual(on.filter(x => x.appr.hit).length + on.filter(x => !x.appr.hit).length, on.length);
+      assert.strictEqual(on.filter(x => x.appr.hit).length, on.filter(x => x.gir).length, 'greens hit = GIR holes');
       assert.ok(on.filter(x => x.gir).length <= on.length);
     }
     assert.strictEqual(sum, S.pinHoles.length);

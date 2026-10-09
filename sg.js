@@ -265,21 +265,24 @@
     return !r.ob && (r.end.lie === 'green' || r.end.lie === 'holed' || r.loc === 'holed' || (r.loc === 'holedx' && r.end.dist <= 30));
   }
   /**
-   * The hole's ONE "approach into the green" (used by the pin-location map, one entry per hole):
-   *  - if the shot that first reached the green was hit from more than 30 yd (off the green), that shot -> green hit;
-   *  - otherwise the last shot from more than 30 yd before it -> missed green (e.g. missed approach, then a chip on).
-   * Par 5s with two long shots therefore use only the later one.
+   * The hole's ONE "approach into the green" (pin-location map: one entry per hole). Scott's rule:
+   *  - fr = the shot that reached the green = the shot before the first putt (or, if the ball was
+   *    holed from off the green, the hole-out itself / the shot before a chip-in - see reachedGreen);
+   *  - GIR hole  -> "green hit": that shot, positioned by first-putt distance + direction;
+   *  - not GIR   -> "missed green": the shot before fr (its result was off the green: where it missed,
+   *    yards left, lie). If there is none (ambiguous), fr is used and the hole is still marked missed.
+   * So greens hit = GIR holes and greens hit + missed = holes.
    */
   function keyApproach(out, gir) {
-    var far = function (r) { return r.start.lie !== 'green' && r.start.dist > 30; };
+    if (!out.length) return null;
     var fr = -1; for (var i = 0; i < out.length; i++) { if (reachedGreen(out[i])) { fr = i; break; } }
-    var k = -1, hit = false;
-    if (fr >= 0 && far(out[fr])) { k = fr; hit = true; }
-    else { for (var j = (fr >= 0 ? fr : out.length) - 1; j >= 0; j--) { if (far(out[j])) { k = j; break; } } if (k < 0 && fr >= 0) { k = fr; hit = true; } }
-    if (k < 0) return null;
-    var r = out[k], ho = hit && (r.end.lie === 'holed' || r.loc === 'holedx');
-    return { shot: r.n, hit: hit, gir: !!gir, holed: ho, dir: ho ? '' : r.dir, ft: hit && !ho ? r.end.dist : 0,
-      lie: hit ? 'green' : (r.ob ? 'ob' : r.end.lie), dist: hit ? 0 : r.end.dist, from: r.start.dist };
+    if (fr < 0) fr = out.length - 1;
+    var hit = !!gir, k = hit ? fr : (fr > 0 ? fr - 1 : fr), r = out[k], amb = !hit && k === fr;
+    var ho = hit && (r.end.lie === 'holed' || r.loc === 'holedx');
+    var onG = r.end.lie === 'green';
+    return { shot: r.n, hit: hit, gir: !!gir, holed: ho, ambiguous: amb, dir: ho ? '' : r.dir, ft: hit && !ho ? r.end.dist : 0,
+      lie: hit ? 'green' : (r.ob ? 'ob' : (onG || r.end.lie === 'holed') ? 'green' : r.end.lie), dist: hit ? 0 : r.end.dist,
+      unit: !hit && onG ? 'ft' : 'yd', from: r.start.dist };
   }
   function analyzeHole(hole, baseline) {
     var bad = null, problem = '', complete = null, finished = true, rowsFmt = !!hole.rows, nRows = 0, liveStrokes = 0;

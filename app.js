@@ -569,7 +569,7 @@
         var qx = 334 - nd * 26, qy = 392; nd++;
         out += '<g class="pdot" data-kind="missnodir" data-hole="' + m.hole + '"><path d="M' + qx + ' ' + (qy - 10) + ' l10 10 -10 10 -10 -10z" fill="#e0102a" stroke="#000" stroke-width="2.5"/>' +
           '<text x="' + qx + '" y="' + (qy + 5) + '" text-anchor="middle" font-size="12" font-weight="900" fill="#fff">?</text></g>' +
-          lbl(qx, qy + 24, m.lie === 'ob' ? 'OB' : Math.round(m.dist) + ' yd', '', 'mlbl');
+          lbl(qx, qy + 24, m.lie === 'ob' ? 'OB' : Math.round(m.dist) + (m.unit === 'ft' ? ' ft' : ' yd'), '', 'mlbl');
         return;
       }
       var a = SG.DIR_ANGLE[m.dir], t = a * Math.PI / 180, j = seen['m' + m.dir] = (seen['m' + m.dir] || 0) + 1;
@@ -579,7 +579,7 @@
       q = [q[0] + side * Math.sin(t), q[1] + side * Math.cos(t)];
       q = [Math.max(24, Math.min(336, q[0])), Math.max(14, Math.min(420, q[1]))];
       out += '<circle class="pdot" data-kind="miss" data-gir="' + (m.gir ? 1 : 0) + '" data-hole="' + m.hole + '" cx="' + f1(q[0]) + '" cy="' + f1(q[1]) + '" r="7" fill="#e0102a" stroke="#000" stroke-width="2.5"/>' +
-        lbl(q[0], q[1] + 20, m.lie === 'ob' ? 'OB' : Math.round(m.dist) + ' yd', m.lie === 'ob' ? '' : (LN[m.lie] || m.lie), 'mlbl');
+        lbl(q[0], q[1] + 20, m.lie === 'ob' ? 'OB' : Math.round(m.dist) + (m.unit === 'ft' ? ' ft' : ' yd'), m.lie === 'ob' ? '' : (LN[m.lie] || (m.lie === 'green' ? 'Green' : m.lie)), 'mlbl');
     });
     out += '<line x1="' + f1(P[0]) + '" y1="' + f1(P[1]) + '" x2="' + f1(P[0]) + '" y2="' + f1(P[1] - 30) + '" stroke="#000" stroke-width="3"/>' +
       '<path d="M' + f1(P[0]) + ' ' + f1(P[1] - 30) + ' l20 6 l-20 6z" fill="#d0213a"/><circle id="pinflag" cx="' + f1(P[0]) + '" cy="' + f1(P[1]) + '" r="5" fill="#000"/>' +
@@ -604,17 +604,16 @@
     var nodirMiss = miss.filter(function (m) { return !m.dir; }).length;
     var out2 = '<button class="big" data-act="pinseg" data-v="">‹ All pin positions</button>' +
       '<p class="mapsum" id="mapsum">Pin <b>' + SG.PIN_NAME[seg] + '</b>: ' + hs.length + ' hole' + (hs.length === 1 ? '' : 's') + scope + '</p>' +
-      '<div class="fwcounts" id="pinsum"><span>Greens hit <b>' + gir.length + '</b></span><span>+ Missed <b>' + miss.length + '</b></span><span>= <b>' + hs.length + '</b> hole' + (hs.length === 1 ? '' : 's') + '</span><span>GIR <b>' + g + ' / ' + hs.length + '</b></span></div>' +
+      '<div class="fwcounts" id="pinsum"><span>Greens hit (GIR) <b>' + gir.length + '</b></span><span>+ Missed <b>' + miss.length + '</b></span><span>= <b>' + hs.length + '</b> hole' + (hs.length === 1 ? '' : 's') + '</span></div>' +
       pinSVG(seg, gir, miss) +
       '<div class="legend"><span><i class="dot" style="background:#fff"></i>Green hit in regulation (GIR) – first-putt distance (ft) and direction from the pin; kept on the green if it runs past the drawn edge</span>' +
-      '<span><i class="dot" style="background:#bdbdbd"></i>Green hit, but not in regulation</span>' +
       '<span><svg width="20" height="20" viewBox="0 0 20 20" style="flex:none"><path d="M10 1 l9 9 -9 9 -9 -9z" fill="#fff" stroke="#000" stroke-width="2"/><text x="10" y="14.5" text-anchor="middle" font-size="12" font-weight="900">?</text></svg>Green hit, no direction entered (drawn straight up)</span>' +
       '<span><b class="star">★</b>Holed out</span>' +
       '<span><i class="dot" style="background:#e0102a"></i>Missed green – drawn off the green in the miss direction; label = yards left to the pin + where it finished</span>' +
       '<span><svg width="20" height="20" viewBox="0 0 20 20" style="flex:none"><path d="M10 1 l9 9 -9 9 -9 -9z" fill="#e0102a" stroke="#000" stroke-width="2"/><text x="10" y="14.5" text-anchor="middle" font-size="12" font-weight="900" fill="#fff">?</text></svg>Missed green, no direction entered (drawn in the bottom-right corner)</span></div>' +
       '<h3>Missed greens by direction</h3>' + dirTable(miss).replace('(not plotted)', '(drawn as ?)') +
-      '<p class="help muted">One dot per hole: the approach into the green = the shot from more than 30 yd that reached the green (or holed out), or, if the green was reached from closer in, the last shot from more than 30 yd, which missed. ' +
-      'So par 5s use only the shot into the green, and a missed approach followed by a chip counts once, as a miss. GIR = on the green in par − 2 strokes or fewer. ' +
+      '<p class="help muted">One dot per hole. GIR holes (on the green in par − 2 strokes or fewer) count as greens hit and use the shot before the first putt, placed by the first-putt distance and direction. ' +
+      'Other holes count as missed and use the shot before the one that got onto the green (where it finished off the green). A chip-in from 30 yd or closer counts as reaching the green. ' +
       'Front = toward you. Distances on the green are feet; off the green, yards.</p>' + note;
     return out2;
   }
