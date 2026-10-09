@@ -275,3 +275,4 @@ body.noscroll { overflow: hidden; }
 .hrow .hscore { text-align: right; }
 .hrow .hdel { flex: 0 0 52px; padding: 0; font-size: 22px; border-color: var(--red); }
 .tbspace { width: 60px; }
+.sclegend .lgpar { color: #999; font-weight: 700; }

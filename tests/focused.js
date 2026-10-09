@@ -30,6 +30,9 @@ const BASE = process.env.BASE_URL || 'http://127.0.0.1:8765/', SHOTS = process.e
   const fit = await page.evaluate(() => ({ docW: document.documentElement.scrollWidth, r: ['card-front', 'card-back', 'card-total'].map(id => document.getElementById(id).getBoundingClientRect().right), h: Math.min(...[...document.querySelectorAll('#card-front tr.sscore .hc')].map(b => b.getBoundingClientRect().height)) }));
   assert.ok(fit.docW <= 390 && fit.r.every(x => x <= 390), JSON.stringify(fit)); assert.ok(fit.h >= 44, 'cell h ' + fit.h);
   assert.match(await page.textContent('.topbar'), /‹ History/);
+  const lg = await page.$$eval('#card-legend .mk', ms => ms.map(m => m.className.replace('mk ', '') + ':' + m.textContent));
+  assert.deepStrictEqual(lg, ['mk-eagle:', 'mk-birdie:', 'mk-par lgpar:–', 'mk-bogey:', 'mk-double:']);
+  await page.locator('#card-legend').scrollIntoViewIfNeeded(); await page.screenshot({ path: SHOTS + '/33b-scorecard-legend.png' });
   await page.locator('#card-front').scrollIntoViewIfNeeded(); await page.evaluate(() => window.scrollBy(0, -56));
   await page.screenshot({ path: SHOTS + '/33-scorecard.png' });
   await page.click('#card-back tr.sscore [data-act="goHole"][data-i="12"]'); assert.match(await page.textContent('.hc-head'), /Hole 13/);

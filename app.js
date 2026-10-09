@@ -309,8 +309,8 @@
       '<table class="scard stotal" id="card-total"><tr><th>TOTAL</th><th>Yds</th><th>Par</th><th>Score</th><th>To par</th><th>Putts</th></tr>' +
       '<tr><td>' + done.length + '/' + r.holes.length + ' holes</td><td>' + (tYds || '') + '</td><td>' + tPar + '</td><td class="big">' + (done.length ? tScore : '–') + '</td><td class="big" id="card-topar">' +
       (done.length ? toPar(tScore - parDone) : '–') + '</td><td>' + (done.length ? tPutts : '–') + '</td></tr></table>' +
-      '<div class="legend sclegend" id="card-legend"><span><span class="mk mk-eagle">3</span>Eagle or better</span><span><span class="mk mk-birdie">3</span>Birdie</span><span><span class="mk mk-par">4</span>Par</span>' +
-      '<span><span class="mk mk-bogey">5</span>Bogey</span><span><span class="mk mk-double">6</span>Double bogey or worse</span><span>Blank = hole not finished. To par counts finished holes only.</span></div>';
+      '<div class="legend sclegend" id="card-legend"><span><span class="mk mk-eagle"></span>Eagle or better</span><span><span class="mk mk-birdie"></span>Birdie</span><span><span class="mk mk-par lgpar">–</span>Par (no mark)</span>' +
+      '<span><span class="mk mk-bogey"></span>Bogey</span><span><span class="mk mk-double"></span>Double bogey or worse</span><span>Blank = hole not finished. To par counts finished holes only.</span></div>';
   }
   function summaryHTML() {
     var r = round(), bl = blOf(r), S = SG.summarize(r, bl);
