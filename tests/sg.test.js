@@ -689,3 +689,14 @@ test('PDF-report helper (not used by the map): SG distance groups + distinct col
   for (let y = 20.5; y < 400; y += 0.5) assert.strictEqual(SG.reportGroup(y) + ' yd', SG.apprBucket(y));
   assert.strictEqual(SG.PROX_BUCKETS.length, 18, 'in-app proximity rail is still 40..200 by 10 yd');
 });
+
+// v25 PDF report helpers
+(function () {
+  const assert = require('assert'); const SGm = require('../sg.js');
+  assert.strictEqual(SGm.pdfSafe('20–60 yd · ✕ ›14 “x”'), '20-60 yd · x >14 "x"');
+  assert.strictEqual(SGm.reportFileName('scott', '2026-10-09T14:00:00'), 'golf-report-scott-2026-10-09.pdf');
+  const segs = SGm.pinSegments([{ pin: 'backleft', gir: true, ft: 20 }, { pin: 'backleft', gir: false, dir: 'short' }, { pin: 'backleft', gir: true, ft: 10 }, { pin: 'center', gir: false, dir: 'short' }, { pin: 'center', gir: false, dir: 'left' }]);
+  assert.deepStrictEqual(segs.map(s => [s.pin, s.holes, s.gir, Math.round(s.girPct), s.avgHitFt, s.missDirs]),
+    [['backleft', 3, 2, 67, 15, { short: 1 }], ['center', 2, 0, 0, null, { short: 1, left: 1 }]]);
+  console.log('pdf helpers ok');
+})();

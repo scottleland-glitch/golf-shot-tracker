@@ -387,6 +387,30 @@
   var REPORT_GROUPS = [['20-60', '#6a1b9a', 'purple'], ['60-100', '#0d47a1', 'blue'], ['100-130', '#00838f', 'teal'],
     ['130-160', '#ffb300', 'amber orange'], ['160-200', '#d81b60', 'magenta'], ['200+', '#6d4c41', 'brown']].map(function (g) {
     return { id: g[0], name: g[0].replace('-', '–') + ' yd', color: g[1], colorName: g[2], halo: g[0] === '130-160' ? '#000' : '#fff' }; });
+  // ---- PDF report helpers ----
+  // jsPDF's built-in Helvetica only covers Latin-1: map the symbols the app uses to plain equivalents.
+  var PDF_MAP = { '\u2013': '-', '\u2014': '-', '\u2212': '-', '\u2018': "'", '\u2019': "'", '\u201c': '"', '\u201d': '"', '\u2022': '-', '\u2026': '...',
+    '\u2715': 'x', '\u2605': '*', '\u203a': '>', '\u2039': '<', '\u2191': '', '\u2193': '', '\u25c0': '', '\u25b6': '', '\u2190': '', '\u2192': '', '\u2197': '', '\u2196': '',
+    '\u2198': '', '\u2199': '', '\u26a0': '!', '\u2713': '', '\u00a0': ' ', '\u2192\ufe0f': '' };
+  function pdfSafe(t) {
+    return String(t == null ? '' : t).replace(/[^\x00-\xff]/g, function (c) { return PDF_MAP[c] != null ? PDF_MAP[c] : ''; }).replace(/[ \t]+/g, ' ').trim();
+  }
+  function reportFileName(slug, dateISO) {
+    var d = dateISO ? new Date(dateISO) : new Date(), p = function (n) { return (n < 10 ? '0' : '') + n; };
+    return 'golf-report-' + (slug || 'golfer') + '-' + d.getFullYear() + '-' + p(d.getMonth() + 1) + '-' + p(d.getDate()) + '.pdf';
+  }
+  // Pin-location summary per segment (skips segments with no holes): holes, GIR, avg first-putt ft on greens hit, misses by direction
+  function pinSegments(holes) {
+    var out = [];
+    PIN_GRID.forEach(function (row) { row.forEach(function (id) {
+      var L = holes.filter(function (h) { return h.pin === id; }); if (!L.length) return;
+      var g = L.filter(function (h) { return h.gir; }), ft = g.filter(function (h) { return h.ft != null; }), md = {};
+      L.filter(function (h) { return !h.gir; }).forEach(function (h) { var k = h.dir || ''; md[k] = (md[k] || 0) + 1; });
+      out.push({ pin: id, name: PIN_NAME[id], holes: L.length, gir: g.length, girPct: 100 * g.length / L.length,
+        avgHitFt: ft.length ? ft.reduce(function (t, h) { return t + h.ft; }, 0) / ft.length : null, misses: L.length - g.length, missDirs: md, list: L });
+    }); });
+    return out;
+  }
   function reportGroup(yd) { if (yd == null || yd === '' || isNaN(Number(yd)) || Number(yd) <= SHORT_MAX_YD) return null; return apprBucket(Number(yd)).replace(' yd', ''); }
   function inBucket(id, yd) {
     if (yd == null || yd === '' || isNaN(Number(yd))) return false;
@@ -691,7 +715,7 @@
     return incoming.filter(function (r) { return byId[r.id] && JSON.stringify(byId[r.id]) !== JSON.stringify(r); });
   }
 
-  var api = { REPORT_GROUPS: REPORT_GROUPS, reportGroup: reportGroup, SHORT_MAX_YD: SHORT_MAX_YD, APPR_BUCKETS: APPR_BUCKETS, apprBucket: apprBucket, proxAfterFt: proxAfterFt, puttKind: puttKind, threePutts: threePutts, puttScale: puttScale, puttRadius: puttRadius, puttPlace: puttPlace, PUTT_BANDS: PUTT_BANDS, puttGroup: puttGroup, puttStats: puttStats, makeBackup: makeBackup, parseBackup: parseBackup, mergeRounds: mergeRounds, conflictsOf: conflictsOf, PROX_LIES: PROX_LIES, lieGroup: lieGroup, proxByLie: proxByLie, proxWarnings: proxWarnings, PROX_BUCKETS: PROX_BUCKETS, inBucket: inBucket, roundYd: roundYd, proxStats: proxStats, reachedGreen: reachedGreen, PIN_GRID: PIN_GRID, PIN_NAME: PIN_NAME, normPin: normPin, DIR8: DIR8, DIR_NAME: DIR_NAME, DIR_ANGLE: DIR_ANGLE, normDir: normDir, expected: expected, expectedPGA: expectedPGA, BASELINES: BASELINES, baseline: function (id) { return BL[id] || BL.pga; },
+  var api = { pdfSafe: pdfSafe, reportFileName: reportFileName, pinSegments: pinSegments, REPORT_GROUPS: REPORT_GROUPS, reportGroup: reportGroup, SHORT_MAX_YD: SHORT_MAX_YD, APPR_BUCKETS: APPR_BUCKETS, apprBucket: apprBucket, proxAfterFt: proxAfterFt, puttKind: puttKind, threePutts: threePutts, puttScale: puttScale, puttRadius: puttRadius, puttPlace: puttPlace, PUTT_BANDS: PUTT_BANDS, puttGroup: puttGroup, puttStats: puttStats, makeBackup: makeBackup, parseBackup: parseBackup, mergeRounds: mergeRounds, conflictsOf: conflictsOf, PROX_LIES: PROX_LIES, lieGroup: lieGroup, proxByLie: proxByLie, proxWarnings: proxWarnings, PROX_BUCKETS: PROX_BUCKETS, inBucket: inBucket, roundYd: roundYd, proxStats: proxStats, reachedGreen: reachedGreen, PIN_GRID: PIN_GRID, PIN_NAME: PIN_NAME, normPin: normPin, DIR8: DIR8, DIR_NAME: DIR_NAME, DIR_ANGLE: DIR_ANGLE, normDir: normDir, expected: expected, expectedPGA: expectedPGA, BASELINES: BASELINES, baseline: function (id) { return BL[id] || BL.pga; },
     CALIB_ROUND: CALIB_ROUND, catLoss: catLoss, analyzeHole: analyzeHole, summarize: summarize,
     rowsToShots: rowsToShots, shotsToRows: shotsToRows, migrateV2Rows: migrateV2Rows, v1ToRows: v1ToRows, holeYards: holeYards,
     rowUnit: rowUnit, lieOf: lieOf, distOf: distOf, rowStrokes: rowStrokes, isPenalty: isPenalty,

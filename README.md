@@ -98,3 +98,10 @@ Each phone sets a Player name (Home › Your data). Its rounds are stamped with 
 
 ### Future PDF report: colour by distance group (not in the app)
 For the planned PDF report, approach tracers can be coloured by the strokes-gained distance group. The helper is in sg.js: `SG.REPORT_GROUPS` (id, name, color, colorName, halo) and `SG.reportGroup(yd)`. Groups are 20–60 (over 20 to under 60), 60–100, 100–130, 130–160, 160–200 and 200+ yd; 20 yd or closer = short game, returns null. Colours: 20–60 purple #6a1b9a, 60–100 blue #0d47a1, 100–130 teal #00838f, 130–160 amber orange #ffb300 (dark halo), 160–200 magenta #d81b60, 200+ brown #6d4c41. When colour means distance, show hit/miss with the end marker: filled dot = hit, white ring with ✕ = miss. The full map implementation is in commit b59bc90; screenshots are screenshots/46*.png. The in-app Proximity map stays as in v22 (40–200 yd 10-yd rail, blue hit / red miss).
+
+## PDF round report (v25)
+On any round's stats page tap **📄 Make PDF report**. Built on the phone, offline (jsPDF 4.2.1 bundled in `vendor/`), letter portrait, 9 pages:
+1 header + score + scorecard + key stats · 2 strokes gained (category, by distance with avg to pin after, every baseline) ·
+3 fairways · 4 GIR · 5 approach misses · 6 pin location (one green, 3x3 grid, badge + mini plots per segment, table; empty segments skipped) ·
+7 proximity (lines coloured by `SG.REPORT_GROUPS`) · 8 1st putts · 9 2nd putts. Maps are rendered to 3x images.
+Save with the share sheet (`golf-report-<player>-<date>.pdf`) or, when connected, **Save to OneDrive** → app folder `/Reports`.

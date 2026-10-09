@@ -98,3 +98,5 @@ test('bundled MSAL keeps sign-in across app relaunch (v3: no session-cookie-encr
   const app = require('fs').readFileSync(require('path').join(__dirname, '../app.js'), 'utf8');
   assert.match(app, /cacheLocation: 'localStorage'/);
 });
+(function () { const assert = require('assert'); const OD = require('../onedrive.js');
+  assert.strictEqual(OD.pathUrl('Reports/golf-report-scott-2026-10-09.pdf'), 'https://graph.microsoft.com/v1.0/me/drive/special/approot:/Reports/golf-report-scott-2026-10-09.pdf:/content'); console.log('od pathUrl ok'); })();

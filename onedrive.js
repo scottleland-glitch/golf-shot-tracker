@@ -62,6 +62,11 @@
         .sort(function (a, b) { return String(a.name).localeCompare(String(b.name)); });
     });
   };
+  // Upload to a path inside the app folder, e.g. 'Reports/golf-report-scott-2026-10-09.pdf' (Graph creates the folder).
+  OD.pathUrl = function (path) { return OD.GRAPH + '/me/drive/special/approot:/' + String(path).split('/').map(encodeURIComponent).join('/') + ':/content'; };
+  OD.uploadPath = function (fetchFn, token, path, body, type) {
+    return call(fetchFn, token, OD.pathUrl(path), { method: 'PUT', headers: { 'Content-Type': type || 'application/octet-stream' }, body: body }).then(function (r) { return r.json(); });
+  };
   OD.download = function (fetchFn, token, name) { return call(fetchFn, token, OD.itemUrl(name)).then(function (r) { return r.text(); }); };
   OD.me = function (fetchFn, token) { return call(fetchFn, token, OD.GRAPH + '/me?$select=displayName,userPrincipalName,mail').then(function (r) { return r.json(); }); };
 
