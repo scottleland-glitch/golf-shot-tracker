@@ -411,7 +411,7 @@
       strokes: 0, par: 0, holesDone: 0, holesStarted: 0, penalties: 0, putts: 0,
       fwHit: 0, fwTotal: 0, gir: 0, girHoles: 0,
       teeLeft: 0, teeRight: 0, apprLeft: 0, apprRight: 0, apprShort: 0, apprOver: 0, allLeft: 0, allRight: 0,
-      apprMiss: [], girMap: [], teeMap: [], pinHoles: [], noPin: 0, proxList: [],
+      apprMiss: [], girMap: [], teeMap: [], pinHoles: [], noPin: 0, proxList: [], puttList: [],
       sgTotal: 0,
       cats: { tee: { sg: 0, n: 0 }, approach: { sg: 0, n: 0 }, short: { sg: 0, n: 0 }, putting: { sg: 0, n: 0 } },
       buckets: {}, holes: []
@@ -429,6 +429,13 @@
       if (normPin(h.pin)) S.pinHoles.push({ hole: hi + 1, pin: normPin(h.pin), gir: a.gir, par: Number(h.par), appr: a.appr }); else S.noPin++;
       S.penalties += a.penalties;
       S.putts += a.putts;
+      // every putt (stroke starting on the green): its number on the hole, start ft, made?, direction of the
+      // ball vs the hole before the putt (the Dir on that row = where the previous stroke finished)
+      var pn = 0;
+      a.shots.forEach(function (r, k) {
+        if (r.start.lie !== 'green') return; pn++;
+        S.puttList.push({ hole: hi + 1, n: pn, ft: r.start.dist, made: r.end.lie === 'holed', dir: k > 0 ? a.shots[k - 1].dir : '' });
+      });
       S.holesDone++; S.strokes += a.strokes; S.par += Number(h.par);
       S.girHoles++; if (a.gir) S.gir++;
       if (a.fairway !== null) { S.fwTotal++; if (a.fairway) S.fwHit++; }
@@ -580,6 +587,17 @@
   }
 
   calibrate();
+  // Putting: bands are lower-inclusive: 0-3 = under 3 ft, 3-6, 6-10, 10-20, 20+
+  var PUTT_BANDS = [{ id: '0-3', lo: 0, hi: 3 }, { id: '3-6', lo: 3, hi: 6 }, { id: '6-10', lo: 6, hi: 10 }, { id: '10-20', lo: 10, hi: 20 }, { id: '20+', lo: 20, hi: Infinity }];
+  function puttGroup(n) { return n >= 3 ? '3' : String(n); } // 3 = "3rd+" (3rd, 4th, ...)
+  function puttStats(list) {
+    var made = list.filter(function (p) { return p.made; }).length;
+    return { n: list.length, made: made, pct: list.length ? 100 * made / list.length : null,
+      avgFt: list.length ? list.reduce(function (t, p) { return t + p.ft; }, 0) / list.length : null,
+      bands: PUTT_BANDS.map(function (b) { var L = list.filter(function (p) { return p.ft >= b.lo && p.ft < b.hi; }), m = L.filter(function (p) { return p.made; }).length;
+        return { id: b.id, n: L.length, made: m, pct: L.length ? 100 * m / L.length : null }; }) };
+  }
+
   /* ===================== BACKUP / RESTORE ===================== */
   // Backup file: { app: 'golf-shot-tracker', kind: 'rounds-backup', version: 1, exported: ISO, rounds: [...] }
   function makeBackup(rounds, now) {
@@ -619,7 +637,7 @@
     return incoming.filter(function (r) { return byId[r.id] && JSON.stringify(byId[r.id]) !== JSON.stringify(r); });
   }
 
-  var api = { makeBackup: makeBackup, parseBackup: parseBackup, mergeRounds: mergeRounds, conflictsOf: conflictsOf, PROX_LIES: PROX_LIES, lieGroup: lieGroup, proxByLie: proxByLie, proxWarnings: proxWarnings, PROX_BUCKETS: PROX_BUCKETS, inBucket: inBucket, roundYd: roundYd, proxStats: proxStats, reachedGreen: reachedGreen, PIN_GRID: PIN_GRID, PIN_NAME: PIN_NAME, normPin: normPin, DIR8: DIR8, DIR_NAME: DIR_NAME, DIR_ANGLE: DIR_ANGLE, normDir: normDir, expected: expected, expectedPGA: expectedPGA, BASELINES: BASELINES, baseline: function (id) { return BL[id] || BL.pga; },
+  var api = { PUTT_BANDS: PUTT_BANDS, puttGroup: puttGroup, puttStats: puttStats, makeBackup: makeBackup, parseBackup: parseBackup, mergeRounds: mergeRounds, conflictsOf: conflictsOf, PROX_LIES: PROX_LIES, lieGroup: lieGroup, proxByLie: proxByLie, proxWarnings: proxWarnings, PROX_BUCKETS: PROX_BUCKETS, inBucket: inBucket, roundYd: roundYd, proxStats: proxStats, reachedGreen: reachedGreen, PIN_GRID: PIN_GRID, PIN_NAME: PIN_NAME, normPin: normPin, DIR8: DIR8, DIR_NAME: DIR_NAME, DIR_ANGLE: DIR_ANGLE, normDir: normDir, expected: expected, expectedPGA: expectedPGA, BASELINES: BASELINES, baseline: function (id) { return BL[id] || BL.pga; },
     CALIB_ROUND: CALIB_ROUND, catLoss: catLoss, analyzeHole: analyzeHole, summarize: summarize,
     rowsToShots: rowsToShots, shotsToRows: shotsToRows, migrateV2Rows: migrateV2Rows, v1ToRows: v1ToRows, holeYards: holeYards,
     rowUnit: rowUnit, lieOf: lieOf, distOf: distOf, rowStrokes: rowStrokes, isPenalty: isPenalty,

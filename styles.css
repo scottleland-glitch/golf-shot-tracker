@@ -276,3 +276,12 @@ body.noscroll { overflow: hidden; }
 .hrow .hdel { flex: 0 0 52px; padding: 0; font-size: 22px; border-color: var(--red); }
 .tbspace { width: 60px; }
 .sclegend .lgpar { color: #999; font-weight: 700; }
+/* v17 putting green */
+.pnrow { display: flex; gap: 6px; margin: 8px 0; }
+.pnrow .pnbtn { flex: 1 1 0; min-height: 56px; border: 3px solid #000; border-radius: 12px; background: #fff; color: #000; font-size: 18px; font-weight: 900; display: flex; flex-direction: column; align-items: center; justify-content: center; line-height: 1.1; }
+.pnrow .pnbtn small { font-size: 13px; color: #1e6fd9; }
+.pnrow .pnbtn.sel { background: #000; color: #fff; box-shadow: 0 0 0 3px #ffd23f; }
+.pnrow .pnbtn.sel small { color: #ffd23f; }
+.pnrow .pnbtn:disabled { background: #eee; color: #b0b0b0; border-color: #d0d0d0; opacity: 1; }
+.pnrow .pnbtn:disabled small { color: #b0b0b0; }
+#puttstats { grid-template-columns: repeat(3, 1fr); }

@@ -602,3 +602,25 @@ test('backup file + restore merge by id: add new, skip identical, conflicts only
   assert.match(SG.parseBackup('not json').error, /not a golf backup/); assert.match(SG.parseBackup({ hello: 1 }).error, /not a golf backup/);
   assert.match(SG.parseBackup({ rounds: [{ x: 1 }] }).error, /not a golf backup/);
 });
+
+// ---- Putting green ----
+test('putts: every stroke from the green, numbered per hole, start ft, made, direction from the row; stats + bands', () => {
+  const S = SG.summarize({ holes: [
+    { par: 4, finished: true, rows: [R(400, 'tee'), R(150, 'fairway'), R(25, 'green', 'longleft'), R(4, 'holed', 'right')] }, // 25 miss, then 4 ft made
+    { par: 3, finished: true, rows: [R(170, 'tee'), R(8, 'holed', 'short')] },                                                              // 8 made 1st
+    { par: 4, finished: true, rows: [R(400, 'tee'), R(150, 'fairway'), R(40, 'green'), R(6, 'green', 'long'), R(2.5, 'holed')] }, // 3 putts
+    { par: 4, finished: true, rows: [R(400, 'tee'), R(120, 'fairway'), R(15, 'holedx')] },                                                   // chip-in: no putts
+    { par: 4, finished: false, rows: [R(400, 'tee'), R(150, 'fairway'), R(10, 'green')] }
+  ] });
+  assert.deepStrictEqual(S.puttList.map(p => [p.hole, p.n, p.ft, p.made, p.dir]), [
+    [1, 1, 25, false, 'longleft'], [1, 2, 4, true, 'right'], [2, 1, 8, true, 'short'],
+    [3, 1, 40, false, ''], [3, 2, 6, false, 'long'], [3, 3, 2.5, true, '']]);
+  assert.strictEqual(S.puttList.length, S.putts, 'putt list = Putts tile');
+  assert.deepStrictEqual([1, 2, 3, 4, 7].map(SG.puttGroup), ['1', '2', '3', '3', '3'], '3rd+ includes 4th and later');
+  const P = SG.puttStats(S.puttList.filter(p => p.n === 1));
+  assert.deepStrictEqual([P.n, P.made, Math.round(P.pct)], [3, 1, 33]); assert.ok(Math.abs(P.avgFt - (25 + 8 + 40) / 3) < 1e-9);
+  const A = SG.puttStats(S.puttList);
+  assert.deepStrictEqual(A.bands.map(b => [b.id, b.n, b.made]), [['0-3', 1, 1], ['3-6', 1, 1], ['6-10', 2, 1], ['10-20', 0, 0], ['20+', 2, 0]]);
+  assert.strictEqual(A.bands.reduce((t, b) => t + b.n, 0), A.n, 'bands add up');
+  assert.deepStrictEqual(SG.puttStats([{ ft: 3, made: true }, { ft: 2.99, made: false }, { ft: 10, made: true }, { ft: 20, made: false }]).bands.map(b => b.n), [1, 1, 0, 1, 1], 'lower-inclusive band edges');
+});

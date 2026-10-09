@@ -345,7 +345,7 @@
       tile('miss', 'Approach misses (missed green) – tap for map', S.apprMiss.length, missMini(S.apprMiss)) +
       proxTile(S) +
       tile('pin', 'Pin location – tap for map', S.pinHoles.length + ' / ' + S.holesDone, '<small class="mini">holes with a pin set</small>') +
-      stat('Putts', S.putts) + stat('Penalty strokes', S.penalties) +
+      puttTile(S) + stat('Penalty strokes', S.penalties) +
       stat('Tee misses L / R', S.teeLeft + ' / ' + S.teeRight) +
       stat('Missed greens left / right', S.apprLeft + ' / ' + S.apprRight) +
       stat('Missed greens short / long', S.apprShort + ' / ' + S.apprOver) + '</div>';
@@ -424,7 +424,7 @@
   // ---------- maps (full-window overlays) ----------
   function mapData(kind) {
     var list = [], n = 0;
-    if (kind === 'pin' || kind === 'prox') return { list: [], rounds: 0 };
+    if (kind === 'pin' || kind === 'prox' || kind === 'putt') return { list: [], rounds: 0 };
     var src = view.mapScope === 'all' ? rounds : [round()];
     src.forEach(function (r) {
       var S = SG.summarize(r, 'pga'); n++;
@@ -497,12 +497,13 @@
   var DIR_ORDER = ['short', 'shortleft', 'shortright', 'left', 'right', 'long', 'longleft', 'longright'];
   function mapHTML() {
     var kind = view.map, D = mapData(kind), list = D.list, all = view.mapScope === 'all';
-    var out = '<div class="mapview" id="mapview" role="dialog" aria-label="' + (kind === 'gir' ? 'GIR map' : kind === 'fw' ? 'Fairway map' : kind === 'pin' ? 'Pin location map' : kind === 'prox' ? 'Proximity map' : 'Approach miss map') + '">' +
-      '<div class="maphead"><b>' + (kind === 'gir' ? 'Greens in regulation' : kind === 'fw' ? 'Tee shots – fairways' : kind === 'pin' ? 'Pin location' : kind === 'prox' ? 'Proximity by distance' : 'Approach misses') + '</b><button class="close" data-act="mapclose" aria-label="Close map">✕ Close</button></div>' +
+    var out = '<div class="mapview" id="mapview" role="dialog" aria-label="' + (kind === 'gir' ? 'GIR map' : kind === 'fw' ? 'Fairway map' : kind === 'pin' ? 'Pin location map' : kind === 'prox' ? 'Proximity map' : kind === 'putt' ? 'Putting map' : 'Approach miss map') + '">' +
+      '<div class="maphead"><b>' + (kind === 'gir' ? 'Greens in regulation' : kind === 'fw' ? 'Tee shots – fairways' : kind === 'pin' ? 'Pin location' : kind === 'prox' ? 'Proximity by distance' : kind === 'putt' ? 'Putting' : 'Approach misses') + '</b><button class="close" data-act="mapclose" aria-label="Close map">✕ Close</button></div>' +
       '<div class="seg"><button data-act="mapscope" data-v="round" class="' + (all ? '' : 'sel') + '">This round</button>' +
       '<button data-act="mapscope" data-v="all" class="' + (all ? 'sel' : '') + '">All rounds (' + rounds.length + ')</button></div>';
     if (kind === 'pin') out += pinMapHTML(all);
     else if (kind === 'prox') out += proxHTML(all);
+    else if (kind === 'putt') out += puttHTML(all);
     else if (kind === 'fw') out += fwHTML(list, all, D);
     else if (kind === 'gir') {
       var far = list.filter(function (m) { return m.ft > 30; }).length, holed = list.filter(function (m) { return m.holed; }).length;
@@ -612,6 +613,76 @@
   }
   // ---------- proximity by distance ----------
   function fmtFt(v) { return v == null ? '–' : Math.round(v) + ' ft'; }
+  // ---------- Putting green ----------
+  function puttTile(S) {
+    var P1 = SG.puttStats(S.puttList.filter(function (p) { return p.n === 1; }));
+    return tile('putt', 'Putts – tap for map', S.putts, '<small class="mini">' + (P1.n ? '1st putts made ' + P1.made + '/' + P1.n : 'no putts yet') + '</small>');
+  }
+  function puttData() {
+    var all = [], n = 0;
+    (view.mapScope === 'all' ? rounds : [round()]).forEach(function (r) { n++; SG.summarize(r, 'pga').puttList.forEach(function (p) { all.push(p); }); });
+    var counts = { '1': 0, '2': 0, '3': 0 }; all.forEach(function (p) { counts[SG.puttGroup(p.n)]++; });
+    var g = view.puttN || '1'; if (!counts[g]) g = ['1', '2', '3'].filter(function (x) { return counts[x]; })[0] || '1';
+    return { list: all.filter(function (p) { return SG.puttGroup(p.n) === g; }), group: g, counts: counts, rounds: n };
+  }
+  // Non-linear radius: 0-10 ft takes 60% of the radius (1 ft rings readable); 10 ft..max ring the rest.
+  var PG2 = { cx: 180, cy: 190, R: 168 };
+  function puttR(ft, maxFt) { var R10 = PG2.R * 0.6; return ft <= 10 ? R10 * ft / 10 : R10 + (PG2.R - R10) * Math.min(1, (ft - 10) / (maxFt - 10)); }
+  function puttSVG(list) {
+    var mx = list.reduce(function (m, p) { return Math.max(m, p.ft); }, 0), maxFt = Math.min(60, Math.max(20, Math.ceil(mx / 5) * 5));
+    var o = '<svg id="puttmap" viewBox="0 0 360 400" role="img" aria-label="Putts by starting distance">' +
+      '<rect width="360" height="400" fill="#cfe8c4"/><circle cx="' + PG2.cx + '" cy="' + PG2.cy + '" r="' + (PG2.R + 6) + '" fill="#3da33d" stroke="#145214" stroke-width="4"/>';
+    var rings = []; for (var f = 1; f <= 10; f++) rings.push(f); for (f = 15; f <= maxFt; f += 5) rings.push(f);
+    // Outer labels every 5 ft only when rings are far enough apart, else every 10 ft.
+    var step5 = puttR(15, maxFt) - puttR(10, maxFt) >= 17, lab = { 1: 1, 2: 1, 3: 1, 5: 1, 10: 1 };
+    for (f = 15; f <= maxFt; f += 5) if (step5 || f % 10 === 0) lab[f] = 1;
+    // Ring labels run along the emptiest diagonal so they don't sit on top of putts.
+    var la = [300, 240, 60, 120].map(function (a) { return [a, list.filter(function (p) { var d = Math.abs(((SG.DIR_ANGLE[p.dir] == null ? -999 : SG.DIR_ANGLE[p.dir]) - a + 540) % 360 - 180); return d < 35; }).length]; })
+      .sort(function (x, y) { return x[1] - y[1]; })[0][0], lc = Math.cos(la * Math.PI / 180), ls = -Math.sin(la * Math.PI / 180), ringBoxes = [];
+    rings.slice().reverse().forEach(function (ft) {
+      var r = puttR(ft, maxFt), major = ft === 3 || ft === 6 || ft === 10 || ft % 10 === 0;
+      o += '<circle class="pring" data-ft="' + ft + '" cx="' + PG2.cx + '" cy="' + PG2.cy + '" r="' + f1(r) + '" fill="none" stroke="#fff" stroke-opacity="' + (major ? '.95' : '.6') + '" stroke-width="' + (major ? 2.2 : 1.1) + '"/>';
+      if (lab[ft] || ft === maxFt) { var lx = PG2.cx + r * lc, ly = PG2.cy + r * ls + 4, txt = ft + (ft === 10 || ft === maxFt ? ' ft' : ''), lw = txt.length * 6;
+        ringBoxes.push([lx - lw / 2, ly - 10, lx + lw / 2, ly + 2]);
+        o += '<text class="ring" x="' + f1(lx) + '" y="' + f1(ly) + '" text-anchor="middle" font-size="' + (ft <= 3 ? 10 : 11) + '" font-weight="900" fill="#fff" stroke="#145214" stroke-width="2.5" paint-order="stroke">' + txt + '</text>'; }
+    });
+    o += '<circle cx="' + PG2.cx + '" cy="' + PG2.cy + '" r="4.5" fill="#000"/>';
+    var seen = {}, nd = list.filter(function (p) { return !p.dir; }).length, ndi = 0, dots = '', boxes = ringBoxes.slice(), lbls = '';
+    list.forEach(function (p) {
+      var r = puttR(p.ft, maxFt), ang, nod = !p.dir, cl = p.ft > maxFt;
+      if (nod) { ang = 90 + 360 * ndi / Math.max(1, nd) + 20; ndi++; }
+      else { var key = p.dir + Math.round(r / 10), j = seen[key] = (seen[key] || 0) + 1; ang = SG.DIR_ANGLE[p.dir] + (j - 1) * 9; }
+      var q = pt(PG2.cx, PG2.cy, r, ang), x = f1(q[0]), y = f1(q[1]), col = p.made ? '#0a7a2a' : '#e0102a';
+      var at = ' class="pdot2" data-made="' + (p.made ? 1 : 0) + '" data-ft="' + p.ft + '" data-hole="' + p.hole + '" data-dir="' + (p.dir || '') + '"';
+      if (nod) dots += '<g' + at + ' data-kind="nodir"><path d="M' + x + ' ' + (y - 9) + ' l9 9 -9 9 -9 -9z" fill="' + (p.made ? col : '#fff') + '" stroke="' + col + '" stroke-width="3"/><text x="' + x + '" y="' + (+y + 4.5) + '" text-anchor="middle" font-size="11" font-weight="900" fill="' + (p.made ? '#fff' : col) + '">?</text></g>';
+      else dots += '<circle' + at + ' data-kind="dir" cx="' + x + '" cy="' + y + '" r="6.5" fill="' + (p.made ? col : '#fff') + '" stroke="' + col + '" stroke-width="3"/>';
+      boxes.push([q[0] - 8, q[1] - 9, q[0] + 8, q[1] + 9]);
+      var t = (Math.round(p.ft * 10) / 10) + (cl ? '›' : ''), w = t.length * 6.5 + 4, cand = [[0, -12], [0, 19], [12 + w / 2, 4], [-12 - w / 2, 4], [0, -24], [0, 31]], best = null;
+      cand.some(function (c) { var cx = Math.max(w / 2, Math.min(360 - w / 2, q[0] + c[0])), ty = q[1] + c[1], b = [cx - w / 2, ty - 10, cx + w / 2, ty + 2];
+        if (!best) best = [cx, ty, b]; if (!boxes.some(function (z) { return b[0] < z[2] && b[2] > z[0] && b[1] < z[3] && b[3] > z[1]; })) { best = [cx, ty, b]; return true; } });
+      boxes.push(best[2]);
+      lbls += '<text class="plbl" x="' + f1(best[0]) + '" y="' + f1(best[1]) + '" text-anchor="middle" font-size="12" font-weight="900" fill="#000" stroke="#fff" stroke-width="3.5" paint-order="stroke">' + t + '</text>';
+    });
+    return o + dots + lbls + '<text x="180" y="16" text-anchor="middle" font-size="13" font-weight="800">LONG ↑</text><text x="180" y="394" text-anchor="middle" font-size="13" font-weight="800">SHORT ↓ (toward you)</text>' +
+      '<text x="6" y="' + (PG2.cy + 4) + '" font-size="13" font-weight="800">◀ L</text><text x="354" y="' + (PG2.cy + 4) + '" text-anchor="end" font-size="13" font-weight="800">R ▶</text></svg>';
+  }
+  function puttHTML(all) {
+    var D = puttData(), P = SG.puttStats(D.list), NM = { '1': '1st putt', '2': '2nd putt', '3': '3rd+ putt' };
+    var btns = ['1', '2', '3'].map(function (g) { var c = D.counts[g];
+      return '<button class="pnbtn' + (g === D.group ? ' sel' : '') + '" data-act="puttn" data-v="' + g + '" data-n="' + c + '"' + (c ? '' : ' disabled') + ' aria-pressed="' + (g === D.group) + '">' + NM[g].replace(' putt', '') + '<small>' + c + '</small></button>'; }).join('');
+    var pct = function (x) { return x == null ? '–' : Math.round(x) + '%'; };
+    var bandRows = P.bands.map(function (b) { return '<tr data-band="' + b.id + '"><td>' + b.id + ' ft</td><td class="num">' + b.n + '</td><td class="num">' + (b.n ? b.made + '/' + b.n : '–') + '</td><td class="num">' + pct(b.pct) + '</td></tr>'; }).join('');
+    return '<div class="pnrow" id="puttbtns" role="group" aria-label="Which putt">' + btns + '</div>' +
+      '<p class="mapsum" id="mapsum"><b>' + P.n + '</b> ' + NM[D.group] + (P.n === 1 ? '' : 's') + (all ? ' in ' + D.rounds + ' round' + (D.rounds === 1 ? '' : 's') : ' this round') + '</p>' +
+      '<div class="stat-grid" id="puttstats">' + stat('Putts', P.n) + stat('Made', P.n ? P.made + ' / ' + P.n + ' (' + pct(P.pct) + ')' : '–') + stat('Avg distance', P.avgFt == null ? '–' : (Math.round(P.avgFt * 10) / 10) + ' ft') + '</div>' +
+      puttSVG(D.list) +
+      '<div class="legend"><span><i class="dot" style="background:#0a7a2a;border-color:#0a7a2a"></i>Made (filled)</span><span><i class="dot" style="background:#fff;border:3px solid #e0102a"></i>Missed (ring)</span>' +
+      '<span><svg width="20" height="20" viewBox="0 0 20 20" style="flex:none"><path d="M10 1 l9 9 -9 9 -9 -9z" fill="#fff" stroke="#555" stroke-width="2.5"/><text x="10" y="14.5" text-anchor="middle" font-size="11" font-weight="900" fill="#555">?</text></svg>No direction entered – right distance, spread around the hole</span>' +
+      '<span>Rings every 1 ft out to 10 ft, then every 5 ft. The inner 10 ft is drawn bigger so short putts are easy to read; the label is the distance in ft.</span></div>' +
+      '<h3>Make % by distance</h3><table class="dirtab" id="puttbands"><tr><th>Distance</th><th class="num">Putts</th><th class="num">Made</th><th class="num">Make %</th></tr>' + bandRows + '</table>' +
+      '<p class="help muted">Every putt = every stroke hit from the green. 1st / 2nd / 3rd+ = its number on that hole (3rd+ includes 4th and later). Direction = where the ball was vs the hole before the putt: for 1st putts the Dir of the approach (as on the GIR map), for later putts the Dir on that putt\'s row. ' +
+      'Bands: 0–3 = under 3 ft, 3–6 = 3 to under 6 ft, and so on. Only finished holes count.</p>';
+  }
   function proxTile(S) {
     var L = S.proxList.filter(function (m) { return SG.inBucket('all', m.from); }), P = SG.proxStats(L);
     return tile('prox', 'Proximity by distance – tap for map', P.n ? fmtFt(P.avgAllFt) : '–',
@@ -943,6 +1014,7 @@
       case 'pinclear': h.pin = ''; save(); render(); return;
       case 'proxb': { var mv0 = document.getElementById('mapview'), st0 = mv0 ? mv0.scrollTop : 0; view.proxB = v; render(); var mv1 = document.getElementById('mapview'); if (mv1) mv1.scrollTop = st0; return; }
       case 'proxlie': { var mvl = document.getElementById('mapview'), stl = mvl ? mvl.scrollTop : 0; view.proxLie = v; render(); var mvl2 = document.getElementById('mapview'); if (mvl2) mvl2.scrollTop = stl; return; }
+      case 'puttn': { var mvp = document.getElementById('mapview'), stp = mvp ? mvp.scrollTop : 0; view.puttN = v; render(); var mvp2 = document.getElementById('mapview'); if (mvp2) mvp2.scrollTop = stp; return; }
       case 'mapscope': view.mapScope = v; render(); var mv = document.getElementById('mapview'); if (mv) mv.scrollTop = 0; return;
       case 'dirpick': view.dirk = k; view.menu = null; break;
       case 'dirclose': view.dirk = null; break;
