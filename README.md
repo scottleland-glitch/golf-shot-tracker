@@ -69,6 +69,7 @@ Applies to the GIR tile + map, Approach-miss tile + map, Pin location map, Proxi
 "Missed greens left/right/short/long" stats and the CSV (`gir` = yes/no per hole, `regulation` = GIR/miss on the regulation shot's row).
 - Regulation stroke = par − 2 (par 3: tee shot, par 4: 2nd shot, par 5: 3rd shot), penalty strokes counted.
 - GIR: a ball reaches the green (or is holed; a chip-in from ≤30 yd right after also counts) by then. GIR position = first-putt distance/direction (holed = ★).
+- Strokes-gained categories: Off the tee = par-4/5 tee shots; Approach = every other shot from more than 20 yd off the green (par-3 tee shots included), by 20-60 (over 20 to under 60), 60-100, 100-130, 130-160, 160-200, 200+ yd (lower number included) with average distance to the pin after the shot (ft on the green, yd x 3 off it, 0 holed; penalty/OB shots left out); Short game = off the green from 20 yd and in; Putting = from the green.
 - Otherwise the hole is a miss and the miss is the regulation shot, drawn where it finished (lie, direction, distance to the pin).
   A par-4 tee shot or par-5 2nd shot short of the green is never a miss. If stroke par − 2 was a penalty stroke, the ball actually struck before it is used (e.g. par-4 tee shot OB → the tee shot is the miss; par-5 tee OB → the re-tee, stroke 3, is the miss).
 - Exactly one entry per finished hole: GIR + misses = holes, everywhere. The old 50-yd lay-up exclusion and "shot's own result" rule are gone.

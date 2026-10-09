@@ -330,16 +330,21 @@
       var c = S.cats[k];
       out += '<tr><td>' + CAT_NAME[k] + '</td><td class="num">' + c.n + '</td><td class="num ' + sgCls(c.sg) + '">' + fmtSG(c.sg) + '</td></tr>';
     });
-    out += '</table>' + compareHTML(r, bl) + '<h3>By distance</h3><table><tr><th>From</th><th class="num">Shots</th><th class="num">SG</th></tr>';
-    var groups = [['Approach', ['30-100 yd', '100-150 yd', '150-200 yd', '200+ yd']], ['Short game', ['0-30 yd']], ['Putting', ['0-5 ft', '5-15 ft', '15-30 ft', '30+ ft']]];
+    out += '</table>' + compareHTML(r, bl) + '<h3>By distance</h3><table id="bydist"><tr><th>From</th><th class="num">Shots</th><th class="num">SG</th><th class="num">Avg to pin after</th></tr>';
+    var groups = [['Approach', SG.APPR_BUCKETS.map(function (b) { return b.id; })], ['Short game', ['0-20 yd']], ['Putting', ['0-5 ft', '5-15 ft', '15-30 ft', '30+ ft']]], pex = 0;
     groups.forEach(function (g) {
-      out += '<tr><td colspan="3" style="background:#eee"><b>' + g[0] + '</b></td></tr>';
+      out += '<tr><td colspan="4" style="background:#eee"><b>' + g[0] + '</b></td></tr>';
       g[1].forEach(function (b) {
-        var c = S.buckets[b];
-        out += '<tr><td>' + b + '</td><td class="num">' + c.n + '</td><td class="num ' + sgCls(c.sg) + '">' + (c.n ? fmtSG(c.sg) : '–') + '</td></tr>';
+        var c = S.buckets[b], ap = g[0] === 'Approach'; if (ap) pex += c.proxEx;
+        out += '<tr data-bucket="' + b + '"><td>' + b + '</td><td class="num">' + c.n + '</td><td class="num ' + sgCls(c.sg) + '">' + (c.n ? fmtSG(c.sg) : '–') + '</td><td class="num">' +
+          (ap ? (c.proxN ? Math.round(c.proxFt) + ' ft' : '–') : '') + '</td></tr>';
       });
     });
-    out += '</table><h2>Stats</h2><div class="stat-grid">' +
+    out += '</table><p class="help muted" id="bydistnote">Approach = every shot from more than 20 yd off the green, par-3 tee shots included (par-4/5 tee shots are Off the tee). ' +
+      'Short game = off the green from 20 yd and in. Ranges include the lower number (60–100 = 60 to under 100 yd); 20–60 = over 20 up to under 60 yd (it also takes the 20–30 yd shots). ' +
+      'Avg to pin after = how far from the hole the ball finished: feet on the green, yards × 3 off it, 0 if holed' +
+      (pex ? '; <b>' + pex + '</b> approach shot' + (pex === 1 ? '' : 's') + ' with a penalty or OB left out of that average' : '; shots with a penalty or OB are left out of it') + '.</p>' +
+      '<h2>Stats</h2><div class="stat-grid">' +
       tile('fw', 'Fairways hit – tap for map', S.fwHit + ' / ' + S.fwTotal) +
       tile('gir', 'Greens in reg. – tap for map', S.gir + ' / ' + S.girHoles) +
       tile('miss', 'Approach misses (missed green) – tap for map', S.apprMiss.length, missMini(S.apprMiss)) +

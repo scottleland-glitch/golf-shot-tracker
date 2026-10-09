@@ -233,11 +233,22 @@
     return lie === 'green' ? dist / 3 : dist;
   }
 
+  // Scott's split: SHORT GAME = off the green from 20 yd and in; APPROACH = every non-tee shot from over
+  // 20 yd (par-3 tee shots included). Approach ranges include their lower number (60-100 = 60 to under
+  // 100) except the first: 20-60 = over 20 up to under 60 (Scott asked for 30-60; 20-30 shots go here too).
+  var SHORT_MAX_YD = 20;
+  var APPR_BUCKETS = [{ id: '20-60 yd', lo: 20, hi: 60 }, { id: '60-100 yd', lo: 60, hi: 100 }, { id: '100-130 yd', lo: 100, hi: 130 },
+    { id: '130-160 yd', lo: 130, hi: 160 }, { id: '160-200 yd', lo: 160, hi: 200 }, { id: '200+ yd', lo: 200, hi: Infinity }];
   function apprBucket(yd) {
-    if (yd < 100) return '30-100 yd';
-    if (yd < 150) return '100-150 yd';
-    if (yd < 200) return '150-200 yd';
+    for (var i = 0; i < APPR_BUCKETS.length; i++) if (yd < APPR_BUCKETS[i].hi) return APPR_BUCKETS[i].id;
     return '200+ yd';
+  }
+  // Distance to the hole after a shot, in feet: ft on the green, yd x 3 off it, 0 holed; null for a
+  // shot with a penalty / OB (left out of proximity averages).
+  function proxAfterFt(r) {
+    if (r.ob || r.penStrokes > 0) return null;
+    if (r.end.lie === 'holed') return 0;
+    return r.end.lie === 'green' ? r.end.dist : r.end.dist * 3;
   }
   function puttBucket(ft) {
     if (ft <= 5) return '0-5 ft';
@@ -325,10 +336,10 @@
         cat = 'putting'; bucket = puttBucket(start.dist);
       } else if (start.lie === 'tee' && hole.par >= 4) {
         cat = 'tee'; bucket = 'Tee shots';
-      } else if (start.dist > 30) {
+      } else if (start.dist > SHORT_MAX_YD) {
         cat = 'approach'; bucket = apprBucket(start.dist);
       } else {
-        cat = 'short'; bucket = '0-30 yd';
+        cat = 'short'; bucket = '0-20 yd';
       }
       var hit = pen === 'ob' ? null
         : Math.round(toYards(start.lie, start.dist) - toYards(end.lie, end.dist));
@@ -416,9 +427,9 @@
       cats: { tee: { sg: 0, n: 0 }, approach: { sg: 0, n: 0 }, short: { sg: 0, n: 0 }, putting: { sg: 0, n: 0 } },
       buckets: {}, holes: []
     };
-    var order = ['Tee shots', '30-100 yd', '100-150 yd', '150-200 yd', '200+ yd', '0-30 yd',
-      '0-5 ft', '5-15 ft', '15-30 ft', '30+ ft'];
-    order.forEach(function (b) { S.buckets[b] = { sg: 0, n: 0 }; });
+    var order = ['Tee shots'].concat(APPR_BUCKETS.map(function (b) { return b.id; }), ['0-20 yd',
+      '0-5 ft', '5-15 ft', '15-30 ft', '30+ ft']);
+    order.forEach(function (b) { S.buckets[b] = { sg: 0, n: 0, proxSum: 0, proxN: 0, proxEx: 0, proxFt: null }; });
     (round.holes || []).forEach(function (h, hi) {
       var a = analyzeHole(h, baseline);
       S.holes.push(a);
@@ -443,7 +454,8 @@
       a.shots.forEach(function (r) {
         S.sgTotal += r.sg;
         S.cats[r.cat].sg += r.sg; S.cats[r.cat].n++;
-        S.buckets[r.bucket].sg += r.sg; S.buckets[r.bucket].n++;
+        var B = S.buckets[r.bucket]; B.sg += r.sg; B.n++;
+        var pf = proxAfterFt(r); if (pf == null) B.proxEx++; else { B.proxSum += pf; B.proxN++; B.proxFt = B.proxSum / B.proxN; }
         if (r.side === 'L') S.allLeft++;
         if (r.side === 'R') S.allRight++;
         if (r.cat === 'tee') { if (r.side === 'L') S.teeLeft++; if (r.side === 'R') S.teeRight++; }
@@ -671,7 +683,7 @@
     return incoming.filter(function (r) { return byId[r.id] && JSON.stringify(byId[r.id]) !== JSON.stringify(r); });
   }
 
-  var api = { puttKind: puttKind, threePutts: threePutts, puttScale: puttScale, puttRadius: puttRadius, puttPlace: puttPlace, PUTT_BANDS: PUTT_BANDS, puttGroup: puttGroup, puttStats: puttStats, makeBackup: makeBackup, parseBackup: parseBackup, mergeRounds: mergeRounds, conflictsOf: conflictsOf, PROX_LIES: PROX_LIES, lieGroup: lieGroup, proxByLie: proxByLie, proxWarnings: proxWarnings, PROX_BUCKETS: PROX_BUCKETS, inBucket: inBucket, roundYd: roundYd, proxStats: proxStats, reachedGreen: reachedGreen, PIN_GRID: PIN_GRID, PIN_NAME: PIN_NAME, normPin: normPin, DIR8: DIR8, DIR_NAME: DIR_NAME, DIR_ANGLE: DIR_ANGLE, normDir: normDir, expected: expected, expectedPGA: expectedPGA, BASELINES: BASELINES, baseline: function (id) { return BL[id] || BL.pga; },
+  var api = { SHORT_MAX_YD: SHORT_MAX_YD, APPR_BUCKETS: APPR_BUCKETS, apprBucket: apprBucket, proxAfterFt: proxAfterFt, puttKind: puttKind, threePutts: threePutts, puttScale: puttScale, puttRadius: puttRadius, puttPlace: puttPlace, PUTT_BANDS: PUTT_BANDS, puttGroup: puttGroup, puttStats: puttStats, makeBackup: makeBackup, parseBackup: parseBackup, mergeRounds: mergeRounds, conflictsOf: conflictsOf, PROX_LIES: PROX_LIES, lieGroup: lieGroup, proxByLie: proxByLie, proxWarnings: proxWarnings, PROX_BUCKETS: PROX_BUCKETS, inBucket: inBucket, roundYd: roundYd, proxStats: proxStats, reachedGreen: reachedGreen, PIN_GRID: PIN_GRID, PIN_NAME: PIN_NAME, normPin: normPin, DIR8: DIR8, DIR_NAME: DIR_NAME, DIR_ANGLE: DIR_ANGLE, normDir: normDir, expected: expected, expectedPGA: expectedPGA, BASELINES: BASELINES, baseline: function (id) { return BL[id] || BL.pga; },
     CALIB_ROUND: CALIB_ROUND, catLoss: catLoss, analyzeHole: analyzeHole, summarize: summarize,
     rowsToShots: rowsToShots, shotsToRows: shotsToRows, migrateV2Rows: migrateV2Rows, v1ToRows: v1ToRows, holeYards: holeYards,
     rowUnit: rowUnit, lieOf: lieOf, distOf: distOf, rowStrokes: rowStrokes, isPenalty: isPenalty,

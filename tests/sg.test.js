@@ -33,7 +33,7 @@ test('sample par 4: 400 yd, drive to 150 fw, approach to 20 ft, 1 putt', () => {
   assert.strictEqual(a.shots[0].hit, 250, 'drive distance 400-150');
   assert.strictEqual(a.shots[1].hit, 143, 'approach 150 - 20ft/3');
   assert.deepStrictEqual(a.shots.map(s => s.cat), ['tee', 'approach', 'putting']);
-  assert.strictEqual(a.shots[1].bucket, '150-200 yd');
+  assert.strictEqual(a.shots[1].bucket, '130-160 yd');
   assert.strictEqual(a.shots[2].bucket, '15-30 ft');
   assert.strictEqual(a.strokes, 3);
   assert.ok(a.done && a.gir && a.fairway);
@@ -63,13 +63,13 @@ test('OB is stroke and distance; water adds 1 stroke from drop', () => {
   assert.strictEqual(a.shots[0].hit, null);
 });
 
-test('par 3 tee shot = approach; short game within 30 yd', () => {
+test('par 3 tee shot = approach; short game within 20 yd', () => {
   const a = SG.analyzeHole({ par: 3, yards: 165, shots: [
     { lie: 'sand', dist: 15, side: 'L', pen: 'none' },
     { lie: 'green', dist: 4, pen: 'none' },
     { lie: 'holed', dist: 0, pen: 'none' }] });
   assert.deepStrictEqual(a.shots.map(s => s.cat), ['approach', 'short', 'putting']);
-  assert.strictEqual(a.shots[0].bucket, '150-200 yd');
+  assert.strictEqual(a.shots[0].bucket, '160-200 yd');
   assert.strictEqual(a.fairway, null);
   assert.strictEqual(a.gir, false);
 });
@@ -652,4 +652,31 @@ test('putt markers: made / missed on a 2-putt hole / missed on a 3-putt+ hole; 3
     [4, 4, 'miss3'], [4, 4, 'miss3'], [4, 4, 'miss3'], [4, 4, 'made']]);
   assert.deepStrictEqual(SG.threePutts(S.puttList), { holes: 4, three: 2 });
   assert.deepStrictEqual(SG.threePutts([]), { holes: 0, three: 0 });
+});
+
+
+test("Scott's SG split: short game <= 20 yd off the green, approach > 20 yd (par-3 tee incl.), approach buckets + proximity after", () => {
+  // bucket edges: 20 = short, 20.5/30/59 = 20-60, 60 = 60-100, 100/130/160/200 start their ranges
+  assert.deepStrictEqual([20.5, 30, 59.9, 60, 99, 100, 129, 130, 159, 160, 199, 200, 450].map(SG.apprBucket),
+    ['20-60 yd', '20-60 yd', '20-60 yd', '60-100 yd', '60-100 yd', '100-130 yd', '100-130 yd', '130-160 yd', '130-160 yd', '160-200 yd', '160-200 yd', '200+ yd', '200+ yd']);
+  const cat = (rows, par) => SG.analyzeHole({ par: par || 4, finished: true, rows }).shots.map(s => [s.cat, s.bucket]);
+  assert.deepStrictEqual(cat([R(400, 'tee'), R(150, 'fairway'), R(20, 'rough'), R(21, 'sand'), R(25, 'green'), R(1, 'holed')]).slice(1, 4),
+    [['approach', '130-160 yd'], ['short', '0-20 yd'], ['approach', '20-60 yd']], '20 yd = short game, 21 yd = approach (was short under the old 30 yd rule)');
+  assert.deepStrictEqual(cat([R(170, 'tee'), R(8, 'green'), R(1, 'holed')], 3)[0], ['approach', '160-200 yd'], 'par-3 tee shot = approach');
+  assert.deepStrictEqual(cat([R(420, 'tee'), R(200, 'fairway'), R(8, 'green'), R(1, 'holed')])[0], ['tee', 'Tee shots']);
+  const S = SG.summarize({ holes: [
+    { par: 4, finished: true, rows: [R(400, 'tee'), R(150, 'fairway'), R(20, 'green'), R(1, 'holed')] },            // 150 -> 20 ft
+    { par: 4, finished: true, rows: [R(400, 'tee'), R(140, 'fairway'), R(10, 'rough'), R(4, 'green'), R(1, 'holed')] }, // 140 -> 10 yd off = 30 ft; 10 yd chip = short
+    { par: 4, finished: true, rows: [R(400, 'tee'), R(135, 'holedx')] },                                               // holed from 135 = 0 ft
+    { par: 4, finished: true, rows: [R(400, 'tee'), R(145, 'fairway'), { dist: 145, loc: 'hazard', dir: '', pen: true }, R(12, 'green'), R(1, 'holed')] }, // 145 into hazard w/ penalty: left out; replayed 145 -> 12 ft
+    { par: 3, finished: true, rows: [R(25, 'tee'), R(6, 'green'), R(1, 'holed')] }                                       // 25 yd par-3 tee = approach 20-60
+  ] });
+  const B = S.buckets['130-160 yd'];
+  assert.deepStrictEqual([B.n, B.proxN, B.proxEx, B.proxFt], [5, 4, 1, (20 + 30 + 0 + 12) / 4]);
+  assert.deepStrictEqual([S.buckets['20-60 yd'].n, S.buckets['20-60 yd'].proxFt, S.buckets['0-20 yd'].n], [1, 6, 1]);
+  const appr = SG.APPR_BUCKETS.reduce((t, b) => t + S.buckets[b.id].n, 0);
+  assert.strictEqual(appr, S.cats.approach.n, 'approach buckets add up to the category');
+  near(SG.APPR_BUCKETS.reduce((t, b) => t + S.buckets[b.id].sg, 0), S.cats.approach.sg, 'approach bucket SG adds up');
+  assert.strictEqual(S.buckets['0-20 yd'].n, S.cats.short.n);
+  assert.deepStrictEqual([SG.proxAfterFt({ end: { lie: 'holed', dist: 0 }, penStrokes: 0 }), SG.proxAfterFt({ end: { lie: 'rough', dist: 7 }, penStrokes: 0 }), SG.proxAfterFt({ ob: true, end: { lie: 'fairway', dist: 150 }, penStrokes: 2 })], [0, 21, null]);
 });
