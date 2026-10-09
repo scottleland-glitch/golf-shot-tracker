@@ -454,13 +454,20 @@ test('pin map consistency on random rounds: badges sum = holes, hit + missed = h
 });
 
 // ---- Proximity by distance ----
-test('proximity buckets: 16 ten-yard ranges 40-200 + All; edges', () => {
-  assert.strictEqual(SG.PROX_BUCKETS.length, 17); assert.strictEqual(SG.PROX_BUCKETS[0].id, 'all');
-  assert.deepStrictEqual(SG.PROX_BUCKETS.slice(1).map(b => b.id), Array.from({ length: 16 }, (_, i) => (40 + i * 10) + '-' + (50 + i * 10)));
-  assert.ok(SG.inBucket('40-50', 40)); assert.ok(!SG.inBucket('40-50', 50)); assert.ok(SG.inBucket('50-60', 50));
-  assert.ok(SG.inBucket('190-200', 200)); assert.ok(!SG.inBucket('190-200', 201)); assert.ok(!SG.inBucket('all', 39)); assert.ok(SG.inBucket('all', 200));
-  // every yardage 40..200 is in exactly one 10-yd bucket
-  for (let y = 40; y <= 200; y += 0.5) assert.strictEqual(SG.PROX_BUCKETS.slice(1).filter(b => SG.inBucket(b.id, y)).length, 1, 'y=' + y);
+test('proximity yardages: 40..200 by nearest 10 yd (halves up), All = 40-200 after rounding', () => {
+  assert.strictEqual(SG.PROX_BUCKETS.length, 18); assert.strictEqual(SG.PROX_BUCKETS[0].id, 'all');
+  assert.deepStrictEqual(SG.PROX_BUCKETS.slice(1).map(b => b.id), Array.from({ length: 17 }, (_, i) => String(40 + i * 10)));
+  const R10 = SG.roundYd;
+  assert.deepStrictEqual([144, 145, 149.9, 154, 154.9, 155, 35, 34.9, 204.9, 205].map(R10), [140, 150, 150, 150, 150, 160, 40, 30, 200, 210]);
+  assert.ok(SG.inBucket('140', 144)); assert.ok(!SG.inBucket('140', 145)); assert.ok(SG.inBucket('150', 145));
+  assert.ok(SG.inBucket('40', 35) && SG.inBucket('all', 35)); assert.ok(!SG.inBucket('all', 34.9), '34.9 -> 30, outside');
+  assert.ok(SG.inBucket('200', 204) && SG.inBucket('all', 204)); assert.ok(!SG.inBucket('all', 205), '205 -> 210, outside');
+  assert.ok(!SG.inBucket('all', null) && !SG.inBucket('all', ''));
+  // every yardage 35..204.9 is in exactly one button; the buttons add up to All
+  for (let y = 30; y <= 210; y += 0.1) {
+    const n = SG.PROX_BUCKETS.slice(1).filter(b => SG.inBucket(b.id, y)).length;
+    assert.strictEqual(n, SG.inBucket('all', y) ? 1 : 0, 'y=' + y);
+  }
 });
 
 test('proximity: the regulation shot per hole (GIR shot or regulation miss); ft for hits, yd x3 for misses; OB excluded from averages', () => {
@@ -480,8 +487,32 @@ test('proximity: the regulation shot per hole (GIR shot or regulation miss); ft 
   const P = SG.proxStats(S.proxList.filter(m => SG.inBucket('all', m.from)));
   assert.strictEqual(P.n, 7); assert.strictEqual(P.hits, 3); near(P.avgHitFt, (12 + 20 + 0) / 3, 'avg hit'); near(P.avgAllFt, (12 + 45 + 20 + 180 + 0) / 5, 'avg all'); assert.strictEqual(P.noProx, 2);
   const B = id => S.proxList.filter(m => SG.inBucket(id, m.from)).map(m => m.hole);
-  assert.deepStrictEqual(B('140-150'), [2]); assert.deepStrictEqual(B('150-160'), [1]); assert.deepStrictEqual(B('160-170'), [6, 7]); assert.deepStrictEqual(B('180-190'), [4]); assert.deepStrictEqual(B('90-100'), [3]); assert.deepStrictEqual(B('110-120'), [5]);
+  // 145 rounds up to 150; 95 -> 100
+  assert.deepStrictEqual(B('140'), []); assert.deepStrictEqual(B('150'), [1, 2]); assert.deepStrictEqual(B('160'), [6, 7]); assert.deepStrictEqual(B('180'), [4]); assert.deepStrictEqual(B('100'), [3]); assert.deepStrictEqual(B('110'), [5]);
   assert.strictEqual(SG.PROX_BUCKETS.slice(1).reduce((n, b) => n + B(b.id).length, 0), B('all').length);
+});
+
+test('proximity yardage counts add up to All on random rounds; outside = rest', () => {
+  const pick = a => a[Math.floor(Math.random() * a.length)];
+  for (let n = 0; n < 200; n++) {
+    const hs = [];
+    for (let i = 0; i < 18; i++) {
+      const par = pick([3, 4, 4, 5]), y = par === 3 ? 100 + Math.round(Math.random() * 130) : par === 4 ? 300 + Math.round(Math.random() * 160) : 480 + Math.round(Math.random() * 100);
+      const rows = [R(y, 'tee')]; let d = y;
+      while (rows.length < 7) {
+        const loc = pick(['fairway', 'rough', 'bunker', 'green', 'green', 'holed', 'holedx']);
+        d = loc === 'green' || loc === 'holed' ? 1 + Math.round(Math.random() * 40) : Math.max(1, Math.round(d * Math.random() * 10) / 10);
+        rows.push(R(d, loc, pick(['', 'left', 'long', 'short']))); if (loc === 'holed' || loc === 'holedx') break;
+      }
+      if (!['holed', 'holedx'].includes(rows[rows.length - 1].loc)) rows.push(R(1, 'holed'));
+      hs.push({ par, finished: true, rows });
+    }
+    const S = SG.summarize({ holes: hs }), all = S.proxList.filter(m => SG.inBucket('all', m.from));
+    const sum = SG.PROX_BUCKETS.slice(1).reduce((t, b) => t + S.proxList.filter(m => SG.inBucket(b.id, m.from)).length, 0);
+    assert.strictEqual(sum, all.length);
+    assert.strictEqual(S.proxList.length - all.length, S.proxList.filter(m => SG.roundYd(m.from) < 40 || SG.roundYd(m.from) > 200).length);
+    SG.PROX_BUCKETS.slice(1).forEach(b => { const L = S.proxList.filter(m => SG.inBucket(b.id, m.from)); const P = SG.proxStats(L); assert.strictEqual(P.hits + P.misses, P.n); });
+  }
 });
 
 test("Scott's definitive rule: par-3 tee miss = miss; par-4 tee off green not a miss; par-5 2nd short not a miss; his 7-hole case 5/7 GIR = 2 misses", () => {

@@ -209,3 +209,16 @@ body.noscroll { overflow: hidden; }
 .pinstats button.has .badge { background: #000; color: #fff; border-color: #fff; }
 .pinstats button:not(.has) { opacity: .85; }
 .pingreen.pinstats { height: 460px; }
+/* v13 proximity yardage rail: 17 buttons (200 top .. 40 bottom) left of the map, map shifted right */
+.mapview .yall { display: block; width: 100%; min-height: 48px; margin: 8px 0 6px; border: 3px solid #000; border-radius: 12px; background: #fff; font-size: 18px; font-weight: 900; color: #000; }
+.mapview .yall.sel { background: #000; color: #fff; }
+.proxwrap { display: flex; gap: 6px; align-items: stretch; }
+.proxwrap svg { flex: 1 1 auto; min-width: 0; width: auto; }
+.proxrail { flex: 0 0 54px; display: flex; flex-direction: column; gap: 2px; }
+.proxrail .ybtn { flex: 1 1 0; min-height: 34px; padding: 0; border: 2px solid #000; border-radius: 8px; background: #fff; color: #000;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; line-height: 1; gap: 1px; }
+.proxrail .ybtn b { font-size: 16px; font-weight: 900; }
+.proxrail .ybtn small { font-size: 11px; font-weight: 800; color: #1e6fd9; }
+.proxrail .ybtn.sel { background: #000; color: #fff; border-color: #000; box-shadow: 0 0 0 3px #ffd23f; }
+.proxrail .ybtn.sel small { color: #ffd23f; }
+.proxrail .ybtn:disabled { background: #eee; color: #b0b0b0; border-color: #d0d0d0; }

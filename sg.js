@@ -364,13 +364,17 @@
 
   // Where a missed tee shot ended (row loc -> map category)
   var TEE_END = { rough: 'rough', deep: 'rough', bunker: 'bunker', hazard: 'hazard', trees: 'trees', ob: 'ob', sand: 'bunker', recovery: 'trees' };
-  // Proximity buckets: 10-yd ranges 40-200 (lower bound inclusive, upper exclusive; 190-200 includes 200)
-  var PROX_BUCKETS = [];
-  for (var pb = 40; pb < 200; pb += 10) PROX_BUCKETS.push({ id: pb + '-' + (pb + 10), lo: pb, hi: pb + 10, name: pb + '–' + (pb + 10) + ' yd' });
-  PROX_BUCKETS.unshift({ id: 'all', lo: 40, hi: 200, name: 'All 40–200 yd' });
+  // Proximity yardages: the regulation shot's starting distance rounded to the nearest 10 yd,
+  // halves round UP (144 -> 140, 145 -> 150, 194.9 -> 190, 195 -> 200). Targets 40, 50 ... 200 (17);
+  // shots that round outside 40-200 are left out (counted as "outside" in the view).
+  function roundYd(yd) { return Math.floor(Number(yd) / 10 + 0.5) * 10; }
+  var PROX_BUCKETS = [{ id: 'all', yd: null, name: 'All 40–200 yd' }];
+  for (var pb = 40; pb <= 200; pb += 10) PROX_BUCKETS.push({ id: String(pb), yd: pb, name: pb + ' yd (' + (pb - 5) + '–' + (pb + 4) + ')' });
   function inBucket(id, yd) {
-    var b = PROX_BUCKETS.filter(function (x) { return x.id === id; })[0] || PROX_BUCKETS[0];
-    return yd >= b.lo && (yd < b.hi || (b.hi === 200 && yd <= 200));
+    if (yd == null || yd === '' || isNaN(Number(yd))) return false;
+    var r = roundYd(yd);
+    if (id === 'all' || id == null) return r >= 40 && r <= 200;
+    return r === Number(id);
   }
   function proxStats(list) {
     var hits = list.filter(function (m) { return m.hit; }), withFt = list.filter(function (m) { return m.ft != null; });
@@ -553,7 +557,7 @@
   }
 
   calibrate();
-  var api = { PROX_BUCKETS: PROX_BUCKETS, inBucket: inBucket, proxStats: proxStats, reachedGreen: reachedGreen, PIN_GRID: PIN_GRID, PIN_NAME: PIN_NAME, normPin: normPin, DIR8: DIR8, DIR_NAME: DIR_NAME, DIR_ANGLE: DIR_ANGLE, normDir: normDir, expected: expected, expectedPGA: expectedPGA, BASELINES: BASELINES, baseline: function (id) { return BL[id] || BL.pga; },
+  var api = { PROX_BUCKETS: PROX_BUCKETS, inBucket: inBucket, roundYd: roundYd, proxStats: proxStats, reachedGreen: reachedGreen, PIN_GRID: PIN_GRID, PIN_NAME: PIN_NAME, normPin: normPin, DIR8: DIR8, DIR_NAME: DIR_NAME, DIR_ANGLE: DIR_ANGLE, normDir: normDir, expected: expected, expectedPGA: expectedPGA, BASELINES: BASELINES, baseline: function (id) { return BL[id] || BL.pga; },
     CALIB_ROUND: CALIB_ROUND, catLoss: catLoss, analyzeHole: analyzeHole, summarize: summarize,
     rowsToShots: rowsToShots, shotsToRows: shotsToRows, migrateV2Rows: migrateV2Rows, v1ToRows: v1ToRows, holeYards: holeYards,
     rowUnit: rowUnit, lieOf: lieOf, distOf: distOf, rowStrokes: rowStrokes, isPenalty: isPenalty,
