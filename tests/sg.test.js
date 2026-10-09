@@ -307,3 +307,61 @@ test('tee-shot map: par 4/5 first tee shots, fairway vs miss kind and side, dist
   assert.strictEqual(S.fwHit, 1); assert.strictEqual(S.fwTotal, 6);
   assert.strictEqual(S.teeLeft, 3, 'drive left + re-tee left + hazard left');
 });
+
+// ---- Bug fixes from Scott's real round: GIR / approach-miss rules ----
+test('par-3 tee shot followed by an "In the hole" putt row = on the green: GIR, not a miss, first putt ft', () => {
+  const S = SG.summarize({ holes: [{ par: 3, finished: true, rows: [R(165, 'tee'), R(8, 'holed')] }] });
+  assert.strictEqual(S.gir, 1); assert.strictEqual(S.apprMiss.length, 0);
+  assert.deepStrictEqual(S.girMap.map(g => [g.hole, g.ft, g.holed, g.dir]), [[1, 8, false, '']]);
+  const S2 = SG.summarize({ holes: [{ par: 3, finished: true, rows: [R(165, 'tee'), R(8, 'holed', 'shortright')] }] });
+  assert.deepStrictEqual(S2.girMap.map(g => [g.ft, g.dir]), [[8, 'shortright']]);
+});
+
+test('holing out from off the green is never an approach miss and counts as reaching the green', () => {
+  const S = SG.summarize({ holes: [
+    // eagle 2: wedge from 120 fairway holed
+    { par: 4, finished: true, rows: [R(400, 'tee'), R(120, 'holedx')] },
+    // approach finished 15 yd off, then chipped in: Scott's rule -> green reached, not a miss (par 4 in 2 -> GIR)
+    { par: 4, finished: true, rows: [R(400, 'tee'), R(120, 'fairway'), R(15, 'holedx')] },
+    // ace
+    { par: 3, finished: true, rows: [R(150, 'holedx')] },
+    // a real miss for contrast
+    { par: 4, finished: true, rows: [R(400, 'tee'), R(120, 'fairway'), R(15, 'rough'), R(4, 'green'), R(1, 'holed')] }
+  ] });
+  assert.deepStrictEqual(S.apprMiss.map(m => m.hole), [4]);
+  assert.strictEqual(S.gir, 3); assert.strictEqual(S.girHoles, 4);
+  assert.deepStrictEqual(S.girMap.map(g => [g.hole, g.holed, g.ft]), [[1, true, 0], [2, true, 0], [3, true, 0]]);
+  assert.strictEqual(S.holes[1].strokes, 3, 'scoring unchanged'); near(S.holes[1].shots[1].eEnd, SG.expected('fairway', 15), 'SG still uses the real lie');
+});
+
+test('GIR tile count always equals GIR map entries (5 GIR incl. no-direction, holed, >30 ft)', () => {
+  const holes = [
+    { par: 4, finished: true, rows: [R(400, 'tee'), R(150, 'fairway'), R(12, 'green', 'left'), R(1, 'holed')] },
+    { par: 4, finished: true, rows: [R(380, 'tee'), R(140, 'fairway'), R(20, 'green'), R(2, 'green'), R(1, 'holed')] },     // no direction
+    { par: 3, finished: true, rows: [R(170, 'tee'), R(6, 'holed')] },                                                        // putt row, no dir
+    { par: 5, finished: true, rows: [R(520, 'tee'), R(250, 'fairway'), R(90, 'fairway'), R(45, 'green'), R(4, 'green'), R(1, 'holed')] }, // >30 ft, no dir
+    { par: 4, finished: true, rows: [R(360, 'tee'), R(110, 'holedx')] },                                                     // hole-out
+    { par: 4, finished: true, rows: [R(420, 'tee'), R(180, 'rough'), R(20, 'rough', 'short'), R(5, 'green'), R(1, 'holed')] }, // not GIR
+    { par: 3, finished: true, rows: [R(190, 'tee'), R(15, 'bunker', 'left'), R(3, 'green'), R(1, 'holed')] }                   // not GIR
+  ];
+  const S = SG.summarize({ holes });
+  assert.strictEqual(S.gir, 5); assert.strictEqual(S.girHoles, 7); assert.strictEqual(S.girMap.length, S.gir);
+  assert.deepStrictEqual(S.girMap.map(g => [g.hole, g.ft, g.dir, g.holed]), [[1, 12, 'left', false], [2, 20, '', false], [3, 6, '', false], [4, 45, '', false], [5, 0, '', true]]);
+  assert.strictEqual(S.apprMiss.length, 2);
+  // random rounds: tile == map
+  for (let n = 0; n < 200; n++) {
+    const pick = a => a[Math.floor(Math.random() * a.length)];
+    const hs = [];
+    for (let i = 0; i < 18; i++) {
+      const par = pick([3, 4, 4, 5]), rows = [R(par * 120, 'tee')]; let d = par * 120;
+      while (rows.length < 7 && Math.random() < 0.8) {
+        const loc = pick(['fairway', 'rough', 'bunker', 'green', 'holed', 'holedx', 'trees']);
+        d = Math.max(1, Math.round(d * 0.4)); rows.push(R(d, loc, pick(['', 'left', 'long', 'short'])));
+        if (loc === 'holed' || loc === 'holedx') break;
+      }
+      hs.push({ par, finished: true, rows });
+    }
+    const T = SG.summarize({ holes: hs });
+    assert.strictEqual(T.girMap.length, T.gir);
+  }
+});

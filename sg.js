@@ -252,6 +252,16 @@
    * position is the shot's own start (stroke and distance) - stored lie/dist
    * are ignored.
    */
+  /**
+   * Did this shot reach the green (for GIR, approach misses and the maps)?
+   * Yes if the ball finished on the green or in the hole, or the next row is
+   * "In the hole" (a putt - so the ball was on the green) or "In the hole
+   * (chip/shot)" (Scott's rule: holing out from off the green counts as hitting it).
+   * Strokes gained is not affected (a chip-in is still valued from its real lie).
+   */
+  function reachedGreen(r) {
+    return !r.ob && (r.end.lie === 'green' || r.end.lie === 'holed' || r.loc === 'holed' || r.loc === 'holedx');
+  }
   function analyzeHole(hole, baseline) {
     var bad = null, problem = '', complete = null, finished = true, rowsFmt = !!hole.rows, nRows = 0, liveStrokes = 0;
     if (rowsFmt) {
@@ -299,7 +309,7 @@
     var gir = false, used = 0, girShot = null;
     for (var j = 0; j < out.length; j++) {
       used += 1 + out[j].penStrokes;
-      if (out[j].end.lie === 'green' || out[j].end.lie === 'holed') {
+      if (reachedGreen(out[j])) {
         gir = used <= hole.par - 2; if (gir) girShot = j; break;
       }
     }
@@ -357,7 +367,7 @@
           var dd = dirDepth(r.dir); if (dd === 'S') S.apprShort++; if (dd === 'O') S.apprOver++;
           // Approach miss = approach shot that did not finish on the green / in the hole.
           // Lay-ups are left out: ended more than 50 yd from the pin with no direction entered.
-          if (r.end.lie !== 'green' && r.end.lie !== 'holed' && (r.dir || r.ob || r.end.dist <= 50)) {
+          if (!reachedGreen(r) && (r.dir || r.ob || r.end.dist <= 50)) {
             S.apprMiss.push({ hole: hi + 1, shot: r.n, dir: r.dir, from: r.start.dist, lie: r.ob ? 'ob' : r.end.lie, dist: r.end.dist, pen: r.penStrokes > 0 });
           }
         }
@@ -369,8 +379,10 @@
       }
       if (a.gir && a.girShot != null) {
         var g = a.shots[a.girShot];
-        S.girMap.push({ hole: hi + 1, shot: g.n, par: Number(h.par), dir: g.end.lie === 'holed' ? '' : g.dir,
-          ft: g.end.lie === 'holed' ? 0 : g.end.dist, holed: g.end.lie === 'holed', from: g.start.dist, fromLie: g.start.lie });
+        // holedOut: this shot went in, or the NEXT stroke was holed from off the green (chip-in / hole-out)
+        var ho = g.end.lie === 'holed' || g.loc === 'holedx';
+        S.girMap.push({ hole: hi + 1, shot: g.n, par: Number(h.par), dir: ho ? '' : g.dir,
+          ft: ho ? 0 : g.end.dist, holed: ho, from: g.start.dist, fromLie: g.start.lie });
       }
     });
     S.toPar = S.strokes - S.par;
@@ -495,7 +507,7 @@
   }
 
   calibrate();
-  var api = { PIN_GRID: PIN_GRID, PIN_NAME: PIN_NAME, normPin: normPin, DIR8: DIR8, DIR_NAME: DIR_NAME, DIR_ANGLE: DIR_ANGLE, normDir: normDir, expected: expected, expectedPGA: expectedPGA, BASELINES: BASELINES, baseline: function (id) { return BL[id] || BL.pga; },
+  var api = { reachedGreen: reachedGreen, PIN_GRID: PIN_GRID, PIN_NAME: PIN_NAME, normPin: normPin, DIR8: DIR8, DIR_NAME: DIR_NAME, DIR_ANGLE: DIR_ANGLE, normDir: normDir, expected: expected, expectedPGA: expectedPGA, BASELINES: BASELINES, baseline: function (id) { return BL[id] || BL.pga; },
     CALIB_ROUND: CALIB_ROUND, catLoss: catLoss, analyzeHole: analyzeHole, summarize: summarize,
     rowsToShots: rowsToShots, shotsToRows: shotsToRows, migrateV2Rows: migrateV2Rows, v1ToRows: v1ToRows, holeYards: holeYards,
     rowUnit: rowUnit, lieOf: lieOf, distOf: distOf, rowStrokes: rowStrokes, isPenalty: isPenalty,

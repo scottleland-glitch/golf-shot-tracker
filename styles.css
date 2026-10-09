@@ -198,3 +198,6 @@ body.noscroll { overflow: hidden; }
 .pingreen button:nth-child(3n) { align-items: flex-start; padding-left: 8px; text-align: left; }
 .pingreen button:nth-child(-n+3) { justify-content: flex-end; padding-bottom: 14px; }
 .pingreen button:nth-child(n+7) { justify-content: flex-start; padding-top: 14px; }
+.legend .dia { display: inline-flex; align-items: center; justify-content: center; width: 16px; height: 16px; background: #c9c9c9; border: 2px solid #000; transform: rotate(45deg); flex: none; font-style: normal; font-size: 11px; font-weight: 900; }
+.legend .star { color: #ffd23f; -webkit-text-stroke: 1.5px #000; font-size: 22px; line-height: 1; width: 18px; text-align: center; }
+.mapview .legend svg { width: 20px; height: 20px; border: 0; border-radius: 0; display: inline-block; }

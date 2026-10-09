@@ -269,12 +269,19 @@ let passed = 0; const ok = (m) => { passed++; console.log('  ✓', m); };
   assert.strictEqual(await page.$eval('[data-act="mapscope"][data-v="all"]', e => e.className), 'sel', 'scope remembered');
   await act('mapscope', 'round');
   assert.match(await page.textContent('#mapsum'), /1 green in regulation this round/);
-  assert.match(await page.textContent('#dirtab'), /No direction entered \(not plotted\)1/); ok('GIR map this round: 1 GIR (no direction entered → listed, not plotted)');
+  assert.match(await page.textContent('#dirtab'), /No direction entered \(drawn as \?\)1/);
+  const nd = await page.$$eval('#girmap .gdot', gs => gs.map(g => [g.getAttribute('data-kind'), +g.getAttribute('data-x'), +g.getAttribute('data-y')]));
+  assert.deepStrictEqual(nd, [['nodir', 180, 200 - 15 * 5]]); ok('GIR map this round: 1 GIR with no direction is PLOTTED as "?" at 15 ft, straight up');
+  assert.match(await page.textContent('#mapview .legend'), /No direction entered – right distance/);
   const rings = await page.$$eval('#girmap text.ring', ts => ts.map(t => t.textContent));
   assert.deepStrictEqual(rings, ['30 ft', '25 ft', '20 ft', '15 ft', '10 ft', '5 ft']); ok('GIR map: 6 labelled rings 5–30 ft');
   await act('mapscope', 'all');
   assert.match(await page.textContent('#mapsum'), /9 greens in regulation in 3 rounds/);
-  const dots = await page.$$eval('#girmap .gdot', cs => cs.map(c => [+c.getAttribute('cx'), +c.getAttribute('cy'), c.getAttribute('fill')]));
+  const allG = await page.$$eval('#girmap .gdot', gs => gs.map(g => g.getAttribute('data-kind')));
+  const tileSum = await page.evaluate(() => window.__golf.rounds().reduce((n, r) => n + SG.summarize(r).gir, 0));
+  assert.strictEqual(tileSum, 9); assert.strictEqual(allG.length, 9); assert.deepStrictEqual(allG.filter(k => k === 'nodir').length, 2);
+  ok('all rounds: map header 9 = sum of GIR tiles 9 = 9 markers plotted (2 without direction)');
+  const dots = await page.$$eval('#girmap circle.gdot', cs => cs.map(c => [+c.getAttribute('cx'), +c.getAttribute('cy'), c.getAttribute('fill')]));
   assert.strictEqual(dots.length, 7);
   const near = (p, x, y) => Math.abs(p[0] - x) < 0.6 && Math.abs(p[1] - y) < 0.6;
   assert.ok(dots.some(p => near(p, 180, 200 + 22 * 5)), '22 ft short → straight below the hole');
@@ -351,6 +358,37 @@ let passed = 0; const ok = (m) => { passed++; console.log('  ✓', m); };
   const smallH = await page.evaluate(() => [...document.querySelectorAll('button, select, input')].filter(b => { const r = b.getBoundingClientRect(); return r.height < 44 || r.width < (b.classList.contains('c-n') ? 30 : 44); }).map(b => b.outerHTML.slice(0, 60)));
   assert.deepStrictEqual(smallH, []); ok('hole screen tap targets ≥ 44×44px (row-number buttons 30×48)');
   await noOverflow('hole'); ok('no sideways scrolling at 390px');
+  // Repro of Scott's real round: GIR tile 5/7 must show 5 markers; hole-outs are not approach misses
+  await page.evaluate(() => {
+    const R = (dist, loc, dir = '') => ({ dist, loc, dir, pen: false });
+    const holes = [
+      { par: 4, rows: [R(400, 'tee'), R(150, 'fairway'), R(12, 'green', 'longleft'), R(1, 'holed')] },
+      { par: 4, rows: [R(380, 'tee'), R(140, 'fairway'), R(20, 'green'), R(2, 'green'), R(1, 'holed')] },
+      { par: 3, rows: [R(170, 'tee'), R(6, 'holed')] },
+      { par: 5, rows: [R(520, 'tee'), R(250, 'fairway'), R(90, 'fairway'), R(18, 'green', 'right'), R(3, 'green'), R(1, 'holed')] },
+      { par: 4, rows: [R(360, 'tee'), R(110, 'holedx')] },
+      { par: 4, rows: [R(420, 'tee'), R(180, 'rough'), R(20, 'rough', 'shortleft'), R(5, 'green'), R(1, 'holed')] },
+      { par: 4, rows: [R(410, 'tee'), R(160, 'fairway'), R(12, 'holedx')] }
+    ].map(h => Object.assign(h, { finished: true }));
+    while (holes.length < 18) holes.push({ par: 4, finished: false, rows: [R('', 'tee')] });
+    const rs = JSON.parse(localStorage.getItem('golfsg.rounds.v1'));
+    rs.unshift({ v: 3, dv: 2, id: 'rscott', date: '2026-10-08T18:00:00.000Z', course: 'Repro', baseline: 'pga', holes });
+    localStorage.setItem('golfsg.rounds.v1', JSON.stringify(rs));
+  });
+  await page.reload(); await page.locator('[data-act="open"][data-id="rscott"]').click();
+  assert.match(await page.textContent('[data-act="map"][data-v="gir"]'), /^6 \/ 7/);
+  assert.match(await page.textContent('[data-act="map"][data-v="miss"]'), /^1\s*Approach misses/);
+  assert.ok(!(await page.textContent('[data-act="map"][data-v="miss"]')).includes('?'), 'no "?" misses from hole-outs');
+  ok('repro round: GIR tile 6/7; chip-in and eagle hole-out are not approach misses (1 real miss)');
+  await page.locator('[data-act="map"][data-v="gir"]').click(); await act('mapscope', 'round');
+  assert.match(await page.textContent('#mapsum'), /^6 greens in regulation this round/);
+  const kinds = await page.$$eval('#girmap .gdot', gs => gs.map(g => g.getAttribute('data-kind') + ':' + g.getAttribute('data-hole')));
+  assert.deepStrictEqual(kinds, ['dir:1', 'nodir:2', 'nodir:3', 'dir:4', 'holed:5', 'holed:7']); ok('GIR map header 6 = tile 6 = 6 markers (2 with direction, 2 "?" without, 2 ★ hole-outs: eagle + chip-in)');
+  await page.screenshot({ path: `${SHOTS}/19-gir-map-all-plotted.png` });
+  await page.locator('#mapview').evaluate(e => e.scrollTo(0, e.scrollHeight)); await page.screenshot({ path: `${SHOTS}/19b-gir-map-all-plotted-counts.png` });
+  await act('mapclose');
+  await page.locator('[data-act="map"][data-v="miss"]').click(); await act('mapscope', 'round');
+  assert.match(await page.textContent('#mapsum'), /^1 approach missed the green this round/); await act('mapclose');
   assert.deepStrictEqual(errors, []); ok('no JS console errors');
   console.log(`\nE2E: ${passed} checks passed`);
   await browser.close(); srv.kill();

@@ -382,12 +382,16 @@
     out += '<line x1="180" y1="30" x2="180" y2="370" stroke="#fff" stroke-opacity=".35"/><line x1="10" y1="200" x2="350" y2="200" stroke="#fff" stroke-opacity=".35"/>' +
       '<circle cx="180" cy="200" r="6" fill="#000"/><line x1="180" y1="200" x2="180" y2="170" stroke="#000" stroke-width="3"/><path d="M180 170 l20 6 l-20 6z" fill="#d0213a"/>';
     var seen = {};
+    // EVERY GIR is drawn. No direction entered: grey "?" diamond at the right distance, drawn straight up (angle unknown).
     list.forEach(function (m) {
-      if (!m.dir && !m.holed) return;
-      var ft = m.holed ? 0 : m.ft, far = ft > 30, rr = far ? 33 * K : ft * K;
-      var key = (m.dir || 'h') + Math.round(rr / 6), j = seen[key] = (seen[key] || 0) + 1;
-      var p = m.holed ? [C + (j - 1) * 9, CY + 12] : pt(C, CY, rr, SG.DIR_ANGLE[m.dir] + (j - 1) * 6);
-      out += '<circle class="gdot" cx="' + f1(p[0]) + '" cy="' + f1(p[1]) + '" r="8" fill="' + (far ? '#ffd23f' : '#fff') + '" stroke="#000" stroke-width="2.5"/>';
+      var ft = m.holed ? 0 : m.ft, far = ft > 30, rr = far ? 33 * K : ft * K, nodir = !m.holed && !m.dir;
+      var key = (m.holed ? 'h' : m.dir || 'none') + Math.round(rr / 6), j = seen[key] = (seen[key] || 0) + 1;
+      var p = m.holed ? [C - 14 + (j - 1) * 14, CY + 16] : pt(C, CY, rr, (nodir ? 90 : SG.DIR_ANGLE[m.dir]) + (j - 1) * (nodir ? 8 : 6));
+      var x = f1(p[0]), y = f1(p[1]), kind = m.holed ? 'holed' : nodir ? 'nodir' : 'dir';
+      if (m.holed) out += '<path class="gdot" data-kind="holed" data-hole="' + m.hole + '" d="M' + x + ' ' + (y - 10) + ' l3 6.5 7 .8 -5.3 4.8 1.5 7 -6.2 -3.6 -6.2 3.6 1.5 -7 -5.3 -4.8 7 -.8z" fill="#ffd23f" stroke="#000" stroke-width="2"/>';
+      else if (nodir) out += '<g class="gdot" data-kind="nodir" data-hole="' + m.hole + '" data-x="' + x + '" data-y="' + y + '"><path d="M' + x + ' ' + (y - 10) + ' l10 10 -10 10 -10 -10z" fill="' + (far ? '#ffd23f' : '#c9c9c9') + '" stroke="#000" stroke-width="2.5"/>' +
+        '<text x="' + x + '" y="' + f1(p[1] + 5) + '" text-anchor="middle" font-size="13" font-weight="900" fill="#000">?</text></g>';
+      else out += '<circle class="gdot" data-kind="dir" data-hole="' + m.hole + '" cx="' + x + '" cy="' + y + '" r="8" fill="' + (far ? '#ffd23f' : '#fff') + '" stroke="#000" stroke-width="2.5"/>';
       if (far) out += '<text class="farlbl" x="' + f1(p[0] + 12) + '" y="' + f1(p[1] + 5) + '" font-size="14" font-weight="900" fill="#000" stroke="#ffd23f" stroke-width="3" paint-order="stroke">' + Math.round(ft) + ' ft</text>';
     });
     out += '<text x="180" y="17" text-anchor="middle" font-size="14" font-weight="800">LONG ↑</text>' +
@@ -416,16 +420,19 @@
         girSVG(list) +
         '<div class="legend"><span><i class="dot" style="background:#fff"></i>Where the approach stopped (first-putt distance, direction vs the hole)</span>' +
         '<span><i class="dot" style="background:#ffd23f"></i>Over 30 ft – drawn at the edge, labelled with its distance</span>' +
-        '<span><i class="dot" style="background:#000"></i>Hole · white rings every 5 ft (5–30 ft)</span>' + (holed ? '<span>Holed out from off the green: ' + holed + ' (shown at the hole)</span>' : '') + '</div>' +
+        '<span><svg width="20" height="20" viewBox="0 0 20 20" style="flex:none"><path d="M10 1 l9 9 -9 9 -9 -9z" fill="#c9c9c9" stroke="#000" stroke-width="2"/><text x="10" y="14.5" text-anchor="middle" font-size="12" font-weight="900">?</text></svg>No direction entered – right distance, drawn straight up (direction unknown)</span>' +
+        '<span><b class="star">★</b>Holed out (shot went in, or chipped/holed in from off the green)</span>' +
+        '<span><i class="dot" style="background:#000"></i>Hole · white rings every 5 ft (5–30 ft)</span></div>' +
         '<p class="help muted"><b>GIR</b> = on the green (or holed) in par − 2 strokes or fewer, penalties included (par 3: 1 shot, par 4: 2, par 5: 3). Only finished holes count. ' +
-        'Greens reached in more strokes are not shown. Bottom of the picture = short (toward you).' + (far ? '' : '') + '</p>' + dirTable(list.filter(function (m) { return !m.holed; }));
+        'Holing out from off the green counts as hitting it. Greens reached in more strokes are not shown. Bottom of the picture = short (toward you).</p>' +
+        dirTable(list.filter(function (m) { return !m.holed; })).replace('(not plotted)', '(drawn as ?)').replace('</table>', (holed ? '<tr data-dir="holed"><td>★ Holed out</td><td class="num">' + holed + '</td></tr>' : '') + '</table>');
     } else {
       out += '<p class="mapsum" id="mapsum"><b>' + list.length + '</b> approach' + (list.length === 1 ? '' : 'es') + ' missed the green' + (all ? ' in ' + D.rounds + ' round' + (D.rounds === 1 ? '' : 's') : ' this round') + '</p>' +
         missSVG(list) + '<div class="legend">' + ['rough', 'fairway', 'sand', 'hazard', 'ob', 'recovery'].map(function (l) {
           return '<span><i class="dot" style="background:' + LIE_COL[l] + '"></i>' + LIE_NAME[l] + '</span>'; }).join('') +
         '<span><i class="dot num">3</i>Misses in that direction</span></div>' +
         '<p class="help muted"><b>Approach miss</b> = an approach shot (over 30 yd from the pin, including par-3 tee shots) that did not finish on the green or in the hole. ' +
-        'Lay-ups are left out (finished more than 50 yd from the pin with no direction entered). Direction = where it missed the green (the Dir you entered on the next row). Only finished holes count. Bottom = short (toward you).</p>' + dirTable(list);
+        'Holing out (from anywhere) counts as hitting the green, so it is never a miss. Lay-ups are left out (finished more than 50 yd from the pin with no direction entered). Direction = where it missed the green (the Dir you entered on the next row). Only finished holes count. Bottom = short (toward you).</p>' + dirTable(list);
     }
     return out + '<button class="big" data-act="mapclose">Close</button></div>';
   }
