@@ -1,0 +1,55 @@
+const { chromium } = require('playwright-core'); const assert = require('assert'); const { spawn } = require('child_process');
+const BASE = process.env.BASE_URL || 'http://127.0.0.1:8765/', SHOTS = process.env.SHOTS || '/tmp/shots-v15f';
+(async () => {
+  const srv = process.env.NO_SERVER ? null : spawn('python3', ['-m', 'http.server', '8765', '--bind', '127.0.0.1'], { cwd: '/workspace/golf-app', stdio: 'ignore' });
+  await new Promise(r => setTimeout(r, 1500));
+  const browser = await chromium.launch({ executablePath: '/usr/bin/google-chrome', args: ['--no-sandbox'], timeout: 600000 });
+  const page = await (await browser.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 1, isMobile: true, hasTouch: true })).newPage();
+  page.setDefaultTimeout(120000); const errors = []; page.on('pageerror', e => errors.push(String(e))); page.on('dialog', d => d.accept());
+  await page.goto(BASE + '?x=' + Date.now());
+  await page.evaluate(() => {
+    const R = (dist, loc) => ({ dist, loc, dir: '', pen: false });
+    const H = (par, yds, n) => ({ par, finished: true, rows: [R(yds, 'tee')].concat(Array.from({ length: n - 2 }, () => R(6, 'green')), [R(1, 'holed')]) });
+    const pars = [4, 4, 3, 5, 4, 3, 4, 5, 4, 4, 4, 3, 5, 4, 4, 3, 5, 4], yds = [410, 385, 165, 530, 445, 190, 372, 515, 428, 402, 360, 178, 545, 390, 415, 155, 560, 440];
+    const sc = [4, 3, 3, 3, 6, 5, 4, 6, 7, 2, 4, 3, 5, 4, 5, 3, 5, null];
+    const holes = pars.map((p, i) => sc[i] == null ? { par: p, finished: false, rows: [R(yds[i], 'tee'), R(150, 'fairway')] } : H(p, yds[i], sc[i]));
+    localStorage.setItem('golfsg.rounds.v1', JSON.stringify([{ v: 3, dv: 2, id: 'rcard', date: '2026-10-09T14:00:00.000Z', course: 'Card test', baseline: 'pga', holes },
+      { v: 3, dv: 2, id: 'rold', date: '2026-10-01T14:00:00.000Z', course: 'Older', baseline: 'pga', holes: [H(4, 400, 5)] }]));
+  });
+  await page.reload();
+  await page.click('[data-act="history"]'); await page.waitForSelector('#histlist');
+  assert.deepStrictEqual(await page.$$eval('#histlist .hrow', r => r.map(x => x.getAttribute('data-id'))), ['rcard', 'rold']);
+  await page.screenshot({ path: SHOTS + '/34-history.png' });
+  await page.click('#histlist [data-act="open"][data-id="rcard"]');
+  const marks = await page.$$eval('.scard tr.sscore td:not(.tot)', tds => tds.map(t => (t.querySelector('.mk') ? t.querySelector('.mk').getAttribute('data-mark') + ':' + t.textContent : 'blank')));
+  assert.deepStrictEqual(marks, ['par:4', 'birdie:3', 'par:3', 'eagle:3', 'double:6', 'double:5', 'par:4', 'bogey:6', 'double:7', 'eagle:2', 'par:4', 'par:3', 'par:5', 'par:4', 'bogey:5', 'par:3', 'par:5', 'blank']);
+  const t = async (id, row) => page.textContent(`#${id} tr.${row} td.tot`);
+  assert.deepStrictEqual([await t('card-front', 'shole'), await t('card-front', 'spar'), await t('card-front', 'sscore'), await t('card-back', 'shole'), await t('card-back', 'spar'), await t('card-back', 'sscore')], ['OUT', '36', '41', 'IN', '36', '31']);
+  const trow = await page.$$eval('#card-total tr:nth-child(2) td', ts => ts.map(x => x.textContent));
+  assert.deepStrictEqual(trow.slice(0, 5), ['17/18 holes', '6885', '72', '72', '+4']);
+  const fit = await page.evaluate(() => ({ docW: document.documentElement.scrollWidth, r: ['card-front', 'card-back', 'card-total'].map(id => document.getElementById(id).getBoundingClientRect().right), h: Math.min(...[...document.querySelectorAll('#card-front tr.sscore .hc')].map(b => b.getBoundingClientRect().height)) }));
+  assert.ok(fit.docW <= 390 && fit.r.every(x => x <= 390), JSON.stringify(fit)); assert.ok(fit.h >= 44, 'cell h ' + fit.h);
+  assert.match(await page.textContent('.topbar'), /‹ History/);
+  await page.locator('#card-front').scrollIntoViewIfNeeded(); await page.evaluate(() => window.scrollBy(0, -56));
+  await page.screenshot({ path: SHOTS + '/33-scorecard.png' });
+  await page.click('#card-back tr.sscore [data-act="goHole"][data-i="12"]'); assert.match(await page.textContent('.hc-head'), /Hole 13/);
+  await page.locator('[data-act="summary"]').first().click(); await page.click('.topbar [data-act="history"]'); await page.waitForSelector('#histlist');
+  console.log('✓ scorecard: marks, OUT/IN/TOTAL, fits 390 (cells ' + fit.h.toFixed(0) + 'px), tap opens hole; History newest first, ‹ History back');
+  // backup (download fallback) + restore
+  await page.click('[data-act="home"]');
+  assert.match(await page.textContent('#bkremind'), /haven't backed up/);
+  const [dl] = await Promise.all([page.waitForEvent('download'), page.click('[data-act="backup"]')]);
+  assert.match(dl.suggestedFilename(), /^golf-rounds-backup-\d{4}-\d\d-\d\d\.json$/);
+  const bk = JSON.parse(require('fs').readFileSync(await dl.path(), 'utf8')); assert.strictEqual(bk.rounds.length, 2);
+  await page.waitForSelector('#notice'); assert.strictEqual(await page.locator('#bkremind').count(), 0);
+  bk.rounds[1].course = 'Older (edited)'; bk.rounds.push({ id: 'rnew', date: '2026-09-01T10:00:00.000Z', course: 'New', baseline: 'pga', v: 3, dv: 2, holes: [{ par: 4, finished: false, rows: [{ dist: 400, loc: 'tee', dir: '', pen: false }] }] });
+  await page.setInputFiles('#restorefile', { name: 'b.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(bk)) });
+  await page.waitForFunction(() => /Restored/.test((document.getElementById('notice') || {}).textContent || ''));
+  assert.strictEqual(await page.textContent('#notice'), '✓ Restored from backup: 1 added, 1 replaced, 1 already here. You now have 3 rounds.');
+  await page.screenshot({ path: SHOTS + '/36-restore-success.png' });
+  console.log('✓ backup ' + dl.suggestedFilename() + ' (2 rounds); restore: 1 added, 1 replaced (asked), 1 already here');
+  await page.click('[data-act="history"]'); await page.click('#histlist [data-act="delHist"][data-id="rnew"]'); assert.strictEqual(await page.locator('#histlist .hrow').count(), 2);
+  console.log('✓ delete from History');
+  assert.deepStrictEqual(errors, []); console.log('FOCUSED OK');
+  await browser.close(); if (srv) srv.kill();
+})().catch(e => { console.error('FAIL', e.message); process.exit(1); });

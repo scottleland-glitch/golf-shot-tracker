@@ -235,3 +235,43 @@ body.noscroll { overflow: hidden; }
 .lietab tr.warn td { background: #ffe1e4; color: #9b0016; font-weight: 900; }
 .warnmsg { margin: 8px 0; padding: 10px 12px; border: 3px solid #e0102a; border-radius: 12px; background: #ffe1e4; color: #9b0016; font-weight: 900; font-size: 16px; }
 .legend .sw { display: inline-block; width: 22px; height: 14px; border-radius: 3px; flex: none; }
+/* v15 traditional scorecard: Front 9 / Back 9 tables (OUT / IN), TOTAL, score marks */
+.scard { width: 100%; table-layout: fixed; border-collapse: collapse; margin: 6px 0 12px; border: 3px solid #000; font-variant-numeric: tabular-nums; }
+.scard caption { text-align: left; font-weight: 900; font-size: 17px; padding: 2px 0 4px; }
+.scard th, .scard td { border: 1px solid #000; padding: 0; text-align: center; vertical-align: middle; }
+.scard th[scope="row"] { width: 50px; font-size: 13px; font-weight: 900; text-align: left; padding-left: 4px; background: #f2f2f2; }
+.scard td.tot { width: 44px; font-weight: 900; font-size: 15px; background: #f2f2f2; }
+.scard tr.shole td, .scard tr.shole th { background: #000; color: #fff; }
+.scard tr.shole td.tot { background: #000; color: #fff; }
+.scard .hc { display: flex; align-items: center; justify-content: center; width: 100%; min-height: 32px; height: 100%; padding: 0; border: 0; border-radius: 0; background: transparent; font-size: 14px; font-weight: 800; color: inherit; }
+.scard tr.shole .hc { font-size: 16px; font-weight: 900; }
+.scard tr.syds .hc { font-size: 11px; font-weight: 700; color: #333; min-height: 28px; }
+.scard tr.syds td.tot { font-size: 12px; }
+.scard tr.spar .hc { font-size: 16px; }
+.scard tr.sscore .hc { min-height: 46px; }
+.scard tr.sscore td.tot { font-size: 20px; }
+.scard tr.sputts .hc { font-size: 14px; color: #1e3f99; }
+.scard td.cur { box-shadow: inset 0 0 0 3px #ffd23f; }
+.mk { display: inline-flex; align-items: center; justify-content: center; width: 26px; height: 26px; font-size: 18px; font-weight: 900; line-height: 1; box-sizing: border-box; }
+.mk-birdie { border: 2px solid #000; border-radius: 50%; }
+.mk-eagle { border: 2px solid #000; border-radius: 50%; box-shadow: inset 0 0 0 2px #fff, inset 0 0 0 4px #000; width: 28px; height: 28px; font-size: 15px; }
+.mk-bogey { border: 2px solid #000; border-radius: 2px; }
+.mk-double { border: 2px solid #000; border-radius: 2px; box-shadow: inset 0 0 0 2px #fff, inset 0 0 0 4px #000; width: 28px; height: 28px; font-size: 15px; }
+.scard.stotal th { background: #000; color: #fff; font-size: 13px; padding: 6px 2px; }
+.scard.stotal td { font-size: 15px; font-weight: 800; padding: 8px 2px; }
+.scard.stotal td.big { font-size: 24px; font-weight: 900; }
+.sclegend { display: flex; flex-wrap: wrap; gap: 6px 14px; margin: 0 0 12px; font-size: 15px; }
+.sclegend > span { display: inline-flex; align-items: center; gap: 6px; }
+/* v15 History, backup / restore */
+.histbtn { font-size: 26px; font-weight: 900; background: #fff; border-width: 4px; }
+.histbtn small { font-size: 15px; font-weight: 700; }
+.filebtn { display: flex; align-items: center; justify-content: center; width: 100%; min-height: 66px; margin: 6px 0; border: 3px solid var(--line); border-radius: 12px; background: #fff; font-size: 22px; font-weight: 800; cursor: pointer; box-sizing: border-box; }
+.notice { padding: 12px; border-radius: 12px; border: 3px solid #000; font-weight: 800; font-size: 17px; margin: 8px 0; }
+.notice.good { background: #d6f5dc; border-color: #0a7a2a; color: #064d1a; }
+.notice.bad { background: #ffe1e4; border-color: #e0102a; color: #9b0016; }
+.notice.remind { background: #fff6cc; border-color: #b38f00; color: #5c4700; }
+.hrow { display: flex; gap: 6px; align-items: stretch; margin: 6px 0; }
+.hrow .hist { flex: 1 1 auto; margin: 0; min-width: 0; }
+.hrow .hscore { text-align: right; }
+.hrow .hdel { flex: 0 0 52px; padding: 0; font-size: 22px; border-color: var(--red); }
+.tbspace { width: 60px; }

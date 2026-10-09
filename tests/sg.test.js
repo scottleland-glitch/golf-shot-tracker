@@ -582,3 +582,23 @@ test('proximity practice warning: >= 3 shots and 0% or 30+ points below the fair
   assert.deepStrictEqual(SG.proxWarnings([row('fairway', 0, 0), row('sand', 3, 0), row('rough', 3, 0)]).map(w => w.id).sort(), ['rough', 'sand']);
   assert.match(SG.proxWarnings([row('tee', 3, 0)])[0].text, /^From the tee \(par 3s\) you've missed 3 of 3/);
 });
+
+// ---- Backup / restore ----
+test('backup file + restore merge by id: add new, skip identical, conflicts only replaced when asked, no duplicates', () => {
+  const r = (id, course, date) => ({ id, course, date, holes: [{ par: 4, rows: [] }] });
+  const phone = [r('a', 'A', '2026-10-01'), r('b', 'B', '2026-10-02')];
+  const bk = SG.makeBackup(phone, new Date('2026-10-09T15:00:00Z'));
+  assert.strictEqual(bk.kind, 'rounds-backup'); assert.strictEqual(bk.count, 2); assert.strictEqual(bk.exported, '2026-10-09T15:00:00.000Z');
+  const P = SG.parseBackup(JSON.stringify({ ...bk, rounds: [r('a', 'A', '2026-10-01'), r('b', 'B (other phone)', '2026-10-02'), r('c', 'C', '2026-10-03'), r('c', 'C dup', '2026-10-03'), { nope: 1 }] }));
+  assert.strictEqual(P.rounds.length, 4); assert.strictEqual(P.skipped, 1);
+  assert.deepStrictEqual(SG.conflictsOf(phone, P.rounds).map(x => x.id), ['b']);
+  let M = SG.mergeRounds(phone, P.rounds, false);
+  assert.deepStrictEqual([M.added, M.replaced, M.same, M.kept], [1, 0, 1, 1]); assert.deepStrictEqual(M.rounds.map(x => x.id + ':' + x.course), ['a:A', 'b:B', 'c:C']);
+  M = SG.mergeRounds(phone, P.rounds, true);
+  assert.deepStrictEqual([M.added, M.replaced, M.same, M.kept], [1, 1, 1, 0]); assert.deepStrictEqual(M.rounds.map(x => x.id + ':' + x.course), ['a:A', 'b:B (other phone)', 'c:C']);
+  assert.strictEqual(phone[1].course, 'B', 'input not mutated');
+  M = SG.mergeRounds(M.rounds, P.rounds, true); assert.strictEqual(M.rounds.length, 3, 'restoring twice adds nothing');
+  assert.deepStrictEqual(SG.parseBackup([r('z', 'Z')]).rounds.map(x => x.id), ['z'], 'a bare array of rounds is accepted');
+  assert.match(SG.parseBackup('not json').error, /not a golf backup/); assert.match(SG.parseBackup({ hello: 1 }).error, /not a golf backup/);
+  assert.match(SG.parseBackup({ rounds: [{ x: 1 }] }).error, /not a golf backup/);
+});

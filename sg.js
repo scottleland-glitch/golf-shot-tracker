@@ -580,7 +580,46 @@
   }
 
   calibrate();
-  var api = { PROX_LIES: PROX_LIES, lieGroup: lieGroup, proxByLie: proxByLie, proxWarnings: proxWarnings, PROX_BUCKETS: PROX_BUCKETS, inBucket: inBucket, roundYd: roundYd, proxStats: proxStats, reachedGreen: reachedGreen, PIN_GRID: PIN_GRID, PIN_NAME: PIN_NAME, normPin: normPin, DIR8: DIR8, DIR_NAME: DIR_NAME, DIR_ANGLE: DIR_ANGLE, normDir: normDir, expected: expected, expectedPGA: expectedPGA, BASELINES: BASELINES, baseline: function (id) { return BL[id] || BL.pga; },
+  /* ===================== BACKUP / RESTORE ===================== */
+  // Backup file: { app: 'golf-shot-tracker', kind: 'rounds-backup', version: 1, exported: ISO, rounds: [...] }
+  function makeBackup(rounds, now) {
+    return { app: 'golf-shot-tracker', kind: 'rounds-backup', version: 1, exported: (now || new Date()).toISOString(), count: rounds.length, rounds: rounds };
+  }
+  // Accepts a backup object (or a bare array of rounds). Returns {rounds} or {error}.
+  function parseBackup(data) {
+    if (typeof data === 'string') { try { data = JSON.parse(data); } catch (e) { return { error: 'That file is not a golf backup (could not read it as JSON).' }; } }
+    var list = Array.isArray(data) ? data : data && Array.isArray(data.rounds) ? data.rounds : null;
+    if (!list) return { error: 'That file is not a golf backup (no rounds in it).' };
+    var ok = list.filter(function (r) { return r && typeof r.id === 'string' && r.id && Array.isArray(r.holes); });
+    if (list.length && !ok.length) return { error: 'That file is not a golf backup (the rounds in it are not readable).' };
+    return { rounds: ok, skipped: list.length - ok.length };
+  }
+  /**
+   * Merge backup rounds into the phone's rounds by id. New ids are added, identical rounds are left
+   * alone, and rounds whose id exists with different content are conflicts: replaced only when
+   * replaceConflicts is true. Never creates duplicates. New rounds are appended (History sorts by date).
+   */
+  function mergeRounds(existing, incoming, replaceConflicts) {
+    var byId = {}, out = existing.slice(), res = { added: 0, replaced: 0, same: 0, kept: 0, conflicts: [] };
+    out.forEach(function (r, i) { byId[r.id] = i; });
+    var seen = {};
+    incoming.forEach(function (r) {
+      if (seen[r.id]) return; seen[r.id] = 1;
+      if (byId[r.id] == null) { byId[r.id] = out.length; out.push(r); res.added++; return; }
+      var cur = out[byId[r.id]];
+      if (JSON.stringify(cur) === JSON.stringify(r)) { res.same++; return; }
+      res.conflicts.push(r.id);
+      if (replaceConflicts) { out[byId[r.id]] = r; res.replaced++; } else res.kept++;
+    });
+    res.rounds = out;
+    return res;
+  }
+  function conflictsOf(existing, incoming) {
+    var byId = {}; existing.forEach(function (r) { byId[r.id] = r; });
+    return incoming.filter(function (r) { return byId[r.id] && JSON.stringify(byId[r.id]) !== JSON.stringify(r); });
+  }
+
+  var api = { makeBackup: makeBackup, parseBackup: parseBackup, mergeRounds: mergeRounds, conflictsOf: conflictsOf, PROX_LIES: PROX_LIES, lieGroup: lieGroup, proxByLie: proxByLie, proxWarnings: proxWarnings, PROX_BUCKETS: PROX_BUCKETS, inBucket: inBucket, roundYd: roundYd, proxStats: proxStats, reachedGreen: reachedGreen, PIN_GRID: PIN_GRID, PIN_NAME: PIN_NAME, normPin: normPin, DIR8: DIR8, DIR_NAME: DIR_NAME, DIR_ANGLE: DIR_ANGLE, normDir: normDir, expected: expected, expectedPGA: expectedPGA, BASELINES: BASELINES, baseline: function (id) { return BL[id] || BL.pga; },
     CALIB_ROUND: CALIB_ROUND, catLoss: catLoss, analyzeHole: analyzeHole, summarize: summarize,
     rowsToShots: rowsToShots, shotsToRows: shotsToRows, migrateV2Rows: migrateV2Rows, v1ToRows: v1ToRows, holeYards: holeYards,
     rowUnit: rowUnit, lieOf: lieOf, distOf: distOf, rowStrokes: rowStrokes, isPenalty: isPenalty,

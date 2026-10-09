@@ -87,6 +87,7 @@
     if (view.screen !== 'hole') view.pinOpen = false;
     document.body.classList.toggle('noscroll', !!(view.pinOpen && view.screen === 'hole'));
     if (view.screen === 'about') el.innerHTML = aboutHTML();
+    else if (view.screen === 'history') el.innerHTML = historyHTML();
     else if (view.screen === 'home' || !round()) el.innerHTML = homeHTML();
     else if (view.screen === 'hole') el.innerHTML = holeHTML() + (view.pinOpen ? pinHTML() : '');
     else if (view.screen === 'about') el.innerHTML = aboutHTML();
@@ -94,6 +95,59 @@
     if (view.screen !== 'hole') document.body.classList.toggle('noscroll', !!(view.map && view.screen === 'summary'));
   }
 
+  // ---------- History ----------
+  function historyHTML() {
+    var list = rounds.slice().sort(function (a, b) { return String(b.date || '').localeCompare(String(a.date || '')); });
+    var h = '<div class="topbar"><button class="txt" data-act="home">‹ Home</button><div class="title"><b>History</b><span>' + rounds.length + ' round' + (rounds.length === 1 ? '' : 's') + ', newest first</span></div><span class="tbspace"></span></div>';
+    if (!list.length) h += '<p class="muted">No rounds yet. Start one from Home.</p>';
+    h += '<div id="histlist">';
+    list.forEach(function (r) {
+      var S = SG.summarize(r);
+      h += '<div class="hrow" data-id="' + r.id + '"><button class="hist" data-act="open" data-id="' + r.id + '"><span><b>' + new Date(r.date).toLocaleDateString() + '</b>' +
+        (r.course ? '<br>' + esc(r.course) : '') + '<br><small class="muted">' + S.holesDone + ' of ' + r.holes.length + ' holes played</small></span><span class="hscore">' +
+        (S.holesDone ? '<b>' + S.strokes + '</b> (' + toPar(S.toPar) + ')' : '–') + '<br><small class="' + sgCls(S.sgTotal) + '">SG ' + fmtSG(S.sgTotal) + '</small><br><small class="muted">vs ' + esc(blName(blOf(r))) + '</small></span></button>' +
+        '<button class="hdel" data-act="delHist" data-id="' + r.id + '" aria-label="Delete round ' + esc(new Date(r.date).toLocaleDateString() + (r.course ? ' ' + r.course : '')) + '">🗑</button></div>';
+    });
+    return h + '</div>';
+  }
+  // ---------- Backup / restore ----------
+  var BK = 'golfsg.lastBackup.v1';
+  function localDay(d) { return d.getFullYear() + '-' + ('0' + (d.getMonth() + 1)).slice(-2) + '-' + ('0' + d.getDate()).slice(-2); }
+  function backupReminder() {
+    if (!rounds.length) return '';
+    var last = localStorage.getItem(BK), days = last ? Math.floor((Date.now() - new Date(last).getTime()) / 864e5) : null;
+    if (days == null) return 'Tip: you haven\'t backed up your rounds yet. Tap Back up rounds to save a copy to Files or OneDrive.';
+    return days >= 14 ? 'It\'s been ' + days + ' days since your last backup. Tap Back up rounds to save a fresh copy.' : '';
+  }
+  function backupDone() { localStorage.setItem(BK, new Date().toISOString()); view.notice = { text: 'Backup ready: ' + rounds.length + ' round' + (rounds.length === 1 ? '' : 's') + ' saved.' }; if (view.screen === 'home') render(); }
+  function backupRounds() {
+    var name = 'golf-rounds-backup-' + localDay(new Date()) + '.json', json = JSON.stringify(SG.makeBackup(rounds), null, 1), file;
+    try { file = new File([json], name, { type: 'application/json' }); } catch (e) { file = null; }
+    if (file && navigator.canShare && navigator.canShare({ files: [file] })) {
+      navigator.share({ files: [file], title: name }).then(backupDone).catch(function (e) {
+        if (e && e.name === 'AbortError') { toast('Backup cancelled'); return; }
+        download(json, name, 'application/json'); backupDone();
+      });
+      return;
+    }
+    download(json, name, 'application/json'); backupDone();
+  }
+  function restoreFrom(text) {
+    var P = SG.parseBackup(text);
+    if (P.error) { view.notice = { text: P.error, bad: true }; render(); return; }
+    var conf = SG.conflictsOf(rounds, P.rounds), replace = false;
+    if (conf.length) replace = confirm(conf.length + ' round' + (conf.length === 1 ? '' : 's') + ' in the backup ' + (conf.length === 1 ? 'is' : 'are') + ' different from the copy on this phone (' +
+      conf.slice(0, 3).map(function (r) { return new Date(r.date).toLocaleDateString() + (r.course ? ' ' + r.course : ''); }).join(', ') + (conf.length > 3 ? ', …' : '') +
+      ').\n\nOK = replace with the backup version\nCancel = keep the phone\'s version');
+    var M = SG.mergeRounds(rounds, P.rounds, replace);
+    localStorage.setItem(KEY, JSON.stringify(M.rounds)); rounds = load();
+    var parts = [M.added + ' added'];
+    if (M.replaced) parts.push(M.replaced + ' replaced');
+    if (M.kept) parts.push(M.kept + ' kept as on this phone');
+    if (M.same) parts.push(M.same + ' already here');
+    view.notice = { text: '✓ Restored from backup: ' + parts.join(', ') + '. You now have ' + rounds.length + ' round' + (rounds.length === 1 ? '' : 's') + '.' };
+    view.screen = 'home'; render(); window.scrollTo(0, 0);
+  }
   function homeHTML() {
     var cur = rounds.filter(function (r) { return r.id === localStorage.getItem(CUR); })[0];
     var h = '<h1>⛳ Golf Shot Tracker</h1><p class="muted">Track every shot. See where you gain and lose strokes.</p>';
@@ -105,14 +159,13 @@
     h += '<h2>New round</h2><input type="text" id="course" placeholder="Course name (optional)" autocomplete="off">' +
       '<label class="lbl" for="newbl">Compare my shots against</label>' + blSelect('newbl', 'pga') +
       '<button class="' + (cur ? '' : 'primary ') + 'big" data-act="new">Start new round</button>';
-    h += '<h2>Past rounds</h2>';
-    if (!rounds.length) h += '<p class="muted">No rounds yet.</p>';
-    rounds.forEach(function (r) {
-      var S = SG.summarize(r);
-      h += '<button class="hist" data-act="open" data-id="' + r.id + '"><span>' + new Date(r.date).toLocaleDateString() +
-        (r.course ? ' · ' + esc(r.course) : '') + '<br><small class="muted">' + S.holesDone + ' holes</small></span><span>' +
-        (S.holesDone ? S.strokes + ' (' + toPar(S.toPar) + ')' : '–') + '<br><small class="' + sgCls(S.sgTotal) + '">SG ' + fmtSG(S.sgTotal) + ' <span class="muted">vs ' + esc(blName(blOf(r))) + '</span></small></span></button>';
-    });
+    h += '<button class="big histbtn" data-act="history">📋 History<br><small>' + rounds.length + ' saved round' + (rounds.length === 1 ? '' : 's') + ' – review stats &amp; maps</small></button>';
+    h += '<h2>Your data</h2>';
+    if (view.notice) h += '<p class="notice ' + (view.notice.bad ? 'bad' : 'good') + '" id="notice" role="status">' + esc(view.notice.text) + '</p>';
+    var rem = backupReminder(); if (rem) h += '<p class="notice remind" id="bkremind">' + esc(rem) + '</p>';
+    h += '<button class="big" data-act="backup"' + (rounds.length ? '' : ' disabled') + '>💾 Back up rounds</button>' +
+      '<label class="big filebtn" for="restorefile">📂 Restore from backup</label><input type="file" id="restorefile" accept=".json,application/json" hidden>' +
+      '<p class="help muted">Back up saves all rounds as one file (golf-rounds-backup-date.json) – choose Save to Files or OneDrive in the share sheet. Restore adds the rounds from a backup file; rounds already on this phone are not duplicated.</p>';
     if (rounds.length) h += '<button class="big" data-act="csvall">Export all rounds (CSV)</button>';
     h += '<button class="big" data-act="about">ⓘ About the numbers</button>';
     return h;
@@ -221,19 +274,51 @@
     return '';
   }
 
+  // Traditional scorecard: Front 9 (OUT) and Back 9 (IN) as two stacked tables, then TOTAL.
+  // Marks: birdie = circle, eagle or better = double circle, bogey = square, double bogey or worse = double square, par = plain.
+  function scoreMark(score, par) {
+    var d = score - par; return d <= -2 ? 'eagle' : d === -1 ? 'birdie' : d === 0 ? 'par' : d === 1 ? 'bogey' : 'double';
+  }
+  function scorecardHTML(r, S) {
+    var sum = function (a) { return a.reduce(function (t, x) { return t + x; }, 0); };
+    var nine = function (from, to, tag, id) {
+      var idx = []; for (var i = from; i < to && i < r.holes.length; i++) idx.push(i);
+      if (!idx.length) return '';
+      var yds = idx.map(function (i) { return SG.holeYards(r.holes[i]) || 0; }), pars = idx.map(function (i) { return Number(r.holes[i].par) || 0; });
+      var done = idx.filter(function (i) { return S.holes[i].done; });
+      var cell = function (i, inner, cls) { return '<td class="' + (cls || '') + '"><button class="hc" data-act="goHole" data-i="' + i + '" aria-label="Hole ' + (i + 1) + '">' + inner + '</button></td>'; };
+      var row = function (lbl, cls, cells, tot) { return '<tr class="' + cls + '"><th scope="row">' + lbl + '</th>' + cells + '<td class="tot">' + tot + '</td></tr>'; };
+      var t = '<table class="scard" id="' + id + '"><caption>' + (tag === 'OUT' ? 'Front 9' : 'Back 9') + '</caption>';
+      t += row('Hole', 'shole', idx.map(function (i) { return cell(i, i + 1); }).join(''), tag);
+      t += row('Yds', 'syds', idx.map(function (i, k) { return cell(i, yds[k] || ''); }).join(''), sum(yds) || '');
+      t += row('Par', 'spar', idx.map(function (i, k) { return cell(i, pars[k]); }).join(''), sum(pars));
+      t += row('Score', 'sscore', idx.map(function (i) {
+        var a = S.holes[i]; if (!a.done) return cell(i, '', 'blank');
+        var m = scoreMark(a.strokes, Number(r.holes[i].par));
+        return cell(i, '<span class="mk mk-' + m + '" data-mark="' + m + '">' + a.strokes + '</span>', 'done');
+      }).join(''), done.length ? sum(done.map(function (i) { return S.holes[i].strokes; })) : '');
+      t += row('Putts', 'sputts', idx.map(function (i) { var a = S.holes[i]; return cell(i, a.done ? a.putts : '', a.done ? '' : 'blank'); }).join(''),
+        done.length ? sum(done.map(function (i) { return S.holes[i].putts; })) : '');
+      return t + '</table>';
+    };
+    var all = r.holes.map(function (h, i) { return i; }), done = all.filter(function (i) { return S.holes[i].done; });
+    var tYds = sum(r.holes.map(function (h) { return SG.holeYards(h) || 0; })), tPar = sum(r.holes.map(function (h) { return Number(h.par) || 0; }));
+    var tScore = sum(done.map(function (i) { return S.holes[i].strokes; })), tPutts = sum(done.map(function (i) { return S.holes[i].putts; }));
+    var parDone = sum(done.map(function (i) { return Number(r.holes[i].par) || 0; }));
+    return '<div class="label">Scorecard – tap a hole to edit</div>' + nine(0, 9, 'OUT', 'card-front') + nine(9, 18, 'IN', 'card-back') +
+      '<table class="scard stotal" id="card-total"><tr><th>TOTAL</th><th>Yds</th><th>Par</th><th>Score</th><th>To par</th><th>Putts</th></tr>' +
+      '<tr><td>' + done.length + '/' + r.holes.length + ' holes</td><td>' + (tYds || '') + '</td><td>' + tPar + '</td><td class="big">' + (done.length ? tScore : '–') + '</td><td class="big" id="card-topar">' +
+      (done.length ? toPar(tScore - parDone) : '–') + '</td><td>' + (done.length ? tPutts : '–') + '</td></tr></table>' +
+      '<div class="legend sclegend" id="card-legend"><span><span class="mk mk-eagle">3</span>Eagle or better</span><span><span class="mk mk-birdie">3</span>Birdie</span><span><span class="mk mk-par">4</span>Par</span>' +
+      '<span><span class="mk mk-bogey">5</span>Bogey</span><span><span class="mk mk-double">6</span>Double bogey or worse</span><span>Blank = hole not finished. To par counts finished holes only.</span></div>';
+  }
   function summaryHTML() {
     var r = round(), bl = blOf(r), S = SG.summarize(r, bl);
-    var out = '<div class="topbar"><button class="txt" data-act="backHole">‹ Round</button><div class="title"><b>Round stats</b><span>' +
+    var out = '<div class="topbar">' + (view.from === 'history' ? '<button class="txt" data-act="history">‹ History</button>' : '<button class="txt" data-act="backHole">‹ Round</button>') + '<div class="title"><b>Round stats</b><span>' +
       new Date(r.date).toLocaleDateString() + (r.course ? ' · ' + esc(r.course) : '') + '</span></div><button class="txt" data-act="home">Home</button></div>';
     out += '<div class="big-score"><div class="s">' + (S.holesDone ? S.strokes : '–') + '</div>' +
       (S.holesDone ? toPar(S.toPar) + ' vs par · ' + S.holesDone + ' hole' + (S.holesDone === 1 ? '' : 's') + ' done' : 'No holes finished yet') + '</div>';
-    out += '<div class="label">Scorecard – tap a hole to edit</div><div class="card">';
-    r.holes.forEach(function (h, i) {
-      var a = S.holes[i], cls = 'empty', txt = '·';
-      if (started(h)) { txt = a.done ? a.strokes : SG.rowStrokes(h.rows) + '…'; cls = !a.done ? '' : a.strokes < h.par ? 'under' : a.strokes > h.par ? 'over' : ''; }
-      out += '<button class="' + cls + '" data-act="goHole" data-i="' + i + '">' + (i + 1) + ' · P' + h.par + '<b>' + txt + '</b></button>';
-    });
-    out += '</div>';
+    out += scorecardHTML(r, S);
     var B = SG.baseline(bl);
     out += '<h2>Strokes gained: <span class="' + sgCls(S.sgTotal) + '" id="sgtotal">' + fmtSG(S.sgTotal) + '</span></h2>' +
       '<div class="blbox"><label class="lbl" for="sumbl">Baseline – compared with</label>' + blSelect('sumbl', bl) +
@@ -814,11 +899,11 @@
     }
     download(csv, name);
   }
-  function download(csv, name) {
-    var url = URL.createObjectURL(new Blob([csv], { type: 'text/csv' }));
+  function download(csv, name, type) {
+    var url = URL.createObjectURL(new Blob([csv], { type: type || 'text/csv' }));
     var a = document.createElement('a'); a.href = url; a.download = name; document.body.appendChild(a); a.click();
     setTimeout(function () { URL.revokeObjectURL(url); a.remove(); }, 4000);
-    toast('CSV downloaded');
+    toast(/\.json$/.test(name) ? 'Backup downloaded' : 'CSV downloaded');
   }
   function fileName(r) { return 'golf-' + (r ? localDate(r.date) + (r.course ? '-' + r.course.replace(/[^a-z0-9]+/gi, '-') : '') : 'all-rounds') + '.csv'; }
 
@@ -833,10 +918,19 @@
     var act = b.getAttribute('data-act'), v = b.getAttribute('data-v'), k = +b.getAttribute('data-k');
     var r = round(), h = r && r.holes[view.hole];
     switch (act) {
-      case 'new': newRound(document.getElementById('course').value.trim()); return;
-      case 'resume': view.roundId = localStorage.getItem(CUR); goHole(firstOpenHole(round()), true); return;
-      case 'open': view.roundId = b.getAttribute('data-id'); view.screen = 'summary'; break;
-      case 'home': view.screen = 'home'; break;
+      case 'new': view.from = null; newRound(document.getElementById('course').value.trim()); return;
+      case 'resume': view.from = null; view.roundId = localStorage.getItem(CUR); goHole(firstOpenHole(round()), true); return;
+      case 'open': view.roundId = b.getAttribute('data-id'); view.from = view.screen === 'history' ? 'history' : null; view.screen = 'summary'; view.map = null; render(); window.scrollTo(0, 0); return;
+      case 'home': view.screen = 'home'; view.from = null; break;
+      case 'history': view.screen = 'history'; view.notice = null; render(); window.scrollTo(0, 0); return;
+      case 'backup': backupRounds(); return;
+      case 'delHist': {
+        var dr = rounds.filter(function (x) { return x.id === b.getAttribute('data-id'); })[0]; if (!dr) return;
+        if (!confirm('Delete the round from ' + new Date(dr.date).toLocaleDateString() + (dr.course ? ' (' + dr.course + ')' : '') + ' for good?')) return;
+        rounds = rounds.filter(function (x) { return x !== dr; }); save();
+        if (localStorage.getItem(CUR) === dr.id) localStorage.removeItem(CUR);
+        toast('Round deleted'); render(); return;
+      }
       case 'about': view.back = view.screen; view.screen = 'about'; render(); window.scrollTo(0, 0); return;
       case 'aboutBack': view.screen = view.back && view.back !== 'about' ? view.back : 'home'; render(); window.scrollTo(0, 0); return;
       case 'setbl': setBaseline(v); return;
@@ -859,7 +953,7 @@
         if (!confirm('Delete this round for good?')) return;
         rounds = rounds.filter(function (x) { return x !== r; }); save();
         if (localStorage.getItem(CUR) === r.id) localStorage.removeItem(CUR);
-        view.screen = 'home'; break;
+        view.screen = view.from === 'history' ? 'history' : 'home'; break;
       case 'summary': view.screen = 'summary'; render(); window.scrollTo(0, 0); return;
       case 'backHole': goHole(view.hole); return;
       case 'goHole': goHole(+b.getAttribute('data-i')); return;
@@ -897,6 +991,11 @@
     toast('Now comparing with ' + blLabel(id));
   }
   document.addEventListener('change', function (ev) {
+    if (ev.target && ev.target.id === 'restorefile') {
+      var f = ev.target.files && ev.target.files[0]; if (!f) return;
+      var rd = new FileReader(); rd.onload = function () { restoreFrom(String(rd.result)); }; rd.onerror = function () { view.notice = { text: 'Could not read that file.', bad: true }; render(); };
+      rd.readAsText(f); ev.target.value = ''; return;
+    }
     var t = ev.target, f = t.getAttribute('data-f'); if (!f) return;
     if (f === 'baseline') { if (t.id === 'sumbl') setBaseline(t.value); return; }
     var h = round().holes[view.hole], k = +t.getAttribute('data-k'), row = h.rows[k];
