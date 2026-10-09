@@ -298,7 +298,7 @@
       proxFt: ob ? null : inHole ? 0 : chipIn ? r.end.dist * 3 : hit ? r.end.dist : (onG ? r.end.dist : r.end.dist * 3),
       lie: hit ? 'green' : (ob ? 'ob' : r.loc === 'hazard' ? 'hazard' : r.end.lie === 'holed' ? 'green' : r.end.lie), dist: hit ? 0 : r.end.dist,
       yd: hit || ob ? null : (onG ? r.end.dist / 3 : r.end.dist), unit: !hit && onG ? 'ft' : 'yd',
-      from: r.start.dist, fromLie: r.start.lie, pen: r.penStrokes > 0, ob: ob };
+      from: r.start.dist, fromLie: r.start.lie, fromGroup: lieGroup(r.start.lie), fromDir: R.k > 0 ? out[R.k - 1].dir : '', pen: r.penStrokes > 0, ob: ob };
   }
   function analyzeHole(hole, baseline) {
     var bad = null, problem = '', complete = null, finished = true, rowsFmt = !!hole.rows, nRows = 0, liveStrokes = 0;
@@ -375,6 +375,29 @@
     var r = roundYd(yd);
     if (id === 'all' || id == null) return r >= 40 && r <= 200;
     return r === Number(id);
+  }
+  // Starting-lie groups for the proximity map / "By lie" table
+  var PROX_LIES = [{ id: 'fairway', name: 'Fairway' }, { id: 'rough', name: 'Rough' }, { id: 'sand', name: 'Bunker' }, { id: 'tee', name: 'Tee' }, { id: 'other', name: 'Other' }];
+  function lieGroup(lie) { return lie === 'fairway' || lie === 'tee' || lie === 'sand' ? lie : (lie === 'rough' || lie === 'deep') ? 'rough' : 'other'; }
+  function proxByLie(list) {
+    return PROX_LIES.map(function (L) { var P = proxStats(list.filter(function (m) { return m.fromGroup === L.id; })); P.id = L.id; P.name = L.name; return P; });
+  }
+  /**
+   * Practice warning: a lie with >= 3 shots whose greens-hit % is 0, or at least 30 points below
+   * the fairway's (fairway needs >= 2 shots to compare). Returns [{id, name, text}] worst first.
+   */
+  function proxWarnings(rows) {
+    var fw = rows.filter(function (r) { return r.id === 'fairway'; })[0], out = [];
+    rows.forEach(function (r) {
+      if (r.id === 'fairway' || r.n < 3) return;
+      var low = r.hits === 0 || (fw && fw.n >= 2 && fw.hitPct - r.hitPct >= 30);
+      if (!low) return;
+      var where = r.id === 'tee' ? 'From the tee (par 3s)' : r.id === 'other' ? 'From trees / other lies' : 'From the ' + r.name.toLowerCase();
+      var text = r.hits === 0 ? where + ' you\'ve missed ' + r.misses + ' of ' + r.n + ' greens — worth some practice.'
+        : where + ' you\'ve hit ' + r.hits + ' of ' + r.n + ' greens (' + Math.round(r.hitPct) + '%) vs ' + Math.round(fw.hitPct) + '% from the fairway — worth some practice.';
+      out.push({ id: r.id, name: r.name, pct: r.hitPct, text: text });
+    });
+    return out.sort(function (a, b) { return a.pct - b.pct; });
   }
   function proxStats(list) {
     var hits = list.filter(function (m) { return m.hit; }), withFt = list.filter(function (m) { return m.ft != null; });
@@ -557,7 +580,7 @@
   }
 
   calibrate();
-  var api = { PROX_BUCKETS: PROX_BUCKETS, inBucket: inBucket, roundYd: roundYd, proxStats: proxStats, reachedGreen: reachedGreen, PIN_GRID: PIN_GRID, PIN_NAME: PIN_NAME, normPin: normPin, DIR8: DIR8, DIR_NAME: DIR_NAME, DIR_ANGLE: DIR_ANGLE, normDir: normDir, expected: expected, expectedPGA: expectedPGA, BASELINES: BASELINES, baseline: function (id) { return BL[id] || BL.pga; },
+  var api = { PROX_LIES: PROX_LIES, lieGroup: lieGroup, proxByLie: proxByLie, proxWarnings: proxWarnings, PROX_BUCKETS: PROX_BUCKETS, inBucket: inBucket, roundYd: roundYd, proxStats: proxStats, reachedGreen: reachedGreen, PIN_GRID: PIN_GRID, PIN_NAME: PIN_NAME, normPin: normPin, DIR8: DIR8, DIR_NAME: DIR_NAME, DIR_ANGLE: DIR_ANGLE, normDir: normDir, expected: expected, expectedPGA: expectedPGA, BASELINES: BASELINES, baseline: function (id) { return BL[id] || BL.pga; },
     CALIB_ROUND: CALIB_ROUND, catLoss: catLoss, analyzeHole: analyzeHole, summarize: summarize,
     rowsToShots: rowsToShots, shotsToRows: shotsToRows, migrateV2Rows: migrateV2Rows, v1ToRows: v1ToRows, holeYards: holeYards,
     rowUnit: rowUnit, lieOf: lieOf, distOf: distOf, rowStrokes: rowStrokes, isPenalty: isPenalty,

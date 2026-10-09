@@ -534,17 +534,40 @@
   }
   // Proximity data for the selected yardage. Counts per yardage button (current scope) decide which
   // buttons are enabled; a selection with no shots in this scope falls back to All.
+  // Proximity data for the selected yardage + starting-lie filter. Button counts (current scope) decide
+  // which yardage / lie buttons are enabled; a selection with no shots falls back to All.
   function proxData() {
     var all = [], n = 0;
     (view.mapScope === 'all' ? rounds : [round()]).forEach(function (r) { n++; SG.summarize(r, 'pga').proxList.forEach(function (m) { all.push(m); }); });
-    var counts = {}; SG.PROX_BUCKETS.forEach(function (b) { counts[b.id] = all.filter(function (m) { return SG.inBucket(b.id, m.from); }).length; });
-    var b = view.proxB || 'all'; if (!counts[b]) b = 'all';
-    return { list: all.filter(function (m) { return SG.inBucket(b, m.from); }), rounds: n, bucket: b, counts: counts, outside: all.length - counts.all };
+    var lie = view.proxLie || 'all', b = view.proxB || 'all', counts, inB, lieCounts;
+    var byLie = function (L) { return lie === 'all' ? L : L.filter(function (m) { return m.fromGroup === lie; }); };
+    var calc = function () {
+      counts = {}; SG.PROX_BUCKETS.forEach(function (x) { counts[x.id] = byLie(all).filter(function (m) { return SG.inBucket(x.id, m.from); }).length; });
+      if (!counts[b]) b = 'all';
+      inB = all.filter(function (m) { return SG.inBucket(b, m.from); });
+      lieCounts = { all: inB.length }; SG.PROX_LIES.forEach(function (l) { lieCounts[l.id] = inB.filter(function (m) { return m.fromGroup === l.id; }).length; });
+    };
+    calc(); if (lie !== 'all' && !lieCounts[lie]) { lie = 'all'; calc(); }
+    return { list: byLie(inB), inB: inB, rounds: n, bucket: b, lie: lie, counts: counts, lieCounts: lieCounts, outside: byLie(all).length - counts.all };
   }
-  var PX = { cx: 150, cy: 250, K: 3.2, Rg: 106, W: 300, H: 620 };
+  var PX = { cx: 150, cy: 245, K: 3.2, Rg: 106, W: 300, H: 620, Z: 476 }; // Z = top of the lie strip
+  // Where the shots come from: fairway strip in the middle, rough both sides, a bunker (right),
+  // trees / other (bottom-left corner) and the tee box (par 3s) at the bottom of the fairway.
+  function lieStrip() {
+    var Z = PX.Z, H = PX.H, W = PX.W, fx0 = PX.cx - 46, fx1 = PX.cx + 46, t = function (x, y, s, a, c) { return '<text x="' + x + '" y="' + y + '" text-anchor="' + (a || 'middle') + '" font-size="10" font-weight="900" fill="' + (c || '#fff') + '" letter-spacing=".5">' + s + '</text>'; };
+    var o = '<g id="liestrip"><rect x="0" y="' + Z + '" width="' + W + '" height="' + (H - Z) + '" fill="#5f9e47"/>' +
+      '<path d="M' + (fx0 + 8) + ' ' + Z + ' L' + (fx1 - 8) + ' ' + Z + ' L' + fx1 + ' ' + H + ' L' + fx0 + ' ' + H + ' Z" fill="#9fdf86"/>';
+    for (var k = 0; k < 5; k++) o += '<rect x="' + (fx0 + 2) + '" y="' + (Z + 8 + k * 28) + '" width="' + (fx1 - fx0 - 4) + '" height="12" fill="#b3ea9e" opacity=".55"/>';
+    o += '<ellipse id="lie-sand" cx="' + (W - 50) + '" cy="' + (Z + 40) + '" rx="32" ry="15" fill="#ecd27e" stroke="#c9a94f" stroke-width="2"/>' +
+      '<rect id="lie-other" x="0" y="' + (H - 42) + '" width="62" height="42" fill="#2f6b2a"/><circle cx="14" cy="' + (H - 30) + '" r="9" fill="#1f4f1b"/><circle cx="46" cy="' + (H - 34) + '" r="10" fill="#1f4f1b"/>' +
+      '<rect id="lie-tee" x="' + (PX.cx - 22) + '" y="' + (H - 24) + '" width="44" height="15" rx="4" fill="#c9f2b8" stroke="#fff" stroke-width="2"/>' +
+      t(52, Z + 14, 'ROUGH') + t(PX.cx, Z + 14, 'FAIRWAY', 'middle', '#1d5c12') + t(W - 50, Z + 14, 'ROUGH') + t(W - 50, Z + 44, 'BUNKER', 'middle', '#7a5a10') +
+      t(31, H - 46, 'OTHER') + t(PX.cx + 26, H - 12, 'TEE', 'start', '#1d5c12') + t(4, Z - 4, '↓ toward you', 'start', '#2f6b2a') + '</g>';
+    return o;
+  }
   function proxSVG(list) {
     var out = '<svg id="proxmap" viewBox="0 0 ' + PX.W + ' ' + PX.H + '" role="img" aria-label="Approach proximity">' +
-      '<rect width="' + PX.W + '" height="' + PX.H + '" fill="#cfe8c4"/><circle cx="' + PX.cx + '" cy="' + PX.cy + '" r="' + PX.Rg + '" fill="#3da33d" stroke="#145214" stroke-width="4"/>';
+      '<rect width="' + PX.W + '" height="' + PX.H + '" fill="#cfe8c4"/>' + lieStrip() + '<circle cx="' + PX.cx + '" cy="' + PX.cy + '" r="' + PX.Rg + '" fill="#3da33d" stroke="#145214" stroke-width="4"/>';
     [30, 25, 20, 15, 10, 5].forEach(function (ft) {
       out += '<circle cx="' + PX.cx + '" cy="' + PX.cy + '" r="' + ft * PX.K + '" fill="none" stroke="#fff" stroke-width="' + (ft % 10 ? 1.3 : 2.2) + '" stroke-opacity=".85"/>' +
         '<text class="ring" x="' + f1(PX.cx + 2 + ft * PX.K * 0.707) + '" y="' + f1(PX.cy + 12 + ft * PX.K * 0.707) + '" font-size="11" font-weight="800" fill="#fff">' + ft + '</text>';
@@ -559,13 +582,27 @@
       [[0, 19], [0, -12 - h], [10 + w / 2, 4 - h / 2], [-10 - w / 2, 4 - h / 2], [0, 32], [0, -25 - h], [16 + w / 2, 16 - h / 2], [-16 - w / 2, 16 - h / 2], [0, 45], [0, -38 - h]].some(function (o) {
         var cx = Math.max(w / 2 + 2, Math.min(PX.W - w / 2 - 2, x + o[0])), ty = y + o[1], b = [cx - w / 2, ty - 10, cx + w / 2, ty - 10 + h];
         if (!best) best = [cx, ty, b];
-        if (!hit2(b)) { best = [cx, ty, b]; return true; }
+        if (!hit2(b) && b[1] >= 22 && b[3] <= PX.H - 2) { best = [cx, ty, b]; return true; }
       });
       boxes.push(best[2]); var cx = best[0], ty = best[1];
       return '<text class="xlbl" x="' + f1(cx) + '" y="' + f1(ty) + '" text-anchor="middle" font-size="11" font-weight="900" fill="' + col + '" stroke="#fff" stroke-width="3" paint-order="stroke">' + esc(t1) +
         (t2 ? '<tspan x="' + f1(cx) + '" dy="11">' + esc(t2) + '</tspan>' : '') + '</text>';
     };
-    var clampXY = function (q) { return [Math.max(14, Math.min(PX.W - 14, q[0])), Math.max(14, Math.min(PX.H - 60, q[1]))]; };
+    var clampXY = function (q) { return [Math.max(14, Math.min(PX.W - 14, q[0])), Math.max(36, Math.min(PX.Z - 12, q[1]))]; };
+    // where each tracer starts: the lie the regulation shot was hit from (see the strip below the green)
+    var sc = {}, starts = '';
+    var startAt = function (m) {
+      var g = m.fromGroup || 'other', j = sc[g] = (sc[g] || 0) + 1, sp = ((j - 1) % 5 - 2) * 9, row = Math.floor((j - 1) / 5) % 2 * 12;
+      if (g === 'fairway') return [PX.cx + sp * 1.4, PX.Z + 72 + row, g];
+      if (g === 'rough') {
+        var sd = /left$/.test(m.fromDir || '') ? -1 : /right$/.test(m.fromDir || '') ? 1 : (sc.rl || 0) <= (sc.rr || 0) ? -1 : 1; // unknown side -> the emptier side
+        if (sd < 0) sc.rl = (sc.rl || 0) + 1; else sc.rr = (sc.rr || 0) + 1;
+        return sd < 0 ? [52 + sp, PX.Z + 68 + row, 'rough-left'] : [PX.W - 50 + sp, PX.Z + 98 + row, 'rough-right'];
+      }
+      if (g === 'sand') return [PX.W - 50 + sp * 0.8, PX.Z + 40, g];
+      if (g === 'tee') return [PX.cx + sp, PX.H - 17, g];
+      return [30 + sp * 0.6, PX.H - 20 - row, g];
+    };
     list.forEach(function (m, i) {
       var col = m.hit ? '#1e6fd9' : '#e0102a', q, kind, clamped = false, label, label2 = '';
       if (m.hit) {
@@ -576,15 +613,16 @@
           label = Math.round(m.ft) + ' ft' + (m.chipIn ? ' (chip-in)' : ''); clamped = m.ft > 32;
         }
       } else if (!m.dir) {
-        q = [PX.W - 22 - (nd % 6) * 26, PX.H - 92 - Math.floor(nd / 6) * 34]; nd++; kind = 'missnodir';
+        q = [PX.W - 22 - (nd % 6) * 26, 52 + Math.floor(nd / 6) * 34]; nd++; kind = 'missnodir';
         label = m.lie === 'ob' ? 'OB' : Math.round(m.yd) + ' yd';
       } else {
         var r0 = m.ft == null ? PX.Rg + 30 : Math.max(m.ft * PX.K, PX.Rg + 14), jm = seen['m' + m.dir] = (seen['m' + m.dir] || 0) + 1;
         var raw = pt(PX.cx, PX.cy, r0, SG.DIR_ANGLE[m.dir] + (jm - 1) * 8); q = clampXY(raw); clamped = q[0] !== raw[0] || q[1] !== raw[1];
         kind = 'miss'; label = m.lie === 'ob' ? 'OB' : Math.round(m.yd) + ' yd' + (clamped ? ' ›' : ''); label2 = m.lie === 'ob' ? '' : (LN[m.lie] || m.lie);
       }
-      var x = f1(q[0]), y = f1(q[1]), ox = PX.cx + ((i * 29) % 9 - 4) * 6, oy = PX.H - 46;
-      if (kind !== 'missnodir') tr += '<path class="tracer" data-ex="' + x + '" data-ey="' + y + '" d="' + flight(ox, oy, q[0], q[1], i) + '" fill="none" stroke="' + col + '" stroke-width="2.5" stroke-opacity=".75"/>';
+      var x = f1(q[0]), y = f1(q[1]), st = startAt(m), ox = st[0], oy = st[1];
+      if (kind !== 'missnodir') tr += '<path class="tracer" data-start="' + st[2] + '" data-sx="' + f1(ox) + '" data-sy="' + f1(oy) + '" data-ex="' + x + '" data-ey="' + y + '" d="' + flight(ox, oy, q[0], q[1], i) + '" fill="none" stroke="' + col + '" stroke-width="2.5" stroke-opacity=".75"/>';
+      starts += '<circle class="xstart" data-start="' + st[2] + '" data-hole="' + m.hole + '" cx="' + f1(ox) + '" cy="' + f1(oy) + '" r="4" fill="#fff" stroke="' + col + '" stroke-width="2"/>';
       var attrs = ' class="xdot" data-kind="' + kind + '" data-hole="' + m.hole + '" data-from="' + m.from + '"' + (clamped ? ' data-clamped="1"' : '');
       if (kind === 'holed') dots += '<path' + attrs + ' d="M' + x + ' ' + (y - 10) + ' l3 6.5 7 .8 -5.3 4.8 1.5 7 -6.2 -3.6 -6.2 3.6 1.5 -7 -5.3 -4.8 7 -.8z" fill="#ffd23f" stroke="#1e6fd9" stroke-width="2"/>';
       else if (kind === 'hitnodir' || kind === 'missnodir') dots += '<g' + attrs + ' data-x="' + x + '" data-y="' + y + '"><path d="M' + x + ' ' + (y - 10) + ' l10 10 -10 10 -10 -10z" fill="' + col + '" stroke="#000" stroke-width="2"/><text x="' + x + '" y="' + (+y + 4.5) + '" text-anchor="middle" font-size="12" font-weight="900" fill="#fff">?</text></g>';
@@ -593,10 +631,9 @@
       boxes.push([q[0] - 8, q[1] - 10, q[0] + 8, q[1] + 10]);
     });
     pend.forEach(function (p) { labels += lbl(p[0], p[1], p[2], p[3], p[4]); });
-    out += tr + dots + labels + '<text x="' + PX.cx + '" y="16" text-anchor="middle" font-size="13" font-weight="800">LONG ↑</text>' +
-      '<rect x="' + (PX.cx - 30) + '" y="' + (PX.H - 50) + '" width="60" height="16" rx="4" fill="#9be08a" stroke="#fff"/><text x="' + PX.cx + '" y="' + (PX.H - 22) + '" text-anchor="middle" font-size="13" font-weight="800">YOU (shots come from here)</text>' +
+    out += tr + starts + dots + labels + '<text x="' + PX.cx + '" y="16" text-anchor="middle" font-size="13" font-weight="800">LONG ↑</text>' +
       '<text x="6" y="16" font-size="13" font-weight="800">◀ LEFT</text><text x="' + (PX.W - 6) + '" y="16" text-anchor="end" font-size="13" font-weight="800">RIGHT ▶</text>' +
-      (nd ? '<text x="' + (PX.W - 8) + '" y="' + (PX.H - 112 - Math.floor((nd - 1) / 6) * 34) + '" text-anchor="end" font-size="11" font-weight="800">missed, no direction</text>' : '');
+      (nd ? '<text x="' + (PX.W - 8) + '" y="34" text-anchor="end" font-size="11" font-weight="800">missed, no direction ↓</text>' : '');
     return out + '</svg>';
   }
   function proxHTML(all) {
@@ -609,21 +646,38 @@
     }).join('');
     var bname = D.bucket === 'all' ? 'All 40–200 yd' : D.bucket + ' yd (' + (Number(D.bucket) - 5) + '–' + (Number(D.bucket) + 4) + ')';
     var scope = all ? ' in ' + D.rounds + ' round' + (D.rounds === 1 ? '' : 's') : ' this round';
-    return '<p class="mapsum" id="mapsum"><b>' + P.n + '</b> approach' + (P.n === 1 ? '' : 'es') + ' from <b id="proxsel">' + bname + '</b>' + scope + '</p>' +
+    var LIE_NM = { all: 'All lies' }; SG.PROX_LIES.forEach(function (l) { LIE_NM[l.id] = l.name; });
+    var chips = ['all'].concat(SG.PROX_LIES.map(function (l) { return l.id; })).map(function (id) {
+      var c = D.lieCounts[id];
+      return '<button class="liebtn' + (id === D.lie ? ' sel' : '') + '" data-act="proxlie" data-v="' + id + '" data-n="' + c + '"' + (c ? '' : ' disabled') + ' aria-pressed="' + (id === D.lie) + '">' + LIE_NM[id] + ' <small>' + c + '</small></button>';
+    }).join('');
+    var rows = SG.proxByLie(D.inB), warns = SG.proxWarnings(rows), wid = {}; warns.forEach(function (w) { wid[w.id] = 1; });
+    var pct = function (r) { return r.n ? r.hits + '/' + r.n + ' (' + Math.round(r.hitPct) + '%)' : '–'; };
+    var lieTab = '<table class="dirtab lietab" id="lietab"><tr><th>Lie</th><th class="num">Shots</th><th class="num">Greens hit</th><th class="num">Avg hit</th><th class="num">Avg all</th></tr>' +
+      rows.map(function (r) { return '<tr data-lie="' + r.id + '" class="' + (wid[r.id] ? 'warn' : '') + (r.id === D.lie ? ' sel' : '') + '"><td>' + (wid[r.id] ? '⚠ ' : '') + r.name + '</td><td class="num">' + r.n + '</td><td class="num">' + pct(r) +
+        '</td><td class="num">' + fmtFt(r.avgHitFt) + '</td><td class="num">' + fmtFt(r.avgAllFt) + '</td></tr>'; }).join('') + '</table>';
+    var warnHTML = warns.map(function (w) { return '<p class="warnmsg" data-lie="' + w.id + '">⚠ ' + esc(w.text) + '</p>'; }).join('');
+    return '<p class="mapsum" id="mapsum"><b>' + P.n + '</b> approach' + (P.n === 1 ? '' : 'es') + ' from <b id="proxsel">' + bname + '</b>' + (D.lie === 'all' ? '' : ', <b id="proxliesel">' + LIE_NM[D.lie] + '</b>') + scope + '</p>' +
       '<div class="stat-grid" id="proxstats">' +
       stat('Shots', P.n) + stat('Greens hit', P.n ? P.hits + ' / ' + P.n + ' (' + Math.round(P.hitPct) + '%)' : '–') +
       stat('Avg proximity – greens hit', fmtFt(P.avgHitFt)) + stat('Avg proximity – all', fmtFt(P.avgAllFt)) + '</div>' +
+      '<div id="proxwarn">' + warnHTML + '</div>' +
+      '<div class="liechips" id="liechips" role="group" aria-label="Starting lie">' + chips + '</div>' +
       '<button class="yall' + (D.bucket === 'all' ? ' sel' : '') + '" data-act="proxb" data-v="all" data-n="' + D.counts.all + '" aria-pressed="' + (D.bucket === 'all') + '">All 40–200 yd · ' + D.counts.all + ' shot' + (D.counts.all === 1 ? '' : 's') + '</button>' +
       '<div class="proxwrap"><div class="proxrail" id="proxrail" role="group" aria-label="Approach yardage">' + rail + '</div>' + proxSVG(L) + '</div>' +
       (D.outside ? '<p class="help muted" id="proxout">' + D.outside + ' regulation shot' + (D.outside === 1 ? '' : 's') + ' from outside 40–200 yd (e.g. a par-4 tee shot that missed, or under 35 yd) not shown.</p>' : '') +
+      '<h3>By lie – ' + bname + '</h3>' + lieTab +
       '<div class="legend"><span><i class="ln" style="background:#1e6fd9"></i><i class="dot" style="background:#1e6fd9"></i>Hit the green – first-putt distance (ft) + direction from the hole</span>' +
       '<span><i class="ln" style="background:#e0102a"></i><i class="dot" style="background:#e0102a"></i>Missed the green – in the miss direction, distance to the pin at the same scale; label = yards left + lie (› = further than the picture, drawn at the edge)</span>' +
-      '<span><svg width="20" height="20" viewBox="0 0 20 20" style="flex:none"><path d="M10 1 l9 9 -9 9 -9 -9z" fill="#888" stroke="#000" stroke-width="2"/><text x="10" y="14.5" text-anchor="middle" font-size="12" font-weight="900" fill="#fff">?</text></svg>No direction entered: blue = hit (straight up at the right distance), red = miss (bottom-right corner)</span>' +
+      '<span><svg width="20" height="20" viewBox="0 0 20 20" style="flex:none"><path d="M10 1 l9 9 -9 9 -9 -9z" fill="#888" stroke="#000" stroke-width="2"/><text x="10" y="14.5" text-anchor="middle" font-size="12" font-weight="900" fill="#fff">?</text></svg>No direction entered: blue = hit (straight up at the right distance), red = miss (top-right corner)</span>' +
+      '<span><i class="dot" style="background:#fff;border:2px solid #555"></i>Where the shot was hit from (the strip under the green):</span>' +
+      '<span><i class="sw" style="background:#9fdf86"></i>Fairway (middle)</span><span><i class="sw" style="background:#5f9e47"></i>Rough – left or right side from the direction you entered for the shot before, otherwise the side with fewer shots</span>' +
+      '<span><i class="sw" style="background:#ecd27e"></i>Bunker</span><span><i class="sw" style="background:#c9f2b8;border:2px solid #9c9"></i>Tee box (par 3s)</span><span><i class="sw" style="background:#2f6b2a"></i>Trees / hazard drop / other</span>' +
       '<span><b class="star">★</b>Holed out</span><span>White rings: 5–30 ft from the hole</span></div>' +
       '<h3>Misses by direction</h3>' + dirTable(miss).replace('(not plotted)', '(drawn as ?)') +
       '<p class="help muted">One shot per hole, the same as the GIR and Approach-miss maps: the shot that reached the green in regulation (blue), or the regulation miss (red: par 3 = tee shot, par 4 = 2nd shot, par 5 = 3rd shot). ' +
       'It goes in the range it was hit from. A chip-in from 30 yd or closer right after counts as reaching the green (its proximity = the chip distance). ' +
-      'Proximity: greens hit = first-putt feet; misses = yards left × 3; OB has no proximity and is left out of the averages. Yardage buttons (200 at the top, 40 at the bottom): the distance the shot was hit from, rounded to the nearest 10 yd, halves up (144 → 140, 145 → 150), so 150 = 145 to 154 yd. Greyed-out buttons have no shots; the small number is the shot count. ' +
+      'Proximity: greens hit = first-putt feet; misses = yards left × 3; OB has no proximity and is left out of the averages. Yardage buttons (200 at the top, 40 at the bottom): the distance the shot was hit from, rounded to the nearest 10 yd, halves up (144 → 140, 145 → 150), so 150 = 145 to 154 yd. Greyed-out buttons have no shots; the small number is the shot count. Lie buttons filter the map and stats by where the shot was hit from (Rough includes deep rough; Other = trees, hazard and anything else). ⚠ = a lie with 3+ shots and no greens hit, or 30+ points worse than from the fairway. ' +
       'Only finished holes count.</p>';
   }
   // ---------- pin-location map ----------
@@ -794,6 +848,7 @@
       case 'pinset': h.pin = SG.normPin(v); save(); render(); return;
       case 'pinclear': h.pin = ''; save(); render(); return;
       case 'proxb': { var mv0 = document.getElementById('mapview'), st0 = mv0 ? mv0.scrollTop : 0; view.proxB = v; render(); var mv1 = document.getElementById('mapview'); if (mv1) mv1.scrollTop = st0; return; }
+      case 'proxlie': { var mvl = document.getElementById('mapview'), stl = mvl ? mvl.scrollTop : 0; view.proxLie = v; render(); var mvl2 = document.getElementById('mapview'); if (mvl2) mvl2.scrollTop = stl; return; }
       case 'mapscope': view.mapScope = v; render(); var mv = document.getElementById('mapview'); if (mv) mv.scrollTop = 0; return;
       case 'dirpick': view.dirk = k; view.menu = null; break;
       case 'dirclose': view.dirk = null; break;

@@ -552,3 +552,33 @@ test('fairways: only par-4 and par-5 tee shots', () => {
   ] });
   assert.strictEqual(S.fwTotal, 2); assert.strictEqual(S.fwHit, 1); assert.deepStrictEqual(S.teeMap.map(t => t.hole), [2, 3]);
 });
+
+// ---- Proximity: starting lie ----
+test('proximity starting lie: groups, side from the previous direction, by-lie stats add up', () => {
+  assert.deepStrictEqual(['fairway', 'rough', 'deep', 'sand', 'tee', 'recovery', 'hazard', 'green'].map(SG.lieGroup), ['fairway', 'rough', 'rough', 'sand', 'tee', 'other', 'other', 'other']);
+  assert.deepStrictEqual(SG.PROX_LIES.map(l => l.name), ['Fairway', 'Rough', 'Bunker', 'Tee', 'Other']);
+  const S = SG.summarize({ holes: [
+    { par: 4, finished: true, rows: [R(400, 'tee'), R(150, 'fairway'), R(12, 'green', 'left'), R(1, 'holed')] },
+    { par: 4, finished: true, rows: [R(400, 'tee'), R(150, 'rough', 'left'), R(12, 'rough', 'short'), R(3, 'green'), R(1, 'holed')] },
+    { par: 4, finished: true, rows: [R(400, 'tee'), R(160, 'deep', 'right'), R(8, 'green'), R(1, 'holed')] },
+    { par: 4, finished: true, rows: [R(400, 'tee'), R(120, 'bunker'), R(20, 'bunker', 'short'), R(3, 'green'), R(1, 'holed')] },
+    { par: 3, finished: true, rows: [R(170, 'tee'), R(20, 'green'), R(1, 'holed')] },
+    { par: 4, finished: true, rows: [R(400, 'tee'), R(140, 'trees', 'left'), R(30, 'rough', 'short'), R(5, 'green'), R(1, 'holed')] }
+  ] });
+  assert.deepStrictEqual(S.proxList.map(m => [m.hole, m.fromLie, m.fromGroup, m.fromDir]), [
+    [1, 'fairway', 'fairway', ''], [2, 'rough', 'rough', 'left'], [3, 'deep', 'rough', 'right'], [4, 'sand', 'sand', ''], [5, 'tee', 'tee', ''], [6, 'recovery', 'other', 'left']]);
+  const rows = SG.proxByLie(S.proxList);
+  assert.deepStrictEqual(rows.map(r => [r.id, r.n, r.hits]), [['fairway', 1, 1], ['rough', 2, 1], ['sand', 1, 0], ['tee', 1, 1], ['other', 1, 0]]);
+  assert.strictEqual(rows.reduce((a, r) => a + r.n, 0), S.proxList.length, 'lie rows add up to all shots');
+});
+
+test('proximity practice warning: >= 3 shots and 0% or 30+ points below the fairway', () => {
+  const row = (id, n, hits) => ({ id, name: SG.PROX_LIES.find(l => l.id === id).name, n, hits, misses: n - hits, hitPct: n ? 100 * hits / n : null });
+  assert.deepStrictEqual(SG.proxWarnings([row('fairway', 4, 3), row('rough', 4, 0)]).map(w => w.text), ["From the rough you've missed 4 of 4 greens — worth some practice."]);
+  assert.deepStrictEqual(SG.proxWarnings([row('fairway', 4, 3), row('rough', 4, 1)]).map(w => w.text), ["From the rough you've hit 1 of 4 greens (25%) vs 75% from the fairway — worth some practice."]);
+  assert.strictEqual(SG.proxWarnings([row('fairway', 4, 3), row('rough', 2, 0)]).length, 0, 'fewer than 3 shots: no warning');
+  assert.strictEqual(SG.proxWarnings([row('fairway', 4, 2), row('rough', 4, 1)]).length, 0, '50% vs 25% = 25 points: no warning');
+  assert.strictEqual(SG.proxWarnings([row('fairway', 1, 1), row('rough', 3, 1)]).length, 0, 'fairway needs 2+ shots to compare');
+  assert.deepStrictEqual(SG.proxWarnings([row('fairway', 0, 0), row('sand', 3, 0), row('rough', 3, 0)]).map(w => w.id).sort(), ['rough', 'sand']);
+  assert.match(SG.proxWarnings([row('tee', 3, 0)])[0].text, /^From the tee \(par 3s\) you've missed 3 of 3/);
+});

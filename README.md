@@ -74,3 +74,10 @@ Applies to the GIR tile + map, Approach-miss tile + map, Pin location map, Proxi
 - Exactly one entry per finished hole: GIR + misses = holes, everywhere. The old 50-yd lay-up exclusion and "shot's own result" rule are gone.
 - Fairways hit: par-4 and par-5 tee shots only.
 - Tracers on the fairway and proximity maps are drawn as gentle ball-flight arcs.
+
+## Proximity: starting lies (v14)
+- The strip under the green shows where shots come from: fairway in the middle, rough both sides, a bunker (right), the tee box (par 3s) at the bottom and a trees/other corner (bottom left). Each tracer starts (small white ring) at the lie its regulation shot was hit from. Rough shots go left/right by the direction entered for the shot before (the Dir on that row); with no left/right recorded, the side with fewer shots.
+- Lie groups: Fairway, Rough (rough + deep rough), Bunker, Tee, Other (trees, hazard, anything else).
+- Lie buttons (All lies / Fairway / Rough / Bunker / Tee / Other, with counts; empty ones greyed out) filter the map, stats, misses-by-direction and the yardage counts. Empty selections fall back to All.
+- "By lie" table for the selected yardage: shots, greens hit x/n (%), avg proximity on greens hit, avg overall.
+- Practice warning (red row + message): a lie with 3+ shots and no greens hit ("From the rough you've missed 4 of 4 greens — worth some practice."), or 30+ points below the fairway's % (fairway needs 2+ shots).

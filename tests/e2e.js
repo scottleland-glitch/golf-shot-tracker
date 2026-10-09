@@ -575,6 +575,82 @@ let passed = 0; const ok = (m) => { passed++; console.log('  ✓', m); };
   await page.locator('#mapview').evaluate(e => { const m = document.getElementById('proxmap'); e.scrollTop += m.getBoundingClientRect().top - 8; });
   await page.screenshot({ path: `${SHOTS}/28-proximity-curved-tracers.png` }); await act('mapclose');
   ok('7-hole case on every map: miss map 2, GIR map 5, pin map 5 GIR + 2 missed = 7 holes, proximity 5 blue + 2 red; tracers are curved arcs');
+  // Starting lies: fairway strip / rough / bunker / tee / other, by-lie table, practice warning, lie filter
+  await page.evaluate(() => {
+    const R = (dist, loc, dir = '') => ({ dist, loc, dir, pen: false });
+    const P4 = (lieRow, end) => ({ par: 4, finished: true, rows: [R(400, 'tee'), lieRow, end, R(1, 'holed')] });
+    const holes = [
+      P4(R(150, 'fairway'), R(10, 'green', 'left')), P4(R(145, 'fairway'), R(18, 'green', 'longright')), P4(R(140, 'fairway'), R(6, 'green', 'short')),
+      { par: 4, finished: true, rows: [R(400, 'tee'), R(150, 'fairway'), R(15, 'rough', 'right'), R(4, 'green'), R(1, 'holed')] },
+      { par: 4, finished: true, rows: [R(400, 'tee'), R(150, 'rough', 'left'), R(20, 'rough', 'short'), R(4, 'green'), R(1, 'holed')] },
+      { par: 4, finished: true, rows: [R(400, 'tee'), R(155, 'rough', 'left'), R(15, 'bunker', 'left'), R(4, 'green'), R(1, 'holed')] },
+      { par: 4, finished: true, rows: [R(400, 'tee'), R(148, 'deep', 'right'), R(25, 'rough', 'shortright'), R(4, 'green'), R(1, 'holed')] },
+      { par: 4, finished: true, rows: [R(400, 'tee'), R(152, 'rough'), R(30, 'rough', 'long'), R(4, 'green'), R(1, 'holed')] },
+      P4(R(120, 'bunker'), R(8, 'green', 'right')),
+      { par: 3, finished: true, rows: [R(160, 'tee'), R(12, 'green', 'left'), R(1, 'holed')] },
+      { par: 4, finished: true, rows: [R(400, 'tee'), R(140, 'trees', 'left'), R(25, 'rough', 'short'), R(4, 'green'), R(1, 'holed')] }
+    ];
+    while (holes.length < 18) holes.push({ par: 4, finished: false, rows: [R('', 'tee')] });
+    const rs = JSON.parse(localStorage.getItem('golfsg.rounds.v1'));
+    rs.unshift({ v: 3, dv: 2, id: 'rlie', date: '2026-10-09T02:00:00.000Z', course: 'Lie test', baseline: 'pga', holes });
+    localStorage.setItem('golfsg.rounds.v1', JSON.stringify(rs));
+  });
+  await page.reload(); await page.locator('[data-act="open"][data-id="rlie"]').click();
+  await page.locator('[data-act="map"][data-v="prox"]').click(); await page.waitForSelector('#proxmap'); await act('mapscope', 'round'); await act('proxb', 'all'); await act('proxlie', 'all');
+  const exL = await page.evaluate(() => { const L = SG.summarize(window.__golf.rounds()[0]).proxList; return { L: L.map(m => [m.hole, m.fromGroup, m.fromDir, m.hit]), rows: SG.proxByLie(L).map(r => [r.id, r.n, r.hits]) }; });
+  assert.deepStrictEqual(exL.rows, [['fairway', 4, 3], ['rough', 4, 0], ['sand', 1, 1], ['tee', 1, 1], ['other', 1, 0]]);
+  const warnT = await page.$$eval('#proxwarn .warnmsg', ps => ps.map(p => p.textContent));
+  assert.deepStrictEqual(warnT, ["⚠ From the rough you've missed 4 of 4 greens — worth some practice."]);
+  const lt = await page.$$eval('#lietab tr[data-lie]', trs => trs.map(t => [t.getAttribute('data-lie'), t.className.trim(), [...t.querySelectorAll('td')].map(d => d.textContent)]));
+  assert.deepStrictEqual(lt.map(r => r[2].slice(0, 3)), [['Fairway', '4', '3/4 (75%)'], ['⚠ Rough', '4', '0/4 (0%)'], ['Bunker', '1', '1/1 (100%)'], ['Tee', '1', '1/1 (100%)'], ['Other', '1', '0/1 (0%)']]);
+  assert.strictEqual(lt.find(r => r[0] === 'rough')[1], 'warn'); assert.strictEqual(lt.filter(r => /warn/.test(r[1])).length, 1);
+  assert.strictEqual(lt.reduce((a, r) => a + +r[2][1], 0), 11, 'by-lie shots add up to All');
+  ok('By lie table (All): Fairway 3/4 (75%), Rough 0/4 (0%) highlighted ⚠, Bunker 1/1, Tee 1/1, Other 0/1; warning "From the rough you\'ve missed 4 of 4 greens — worth some practice."');
+  // tracers start from the right lie
+  const stx = await page.$$eval('#proxmap path.tracer', ps => ps.map(p => [p.getAttribute('data-start'), +p.getAttribute('data-sx'), +p.getAttribute('data-sy')]));
+  assert.strictEqual(stx.length, 11);
+  const cntS = {}; stx.forEach(s => cntS[s[0]] = (cntS[s[0]] || 0) + 1);
+  assert.deepStrictEqual(cntS, { fairway: 4, 'rough-left': 2, 'rough-right': 2, sand: 1, tee: 1, other: 1 });
+  stx.forEach(([g, x, y]) => {
+    assert.ok(y > 476, g + ' starts in the strip under the green');
+    if (g === 'fairway') assert.ok(x > 104 && x < 196, 'fairway x ' + x);
+    if (g === 'rough-left') assert.ok(x < 100, 'rough left x ' + x);
+    if (g === 'rough-right') assert.ok(x > 200, 'rough right x ' + x);
+    if (g === 'sand') assert.ok(Math.abs(x - 250) < 30 && Math.abs(y - 516) < 12, 'bunker ' + x + ',' + y);
+    if (g === 'tee') assert.ok(Math.abs(x - 150) < 25 && y > 596, 'tee ' + x + ',' + y);
+    if (g === 'other') assert.ok(x < 62 && y > 578, 'other ' + x + ',' + y);
+  });
+  assert.strictEqual(await page.locator('#liestrip #lie-sand').count() + await page.locator('#liestrip #lie-tee').count() + await page.locator('#liestrip #lie-other').count(), 3);
+  ok('tracers start from the shot\'s lie: 4 fairway (middle strip), rough 2 left + 2 right (left/right from the previous direction, else the emptier side), bunker, tee box, trees/other corner');
+  await page.screenshot({ path: `${SHOTS}/31-proximity-lies-all.png` });
+  await page.locator('#mapview').evaluate(e => { const m = document.getElementById('proxmap'); e.scrollTop += m.getBoundingClientRect().top - 8; }); await page.screenshot({ path: `${SHOTS}/31b-proximity-lies-map.png` });
+  await page.locator('#lietab').scrollIntoViewIfNeeded(); await page.locator('#mapview').evaluate(e => { e.scrollTop += document.getElementById('lietab').getBoundingClientRect().top - 120; }); await page.screenshot({ path: `${SHOTS}/31c-proximity-by-lie-table.png` });
+  // lie chips: counts, disabled, filter
+  const chipsA = await page.$$eval('#liechips .liebtn', bs => bs.map(b => [b.getAttribute('data-v'), +b.getAttribute('data-n'), b.disabled]));
+  assert.deepStrictEqual(chipsA, [['all', 11, false], ['fairway', 4, false], ['rough', 4, false], ['sand', 1, false], ['tee', 1, false], ['other', 1, false]]);
+  const chipBox = await page.$$eval('#liechips .liebtn', bs => bs.map(b => { const r = b.getBoundingClientRect(); return [r.right, r.height]; }));
+  assert.ok(chipBox.every(c => c[0] <= 390 && c[1] >= 44), 'lie chips fit 390 wide, 44 px tall');
+  await act('proxlie', 'rough');
+  assert.match(await page.getAttribute('[data-act="proxlie"][data-v="rough"]', 'class'), /sel/);
+  assert.match(await page.textContent('#mapsum'), /^4 approaches from All 40–200 yd, Rough this round/);
+  const rk = await page.$$eval('#proxmap .xdot', ds => ds.map(d => d.getAttribute('data-kind')));
+  assert.strictEqual(rk.length, 4); assert.ok(rk.every(k => k.startsWith('miss')));
+  assert.ok((await page.$$eval('#proxmap path.tracer', ps => ps.map(p => p.getAttribute('data-start')))).every(g => g.startsWith('rough')));
+  assert.ok((await page.textContent('#proxstats')).includes('0 / 4 (0%)'));
+  const railR = await page.$$eval('#proxrail .ybtn', bs => bs.map(b => [b.getAttribute('data-v'), +b.getAttribute('data-n'), b.disabled]));
+  assert.strictEqual(railR.reduce((a, b) => a + b[1], 0), 4, 'yardage counts follow the lie filter'); railR.forEach(b => assert.strictEqual(b[2], b[1] === 0));
+  assert.deepStrictEqual(railR.filter(b => b[1]).map(b => b[0] + ':' + b[1]), ['160:1', '150:3'], '155 rounds up to 160');
+  assert.match((await page.$$eval('#lietab tr.sel', t => t.map(x => x.getAttribute('data-lie')))).join(), /^rough$/);
+  ok('Rough filter: 4 red tracers all from the rough, stats 0/4, yardage counts 160:1 + 150:3 (others greyed), Rough row marked');
+  await page.locator('#mapview').evaluate(e => e.scrollTo(0, 0)); await page.screenshot({ path: `${SHOTS}/32-proximity-rough-filter.png` });
+  // yardage + lie: tap 120 (only the bunker shot) -> the selected rough falls back to All lies
+  await act('proxlie', 'all'); await act('proxb', '120');
+  const ch120 = await page.$$eval('#liechips .liebtn', bs => bs.map(b => [b.getAttribute('data-v'), +b.getAttribute('data-n'), b.disabled]));
+  assert.deepStrictEqual(ch120, [['all', 1, false], ['fairway', 0, true], ['rough', 0, true], ['sand', 1, false], ['tee', 0, true], ['other', 0, true]]);
+  const lt120 = await page.$$eval('#lietab tr[data-lie] td:nth-child(2)', ts => ts.reduce((a, t) => a + +t.textContent, 0)); assert.strictEqual(lt120, 1);
+  assert.strictEqual(await page.locator('#proxwarn .warnmsg').count(), 0, 'no warning for 120 yd');
+  ok('120 yd: lie buttons greyed out except Bunker (1); By-lie table follows the yardage (1 shot); no warning');
+  await act('proxb', 'all'); await act('mapclose');
   assert.deepStrictEqual(errors, []); ok('no JS console errors');
   console.log(`\nE2E: ${passed} checks passed`);
   await browser.close(); srv.kill();
