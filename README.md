@@ -35,6 +35,14 @@ frontleft, frontcenter, frontright, or empty) and exported in the CSV `pin` colu
 Summary "Fairways hit" tile opens a bird's-eye fairway with every par-4/5 tee shot drawn as a tracer
 (green = fairway, red = miss; end marker = rough/bunker/hazard/trees, X = OB), with left/right counts.
 
+## Pin-location map (v8)
+Summary "Pin location" tile: a full-window 3x3 green (same grid as the pin picker) with a badge per segment
+(number of approaches on holes with the pin there, plus GIR x/y). Tap a segment: the flag is dropped there and
+every approach on those holes is drawn - white = green hit in regulation (first-putt ft + direction from the pin;
+? = no direction, star = holed out), red = missed green (off the green in the miss direction, labelled with yards
+left and where it finished). Same approach / reach-green rules as the other maps. Holes without a pin are
+excluded and counted. This round / All rounds toggle.
+
 ## Files
 - `index.html`, `styles.css`, `app.js` – the app
 - `sg.js` – strokes-gained engine + Broadie baseline tables (sources/approximations documented at top)

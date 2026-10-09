@@ -61,6 +61,10 @@ let passed = 0; const ok = (m) => { passed++; console.log('  ✓', m); };
       [4, [R(390, 'tee'), R(130, 'fairway'), R(9, 'holed', 'shortleft')]],
       [3, [R(150, 'tee'), R(15, 'green', 'right'), R(2, 'green'), R(1, 'holed')]]
     ].map(([par, rows]) => ({ par, finished: true, rows }));
+    // pin locations on some history holes (for the pin-location map)
+    Object.assign(demo[0], { pin: 'frontleft' }); Object.assign(demo[1], { pin: 'frontleft' }); Object.assign(demo[2], { pin: 'backright' });
+    Object.assign(demo[7], { pin: 'frontleft' }); Object.assign(demo[8], { pin: 'frontleft' }); Object.assign(demo[9], { pin: 'center' });
+    Object.assign(demo[12], { pin: 'frontleft' });
     while (demo.length < 18) demo.push({ par: 4, finished: false, rows: [R('', 'tee')] });
     localStorage.setItem('golfsg.rounds.v1', JSON.stringify([{ id: 'rv2', date: '2026-10-08T05:00:00.000Z', course: 'Scott v2 save', holes },
       { v: 3, id: 'rdemo', date: '2026-10-01T20:00:00.000Z', course: 'Lakeridge', baseline: 'pga', holes: demo }]));
@@ -318,6 +322,39 @@ let passed = 0; const ok = (m) => { passed++; console.log('  ✓', m); };
   await page.screenshot({ path: `${SHOTS}/18-fairway-map.png` });
   await page.locator('#mapview').evaluate(e => e.scrollTo(0, e.scrollHeight)); await page.screenshot({ path: `${SHOTS}/18b-fairway-map-counts.png` });
   await act('mapclose'); ok('fairway map closes');
+  // Pin-location map
+  assert.match(await page.textContent('[data-act="map"][data-v="pin"]'), /^1 \/ 3\s*Pin location/); ok('Pin location tile: 1 / 3 holes with a pin set');
+  await page.locator('[data-act="map"][data-v="pin"]').click(); await page.waitForSelector('#pinstats');
+  await act('mapscope', 'round');
+  assert.match(await page.textContent('#mapsum'), /1 hole with a pin set this round/); assert.match(await page.textContent('#nopin'), /2 finished holes have no pin set – not included/);
+  assert.strictEqual(await page.getAttribute('#pinstats [data-v="backright"]', 'data-n'), '1'); ok('this round: Back right badge 1, "2 finished holes have no pin set" note');
+  await act('mapscope', 'all');
+  const badges = await page.$$eval('#pinstats button', bs => Object.fromEntries(bs.map(b => [b.getAttribute('data-v'), +b.getAttribute('data-n')])));
+  assert.deepStrictEqual(badges, { backleft: 0, backcenter: 0, backright: 2, midleft: 0, center: 1, midright: 0, frontleft: 5, frontcenter: 0, frontright: 0 });
+  assert.match(await page.textContent('#pinstats [data-v="frontleft"]'), /GIR 3\/5/);
+  assert.match(await page.textContent('#mapsum'), /8 holes with a pin set in 3 rounds/); assert.match(await page.textContent('#nopin'), /10 finished holes have no pin set/);
+  ok('all rounds overview: badges ' + JSON.stringify(badges) + ', Front left GIR 3/5, 10 holes without pin noted');
+  await page.screenshot({ path: `${SHOTS}/20-pin-map-overview.png` });
+  await page.click('#pinstats [data-v="frontleft"]'); await page.waitForSelector('#pinmap');
+  assert.match(await page.textContent('#mapsum'), /Pin Front left: 5 holes in 3 rounds/);
+  assert.match(await page.textContent('#pinsum'), /GIR 3 \/ 5.*Greens hit 3.*Missed green 2/);
+  const pk = await page.$$eval('#pinmap .pdot', ds => ds.map(d => d.getAttribute('data-kind') + ':' + d.getAttribute('data-hole')));
+  assert.deepStrictEqual(pk.sort(), ['gir:13', 'gir:8', 'gir:9', 'miss:1', 'miss:2']);
+  const flag = await page.$eval('#pinflag', c => [+c.getAttribute('cx'), +c.getAttribute('cy')]);
+  assert.ok(Math.abs(flag[0] - (180 - 0.6 * 110 * 0.85)) < 0.2 && Math.abs(flag[1] - (230 + 0.62 * 140 * 0.85)) < 0.2 && flag[0] < 70 + 220 / 3 && flag[1] > 90 + 280 * 2 / 3, 'flag in the front-left segment ' + flag);
+  const g9 = await page.$eval('#pinmap .pdot[data-hole="9"]', c => [+c.getAttribute('cx'), +c.getAttribute('cy')]);
+  assert.ok(Math.abs(g9[0] - flag[0]) < 0.2 && g9[1] > flag[1] + 20, '22 ft short = straight below the pin (kept on the green)');
+  const g8 = await page.$eval('#pinmap .pdot[data-hole="8"]', c => [+c.getAttribute('cx'), +c.getAttribute('cy')]);
+  assert.ok(Math.abs(Math.hypot(g8[0] - flag[0], g8[1] - flag[1]) - 12 * 2.4) < 0.3 && g8[0] > flag[0] && g8[1] < flag[1], '12 ft long right = up-right of the pin at 12 ft');
+  const m2 = await page.$eval('#pinmap .pdot[data-hole="2"]', c => +c.getAttribute('cx')); assert.ok(m2 > 290, 'missed right → right of the green');
+  const labels = await page.$$eval('#pinmap text.plbl, #pinmap text.mlbl', ts => ts.map(t => t.textContent));
+  for (const l of ['12 ft', '22 ft', '9 ft', '20 ydRough', '15 ydBunker']) assert.ok(labels.includes(l), l + ' in ' + labels);
+  ok('Front left selected: flag in the segment; 3 white GIR dots by first-putt ft + direction, 2 red misses off the green labelled "20 yd Rough", "15 yd Bunker"');
+  assert.match(await page.textContent('#dirtab'), /Short right\s*1/); assert.match(await page.textContent('#dirtab'), /→ Right\s*1/);
+  await page.screenshot({ path: `${SHOTS}/21-pin-map-front-left.png` });
+  await page.locator('#mapview').evaluate(e => e.scrollTo(0, e.scrollHeight)); await page.screenshot({ path: `${SHOTS}/21b-pin-map-front-left-counts.png` });
+  await act('pinseg', ''); await page.waitForSelector('#pinstats'); ok('‹ All pin positions returns to the grid');
+  await act('mapclose');
   await noOverflow('summary with tiles');
   // About the numbers
   await act('about');

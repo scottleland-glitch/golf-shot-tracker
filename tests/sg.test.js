@@ -365,3 +365,19 @@ test('GIR tile count always equals GIR map entries (5 GIR incl. no-direction, ho
     assert.strictEqual(T.girMap.length, T.gir);
   }
 });
+
+// ---- Pin-location map data ----
+test('pin map data: approaches tagged with the hole pin; holes with/without pin; same reach-green rule', () => {
+  const S = SG.summarize({ holes: [
+    { par: 4, finished: true, pin: 'frontleft', rows: [R(400, 'tee'), R(150, 'fairway'), R(12, 'green', 'longright'), R(1, 'holed')] },
+    { par: 4, finished: true, pin: 'frontleft', rows: [R(400, 'tee'), R(150, 'fairway'), R(15, 'bunker', 'short'), R(3, 'green'), R(1, 'holed')] },
+    { par: 3, finished: true, pin: 'frontleft', rows: [R(160, 'tee'), R(7, 'holed')] },
+    { par: 4, finished: true, pin: 'backright', rows: [R(360, 'tee'), R(110, 'holedx')] },
+    { par: 4, finished: true, rows: [R(400, 'tee'), R(150, 'fairway'), R(20, 'rough', 'left'), R(3, 'green'), R(1, 'holed')] },
+    { par: 4, finished: false, pin: 'center', rows: [R(400, 'tee'), R(150, 'fairway')] }
+  ] });
+  assert.deepStrictEqual(S.pinHoles.map(p => [p.hole, p.pin, p.gir]), [[1, 'frontleft', true], [2, 'frontleft', false], [3, 'frontleft', true], [4, 'backright', true]]);
+  assert.strictEqual(S.noPin, 1, 'finished hole without pin');
+  assert.deepStrictEqual(S.girMap.map(g => [g.hole, g.pin, g.ft, g.dir, g.holed]), [[1, 'frontleft', 12, 'longright', false], [3, 'frontleft', 7, '', false], [4, 'backright', 0, '', true]]);
+  assert.deepStrictEqual(S.apprMiss.map(m => [m.hole, m.pin, m.dir, m.lie, m.dist]), [[2, 'frontleft', 'short', 'sand', 15], [5, '', 'left', 'rough', 20]]);
+});

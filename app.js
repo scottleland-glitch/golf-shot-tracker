@@ -258,6 +258,7 @@
       tile('fw', 'Fairways hit – tap for map', S.fwHit + ' / ' + S.fwTotal) +
       tile('gir', 'Greens in reg. – tap for map', S.gir + ' / ' + S.girHoles) +
       tile('miss', 'Approach misses (missed green) – tap for map', S.apprMiss.length, missMini(S.apprMiss)) +
+      tile('pin', 'Pin location – tap for map', S.pinHoles.length + ' / ' + S.holesDone, '<small class="mini">holes with a pin set</small>') +
       stat('Putts', S.putts) + stat('Penalty strokes', S.penalties) +
       stat('Tee misses L / R', S.teeLeft + ' / ' + S.teeRight) +
       stat('Approach left / right', S.apprLeft + ' / ' + S.apprRight) +
@@ -337,6 +338,7 @@
   // ---------- maps (full-window overlays) ----------
   function mapData(kind) {
     var list = [], n = 0;
+    if (kind === 'pin') return { list: [], rounds: 0 };
     var src = view.mapScope === 'all' ? rounds : [round()];
     src.forEach(function (r) {
       var S = SG.summarize(r, 'pga'); n++;
@@ -409,11 +411,12 @@
   var DIR_ORDER = ['short', 'shortleft', 'shortright', 'left', 'right', 'long', 'longleft', 'longright'];
   function mapHTML() {
     var kind = view.map, D = mapData(kind), list = D.list, all = view.mapScope === 'all';
-    var out = '<div class="mapview" id="mapview" role="dialog" aria-label="' + (kind === 'gir' ? 'GIR map' : kind === 'fw' ? 'Fairway map' : 'Approach miss map') + '">' +
-      '<div class="maphead"><b>' + (kind === 'gir' ? 'Greens in regulation' : kind === 'fw' ? 'Tee shots – fairways' : 'Approach misses') + '</b><button class="close" data-act="mapclose" aria-label="Close map">✕ Close</button></div>' +
+    var out = '<div class="mapview" id="mapview" role="dialog" aria-label="' + (kind === 'gir' ? 'GIR map' : kind === 'fw' ? 'Fairway map' : kind === 'pin' ? 'Pin location map' : 'Approach miss map') + '">' +
+      '<div class="maphead"><b>' + (kind === 'gir' ? 'Greens in regulation' : kind === 'fw' ? 'Tee shots – fairways' : kind === 'pin' ? 'Pin location' : 'Approach misses') + '</b><button class="close" data-act="mapclose" aria-label="Close map">✕ Close</button></div>' +
       '<div class="seg"><button data-act="mapscope" data-v="round" class="' + (all ? '' : 'sel') + '">This round</button>' +
       '<button data-act="mapscope" data-v="all" class="' + (all ? 'sel' : '') + '">All rounds (' + rounds.length + ')</button></div>';
-    if (kind === 'fw') out += fwHTML(list, all, D);
+    if (kind === 'pin') out += pinMapHTML(all);
+    else if (kind === 'fw') out += fwHTML(list, all, D);
     else if (kind === 'gir') {
       var far = list.filter(function (m) { return m.ft > 30; }).length, holed = list.filter(function (m) { return m.holed; }).length;
       out += '<p class="mapsum" id="mapsum"><b>' + list.length + '</b> green' + (list.length === 1 ? '' : 's') + ' in regulation' + (all ? ' in ' + D.rounds + ' round' + (D.rounds === 1 ? '' : 's') : ' this round') + '</p>' +
@@ -509,6 +512,104 @@
       'Left/right comes from the Dir you entered on row 2. Fairway hit = first tee shot finished on the fairway or green with no penalty. Bird\'s-eye view: the fairway runs away from you.</p>';
     return out;
   }
+  // ---------- pin-location map ----------
+  function pinData() {
+    var D = { holes: [], gir: [], miss: [], noPin: 0, rounds: 0 };
+    (view.mapScope === 'all' ? rounds : [round()]).forEach(function (r) {
+      var S = SG.summarize(r, 'pga'); D.rounds++; D.noPin += S.noPin;
+      S.pinHoles.forEach(function (x) { D.holes.push(x); });
+      S.girMap.forEach(function (x) { if (x.pin) D.gir.push(x); });
+      S.apprMiss.forEach(function (x) { if (x.pin) D.miss.push(x); });
+    });
+    return D;
+  }
+  function onPin(list, p) { return list.filter(function (x) { return x.pin === p; }); }
+  // Green geometry for the pin map (viewBox 360 x 460)
+  var PG = { cx: 180, cy: 230, rx: 110, ry: 140, K: 2.4 };
+  function pinXY(p) {
+    var r = 0, c = 0; SG.PIN_GRID.forEach(function (rw, i) { var j = rw.indexOf(p); if (j >= 0) { r = i; c = j; } });
+    // inside its segment, pulled in a little for the corners so the flag sits on the visible green
+    var k = (r !== 1 && c !== 1) ? 0.85 : 1;
+    return [PG.cx + (c - 1) * 0.6 * PG.rx * k, PG.cy + (r - 1) * 0.62 * PG.ry * k];
+  }
+  function pinSVG(p, gir, miss) {
+    var SC = [0, 0]; SG.PIN_GRID.forEach(function (rw, i) { var j = rw.indexOf(p); if (j >= 0) SC = [i, j]; });
+    var P = pinXY(p), w = 2 * PG.rx / 3, hh = 2 * PG.ry / 3, x0 = PG.cx - PG.rx, y0 = PG.cy - PG.ry;
+    var out = '<svg id="pinmap" viewBox="0 0 360 460" role="img" aria-label="Approaches with the pin ' + SG.PIN_NAME[p] + '">' +
+      '<defs><clipPath id="gclip"><ellipse cx="' + PG.cx + '" cy="' + PG.cy + '" rx="' + PG.rx + '" ry="' + PG.ry + '"/></clipPath></defs>' +
+      '<rect width="360" height="460" fill="#cfe8c4"/><ellipse cx="' + PG.cx + '" cy="' + PG.cy + '" rx="' + PG.rx + '" ry="' + PG.ry + '" fill="#3da33d" stroke="#145214" stroke-width="4"/>' +
+      '<rect clip-path="url(#gclip)" x="' + f1(x0 + w * SC[1]) + '" y="' + f1(y0 + hh * SC[0]) + '" width="' + f1(w) + '" height="' + f1(hh) + '" fill="#ffd23f" fill-opacity=".28"/>';
+    [1, 2].forEach(function (i) {
+      out += '<line clip-path="url(#gclip)" x1="' + f1(x0 + w * i) + '" y1="0" x2="' + f1(x0 + w * i) + '" y2="460" stroke="#fff" stroke-opacity=".6" stroke-dasharray="5 5"/>' +
+        '<line clip-path="url(#gclip)" x1="0" y1="' + f1(y0 + hh * i) + '" x2="360" y2="' + f1(y0 + hh * i) + '" stroke="#fff" stroke-opacity=".6" stroke-dasharray="5 5"/>';
+    });
+    var seen = {}, lbl = function (x, y, t1, t2, cls) {
+      return '<text class="' + cls + '" x="' + f1(x) + '" y="' + f1(y) + '" text-anchor="middle" font-size="11.5" font-weight="900" fill="#000" stroke="#fff" stroke-width="3" paint-order="stroke">' + esc(t1) +
+        (t2 ? '<tspan x="' + f1(x) + '" dy="12">' + esc(t2) + '</tspan>' : '') + '</text>';
+    };
+    // greens hit (GIR): relative to the pin
+    gir.forEach(function (m) {
+      var ft = m.holed ? 0 : m.ft, nod = !m.holed && !m.dir, rr = Math.min(ft, 45) * PG.K;
+      var key = m.holed ? 'h' : (m.dir || 'n') + Math.round(rr / 8), j = seen[key] = (seen[key] || 0) + 1;
+      var q = m.holed ? [P[0] - 12 + (j - 1) * 14, P[1] + 14] : pt(P[0], P[1], rr, (nod ? 90 : SG.DIR_ANGLE[m.dir]) + (j - 1) * 9);
+      // a green hit stays on the green: if the scaled distance would leave the picture's green, pull it back along the same line
+      var inside = function (z) { var u = (z[0] - PG.cx) / PG.rx, v = (z[1] - PG.cy) / PG.ry; return u * u + v * v <= 0.97; }, cl = '';
+      if (!m.holed && !inside(q)) { var lo = 0, hi = 1; for (var it = 0; it < 20; it++) { var md = (lo + hi) / 2; if (inside([P[0] + (q[0] - P[0]) * md, P[1] + (q[1] - P[1]) * md])) lo = md; else hi = md; }
+        q = [P[0] + (q[0] - P[0]) * lo, P[1] + (q[1] - P[1]) * lo]; cl = ' data-edge="1"'; }
+      var x = f1(q[0]), y = f1(q[1]);
+      if (m.holed) out += '<path class="pdot" data-kind="holed" data-hole="' + m.hole + '" d="M' + x + ' ' + (y - 10) + ' l3 6.5 7 .8 -5.3 4.8 1.5 7 -6.2 -3.6 -6.2 3.6 1.5 -7 -5.3 -4.8 7 -.8z" fill="#ffd23f" stroke="#000" stroke-width="2"/>';
+      else if (nod) out += '<g class="pdot" data-kind="nodir" data-hole="' + m.hole + '" data-x="' + x + '" data-y="' + y + '"><path d="M' + x + ' ' + (y - 9) + ' l9 9 -9 9 -9 -9z" fill="#fff" stroke="#000" stroke-width="2.5"/><text x="' + x + '" y="' + (y + 4.5) + '" text-anchor="middle" font-size="12" font-weight="900">?</text></g>';
+      else out += '<circle class="pdot" data-kind="gir"' + cl + ' data-hole="' + m.hole + '" cx="' + x + '" cy="' + y + '" r="7" fill="#fff" stroke="#000" stroke-width="2.5"/>';
+      if (!m.holed) out += lbl(q[0], q[1] + 20, Math.round(ft) + ' ft', '', 'plbl');
+    });
+    // missed greens: off the green in the miss direction
+    var LN = { rough: 'Rough', deep: 'Deep rough', fairway: 'Fairway', sand: 'Bunker', hazard: 'Hazard', ob: 'OB', recovery: 'Trees' };
+    miss.forEach(function (m) {
+      if (!m.dir) return;
+      var a = SG.DIR_ANGLE[m.dir], t = a * Math.PI / 180, j = seen['m' + m.dir] = (seen['m' + m.dir] || 0) + 1;
+      var e = [PG.cx + PG.rx * Math.cos(t), PG.cy - PG.ry * Math.sin(t)], out1 = 18 + ((j - 1) % 2) * 30;
+      var q = [e[0] + out1 * Math.cos(t), e[1] - out1 * Math.sin(t)];
+      var side = Math.floor((j - 1) / 2) * 34 * (j % 4 < 2 ? 1 : -1);
+      q = [q[0] + side * Math.sin(t), q[1] + side * Math.cos(t)];
+      q = [Math.max(24, Math.min(336, q[0])), Math.max(14, Math.min(420, q[1]))];
+      out += '<circle class="pdot" data-kind="miss" data-hole="' + m.hole + '" cx="' + f1(q[0]) + '" cy="' + f1(q[1]) + '" r="7" fill="#e0102a" stroke="#000" stroke-width="2.5"/>' +
+        lbl(q[0], q[1] + 20, m.lie === 'ob' ? 'OB' : Math.round(m.dist) + ' yd', m.lie === 'ob' ? '' : (LN[m.lie] || m.lie), 'mlbl');
+    });
+    out += '<line x1="' + f1(P[0]) + '" y1="' + f1(P[1]) + '" x2="' + f1(P[0]) + '" y2="' + f1(P[1] - 30) + '" stroke="#000" stroke-width="3"/>' +
+      '<path d="M' + f1(P[0]) + ' ' + f1(P[1] - 30) + ' l20 6 l-20 6z" fill="#d0213a"/><circle id="pinflag" cx="' + f1(P[0]) + '" cy="' + f1(P[1]) + '" r="5" fill="#000"/>' +
+      '<text x="180" y="16" text-anchor="middle" font-size="14" font-weight="800">BACK ↑</text><text x="180" y="452" text-anchor="middle" font-size="14" font-weight="800">FRONT ↓ (toward you)</text>';
+    return out + '</svg>';
+  }
+  function pinMapHTML(all) {
+    var D = pinData(), seg = view.pinSeg, scope = all ? ' in ' + D.rounds + ' round' + (D.rounds === 1 ? '' : 's') : ' this round';
+    var note = D.noPin ? '<p class="help muted" id="nopin">' + D.noPin + ' finished hole' + (D.noPin === 1 ? ' has' : 's have') + ' no pin set – not included.</p>' : '';
+    if (!seg) {
+      var out = '<p class="mapsum" id="mapsum"><b>' + D.holes.length + '</b> hole' + (D.holes.length === 1 ? '' : 's') + ' with a pin set' + scope + '</p>' + note +
+        '<p class="help">Tap a part of the green to see every approach on holes with the pin there. Badge = number of approaches.</p>' +
+        '<div class="pinwrap"><div class="pinlbl">BACK ↑</div><div class="pingreen pinstats" id="pinstats">';
+      SG.PIN_GRID.forEach(function (rw) { rw.forEach(function (c) {
+        var hs = onPin(D.holes, c), n = onPin(D.gir, c).length + onPin(D.miss, c).length, g = hs.filter(function (x) { return x.gir; }).length;
+        out += '<button data-act="pinseg" data-v="' + c + '" data-n="' + n + '" class="' + (hs.length ? 'has' : '') + '"><span class="badge">' + n + '</span>' + SG.PIN_NAME[c].replace(' ', '<br>') +
+          (hs.length ? '<small>GIR ' + g + '/' + hs.length + '</small>' : '') + '</button>';
+      }); });
+      return out + '</div><div class="pinlbl">FRONT ↓ (toward you)</div></div>';
+    }
+    var hs = onPin(D.holes, seg), gir = onPin(D.gir, seg), miss = onPin(D.miss, seg), g = hs.filter(function (x) { return x.gir; }).length;
+    var nodirMiss = miss.filter(function (m) { return !m.dir; }).length;
+    var out2 = '<button class="big" data-act="pinseg" data-v="">‹ All pin positions</button>' +
+      '<p class="mapsum" id="mapsum">Pin <b>' + SG.PIN_NAME[seg] + '</b>: ' + hs.length + ' hole' + (hs.length === 1 ? '' : 's') + scope + '</p>' +
+      '<div class="fwcounts" id="pinsum"><span>GIR <b>' + g + ' / ' + hs.length + '</b></span><span>Greens hit <b>' + gir.length + '</b></span><span>Missed green <b>' + miss.length + '</b></span></div>' +
+      pinSVG(seg, gir, miss) +
+      '<div class="legend"><span><i class="dot" style="background:#fff"></i>Green hit in regulation – first-putt distance (ft) and direction from the pin; kept on the green if it runs past the drawn edge</span>' +
+      '<span><svg width="20" height="20" viewBox="0 0 20 20" style="flex:none"><path d="M10 1 l9 9 -9 9 -9 -9z" fill="#fff" stroke="#000" stroke-width="2"/><text x="10" y="14.5" text-anchor="middle" font-size="12" font-weight="900">?</text></svg>Green hit, no direction entered (drawn straight up)</span>' +
+      '<span><b class="star">★</b>Holed out</span>' +
+      '<span><i class="dot" style="background:#e0102a"></i>Missed green – drawn off the green in the miss direction; label = yards left to the pin + where it finished</span></div>' +
+      (nodirMiss ? '<p class="help muted">' + nodirMiss + ' miss' + (nodirMiss === 1 ? '' : 'es') + ' had no direction entered and are not drawn.</p>' : '') +
+      '<h3>Missed greens by direction</h3>' + dirTable(miss) +
+      '<p class="help muted">Approaches = same as the other maps: GIR approaches (incl. hole-outs) and approach shots that missed the green. Greens hit in more than regulation are not shown. ' +
+      'Front = toward you. Distances on the green are feet; off the green, yards.</p>' + note;
+    return out2;
+  }
   function stat(l, v) { return '<div class="stat"><b>' + v + '</b><span>' + l + '</span></div>'; }
 
   // ---------- CSV ----------
@@ -564,7 +665,8 @@
       case 'about': view.back = view.screen; view.screen = 'about'; render(); window.scrollTo(0, 0); return;
       case 'aboutBack': view.screen = view.back && view.back !== 'about' ? view.back : 'home'; render(); window.scrollTo(0, 0); return;
       case 'setbl': setBaseline(v); return;
-      case 'map': view.map = v; view.mapScope = view.mapScope || 'round'; render(); return;
+      case 'map': view.map = v; view.pinSeg = null; view.mapScope = view.mapScope || 'round'; render(); return;
+      case 'pinseg': view.pinSeg = v || null; render(); var pv = document.getElementById('mapview'); if (pv) pv.scrollTop = 0; return;
       case 'mapclose': view.map = null; render(); return;
       case 'pinopen': view.pinOpen = true; view.menu = null; view.dirk = null; render(); return;
       case 'pinclose': view.pinOpen = false; render(); return;

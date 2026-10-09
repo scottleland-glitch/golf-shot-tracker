@@ -336,7 +336,7 @@
       strokes: 0, par: 0, holesDone: 0, holesStarted: 0, penalties: 0, putts: 0,
       fwHit: 0, fwTotal: 0, gir: 0, girHoles: 0,
       teeLeft: 0, teeRight: 0, apprLeft: 0, apprRight: 0, apprShort: 0, apprOver: 0, allLeft: 0, allRight: 0,
-      apprMiss: [], girMap: [], teeMap: [],
+      apprMiss: [], girMap: [], teeMap: [], pinHoles: [], noPin: 0,
       sgTotal: 0,
       cats: { tee: { sg: 0, n: 0 }, approach: { sg: 0, n: 0 }, short: { sg: 0, n: 0 }, putting: { sg: 0, n: 0 } },
       buckets: {}, holes: []
@@ -350,6 +350,7 @@
       if (!a.shots.length) return;
       S.holesStarted++;
       if (!a.done) return; // only finished holes count toward totals and stats
+      if (normPin(h.pin)) S.pinHoles.push({ hole: hi + 1, pin: normPin(h.pin), gir: a.gir, par: Number(h.par) }); else S.noPin++;
       S.penalties += a.penalties;
       S.putts += a.putts;
       S.holesDone++; S.strokes += a.strokes; S.par += Number(h.par);
@@ -368,7 +369,7 @@
           // Approach miss = approach shot that did not finish on the green / in the hole.
           // Lay-ups are left out: ended more than 50 yd from the pin with no direction entered.
           if (!reachedGreen(r) && (r.dir || r.ob || r.end.dist <= 50)) {
-            S.apprMiss.push({ hole: hi + 1, shot: r.n, dir: r.dir, from: r.start.dist, lie: r.ob ? 'ob' : r.end.lie, dist: r.end.dist, pen: r.penStrokes > 0 });
+            S.apprMiss.push({ hole: hi + 1, pin: normPin(h.pin), shot: r.n, dir: r.dir, from: r.start.dist, lie: r.ob ? 'ob' : r.end.lie, dist: r.end.dist, pen: r.penStrokes > 0 });
           }
         }
       });
@@ -381,7 +382,7 @@
         var g = a.shots[a.girShot];
         // holedOut: this shot went in, or the NEXT stroke was holed from off the green (chip-in / hole-out)
         var ho = g.end.lie === 'holed' || g.loc === 'holedx';
-        S.girMap.push({ hole: hi + 1, shot: g.n, par: Number(h.par), dir: ho ? '' : g.dir,
+        S.girMap.push({ hole: hi + 1, pin: normPin(h.pin), shot: g.n, par: Number(h.par), dir: ho ? '' : g.dir,
           ft: ho ? 0 : g.end.dist, holed: ho, from: g.start.dist, fromLie: g.start.lie });
       }
     });

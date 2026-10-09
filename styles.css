@@ -201,3 +201,11 @@ body.noscroll { overflow: hidden; }
 .legend .dia { display: inline-flex; align-items: center; justify-content: center; width: 16px; height: 16px; background: #c9c9c9; border: 2px solid #000; transform: rotate(45deg); flex: none; font-style: normal; font-size: 11px; font-weight: 900; }
 .legend .star { color: #ffd23f; -webkit-text-stroke: 1.5px #000; font-size: 22px; line-height: 1; width: 18px; text-align: center; }
 .mapview .legend svg { width: 20px; height: 20px; border: 0; border-radius: 0; display: inline-block; }
+/* v8: pin-location map */
+.pinstats button { position: relative; color: #fff; }
+.pinstats button small { display: block; font-size: 13px; font-weight: 800; margin-top: 2px; }
+.pinstats .badge { display: inline-block; min-width: 28px; height: 28px; line-height: 24px; border-radius: 14px; background: #fff; color: #000; border: 2px solid #000;
+  font-size: 16px; font-weight: 900; text-shadow: none; text-align: center; margin-bottom: 3px; padding: 0 4px; }
+.pinstats button.has .badge { background: #000; color: #fff; border-color: #fff; }
+.pinstats button:not(.has) { opacity: .85; }
+.pingreen.pinstats { height: 460px; }
