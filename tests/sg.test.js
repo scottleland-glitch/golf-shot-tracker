@@ -624,3 +624,17 @@ test('putts: every stroke from the green, numbered per hole, start ft, made, dir
   assert.strictEqual(A.bands.reduce((t, b) => t + b.n, 0), A.n, 'bands add up');
   assert.deepStrictEqual(SG.puttStats([{ ft: 3, made: true }, { ft: 2.99, made: false }, { ft: 10, made: true }, { ft: 20, made: false }]).bands.map(b => b.n), [1, 1, 0, 1, 1], 'lower-inclusive band edges');
 });
+
+test('putting scale: 1st putts wide (10 ft = 60%), 2nd/3rd+ close-up linear 10 ft with edge clamp; placement keeps dots apart', () => {
+  const W = SG.puttScale('1', [{ ft: 33 }]); assert.deepStrictEqual([W.mode, W.maxFt], ['wide', 35]); assert.strictEqual(SG.puttRadius(10, W, 100), 60);
+  for (const g of ['2', '3']) {
+    const C = SG.puttScale(g, [{ ft: 40 }]); assert.deepStrictEqual([C.mode, C.maxFt, C.rings, C.labels], ['close', 10, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10], [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]]);
+    assert.deepStrictEqual([1, 2.5, 10, 14, 40].map(f => SG.puttRadius(f, C, 100)), [10, 25, 100, 100, 100], 'linear, beyond 10 ft at the edge');
+  }
+  const C = SG.puttScale('2', []), L = [{ ft: 2, dir: 'short' }, { ft: 2, dir: 'short' }, { ft: 2, dir: 'short' }, { ft: 2.2, dir: 'short' }, { ft: 1, dir: '' }, { ft: 1, dir: '' }, { ft: 18, dir: 'long' }, { ft: 20, dir: 'long' }];
+  const P = SG.puttPlace(L, C, 180, 190, 168, 15);
+  for (let i = 0; i < P.length; i++) for (let j = 0; j < i; j++) assert.ok(Math.hypot(P[i].x - P[j].x, P[i].y - P[j].y) >= 15, 'dots ' + i + '/' + j + ' overlap');
+  assert.ok(Math.abs(P[0].y - (190 + 33.6)) < 1e-9 && Math.abs(P[0].x - 180) < 1e-9, 'first dot exactly at 2 ft short');
+  assert.deepStrictEqual(P.map(p => p.beyond), [false, false, false, false, false, false, true, true]);
+  P.slice(0, 4).forEach(p => assert.ok(Math.abs(Math.hypot(p.x - 180, p.y - 190) - 33.6) < 6, 'jitter stays close to 2 ft'));
+});

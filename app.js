@@ -627,37 +627,34 @@
   }
   // Non-linear radius: 0-10 ft takes 60% of the radius (1 ft rings readable); 10 ft..max ring the rest.
   var PG2 = { cx: 180, cy: 190, R: 168 };
-  function puttR(ft, maxFt) { var R10 = PG2.R * 0.6; return ft <= 10 ? R10 * ft / 10 : R10 + (PG2.R - R10) * Math.min(1, (ft - 10) / (maxFt - 10)); }
-  function puttSVG(list) {
-    var mx = list.reduce(function (m, p) { return Math.max(m, p.ft); }, 0), maxFt = Math.min(60, Math.max(20, Math.ceil(mx / 5) * 5));
-    var o = '<svg id="puttmap" viewBox="0 0 360 400" role="img" aria-label="Putts by starting distance">' +
+  function puttSVG(list, group) {
+    var sc = SG.puttScale(group, list), maxFt = sc.maxFt, close = sc.mode === 'close', R = function (ft) { return SG.puttRadius(ft, sc, PG2.R); };
+    var o = '<svg id="puttmap" data-scale="' + sc.mode + '" data-maxft="' + maxFt + '" viewBox="0 0 360 400" role="img" aria-label="Putts by starting distance">' +
       '<rect width="360" height="400" fill="#cfe8c4"/><circle cx="' + PG2.cx + '" cy="' + PG2.cy + '" r="' + (PG2.R + 6) + '" fill="#3da33d" stroke="#145214" stroke-width="4"/>';
-    var rings = []; for (var f = 1; f <= 10; f++) rings.push(f); for (f = 15; f <= maxFt; f += 5) rings.push(f);
-    // Outer labels every 5 ft only when rings are far enough apart, else every 10 ft.
-    var step5 = puttR(15, maxFt) - puttR(10, maxFt) >= 17, lab = { 1: 1, 2: 1, 3: 1, 5: 1, 10: 1 };
-    for (f = 15; f <= maxFt; f += 5) if (step5 || f % 10 === 0) lab[f] = 1;
+    var lab = {}, f;
+    if (close) sc.labels.forEach(function (x) { lab[x] = 1; });
+    else { var step5 = R(15) - R(10) >= 17; [1, 2, 3, 5, 10].forEach(function (x) { lab[x] = 1; }); for (f = 15; f <= maxFt; f += 5) if (step5 || f % 10 === 0) lab[f] = 1; }
     // Ring labels run along the emptiest diagonal so they don't sit on top of putts.
     var la = [300, 240, 60, 120].map(function (a) { return [a, list.filter(function (p) { var d = Math.abs(((SG.DIR_ANGLE[p.dir] == null ? -999 : SG.DIR_ANGLE[p.dir]) - a + 540) % 360 - 180); return d < 35; }).length]; })
       .sort(function (x, y) { return x[1] - y[1]; })[0][0], lc = Math.cos(la * Math.PI / 180), ls = -Math.sin(la * Math.PI / 180), ringBoxes = [];
-    rings.slice().reverse().forEach(function (ft) {
-      var r = puttR(ft, maxFt), major = ft === 3 || ft === 6 || ft === 10 || ft % 10 === 0;
+    sc.rings.slice().reverse().forEach(function (ft) {
+      var r = R(ft), major = close ? ft === 3 || ft === 6 || ft === 10 : ft === 3 || ft === 6 || ft === 10 || ft % 10 === 0;
       o += '<circle class="pring" data-ft="' + ft + '" cx="' + PG2.cx + '" cy="' + PG2.cy + '" r="' + f1(r) + '" fill="none" stroke="#fff" stroke-opacity="' + (major ? '.95' : '.6') + '" stroke-width="' + (major ? 2.2 : 1.1) + '"/>';
-      if (lab[ft] || ft === maxFt) { var lx = PG2.cx + r * lc, ly = PG2.cy + r * ls + 4, txt = ft + (ft === 10 || ft === maxFt ? ' ft' : ''), lw = txt.length * 6;
+      if (lab[ft] || ft === maxFt) { var lx = PG2.cx + r * lc, ly = PG2.cy + r * ls + 4, txt = ft + (ft === 10 || ft === maxFt ? ' ft' : ''), lw = txt.length * 6.5;
         ringBoxes.push([lx - lw / 2, ly - 10, lx + lw / 2, ly + 2]);
-        o += '<text class="ring" x="' + f1(lx) + '" y="' + f1(ly) + '" text-anchor="middle" font-size="' + (ft <= 3 ? 10 : 11) + '" font-weight="900" fill="#fff" stroke="#145214" stroke-width="2.5" paint-order="stroke">' + txt + '</text>'; }
+        o += '<text class="ring" x="' + f1(lx) + '" y="' + f1(ly) + '" text-anchor="middle" font-size="' + (!close && ft <= 3 ? 10 : 12) + '" font-weight="900" fill="#fff" stroke="#145214" stroke-width="2.5" paint-order="stroke">' + txt + '</text>'; }
     });
     o += '<circle cx="' + PG2.cx + '" cy="' + PG2.cy + '" r="4.5" fill="#000"/>';
-    var seen = {}, nd = list.filter(function (p) { return !p.dir; }).length, ndi = 0, dots = '', boxes = ringBoxes.slice(), lbls = '';
-    list.forEach(function (p) {
-      var r = puttR(p.ft, maxFt), ang, nod = !p.dir, cl = p.ft > maxFt;
-      if (nod) { ang = 90 + 360 * ndi / Math.max(1, nd) + 20; ndi++; }
-      else { var key = p.dir + Math.round(r / 10), j = seen[key] = (seen[key] || 0) + 1; ang = SG.DIR_ANGLE[p.dir] + (j - 1) * 9; }
-      var q = pt(PG2.cx, PG2.cy, r, ang), x = f1(q[0]), y = f1(q[1]), col = p.made ? '#0a7a2a' : '#e0102a';
-      var at = ' class="pdot2" data-made="' + (p.made ? 1 : 0) + '" data-ft="' + p.ft + '" data-hole="' + p.hole + '" data-dir="' + (p.dir || '') + '"';
-      if (nod) dots += '<g' + at + ' data-kind="nodir"><path d="M' + x + ' ' + (y - 9) + ' l9 9 -9 9 -9 -9z" fill="' + (p.made ? col : '#fff') + '" stroke="' + col + '" stroke-width="3"/><text x="' + x + '" y="' + (+y + 4.5) + '" text-anchor="middle" font-size="11" font-weight="900" fill="' + (p.made ? '#fff' : col) + '">?</text></g>';
+    var dots = '', boxes = ringBoxes.concat([[130, 3, 230, 21], [80, 380, 280, 398], [0, PG2.cy - 10, 30, PG2.cy + 6], [330, PG2.cy - 10, 360, PG2.cy + 6]]), lbls = '';
+    SG.puttPlace(list, sc, PG2.cx, PG2.cy, PG2.R, 15).forEach(function (d) {
+      var p = d.p, q = [d.x, d.y], x = f1(d.x), y = f1(d.y), col = p.made ? '#0a7a2a' : '#e0102a';
+      var at = ' class="pdot2" data-made="' + (p.made ? 1 : 0) + '" data-ft="' + p.ft + '" data-hole="' + p.hole + '" data-dir="' + (p.dir || '') + '" data-beyond="' + (d.beyond ? 1 : 0) + '"';
+      if (d.nodir) dots += '<g' + at + ' data-kind="nodir"><path d="M' + x + ' ' + (y - 9) + ' l9 9 -9 9 -9 -9z" fill="' + (p.made ? col : '#fff') + '" stroke="' + col + '" stroke-width="3"/><text x="' + x + '" y="' + (+y + 4.5) + '" text-anchor="middle" font-size="11" font-weight="900" fill="' + (p.made ? '#fff' : col) + '">?</text></g>';
       else dots += '<circle' + at + ' data-kind="dir" cx="' + x + '" cy="' + y + '" r="6.5" fill="' + (p.made ? col : '#fff') + '" stroke="' + col + '" stroke-width="3"/>';
       boxes.push([q[0] - 8, q[1] - 9, q[0] + 8, q[1] + 9]);
-      var t = (Math.round(p.ft * 10) / 10) + (cl ? '›' : ''), w = t.length * 6.5 + 4, cand = [[0, -12], [0, 19], [12 + w / 2, 4], [-12 - w / 2, 4], [0, -24], [0, 31]], best = null;
+    });
+    SG.puttPlace(list, sc, PG2.cx, PG2.cy, PG2.R, 15).forEach(function (d) {
+      var p = d.p, q = [d.x, d.y], t = (Math.round(p.ft * 10) / 10) + (d.beyond ? '›' : ''), w = t.length * 7 + 4, cand = [[0, -12], [0, 21], [12 + w / 2, 4], [-12 - w / 2, 4], [0, -24], [0, 33], [14 + w / 2, -10], [-14 - w / 2, -10]], best = null;
       cand.some(function (c) { var cx = Math.max(w / 2, Math.min(360 - w / 2, q[0] + c[0])), ty = q[1] + c[1], b = [cx - w / 2, ty - 10, cx + w / 2, ty + 2];
         if (!best) best = [cx, ty, b]; if (!boxes.some(function (z) { return b[0] < z[2] && b[2] > z[0] && b[1] < z[3] && b[3] > z[1]; })) { best = [cx, ty, b]; return true; } });
       boxes.push(best[2]);
@@ -675,10 +672,10 @@
     return '<div class="pnrow" id="puttbtns" role="group" aria-label="Which putt">' + btns + '</div>' +
       '<p class="mapsum" id="mapsum"><b>' + P.n + '</b> ' + NM[D.group] + (P.n === 1 ? '' : 's') + (all ? ' in ' + D.rounds + ' round' + (D.rounds === 1 ? '' : 's') : ' this round') + '</p>' +
       '<div class="stat-grid" id="puttstats">' + stat('Putts', P.n) + stat('Made', P.n ? P.made + ' / ' + P.n + ' (' + pct(P.pct) + ')' : '–') + stat('Avg distance', P.avgFt == null ? '–' : (Math.round(P.avgFt * 10) / 10) + ' ft') + '</div>' +
-      puttSVG(D.list) +
+      puttSVG(D.list, D.group) +
       '<div class="legend"><span><i class="dot" style="background:#0a7a2a;border-color:#0a7a2a"></i>Made (filled)</span><span><i class="dot" style="background:#fff;border:3px solid #e0102a"></i>Missed (ring)</span>' +
       '<span><svg width="20" height="20" viewBox="0 0 20 20" style="flex:none"><path d="M10 1 l9 9 -9 9 -9 -9z" fill="#fff" stroke="#555" stroke-width="2.5"/><text x="10" y="14.5" text-anchor="middle" font-size="11" font-weight="900" fill="#555">?</text></svg>No direction entered – right distance, spread around the hole</span>' +
-      '<span>Rings every 1 ft out to 10 ft, then every 5 ft. The inner 10 ft is drawn bigger so short putts are easy to read; the label is the distance in ft.</span></div>' +
+      (D.group === '1' ? '<span>Rings every 1 ft out to 10 ft, then every 5 ft. The inner 10 ft is drawn bigger so short putts are easy to read; the label is the distance in ft.</span>' : '<span>Close-up: 10 ft green, a ring every 1 ft (true scale). Putts longer than 10 ft sit on the edge, labelled with › and their real distance.</span>') + '<span>Dots that would land on the same spot are nudged slightly apart.</span></div>' +
       '<h3>Make % by distance</h3><table class="dirtab" id="puttbands"><tr><th>Distance</th><th class="num">Putts</th><th class="num">Made</th><th class="num">Make %</th></tr>' + bandRows + '</table>' +
       '<p class="help muted">Every putt = every stroke hit from the green. 1st / 2nd / 3rd+ = its number on that hole (3rd+ includes 4th and later). Direction = where the ball was vs the hole before the putt: for 1st putts the Dir of the approach (as on the GIR map), for later putts the Dir on that putt\'s row. ' +
       'Bands: 0–3 = under 3 ft, 3–6 = 3 to under 6 ft, and so on. Only finished holes count.</p>';

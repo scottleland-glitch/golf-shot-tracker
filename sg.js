@@ -589,6 +589,35 @@
   calibrate();
   // Putting: bands are lower-inclusive: 0-3 = under 3 ft, 3-6, 6-10, 10-20, 20+
   var PUTT_BANDS = [{ id: '0-3', lo: 0, hi: 3 }, { id: '3-6', lo: 3, hi: 6 }, { id: '6-10', lo: 6, hi: 10 }, { id: '10-20', lo: 10, hi: 20 }, { id: '20+', lo: 20, hi: Infinity }];
+  // Putting-green scale. 1st putts: 'wide' (rings 1-10 ft then every 5 ft to maxFt, inner 10 ft = 60% of R).
+  // 2nd / 3rd+ putts: 'close' – a linear 10 ft green with 1 ft rings; longer putts sit on the edge.
+  function puttScale(group, list) {
+    if (group !== '1') return { mode: 'close', maxFt: 10, rings: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10], labels: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10] };
+    var mx = (list || []).reduce(function (m, p) { return Math.max(m, p.ft); }, 0), maxFt = Math.min(60, Math.max(20, Math.ceil(mx / 5) * 5)), rings = [], f;
+    for (f = 1; f <= 10; f++) rings.push(f); for (f = 15; f <= maxFt; f += 5) rings.push(f);
+    return { mode: 'wide', maxFt: maxFt, rings: rings };
+  }
+  function puttRadius(ft, sc, R) {
+    ft = Math.max(0, Math.min(ft, sc.maxFt));
+    if (sc.mode === 'close') return R * ft / 10;
+    var R10 = R * 0.6; return ft <= 10 ? R10 * ft / 10 : R10 + (R - R10) * (ft - 10) / (sc.maxFt - 10);
+  }
+  // Place putts: angle from Dir (no Dir = spread evenly), radius from distance; then nudge sideways
+  // (alternating ±angle, then slightly outward) until no two dots are closer than minD px.
+  function puttPlace(list, sc, cx, cy, R, minD) {
+    minD = minD || 15; var nd = list.filter(function (p) { return !p.dir; }).length, ndi = 0, out = [];
+    list.forEach(function (p) {
+      var r0 = puttRadius(p.ft, sc, R), a0 = p.dir ? DIR_ANGLE[p.dir] : 110 + 360 * (ndi++) / Math.max(1, nd), best = null;
+      for (var k = 0; k < 240 && !best; k++) {
+        var step = Math.ceil(k / 2) * (k % 2 ? 1 : -1), r = Math.max(4, r0 + Math.floor(k / 12) * 3), a = a0 + step * Math.max(6, (minD / Math.max(r, 8)) * 57.3),
+          t = a * Math.PI / 180, x = cx + r * Math.cos(t), y = cy - r * Math.sin(t);
+        if (!out.some(function (q) { return Math.hypot(q.x - x, q.y - y) < minD; })) best = { x: x, y: y };
+      }
+      if (!best) { var t2 = a0 * Math.PI / 180; best = { x: cx + r0 * Math.cos(t2), y: cy - r0 * Math.sin(t2) }; }
+      out.push({ p: p, x: best.x, y: best.y, beyond: p.ft > sc.maxFt, nodir: !p.dir });
+    });
+    return out;
+  }
   function puttGroup(n) { return n >= 3 ? '3' : String(n); } // 3 = "3rd+" (3rd, 4th, ...)
   function puttStats(list) {
     var made = list.filter(function (p) { return p.made; }).length;
@@ -637,7 +666,7 @@
     return incoming.filter(function (r) { return byId[r.id] && JSON.stringify(byId[r.id]) !== JSON.stringify(r); });
   }
 
-  var api = { PUTT_BANDS: PUTT_BANDS, puttGroup: puttGroup, puttStats: puttStats, makeBackup: makeBackup, parseBackup: parseBackup, mergeRounds: mergeRounds, conflictsOf: conflictsOf, PROX_LIES: PROX_LIES, lieGroup: lieGroup, proxByLie: proxByLie, proxWarnings: proxWarnings, PROX_BUCKETS: PROX_BUCKETS, inBucket: inBucket, roundYd: roundYd, proxStats: proxStats, reachedGreen: reachedGreen, PIN_GRID: PIN_GRID, PIN_NAME: PIN_NAME, normPin: normPin, DIR8: DIR8, DIR_NAME: DIR_NAME, DIR_ANGLE: DIR_ANGLE, normDir: normDir, expected: expected, expectedPGA: expectedPGA, BASELINES: BASELINES, baseline: function (id) { return BL[id] || BL.pga; },
+  var api = { puttScale: puttScale, puttRadius: puttRadius, puttPlace: puttPlace, PUTT_BANDS: PUTT_BANDS, puttGroup: puttGroup, puttStats: puttStats, makeBackup: makeBackup, parseBackup: parseBackup, mergeRounds: mergeRounds, conflictsOf: conflictsOf, PROX_LIES: PROX_LIES, lieGroup: lieGroup, proxByLie: proxByLie, proxWarnings: proxWarnings, PROX_BUCKETS: PROX_BUCKETS, inBucket: inBucket, roundYd: roundYd, proxStats: proxStats, reachedGreen: reachedGreen, PIN_GRID: PIN_GRID, PIN_NAME: PIN_NAME, normPin: normPin, DIR8: DIR8, DIR_NAME: DIR_NAME, DIR_ANGLE: DIR_ANGLE, normDir: normDir, expected: expected, expectedPGA: expectedPGA, BASELINES: BASELINES, baseline: function (id) { return BL[id] || BL.pga; },
     CALIB_ROUND: CALIB_ROUND, catLoss: catLoss, analyzeHole: analyzeHole, summarize: summarize,
     rowsToShots: rowsToShots, shotsToRows: shotsToRows, migrateV2Rows: migrateV2Rows, v1ToRows: v1ToRows, holeYards: holeYards,
     rowUnit: rowUnit, lieOf: lieOf, distOf: distOf, rowStrokes: rowStrokes, isPenalty: isPenalty,
