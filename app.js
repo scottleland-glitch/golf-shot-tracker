@@ -262,10 +262,12 @@
             if (pg[4]) { font(10, true); T('All approach groups this round', M, yy); yy = table([['Group', 'Shots', 'Greens hit', 'Avg ft - greens hit', 'Avg ft - all']].concat(gsum.map(function (x) { var Q = x.P;
                 return [x.g.name, String(Q.n), Q.hits + '/' + Q.n + ' (' + Math.round(Q.hitPct) + '%)', Q.avgHitFt == null ? '-' : Math.round(Q.avgHitFt) + ' ft', Q.avgAllFt == null ? '-' : Math.round(Q.avgAllFt) + ' ft']; })), M, yy + 14, [130, 60, 110, 120, 120], { fs: 8.5, rh: 13 }) + 8; }
             var maxW = PW - 2 * M, maxH = pg[1] === 'pin' ? 380 : pg[4] ? 330 - 13 * gsum.length : pg[1] === 'prox' ? 380 : 430, sc = Math.min(maxW / im.w, maxH / im.h), w = im.w * sc, h = im.h * sc;
-            doc.addImage(im.data, 'JPEG', M + (maxW - w) / 2, yy, w, h); yy += h + 14;
-            if (pg[1] === 'prox') { font(9, true); T('Line colour = distance group:', M, yy); var lx = M + 128;
+            var TX = M;
+            if (pg[1] === 'prox') { h = Math.min(PH - M - 14 - yy, 290 * im.h / im.w); w = h * im.w / im.h; doc.addImage(im.data, 'JPEG', M, yy, w, h); TX = M + w + 14; maxW = PW - M - TX; }
+            else { doc.addImage(im.data, 'JPEG', M + (maxW - w) / 2, yy, w, h); yy += h + 14; }
+            if (pg[1] === 'prox') { yy += 10; font(9, true); T('Line colour:', TX, yy); var lx = TX + 58;
               [pg[3]].forEach(function (g) { var c = parseInt(g.color.slice(1), 16); doc.setDrawColor((c >> 16) & 255, (c >> 8) & 255, c & 255); doc.setLineWidth(4); doc.line(lx, yy - 3, lx + 16, yy - 3); font(9); font(8); T(g.name, lx + 19, yy); lx += 70; });
-              doc.setDrawColor(0); yy += 14; font(9); T('Filled dot = hit the green · white ring with x = missed · * = holed · ? = no direction entered. Lines start at the lie the shot was hit from.', M, yy); yy += 16; }
+              doc.setDrawColor(0); yy += 14; font(8.5); var kt = doc.splitTextToSize(P('Filled dot = hit the green · white ring with x = missed (always drawn outside the green, farther out = farther from the pin) · * = holed · ? = no direction entered. Lines start at the lie the shot was hit from.'), maxW); doc.text(kt, TX, yy); yy += kt.length * 11 + 10; }
             if (pg[1] === 'pin') {
               font(9); T('Badges: holes with the pin in that part of the green and GIR. Dots: each hole\'s approach around that pin (white = GIR, red = missed green); 60 ft or more drawn at the edge.', M, yy, { maxWidth: maxW }); yy += 24;
               if (!segs.length) { font(11); T('No holes with a pin location set this round.', M, yy); return; }
@@ -276,9 +278,11 @@
             }
             mp.lines.forEach(function (L) {
               if (yy > PH - M - 12) return;
-              if (L.table) { var n = L.table[0].length, ww = n === 1 ? [maxW] : [Math.min(180, maxW * 0.36)].concat(Array(n - 1).fill((maxW - Math.min(180, maxW * 0.36)) / (n - 1)));
-                var rows = L.table.slice(0, Math.max(2, Math.floor((PH - M - yy) / 13))); yy = table(rows, M, yy + 10, ww, { fs: 8.5, rh: 13, clip: true }) + 4; return; }
-              font(L.b ? 10 : 9, !!L.b); var tl = doc.splitTextToSize(P(L.t), maxW); doc.text(tl, M, yy); yy += tl.length * 12 + 2;
+              if (L.table) { var n = L.table[0].length, fw = Math.min(180, maxW * (pg[1] === 'prox' ? 0.3 : 0.36)), ww = n === 1 ? [maxW] : [fw].concat(Array(n - 1).fill((maxW - fw) / (n - 1)));
+                if (pg[1] === 'prox' && n === 5) ww = [0.22, 0.14, 0.28, 0.18, 0.18].map(function (f) { return f * maxW; });
+                var rows = L.table; if (pg[1] === 'prox' && n === 2) rows = rows.filter(function (rw, k) { return !k || rw[1] !== '0'; });
+                rows = rows.slice(0, Math.max(2, Math.floor((PH - M - yy) / 13))); yy = table(rows, TX, yy + 10, ww, { fs: 8.5, rh: 13, clip: true }) + 4; return; }
+              font(L.b ? 10 : 9, !!L.b); var tl = doc.splitTextToSize(P(L.t), maxW); doc.text(tl, TX, yy); yy += tl.length * 12 + 2;
             });
           });
         });
@@ -1155,7 +1159,7 @@
         q = [PX.W - 22 - (nd % 6) * 26, 52 + Math.floor(nd / 6) * 34]; nd++; kind = 'missnodir';
         label = m.lie === 'ob' ? 'OB' : Math.round(m.yd) + ' yd';
       } else {
-        var r0 = m.ft == null ? PX.Rg + 30 : Math.max(m.ft * PX.K, PX.Rg + 14), jm = seen['m' + m.dir] = (seen['m' + m.dir] || 0) + 1;
+        var r0 = PX.Rg + 20 + (m.proxFt == null ? 40 : Math.min(m.proxFt, 150) * 0.45), jm = seen['m' + m.dir] = (seen['m' + m.dir] || 0) + 1;
         var raw = pt(PX.cx, PX.cy, r0, SG.DIR_ANGLE[m.dir] + (jm - 1) * 8); q = clampXY(raw); clamped = q[0] !== raw[0] || q[1] !== raw[1];
         kind = 'miss'; label = m.lie === 'ob' ? 'OB' : Math.round(m.yd) + ' yd' + (clamped ? ' ›' : ''); label2 = m.lie === 'ob' ? '' : (LN[m.lie] || m.lie);
       }
