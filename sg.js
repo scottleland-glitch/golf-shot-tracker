@@ -379,13 +379,18 @@
   // halves round UP (144 -> 140, 145 -> 150, 194.9 -> 190, 195 -> 200). Targets 40, 50 ... 200 (17);
   // shots that round outside 40-200 are left out (counted as "outside" in the view).
   function roundYd(yd) { return Math.floor(Number(yd) / 10 + 0.5) * 10; }
-  var PROX_BUCKETS = [{ id: 'all', yd: null, name: 'All 40–200 yd' }];
-  for (var pb = 40; pb <= 200; pb += 10) PROX_BUCKETS.push({ id: String(pb), yd: pb, name: pb + ' yd (' + (pb - 5) + '–' + (pb + 4) + ')' });
+  // Proximity groups = the SG approach groups (APPR_BUCKETS, same edges: 20-60 = over 20 to under 60,
+  // others include the lower number). Shots from 20 yd or closer are short game and not on the map.
+  // Tracer colours: colour-blind-friendly, high contrast on the green (each drawn over a white halo).
+  var PROX_COLORS = { '20-60': '#6a1b9a', '60-100': '#0d47a1', '100-130': '#00838f', '130-160': '#ffb300', '160-200': '#d81b60', '200+': '#6d4c41' };
+  var PROX_COLOR_NAMES = { '20-60': 'purple', '60-100': 'blue', '100-130': 'teal', '130-160': 'amber orange', '160-200': 'magenta', '200+': 'brown' };
+  var PROX_BUCKETS = [{ id: 'all', name: 'All approaches (over 20 yd)' }];
+  APPR_BUCKETS.forEach(function (b) { var id = b.id.replace(' yd', ''); PROX_BUCKETS.push({ id: id, name: id.replace('-', '–') + ' yd', lo: b.lo, hi: b.hi, color: PROX_COLORS[id], colorName: PROX_COLOR_NAMES[id], halo: id === '130-160' ? '#000' : '#fff' }); });
+  function proxGroup(yd) { if (yd == null || yd === '' || isNaN(Number(yd)) || Number(yd) <= SHORT_MAX_YD) return null; return apprBucket(Number(yd)).replace(' yd', ''); }
   function inBucket(id, yd) {
-    if (yd == null || yd === '' || isNaN(Number(yd))) return false;
-    var r = roundYd(yd);
-    if (id === 'all' || id == null) return r >= 40 && r <= 200;
-    return r === Number(id);
+    var g = proxGroup(yd); if (!g) return false;
+    if (id === 'all' || id == null) return true;
+    return g === String(id);
   }
   // Starting-lie groups for the proximity map / "By lie" table
   var PROX_LIES = [{ id: 'fairway', name: 'Fairway' }, { id: 'rough', name: 'Rough' }, { id: 'sand', name: 'Bunker' }, { id: 'tee', name: 'Tee' }, { id: 'other', name: 'Other' }];
@@ -684,7 +689,7 @@
     return incoming.filter(function (r) { return byId[r.id] && JSON.stringify(byId[r.id]) !== JSON.stringify(r); });
   }
 
-  var api = { SHORT_MAX_YD: SHORT_MAX_YD, APPR_BUCKETS: APPR_BUCKETS, apprBucket: apprBucket, proxAfterFt: proxAfterFt, puttKind: puttKind, threePutts: threePutts, puttScale: puttScale, puttRadius: puttRadius, puttPlace: puttPlace, PUTT_BANDS: PUTT_BANDS, puttGroup: puttGroup, puttStats: puttStats, makeBackup: makeBackup, parseBackup: parseBackup, mergeRounds: mergeRounds, conflictsOf: conflictsOf, PROX_LIES: PROX_LIES, lieGroup: lieGroup, proxByLie: proxByLie, proxWarnings: proxWarnings, PROX_BUCKETS: PROX_BUCKETS, inBucket: inBucket, roundYd: roundYd, proxStats: proxStats, reachedGreen: reachedGreen, PIN_GRID: PIN_GRID, PIN_NAME: PIN_NAME, normPin: normPin, DIR8: DIR8, DIR_NAME: DIR_NAME, DIR_ANGLE: DIR_ANGLE, normDir: normDir, expected: expected, expectedPGA: expectedPGA, BASELINES: BASELINES, baseline: function (id) { return BL[id] || BL.pga; },
+  var api = { proxGroup: proxGroup, PROX_COLORS: PROX_COLORS, SHORT_MAX_YD: SHORT_MAX_YD, APPR_BUCKETS: APPR_BUCKETS, apprBucket: apprBucket, proxAfterFt: proxAfterFt, puttKind: puttKind, threePutts: threePutts, puttScale: puttScale, puttRadius: puttRadius, puttPlace: puttPlace, PUTT_BANDS: PUTT_BANDS, puttGroup: puttGroup, puttStats: puttStats, makeBackup: makeBackup, parseBackup: parseBackup, mergeRounds: mergeRounds, conflictsOf: conflictsOf, PROX_LIES: PROX_LIES, lieGroup: lieGroup, proxByLie: proxByLie, proxWarnings: proxWarnings, PROX_BUCKETS: PROX_BUCKETS, inBucket: inBucket, roundYd: roundYd, proxStats: proxStats, reachedGreen: reachedGreen, PIN_GRID: PIN_GRID, PIN_NAME: PIN_NAME, normPin: normPin, DIR8: DIR8, DIR_NAME: DIR_NAME, DIR_ANGLE: DIR_ANGLE, normDir: normDir, expected: expected, expectedPGA: expectedPGA, BASELINES: BASELINES, baseline: function (id) { return BL[id] || BL.pga; },
     CALIB_ROUND: CALIB_ROUND, catLoss: catLoss, analyzeHole: analyzeHole, summarize: summarize,
     rowsToShots: rowsToShots, shotsToRows: shotsToRows, migrateV2Rows: migrateV2Rows, v1ToRows: v1ToRows, holeYards: holeYards,
     rowUnit: rowUnit, lieOf: lieOf, distOf: distOf, rowStrokes: rowStrokes, isPenalty: isPenalty,

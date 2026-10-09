@@ -22,7 +22,10 @@ const BASE = process.env.BASE_URL || 'http://127.0.0.1:8765/', SHOTS = process.e
         { par: 4, finished: true, rows: [R(380, 'tee'), R(140, 'fairway'), { dist: 3, loc: 'holed', dir: 'shortright', pen: false }] },
         { par: 5, finished: true, rows: [R(520, 'tee'), R(250, 'fairway'), R(90, 'fairway'), { dist: 12, loc: 'green', dir: 'right', pen: false }, { dist: 1.5, loc: 'holed', dir: 'left', pen: false }] },
         { par: 3, finished: true, rows: [R(170, 'tee'), { dist: 30, loc: 'green', dir: 'longright', pen: false }, { dist: 14, loc: 'holed', dir: 'long', pen: false }] }] },
-      { v: 3, dv: 2, id: 'rold', date: '2026-10-01T14:00:00.000Z', course: 'Older', baseline: 'pga', holes: [H(4, 400, 5)] }]));
+      { v: 3, dv: 2, id: 'rold', date: '2026-10-01T14:00:00.000Z', course: 'Older', baseline: 'pga', holes: [
+        { par: 4, finished: true, rows: [R(400, 'tee'), R(150, 'fairway'), { dist: 15, loc: 'rough', dir: 'shortleft', pen: false }, R(6, 'green'), R(1, 'holed')] },
+        { par: 3, finished: true, rows: [R(45, 'tee'), { dist: 10, loc: 'bunker', dir: 'long', pen: false }, R(3, 'green'), R(1, 'holed')] },
+        { par: 3, finished: true, rows: [R(15, 'tee'), R(4, 'green'), R(1, 'holed')] }] }]));
   });
   await page.evaluate(() => localStorage.setItem('golfsg.player.v1', 'Scott'));
   await page.reload();
@@ -73,6 +76,32 @@ const BASE = process.env.BASE_URL || 'http://127.0.0.1:8765/', SHOTS = process.e
   assert.match(await page.textContent('#bydistnote'), /more than 20 yd off the green, par-3 tee shots included.*from 20 yd and in.*20–60 = over 20 up to under 60 yd.*yards × 3/);
   await page.locator('#bydist').scrollIntoViewIfNeeded(); await page.evaluate(() => window.scrollBy(0, -60)); await page.waitForFunction(() => document.getElementById('toast').className !== 'show'); await page.screenshot({ path: SHOTS + '/38-sg-by-distance.png' });
   console.log('✓ SG by distance: approach buckets 20-60/60-100/100-130/130-160/160-200/200+, short game 0-20 yd, avg to pin after; rows add up to category');
+  // Proximity map: SG distance groups, colour = group, marker = hit/miss
+  await page.click('[data-act="map"][data-v="prox"]'); await page.waitForSelector('#proxmap');
+  const yb = await page.$$eval('#proxrail .ybtn', bs => bs.map(b => [b.getAttribute('data-v'), +b.getAttribute('data-n'), b.disabled]));
+  assert.deepStrictEqual(yb, [['20-60', 0, true], ['60-100', 1, false], ['100-130', 0, true], ['130-160', 3, false], ['160-200', 2, false], ['200+', 0, true]]);
+  assert.strictEqual(+(await page.getAttribute('[data-act="proxb"][data-v="all"]', 'data-n')), 6);
+  const COL = await page.evaluate(() => Object.fromEntries(SG.PROX_BUCKETS.slice(1).map(b => [b.id, b.color])));
+  assert.strictEqual(new Set(Object.values(COL)).size, 6);
+  const trc = await page.$$eval('#proxmap .tracer', ts => ts.map(t => [t.getAttribute('data-group'), t.getAttribute('stroke')]));
+  assert.strictEqual(trc.length, 6); trc.forEach(t => assert.strictEqual(t[1], COL[t[0]]));
+  assert.deepStrictEqual(trc.map(t => t[0]).sort(), ['130-160', '130-160', '130-160', '160-200', '160-200', '60-100']);
+  assert.deepStrictEqual(await page.$$eval('#proxcolors span', x => x.map(e => e.getAttribute('data-group'))), ['20-60', '60-100', '100-130', '130-160', '160-200', '200+']);
+  assert.ok((await page.$$eval('#proxmap .xdot', d => d.map(e => e.getAttribute('data-hit')))).every(h => h === '1'));
+  await page.screenshot({ path: SHOTS + '/46-proximity-groups-all.png' });
+  await page.click('[data-act="proxb"][data-v="130-160"]');
+  assert.deepStrictEqual(await page.$$eval('#proxmap .tracer', ts => ts.map(t => t.getAttribute('data-group'))), ['130-160', '130-160', '130-160']);
+  assert.match(await page.textContent('#mapsum'), /^3 approaches from 130–160 yd this round/);
+  // All rounds: misses drawn as white ring + ✕ in the group colour; counts add up; short-game regulation shots noted
+  await page.click('[data-act="proxb"][data-v="all"]'); await page.click('[data-act="mapscope"][data-v="all"]');
+  const ex = await page.evaluate(() => { const L = []; window.__golf.rounds().forEach(r => SG.summarize(r).proxList.forEach(m => L.push(m))); return { all: L.filter(m => SG.inBucket('all', m.from)).length, short: L.filter(m => !SG.inBucket('all', m.from)).length, miss: L.filter(m => SG.inBucket('all', m.from) && !m.hit).length }; });
+  const ybA = await page.$$eval('#proxrail .ybtn', bs => bs.map(b => +b.getAttribute('data-n'))); assert.strictEqual(ybA.reduce((a, b) => a + b, 0), ex.all);
+  const misses = await page.$$eval('#proxmap .xdot[data-hit="0"]', d => d.map(e => [e.tagName, e.getAttribute('data-group'), (e.querySelector('circle,path') || e).getAttribute('stroke'), (e.querySelector('circle,path') || e).getAttribute('fill')]));
+  assert.strictEqual(misses.length, ex.miss); assert.ok(ex.miss >= 2 && ex.short >= 1, JSON.stringify(ex)); misses.forEach(m => { assert.strictEqual(m[0], 'g'); assert.strictEqual(m[2], COL[m[1]]); assert.strictEqual(m[3], '#fff'); });
+  await page.screenshot({ path: SHOTS + '/46b-proximity-groups-allrounds.png' }); await page.evaluate(() => document.getElementById('proxrail').scrollIntoView()); await page.screenshot({ path: SHOTS + '/46c-proximity-map-allrounds.png' });
+  if (ex.short) assert.match(await page.textContent('#proxout'), new RegExp('^' + ex.short + ' regulation shots? from 20 yd or closer'));
+  await page.click('[data-act="mapscope"][data-v="round"]'); await page.click('[data-act="mapclose"]');
+  console.log('✓ proximity: 6 SG distance groups (empty greyed), tracer colour = group, filled = hit / ring ✕ = miss, legend, counts add up (' + ex.all + ' all rounds, ' + ex.miss + ' misses)');
   assert.match(await page.textContent('[data-act="map"][data-v="putt"]'), /^10\s*Putts – tap for map\s*1st putts made 2\/6/);
   await page.click('[data-act="map"][data-v="putt"]'); await page.waitForSelector('#puttmap');
   const pb = await page.$$eval('#puttbtns .pnbtn', bs => bs.map(b => [b.getAttribute('data-v'), +b.getAttribute('data-n'), b.disabled, b.classList.contains('sel')]));

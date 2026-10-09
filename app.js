@@ -848,7 +848,7 @@
   function proxTile(S) {
     var L = S.proxList.filter(function (m) { return SG.inBucket('all', m.from); }), P = SG.proxStats(L);
     return tile('prox', 'Proximity by distance – tap for map', P.n ? fmtFt(P.avgAllFt) : '–',
-      '<small class="mini">avg 40–200 yd · ' + P.n + ' approach' + (P.n === 1 ? '' : 'es') + (P.n ? ' · greens hit ' + P.hits + '/' + P.n : '') + '</small>');
+      '<small class="mini">avg over 20 yd · ' + P.n + ' approach' + (P.n === 1 ? '' : 'es') + (P.n ? ' · greens hit ' + P.hits + '/' + P.n : '') + '</small>');
   }
   // Proximity data for the selected yardage. Counts per yardage button (current scope) decide which
   // buttons are enabled; a selection with no shots in this scope falls back to All.
@@ -921,8 +921,9 @@
       if (g === 'tee') return [PX.cx + sp, PX.H - 17, g];
       return [30 + sp * 0.6, PX.H - 20 - row, g];
     };
+    var PB = {}; SG.PROX_BUCKETS.forEach(function (b) { PB[b.id] = b; });
     list.forEach(function (m, i) {
-      var col = m.hit ? '#1e6fd9' : '#e0102a', q, kind, clamped = false, label, label2 = '';
+      var grp = SG.proxGroup(m.from), gb = PB[grp] || { color: '#555', halo: '#fff' }, col = gb.color, q, kind, clamped = false, label, label2 = '';
       if (m.hit) {
         if (m.holed) { var jh = seen.h = (seen.h || 0) + 1; q = [PX.cx - 14 + (jh - 1) * 14, PX.cy + 14]; kind = 'holed'; label = ''; }
         else {
@@ -939,13 +940,17 @@
         kind = 'miss'; label = m.lie === 'ob' ? 'OB' : Math.round(m.yd) + ' yd' + (clamped ? ' ›' : ''); label2 = m.lie === 'ob' ? '' : (LN[m.lie] || m.lie);
       }
       var x = f1(q[0]), y = f1(q[1]), st = startAt(m), ox = st[0], oy = st[1];
-      if (kind !== 'missnodir') tr += '<path class="tracer" data-start="' + st[2] + '" data-sx="' + f1(ox) + '" data-sy="' + f1(oy) + '" data-ex="' + x + '" data-ey="' + y + '" d="' + flight(ox, oy, q[0], q[1], i) + '" fill="none" stroke="' + col + '" stroke-width="2.5" stroke-opacity=".75"/>';
-      starts += '<circle class="xstart" data-start="' + st[2] + '" data-hole="' + m.hole + '" cx="' + f1(ox) + '" cy="' + f1(oy) + '" r="4" fill="#fff" stroke="' + col + '" stroke-width="2"/>';
-      var attrs = ' class="xdot" data-kind="' + kind + '" data-hole="' + m.hole + '" data-from="' + m.from + '"' + (clamped ? ' data-clamped="1"' : '');
-      if (kind === 'holed') dots += '<path' + attrs + ' d="M' + x + ' ' + (y - 10) + ' l3 6.5 7 .8 -5.3 4.8 1.5 7 -6.2 -3.6 -6.2 3.6 1.5 -7 -5.3 -4.8 7 -.8z" fill="#ffd23f" stroke="#1e6fd9" stroke-width="2"/>';
-      else if (kind === 'hitnodir' || kind === 'missnodir') dots += '<g' + attrs + ' data-x="' + x + '" data-y="' + y + '"><path d="M' + x + ' ' + (y - 10) + ' l10 10 -10 10 -10 -10z" fill="' + col + '" stroke="#000" stroke-width="2"/><text x="' + x + '" y="' + (+y + 4.5) + '" text-anchor="middle" font-size="12" font-weight="900" fill="#fff">?</text></g>';
-      else dots += '<circle' + attrs + ' cx="' + x + '" cy="' + y + '" r="6.5" fill="' + col + '" stroke="#000" stroke-width="2"/>';
-      if (label) pend.push([q[0], q[1], label, label2, m.hit ? '#0b3d91' : '#9b0016']);
+      if (kind !== 'missnodir') { var dd = flight(ox, oy, q[0], q[1], i);
+        tr += '<path class="thalo" d="' + dd + '" fill="none" stroke="' + gb.halo + '" stroke-width="5.5" stroke-opacity=".8"/>' +
+          '<path class="tracer" data-group="' + grp + '" data-color="' + col + '" data-start="' + st[2] + '" data-sx="' + f1(ox) + '" data-sy="' + f1(oy) + '" data-ex="' + x + '" data-ey="' + y + '" d="' + dd + '" fill="none" stroke="' + col + '" stroke-width="3"/>'; }
+      starts += '<circle class="xstart" data-start="' + st[2] + '" data-hole="' + m.hole + '" cx="' + f1(ox) + '" cy="' + f1(oy) + '" r="4" fill="#fff" stroke="' + col + '" stroke-width="2.5"/>';
+      var attrs = ' class="xdot" data-kind="' + kind + '" data-hit="' + (m.hit ? 1 : 0) + '" data-group="' + grp + '" data-hole="' + m.hole + '" data-from="' + m.from + '"' + (clamped ? ' data-clamped="1"' : '');
+      // colour = distance group; marker = result: filled dot = hit the green, white ring with ✕ = missed
+      if (kind === 'holed') dots += '<path' + attrs + ' d="M' + x + ' ' + (y - 10) + ' l3 6.5 7 .8 -5.3 4.8 1.5 7 -6.2 -3.6 -6.2 3.6 1.5 -7 -5.3 -4.8 7 -.8z" fill="#ffd23f" stroke="' + col + '" stroke-width="2.5"/>';
+      else if (kind === 'hitnodir' || kind === 'missnodir') dots += '<g' + attrs + ' data-x="' + x + '" data-y="' + y + '"><path d="M' + x + ' ' + (y - 10) + ' l10 10 -10 10 -10 -10z" fill="' + (m.hit ? col : '#fff') + '" stroke="' + (m.hit ? '#000' : col) + '" stroke-width="' + (m.hit ? 2 : 3.5) + '"/><text x="' + x + '" y="' + (+y + 4.5) + '" text-anchor="middle" font-size="12" font-weight="900" fill="' + (m.hit ? (gb.halo === '#000' ? '#000' : '#fff') : '#000') + '">?</text></g>';
+      else if (m.hit) dots += '<circle' + attrs + ' cx="' + x + '" cy="' + y + '" r="6.5" fill="' + col + '" stroke="#000" stroke-width="2"/>';
+      else dots += '<g' + attrs + ' data-x="' + x + '" data-y="' + y + '"><circle cx="' + x + '" cy="' + y + '" r="7.5" fill="#fff" stroke="' + col + '" stroke-width="3.5"/><path d="M' + f1(q[0] - 3.5) + ' ' + f1(q[1] - 3.5) + ' l7 7 m0 -7 l-7 7" stroke="#000" stroke-width="2.2"/></g>';
+      if (label) pend.push([q[0], q[1], label, label2, '#000']);
       boxes.push([q[0] - 8, q[1] - 10, q[0] + 8, q[1] + 10]);
     });
     pend.forEach(function (p) { labels += lbl(p[0], p[1], p[2], p[3], p[4]); });
@@ -957,12 +962,13 @@
   function proxHTML(all) {
     var D = proxData(), L = D.list, P = SG.proxStats(L), miss = L.filter(function (m) { return !m.hit; });
     // yardage rail: 200 at the top (farther = up the page, like the map), 40 at the bottom
-    var rail = SG.PROX_BUCKETS.slice(1).reverse().map(function (b) {
+    var PB = {}; SG.PROX_BUCKETS.forEach(function (b) { PB[b.id] = b; });
+    var rail = SG.PROX_BUCKETS.slice(1).map(function (b) {
       var c = D.counts[b.id];
       return '<button class="ybtn' + (b.id === D.bucket ? ' sel' : '') + '" data-act="proxb" data-v="' + b.id + '" data-n="' + c + '"' + (c ? '' : ' disabled') +
-        ' aria-pressed="' + (b.id === D.bucket) + '" aria-label="' + b.yd + ' yards, ' + c + ' shot' + (c === 1 ? '' : 's') + '"><b>' + b.yd + '</b>' + (c ? '<small>' + c + '</small>' : '') + '</button>';
+        ' aria-pressed="' + (b.id === D.bucket) + '" aria-label="' + b.name + ', ' + c + ' shot' + (c === 1 ? '' : 's') + '"><i class="ysw" style="background:' + b.color + '"></i><b>' + b.name + '</b><small>' + c + '</small></button>';
     }).join('');
-    var bname = D.bucket === 'all' ? 'All 40–200 yd' : D.bucket + ' yd (' + (Number(D.bucket) - 5) + '–' + (Number(D.bucket) + 4) + ')';
+    var bname = D.bucket === 'all' ? 'all distances (over 20 yd)' : PB[D.bucket].name;
     var scope = all ? ' in ' + D.rounds + ' round' + (D.rounds === 1 ? '' : 's') : ' this round';
     var LIE_NM = { all: 'All lies' }; SG.PROX_LIES.forEach(function (l) { LIE_NM[l.id] = l.name; });
     var chips = ['all'].concat(SG.PROX_LIES.map(function (l) { return l.id; })).map(function (id) {
@@ -981,21 +987,24 @@
       stat('Avg proximity – greens hit', fmtFt(P.avgHitFt)) + stat('Avg proximity – all', fmtFt(P.avgAllFt)) + '</div>' +
       '<div id="proxwarn">' + warnHTML + '</div>' +
       '<div class="liechips" id="liechips" role="group" aria-label="Starting lie">' + chips + '</div>' +
-      '<button class="yall' + (D.bucket === 'all' ? ' sel' : '') + '" data-act="proxb" data-v="all" data-n="' + D.counts.all + '" aria-pressed="' + (D.bucket === 'all') + '">All 40–200 yd · ' + D.counts.all + ' shot' + (D.counts.all === 1 ? '' : 's') + '</button>' +
-      '<div class="proxwrap"><div class="proxrail" id="proxrail" role="group" aria-label="Approach yardage">' + rail + '</div>' + proxSVG(L) + '</div>' +
-      (D.outside ? '<p class="help muted" id="proxout">' + D.outside + ' regulation shot' + (D.outside === 1 ? '' : 's') + ' from outside 40–200 yd (e.g. a par-4 tee shot that missed, or under 35 yd) not shown.</p>' : '') +
+      '<button class="yall' + (D.bucket === 'all' ? ' sel' : '') + '" data-act="proxb" data-v="all" data-n="' + D.counts.all + '" aria-pressed="' + (D.bucket === 'all') + '">All distances · ' + D.counts.all + ' shot' + (D.counts.all === 1 ? '' : 's') + '</button>' +
+      '<div class="proxrail" id="proxrail" role="group" aria-label="Approach distance">' + rail + '</div>' +
+      '<div class="legend" id="proxcolors">' + SG.PROX_BUCKETS.slice(1).map(function (b) { return '<span data-group="' + b.id + '"><i class="ln" style="background:' + b.color + ';height:5px"></i>' + b.name + ' (' + b.colorName + ')</span>'; }).join('') + '</div>' +
+      proxSVG(L) +
+      (D.outside ? '<p class="help muted" id="proxout">' + D.outside + ' regulation shot' + (D.outside === 1 ? '' : 's') + ' from 20 yd or closer (short game) not shown.</p>' : '') +
       '<h3>By lie – ' + bname + '</h3>' + lieTab +
-      '<div class="legend"><span><i class="ln" style="background:#1e6fd9"></i><i class="dot" style="background:#1e6fd9"></i>Hit the green – first-putt distance (ft) + direction from the hole</span>' +
-      '<span><i class="ln" style="background:#e0102a"></i><i class="dot" style="background:#e0102a"></i>Missed the green – in the miss direction, distance to the pin at the same scale; label = yards left + lie (› = further than the picture, drawn at the edge)</span>' +
-      '<span><svg width="20" height="20" viewBox="0 0 20 20" style="flex:none"><path d="M10 1 l9 9 -9 9 -9 -9z" fill="#888" stroke="#000" stroke-width="2"/><text x="10" y="14.5" text-anchor="middle" font-size="12" font-weight="900" fill="#fff">?</text></svg>No direction entered: blue = hit (straight up at the right distance), red = miss (top-right corner)</span>' +
+      '<div class="legend" id="proxlegend"><span><b>Line colour = distance group</b> (colours above). The end marker shows the result:</span>' +
+      '<span><svg width="20" height="20" viewBox="0 0 20 20" style="flex:none"><circle cx="10" cy="10" r="6.5" fill="#0d47a1" stroke="#000" stroke-width="2"/></svg>Filled dot = hit the green – first-putt distance (ft) + direction from the hole</span>' +
+      '<span><svg width="20" height="20" viewBox="0 0 20 20" style="flex:none"><circle cx="10" cy="10" r="7.5" fill="#fff" stroke="#0d47a1" stroke-width="3.5"/><path d="M6.5 6.5 l7 7 m0 -7 l-7 7" stroke="#000" stroke-width="2.2"/></svg>White ring with ✕ = missed the green – in the miss direction, distance to the pin at the same scale; label = yards left + lie (› = further than the picture, drawn at the edge)</span>' +
+      '<span><svg width="20" height="20" viewBox="0 0 20 20" style="flex:none"><path d="M10 1 l9 9 -9 9 -9 -9z" fill="#fff" stroke="#0d47a1" stroke-width="3"/><text x="10" y="14.5" text-anchor="middle" font-size="12" font-weight="900" fill="#000">?</text></svg>No direction entered: filled = hit (straight up at the right distance), white = miss (top-right corner)</span>' +
       '<span><i class="dot" style="background:#fff;border:2px solid #555"></i>Where the shot was hit from (the strip under the green):</span>' +
       '<span><i class="sw" style="background:#9fdf86"></i>Fairway (middle)</span><span><i class="sw" style="background:#5f9e47"></i>Rough – left or right side from the direction you entered for the shot before, otherwise the side with fewer shots</span>' +
       '<span><i class="sw" style="background:#ecd27e"></i>Bunker</span><span><i class="sw" style="background:#c9f2b8;border:2px solid #9c9"></i>Tee box (par 3s)</span><span><i class="sw" style="background:#2f6b2a"></i>Trees / hazard drop / other</span>' +
       '<span><b class="star">★</b>Holed out</span><span>White rings: 5–30 ft from the hole</span></div>' +
       '<h3>Misses by direction</h3>' + dirTable(miss).replace('(not plotted)', '(drawn as ?)') +
-      '<p class="help muted">One shot per hole, the same as the GIR and Approach-miss maps: the shot that reached the green in regulation (blue), or the regulation miss (red: par 3 = tee shot, par 4 = 2nd shot, par 5 = 3rd shot). ' +
+      '<p class="help muted">One shot per hole, the same as the GIR and Approach-miss maps: the shot that reached the green in regulation (filled dot), or the regulation miss (ring with ✕: par 3 = tee shot, par 4 = 2nd shot, par 5 = 3rd shot). ' +
       'It goes in the range it was hit from. A chip-in from 30 yd or closer right after counts as reaching the green (its proximity = the chip distance). ' +
-      'Proximity: greens hit = first-putt feet; misses = yards left × 3; OB has no proximity and is left out of the averages. Yardage buttons (200 at the top, 40 at the bottom): the distance the shot was hit from, rounded to the nearest 10 yd, halves up (144 → 140, 145 → 150), so 150 = 145 to 154 yd. Greyed-out buttons have no shots; the small number is the shot count. Lie buttons filter the map and stats by where the shot was hit from (Rough includes deep rough; Other = trees, hazard and anything else). ⚠ = a lie with 3+ shots and no greens hit, or 30+ points worse than from the fairway. ' +
+      'Proximity: greens hit = first-putt feet; misses = yards left × 3; OB has no proximity and is left out of the averages. Distance buttons = the same groups as the strokes-gained By distance table: 20–60 = over 20 up to under 60 yd, the others include the lower number (60–100 = 60 to under 100 yd); shots from 20 yd or closer are short game and not shown. Greyed-out buttons have no shots; the small number is the shot count. Lie buttons filter the map and stats by where the shot was hit from (Rough includes deep rough; Other = trees, hazard and anything else). ⚠ = a lie with 3+ shots and no greens hit, or 30+ points worse than from the fairway. ' +
       'Only finished holes count.</p>';
   }
   // ---------- pin-location map ----------
