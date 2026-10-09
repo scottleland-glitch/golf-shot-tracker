@@ -228,3 +228,53 @@ test("same round, different baseline: SG identity holds and Scott's 4 is still 4
   const S3 = SG.summarize({ baseline: 'lpga', holes: [{ par: 4, finished: true, rows }] });
   assert.strictEqual(S3.baseline, 'lpga', 'round setting used by default');
 });
+
+// ---- 8-way direction, approach misses, GIR map ----
+test('8-way directions: names, migration of old L/R/S/O codes', () => {
+  assert.deepStrictEqual(SG.DIR8.slice().sort(), ['left', 'long', 'longleft', 'longright', 'right', 'short', 'shortleft', 'shortright']);
+  assert.strictEqual(SG.DIR_NAME.shortleft, 'Short left'); assert.strictEqual(SG.DIR_NAME.long, 'Long');
+  assert.deepStrictEqual(['S', 'O', 'L', 'R', '', 'x', 'longright'].map(SG.normDir), ['short', 'long', 'left', 'right', '', '', 'longright']);
+  assert.strictEqual(SG.DIR_ANGLE.short, 270); assert.strictEqual(SG.DIR_ANGLE.long, 90); assert.strictEqual(SG.DIR_ANGLE.left, 180);
+  const m = SG.migrateV2Rows([{ loc: 'tee', dist: 400 }, { loc: 'rough', dist: 150, dir: 'O' }, { loc: 'green', dist: 9, dir: 'S' }, { loc: 'holed', dist: 1 }]);
+  assert.deepStrictEqual(m.map(r => r.dir), ['', 'long', 'short', '']);
+});
+
+test('approach miss = approach that did not finish on the green, with its direction vs the green', () => {
+  const S = SG.summarize({ holes: [
+    // par 4: drive, approach 150 misses short-left into rough, chip, putt
+    { par: 4, finished: true, rows: [R(400, 'tee'), R(150, 'fairway', 'right'), R(15, 'rough', 'shortleft'), R(6, 'green'), R(1, 'holed')] },
+    // par 3: tee shot (an approach) misses right into a bunker
+    { par: 3, finished: true, rows: [R(170, 'tee'), R(12, 'bunker', 'right'), R(4, 'green'), R(1, 'holed')] },
+    // par 4: approach hits the green long-right 18 ft from the hole -> GIR, not a miss
+    { par: 4, finished: true, rows: [R(380, 'tee'), R(140, 'fairway'), R(18, 'green', 'longright'), R(2, 'green'), R(1, 'holed')] },
+    // old code 'S' on a missed approach still counts as Short
+    { par: 4, finished: true, rows: [R(390, 'tee'), R(120, 'fairway'), R(10, 'fairway', 'S'), R(3, 'green'), R(1, 'holed')] },
+    // unfinished hole is ignored
+    { par: 4, finished: false, rows: [R(390, 'tee'), R(120, 'fairway'), R(10, 'rough', 'long')] }
+  ] });
+  assert.deepStrictEqual(S.apprMiss.map(m => [m.hole, m.dir, m.lie]), [[1, 'shortleft', 'rough'], [2, 'right', 'sand'], [4, 'short', 'fairway']]);
+  assert.strictEqual(S.teeRight, 1, 'tee shot that ended right of the fairway');
+  assert.strictEqual(S.apprShort, 2); assert.strictEqual(S.apprOver, 1); assert.strictEqual(S.apprLeft, 1); assert.strictEqual(S.apprRight, 2);
+  assert.strictEqual(S.gir, 1);
+  assert.deepStrictEqual(S.girMap.map(g => [g.hole, g.dir, g.ft, g.holed]), [[3, 'longright', 18, false]]);
+});
+
+test('GIR map uses the shot that reached the green in regulation; par 5 in 3; holed from off green; penalties count', () => {
+  const S = SG.summarize({ holes: [
+    { par: 5, finished: true, rows: [R(540, 'tee'), R(260, 'fairway'), R(90, 'fairway'), R(35, 'green', 'short'), R(3, 'green'), R(1, 'holed')] },
+    { par: 4, finished: true, rows: [R(400, 'tee'), R(130, 'holedx')] }, // approach holed for eagle 2
+    // drop (+1) means the green is reached in 3 on a par 4 -> not GIR
+    { par: 4, finished: true, rows: [R(400, 'tee'), R(160, 'hazard', 'left', true), R(8, 'green', 'left'), R(1, 'holed')] },
+    // green reached in 3 on a par 4 -> not GIR
+    { par: 4, finished: true, rows: [R(400, 'tee'), R(200, 'rough'), R(30, 'rough', 'short'), R(9, 'green', 'left'), R(1, 'holed')] }
+  ] });
+  assert.deepStrictEqual(S.girMap.map(g => [g.hole, g.dir, g.ft, g.holed]), [[1, 'short', 35, false], [2, '', 0, true]]);
+  assert.strictEqual(S.gir, 2); assert.strictEqual(S.girHoles, 4);
+  // the par-5 lay-up (260 -> 90 yd fairway, no direction) is not an approach miss; hole 3's drop was off the tee
+  assert.deepStrictEqual(S.apprMiss.map(m => [m.hole, m.dir, m.lie, m.pen]), [[4, 'short', 'rough', false]]);
+  const S2 = SG.summarize({ holes: [{ par: 5, finished: true, rows: [R(540, 'tee'), R(250, 'fairway'), R(60, 'fairway', 'right'), R(8, 'green'), R(1, 'holed')] },
+    { par: 4, finished: true, rows: [R(420, 'tee'), R(230, 'rough'), R(40, 'rough'), R(5, 'green'), R(1, 'holed')] },
+    { par: 4, finished: true, rows: [R(420, 'tee'), R(200, 'fairway'), R(200, 'ob', 'right'), R(10, 'green'), R(1, 'holed')] }] });
+  assert.deepStrictEqual(S2.apprMiss.map(m => [m.hole, m.dir, m.lie, m.pen]), [[1, 'right', 'fairway', false], [2, '', 'rough', false], [3, 'right', 'ob', true]],
+    'a lay-up with a direction counts; within 50 yd counts even without a direction; OB approach counts');
+});

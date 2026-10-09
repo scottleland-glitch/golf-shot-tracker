@@ -20,6 +20,14 @@ Every Shot Counts Table 3.10). The other five are ESTIMATED: per-round gaps from
 Player Quality ladder, then spread over the PGA table. Full sources, method and caveats: in-app
 "About the numbers" and the BASELINES comment in `sg.js`.
 
+## Directions and maps (v5)
+Dir = where the previous shot ended vs its target, 8 ways (Short = toward you, Long, Left, Right,
+Short left/right, Long left/right), picked from a 3x3 grid. Old L/R/S/O saves become Left/Right/Short/Long.
+Summary tiles: "Approach misses" (approach shots that missed the green; lay-ups more than 50 yd out with
+no direction are left out) opens a map of misses around the green by direction; "Greens in reg." opens a
+map with the hole in the middle and rings at 5-30 ft (radius = first-putt distance, angle = direction).
+Both maps: This round / All rounds, legend, counts by direction.
+
 ## Files
 - `index.html`, `styles.css`, `app.js` – the app
 - `sg.js` – strokes-gained engine + Broadie baseline tables (sources/approximations documented at top)

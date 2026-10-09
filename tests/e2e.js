@@ -24,7 +24,8 @@ let passed = 0; const ok = (m) => { passed++; console.log('  ✓', m); };
   const actK = (a, k) => page.locator(`[data-act="${a}"][data-k="${k}"]`).first().click();
   const dist = (k, v) => page.fill(`input[data-row="${k}"]`, String(v));
   const loc = (k, v) => page.selectOption(`select[data-f="loc"][data-k="${k}"]`, v);
-  const dir = (k, v) => page.selectOption(`select[data-f="dir"][data-k="${k}"]`, v);
+  const OLD = { L: 'left', R: 'right', S: 'short', O: 'long' };
+  const dir = async (k, v) => { await actK('dirpick', k); await page.locator(`.sheet [data-act="setdir"][data-v="${OLD[v] || v}"]`).click(); };
   const rows = () => page.locator('.srow[data-k]').count();
   const doneText = () => page.textContent('.hole-done');
   const hideToast = () => page.evaluate(() => { document.getElementById('toast').className = ''; });
@@ -42,12 +43,36 @@ let passed = 0; const ok = (m) => { passed++; console.log('  ✓', m); };
     const holes = []; for (let i = 0; i < 18; i++) holes.push({ par: 4, rows: [{ loc: 'tee', dist: '', dir: '', pen: false }] });
     holes[0] = { par: 4, rows: [{ loc: 'tee', dist: 365, dir: '', pen: false }, { loc: 'fairway', dist: 100, dir: 'L', pen: false },
       { loc: 'green', dist: 6, dir: '', pen: false }, { loc: 'holed', dist: '', dir: '', pen: false }] };
-    localStorage.setItem('golfsg.rounds.v1', JSON.stringify([{ id: 'rv2', date: '2026-10-08T05:00:00.000Z', course: 'Scott v2 save', holes }]));
+    // A finished history round saved with the OLD L/R/S/O codes (v3 rows, before 8-way directions)
+    const R = (dist, loc, dir = '') => ({ dist, loc, dir, pen: false });
+    const demo = [
+      [4, [R(410, 'tee'), R(160, 'fairway'), R(20, 'rough', 'shortright'), R(6, 'green'), R(1, 'holed')]],
+      [4, [R(380, 'tee'), R(140, 'fairway'), R(15, 'bunker', 'R'), R(5, 'green'), R(2, 'holed')]],
+      [3, [R(180, 'tee'), R(25, 'rough', 'S'), R(8, 'green'), R(1, 'holed')]],
+      [4, [R(430, 'tee'), R(190, 'rough', 'L'), R(30, 'rough', 'shortleft'), R(12, 'green'), R(2, 'holed')]],
+      [3, [R(200, 'tee'), R(20, 'rough', 'longleft'), R(4, 'green'), R(1, 'holed')]],
+      [4, [R(400, 'tee'), R(120, 'fairway'), R(18, 'bunker', 'short'), R(3, 'green'), R(1, 'holed')]],
+      [4, [R(390, 'tee'), R(150, 'fairway'), R(25, 'rough', 'right'), R(7, 'green'), R(1, 'holed')]],
+      [4, [R(400, 'tee'), R(150, 'fairway'), R(12, 'green', 'longright'), R(2, 'green'), R(1, 'holed')]],
+      [3, [R(170, 'tee'), R(22, 'green', 'short'), R(3, 'green'), R(1, 'holed')]],
+      [4, [R(360, 'tee'), R(100, 'fairway'), R(6, 'holed', 'left')]],
+      [5, [R(520, 'tee'), R(250, 'fairway'), R(80, 'fairway'), R(40, 'green', 'long'), R(4, 'green'), R(1, 'holed')]],
+      [4, [R(410, 'tee'), R(170, 'rough', 'R'), R(28, 'green', 'O'), R(3, 'green'), R(1, 'holed')]],
+      [4, [R(390, 'tee'), R(130, 'fairway'), R(9, 'holed', 'shortleft')]],
+      [3, [R(150, 'tee'), R(15, 'green', 'right'), R(2, 'green'), R(1, 'holed')]]
+    ].map(([par, rows]) => ({ par, finished: true, rows }));
+    while (demo.length < 18) demo.push({ par: 4, finished: false, rows: [R('', 'tee')] });
+    localStorage.setItem('golfsg.rounds.v1', JSON.stringify([{ id: 'rv2', date: '2026-10-08T05:00:00.000Z', course: 'Scott v2 save', holes },
+      { v: 3, id: 'rdemo', date: '2026-10-01T20:00:00.000Z', course: 'Lakeridge', baseline: 'pga', holes: demo }]));
     localStorage.setItem('golfsg.current.v1', 'rv2');
   });
   await page.reload(); await page.waitForSelector('text=Golf Shot Tracker');
   const swScope = await page.evaluate(async () => (await navigator.serviceWorker.ready).scope); assert.ok(swScope.startsWith(URL), swScope); ok('service worker scope = ' + swScope);
+  const mig = await page.evaluate(() => { const rs = JSON.parse(localStorage.getItem('golfsg.rounds.v1')); return [rs[0].holes[0].rows[1].dir, rs[1].holes[1].rows[2].dir, rs[1].holes[2].rows[1].dir, rs[1].holes[11].rows[2].dir, rs[1].holes[3].rows[1].dir, rs[1].dv]; });
+  assert.deepStrictEqual(mig, ['left', 'right', 'short', 'long', 'left', 2]); ok('old direction codes migrated: L→Left, R→Right, S→Short, O→Long');
   await act('resume'); await page.waitForSelector('.holecard');
+  assert.strictEqual(await page.getAttribute('[data-act="dirpick"][data-k="1"]', 'data-dir'), 'left');
+  assert.strictEqual(await page.textContent('[data-act="dirpick"][data-k="1"]'), '←'); ok('row direction shows as ← (Left)');
   assert.match(await count(), /^4 strokes/); ok("Scott's saved hole (365 Tee, 100 F L, 6 G, In the hole) counts 4 strokes");
   assert.ok(await finishDisabled()); assert.match(await hint(), /Missing: distance in row 4/);
   assert.match(await header(), /No holes finished/); ok('…and stays unfinished (Finish disabled, "Missing: distance in row 4"), not in totals');
@@ -105,7 +130,19 @@ let passed = 0; const ok = (m) => { passed++; console.log('  ✓', m); };
   await page.locator('[data-act="next"].big').click();
   assert.match(await page.textContent('.hc-head'), /Hole 2/); ok('Add Hole 2 moves to hole 2');
   await act('par', 3); await dist(0, 165);
-  await act('addShot'); await dist(1, 15); await loc(1, 'bunker'); await dir(1, 'L');
+  await act('addShot'); await dist(1, 15); await loc(1, 'bunker');
+  await actK('dirpick', 1);
+  const grid = await page.$$eval('.sheet .dirgrid button', bs => bs.map(b => b.getAttribute('data-v')));
+  assert.deepStrictEqual(grid, ['longleft', 'long', 'longright', 'left', '', 'right', 'shortleft', 'short', 'shortright']);
+  const names = await page.$$eval('.sheet .dirgrid button', bs => bs.map(b => b.textContent.slice(1)));
+  assert.deepStrictEqual(names, ['Long left', 'Long', 'Long right', 'Left', 'None', 'Right', 'Short left', 'Short', 'Short right']);
+  ok('direction picker: 3×3 grid, 8 directions + None, Short at the bottom (toward you)');
+  await hideToast(); await page.screenshot({ path: `${SHOTS}/13-direction-picker.png` });
+  await page.locator('.sheet [data-act="setdir"][data-v="shortleft"]').click();
+  assert.strictEqual(await page.textContent('[data-act="dirpick"][data-k="1"]'), '↙');
+  await dir(1, 'L');
+  assert.strictEqual(await page.textContent('[data-act="dirpick"][data-k="1"]'), '←');
+  assert.match(await page.textContent('.sinfo[data-info="0"]'), /left \(missed green\)/); ok('pick Short left → ↙, change to Left → ←; info says "left (missed green)"');
   await act('addShot'); await dist(2, 4); await loc(2, 'green');
   await act('addShot'); await dist(3, 1); await loc(3, 'holed'); await act('finish');
   assert.match(await page.textContent('.hole-done'), /Score 4 \(\+1\)/); ok('hole 2: 165 Tee, 15 Bunker L, 4 ft G, 1 ft In the hole = 4 (+1)');
@@ -182,6 +219,52 @@ let passed = 0; const ok = (m) => { passed++; console.log('  ✓', m); };
   assert.match(await header(), /SG vs Scratch men/); ok('hole screen follows the switched baseline');
   await page.locator('[data-act="summary"]').first().click();
   await noOverflow('summary');
+  // Approach-miss and GIR maps
+  assert.match(await page.textContent('[data-act="map"][data-v="miss"]'), /^1\s*Approach misses/); 
+  assert.match(await page.textContent('[data-act="map"][data-v="miss"] .mini'), /←1/); ok('Approach misses tile: 1 (←1)');
+  await hideToast(); await page.locator('[data-act="map"][data-v="gir"]').scrollIntoViewIfNeeded(); await page.evaluate(() => window.scrollBy(0, 250));
+  await page.screenshot({ path: `${SHOTS}/16-summary-map-tiles.png` });
+  await page.locator('[data-act="map"][data-v="miss"]').click();
+  await page.waitForSelector('#missmap');
+  const box = await page.$eval('#mapview', e => { const r = e.getBoundingClientRect(); return [r.width, r.height]; }); assert.deepStrictEqual(box, [390, 844]); ok('miss map opens full-window (390×844)');
+  assert.match(await page.textContent('#mapsum'), /1 approach missed the green this round/);
+  assert.strictEqual(await page.textContent('#missmap .mcount[data-dir="left"] text'), '1');
+  assert.strictEqual(await page.locator('#missmap .mdot').count(), 1);
+  assert.strictEqual(await page.textContent('#dirtab tr[data-dir="left"] td.num'), '1'); ok('this round: 1 miss, plotted left of the green, counts table Left 1');
+  await act('mapscope', 'all');
+  const exp = await page.evaluate(() => window.__golf.rounds().reduce((n, r) => n + SG.summarize(r).apprMiss.length, 0));
+  assert.strictEqual(exp, 8);
+  assert.match(await page.textContent('#mapsum'), /8 approaches missed the green in 3 rounds/);
+  const cnt = await page.$$eval('#missmap .mcount', gs => Object.fromEntries(gs.map(g => [g.getAttribute('data-dir'), +g.textContent])));
+  assert.deepStrictEqual(cnt, { long: 0, longright: 0, right: 2, shortright: 1, short: 2, shortleft: 1, left: 1, longleft: 1 });
+  assert.strictEqual(await page.locator('#missmap .mdot').count(), 8); ok('all rounds: 8 misses by sector ' + JSON.stringify(cnt));
+  await page.screenshot({ path: `${SHOTS}/14-approach-miss-map.png` });
+  await page.screenshot({ path: `${SHOTS}/14b-approach-miss-map-full.png`, fullPage: false });
+  await page.locator('#mapview').evaluate(e => e.scrollTo(0, e.scrollHeight)); await page.screenshot({ path: `${SHOTS}/14c-approach-miss-map-counts.png` });
+  await act('mapclose'); assert.strictEqual(await page.locator('#mapview').count(), 0); ok('Close returns to the summary');
+  assert.match(await page.textContent('[data-act="map"][data-v="gir"]'), /^1 \/ 3/);
+  await page.locator('[data-act="map"][data-v="gir"]').click(); await page.waitForSelector('#girmap');
+  assert.strictEqual(await page.$eval('[data-act="mapscope"][data-v="all"]', e => e.className), 'sel', 'scope remembered');
+  await act('mapscope', 'round');
+  assert.match(await page.textContent('#mapsum'), /1 green in regulation this round/);
+  assert.match(await page.textContent('#dirtab'), /No direction entered \(not plotted\)1/); ok('GIR map this round: 1 GIR (no direction entered → listed, not plotted)');
+  const rings = await page.$$eval('#girmap text.ring', ts => ts.map(t => t.textContent));
+  assert.deepStrictEqual(rings, ['30 ft', '25 ft', '20 ft', '15 ft', '10 ft', '5 ft']); ok('GIR map: 6 labelled rings 5–30 ft');
+  await act('mapscope', 'all');
+  assert.match(await page.textContent('#mapsum'), /9 greens in regulation in 3 rounds/);
+  const dots = await page.$$eval('#girmap .gdot', cs => cs.map(c => [+c.getAttribute('cx'), +c.getAttribute('cy'), c.getAttribute('fill')]));
+  assert.strictEqual(dots.length, 7);
+  const near = (p, x, y) => Math.abs(p[0] - x) < 0.6 && Math.abs(p[1] - y) < 0.6;
+  assert.ok(dots.some(p => near(p, 180, 200 + 22 * 5)), '22 ft short → straight below the hole');
+  assert.ok(dots.some(p => near(p, 180 - 6 * 5, 200)), '6 ft left → left of the hole');
+  assert.ok(dots.some(p => near(p, 180 + 12 * 5 * Math.SQRT1_2, 200 - 12 * 5 * Math.SQRT1_2)), '12 ft long right → up-right');
+  assert.ok(dots.some(p => near(p, 180, 200 - 33 * 5) && p[2] === '#ffd23f'), '40 ft long → at the edge, yellow');
+  assert.ok((await page.textContent('#girmap')).includes('40 ft')); ok('GIR dots: radius = first-putt ft, angle = direction (short ↓, long ↑, left ←); 40 ft drawn at the edge with label');
+  assert.match(await page.textContent('.mapview .help'), /par − 2 strokes or fewer/); ok('GIR definition shown on screen');
+  await page.screenshot({ path: `${SHOTS}/15-gir-map.png` });
+  await page.locator('#mapview').evaluate(e => e.scrollTo(0, e.scrollHeight)); await page.screenshot({ path: `${SHOTS}/15b-gir-map-counts.png` });
+  await act('mapclose');
+  await noOverflow('summary with tiles');
   // About the numbers
   await act('about');
   const about = await page.textContent('.about');

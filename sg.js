@@ -107,7 +107,11 @@
    *   dist - distance to the pin this stroke was hit FROM (yards; feet on the green)
    *   loc  - where the ball was when hit: tee (row 1) | fairway | rough | deep |
    *          bunker | trees | green | hazard | ob | holed | holedx
-   *   dir  - how the previous stroke missed: L | R | S (short) | O (over) | ''
+   *   dir  - where the PREVIOUS stroke ended relative to its target (8-way):
+   *          short | long | left | right | shortleft | shortright | longleft | longright | ''
+   *          (old saves used L/R/S/O = left/right/short/over -> normDir maps them).
+   *          For an approach that missed the green: position relative to the green.
+   *          For an approach that hit the green: position relative to the hole.
    *   pen  - true = a penalty stroke was added to get here (+1), e.g. a drop
    * 'ob'     = previous stroke went OB: +1, and this stroke is the re-hit from
    *            the same spot (distance and lie copied from the row above).
@@ -118,6 +122,15 @@
    * Score = number of rows + penalty strokes. Complete = every row has a
    * distance and a location and the LAST row is In the hole (with a distance).
    */
+  var DIR8 = ['long', 'longright', 'right', 'shortright', 'short', 'shortleft', 'left', 'longleft'];
+  var DIR_NAME = { short: 'Short', long: 'Long', left: 'Left', right: 'Right', shortleft: 'Short left',
+    shortright: 'Short right', longleft: 'Long left', longright: 'Long right' };
+  // Angle in degrees, maths convention (0 = right, 90 = long/away from golfer, 270 = short/toward golfer)
+  var DIR_ANGLE = { right: 0, longright: 45, long: 90, longleft: 135, left: 180, shortleft: 225, short: 270, shortright: 315 };
+  var OLD_DIR = { L: 'left', R: 'right', S: 'short', O: 'long' };
+  function normDir(d) { d = d || ''; return OLD_DIR[d] || (DIR_NAME[d] ? d : ''); }
+  function dirSide(d) { return /left$/.test(d) ? 'L' : /right$/.test(d) ? 'R' : ''; }
+  function dirDepth(d) { return /^short/.test(d) ? 'S' : /^long/.test(d) ? 'O' : ''; }
   var LOC_LIE = { tee: 'tee', fairway: 'fairway', rough: 'rough', deep: 'deep', bunker: 'sand',
     trees: 'recovery', green: 'green', hazard: 'hazard', holed: 'green', holedx: 'fairway' };
   function blank(v) { return v === '' || v == null || isNaN(parseFloat(v)); }
@@ -159,8 +172,9 @@
       if (!nx.loc) { bad = k + 1; problem = 'loc'; break; }
       var dn = distOf(rows, k + 1);
       if (dn == null || dn <= 0) { bad = k + 1; problem = 'dist'; break; }
-      shots.push({ lie: lieOf(rows, k + 1), dist: dn, side: nx.dir === 'L' || nx.dir === 'R' ? nx.dir : '',
-        dir: nx.dir || '', pen: isPenalty(nx, k + 1) ? 'drop' : 'none', ob: nx.loc === 'ob' });
+      var nd = normDir(nx.dir);
+      shots.push({ lie: lieOf(rows, k + 1), dist: dn, side: dirSide(nd),
+        dir: nd, pen: isPenalty(nx, k + 1) ? 'drop' : 'none', ob: nx.loc === 'ob' });
     }
     return { shots: shots, bad: bad, problem: problem, complete: complete };
   }
@@ -176,7 +190,7 @@
    */
   function migrateV2Rows(rows) {
     return rows.map(function (r, k) {
-      var o = { dist: r.dist == null ? '' : r.dist, loc: r.loc || '', dir: r.dir || '', pen: !!r.pen };
+      var o = { dist: r.dist == null ? '' : r.dist, loc: r.loc || '', dir: normDir(r.dir), pen: !!r.pen };
       if (r.loc === 'holed') o.loc = k > 0 && rows[k - 1].loc === 'green' ? 'holed' : 'holedx';
       if (r.loc === 'ob') o.pen = false;
       return o;
@@ -192,7 +206,7 @@
       else if (prev.loc === 'ob') { /* rare: holed the re-hit; keep OB row and mark next */ v2[n - 1].dist = ''; }
       else { prev.loc = prev.loc === 'green' ? 'holed' : 'holedx'; v2.pop(); }
     }
-    return v2.map(function (r) { return { dist: r.dist == null ? '' : r.dist, loc: r.loc, dir: r.dir || '', pen: r.loc === 'ob' ? false : !!r.pen }; });
+    return v2.map(function (r) { return { dist: r.dist == null ? '' : r.dist, loc: r.loc, dir: normDir(r.dir), pen: r.loc === 'ob' ? false : !!r.pen }; });
   }
 
   /** Convert an old-format hole {par, yards, shots} to rows. */
@@ -267,7 +281,7 @@
         : Math.round(toYards(start.lie, start.dist) - toYards(end.lie, end.dist));
       out.push({
         n: i + 1, start: start, end: end, pen: pen, penStrokes: penStrokes,
-        side: s.side || '', dir: s.dir || s.side || '', ob: !!s.ob, eStart: eStart, eEnd: eEnd, sg: sg,
+        side: s.side || dirSide(normDir(s.dir)), dir: normDir(s.dir || s.side), ob: !!s.ob, eStart: eStart, eEnd: eEnd, sg: sg,
         cat: cat, bucket: bucket, hit: hit
       });
       start = end;
@@ -277,11 +291,11 @@
     if (complete === null) complete = holedOut;
     var done = complete && finished;
     // Green in regulation: on green (or holed) using <= par-2 strokes.
-    var gir = false, used = 0;
+    var gir = false, used = 0, girShot = null;
     for (var j = 0; j < out.length; j++) {
       used += 1 + out[j].penStrokes;
       if (out[j].end.lie === 'green' || out[j].end.lie === 'holed') {
-        gir = used <= hole.par - 2; break;
+        gir = used <= hole.par - 2; if (gir) girShot = j; break;
       }
     }
     var fairway = null;
@@ -294,7 +308,7 @@
       rows: nRows, liveStrokes: rowsFmt ? liveStrokes : shots.length + penalties,
       strokes: shots.length + penalties, penalties: penalties,
       putts: out.filter(function (r) { return r.cat === 'putting'; }).length,
-      done: done, gir: gir, fairway: fairway,
+      done: done, gir: gir, girShot: girShot, fairway: fairway,
       sg: out.reduce(function (a, r) { return a + r.sg; }, 0)
     };
   }
@@ -305,6 +319,7 @@
       strokes: 0, par: 0, holesDone: 0, holesStarted: 0, penalties: 0, putts: 0,
       fwHit: 0, fwTotal: 0, gir: 0, girHoles: 0,
       teeLeft: 0, teeRight: 0, apprLeft: 0, apprRight: 0, apprShort: 0, apprOver: 0, allLeft: 0, allRight: 0,
+      apprMiss: [], girMap: [],
       sgTotal: 0,
       cats: { tee: { sg: 0, n: 0 }, approach: { sg: 0, n: 0 }, short: { sg: 0, n: 0 }, putting: { sg: 0, n: 0 } },
       buckets: {}, holes: []
@@ -312,7 +327,7 @@
     var order = ['Tee shots', '30-100 yd', '100-150 yd', '150-200 yd', '200+ yd', '0-30 yd',
       '0-5 ft', '5-15 ft', '15-30 ft', '30+ ft'];
     order.forEach(function (b) { S.buckets[b] = { sg: 0, n: 0 }; });
-    (round.holes || []).forEach(function (h) {
+    (round.holes || []).forEach(function (h, hi) {
       var a = analyzeHole(h, baseline);
       S.holes.push(a);
       if (!a.shots.length) return;
@@ -332,9 +347,19 @@
         if (r.cat === 'tee') { if (r.side === 'L') S.teeLeft++; if (r.side === 'R') S.teeRight++; }
         if (r.cat === 'approach') {
           if (r.side === 'L') S.apprLeft++; if (r.side === 'R') S.apprRight++;
-          if (r.dir === 'S') S.apprShort++; if (r.dir === 'O') S.apprOver++;
+          var dd = dirDepth(r.dir); if (dd === 'S') S.apprShort++; if (dd === 'O') S.apprOver++;
+          // Approach miss = approach shot that did not finish on the green / in the hole.
+          // Lay-ups are left out: ended more than 50 yd from the pin with no direction entered.
+          if (r.end.lie !== 'green' && r.end.lie !== 'holed' && (r.dir || r.ob || r.end.dist <= 50)) {
+            S.apprMiss.push({ hole: hi + 1, shot: r.n, dir: r.dir, from: r.start.dist, lie: r.ob ? 'ob' : r.end.lie, dist: r.end.dist, pen: r.penStrokes > 0 });
+          }
         }
       });
+      if (a.gir && a.girShot != null) {
+        var g = a.shots[a.girShot];
+        S.girMap.push({ hole: hi + 1, shot: g.n, par: Number(h.par), dir: g.end.lie === 'holed' ? '' : g.dir,
+          ft: g.end.lie === 'holed' ? 0 : g.end.dist, holed: g.end.lie === 'holed', from: g.start.dist, fromLie: g.start.lie });
+      }
     });
     S.toPar = S.strokes - S.par;
     S.baseline = baseline;
@@ -458,7 +483,7 @@
   }
 
   calibrate();
-  var api = { expected: expected, expectedPGA: expectedPGA, BASELINES: BASELINES, baseline: function (id) { return BL[id] || BL.pga; },
+  var api = { DIR8: DIR8, DIR_NAME: DIR_NAME, DIR_ANGLE: DIR_ANGLE, normDir: normDir, expected: expected, expectedPGA: expectedPGA, BASELINES: BASELINES, baseline: function (id) { return BL[id] || BL.pga; },
     CALIB_ROUND: CALIB_ROUND, catLoss: catLoss, analyzeHole: analyzeHole, summarize: summarize,
     rowsToShots: rowsToShots, shotsToRows: shotsToRows, migrateV2Rows: migrateV2Rows, v1ToRows: v1ToRows, holeYards: holeYards,
     rowUnit: rowUnit, lieOf: lieOf, distOf: distOf, rowStrokes: rowStrokes, isPenalty: isPenalty,

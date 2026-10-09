@@ -142,3 +142,34 @@ table.cmp sup { font-size: 10px; margin-left: 2px; }
 .about { font-size: 17px; line-height: 1.45; }
 .about a { color: #0645ad; font-weight: 700; word-break: break-word; }
 .about li { margin-bottom: 8px; }
+/* v5: 8-way direction + maps */
+.srow .dirbtn { width: 100%; height: 48px; min-height: 48px; padding: 0; font-size: 26px; font-weight: 900; border: 3px solid #000; border-radius: 10px; background: #fff; color: #888; }
+.srow .dirbtn.on { color: #000; background: #e8f0ff; border-color: var(--blue); }
+.sheet-bg { position: fixed; inset: 0; background: rgba(0,0,0,.45); z-index: 50; }
+.sheet { position: fixed; left: 0; right: 0; bottom: 0; z-index: 51; background: #fff; border-top: 4px solid #000; border-radius: 18px 18px 0 0;
+  padding: 12px 14px calc(env(safe-area-inset-bottom) + 12px); }
+.sheet h3 { margin: 4px 0; font-size: 22px; }
+.sheet .help { margin: 4px 0 10px; }
+.dirgrid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 10px; }
+.dirgrid button { min-height: 78px; padding: 4px 2px; font-size: 16px; font-weight: 800; border: 3px solid #000; border-radius: 12px; background: #fff; color: #000; display: flex; flex-direction: column; align-items: center; justify-content: center; line-height: 1.1; }
+.dirgrid button span { font-size: 28px; line-height: 1; margin-bottom: 4px; }
+.dirgrid button.sel { background: var(--blue); border-color: var(--blue); color: #fff; }
+.dirgrid button.none { color: #666; border-style: dashed; }
+button.stat.tile { display: block; width: 100%; text-align: left; border: 3px solid var(--blue); background: #eef4ff; color: #000; font: inherit; cursor: pointer; min-height: 44px; }
+button.stat.tile span::after { content: ''; }
+.stat .mini { display: block; font-size: 15px; font-weight: 800; margin-top: 4px; }
+body.noscroll { overflow: hidden; }
+.mapview { position: fixed; inset: 0; z-index: 60; background: #fff; overflow-y: auto; -webkit-overflow-scrolling: touch;
+  padding: calc(env(safe-area-inset-top) + 8px) 12px calc(env(safe-area-inset-bottom) + 16px); }
+.maphead { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.maphead b { font-size: 22px; }
+.maphead .close { min-height: 48px; padding: 4px 14px; font-size: 18px; font-weight: 800; border: 3px solid #000; border-radius: 12px; background: #000; color: #fff; }
+.seg { display: flex; gap: 6px; margin: 10px 0 6px; }
+.seg button { flex: 1; min-height: 48px; font-size: 17px; font-weight: 800; border: 3px solid #000; border-radius: 12px; background: #fff; color: #000; }
+.seg button.sel { background: #000; color: #fff; }
+.mapsum { margin: 6px 0; font-size: 17px; }
+.mapview svg { display: block; width: 100%; height: auto; border: 3px solid #000; border-radius: 12px; }
+.legend { display: flex; flex-wrap: wrap; gap: 6px 14px; margin: 10px 0; font-size: 15px; font-weight: 700; }
+.legend span { display: flex; align-items: center; gap: 6px; }
+.legend .dot { display: inline-block; width: 16px; height: 16px; border-radius: 50%; border: 2px solid #000; flex: none; }
+.legend .dot.num { width: 22px; height: 22px; background: #000; color: #fff; font-style: normal; font-size: 13px; text-align: center; line-height: 18px; font-weight: 900; }

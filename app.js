@@ -10,7 +10,10 @@
   var LOCS0 = [['tee', 'Tee'], ['holedx', 'In the hole (ace!)']];
   var LOC_SHORT = { tee: 'Tee', fairway: 'Fairway', rough: 'Rough', bunker: 'Bunker', green: 'Green', hazard: 'Hazard',
     ob: 'OB re-hit', holed: 'In the hole', holedx: 'In the hole', deep: 'Deep rough', trees: 'Trees' };
-  var DIRS = [['', '–'], ['L', 'L'], ['R', 'R'], ['S', 'S'], ['O', 'O']]; // Left, Right, Short, Over
+  // 8-way direction: where the previous shot ended relative to its target. Short = toward the golfer.
+  var ARROW = { '': '–', long: '↑', longright: '↗', right: '→', shortright: '↘', short: '↓', shortleft: '↙', left: '←', longleft: '↖' };
+  var DIR_GRID = [['longleft', 'long', 'longright'], ['left', '', 'right'], ['shortleft', 'short', 'shortright']];
+  function dirName(d) { return d ? SG.DIR_NAME[d] : 'No direction'; }
   var CAT_NAME = { tee: 'Off the tee', approach: 'Approach', short: 'Short game', putting: 'Putting' };
 
   var rounds = load();
@@ -31,6 +34,11 @@
         h.finished = SG.analyzeHole(h).complete;
       });
       r.v = 3; changed = true;
+    });
+    rs.forEach(function (r) {
+      if (r.dv === 2) return;
+      (r.holes || []).forEach(function (h) { (h.rows || []).forEach(function (row) { row.dir = SG.normDir(row.dir); }); });
+      r.dv = 2; changed = true;
     });
     if (changed) localStorage.setItem(KEY, JSON.stringify(rs));
     return rs;
@@ -57,14 +65,14 @@
   function emptyHole() { return { par: 4, finished: false, rows: [{ loc: 'tee', dist: '', dir: '', pen: false }] }; }
   function newRound(course) {
     var sel = document.getElementById('newbl');
-    var r = { v: 3, id: 'r' + Date.now(), date: new Date().toISOString(), course: course || '', baseline: sel ? sel.value : 'pga', holes: [] };
+    var r = { v: 3, dv: 2, id: 'r' + Date.now(), date: new Date().toISOString(), course: course || '', baseline: sel ? sel.value : 'pga', holes: [] };
     for (var i = 0; i < 18; i++) r.holes.push(emptyHole());
     rounds.unshift(r); save();
     view.roundId = r.id; localStorage.setItem(CUR, r.id);
     goHole(0, true);
   }
   function goHole(i, focus) {
-    view.screen = 'hole'; view.hole = Math.max(0, Math.min(17, i)); view.menu = null;
+    view.screen = 'hole'; view.hole = Math.max(0, Math.min(17, i)); view.menu = null; view.dirk = null;
     render(); window.scrollTo(0, 0);
     var h = round().holes[view.hole];
     if (focus && h.rows.length === 1 && h.rows[0].dist === '') focusDist(0);
@@ -75,11 +83,13 @@
   // ---------- rendering ----------
   function render() {
     var el = document.getElementById('app');
+    if (view.screen !== 'summary') view.map = null;
     if (view.screen === 'about') el.innerHTML = aboutHTML();
     else if (view.screen === 'home' || !round()) el.innerHTML = homeHTML();
     else if (view.screen === 'hole') el.innerHTML = holeHTML();
     else if (view.screen === 'about') el.innerHTML = aboutHTML();
-    else el.innerHTML = summaryHTML();
+    else el.innerHTML = summaryHTML() + (view.map ? mapHTML() : '');
+    document.body.classList.toggle('noscroll', !!(view.map && view.screen === 'summary'));
   }
 
   function homeHTML() {
@@ -117,7 +127,7 @@
       '<div class="par"><span>Par</span>' + [3, 4, 5].map(function (p) {
         return '<button data-act="par" data-v="' + p + '" class="' + (h.par === p ? 'sel' : '') + '"' + (fin ? ' disabled' : '') + '>' + p + '</button>'; }).join('') + '</div></div>';
 
-    out += '<div class="srow shead"><span class="c-n">#</span><span class="c-d">Dist</span><span class="c-l">Loc</span><span class="c-x">LRSO</span><span class="c-p">P</span><span class="c-del"></span></div>';
+    out += '<div class="srow shead"><span class="c-n">#</span><span class="c-d">Dist</span><span class="c-l">Loc</span><span class="c-x">Dir</span><span class="c-p">P</span><span class="c-del"></span></div>';
     h.rows.forEach(function (row, k) { out += rowHTML(h, a, row, k, fin); });
 
     var pens = h.rows.reduce(function (n, rw, k) { return n + (SG.isPenalty(rw, k) ? 1 : 0); }, 0);
@@ -137,9 +147,20 @@
       : '<button class="primary big" data-act="summary">Finish round – see stats</button>';
     out += '<div class="row sub"><button class="txt" data-act="home">Home</button><button class="txt" data-act="summary">Scorecard &amp; stats</button></div>';
     out += '<p class="help muted">Each row is ONE stroke. Dist = how far from the pin you hit it (yards; feet on the green). Loc = where the ball was. ' +
-      'Last row: pick "In the hole" and enter the distance of the putt (or chip) that went in. LRSO = how the shot before missed (Left, Right, Short, Over). ' +
+      'Last row: pick "In the hole" and enter the distance of the putt (or chip) that went in. Dir = where the shot before ended vs its target (8 ways: Short = toward you, Long = past it, Left, Right, and the corners). For an approach that missed the green, pick where it missed the green; if it found the green, pick where it stopped vs the hole. ' +
       'P = penalty stroke (+1), e.g. a drop. "OB re-hit" = +1 and you hit again from the same spot. Score = rows + penalties.</p>';
+    if (view.dirk != null && h.rows[view.dirk] && !fin) out += dirSheetHTML(h, view.dirk);
     return out;
+  }
+  function dirSheetHTML(h, k) {
+    var cur = SG.normDir(h.rows[k].dir), prevLie = SG.lieOf(h.rows, k - 1), prevGreen = prevLie === 'green';
+    var out = '<div class="sheet-bg" data-act="dirclose"></div><div class="sheet" role="dialog" aria-label="Pick direction">' +
+      '<h3>Shot ' + k + ' ended…</h3><p class="help">' + (prevGreen ? 'Where the putt finished vs the hole.' :
+        'Missed the green? Where vs the green. On the green? Where vs the hole.') + ' <b>Short = toward you.</b></p><div class="dirgrid">';
+    DIR_GRID.forEach(function (rw) { rw.forEach(function (d) {
+      out += '<button data-act="setdir" data-v="' + d + '" class="' + (d === cur ? 'sel' : '') + (d ? '' : ' none') + '"><span>' + (d ? ARROW[d] : '⊘') + '</span>' + (d ? SG.DIR_NAME[d] : 'None') + '</button>';
+    }); });
+    return out + '</div><button class="big" data-act="dirclose">Cancel</button></div>';
   }
   function countText(h, pens) {
     var n = h.rows.length;
@@ -159,8 +180,8 @@
       opts.map(function (l) { return '<option value="' + l[0] + '"' + (row.loc === l[0] ? ' selected' : '') + '>' + l[1] + '</option>'; }).join('') + '</select></span>';
     if (k === 0) out += '<span class="c-x"></span><span class="c-p"></span>';
     else {
-      out += '<span class="c-x"><select data-f="dir" data-k="' + k + '" aria-label="Miss direction row ' + shotNo + '"' + dis + '>' +
-        DIRS.map(function (d) { return '<option value="' + d[0] + '"' + ((row.dir || '') === d[0] ? ' selected' : '') + '>' + d[1] + '</option>'; }).join('') + '</select></span>';
+      var dv = SG.normDir(row.dir);
+      out += '<span class="c-x"><button class="dirbtn' + (dv ? ' on' : '') + '" data-act="dirpick" data-k="' + k + '" data-dir="' + dv + '" aria-label="Direction row ' + shotNo + ': ' + dirName(dv) + '"' + dis + '>' + ARROW[dv] + '</button></span>';
       out += '<span class="c-p"><button class="pen' + (row.pen || ob ? ' on' : '') + '" data-act="pen" data-k="' + k + '"' + (ob || fin ? ' disabled' : '') + ' aria-label="Penalty row ' + shotNo + '">' + (row.pen || ob ? '+1' : '') + '</button></span>';
     }
     out += '<span class="c-del">' + (k === 0 ? '' : '<button class="del" data-act="del" data-k="' + k + '" aria-label="Delete row ' + shotNo + '"' + dis + '>⌫</button>') + '</span>';
@@ -175,6 +196,7 @@
   function infoHTML(s) {
     if (!s) return '';
     var info = s.end.lie === 'holed' ? ' · in the hole!' : s.ob ? ' · went OB' : (s.start.lie === 'green' ? ' · missed' : ' · hit ' + s.hit + ' yd');
+    if (s.dir && s.end.lie !== 'holed') info += ' ' + SG.DIR_NAME[s.dir].toLowerCase() + (s.cat === 'approach' && s.end.lie !== 'green' ? ' (missed green)' : '');
     return CAT_NAME[s.cat] + info + ' · SG <b class="' + sgCls(s.sg) + '">' + fmtSG(s.sg) + '</b>';
   }
   function prevDist(h, k) {
@@ -230,11 +252,12 @@
     });
     out += '</table><h2>Stats</h2><div class="stat-grid">' +
       stat('Fairways hit', S.fwHit + ' / ' + S.fwTotal) +
-      stat('Greens in reg.', S.gir + ' / ' + S.girHoles) +
+      tile('gir', 'Greens in reg. – tap for map', S.gir + ' / ' + S.girHoles) +
+      tile('miss', 'Approach misses (missed green) – tap for map', S.apprMiss.length, missMini(S.apprMiss)) +
       stat('Putts', S.putts) + stat('Penalty strokes', S.penalties) +
       stat('Tee misses L / R', S.teeLeft + ' / ' + S.teeRight) +
-      stat('Approach misses L / R', S.apprLeft + ' / ' + S.apprRight) +
-      stat('Approach short / over', S.apprShort + ' / ' + S.apprOver) + '</div>';
+      stat('Approach left / right', S.apprLeft + ' / ' + S.apprRight) +
+      stat('Approach short / long', S.apprShort + ' / ' + S.apprOver) + '</div>';
     out += '<button class="primary big" data-act="csv" style="margin-top:16px">Export this round (CSV)</button>';
     out += '<button class="big" data-act="backHole">Back to the round</button>';
     out += '<button class="big danger" data-act="delRound">Delete this round</button>';
@@ -293,6 +316,114 @@
       '<p class="muted">Researched October 2026.</p></div>' +
       '<button class="big" data-act="aboutBack">‹ Back</button>';
   }
+  function tile(id, l, v, extra) {
+    return '<button class="stat tile" data-act="map" data-v="' + id + '"><b>' + v + '</b><span>' + l + '</span>' + (extra || '') + '</button>';
+  }
+  function countDirs(list) {
+    var c = { '': 0 }; SG.DIR8.forEach(function (d) { c[d] = 0; });
+    list.forEach(function (m) { c[m.dir || '']++; }); return c;
+  }
+  function missMini(list) {
+    if (!list.length) return '';
+    var c = countDirs(list), parts = [];
+    SG.DIR8.forEach(function (d) { if (c[d]) parts.push(ARROW[d] + c[d]); });
+    if (c['']) parts.push('?' + c['']);
+    return '<small class="mini">' + parts.join(' ') + '</small>';
+  }
+  // ---------- maps (full-window overlays) ----------
+  function mapData(kind) {
+    var list = [], n = 0;
+    var src = view.mapScope === 'all' ? rounds : [round()];
+    src.forEach(function (r) {
+      var S = SG.summarize(r, 'pga'); n++;
+      (kind === 'gir' ? S.girMap : S.apprMiss).forEach(function (m) { var o = {}; for (var x in m) o[x] = m[x]; o.round = r; list.push(o); });
+    });
+    return { list: list, rounds: n };
+  }
+  function pt(cx, cy, r, deg) { var t = deg * Math.PI / 180; return [cx + r * Math.cos(t), cy - r * Math.sin(t)]; }
+  function f1(v) { return Math.round(v * 10) / 10; }
+  var LIE_COL = { rough: '#1f5e1f', deep: '#0e3b0e', fairway: '#5fbf3f', sand: '#d9b44a', hazard: '#d0213a', ob: '#ffffff', recovery: '#7a4a1f', tee: '#888' };
+  var LIE_NAME = { rough: 'Rough', deep: 'Deep rough', fairway: 'Fairway', sand: 'Bunker', hazard: 'Hazard', ob: 'OB', recovery: 'Trees' };
+  function missSVG(list) {
+    var C = 180, CY = 200, c = countDirs(list), out = '<svg id="missmap" viewBox="0 0 360 400" role="img" aria-label="Approach misses around the green">' +
+      '<rect width="360" height="400" fill="#cfe8c4"/>';
+    SG.DIR8.forEach(function (d) { var q = pt(C, CY, 260, SG.DIR_ANGLE[d] + 22.5);
+      out += '<line x1="' + C + '" y1="' + CY + '" x2="' + f1(q[0]) + '" y2="' + f1(q[1]) + '" stroke="#8fb486" stroke-width="2" stroke-dasharray="6 5"/>'; });
+    out += '<ellipse cx="180" cy="200" rx="64" ry="78" fill="#3da33d" stroke="#145214" stroke-width="4"/>' +
+      '<line x1="180" y1="200" x2="180" y2="168" stroke="#000" stroke-width="3"/><path d="M180 168 l22 7 l-22 7z" fill="#d0213a"/><circle cx="180" cy="200" r="5" fill="#000"/>';
+    var byDir = {}; list.forEach(function (m) { if (m.dir) (byDir[m.dir] = byDir[m.dir] || []).push(m); });
+    SG.DIR8.forEach(function (d) {
+      var a = SG.DIR_ANGLE[d], ms = byDir[d] || [], diag = d.length > 5;
+      ms.forEach(function (m, i) {
+        var ring = i % 3, col = Math.floor(i / 3) % 7, off = (col % 2 ? 1 : -1) * Math.ceil(col / 2) * 6;
+        var p = pt(C, CY, (diag ? 96 : 92) + ring * 14, a + off);
+        out += '<circle class="mdot" cx="' + f1(p[0]) + '" cy="' + f1(p[1]) + '" r="6" fill="' + (LIE_COL[m.lie] || '#888') + '" stroke="#000" stroke-width="2"/>';
+      });
+      var b = pt(C, CY, diag ? 172 : 150, a);
+      out += '<g class="mcount" data-dir="' + d + '"><circle cx="' + f1(b[0]) + '" cy="' + f1(b[1]) + '" r="15" fill="' + (c[d] ? '#000' : '#fff') + '" stroke="#000" stroke-width="2"/>' +
+        '<text x="' + f1(b[0]) + '" y="' + f1(b[1] + 6) + '" text-anchor="middle" font-size="17" font-weight="900" fill="' + (c[d] ? '#fff' : '#000') + '">' + c[d] + '</text></g>';
+    });
+    out += '<text x="180" y="17" text-anchor="middle" font-size="15" font-weight="800">LONG ↑ (past the green)</text>' +
+      '<text x="180" y="393" text-anchor="middle" font-size="15" font-weight="800">SHORT ↓ (toward you)</text>' +
+      '<text x="8" y="176" font-size="15" font-weight="800">◀ L</text><text x="352" y="176" text-anchor="end" font-size="15" font-weight="800">R ▶</text>';
+    return out + '</svg>';
+  }
+  function girSVG(list) {
+    var C = 180, CY = 200, K = 5, out = '<svg id="girmap" viewBox="0 0 360 400" role="img" aria-label="Green-in-regulation landings around the hole">' +
+      '<rect width="360" height="400" fill="#cfe8c4"/><circle cx="180" cy="200" r="174" fill="#3da33d" stroke="#145214" stroke-width="4"/>';
+    [30, 25, 20, 15, 10, 5].forEach(function (ft) {
+      out += '<circle cx="180" cy="200" r="' + ft * K + '" fill="none" stroke="#fff" stroke-width="' + (ft % 10 ? 1.5 : 2.5) + '" stroke-opacity=".9"/>' +
+        '<text class="ring" x="' + f1(182 + ft * K * 0.707) + '" y="' + f1(213 + ft * K * 0.707) + '" font-size="13" font-weight="800" fill="#fff">' + ft + ' ft</text>';
+    });
+    out += '<line x1="180" y1="30" x2="180" y2="370" stroke="#fff" stroke-opacity=".35"/><line x1="10" y1="200" x2="350" y2="200" stroke="#fff" stroke-opacity=".35"/>' +
+      '<circle cx="180" cy="200" r="6" fill="#000"/><line x1="180" y1="200" x2="180" y2="170" stroke="#000" stroke-width="3"/><path d="M180 170 l20 6 l-20 6z" fill="#d0213a"/>';
+    var seen = {};
+    list.forEach(function (m) {
+      if (!m.dir && !m.holed) return;
+      var ft = m.holed ? 0 : m.ft, far = ft > 30, rr = far ? 33 * K : ft * K;
+      var key = (m.dir || 'h') + Math.round(rr / 6), j = seen[key] = (seen[key] || 0) + 1;
+      var p = m.holed ? [C + (j - 1) * 9, CY + 12] : pt(C, CY, rr, SG.DIR_ANGLE[m.dir] + (j - 1) * 6);
+      out += '<circle class="gdot" cx="' + f1(p[0]) + '" cy="' + f1(p[1]) + '" r="8" fill="' + (far ? '#ffd23f' : '#fff') + '" stroke="#000" stroke-width="2.5"/>';
+      if (far) out += '<text class="farlbl" x="' + f1(p[0] + 12) + '" y="' + f1(p[1] + 5) + '" font-size="14" font-weight="900" fill="#000" stroke="#ffd23f" stroke-width="3" paint-order="stroke">' + Math.round(ft) + ' ft</text>';
+    });
+    out += '<text x="180" y="17" text-anchor="middle" font-size="14" font-weight="800">LONG ↑</text>' +
+      '<text x="180" y="394" text-anchor="middle" font-size="14" font-weight="800">SHORT ↓ (toward you)</text>' +
+      '<text x="4" y="192" font-size="14" font-weight="800">◀ L</text><text x="356" y="192" text-anchor="end" font-size="14" font-weight="800">R ▶</text>';
+    return out + '</svg>';
+  }
+  function dirTable(list) {
+    var c = countDirs(list), out = '<table class="dirtab" id="dirtab"><tr><th>Direction</th><th class="num">Count</th></tr>';
+    SG.DIR8.slice().sort(function (a, b) { return DIR_ORDER.indexOf(a) - DIR_ORDER.indexOf(b); }).forEach(function (d) {
+      out += '<tr data-dir="' + d + '"><td>' + ARROW[d] + ' ' + SG.DIR_NAME[d] + '</td><td class="num">' + c[d] + '</td></tr>'; });
+    if (c['']) out += '<tr data-dir=""><td>No direction entered (not plotted)</td><td class="num">' + c[''] + '</td></tr>';
+    return out + '</table>';
+  }
+  var DIR_ORDER = ['short', 'shortleft', 'shortright', 'left', 'right', 'long', 'longleft', 'longright'];
+  function mapHTML() {
+    var kind = view.map, D = mapData(kind), list = D.list, all = view.mapScope === 'all';
+    var out = '<div class="mapview" id="mapview" role="dialog" aria-label="' + (kind === 'gir' ? 'GIR map' : 'Approach miss map') + '">' +
+      '<div class="maphead"><b>' + (kind === 'gir' ? 'Greens in regulation' : 'Approach misses') + '</b><button class="close" data-act="mapclose" aria-label="Close map">✕ Close</button></div>' +
+      '<div class="seg"><button data-act="mapscope" data-v="round" class="' + (all ? '' : 'sel') + '">This round</button>' +
+      '<button data-act="mapscope" data-v="all" class="' + (all ? 'sel' : '') + '">All rounds (' + rounds.length + ')</button></div>';
+    if (kind === 'gir') {
+      var far = list.filter(function (m) { return m.ft > 30; }).length, holed = list.filter(function (m) { return m.holed; }).length;
+      out += '<p class="mapsum" id="mapsum"><b>' + list.length + '</b> green' + (list.length === 1 ? '' : 's') + ' in regulation' + (all ? ' in ' + D.rounds + ' round' + (D.rounds === 1 ? '' : 's') : ' this round') + '</p>' +
+        girSVG(list) +
+        '<div class="legend"><span><i class="dot" style="background:#fff"></i>Where the approach stopped (first-putt distance, direction vs the hole)</span>' +
+        '<span><i class="dot" style="background:#ffd23f"></i>Over 30 ft – drawn at the edge, labelled with its distance</span>' +
+        '<span><i class="dot" style="background:#000"></i>Hole · white rings every 5 ft (5–30 ft)</span>' + (holed ? '<span>Holed out from off the green: ' + holed + ' (shown at the hole)</span>' : '') + '</div>' +
+        '<p class="help muted"><b>GIR</b> = on the green (or holed) in par − 2 strokes or fewer, penalties included (par 3: 1 shot, par 4: 2, par 5: 3). Only finished holes count. ' +
+        'Greens reached in more strokes are not shown. Bottom of the picture = short (toward you).' + (far ? '' : '') + '</p>' + dirTable(list.filter(function (m) { return !m.holed; }));
+    } else {
+      out += '<p class="mapsum" id="mapsum"><b>' + list.length + '</b> approach' + (list.length === 1 ? '' : 'es') + ' missed the green' + (all ? ' in ' + D.rounds + ' round' + (D.rounds === 1 ? '' : 's') : ' this round') + '</p>' +
+        missSVG(list) + '<div class="legend">' + ['rough', 'fairway', 'sand', 'hazard', 'ob', 'recovery'].map(function (l) {
+          return '<span><i class="dot" style="background:' + LIE_COL[l] + '"></i>' + LIE_NAME[l] + '</span>'; }).join('') +
+        '<span><i class="dot num">3</i>Misses in that direction</span></div>' +
+        '<p class="help muted"><b>Approach miss</b> = an approach shot (over 30 yd from the pin, including par-3 tee shots) that did not finish on the green or in the hole. ' +
+        'Lay-ups are left out (finished more than 50 yd from the pin with no direction entered). Direction = where it missed the green (the Dir you entered on the next row). Only finished holes count. Bottom = short (toward you).</p>' + dirTable(list);
+    }
+    return out + '<button class="big" data-act="mapclose">Close</button></div>';
+  }
   function stat(l, v) { return '<div class="stat"><b>' + v + '</b><span>' + l + '</span></div>'; }
 
   // ---------- CSV ----------
@@ -348,6 +479,12 @@
       case 'about': view.back = view.screen; view.screen = 'about'; render(); window.scrollTo(0, 0); return;
       case 'aboutBack': view.screen = view.back && view.back !== 'about' ? view.back : 'home'; render(); window.scrollTo(0, 0); return;
       case 'setbl': setBaseline(v); return;
+      case 'map': view.map = v; view.mapScope = view.mapScope || 'round'; render(); return;
+      case 'mapclose': view.map = null; render(); return;
+      case 'mapscope': view.mapScope = v; render(); var mv = document.getElementById('mapview'); if (mv) mv.scrollTop = 0; return;
+      case 'dirpick': view.dirk = k; view.menu = null; break;
+      case 'dirclose': view.dirk = null; break;
+      case 'setdir': h.rows[view.dirk].dir = v || ''; view.dirk = null; save(); break;
       case 'csvall': exportCSV(rounds, fileName(null)); return;
       case 'csv': exportCSV([r], fileName(r)); return;
       case 'delRound':
