@@ -95,7 +95,52 @@
     return interp(YARDS, col, dist, 0.0015) + add;
   }
 
-  var PENALTY_STROKES = { none: 0, water: 1, lateral: 1, ob: 1 };
+  var PENALTY_STROKES = { none: 0, water: 1, lateral: 1, drop: 1, ob: 1 };
+
+  /*
+   * Row model (what the phone screen shows): each row is where a shot is
+   * played FROM. Row 1 = tee at the hole length. Later rows:
+   *   dist  - distance to pin (yards; feet when loc = green)
+   *   loc   - fairway | rough | deep | bunker | trees | green | hazard | ob | holed
+   *   dir   - how the previous shot missed: L | R | S (short) | O (over) | ''
+   *   pen   - true = a penalty stroke was taken to get here (+1), e.g. a drop
+   * loc 'ob'    = previous shot went OB: +1 and replay from the same spot
+   * loc 'holed' = the previous shot went in; the hole is finished.
+   * Hazard with pen = dropped after the hazard (rough baseline used);
+   * Hazard without pen = playing it from inside the hazard (recovery baseline).
+   */
+  var LOC_LIE = { tee: 'tee', fairway: 'fairway', rough: 'rough', deep: 'deep', bunker: 'sand',
+    trees: 'recovery', green: 'green', hazard: 'hazard', holed: 'holed' };
+  function blank(v) { return v === '' || v == null || isNaN(parseFloat(v)); }
+  function rowsToShots(rows) {
+    var shots = [], bad = null;
+    if (!rows || !rows.length || blank(rows[0].dist) || parseFloat(rows[0].dist) <= 0) return { shots: shots, bad: 0 };
+    for (var k = 1; k < rows.length; k++) {
+      var r = rows[k], side = r.dir === 'L' || r.dir === 'R' ? r.dir : '';
+      if (!r.loc) { bad = k; break; }
+      if (r.loc === 'ob') { shots.push({ lie: 'ob', dist: 0, side: side, dir: r.dir || '', pen: 'ob' }); continue; }
+      if (r.loc === 'holed') { shots.push({ lie: 'holed', dist: 0, side: '', dir: '', pen: r.pen ? 'drop' : 'none' }); break; }
+      if (blank(r.dist) || (r.loc !== 'green' && parseFloat(r.dist) <= 0) || parseFloat(r.dist) < 0) { bad = k; break; }
+      var lie = r.loc === 'hazard' ? (r.pen ? 'rough' : 'hazard') : LOC_LIE[r.loc];
+      shots.push({ lie: lie, dist: parseFloat(r.dist), side: side, dir: r.dir || '', pen: r.pen ? 'drop' : 'none' });
+    }
+    return { shots: shots, bad: bad };
+  }
+  function holeYards(hole) { return hole.rows ? parseFloat(hole.rows[0] && hole.rows[0].dist) || 0 : Number(hole.yards) || 0; }
+
+  /** Convert an old-format hole {par, yards, shots} to rows. */
+  function shotsToRows(hole) {
+    var back = { tee: 'tee', fairway: 'fairway', rough: 'rough', deep: 'deep', sand: 'bunker',
+      recovery: 'trees', green: 'green', hazard: 'hazard', holed: 'holed' };
+    if (hole.yards == null) return [{ loc: 'tee', dist: '', dir: '', pen: false }];
+    var rows = [{ loc: 'tee', dist: hole.yards, dir: '', pen: false }];
+    (hole.shots || []).forEach(function (s) {
+      if (s.pen === 'ob') rows.push({ loc: 'ob', dist: '', dir: s.side || '', pen: true });
+      else if (s.lie === 'holed') rows.push({ loc: 'holed', dist: '', dir: '', pen: false });
+      else rows.push({ loc: back[s.lie] || 'fairway', dist: s.dist, dir: s.side || '', pen: s.pen && s.pen !== 'none' });
+    });
+    return rows;
+  }
 
   function toYards(lie, dist) {
     if (lie === 'holed') return 0;
@@ -122,6 +167,11 @@
    * are ignored.
    */
   function analyzeHole(hole) {
+    var bad = null;
+    if (hole.rows) {
+      var conv = rowsToShots(hole.rows); bad = conv.bad;
+      hole = { par: hole.par, yards: holeYards(hole), shots: conv.shots };
+    }
     var out = [];
     var start = { lie: 'tee', dist: Number(hole.yards) || 0 };
     var shots = hole.shots || [];
@@ -149,7 +199,7 @@
         : Math.round(toYards(start.lie, start.dist) - toYards(end.lie, end.dist));
       out.push({
         n: i + 1, start: start, end: end, pen: pen, penStrokes: penStrokes,
-        side: s.side || '', eStart: eStart, eEnd: eEnd, sg: sg,
+        side: s.side || '', dir: s.dir || s.side || '', eStart: eStart, eEnd: eEnd, sg: sg,
         cat: cat, bucket: bucket, hit: hit
       });
       start = end;
@@ -171,7 +221,7 @@
       fairway = t.pen === 'none' && (t.end.lie === 'fairway' || t.end.lie === 'green' || t.end.lie === 'holed');
     }
     return {
-      shots: out, strokes: shots.length + penalties, penalties: penalties,
+      shots: out, bad: bad, strokes: shots.length + penalties, penalties: penalties,
       putts: out.filter(function (r) { return r.cat === 'putting'; }).length,
       done: done, gir: gir, fairway: fairway,
       sg: out.reduce(function (a, r) { return a + r.sg; }, 0)
@@ -182,7 +232,7 @@
     var S = {
       strokes: 0, par: 0, holesDone: 0, holesStarted: 0, penalties: 0, putts: 0,
       fwHit: 0, fwTotal: 0, gir: 0, girHoles: 0,
-      teeLeft: 0, teeRight: 0, apprLeft: 0, apprRight: 0, allLeft: 0, allRight: 0,
+      teeLeft: 0, teeRight: 0, apprLeft: 0, apprRight: 0, apprShort: 0, apprOver: 0, allLeft: 0, allRight: 0,
       sgTotal: 0,
       cats: { tee: { sg: 0, n: 0 }, approach: { sg: 0, n: 0 }, short: { sg: 0, n: 0 }, putting: { sg: 0, n: 0 } },
       buckets: {}, holes: []
@@ -193,7 +243,7 @@
     (round.holes || []).forEach(function (h) {
       var a = analyzeHole(h);
       S.holes.push(a);
-      if (!h.shots || !h.shots.length) return;
+      if (!a.shots.length) return;
       S.holesStarted++;
       S.penalties += a.penalties;
       S.putts += a.putts;
@@ -209,7 +259,10 @@
         if (r.side === 'L') S.allLeft++;
         if (r.side === 'R') S.allRight++;
         if (r.cat === 'tee') { if (r.side === 'L') S.teeLeft++; if (r.side === 'R') S.teeRight++; }
-        if (r.cat === 'approach') { if (r.side === 'L') S.apprLeft++; if (r.side === 'R') S.apprRight++; }
+        if (r.cat === 'approach') {
+          if (r.side === 'L') S.apprLeft++; if (r.side === 'R') S.apprRight++;
+          if (r.dir === 'S') S.apprShort++; if (r.dir === 'O') S.apprOver++;
+        }
       });
     });
     S.toPar = S.strokes - S.par;
@@ -217,6 +270,7 @@
   }
 
   var api = { expected: expected, analyzeHole: analyzeHole, summarize: summarize,
+    rowsToShots: rowsToShots, shotsToRows: shotsToRows, holeYards: holeYards,
     YARDS: YARDS, OFF_GREEN: OFF_GREEN, FEET: FEET, PUTTS: PUTTS };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else root.SG = api;

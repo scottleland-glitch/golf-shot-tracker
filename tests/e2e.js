@@ -1,3 +1,6 @@
+// Browser flow test at iPhone size. Run from a folder with playwright-core installed:
+//   node e2e.js                      (serves /workspace/golf-app on :8765)
+//   NO_SERVER=1 BASE_URL=https://scottleland-glitch.github.io/golf-shot-tracker/ node e2e.js
 const { chromium } = require(process.env.PW || 'playwright-core');
 const assert = require('assert');
 const { spawn } = require('child_process');
@@ -17,142 +20,125 @@ let passed = 0; const ok = (m) => { passed++; console.log('  ✓', m); };
   const page = await ctx.newPage();
   const errors = []; page.on('pageerror', e => errors.push(e.message)); page.on('console', m => { if (m.type() === 'error') errors.push(m.text()); });
   page.on('dialog', d => d.accept());
-  const tap = (sel) => page.locator(sel).first().click();
-  const act = (a, v) => tap(v == null ? `[data-act="${a}"]` : `[data-act="${a}"][data-v="${v}"]`);
-  const type = async (num) => { await act('key', 'C'); for (const c of String(num)) await act('key', c); };
-  const shot = async (lie, dist, side, pen) => {
-    if (pen) await act('pen', pen);
-    if (lie) await act('lie', lie);
-    if (side) await act('side', side);
-    if (dist != null) await type(dist);
-    await act('saveShot');
-  };
-  const setup = async (par, yards) => { await act('par', par); await type(yards); await act('startHole'); };
+  const act = (a, v) => page.locator(v == null ? `[data-act="${a}"]` : `[data-act="${a}"][data-v="${v}"]`).first().click();
+  const actK = (a, k) => page.locator(`[data-act="${a}"][data-k="${k}"]`).first().click();
+  const dist = (k, v) => page.fill(`input[data-row="${k}"]`, String(v));
+  const loc = (k, v) => page.selectOption(`select[data-f="loc"][data-k="${k}"]`, v);
+  const dir = (k, v) => page.selectOption(`select[data-f="dir"][data-k="${k}"]`, v);
+  const rows = () => page.locator('.srow[data-k]').count();
+  const doneText = () => page.textContent('.hole-done');
+  const hideToast = () => page.evaluate(() => { document.getElementById('toast').className = ''; });
+  const noOverflow = async (label) => { const w = await page.evaluate(() => document.documentElement.scrollWidth); assert.ok(w <= 390, label + ' overflow ' + w); };
 
-  await page.goto(URL); await page.waitForSelector('text=Golf Shot Tracker');
+  // Seed an OLD (v1) round to prove migration works
+  await page.goto(URL);
+  await page.evaluate(() => {
+    localStorage.clear();
+    const holes = []; for (let i = 0; i < 18; i++) holes.push({ par: null, yards: null, shots: [] });
+    holes[0] = { par: 4, yards: 400, shots: [{ lie: 'rough', dist: 0, side: 'R', pen: 'ob' }, { lie: 'rough', dist: 180, side: 'L', pen: 'water' },
+      { lie: 'green', dist: 20, side: '', pen: 'none' }, { lie: 'holed', dist: 0, side: '', pen: 'none' }] };
+    localStorage.setItem('golfsg.rounds.v1', JSON.stringify([{ id: 'rold', date: '2026-10-01T18:00:00.000Z', course: 'Old v1 round', holes }]));
+  });
+  await page.reload(); await page.waitForSelector('text=Golf Shot Tracker');
   const swScope = await page.evaluate(async () => (await navigator.serviceWorker.ready).scope); assert.ok(swScope.startsWith(URL), swScope); ok('service worker scope = ' + swScope);
-  ok('home loads');
-  // Manifest/meta present
-  const meta = await page.evaluate(() => ({ m: !!document.querySelector('link[rel=manifest]'), a: !!document.querySelector('link[rel=apple-touch-icon]'),
-    c: document.querySelector('meta[name=apple-mobile-web-app-capable]').content }));
-  assert.ok(meta.m && meta.a && meta.c === 'yes'); ok('manifest + apple-touch-icon + iOS meta tags');
+  const mig = await page.evaluate(() => { const r = window.__golf.rounds()[0]; return { rows: r.holes[0].rows.length, s: SG.summarize(r) }; });
+  assert.strictEqual(mig.rows, 5); assert.strictEqual(mig.s.strokes, 6); assert.strictEqual(mig.s.penalties, 2);
+  ok('old saved round migrated to new table format (hole 1: 6 strokes, 2 penalties)');
 
   await page.fill('#course', 'Washoe County GC');
   await act('new');
-  await act('par', 4); await type(400);
-  await page.screenshot({ path: `${SHOTS}/1-hole-setup.png` });
-  await act('startHole');
-  assert.match(await page.textContent('.topbar'), /Par 4 · 400 yd/); ok('hole 1 set up: par 4, 400 yd');
+  assert.ok(await page.evaluate(() => document.activeElement.getAttribute('data-row') === '0')); ok('new hole: cursor in row 1 distance (tee)');
+  assert.match(await page.textContent('.srow[data-k="0"]'), /Tee/);
+  // Hole 1 like Scott's screenshot: 365 tee, 125 F R, 15 ft G O, 3 ft G, holed
+  await dist(0, 365);
+  await act('addShot');
+  assert.strictEqual(await rows(), 2);
+  assert.ok(await page.evaluate(() => document.activeElement.getAttribute('data-row') === '1')); ok('Add Shot adds row 2 and focuses its distance');
+  await dist(1, 125);
+  await act('addShot'); assert.match(await page.textContent('#toast'), /Row 2: pick a location/); ok('validation: Add Shot asks for missing location');
+  await loc(1, 'fairway'); await dir(1, 'R');
+  assert.match(await page.textContent('.sinfo[data-info="0"]'), /hit 240 yd/); ok('row 1 info: hit 240 yd (365 - 125)');
+  await act('addShot'); await dist(2, 15); await loc(2, 'green'); await dir(2, 'O');
+  assert.match(await page.textContent('.srow[data-k="2"] .u'), /ft/); ok('green row shows feet');
+  await act('addShot');
+  assert.strictEqual(await page.$eval('select[data-f="loc"][data-k="3"]', e => e.value), 'green'); ok('next row after green defaults to Green');
+  await dist(3, 3);
+  await hideToast(); await page.screenshot({ path: `${SHOTS}/7-hole-table-entry.png` });
+  await noOverflow('hole table');
+  await act('addShot'); await loc(4, 'holed');
+  assert.match(await doneText(), /Score 4 \(E\)/); ok('"In the hole" finishes hole: 4 (E)');
+  // Delete a row
+  await actK('del', 3);
+  assert.match(await doneText(), /Score 3 \(-1\)/); ok('delete row works (now 3, -1)');
+  // Insert a row below row 3
+  await actK('menu', 2); await actK('insAfter', 2);
+  assert.strictEqual(await rows(), 5);
+  await dist(3, 3); await page.locator('h2').first().click();
+  await page.evaluate(() => 0);
+  await act('par', 4); // triggers re-render
+  assert.match(await doneText(), /Score 4 \(E\)/); ok('insert row works (back to 4, E)');
+  // Edit a distance in the middle: 125 -> 130
+  await dist(1, 130); assert.match(await page.textContent('.sinfo[data-info="0"]'), /hit 235 yd/); ok('editing a distance updates live (hit 235 yd)');
+  await hideToast(); await page.screenshot({ path: `${SHOTS}/8-hole-table-done.png` });
 
-  // validation: save without lie
-  await act('saveShot'); assert.match(await page.textContent('#toast'), /Pick where/); ok('validation: needs lie');
-  await act('lie', 'rough'); await type(150); await act('saveShot');
-  assert.match(await page.textContent('#toast'), /left or right/); ok('validation: rough needs left/right');
-  await act('lie', 'fairway'); await act('saveShot');
-  assert.match(await page.textContent('.shots'), /hit 250 yd/); ok('drive 400 → 150 shows "hit 250 yd"');
-  // shot 2 - screenshot mid-entry
-  await act('lie', 'green'); await type(20);
-  assert.match(await page.textContent('#disp'), /20\s*feet/); ok('green distance in feet');
-  await act('saveShot');
-  // show an entry state for the screenshot: next shot form defaults to green
-  const sel = await page.locator('[data-act="lie"].sel').getAttribute('data-v'); assert.strictEqual(sel, 'green'); ok('putt defaults lie to green');
-  await act('holed');
-  assert.match(await page.textContent('.done'), /3\s+\(-1\)/); ok('hole 1 complete: 3 (-1)');
-  await act('next');
+  // Hole 2 via Add Hole
+  assert.match(await page.textContent('[data-act="next"].big'), /Add Hole 2/);
+  await page.locator('[data-act="next"].big').click();
+  assert.match(await page.textContent('.hc-head'), /Hole 2/); ok('Add Hole 2 moves to hole 2');
+  await act('par', 3); await dist(0, 165);
+  await act('addShot'); await dist(1, 15); await loc(1, 'bunker'); await dir(1, 'L');
+  await act('addShot'); await dist(2, 4); await loc(2, 'green');
+  await act('addShot'); await dist(3, 1);
+  await act('addShot'); await loc(4, 'holed');
+  assert.match(await doneText(), /Score 4 \(\+1\)/); ok('hole 2 (par 3, bunker, 2 putts) = 4 (+1)');
 
-  // Hole 2: par 3 with bunker miss left
-  await setup(3, 165);
-  await act('lie', 'sand'); await act('side', 'L'); await type(15);
-  await page.evaluate(() => { window.scrollTo(0, 0); document.getElementById('toast').className = ''; }); await page.screenshot({ path: `${SHOTS}/2-shot-entry.png` });
-  const sb = await page.locator('[data-act="saveShot"]').boundingBox(); assert.ok(sb.y + sb.height <= 844, 'save button above fold: ' + (sb.y + sb.height)); ok('Save button visible without scrolling (' + Math.round(sb.y + sb.height) + 'px of 844)');
-  await act('saveShot');
-  await shot('green', 4); await shot('green', 1); await act('holed');
-  assert.match(await page.textContent('.done'), /4\s+\(\+1\)/); ok('hole 2: bunker, 2 putts = 4 (+1)');
-  await act('next');
-
-  // Hole 3: par 5, OB right then water drop, etc.
-  await setup(5, 520);
-  await act('pen', 'ob'); await act('side', 'R'); await act('saveShot');
-  assert.match(await page.textContent('.status'), /Shot 2 from 520 yd · Tee/); ok('OB: re-hit from tee (stroke & distance)');
-  await shot('rough', 250, 'L', 'water');
-  await shot('fairway', 90); await shot('green', 12); await act('holed');
-  assert.match(await page.textContent('.done'), /^\s*7/); ok('hole 3 with OB + water = 7');
-  // Edit: tap shot 4 (to 12 ft) and change to 8 ft
-  await page.locator('[data-act="editShot"][data-i="3"]').click();
-  assert.match(await page.textContent('.status'), /Fixing shot 4/);
-  await type(8); await act('saveShot');
-  assert.match(await page.textContent('.shots'), /8 ft · Green/); ok('edit shot works');
-  // Delete then re-add
-  await page.locator('[data-act="editShot"][data-i="4"]').click(); await act('delShot');
-  assert.strictEqual(await page.locator('.shot').count(), 4); ok('delete shot works');
-  await act('holed');
-  await page.evaluate(() => { document.getElementById('toast').className = ''; }); await page.screenshot({ path: `${SHOTS}/3-hole-complete.png` });
+  // Hole 3: OB, hazard drop
+  await page.locator('[data-act="next"].big').click();
+  await act('par', 5); await dist(0, 520);
+  await act('addShot'); await loc(1, 'ob'); await dir(1, 'R');
+  assert.match(await page.textContent('.srow[data-k="1"]'), /520 yd/);
+  assert.match(await page.getAttribute('[data-act="pen"][data-k="1"]', 'class'), /on/); ok('OB row: re-hit from 520, penalty auto on');
+  await act('addShot'); await dist(2, 250); await loc(2, 'hazard'); await actK('pen', 2); await dir(2, 'L');
+  await act('addShot'); await dist(3, 90); await loc(3, 'fairway');
+  await act('addShot'); await dist(4, 8); await loc(4, 'green');
+  await act('addShot'); await loc(5, 'holed');
+  assert.match(await doneText(), /Score 7 \(\+2\)/); ok('hole 3 with OB + hazard drop = 7 (+2)');
+  await page.screenshot({ path: `${SHOTS}/9-hole-ob-hazard.png`, fullPage: true });
+  // Changing a middle row to "In the hole" trims later rows
+  await loc(3, 'holed'); assert.strictEqual(await rows(), 4); ok('setting "In the hole" mid-hole trims later rows');
+  await loc(3, 'fairway'); await dist(3, 90); await act('addShot'); await dist(4, 8); await loc(4, 'green'); await act('addShot'); await loc(5, 'holed');
+  assert.match(await doneText(), /Score 7/);
 
   // Summary
-  await act('summary');
-  const sum = await page.evaluate(() => { const r = window.__golf.rounds()[0]; return SG.summarize(r); });
-  assert.strictEqual(sum.strokes, 14); assert.strictEqual(sum.par, 12); assert.strictEqual(sum.penalties, 2);
-  assert.strictEqual(sum.putts, 4); assert.strictEqual(sum.fwHit, 1); assert.strictEqual(sum.fwTotal, 2);
-  assert.strictEqual(sum.gir, 1); assert.strictEqual(sum.teeRight, 1);
-  assert.match(await page.textContent('.big-score'), /14\s*\+2 vs par/); ok('summary: 14 strokes, +2, 2 penalties, 4 putts, FW 1/2, GIR 1/3');
-  // tap hole in scorecard -> hole screen
+  await page.locator('[data-act="summary"]').first().click();
+  const sum = await page.evaluate(() => SG.summarize(window.__golf.rounds()[0]));
+  assert.strictEqual(sum.strokes, 15); assert.strictEqual(sum.par, 12); assert.strictEqual(sum.penalties, 2);
+  assert.strictEqual(sum.putts, 5); assert.strictEqual(sum.fwHit, 1); assert.strictEqual(sum.fwTotal, 2); assert.strictEqual(sum.teeRight, 2);
+  assert.strictEqual(sum.apprOver, 1);
+  assert.match(await page.textContent('.big-score'), /15\s*\+3 vs par/); ok('summary: 15 (+3), 2 penalties, 5 putts, FW 1/2, approach over 1');
   await page.locator('[data-act="goHole"][data-i="1"]').click();
-  assert.match(await page.textContent('.topbar'), /Hole 2/); ok('tap scorecard hole opens it');
-
-  // CSV
-  const csv = await page.evaluate(() => window.__golf.csvFor(window.__golf.rounds()));
-  const lines = csv.trim().split('\r\n'); assert.strictEqual(lines.length, 1 + 3 + 4 + 5); ok(`CSV has ${lines.length - 1} shot rows + header`);
-  await act('summary');
+  assert.match(await page.textContent('.hc-head'), /Hole 2/); ok('tap scorecard hole opens it');
+  await page.locator('[data-act="summary"]').first().click();
+  const csv = await page.evaluate(() => window.__golf.csvFor([window.__golf.rounds()[0]]));
+  assert.strictEqual(csv.trim().split('\r\n').length, 1 + 4 + 4 + 5); ok('CSV: 13 shot rows + header');
   const [dl] = await Promise.all([page.waitForEvent('download'), act('csv')]);
   assert.match(dl.suggestedFilename(), /golf-\d{4}-\d\d-\d\d-Washoe-County-GC\.csv/); ok('CSV download: ' + dl.suggestedFilename());
+  await page.screenshot({ path: `${SHOTS}/4-summary.png` });
 
   // Persistence + offline
-  await page.reload(); await page.waitForSelector('text=Continue round'); ok('round persists after reload');
-  await page.waitForFunction(() => navigator.serviceWorker.controller || navigator.serviceWorker.ready.then(() => true));
-  await page.reload(); await page.waitForFunction(() => !!navigator.serviceWorker.controller);
+  await page.reload(); await page.waitForSelector('text=Continue round'); ok('rounds persist after reload');
+  await page.waitForFunction(() => !!navigator.serviceWorker.controller, null, { timeout: 15000 }).catch(async () => { await page.reload(); await page.waitForFunction(() => !!navigator.serviceWorker.controller); });
   await ctx.setOffline(true);
-  await page.reload(); await page.waitForSelector('text=Continue round'); ok('works offline (service worker)');
+  await page.reload(); await page.waitForSelector('text=Continue round');
+  await act('resume'); await page.waitForSelector('.holecard'); ok('works offline (service worker)');
   await ctx.setOffline(false);
-
-  // Full 18-hole sample round for a realistic summary screenshot
-  await page.evaluate(() => {
-    const H = (par, yards, shots) => ({ par, yards, shots: shots.map(s => ({ lie: s[0], dist: s[1] || 0, side: s[2] || '', pen: s[3] || 'none' })) });
-    const holes = [
-      H(4, 402, [['fairway', 148], ['green', 22], ['green', 3], ['holed']]),
-      H(5, 535, [['rough', 260, 'R'], ['fairway', 105], ['green', 14], ['holed']]),
-      H(3, 178, [['sand', 12, 'R'], ['green', 6], ['holed']]),
-      H(4, 365, [['fairway', 120], ['green', 35], ['green', 4], ['green', 1], ['holed']]),
-      H(4, 431, [['ob', 0, 'R', 'ob'], ['fairway', 160], ['rough', 25, 'L'], ['green', 8], ['holed']]),
-      H(4, 388, [['rough', 140, 'L'], ['green', 28], ['green', 2], ['holed']]),
-      H(3, 152, [['green', 18], ['green', 2], ['holed']]),
-      H(5, 548, [['fairway', 280], ['rough', 95, 'L'], ['green', 10], ['holed']]),
-      H(4, 420, [['deep', 175, 'R'], ['sand', 18, 'R'], ['green', 9], ['green', 1], ['holed']]),
-      H(4, 395, [['fairway', 135], ['green', 16], ['green', 2], ['holed']]),
-      H(4, 412, [['rough', 165, 'L', 'lateral'], ['green', 40], ['green', 5], ['holed']]),
-      H(3, 196, [['rough', 20, 'L'], ['green', 5], ['holed']]),
-      H(5, 512, [['fairway', 245], ['fairway', 60], ['green', 7], ['holed']]),
-      H(4, 378, [['fairway', 115], ['green', 12], ['green', 1], ['holed']]),
-      H(4, 445, [['recovery', 190, 'R'], ['fairway', 70], ['green', 15], ['green', 2], ['holed']]),
-      H(3, 141, [['green', 25], ['green', 3], ['holed']]),
-      H(4, 405, [['fairway', 155], ['sand', 22, 'L'], ['green', 6], ['holed']]),
-      H(5, 560, [['fairway', 270], ['rough', 120, 'R'], ['green', 20], ['green', 2], ['holed']]),
-    ];
-    const rs = JSON.parse(localStorage.getItem('golfsg.rounds.v1'));
-    rs.unshift({ id: 'rsample', date: '2026-10-04T15:00:00.000Z', course: 'Sample round', holes });
-    localStorage.setItem('golfsg.rounds.v1', JSON.stringify(rs));
-  });
-  await page.reload();
-  await page.locator('[data-act="open"][data-id="rsample"]').click();
-  await page.waitForSelector('text=Round stats');
-  const s2 = await page.evaluate(() => SG.summarize(window.__golf.rounds().find(r => r.id === 'rsample')));
-  assert.strictEqual(s2.holesDone, 18); ok(`sample 18 holes: ${s2.strokes} (${s2.toPar >= 0 ? '+' : ''}${s2.toPar}), SG ${s2.sgTotal.toFixed(2)}`);
-  await page.screenshot({ path: `${SHOTS}/4-summary.png` });
-  await page.screenshot({ path: `${SHOTS}/5-summary-full.png`, fullPage: true });
-  await act('home'); await page.screenshot({ path: `${SHOTS}/6-home.png` });
-
-  // tap targets size check
+  await act('home');
   const small = await page.evaluate(() => [...document.querySelectorAll('button')].filter(b => b.getBoundingClientRect().height < 44).length);
-  assert.strictEqual(small, 0); ok('all buttons ≥ 44px tall');
+  assert.strictEqual(small, 0); ok('home buttons ≥ 44px');
+  await act('resume');
+  const smallH = await page.evaluate(() => [...document.querySelectorAll('button, select, input')].filter(b => { const r = b.getBoundingClientRect(); return r.height < 44 || r.width < (b.classList.contains('c-n') ? 30 : 44); }).map(b => b.outerHTML.slice(0, 60)));
+  assert.deepStrictEqual(smallH, []); ok('hole screen tap targets ≥ 44×44px (row-number buttons 30×48)');
+  await noOverflow('hole'); ok('no sideways scrolling at 390px');
   assert.deepStrictEqual(errors, []); ok('no JS console errors');
   console.log(`\nE2E: ${passed} checks passed`);
   await browser.close(); srv.kill();

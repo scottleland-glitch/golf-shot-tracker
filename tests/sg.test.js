@@ -88,3 +88,49 @@ test('round summary totals', () => {
   const catSum = Object.values(S.cats).reduce((a, c) => a + c.sg, 0);
   near(catSum, S.sgTotal, 'categories add up');
 });
+
+// ---- Row model (v2 screen): each row = where the shot is played FROM ----
+const R = (dist, loc, dir = '', pen = false) => ({ dist, loc, dir, pen });
+
+test("rows: Scott's screenshot style hole (365 F, 125 F R, 15ft G O, holed)", () => {
+  const hole = { par: 4, rows: [R(365, 'tee'), R(125, 'fairway', 'R'), R(15, 'green', 'O'), R('', 'holed')] };
+  const a = SG.analyzeHole(hole);
+  assert.strictEqual(a.strokes, 3); assert.ok(a.done); assert.strictEqual(a.bad, null);
+  assert.strictEqual(a.shots[0].hit, 240, 'drive = 365 - 125');
+  assert.strictEqual(a.shots[1].hit, 120, 'approach = 125 - 15ft/3');
+  assert.strictEqual(a.shots[1].dir, 'O');
+  near(a.sg, SG.expected('tee', 365) - 3, 'SG identity');
+  assert.strictEqual(a.putts, 1); assert.ok(a.gir); assert.ok(a.fairway);
+});
+
+test('rows: OB row = stroke and distance; hazard+P = drop +1; hazard alone = play it', () => {
+  const hole = { par: 4, rows: [R(400, 'tee'), R('', 'ob', 'R'), R(170, 'hazard', 'L', true), R(30, 'hazard'), R(12, 'green'), R('', 'holed')] };
+  const a = SG.analyzeHole(hole);
+  near(a.shots[0].sg, -2, 'OB costs 2');
+  assert.strictEqual(a.shots[1].start.lie, 'tee'); assert.strictEqual(a.shots[1].start.dist, 400);
+  near(a.shots[1].sg, 3.99 - SG.expected('rough', 170) - 2, 'hazard drop uses rough +1');
+  assert.strictEqual(a.shots[2].end.lie, 'hazard');
+  assert.strictEqual(a.penalties, 2); assert.strictEqual(a.strokes, 7);
+  near(a.sg, 3.99 - 7, 'identity');
+});
+
+test('rows: incomplete row stops analysis and is reported', () => {
+  const a = SG.analyzeHole({ par: 4, rows: [R(380, 'tee'), R(150, 'fairway'), R('', 'rough')] });
+  assert.strictEqual(a.bad, 2); assert.strictEqual(a.shots.length, 1); assert.ok(!a.done);
+  const b = SG.analyzeHole({ par: 4, rows: [R('', 'tee')] });
+  assert.strictEqual(b.bad, 0); assert.strictEqual(b.shots.length, 0);
+});
+
+test('migration: old {yards, shots} -> rows gives identical results', () => {
+  const old = { par: 4, yards: 400, shots: [
+    { lie: 'rough', dist: 999, side: 'R', pen: 'ob' }, { lie: 'rough', dist: 180, side: 'L', pen: 'water' },
+    { lie: 'sand', dist: 20, side: 'L', pen: 'none' }, { lie: 'green', dist: 6, pen: 'none' }, { lie: 'holed', pen: 'none' }] };
+  const a = SG.analyzeHole(old), b = SG.analyzeHole({ par: 4, rows: SG.shotsToRows(old) });
+  assert.strictEqual(b.strokes, a.strokes); near(b.sg, a.sg, 'same SG');
+  assert.deepStrictEqual(b.shots.map(s => s.cat), a.shots.map(s => s.cat));
+});
+
+test('summary counts short/over approach misses', () => {
+  const S = SG.summarize({ holes: [{ par: 4, rows: [R(400, 'tee'), R(150, 'fairway'), R(25, 'rough', 'S'), R(5, 'green'), R('', 'holed')] }] });
+  assert.strictEqual(S.apprShort, 1); assert.strictEqual(S.strokes, 4);
+});
