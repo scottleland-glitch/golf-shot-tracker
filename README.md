@@ -37,8 +37,8 @@ Summary "Fairways hit" tile opens a bird's-eye fairway with every par-4/5 tee sh
 
 ## Pin-location map (v8)
 Summary "Pin location" tile: a full-window 3x3 green (same grid as the pin picker) with a badge per segment
-(number of approaches on holes with the pin there, plus GIR x/y). Tap a segment: the flag is dropped there and
-every approach on those holes is drawn - white = green hit in regulation (first-putt ft + direction from the pin;
+(number of HOLES with the pin there, plus GIR x/y of those holes). Tap a segment: the flag is dropped there and
+one dot per hole (its approach into the green) is drawn - white = green hit in regulation (first-putt ft + direction from the pin;
 ? = no direction, star = holed out), red = missed green (off the green in the miss direction, labelled with yards
 left and where it finished). Same approach / reach-green rules as the other maps. Holes without a pin are
 excluded and counted. This round / All rounds toggle.

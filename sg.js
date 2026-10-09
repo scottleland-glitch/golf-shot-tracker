@@ -256,11 +256,30 @@
    * Did this shot reach the green (for GIR, approach misses and the maps)?
    * Yes if the ball finished on the green or in the hole, or the next row is
    * "In the hole" (a putt - so the ball was on the green) or "In the hole
-   * (chip/shot)" (Scott's rule: holing out from off the green counts as hitting it).
+   * (chip/shot)" from 30 yd or closer (Scott's rule: a chip-in from off the green counts
+   * as hitting it). A longer hole-out (e.g. a 110-yd wedge for eagle) is itself the shot
+   * that reached the green - the shot before it finished out on the course.
    * Strokes gained is not affected (a chip-in is still valued from its real lie).
    */
   function reachedGreen(r) {
-    return !r.ob && (r.end.lie === 'green' || r.end.lie === 'holed' || r.loc === 'holed' || r.loc === 'holedx');
+    return !r.ob && (r.end.lie === 'green' || r.end.lie === 'holed' || r.loc === 'holed' || (r.loc === 'holedx' && r.end.dist <= 30));
+  }
+  /**
+   * The hole's ONE "approach into the green" (used by the pin-location map, one entry per hole):
+   *  - if the shot that first reached the green was hit from more than 30 yd (off the green), that shot -> green hit;
+   *  - otherwise the last shot from more than 30 yd before it -> missed green (e.g. missed approach, then a chip on).
+   * Par 5s with two long shots therefore use only the later one.
+   */
+  function keyApproach(out, gir) {
+    var far = function (r) { return r.start.lie !== 'green' && r.start.dist > 30; };
+    var fr = -1; for (var i = 0; i < out.length; i++) { if (reachedGreen(out[i])) { fr = i; break; } }
+    var k = -1, hit = false;
+    if (fr >= 0 && far(out[fr])) { k = fr; hit = true; }
+    else { for (var j = (fr >= 0 ? fr : out.length) - 1; j >= 0; j--) { if (far(out[j])) { k = j; break; } } if (k < 0 && fr >= 0) { k = fr; hit = true; } }
+    if (k < 0) return null;
+    var r = out[k], ho = hit && (r.end.lie === 'holed' || r.loc === 'holedx');
+    return { shot: r.n, hit: hit, gir: !!gir, holed: ho, dir: ho ? '' : r.dir, ft: hit && !ho ? r.end.dist : 0,
+      lie: hit ? 'green' : (r.ob ? 'ob' : r.end.lie), dist: hit ? 0 : r.end.dist, from: r.start.dist };
   }
   function analyzeHole(hole, baseline) {
     var bad = null, problem = '', complete = null, finished = true, rowsFmt = !!hole.rows, nRows = 0, liveStrokes = 0;
@@ -323,7 +342,7 @@
       rows: nRows, liveStrokes: rowsFmt ? liveStrokes : shots.length + penalties,
       strokes: shots.length + penalties, penalties: penalties,
       putts: out.filter(function (r) { return r.cat === 'putting'; }).length,
-      done: done, gir: gir, girShot: girShot, fairway: fairway, pin: normPin(hole.pin),
+      done: done, gir: gir, girShot: girShot, fairway: fairway, pin: normPin(hole.pin), appr: keyApproach(out, gir),
       sg: out.reduce(function (a, r) { return a + r.sg; }, 0)
     };
   }
@@ -350,7 +369,7 @@
       if (!a.shots.length) return;
       S.holesStarted++;
       if (!a.done) return; // only finished holes count toward totals and stats
-      if (normPin(h.pin)) S.pinHoles.push({ hole: hi + 1, pin: normPin(h.pin), gir: a.gir, par: Number(h.par) }); else S.noPin++;
+      if (normPin(h.pin)) S.pinHoles.push({ hole: hi + 1, pin: normPin(h.pin), gir: a.gir, par: Number(h.par), appr: a.appr }); else S.noPin++;
       S.penalties += a.penalties;
       S.putts += a.putts;
       S.holesDone++; S.strokes += a.strokes; S.par += Number(h.par);

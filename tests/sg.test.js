@@ -381,3 +381,54 @@ test('pin map data: approaches tagged with the hole pin; holes with/without pin;
   assert.deepStrictEqual(S.girMap.map(g => [g.hole, g.pin, g.ft, g.dir, g.holed]), [[1, 'frontleft', 12, 'longright', false], [3, 'frontleft', 7, '', false], [4, 'backright', 0, '', true]]);
   assert.deepStrictEqual(S.apprMiss.map(m => [m.hole, m.pin, m.dir, m.lie, m.dist]), [[2, 'frontleft', 'short', 'sand', 15], [5, '', 'left', 'rough', 20]]);
 });
+
+// ---- Pin map counts HOLES: one approach-into-the-green per hole ----
+test('keyApproach: one entry per hole (par 5 two long shots, missed-then-chip, drive the green, OB re-hit)', () => {
+  const A = rows => SG.analyzeHole({ par: rows[0], finished: true, rows: rows[1] }).appr;
+  const pick = a => [a.shot, a.hit, a.gir, a.holed, a.dir, a.ft, a.lie, a.dist];
+  // par 5: 250 lay-up then wedge onto the green -> only the wedge (shot 3), GIR
+  assert.deepStrictEqual(pick(A([5, [R(540, 'tee'), R(250, 'fairway'), R(90, 'fairway'), R(12, 'green', 'left'), R(1, 'holed')]])), [3, true, true, false, 'left', 12, 'green', 0]);
+  // par 5: 2nd shot misses into rough 40 yd, pitch from 40 onto the green in 3 -> shot 3 (from >30) hit, GIR
+  assert.deepStrictEqual(pick(A([5, [R(540, 'tee'), R(250, 'fairway'), R(40, 'rough', 'short'), R(8, 'green', 'long'), R(1, 'holed')]])), [3, true, true, false, 'long', 8, 'green', 0]);
+  // missed approach then chip -> ONE miss (the approach), not counted twice
+  assert.deepStrictEqual(pick(A([4, [R(400, 'tee'), R(150, 'fairway'), R(15, 'rough', 'shortleft'), R(4, 'green'), R(1, 'holed')]])), [2, false, false, false, 'shortleft', 0, 'rough', 15]);
+  // drive the green
+  assert.deepStrictEqual(pick(A([4, [R(300, 'tee'), R(20, 'green', 'right'), R(2, 'green'), R(1, 'holed')]])), [1, true, true, false, 'right', 20, 'green', 0]);
+  // tee shot to 25 yd, chip on in 2 -> the tee shot is the approach, missed the green (the hole is still GIR)
+  assert.deepStrictEqual(pick(A([4, [R(330, 'tee'), R(25, 'rough', 'right'), R(5, 'green'), R(1, 'holed')]])), [1, false, true, false, 'right', 0, 'rough', 25]);
+  // approach OB, re-hit onto the green -> the re-hit (hit, not GIR)
+  assert.deepStrictEqual(pick(A([4, [R(400, 'tee'), R(170, 'fairway'), R('', 'ob', 'right'), R(10, 'green'), R(1, 'holed')]])), [3, true, false, false, '', 10, 'green', 0]);
+  // chip-in from off the green after the approach (Scott's rule: reached the green) and eagle hole-out
+  assert.deepStrictEqual(pick(A([4, [R(400, 'tee'), R(120, 'fairway'), R(15, 'holedx')]])), [2, true, true, true, '', 0, 'green', 0]);
+  assert.deepStrictEqual(pick(A([4, [R(360, 'tee'), R(110, 'holedx')]])), [2, true, true, true, '', 0, 'green', 0]);
+});
+
+test('pin map consistency on random rounds: badges sum = holes, hit + missed = holes, GIR y = holes; GIR/miss tiles = map lists', () => {
+  const pins = SG.PIN_GRID.flat();
+  const pick = a => a[Math.floor(Math.random() * a.length)];
+  for (let n = 0; n < 300; n++) {
+    const hs = [];
+    for (let i = 0; i < 18; i++) {
+      const par = pick([3, 4, 4, 5]), rows = [R(par === 3 ? 170 : par === 4 ? 400 : 530, 'tee')]; let d = rows[0].dist;
+      while (rows.length < 8) {
+        const onGreen = rows[rows.length - 1].loc === 'green';
+        const loc = onGreen ? pick(['green', 'holed']) : pick(['fairway', 'rough', 'bunker', 'green', 'green', 'holed', 'holedx', 'trees']);
+        d = loc === 'green' || loc === 'holed' ? Math.max(1, Math.round(Math.random() * 40)) : Math.max(1, Math.round(d * Math.random()));
+        rows.push(R(d, loc, pick(['', 'left', 'long', 'short', 'shortright']))); if (loc === 'holed' || loc === 'holedx') break;
+      }
+      if (!['holed', 'holedx'].includes(rows[rows.length - 1].loc)) rows.push(R(1, 'holed'));
+      hs.push({ par, finished: true, pin: Math.random() < 0.7 ? pick(pins) : '', rows });
+    }
+    const S = SG.summarize({ holes: hs });
+    assert.strictEqual(S.pinHoles.length + S.noPin, S.holesDone);
+    let sum = 0;
+    for (const p of pins) {
+      const on = S.pinHoles.filter(x => x.pin === p); sum += on.length;
+      assert.ok(on.every(x => x.appr), 'every hole has an approach entry');
+      assert.strictEqual(on.filter(x => x.appr.hit).length + on.filter(x => !x.appr.hit).length, on.length);
+      assert.ok(on.filter(x => x.gir).length <= on.length);
+    }
+    assert.strictEqual(sum, S.pinHoles.length);
+    assert.strictEqual(S.girMap.length, S.gir);
+  }
+});
