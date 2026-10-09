@@ -623,10 +623,11 @@
     (view.mapScope === 'all' ? rounds : [round()]).forEach(function (r) { n++; SG.summarize(r, 'pga').puttList.forEach(function (p) { all.push(p); }); });
     var counts = { '1': 0, '2': 0, '3': 0 }; all.forEach(function (p) { counts[SG.puttGroup(p.n)]++; });
     var g = view.puttN || '1'; if (!counts[g]) g = ['1', '2', '3'].filter(function (x) { return counts[x]; })[0] || '1';
-    return { list: all.filter(function (p) { return SG.puttGroup(p.n) === g; }), group: g, counts: counts, rounds: n };
+    return { list: all.filter(function (p) { return SG.puttGroup(p.n) === g; }), group: g, counts: counts, rounds: n, tp: SG.threePutts(all) };
   }
   // Non-linear radius: 0-10 ft takes 60% of the radius (1 ft rings readable); 10 ft..max ring the rest.
   var PG2 = { cx: 180, cy: 190, R: 168 };
+  var PCOL = { made: '#000', miss2: '#1565e0', miss3: '#e0102a' };
   function puttSVG(list, group) {
     var sc = SG.puttScale(group, list), maxFt = sc.maxFt, close = sc.mode === 'close', R = function (ft) { return SG.puttRadius(ft, sc, PG2.R); };
     var o = '<svg id="puttmap" data-scale="' + sc.mode + '" data-maxft="' + maxFt + '" viewBox="0 0 360 400" role="img" aria-label="Putts by starting distance">' +
@@ -647,8 +648,8 @@
     o += '<circle cx="' + PG2.cx + '" cy="' + PG2.cy + '" r="4.5" fill="#000"/>';
     var dots = '', boxes = ringBoxes.concat([[130, 3, 230, 21], [80, 380, 280, 398], [0, PG2.cy - 10, 30, PG2.cy + 6], [330, PG2.cy - 10, 360, PG2.cy + 6]]), lbls = '';
     SG.puttPlace(list, sc, PG2.cx, PG2.cy, PG2.R, 15).forEach(function (d) {
-      var p = d.p, q = [d.x, d.y], x = f1(d.x), y = f1(d.y), col = p.made ? '#0a7a2a' : '#e0102a';
-      var at = ' class="pdot2" data-made="' + (p.made ? 1 : 0) + '" data-ft="' + p.ft + '" data-hole="' + p.hole + '" data-dir="' + (p.dir || '') + '" data-beyond="' + (d.beyond ? 1 : 0) + '"';
+      var p = d.p, q = [d.x, d.y], x = f1(d.x), y = f1(d.y), kd = SG.puttKind(p), col = PCOL[kd];
+      var at = ' class="pdot2" data-made="' + (p.made ? 1 : 0) + '" data-ft="' + p.ft + '" data-hole="' + p.hole + '" data-dir="' + (p.dir || '') + '" data-beyond="' + (d.beyond ? 1 : 0) + '" data-pk="' + kd + '"';
       if (d.nodir) dots += '<g' + at + ' data-kind="nodir"><path d="M' + x + ' ' + (y - 9) + ' l9 9 -9 9 -9 -9z" fill="' + (p.made ? col : '#fff') + '" stroke="' + col + '" stroke-width="3"/><text x="' + x + '" y="' + (+y + 4.5) + '" text-anchor="middle" font-size="11" font-weight="900" fill="' + (p.made ? '#fff' : col) + '">?</text></g>';
       else dots += '<circle' + at + ' data-kind="dir" cx="' + x + '" cy="' + y + '" r="6.5" fill="' + (p.made ? col : '#fff') + '" stroke="' + col + '" stroke-width="3"/>';
       boxes.push([q[0] - 8, q[1] - 9, q[0] + 8, q[1] + 9]);
@@ -671,10 +672,11 @@
     var bandRows = P.bands.map(function (b) { return '<tr data-band="' + b.id + '"><td>' + b.id + ' ft</td><td class="num">' + b.n + '</td><td class="num">' + (b.n ? b.made + '/' + b.n : '–') + '</td><td class="num">' + pct(b.pct) + '</td></tr>'; }).join('');
     return '<div class="pnrow" id="puttbtns" role="group" aria-label="Which putt">' + btns + '</div>' +
       '<p class="mapsum" id="mapsum"><b>' + P.n + '</b> ' + NM[D.group] + (P.n === 1 ? '' : 's') + (all ? ' in ' + D.rounds + ' round' + (D.rounds === 1 ? '' : 's') : ' this round') + '</p>' +
+      '<p class="mapsum" id="threeputts">3-putt holes: <b>' + D.tp.three + '</b> of ' + D.tp.holes + ' hole' + (D.tp.holes === 1 ? '' : 's') + ' putted' + (D.tp.holes ? ' (' + Math.round(100 * D.tp.three / D.tp.holes) + '%)' : '') + '</p>' +
       '<div class="stat-grid" id="puttstats">' + stat('Putts', P.n) + stat('Made', P.n ? P.made + ' / ' + P.n + ' (' + pct(P.pct) + ')' : '–') + stat('Avg distance', P.avgFt == null ? '–' : (Math.round(P.avgFt * 10) / 10) + ' ft') + '</div>' +
       puttSVG(D.list, D.group) +
-      '<div class="legend"><span><i class="dot" style="background:#0a7a2a;border-color:#0a7a2a"></i>Made (filled)</span><span><i class="dot" style="background:#fff;border:3px solid #e0102a"></i>Missed (ring)</span>' +
-      '<span><svg width="20" height="20" viewBox="0 0 20 20" style="flex:none"><path d="M10 1 l9 9 -9 9 -9 -9z" fill="#fff" stroke="#555" stroke-width="2.5"/><text x="10" y="14.5" text-anchor="middle" font-size="11" font-weight="900" fill="#555">?</text></svg>No direction entered – right distance, spread around the hole</span>' +
+      '<div class="legend" id="puttlegend"><span><i class="dot" style="background:#000;border-color:#000"></i>Made</span><span><i class="dot" style="background:#fff;border:3px solid #1565e0"></i>Missed – 2-putt hole</span><span><i class="dot" style="background:#fff;border:3px solid #e0102a"></i>Missed – 3-putt or worse</span>' +
+      '<span><svg width="20" height="20" viewBox="0 0 20 20" style="flex:none"><path d="M10 1 l9 9 -9 9 -9 -9z" fill="#fff" stroke="#555" stroke-width="2.5"/><text x="10" y="14.5" text-anchor="middle" font-size="11" font-weight="900" fill="#555">?</text></svg>No direction entered – right distance, spread around the hole (outline colour as above)</span>' +
       (D.group === '1' ? '<span>Rings every 1 ft out to 10 ft, then every 5 ft. The inner 10 ft is drawn bigger so short putts are easy to read; the label is the distance in ft.</span>' : '<span>Close-up: 10 ft green, a ring every 1 ft (true scale). Putts longer than 10 ft sit on the edge, labelled with › and their real distance.</span>') + '<span>Dots that would land on the same spot are nudged slightly apart.</span></div>' +
       '<h3>Make % by distance</h3><table class="dirtab" id="puttbands"><tr><th>Distance</th><th class="num">Putts</th><th class="num">Made</th><th class="num">Make %</th></tr>' + bandRows + '</table>' +
       '<p class="help muted">Every putt = every stroke hit from the green. 1st / 2nd / 3rd+ = its number on that hole (3rd+ includes 4th and later). Direction = where the ball was vs the hole before the putt: for 1st putts the Dir of the approach (as on the GIR map), for later putts the Dir on that putt\'s row. ' +

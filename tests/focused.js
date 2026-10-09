@@ -1,11 +1,12 @@
 const { chromium } = require('playwright-core'); const assert = require('assert'); const { spawn } = require('child_process');
+const errors = [];
 const BASE = process.env.BASE_URL || 'http://127.0.0.1:8765/', SHOTS = process.env.SHOTS || '/tmp/shots-v15f';
 (async () => {
   const srv = process.env.NO_SERVER ? null : spawn('python3', ['-m', 'http.server', '8765', '--bind', '127.0.0.1'], { cwd: '/workspace/golf-app', stdio: 'ignore' });
   await new Promise(r => setTimeout(r, 1500));
   const browser = await chromium.launch({ executablePath: '/usr/bin/google-chrome', args: ['--no-sandbox'], timeout: 600000 });
   const page = await (await browser.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 1, isMobile: true, hasTouch: true })).newPage();
-  page.setDefaultTimeout(120000); const errors = []; page.on('pageerror', e => errors.push(String(e))); page.on('dialog', d => d.accept());
+  page.setDefaultTimeout(+process.env.TMO || 120000); errors.length = 0; page.on('pageerror', e => errors.push(String(e))); page.on('dialog', d => d.accept());
   await page.goto(BASE + '?x=' + Date.now());
   await page.evaluate(() => {
     const R = (dist, loc) => ({ dist, loc, dir: '', pen: false });
@@ -84,6 +85,10 @@ const BASE = process.env.BASE_URL || 'http://127.0.0.1:8765/', SHOTS = process.e
   const noOverlap = async (tag) => { const c = await page.$$eval('#puttmap .pdot2', ds => ds.map(d => { const b = d.getBBox(); return [b.x + b.width / 2, b.y + b.height / 2]; }));
     for (let i = 0; i < c.length; i++) for (let j = 0; j < i; j++) assert.ok(Math.hypot(c[i][0] - c[j][0], c[i][1] - c[j][1]) >= 14, tag + ' dots overlap ' + c[i] + ' / ' + c[j]); return c.length; };
   await noOverlap('1st');
+  const mk = () => page.$$eval('#puttmap .pdot2', ds => ds.map(d => { const e = d.tagName === 'g' ? d.querySelector('path') : d; return [+d.getAttribute('data-ft'), d.getAttribute('data-pk'), e.getAttribute('fill'), e.getAttribute('stroke')]; }));
+  assert.deepStrictEqual(await mk(), [[25, 'miss2', '#fff', '#1565e0'], [8, 'made', '#000', '#000'], [40, 'miss2', '#fff', '#1565e0'], [3, 'made', '#000', '#000'], [12, 'miss2', '#fff', '#1565e0'], [30, 'miss2', '#fff', '#1565e0']]);
+  assert.strictEqual(await page.textContent('#threeputts'), '3-putt holes: 0 of 6 holes putted (0%)');
+  assert.deepStrictEqual(await page.$$eval('#puttlegend span', ss => ss.slice(0, 3).map(x => x.textContent)), ['Made', 'Missed – 2-putt hole', 'Missed – 3-putt or worse']);
   assert.strictEqual(await page.getAttribute('#puttmap', 'data-scale'), 'wide');
   await page.click('#puttbtns [data-v="2"]'); assert.match(await page.getAttribute('#puttbtns [data-v="2"]', 'class'), /sel/);
   const d2 = await page.$$eval('#puttmap .pdot2', ds => ds.map(d => [+d.getAttribute('data-ft'), d.getAttribute('data-made'), d.getAttribute('data-dir')]));
@@ -105,10 +110,17 @@ const BASE = process.env.BASE_URL || 'http://127.0.0.1:8765/', SHOTS = process.e
   const pbAll = await page.$$eval('#puttbtns .pnbtn', bs => bs.map(b => [+b.getAttribute('data-n'), b.disabled]));
   assert.deepStrictEqual(pbAll, [[allExp[1], false], [allExp[2], false], [allExp[3], !allExp[3]]]);
   assert.strictEqual(await page.locator('#puttmap .pdot2').count(), allExp[1]); assert.match(await page.textContent('#mapsum'), new RegExp('^' + allExp[1] + ' 1st putts in 3 rounds'));
-  await page.click('#puttbtns [data-v="3"]'); assert.strictEqual(await page.locator('#puttmap .pdot2').count(), allExp[3]); assert.strictEqual(await page.getAttribute('#puttmap', 'data-scale'), 'close'); await noOverlap('All 3rd+'); assert.strictEqual(n2, allExp[2]);
+  const tpAll = await page.evaluate(() => { let h = 0, t = 0; window.__golf.rounds().forEach(r => { const x = SG.threePutts(SG.summarize(r).puttList); h += x.holes; t += x.three; }); return [h, t]; });
+  assert.match(await page.textContent('#threeputts'), new RegExp('^3-putt holes: ' + tpAll[1] + ' of ' + tpAll[0] + ' holes putted')); assert.ok(tpAll[1] > 0);
+  await page.click('#puttbtns [data-v="3"]'); assert.strictEqual(await page.locator('#puttmap .pdot2').count(), allExp[3]);
+  const k3 = await mk(); assert.ok(k3.some(k => k[1] === 'miss3') && k3.every(k => k[1] !== 'miss2') && k3.every(k => (k[1] === 'made') === (k[2] === '#000') && (k[1] !== 'miss3' || k[3] === '#e0102a')), JSON.stringify(k3));
+  await page.screenshot({ path: SHOTS + '/37d-putting-3rd-all.png' }); assert.strictEqual(await page.getAttribute('#puttmap', 'data-scale'), 'close'); await noOverlap('All 3rd+'); assert.strictEqual(n2, allExp[2]);
   await page.click('[data-act="mapclose"]'); await page.waitForSelector('#puttmap', { state: 'detached' });
   console.log('✓ All rounds: 1st/2nd/3rd+ = ' + [allExp[1], allExp[2], allExp[3]].join('/') + '; Close');
 
+  const kinds = await page.$$eval('[data-act="map"]', bs => bs.map(b => b.getAttribute('data-v')));
+  for (const k of kinds) { await page.click(`[data-act="map"][data-v="${k}"]`); await page.waitForSelector('#mapview'); await page.click('[data-act="mapclose"]'); await page.waitForSelector('#mapview', { state: 'detached' }); }
+  assert.ok(kinds.length >= 5); console.log('✓ every map opens/closes without errors: ' + kinds.join(', '));
   assert.deepStrictEqual(errors, []); console.log('FOCUSED OK');
   await browser.close(); if (srv) srv.kill();
-})().catch(e => { console.error('FAIL', e.message); process.exit(1); });
+})().catch(e => { console.error('FAIL', e.stack, JSON.stringify(errors)); process.exit(1); });

@@ -436,6 +436,7 @@
         if (r.start.lie !== 'green') return; pn++;
         S.puttList.push({ hole: hi + 1, n: pn, ft: r.start.dist, made: r.end.lie === 'holed', dir: k > 0 ? a.shots[k - 1].dir : '' });
       });
+      for (var q = S.puttList.length - pn; q < S.puttList.length; q++) S.puttList[q].holePutts = pn; // putts the hole ended with
       S.holesDone++; S.strokes += a.strokes; S.par += Number(h.par);
       S.girHoles++; if (a.gir) S.gir++;
       if (a.fairway !== null) { S.fwTotal++; if (a.fairway) S.fwHit++; }
@@ -619,6 +620,10 @@
     return out;
   }
   function puttGroup(n) { return n >= 3 ? '3' : String(n); } // 3 = "3rd+" (3rd, 4th, ...)
+  // Marker class: made, missed on a 2-putt hole, or missed on a hole with 3+ putts.
+  function puttKind(p) { return p.made ? 'made' : (p.holePutts || 0) >= 3 ? 'miss3' : 'miss2'; }
+  // 3-putt holes among the holes in a putt list (each hole counted once, via its 1st putt).
+  function threePutts(list) { var H = list.filter(function (p) { return p.n === 1; }); return { holes: H.length, three: H.filter(function (p) { return p.holePutts >= 3; }).length }; }
   function puttStats(list) {
     var made = list.filter(function (p) { return p.made; }).length;
     return { n: list.length, made: made, pct: list.length ? 100 * made / list.length : null,
@@ -666,7 +671,7 @@
     return incoming.filter(function (r) { return byId[r.id] && JSON.stringify(byId[r.id]) !== JSON.stringify(r); });
   }
 
-  var api = { puttScale: puttScale, puttRadius: puttRadius, puttPlace: puttPlace, PUTT_BANDS: PUTT_BANDS, puttGroup: puttGroup, puttStats: puttStats, makeBackup: makeBackup, parseBackup: parseBackup, mergeRounds: mergeRounds, conflictsOf: conflictsOf, PROX_LIES: PROX_LIES, lieGroup: lieGroup, proxByLie: proxByLie, proxWarnings: proxWarnings, PROX_BUCKETS: PROX_BUCKETS, inBucket: inBucket, roundYd: roundYd, proxStats: proxStats, reachedGreen: reachedGreen, PIN_GRID: PIN_GRID, PIN_NAME: PIN_NAME, normPin: normPin, DIR8: DIR8, DIR_NAME: DIR_NAME, DIR_ANGLE: DIR_ANGLE, normDir: normDir, expected: expected, expectedPGA: expectedPGA, BASELINES: BASELINES, baseline: function (id) { return BL[id] || BL.pga; },
+  var api = { puttKind: puttKind, threePutts: threePutts, puttScale: puttScale, puttRadius: puttRadius, puttPlace: puttPlace, PUTT_BANDS: PUTT_BANDS, puttGroup: puttGroup, puttStats: puttStats, makeBackup: makeBackup, parseBackup: parseBackup, mergeRounds: mergeRounds, conflictsOf: conflictsOf, PROX_LIES: PROX_LIES, lieGroup: lieGroup, proxByLie: proxByLie, proxWarnings: proxWarnings, PROX_BUCKETS: PROX_BUCKETS, inBucket: inBucket, roundYd: roundYd, proxStats: proxStats, reachedGreen: reachedGreen, PIN_GRID: PIN_GRID, PIN_NAME: PIN_NAME, normPin: normPin, DIR8: DIR8, DIR_NAME: DIR_NAME, DIR_ANGLE: DIR_ANGLE, normDir: normDir, expected: expected, expectedPGA: expectedPGA, BASELINES: BASELINES, baseline: function (id) { return BL[id] || BL.pga; },
     CALIB_ROUND: CALIB_ROUND, catLoss: catLoss, analyzeHole: analyzeHole, summarize: summarize,
     rowsToShots: rowsToShots, shotsToRows: shotsToRows, migrateV2Rows: migrateV2Rows, v1ToRows: v1ToRows, holeYards: holeYards,
     rowUnit: rowUnit, lieOf: lieOf, distOf: distOf, rowStrokes: rowStrokes, isPenalty: isPenalty,

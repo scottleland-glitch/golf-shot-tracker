@@ -638,3 +638,18 @@ test('putting scale: 1st putts wide (10 ft = 60%), 2nd/3rd+ close-up linear 10 f
   assert.deepStrictEqual(P.map(p => p.beyond), [false, false, false, false, false, false, true, true]);
   P.slice(0, 4).forEach(p => assert.ok(Math.abs(Math.hypot(p.x - 180, p.y - 190) - 33.6) < 6, 'jitter stays close to 2 ft'));
 });
+
+test('putt markers: made / missed on a 2-putt hole / missed on a 3-putt+ hole; 3-putt hole count', () => {
+  const S = SG.summarize({ holes: [
+    { par: 4, finished: true, rows: [R(400, 'tee'), R(150, 'fairway'), R(25, 'green'), R(4, 'holed')] },                 // 2-putt
+    { par: 3, finished: true, rows: [R(170, 'tee'), R(8, 'holed')] },                                                     // 1-putt
+    { par: 4, finished: true, rows: [R(400, 'tee'), R(150, 'fairway'), R(40, 'green'), R(6, 'green'), R(2, 'holed')] }, // 3-putt
+    { par: 5, finished: true, rows: [R(520, 'tee'), R(250, 'fairway'), R(90, 'fairway'), R(30, 'green'), R(8, 'green'), R(4, 'green'), R(2, 'holed')] }, // 4-putt
+    { par: 4, finished: true, rows: [R(400, 'tee'), R(120, 'fairway'), R(15, 'holedx')] }                                  // chip-in, no putts
+  ] });
+  assert.deepStrictEqual(S.puttList.map(p => [p.hole, p.holePutts, SG.puttKind(p)]), [
+    [1, 2, 'miss2'], [1, 2, 'made'], [2, 1, 'made'], [3, 3, 'miss3'], [3, 3, 'miss3'], [3, 3, 'made'],
+    [4, 4, 'miss3'], [4, 4, 'miss3'], [4, 4, 'miss3'], [4, 4, 'made']]);
+  assert.deepStrictEqual(SG.threePutts(S.puttList), { holes: 4, three: 2 });
+  assert.deepStrictEqual(SG.threePutts([]), { holes: 0, three: 0 });
+});
