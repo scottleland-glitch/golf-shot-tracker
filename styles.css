@@ -212,6 +212,11 @@ body.noscroll { overflow: hidden; }
 /* v13 proximity yardage rail: 17 buttons (200 top .. 40 bottom) left of the map, map shifted right */
 .mapview .yall { display: block; width: 100%; min-height: 48px; margin: 8px 0 6px; border: 3px solid #000; border-radius: 12px; background: #fff; font-size: 18px; font-weight: 900; color: #000; }
 .mapview .yall.sel { background: #000; color: #fff; }
+.proxwrap { display: flex; gap: 6px; align-items: stretch; }
+.proxwrap svg { flex: 1 1 auto; min-width: 0; width: auto; }
+.proxrail { flex: 0 0 54px; display: flex; flex-direction: column; gap: 2px; }
+.proxrail .ybtn { flex: 1 1 0; min-height: 34px; padding: 0; border: 2px solid #000; border-radius: 8px; background: #fff; color: #000;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; line-height: 1; gap: 1px; }
 .proxrail .ybtn b { font-size: 16px; font-weight: 900; }
 .proxrail .ybtn small { font-size: 11px; font-weight: 800; color: #1e6fd9; }
 .proxrail .ybtn.sel { background: #000; color: #fff; border-color: #000; box-shadow: 0 0 0 3px #ffd23f; }
@@ -298,12 +303,3 @@ body.noscroll { overflow: hidden; }
 .pnrow2 button { min-height: 48px; padding: 0 14px; font-weight: 800; border-radius: 10px; }
 .hplayer { font-size: 14px; font-weight: 700; color: #0a5bb5; }
 .odgroup h3 { margin: 14px 0 6px; }
-
-/* Proximity distance groups (same as SG By distance) */
-.proxrail { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; margin: 6px 0; }
-.proxrail .ybtn { min-height: 52px; padding: 4px 2px; border: 2px solid #000; border-radius: 10px; background: #fff; color: #000; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px; }
-.proxrail .ybtn .ysw { display: block; width: 34px; height: 6px; border-radius: 3px; }
-#proxmap { width: 100%; height: auto; display: block; }
-.proxrail .ybtn small { font-size: 13px; color: #333; }
-.proxrail .ybtn:disabled .ysw { opacity: .3; }
-.proxrail .ybtn.sel small { color: #ffd23f; }

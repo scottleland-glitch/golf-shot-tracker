@@ -454,18 +454,20 @@ test('pin map consistency on random rounds: badges sum = holes, hit + missed = h
 });
 
 // ---- Proximity by distance ----
-test('proximity groups = SG approach groups (20-60 over 20, others lower-inclusive); <= 20 yd excluded; distinct colours', () => {
-  assert.deepStrictEqual(SG.PROX_BUCKETS.map(b => b.id), ['all', '20-60', '60-100', '100-130', '130-160', '160-200', '200+']);
-  assert.deepStrictEqual([20, 20.1, 59.9, 60, 99.9, 100, 129.9, 130, 159.9, 160, 199.9, 200, 480, null, ''].map(SG.proxGroup),
-    [null, '20-60', '20-60', '60-100', '60-100', '100-130', '100-130', '130-160', '130-160', '160-200', '160-200', '200+', '200+', null, null]);
-  // same edges as the SG By distance table
-  for (let y = 20.5; y < 400; y += 0.5) assert.strictEqual(SG.proxGroup(y) + ' yd', SG.apprBucket(y), 'y=' + y);
-  for (let y = 0; y <= 400; y += 0.1) { const n = SG.PROX_BUCKETS.slice(1).filter(b => SG.inBucket(b.id, y)).length; assert.strictEqual(n, SG.inBucket('all', y) ? 1 : 0, 'y=' + y); }
-  assert.ok(!SG.inBucket('all', 20) && SG.inBucket('all', 21));
-  const cols = SG.PROX_BUCKETS.slice(1).map(b => b.color); assert.strictEqual(new Set(cols).size, 6); cols.forEach(c => assert.match(c, /^#[0-9a-f]{6}$/));
-  // high contrast vs the green (#3da33d): luminance contrast >= 1.3:1 either way plus the white halo; never the hit/miss green/red
-  const L = h => { const v = [1, 3, 5].map(i => parseInt(h.substr(i, 2), 16) / 255).map(c => c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4); return 0.2126 * v[0] + 0.7152 * v[1] + 0.0722 * v[2]; };
-  cols.forEach(c => { const a = L(c) + 0.05, g = L('#3da33d') + 0.05; assert.ok(Math.max(a, g) / Math.min(a, g) >= 1.3, c); });
+test('proximity yardages: 40..200 by nearest 10 yd (halves up), All = 40-200 after rounding', () => {
+  assert.strictEqual(SG.PROX_BUCKETS.length, 18); assert.strictEqual(SG.PROX_BUCKETS[0].id, 'all');
+  assert.deepStrictEqual(SG.PROX_BUCKETS.slice(1).map(b => b.id), Array.from({ length: 17 }, (_, i) => String(40 + i * 10)));
+  const R10 = SG.roundYd;
+  assert.deepStrictEqual([144, 145, 149.9, 154, 154.9, 155, 35, 34.9, 204.9, 205].map(R10), [140, 150, 150, 150, 150, 160, 40, 30, 200, 210]);
+  assert.ok(SG.inBucket('140', 144)); assert.ok(!SG.inBucket('140', 145)); assert.ok(SG.inBucket('150', 145));
+  assert.ok(SG.inBucket('40', 35) && SG.inBucket('all', 35)); assert.ok(!SG.inBucket('all', 34.9), '34.9 -> 30, outside');
+  assert.ok(SG.inBucket('200', 204) && SG.inBucket('all', 204)); assert.ok(!SG.inBucket('all', 205), '205 -> 210, outside');
+  assert.ok(!SG.inBucket('all', null) && !SG.inBucket('all', ''));
+  // every yardage 35..204.9 is in exactly one button; the buttons add up to All
+  for (let y = 30; y <= 210; y += 0.1) {
+    const n = SG.PROX_BUCKETS.slice(1).filter(b => SG.inBucket(b.id, y)).length;
+    assert.strictEqual(n, SG.inBucket('all', y) ? 1 : 0, 'y=' + y);
+  }
 });
 
 test('proximity: the regulation shot per hole (GIR shot or regulation miss); ft for hits, yd x3 for misses; OB excluded from averages', () => {
@@ -485,7 +487,8 @@ test('proximity: the regulation shot per hole (GIR shot or regulation miss); ft 
   const P = SG.proxStats(S.proxList.filter(m => SG.inBucket('all', m.from)));
   assert.strictEqual(P.n, 7); assert.strictEqual(P.hits, 3); near(P.avgHitFt, (12 + 20 + 0) / 3, 'avg hit'); near(P.avgAllFt, (12 + 45 + 20 + 180 + 0) / 5, 'avg all'); assert.strictEqual(P.noProx, 2);
   const B = id => S.proxList.filter(m => SG.inBucket(id, m.from)).map(m => m.hole);
-  assert.deepStrictEqual(B('130-160'), [1, 2]); assert.deepStrictEqual(B('160-200'), [4, 6, 7]); assert.deepStrictEqual(B('60-100'), [3]); assert.deepStrictEqual(B('100-130'), [5]); assert.deepStrictEqual(B('20-60'), []);
+  // 145 rounds up to 150; 95 -> 100
+  assert.deepStrictEqual(B('140'), []); assert.deepStrictEqual(B('150'), [1, 2]); assert.deepStrictEqual(B('160'), [6, 7]); assert.deepStrictEqual(B('180'), [4]); assert.deepStrictEqual(B('100'), [3]); assert.deepStrictEqual(B('110'), [5]);
   assert.strictEqual(SG.PROX_BUCKETS.slice(1).reduce((n, b) => n + B(b.id).length, 0), B('all').length);
 });
 
@@ -507,7 +510,7 @@ test('proximity yardage counts add up to All on random rounds; outside = rest', 
     const S = SG.summarize({ holes: hs }), all = S.proxList.filter(m => SG.inBucket('all', m.from));
     const sum = SG.PROX_BUCKETS.slice(1).reduce((t, b) => t + S.proxList.filter(m => SG.inBucket(b.id, m.from)).length, 0);
     assert.strictEqual(sum, all.length);
-    assert.strictEqual(S.proxList.length - all.length, S.proxList.filter(m => !(Number(m.from) > 20)).length);
+    assert.strictEqual(S.proxList.length - all.length, S.proxList.filter(m => SG.roundYd(m.from) < 40 || SG.roundYd(m.from) > 200).length);
     SG.PROX_BUCKETS.slice(1).forEach(b => { const L = S.proxList.filter(m => SG.inBucket(b.id, m.from)); const P = SG.proxStats(L); assert.strictEqual(P.hits + P.misses, P.n); });
   }
 });
@@ -676,4 +679,13 @@ test("Scott's SG split: short game <= 20 yd off the green, approach > 20 yd (par
   near(SG.APPR_BUCKETS.reduce((t, b) => t + S.buckets[b.id].sg, 0), S.cats.approach.sg, 'approach bucket SG adds up');
   assert.strictEqual(S.buckets['0-20 yd'].n, S.cats.short.n);
   assert.deepStrictEqual([SG.proxAfterFt({ end: { lie: 'holed', dist: 0 }, penStrokes: 0 }), SG.proxAfterFt({ end: { lie: 'rough', dist: 7 }, penStrokes: 0 }), SG.proxAfterFt({ ob: true, end: { lie: 'fairway', dist: 150 }, penStrokes: 2 })], [0, 21, null]);
+});
+
+
+test('PDF-report helper (not used by the map): SG distance groups + distinct colours', () => {
+  assert.deepStrictEqual(SG.REPORT_GROUPS.map(g => g.id), ['20-60', '60-100', '100-130', '130-160', '160-200', '200+']);
+  assert.strictEqual(new Set(SG.REPORT_GROUPS.map(g => g.color)).size, 6);
+  assert.deepStrictEqual([20, 21, 60, 129.9, 130, 200, null].map(SG.reportGroup), [null, '20-60', '60-100', '100-130', '130-160', '200+', null]);
+  for (let y = 20.5; y < 400; y += 0.5) assert.strictEqual(SG.reportGroup(y) + ' yd', SG.apprBucket(y));
+  assert.strictEqual(SG.PROX_BUCKETS.length, 18, 'in-app proximity rail is still 40..200 by 10 yd');
 });
