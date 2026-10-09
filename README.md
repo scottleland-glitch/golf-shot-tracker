@@ -91,4 +91,7 @@ Set `onedriveClientId` in `config.js` to the Application (client) ID of an Entra
 4. API permissions → Add → Microsoft Graph → Delegated: `Files.ReadWrite.AppFolder` and `User.Read`. No client secret, no implicit-grant boxes.
 5. Copy the Application (client) ID into `config.js` and push. config.js is fetched network-first, so no cache bump is needed.
 
-Sign-in uses MSAL.js (vendor/msal-browser.min.js, v4.30.0, MIT) with the redirect flow (auth code + PKCE), because popups are unreliable in iOS home-screen apps. Backups go to OneDrive › Apps › Golf Shot Tracker: `golf-rounds-backup.json` (latest) plus a dated copy at most weekly.
+Sign-in uses MSAL.js (vendor/msal-browser.min.js, v3.30.0, MIT – v4 is avoided because its localStorage cache is encrypted with a session-cookie key, which signs iOS home-screen apps out on relaunch) with the redirect flow (auth code + PKCE), because popups are unreliable in iOS home-screen apps. Backups go to OneDrive › Apps › Golf Shot Tracker: `golf-rounds-backup.json` (latest) plus a dated copy at most weekly.
+
+### Player names (several phones, one OneDrive)
+Each phone sets a Player name (Home › Your data). Its rounds are stamped with that name, and its backups go to `golf-rounds-<name>.json` plus a weekly `golf-rounds-<name>-YYYY-MM-DD.json`; a backup contains only that player's rounds, so phones on the same Microsoft account never write each other's files. The pre-name `golf-rounds-backup.json` is kept and shown as "Older backup". Restore lists files by player; History can filter by player.

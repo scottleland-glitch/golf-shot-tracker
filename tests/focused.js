@@ -24,6 +24,7 @@ const BASE = process.env.BASE_URL || 'http://127.0.0.1:8765/', SHOTS = process.e
         { par: 3, finished: true, rows: [R(170, 'tee'), { dist: 30, loc: 'green', dir: 'longright', pen: false }, { dist: 14, loc: 'holed', dir: 'long', pen: false }] }] },
       { v: 3, dv: 2, id: 'rold', date: '2026-10-01T14:00:00.000Z', course: 'Older', baseline: 'pga', holes: [H(4, 400, 5)] }]));
   });
+  await page.evaluate(() => localStorage.setItem('golfsg.player.v1', 'Scott'));
   await page.reload();
   await page.click('[data-act="history"]'); await page.waitForSelector('#histlist');
   assert.deepStrictEqual(await page.$$eval('#histlist .hrow', r => r.map(x => x.getAttribute('data-id'))), ['rcard', 'rputt', 'rold']);
@@ -50,7 +51,7 @@ const BASE = process.env.BASE_URL || 'http://127.0.0.1:8765/', SHOTS = process.e
   await page.click('[data-act="home"]');
   assert.match(await page.textContent('#bkremind'), /haven't backed up/);
   const [dl] = await Promise.all([page.waitForEvent('download'), page.click('[data-act="backup"]')]);
-  assert.match(dl.suggestedFilename(), /^golf-rounds-backup-\d{4}-\d\d-\d\d\.json$/);
+  assert.match(dl.suggestedFilename(), /^golf-rounds-scott-\d{4}-\d\d-\d\d\.json$/);
   const bk = JSON.parse(require('fs').readFileSync(await dl.path(), 'utf8')); assert.strictEqual(bk.rounds.length, 3);
   await page.waitForSelector('#notice'); assert.strictEqual(await page.locator('#bkremind').count(), 0);
   bk.rounds[2].course = 'Older (edited)'; bk.rounds.push({ id: 'rnew', date: '2026-09-01T10:00:00.000Z', course: 'New', baseline: 'pga', v: 3, dv: 2, holes: [{ par: 4, finished: false, rows: [{ dist: 400, loc: 'tee', dir: '', pen: false }] }] });

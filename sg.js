@@ -646,8 +646,9 @@
 
   /* ===================== BACKUP / RESTORE ===================== */
   // Backup file: { app: 'golf-shot-tracker', kind: 'rounds-backup', version: 1, exported: ISO, rounds: [...] }
-  function makeBackup(rounds, now) {
-    return { app: 'golf-shot-tracker', kind: 'rounds-backup', version: 1, exported: (now || new Date()).toISOString(), count: rounds.length, rounds: rounds };
+  function makeBackup(rounds, now, player) {
+    var o = { app: 'golf-shot-tracker', kind: 'rounds-backup', version: 1, exported: (now || new Date()).toISOString(), count: rounds.length, rounds: rounds };
+    if (player) o.player = player; return o;
   }
   // Accepts a backup object (or a bare array of rounds). Returns {rounds} or {error}.
   function parseBackup(data) {

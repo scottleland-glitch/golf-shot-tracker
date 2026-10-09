@@ -1,7 +1,11 @@
 /* Golf Shot Tracker - UI (v4: shot rows + selectable SG baselines). Data lives in localStorage on the phone. */
 (function () {
   'use strict';
-  var KEY = 'golfsg.rounds.v1', CUR = 'golfsg.current.v1';
+  var KEY = 'golfsg.rounds.v1', CUR = 'golfsg.current.v1', PN = 'golfsg.player.v1';
+  function playerName() { return (localStorage.getItem(PN) || '').trim(); }
+  // Rounds that belong to this phone's player (unnamed rounds count as theirs). Backups contain only these,
+  // so another player's rounds loaded from OneDrive are never written into this player's file.
+  function ownRounds() { var n = playerName(); return rounds.filter(function (r) { return !r.player || r.player === n; }); }
   // Location choices (row = where the shot is played FROM)
   // Row = one stroke, hit FROM this location. Last row = In the hole (with the distance of the stroke that went in).
   var LOCS = [['fairway', 'Fairway'], ['rough', 'Rough'], ['bunker', 'Bunker'], ['green', 'Green'],
@@ -17,6 +21,7 @@
   var CAT_NAME = { tee: 'Off the tee', approach: 'Approach', short: 'Short game', putting: 'Putting' };
 
   var rounds = load();
+  (function () { var n = playerName(), ch = false; if (n) rounds.forEach(function (r) { if (!r.player) { r.player = n; ch = true; } }); if (ch) localStorage.setItem(KEY, JSON.stringify(rounds)); })(); // rounds belong to this phone's player
   var view = { screen: 'home', roundId: localStorage.getItem(CUR), hole: 0, menu: null };
 
   function load() {
@@ -65,7 +70,7 @@
   function emptyHole() { return { par: 4, finished: false, rows: [{ loc: 'tee', dist: '', dir: '', pen: false }] }; }
   function newRound(course) {
     var sel = document.getElementById('newbl');
-    var r = { v: 3, dv: 2, id: 'r' + Date.now(), date: new Date().toISOString(), course: course || '', baseline: sel ? sel.value : 'pga', holes: [] };
+    var r = { v: 3, dv: 2, id: 'r' + Date.now(), date: new Date().toISOString(), course: course || '', player: playerName(), baseline: sel ? sel.value : 'pga', holes: [] };
     for (var i = 0; i < 18; i++) r.holes.push(emptyHole());
     rounds.unshift(r); save();
     view.roundId = r.id; localStorage.setItem(CUR, r.id);
@@ -97,15 +102,21 @@
   }
 
   // ---------- History ----------
+  function playersIn() { var o = {}; rounds.forEach(function (r) { if (r.player) o[r.player] = (o[r.player] || 0) + 1; }); return o; }
   function historyHTML() {
-    var list = rounds.slice().sort(function (a, b) { return String(b.date || '').localeCompare(String(a.date || '')); });
+    var P = playersIn(), names = Object.keys(P).sort(), multi = names.length + (rounds.some(function (r) { return !r.player; }) && names.length ? 1 : 0) > 1;
+    if (!multi || (view.histPlayer && view.histPlayer !== '~none' && !P[view.histPlayer])) view.histPlayer = null;
+    var list = rounds.filter(function (r) { return !view.histPlayer || (view.histPlayer === '~none' ? !r.player : r.player === view.histPlayer); }).sort(function (a, b) { return String(b.date || '').localeCompare(String(a.date || '')); });
     var h = '<div class="topbar"><button class="txt" data-act="home">‹ Home</button><div class="title"><b>History</b><span>' + rounds.length + ' round' + (rounds.length === 1 ? '' : 's') + ', newest first</span></div><span class="tbspace"></span></div>';
+    if (multi) h += '<div class="liechips" id="playerchips" role="group" aria-label="Filter by player">' + [''].concat(names).map(function (n) {
+        var sel = (view.histPlayer || '') === n; return '<button class="' + (sel ? 'sel' : '') + '" data-act="histplayer" data-v="' + esc(n) + '" aria-pressed="' + sel + '">' + (n ? esc(n) + ' (' + P[n] + ')' : 'All players') + '</button>'; }).join('') +
+      (rounds.some(function (r) { return !r.player; }) ? '<button class="' + (view.histPlayer === '~none' ? 'sel' : '') + '" data-act="histplayer" data-v="~none">No name</button>' : '') + '</div>';
     if (!list.length) h += '<p class="muted">No rounds yet. Start one from Home.</p>';
     h += '<div id="histlist">';
     list.forEach(function (r) {
       var S = SG.summarize(r);
       h += '<div class="hrow" data-id="' + r.id + '"><button class="hist" data-act="open" data-id="' + r.id + '"><span><b>' + new Date(r.date).toLocaleDateString() + '</b>' +
-        (r.course ? '<br>' + esc(r.course) : '') + '<br><small class="muted">' + S.holesDone + ' of ' + r.holes.length + ' holes played</small></span><span class="hscore">' +
+        (r.course ? '<br>' + esc(r.course) : '') + (r.player ? '<br><span class="hplayer">👤 ' + esc(r.player) + '</span>' : '') + '<br><small class="muted">' + S.holesDone + ' of ' + r.holes.length + ' holes played</small></span><span class="hscore">' +
         (S.holesDone ? '<b>' + S.strokes + '</b> (' + toPar(S.toPar) + ')' : '–') + '<br><small class="' + sgCls(S.sgTotal) + '">SG ' + fmtSG(S.sgTotal) + '</small><br><small class="muted">vs ' + esc(blName(blOf(r))) + '</small></span></button>' +
         '<button class="hdel" data-act="delHist" data-id="' + r.id + '" aria-label="Delete round ' + esc(new Date(r.date).toLocaleDateString() + (r.course ? ' ' + r.course : '')) + '">🗑</button></div>';
     });
@@ -120,9 +131,10 @@
     if (days == null) return 'Tip: you haven\'t backed up your rounds yet. Tap Back up rounds to save a copy to Files or OneDrive.';
     return days >= 14 ? 'It\'s been ' + days + ' days since your last backup. Tap Back up rounds to save a fresh copy.' : '';
   }
-  function backupDone() { localStorage.setItem(BK, new Date().toISOString()); view.notice = { text: 'Backup ready: ' + rounds.length + ' round' + (rounds.length === 1 ? '' : 's') + ' saved.' }; if (view.screen === 'home') render(); }
+  function backupDone() { localStorage.setItem(BK, new Date().toISOString()); var nO = ownRounds().length; view.notice = { text: 'Backup ready: ' + nO + ' round' + (nO === 1 ? '' : 's') + ' for ' + playerName() + ' saved.' }; if (view.screen === 'home') render(); }
   function backupRounds() {
-    var name = 'golf-rounds-backup-' + localDay(new Date()) + '.json', json = JSON.stringify(SG.makeBackup(rounds), null, 1), file;
+    if (!playerName()) { askName('Enter your player name first – it goes in the backup file name.'); return; }
+    var name = 'golf-rounds-' + window.OD.slug(playerName()) + '-' + localDay(new Date()) + '.json', json = JSON.stringify(SG.makeBackup(ownRounds(), null, playerName()), null, 1), file;
     try { file = new File([json], name, { type: 'application/json' }); } catch (e) { file = null; }
     if (file && navigator.canShare && navigator.canShare({ files: [file] })) {
       navigator.share({ files: [file], title: name }).then(backupDone).catch(function (e) {
@@ -136,12 +148,14 @@
   function restoreFrom(text) {
     var P = SG.parseBackup(text);
     if (P.error) { view.notice = { text: P.error, bad: true }; render(); return; }
+    var bp = ''; try { bp = (JSON.parse(text) || {}).player || ''; } catch (e) {}
+    if (bp) P.rounds.forEach(function (r) { if (!r.player) r.player = bp; }); // label rounds with the backup's player
     var conf = SG.conflictsOf(rounds, P.rounds), replace = false;
     if (conf.length) replace = confirm(conf.length + ' round' + (conf.length === 1 ? '' : 's') + ' in the backup ' + (conf.length === 1 ? 'is' : 'are') + ' different from the copy on this phone (' +
       conf.slice(0, 3).map(function (r) { return new Date(r.date).toLocaleDateString() + (r.course ? ' ' + r.course : ''); }).join(', ') + (conf.length > 3 ? ', …' : '') +
       ').\n\nOK = replace with the backup version\nCancel = keep the phone\'s version');
     var M = SG.mergeRounds(rounds, P.rounds, replace);
-    localStorage.setItem(KEY, JSON.stringify(M.rounds)); rounds = load(); if (M.added || M.replaced) odDirty(3000);
+    localStorage.setItem(KEY, JSON.stringify(M.rounds)); rounds = load(); if (M.added || M.replaced) odDirty(3000); // uploads only this player's rounds
     var parts = [M.added + ' added'];
     if (M.replaced) parts.push(M.replaced + ' replaced');
     if (M.kept) parts.push(M.kept + ' kept as on this phone');
@@ -153,22 +167,29 @@
   // Sign-in uses MSAL redirect flow (auth code + PKCE): popups are unreliable in iOS home-screen apps.
   var CFG = window.GOLF_CONFIG || {}, ODX = window.OD, odOn = !!(ODX && ODX.enabled(CFG)), pca = null, odAcct = null, odReady = false, odTimer = null, odBusy = false, odFiles = null;
   var odState = odOn ? ODX.loadState(localStorage) : null;
+  // The connected account is also remembered here, so Home shows "Connected" straight away on relaunch, and if
+  // MSAL's own cache is ever lost we show "Reconnect" (with the account pre-filled) instead of starting over.
+  var ODA = 'golfsg.onedrive.account.v1';
+  function odSavedAcct() { try { return JSON.parse(localStorage.getItem(ODA)); } catch (e) { return null; } }
+  function odRemember(a) { if (a) localStorage.setItem(ODA, JSON.stringify({ username: a.username || '', name: a.name || '', homeAccountId: a.homeAccountId || '' })); else localStorage.removeItem(ODA); }
+  if (odOn && odSavedAcct()) odAcct = odSavedAcct();
   function odSaveState() { ODX.saveState(localStorage, odState); }
   function odDirty(delay) { if (!odOn) return; ODX.markDirty(odState); odSaveState(); if (odAcct) odSoon(delay); }
   function odSoon(delay) { if (!odOn || !odAcct) return; clearTimeout(odTimer); odTimer = setTimeout(odSync, delay == null ? 1500 : delay); }
   function odToken() {
-    return pca.acquireTokenSilent({ scopes: ODX.SCOPES, account: odAcct }).then(function (r) { return r.accessToken; }, function (e) {
+    if (!pca || !pca.getAllAccounts().length) { var x0 = new Error('Reconnect needed'); x0.kind = 'interaction'; return Promise.reject(x0); }
+    return pca.acquireTokenSilent({ scopes: ODX.SCOPES, account: pca.getActiveAccount() || pca.getAllAccounts()[0] }).then(function (r) { return r.accessToken; }, function (e) {
       var x = new Error('Reconnect needed'); x.kind = (e && /interaction_required|login_required|consent_required|no_tokens_found|InteractionRequired/i.test((e.errorCode || '') + ' ' + (e.name || ''))) ? 'interaction' : 'offline'; throw x;
     });
   }
-  function odBackupJson() { return JSON.stringify(SG.makeBackup(rounds), null, 1); }
+  function odBackupJson() { return JSON.stringify(SG.makeBackup(ownRounds(), null, playerName()), null, 1); }
   function odSync() {
     if (!odOn || !odAcct || odBusy || !odState.pending) return Promise.resolve();
     odBusy = true;
-    return ODX.sync({ state: odState, fetch: window.fetch.bind(window), getToken: odToken, json: odBackupJson(), online: navigator.onLine }).then(function (st) {
+    return ODX.sync({ state: odState, fetch: window.fetch.bind(window), getToken: odToken, json: odBackupJson(), online: navigator.onLine, player: playerName() }).then(function (st) {
       odBusy = false; odState = st; odSaveState();
       if (!st.pending) localStorage.setItem(BK, st.lastOk);
-      else if (!st.needsAuth && navigator.onLine) odSoon(ODX.retryDelay(st.attempts));
+      else if (!st.needsAuth && navigator.onLine && playerName()) odSoon(ODX.retryDelay(st.attempts));
       odRefresh();
     });
   }
@@ -182,7 +203,7 @@
   function odCardHTML() {
     if (!odOn) return '';
     var h = '<div class="odcard" id="odcard"><h3>☁️ OneDrive backup</h3>';
-    if (!odReady) return h + '<p class="help muted">Loading…</p></div>';
+    if (!odReady && !odAcct) return h + '<p class="help muted">Loading…</p></div>';
     if (!odAcct) return h + '<p class="help muted">Connect once and every finished hole and round is copied to OneDrive automatically (Apps › Golf Shot Tracker folder). Works offline – uploads wait until you have signal.</p>' +
       '<button class="big primary" data-act="odconnect">Connect OneDrive</button></div>';
     return h + '<p class="odacct" id="odacct">Connected as <b>' + esc(odAcct.username || odAcct.name || 'Microsoft account') + '</b></p>' +
@@ -196,9 +217,12 @@
     if (odFiles === null) return h + '<p class="help muted" id="odlist">Loading backups…</p>';
     if (odFiles.error) return h + '<p class="notice bad" id="odlist">' + esc(odFiles.error) + '</p><button class="big" data-act="odrestore">Try again</button>';
     if (!odFiles.length) return h + '<p class="help muted" id="odlist">No backups on OneDrive yet.</p>';
-    return h + '<p class="help muted">Pick a backup. Its rounds are merged with this phone: new rounds are added, rounds already here are not duplicated, and you\'re asked before any round is replaced.</p><div id="odlist">' +
-      odFiles.map(function (f) { return '<button class="big odfile" data-act="odpick" data-v="' + esc(f.name) + '"><b>' + (f.name === ODX.FILE ? 'Latest backup' : 'Weekly copy ' + esc(f.name.slice(19, 29))) + '</b><br><small>' +
-        (f.modified ? new Date(f.modified).toLocaleString() : '') + ' · ' + Math.max(1, Math.round((f.size || 0) / 1024)) + ' KB</small></button>'; }).join('') + '</div>';
+    var me = ODX.slug(playerName());
+    return h + '<p class="help muted">Pick a backup – yours or another player\'s. Its rounds are merged with this phone (each round keeps its player name): new rounds are added, rounds already here are not duplicated, and you\'re asked before any round is replaced.</p><div id="odlist">' +
+      ODX.groupFiles(odFiles).map(function (g) {
+        return '<div class="odgroup" data-player="' + esc(g.legacy ? '~legacy' : g.slug) + '"><h3>' + (g.legacy ? '🗂 Older backup' : '👤 ' + esc(g.label)) + (g.slug && g.slug === me ? ' <small class="muted">(you)</small>' : '') + '</h3>' +
+          g.files.map(function (f) { return '<button class="big odfile" data-act="odpick" data-v="' + esc(f.name) + '"><b>' + (f.date ? 'Weekly copy ' + esc(f.date) : g.legacy ? 'Older backup (before player names)' : 'Latest backup') + '</b><br><small>' +
+            (f.modified ? new Date(f.modified).toLocaleString() : '') + ' · ' + Math.max(1, Math.round((f.size || 0) / 1024)) + ' KB</small></button>'; }).join('') + '</div>'; }).join('') + '</div>';
   }
   function odLoadMsal() {
     return new Promise(function (res, rej) { if (window.msal) return res(); var sc = document.createElement('script'); sc.src = 'vendor/msal-browser.min.js'; sc.onload = res; sc.onerror = rej; document.head.appendChild(sc); });
@@ -206,23 +230,36 @@
   function odInit() {
     if (!odOn) return;
     odLoadMsal().then(function () {
+      // msal-browser v3 on purpose: v4 encrypts its localStorage cache with a key kept in a SESSION cookie, so a
+      // relaunched iOS home-screen app loses the sign-in. v3's localStorage cache survives relaunch; the
+      // refresh token (offline_access) lets acquireTokenSilent renew access tokens without any UI.
       pca = new window.msal.PublicClientApplication({ auth: { clientId: CFG.onedriveClientId.trim(), authority: CFG.onedriveAuthority || 'https://login.microsoftonline.com/consumers',
-        redirectUri: location.origin + location.pathname, navigateToLoginRequestUrl: false }, cache: { cacheLocation: 'localStorage' } });
+        redirectUri: location.origin + location.pathname, navigateToLoginRequestUrl: false }, cache: { cacheLocation: 'localStorage', storeAuthStateInCookie: false } });
       return pca.initialize().then(function () { return pca.handleRedirectPromise(); });
     }).then(function (resp) {
       if (resp && resp.account) { pca.setActiveAccount(resp.account); odState.needsAuth = false; ODX.markDirty(odState); odSaveState(); toast('OneDrive connected'); }
-      odAcct = pca.getActiveAccount() || pca.getAllAccounts()[0] || null; if (odAcct) pca.setActiveAccount(odAcct);
+      var saved = odSavedAcct(), all = pca.getAllAccounts();
+      odAcct = pca.getActiveAccount() || (saved && all.filter(function (a) { return a.homeAccountId === saved.homeAccountId; })[0]) || all[0] || null;
+      if (odAcct) { pca.setActiveAccount(odAcct); odRemember(odAcct); }
+      else if (saved) { odAcct = saved; odState.needsAuth = true; odSaveState(); } // MSAL cache gone: keep showing the account, offer Reconnect
       if (/[#?&](code|error|state)=/.test(location.hash + location.search)) history.replaceState(null, '', location.pathname);
-      odReady = true; odRefresh(); if (odAcct && odState.pending) odSoon(500);
+      odReady = true; odRefresh();
+      if (odAcct && !odState.needsAuth && navigator.onLine) odToken().then(function () { if (odState.needsAuth) { odState.needsAuth = false; odSaveState(); odRefresh(); } }, function (e) {
+        if (e.kind === 'interaction') { odState.needsAuth = true; odSaveState(); odRefresh(); } }); // silent refresh via the cached refresh token
+      if (odAcct && odState.pending) odSoon(500);
     }).catch(function (e) { odReady = true; odAcct = null; odRefresh(); toast('OneDrive: ' + ((e && (e.errorMessage || e.message)) || 'sign-in failed').slice(0, 120)); });
     window.addEventListener('online', function () { if (odState.pending) odSoon(500); });
     document.addEventListener('visibilitychange', function () { if (document.visibilityState === 'visible' && odState.pending) odSoon(500); });
   }
   function odAct(act, v) {
+    if (!pca) { toast('OneDrive is still starting – try again in a moment'); return; }
+    if (act === 'odconnect' && !playerName()) { askName('Enter your player name before connecting OneDrive – it names your backup files.'); return; }
     if (act === 'odconnect' || act === 'odreauth') {
       if (!navigator.onLine) { toast('You\'re offline – connect OneDrive when you have signal'); return; }
       var req = { scopes: ODX.SCOPES, prompt: 'select_account' };
-      if (act === 'odreauth' && odAcct) pca.acquireTokenRedirect({ scopes: ODX.SCOPES, account: odAcct }); else pca.loginRedirect(req);
+      var real = odAcct && pca.getAllAccounts().filter(function (a) { return a.homeAccountId === odAcct.homeAccountId; })[0];
+      if (act === 'odreauth' && real) pca.acquireTokenRedirect({ scopes: ODX.SCOPES, account: real });
+      else pca.loginRedirect(act === 'odreauth' && odAcct && odAcct.username ? { scopes: ODX.SCOPES, loginHint: odAcct.username } : req);
       return;
     }
     if (act === 'odsync') { ODX.markDirty(odState); odState.attempts = 0; odSaveState(); clearTimeout(odTimer); odSync().then(function () { toast(odState.pending ? 'Backup queued – ' + (odState.lastError || 'will retry') : 'Backed up to OneDrive'); }); odRefresh(); return; }
@@ -241,12 +278,32 @@
     }
     if (act === 'oddisconnect') {
       if (!confirm('Disconnect OneDrive on this phone?\n\nAutomatic backup stops. Your backups stay in OneDrive (Apps › Golf Shot Tracker).')) return;
-      var acct = odAcct; odAcct = null; clearTimeout(odTimer); odState = ODX.newState(); odSaveState();
-      Promise.resolve(pca.clearCache ? pca.clearCache({ account: acct }) : null).catch(function () {}).then(function () {
+      var acct = odAcct; odAcct = null; odRemember(null); clearTimeout(odTimer); odState = ODX.newState(); odSaveState();
+      var realA = pca.getAllAccounts().filter(function (a) { return a.homeAccountId === acct.homeAccountId; })[0];
+      Promise.resolve(pca.clearCache ? pca.clearCache(realA ? { account: realA } : undefined) : null).catch(function () {}).then(function () {
         Object.keys(localStorage).forEach(function (k) { if (/msal|login\.windows|login\.microsoftonline/i.test(k)) localStorage.removeItem(k); });
         toast('OneDrive disconnected'); render();
       });
     }
+  }
+  function askName(msg) { view.screen = 'home'; view.editName = true; view.needName = msg; render(); var i = document.getElementById('pname'); if (i) { i.scrollIntoView({ block: 'center' }); i.focus(); } }
+  function setName(n) {
+    n = String(n || '').trim().replace(/\s+/g, ' ').slice(0, 40);
+    if (!window.OD.slug(n)) { toast('Please enter a name (letters or numbers)'); return; }
+    var old = playerName();
+    if (old && old !== n && !confirm('Change player name from "' + old + '" to "' + n + '"?\n\nYour rounds are relabelled and new OneDrive backups go to ' + window.OD.fileFor(n) + '. Older backup files are kept.')) return;
+    localStorage.setItem(PN, n); view.editName = false; view.needName = null;
+    rounds.forEach(function (r) { if (!r.player || r.player === old) r.player = n; });
+    save(); if (odOn) { odState.attempts = 0; odSoon(800); }
+    toast('Player name: ' + n); render();
+  }
+  function playerHTML() {
+    var n = playerName();
+    if (n && !view.editName) return '<div class="playerbox" id="playerbox"><span>Player: <b id="pnameshow">' + esc(n) + '</b></span><button class="txt" data-act="editname">Change</button></div>';
+    return '<div class="playerbox edit" id="playerbox">' + (view.needName ? '<p class="notice bad" id="needname">' + esc(view.needName) + '</p>' : '') +
+      '<label class="lbl" for="pname">Player name</label><div class="pnrow2"><input type="text" id="pname" value="' + esc(n) + '" placeholder="e.g. Scott" autocomplete="name" maxlength="40">' +
+      '<button class="primary" data-act="setname">Save</button>' + (n ? '<button data-act="cancelname">Cancel</button>' : '') + '</div>' +
+      '<p class="help muted">Saved on this phone. It labels your rounds and names your backups (golf-rounds-<i>name</i>.json), so several phones can share one OneDrive.</p></div>';
   }
   function homeHTML() {
     var cur = rounds.filter(function (r) { return r.id === localStorage.getItem(CUR); })[0];
@@ -260,7 +317,7 @@
       '<label class="lbl" for="newbl">Compare my shots against</label>' + blSelect('newbl', 'pga') +
       '<button class="' + (cur ? '' : 'primary ') + 'big" data-act="new">Start new round</button>';
     h += '<button class="big histbtn" data-act="history">📋 History<br><small>' + rounds.length + ' saved round' + (rounds.length === 1 ? '' : 's') + ' – review stats &amp; maps</small></button>';
-    h += '<h2>Your data</h2>';
+    h += '<h2>Your data</h2>' + playerHTML();
     if (view.notice) h += '<p class="notice ' + (view.notice.bad ? 'bad' : 'good') + '" id="notice" role="status">' + esc(view.notice.text) + '</p>';
     h += odCardHTML();
     var rem = (odOn && odAcct) ? '' : backupReminder(); if (rem) h += '<p class="notice remind" id="bkremind">' + esc(rem) + '</p>';
@@ -1100,6 +1157,10 @@
       case 'home': view.screen = 'home'; view.from = null; break;
       case 'history': view.screen = 'history'; view.notice = null; render(); window.scrollTo(0, 0); return;
       case 'backup': backupRounds(); return;
+      case 'setname': setName((document.getElementById('pname') || {}).value); return;
+      case 'editname': view.editName = true; render(); var pi = document.getElementById('pname'); if (pi) pi.focus(); return;
+      case 'cancelname': view.editName = false; view.needName = null; render(); return;
+      case 'histplayer': view.histPlayer = v || null; render(); return;
       case 'odconnect': case 'odreauth': case 'odsync': case 'odrestore': case 'odpick': case 'oddisconnect': odAct(act, v); return;
       case 'delHist': {
         var dr = rounds.filter(function (x) { return x.id === b.getAttribute('data-id'); })[0]; if (!dr) return;
