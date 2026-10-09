@@ -16,7 +16,7 @@ const BASE = process.env.BASE_URL || 'http://127.0.0.1:8766/', OUT = process.env
       const p = [4, 3, 5][i % 3], pin = pins[i % 6];
       const rows = p === 3 ? [R(165 + i, 'tee', i % 2 ? 'short' : '')] : [R(390 + i, 'tee', i % 4 ? 'left' : ''), R(60 + i * 8, i % 4 ? 'rough' : 'fairway', i % 2 ? 'right' : '')];
       if (p === 5) rows.splice(1, 0, R(250, 'fairway'));
-      if (i % 2) rows.push(R(12, 'fringe', 'short'), R(6, 'green', 'left'), R(2, 'holed', 'right')); else rows.push(R(18, 'green', 'longleft'), R(3, 'holed', 'right'));
+      if (i % 2) rows.push(R(12, i % 4 === 1 ? 'sand' : 'rough', 'short'), R(6, 'green', 'left'), R(2, 'holed', 'right')); else rows.push(R(18, 'green', 'longleft'), R(3, 'holed', 'right'));
       holes.push({ par: p, pin, finished: true, rows });
     }
     localStorage.setItem('golfsg.player.v1', 'Scott');

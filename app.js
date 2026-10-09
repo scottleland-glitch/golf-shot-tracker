@@ -137,24 +137,39 @@
   }
   // ONE pin-location page: big green with the 3x3 grid; each segment with a pin shows a badge + mini plots
   function pinReportSVG(segs) {
-    var W = 360, H = 400, gx = 30, gy = 30, gw = 300, gh = 330, cw = gw / 3, ch = gh / 3, o = '<svg viewBox="0 0 ' + W + ' ' + H + '"><rect width="' + W + '" height="' + H + '" fill="#cfe8c4"/>' +
-      '<rect x="' + gx + '" y="' + gy + '" width="' + gw + '" height="' + gh + '" rx="60" fill="#3da33d" stroke="#145214" stroke-width="4"/>';
-    for (var i = 1; i < 3; i++) o += '<line x1="' + (gx + cw * i) + '" y1="' + gy + '" x2="' + (gx + cw * i) + '" y2="' + (gy + gh) + '" stroke="#fff" stroke-opacity=".6" stroke-dasharray="6 5"/><line x1="' + gx + '" y1="' + (gy + ch * i) + '" x2="' + (gx + gw) + '" y2="' + (gy + ch * i) + '" stroke="#fff" stroke-opacity=".6" stroke-dasharray="6 5"/>';
+    // each segment: dark rough cell, light-green ring = putting surface around that segment's pin
+    var W = 560, H = 650, gx = 10, gy = 30, cw = 180, ch = 196, R = 44, o = '<svg viewBox="0 0 ' + W + ' ' + H + '"><rect width="' + W + '" height="' + H + '" fill="#fff"/>' +
+      '<rect x="' + gx + '" y="' + gy + '" width="' + cw * 3 + '" height="' + ch * 3 + '" rx="30" fill="#2f6b2a" stroke="#123d10" stroke-width="4"/>';
+    for (var i = 1; i < 3; i++) o += '<line x1="' + (gx + cw * i) + '" y1="' + gy + '" x2="' + (gx + cw * i) + '" y2="' + (gy + ch * 3) + '" stroke="#fff" stroke-opacity=".5" stroke-dasharray="6 5"/><line x1="' + gx + '" y1="' + (gy + ch * i) + '" x2="' + (gx + cw * 3) + '" y2="' + (gy + ch * i) + '" stroke="#fff" stroke-opacity=".5" stroke-dasharray="6 5"/>';
     var by = {}; segs.forEach(function (s) { by[s.pin] = s; });
+    var LN = { rough: 'Rough', deep: 'Deep rough', fairway: 'Fairway', sand: 'Bunker', bunker: 'Bunker', trees: 'Trees', hazard: 'Hazard', ob: 'OB', recovery: 'Trees', green: 'Green' };
     SG.PIN_GRID.forEach(function (row, ri) { row.forEach(function (id, ci) {
-      var s = by[id], cx = gx + cw * ci + cw / 2, cy = gy + ch * ri + ch / 2 + 8; if (!s) return;
-      var R = Math.min(cw, ch) / 2 - 14;
-      o += '<circle cx="' + f1(cx) + '" cy="' + f1(cy) + '" r="' + f1(R) + '" fill="none" stroke="#fff" stroke-opacity=".45"/>';
+      var s = by[id], x0 = gx + cw * ci, y0 = gy + ch * ri;
+      if (!s) { o += '<text x="' + (x0 + cw / 2) + '" y="' + (y0 + ch / 2) + '" text-anchor="middle" font-size="10" fill="#fff" fill-opacity=".55">' + SG.PIN_NAME[id] + ' – no pins</text>'; return; }
+      var cx = x0 + cw / 2, cy = y0 + 24 + (ch - 24) / 2, out = Math.min(cw / 2, (ch - 24) / 2) - R - 10, boxes = [], seen = {};
+      var lbl = function (x, y, t) { var w = t.length * 4.6 + 4, cand = [[7, 3], [-7 - w, 3], [-w / 2, -7], [-w / 2, 15], [7, 13], [-7 - w, 13], [7, -7], [-7 - w, -7], [-w / 2, 25]], b = null;
+        cand.some(function (c) { var bb = [x + c[0], y + c[1] - 8, x + c[0] + w, y + c[1] + 2]; if (bb[0] < x0 + 2 || bb[2] > x0 + cw - 2 || bb[1] < y0 + 24 || bb[3] > y0 + ch - 2) return false;
+          if (boxes.some(function (q) { return bb[0] < q[2] && bb[2] > q[0] && bb[1] < q[3] && bb[3] > q[1]; })) return false; b = bb; return true; });
+        if (!b) return ''; boxes.push(b); return '<text class="pminilbl" x="' + f1(b[0] + 2) + '" y="' + f1(b[3] - 2) + '" font-size="8" font-weight="800" fill="#fff">' + esc(t) + '</text>'; };
+      o += '<circle cx="' + f1(cx) + '" cy="' + f1(cy) + '" r="' + R + '" fill="#8fd66f" stroke="#e8f8e0" stroke-width="2"/>' +
+        '<circle cx="' + f1(cx) + '" cy="' + f1(cy) + '" r="' + R / 2 + '" fill="none" stroke="#fff" stroke-opacity=".7" stroke-dasharray="3 3"/>';
+      var dots = '', labs = '', pend = [];
       s.list.forEach(function (h, j) {
-        var ft = h.gir ? (h.holed ? 0 : h.ft || 0) : (h.proxFt == null ? 60 : h.proxFt), rr = Math.min(ft, 60) / 60 * R, ang = h.dir ? SG.DIR_ANGLE[h.dir] : 90 + j * 40, q = pt(cx, cy, rr, ang);
-        o += h.gir ? '<circle class="pmini" data-gir="1" cx="' + f1(q[0]) + '" cy="' + f1(q[1]) + '" r="4" fill="#fff" stroke="#000" stroke-width="1.5"/>'
-          : '<circle class="pmini" data-gir="0" cx="' + f1(q[0]) + '" cy="' + f1(q[1]) + '" r="4" fill="#e0102a" stroke="#000" stroke-width="1.5"/>';
+        var key = (h.gir ? 'g' : 'm') + (h.dir || '?'), k = seen[key] = (seen[key] || 0) + 1, ang = (h.dir ? SG.DIR_ANGLE[h.dir] : 270) + (k - 1) * 14, q, t = '';
+        if (h.gir) { var rr = h.holed ? 0 : Math.min(h.ft || 0, 40) / 40 * (R - 5); q = pt(cx, cy, rr, ang);
+          dots += '<circle class="pmini" data-gir="1" cx="' + f1(q[0]) + '" cy="' + f1(q[1]) + '" r="4" fill="#fff" stroke="#000" stroke-width="1.5"/>'; }
+        else { var yd = h.ob ? null : h.yd, cap = yd == null || yd > 30, rr2 = R + 6 + (yd == null ? out : Math.min(yd, 30) / 30 * out); q = pt(cx, cy, rr2, ang);
+          dots += '<circle class="pmini" data-gir="0" data-r="' + f1(rr2) + '" cx="' + f1(q[0]) + '" cy="' + f1(q[1]) + '" r="4.5" fill="#e0102a" stroke="#fff" stroke-width="1.5"/>';
+          t = h.ob ? 'OB' : (h.dir ? '' : '? ') + (Math.round(yd * 10) / 10) + ' yd' + (cap ? ' ›' : '') + ' ' + (LN[h.lie] || h.lie || ''); }
+        if (t) pend.push([q[0], q[1], t]);
+        boxes.push([q[0] - 5, q[1] - 5, q[0] + 5, q[1] + 5]);
       });
-      o += '<circle cx="' + f1(cx) + '" cy="' + f1(cy) + '" r="3" fill="#000"/><line x1="' + f1(cx) + '" y1="' + f1(cy) + '" x2="' + f1(cx) + '" y2="' + f1(cy - 14) + '" stroke="#000" stroke-width="2"/><path d="M' + f1(cx) + ' ' + f1(cy - 14) + ' l9 3 l-9 3z" fill="#d0213a"/>';
-      var bt = s.holes + ' hole' + (s.holes === 1 ? '' : 's') + ' · GIR ' + s.gir + '/' + s.holes, bw = bt.length * 5.6 + 10;
-      o += '<g class="pbadge" data-pin="' + id + '"><rect x="' + f1(cx - bw / 2) + '" y="' + f1(gy + ch * ri + 6) + '" width="' + f1(bw) + '" height="16" rx="8" fill="#000" fill-opacity=".8"/><text x="' + f1(cx) + '" y="' + f1(gy + ch * ri + 18) + '" text-anchor="middle" font-size="10" font-weight="800" fill="#fff">' + bt + '</text></g>';
+      pend.forEach(function (p) { labs += lbl(p[0], p[1], p[2]); });
+      o += '<circle cx="' + f1(cx) + '" cy="' + f1(cy) + '" r="2.5" fill="#000"/><line x1="' + f1(cx) + '" y1="' + f1(cy) + '" x2="' + f1(cx) + '" y2="' + f1(cy - 13) + '" stroke="#000" stroke-width="1.8"/><path d="M' + f1(cx) + ' ' + f1(cy - 13) + ' l8 3 l-8 3z" fill="#d0213a"/>' + dots + labs;
+      var bt = SG.PIN_NAME[id] + ' · ' + s.holes + ' hole' + (s.holes === 1 ? '' : 's') + ' · GIR ' + s.gir + '/' + s.holes, bw = bt.length * 5.2 + 12;
+      o += '<g class="pbadge" data-pin="' + id + '"><rect x="' + f1(cx - bw / 2) + '" y="' + f1(y0 + 5) + '" width="' + f1(bw) + '" height="16" rx="8" fill="#000" fill-opacity=".8"/><text x="' + f1(cx) + '" y="' + f1(y0 + 17) + '" text-anchor="middle" font-size="9.5" font-weight="800" fill="#fff">' + bt + '</text></g>';
     }); });
-    return o + '<text x="180" y="20" text-anchor="middle" font-size="12" font-weight="800">BACK OF GREEN</text><text x="180" y="384" text-anchor="middle" font-size="12" font-weight="800">FRONT (toward you)</text></svg>';
+    return o + '<text x="280" y="20" text-anchor="middle" font-size="13" font-weight="800">BACK OF GREEN</text><text x="280" y="640" text-anchor="middle" font-size="13" font-weight="800">FRONT (toward you)</text></svg>';
   }
   function reportData(r) {
     var bl = blOf(r), S = SG.summarize(r, bl), tp = SG.threePutts(S.puttList);
@@ -261,7 +276,7 @@
             doc.addPage(); var yy = header(pg[0]);
             if (pg[4]) { font(10, true); T('All approach groups this round', M, yy); yy = table([['Group', 'Shots', 'Greens hit', 'Avg ft - greens hit', 'Avg ft - all']].concat(gsum.map(function (x) { var Q = x.P;
                 return [x.g.name, String(Q.n), Q.hits + '/' + Q.n + ' (' + Math.round(Q.hitPct) + '%)', Q.avgHitFt == null ? '-' : Math.round(Q.avgHitFt) + ' ft', Q.avgAllFt == null ? '-' : Math.round(Q.avgAllFt) + ' ft']; })), M, yy + 14, [130, 60, 110, 120, 120], { fs: 8.5, rh: 13 }) + 8; }
-            var maxW = PW - 2 * M, maxH = pg[1] === 'pin' ? 380 : pg[4] ? 330 - 13 * gsum.length : pg[1] === 'prox' ? 380 : 430, sc = Math.min(maxW / im.w, maxH / im.h), w = im.w * sc, h = im.h * sc;
+            var maxW = PW - 2 * M, maxH = pg[1] === 'pin' ? 470 : pg[4] ? 330 - 13 * gsum.length : pg[1] === 'prox' ? 380 : 430, sc = Math.min(maxW / im.w, maxH / im.h), w = im.w * sc, h = im.h * sc;
             var TX = M;
             if (pg[1] === 'prox') { h = Math.min(PH - M - 14 - yy, 290 * im.h / im.w); w = h * im.w / im.h; doc.addImage(im.data, 'JPEG', M, yy, w, h); TX = M + w + 14; maxW = PW - M - TX; }
             else { doc.addImage(im.data, 'JPEG', M + (maxW - w) / 2, yy, w, h); yy += h + 14; }
@@ -269,7 +284,7 @@
               [pg[3]].forEach(function (g) { var c = parseInt(g.color.slice(1), 16); doc.setDrawColor((c >> 16) & 255, (c >> 8) & 255, c & 255); doc.setLineWidth(4); doc.line(lx, yy - 3, lx + 16, yy - 3); font(9); font(8); T(g.name, lx + 19, yy); lx += 70; });
               doc.setDrawColor(0); yy += 14; font(8.5); var kt = doc.splitTextToSize(P('Filled dot = hit the green · white ring with x = missed (always drawn outside the green, farther out = farther from the pin) · * = holed · ? = no direction entered. Lines start at the lie the shot was hit from.'), maxW); doc.text(kt, TX, yy); yy += kt.length * 11 + 10; }
             if (pg[1] === 'pin') {
-              font(9); T('Badges: holes with the pin in that part of the green and GIR. Dots: each hole\'s approach around that pin (white = GIR, red = missed green); 60 ft or more drawn at the edge.', M, yy, { maxWidth: maxW }); yy += 24;
+              font(9); T('Badges: holes with the pin in that part of the green and GIR. Light green ring = putting surface around that pin (dashed = 20 ft, edge = 40 ft): white dots = GIR at first-putt distance. Red dots in the rough = missed greens, in the miss direction, farther out = more yards off (30 yd+ at the edge, marked >).', M, yy, { maxWidth: maxW }); yy += 36;
               if (!segs.length) { font(11); T('No holes with a pin location set this round.', M, yy); return; }
               var dirTxt = function (md) { return Object.keys(md).map(function (k) { return (k ? SG.DIR_NAME[k] : 'No direction') + ' ' + md[k]; }).join(', ') || 'None'; };
               table([['Pin', 'Holes', 'GIR', 'GIR %', 'Avg ft (GIR)', 'Misses by direction']].concat(segs.map(function (s) {
