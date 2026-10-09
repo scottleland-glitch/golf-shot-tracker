@@ -152,20 +152,25 @@
           if (boxes.some(function (q) { return bb[0] < q[2] && bb[2] > q[0] && bb[1] < q[3] && bb[3] > q[1]; })) return false; b = bb; return true; });
         if (!b) return ''; boxes.push(b); return '<text class="pminilbl" x="' + f1(b[0] + 2) + '" y="' + f1(b[3] - 2) + '" font-size="8" font-weight="800" fill="#fff">' + esc(t) + '</text>'; };
       o += '<circle cx="' + f1(cx) + '" cy="' + f1(cy) + '" r="' + R + '" fill="#8fd66f" stroke="#e8f8e0" stroke-width="2"/>' +
-        '<circle cx="' + f1(cx) + '" cy="' + f1(cy) + '" r="' + R / 2 + '" fill="none" stroke="#fff" stroke-opacity=".7" stroke-dasharray="3 3"/>';
+        '';
+      // the pin sits where it really is on the green (front = bottom); everything is plotted from it
+      var px = cx + (ci - 1) * R * 0.5, py = cy + (ri - 1) * R * 0.5;
+      o += '<circle cx="' + f1(px) + '" cy="' + f1(py) + '" r="' + R / 2 + '" fill="none" stroke="#fff" stroke-opacity=".7" stroke-dasharray="3 3"/>';
       var dots = '', labs = '', pend = [];
       s.list.forEach(function (h, j) {
         var key = (h.gir ? 'g' : 'm') + (h.dir || '?'), k = seen[key] = (seen[key] || 0) + 1, ang = (h.dir ? SG.DIR_ANGLE[h.dir] : 270) + (k - 1) * 14, q, t = '';
-        if (h.gir) { var rr = h.holed ? 0 : Math.min(h.ft || 0, 40) / 40 * (R - 5); q = pt(cx, cy, rr, ang);
+        if (h.gir) { var rr = h.holed ? 0 : Math.min(h.ft || 0, 40) / 40 * (R - 5); q = pt(px, py, rr, ang); var gd = Math.hypot(q[0] - cx, q[1] - cy); if (gd > R - 5) q = [cx + (q[0] - cx) * (R - 5) / gd, cy + (q[1] - cy) * (R - 5) / gd];
           dots += '<circle class="pmini" data-gir="1" cx="' + f1(q[0]) + '" cy="' + f1(q[1]) + '" r="4" fill="#fff" stroke="#000" stroke-width="1.5"/>'; }
-        else { var yd = h.ob ? null : h.yd, cap = yd == null || yd > 30, rr2 = R + 6 + (yd == null ? out : Math.min(yd, 30) / 30 * out); q = pt(cx, cy, rr2, ang);
+        else { var yd = h.ob ? null : h.yd, cap = yd == null || yd > 30, u = pt(0, 0, 1, ang), dx = px - cx, dy = py - cy, pu = dx * u[0] + dy * u[1], edge = -pu + Math.sqrt(pu * pu - dx * dx - dy * dy + R * R);
+          var rr2 = edge + 6 + (yd == null ? out : Math.min(yd, 30) / 30 * out); q = pt(px, py, rr2, ang);
+          var qc = [Math.max(x0 + 6, Math.min(x0 + cw - 6, q[0])), Math.max(y0 + 28, Math.min(y0 + ch - 6, q[1]))]; if (qc[0] !== q[0] || qc[1] !== q[1]) { cap = true; q = qc; }
           dots += '<circle class="pmini" data-gir="0" data-r="' + f1(rr2) + '" cx="' + f1(q[0]) + '" cy="' + f1(q[1]) + '" r="4.5" fill="#e0102a" stroke="#fff" stroke-width="1.5"/>';
           t = h.ob ? 'OB' : (h.dir ? '' : '? ') + (Math.round(yd * 10) / 10) + ' yd' + (cap ? ' ›' : '') + ' ' + (LN[h.lie] || h.lie || ''); }
         if (t) pend.push([q[0], q[1], t]);
         boxes.push([q[0] - 5, q[1] - 5, q[0] + 5, q[1] + 5]);
       });
       pend.forEach(function (p) { labs += lbl(p[0], p[1], p[2]); });
-      o += '<circle cx="' + f1(cx) + '" cy="' + f1(cy) + '" r="2.5" fill="#000"/><line x1="' + f1(cx) + '" y1="' + f1(cy) + '" x2="' + f1(cx) + '" y2="' + f1(cy - 13) + '" stroke="#000" stroke-width="1.8"/><path d="M' + f1(cx) + ' ' + f1(cy - 13) + ' l8 3 l-8 3z" fill="#d0213a"/>' + dots + labs;
+      o += '<circle class="ppin" cx="' + f1(px) + '" cy="' + f1(py) + '" r="2.5" fill="#000"/><line x1="' + f1(px) + '" y1="' + f1(py) + '" x2="' + f1(px) + '" y2="' + f1(py - 13) + '" stroke="#000" stroke-width="1.8"/><path d="M' + f1(px) + ' ' + f1(py - 13) + ' l8 3 l-8 3z" fill="#d0213a"/>' + dots + labs;
       var bt = SG.PIN_NAME[id] + ' · ' + s.holes + ' hole' + (s.holes === 1 ? '' : 's') + ' · GIR ' + s.gir + '/' + s.holes, bw = bt.length * 5.2 + 12;
       o += '<g class="pbadge" data-pin="' + id + '"><rect x="' + f1(cx - bw / 2) + '" y="' + f1(y0 + 5) + '" width="' + f1(bw) + '" height="16" rx="8" fill="#000" fill-opacity=".8"/><text x="' + f1(cx) + '" y="' + f1(y0 + 17) + '" text-anchor="middle" font-size="9.5" font-weight="800" fill="#fff">' + bt + '</text></g>';
     }); });
@@ -284,7 +289,7 @@
               [pg[3]].forEach(function (g) { var c = parseInt(g.color.slice(1), 16); doc.setDrawColor((c >> 16) & 255, (c >> 8) & 255, c & 255); doc.setLineWidth(4); doc.line(lx, yy - 3, lx + 16, yy - 3); font(9); font(8); T(g.name, lx + 19, yy); lx += 70; });
               doc.setDrawColor(0); yy += 14; font(8.5); var kt = doc.splitTextToSize(P('Filled dot = hit the green · white ring with x = missed (always drawn outside the green, farther out = farther from the pin) · * = holed · ? = no direction entered. Lines start at the lie the shot was hit from.'), maxW); doc.text(kt, TX, yy); yy += kt.length * 11 + 10; }
             if (pg[1] === 'pin') {
-              font(9); T('Badges: holes with the pin in that part of the green and GIR. Light green ring = putting surface around that pin (dashed = 20 ft, edge = 40 ft): white dots = GIR at first-putt distance. Red dots in the rough = missed greens, in the miss direction, farther out = more yards off (30 yd+ at the edge, marked >).', M, yy, { maxWidth: maxW }); yy += 36;
+              font(9); T('Badges: holes with the pin in that part of the green and GIR. Light green ring = putting surface around that pin (pin drawn where it sits on the green, front = bottom; dashed ring = 20 ft from the pin): white dots = GIR at first-putt distance. Red dots in the rough = missed greens, in the miss direction, farther out = more yards off (30 yd+ at the edge, marked >).', M, yy, { maxWidth: maxW }); yy += 36;
               if (!segs.length) { font(11); T('No holes with a pin location set this round.', M, yy); return; }
               var dirTxt = function (md) { return Object.keys(md).map(function (k) { return (k ? SG.DIR_NAME[k] : 'No direction') + ' ' + md[k]; }).join(', ') || 'None'; };
               table([['Pin', 'Holes', 'GIR', 'GIR %', 'Avg ft (GIR)', 'Misses by direction']].concat(segs.map(function (s) {
