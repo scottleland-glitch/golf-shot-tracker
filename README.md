@@ -57,3 +57,10 @@ All paths are relative, so it works from a sub-path like `https://user.github.io
 ## Install on iPhone
 Open the URL in Safari → Share → "Add to Home Screen". After the first load it works with no signal.
 Note: rounds are saved per web address, so keep using the same URL.
+
+## Proximity by distance (v11)
+Stats page → **Proximity by distance** tile (value = average proximity of all approaches from 40–200 yd) opens a full-window view.
+- **Range dropdown:** *All 40–200 yd* plus 16 ten-yard buckets 40–50, 50–60 … 190–200, by the yardage the approach was hit from. Lower bound inclusive, upper exclusive (140–150 = 140 up to 149); 190–200 also includes 200.
+- **Which shot (one per finished hole):** the shot that reached the green (next row Green / In the hole, or a chip-in from ≤30 yd) if it was hit from more than 30 yd; otherwise the last shot from more than 30 yd before the green was reached, which counts as a miss. Hit/miss is that shot's own result, not regulation, so a par-5 third that finds the green is a "hit" here even if it wasn't a GIR.
+- **Map:** green with white rings every 5 ft to 30 ft and room around it. Tracers come up from the bottom (the golfer). Blue = hit, placed at first-putt feet in the recorded direction, labeled in ft (★ = holed). Red = miss, placed in the miss direction at yards-left × 3 ft on the same scale, labeled yards + lie. Misses farther than the picture are clamped to the edge and marked "›". No direction entered: blue "?" straight up at the right distance, red "?" in the bottom-right corner.
+- **Stats:** shots, greens hit %, average proximity on greens hit (ft), average proximity overall (misses = yards × 3; OB has no proximity and is left out of the averages), plus misses by direction. This round / All rounds toggle.

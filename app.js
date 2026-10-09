@@ -258,6 +258,7 @@
       tile('fw', 'Fairways hit – tap for map', S.fwHit + ' / ' + S.fwTotal) +
       tile('gir', 'Greens in reg. – tap for map', S.gir + ' / ' + S.girHoles) +
       tile('miss', 'Approach misses (missed green) – tap for map', S.apprMiss.length, missMini(S.apprMiss)) +
+      proxTile(S) +
       tile('pin', 'Pin location – tap for map', S.pinHoles.length + ' / ' + S.holesDone, '<small class="mini">holes with a pin set</small>') +
       stat('Putts', S.putts) + stat('Penalty strokes', S.penalties) +
       stat('Tee misses L / R', S.teeLeft + ' / ' + S.teeRight) +
@@ -338,7 +339,7 @@
   // ---------- maps (full-window overlays) ----------
   function mapData(kind) {
     var list = [], n = 0;
-    if (kind === 'pin') return { list: [], rounds: 0 };
+    if (kind === 'pin' || kind === 'prox') return { list: [], rounds: 0 };
     var src = view.mapScope === 'all' ? rounds : [round()];
     src.forEach(function (r) {
       var S = SG.summarize(r, 'pga'); n++;
@@ -411,11 +412,12 @@
   var DIR_ORDER = ['short', 'shortleft', 'shortright', 'left', 'right', 'long', 'longleft', 'longright'];
   function mapHTML() {
     var kind = view.map, D = mapData(kind), list = D.list, all = view.mapScope === 'all';
-    var out = '<div class="mapview" id="mapview" role="dialog" aria-label="' + (kind === 'gir' ? 'GIR map' : kind === 'fw' ? 'Fairway map' : kind === 'pin' ? 'Pin location map' : 'Approach miss map') + '">' +
-      '<div class="maphead"><b>' + (kind === 'gir' ? 'Greens in regulation' : kind === 'fw' ? 'Tee shots – fairways' : kind === 'pin' ? 'Pin location' : 'Approach misses') + '</b><button class="close" data-act="mapclose" aria-label="Close map">✕ Close</button></div>' +
+    var out = '<div class="mapview" id="mapview" role="dialog" aria-label="' + (kind === 'gir' ? 'GIR map' : kind === 'fw' ? 'Fairway map' : kind === 'pin' ? 'Pin location map' : kind === 'prox' ? 'Proximity map' : 'Approach miss map') + '">' +
+      '<div class="maphead"><b>' + (kind === 'gir' ? 'Greens in regulation' : kind === 'fw' ? 'Tee shots – fairways' : kind === 'pin' ? 'Pin location' : kind === 'prox' ? 'Proximity by distance' : 'Approach misses') + '</b><button class="close" data-act="mapclose" aria-label="Close map">✕ Close</button></div>' +
       '<div class="seg"><button data-act="mapscope" data-v="round" class="' + (all ? '' : 'sel') + '">This round</button>' +
       '<button data-act="mapscope" data-v="all" class="' + (all ? 'sel' : '') + '">All rounds (' + rounds.length + ')</button></div>';
     if (kind === 'pin') out += pinMapHTML(all);
+    else if (kind === 'prox') out += proxHTML(all);
     else if (kind === 'fw') out += fwHTML(list, all, D);
     else if (kind === 'gir') {
       var far = list.filter(function (m) { return m.ft > 30; }).length, holed = list.filter(function (m) { return m.holed; }).length;
@@ -511,6 +513,98 @@
     out += '</table><p class="help muted">Every tee shot on a par 4 or 5 (finished holes only), drawn from the tee to the distance it went (hole length minus the distance left). ' +
       'Left/right comes from the Dir you entered on row 2. Fairway hit = first tee shot finished on the fairway or green with no penalty. Bird\'s-eye view: the fairway runs away from you.</p>';
     return out;
+  }
+  // ---------- proximity by distance ----------
+  function fmtFt(v) { return v == null ? '–' : Math.round(v) + ' ft'; }
+  function proxTile(S) {
+    var L = S.proxList.filter(function (m) { return SG.inBucket('all', m.from); }), P = SG.proxStats(L);
+    return tile('prox', 'Proximity by distance – tap for map', P.n ? fmtFt(P.avgAllFt) : '–',
+      '<small class="mini">avg 40–200 yd · ' + P.n + ' approach' + (P.n === 1 ? '' : 'es') + (P.n ? ' · greens hit ' + P.hits + '/' + P.n : '') + '</small>');
+  }
+  function proxData() {
+    var b = view.proxB || 'all', list = [], n = 0;
+    (view.mapScope === 'all' ? rounds : [round()]).forEach(function (r) {
+      n++; SG.summarize(r, 'pga').proxList.forEach(function (m) { if (SG.inBucket(b, m.from)) list.push(m); });
+    });
+    return { list: list, rounds: n, bucket: b };
+  }
+  var PX = { cx: 180, cy: 235, K: 3.2, Rg: 106, W: 360, H: 540 };
+  function proxSVG(list) {
+    var out = '<svg id="proxmap" viewBox="0 0 360 540" role="img" aria-label="Approach proximity">' +
+      '<rect width="360" height="540" fill="#cfe8c4"/><circle cx="' + PX.cx + '" cy="' + PX.cy + '" r="' + PX.Rg + '" fill="#3da33d" stroke="#145214" stroke-width="4"/>';
+    [30, 25, 20, 15, 10, 5].forEach(function (ft) {
+      out += '<circle cx="' + PX.cx + '" cy="' + PX.cy + '" r="' + ft * PX.K + '" fill="none" stroke="#fff" stroke-width="' + (ft % 10 ? 1.3 : 2.2) + '" stroke-opacity=".85"/>' +
+        '<text class="ring" x="' + f1(PX.cx + 2 + ft * PX.K * 0.707) + '" y="' + f1(PX.cy + 12 + ft * PX.K * 0.707) + '" font-size="11" font-weight="800" fill="#fff">' + ft + '</text>';
+    });
+    out += '<circle cx="' + PX.cx + '" cy="' + PX.cy + '" r="5" fill="#000"/><line x1="' + PX.cx + '" y1="' + PX.cy + '" x2="' + PX.cx + '" y2="' + (PX.cy - 28) + '" stroke="#000" stroke-width="3"/>' +
+      '<path d="M' + PX.cx + ' ' + (PX.cy - 28) + ' l18 6 l-18 6z" fill="#d0213a"/>';
+    var seen = {}, tr = '', dots = '', labels = '', pend = [], nd = 0, LN = { rough: 'Rough', deep: 'Deep rough', fairway: 'Fairway', sand: 'Bunker', hazard: 'Hazard', ob: 'OB', recovery: 'Trees' };
+    // labels avoid each other, the dots and the canvas edge: try below, above, right, left, then further out
+    var boxes = [], hit2 = function (b) { return boxes.some(function (o) { return b[0] < o[2] && b[2] > o[0] && b[1] < o[3] && b[3] > o[1]; }); };
+    var lbl = function (x, y, t1, t2, col) {
+      var w = Math.max(t1.length, (t2 || '').length) * 6.6 + 4, h = t2 ? 23 : 12, best = null;
+      [[0, 19], [0, -12 - h], [10 + w / 2, 4 - h / 2], [-10 - w / 2, 4 - h / 2], [0, 32], [0, -25 - h], [16 + w / 2, 16 - h / 2], [-16 - w / 2, 16 - h / 2], [0, 45], [0, -38 - h]].some(function (o) {
+        var cx = Math.max(w / 2 + 2, Math.min(PX.W - w / 2 - 2, x + o[0])), ty = y + o[1], b = [cx - w / 2, ty - 10, cx + w / 2, ty - 10 + h];
+        if (!best) best = [cx, ty, b];
+        if (!hit2(b)) { best = [cx, ty, b]; return true; }
+      });
+      boxes.push(best[2]); var cx = best[0], ty = best[1];
+      return '<text class="xlbl" x="' + f1(cx) + '" y="' + f1(ty) + '" text-anchor="middle" font-size="11" font-weight="900" fill="' + col + '" stroke="#fff" stroke-width="3" paint-order="stroke">' + esc(t1) +
+        (t2 ? '<tspan x="' + f1(cx) + '" dy="11">' + esc(t2) + '</tspan>' : '') + '</text>';
+    };
+    var clampXY = function (q) { return [Math.max(14, Math.min(PX.W - 14, q[0])), Math.max(14, Math.min(PX.H - 60, q[1]))]; };
+    list.forEach(function (m, i) {
+      var col = m.hit ? '#1e6fd9' : '#e0102a', q, kind, clamped = false, label, label2 = '';
+      if (m.hit) {
+        if (m.holed) { var jh = seen.h = (seen.h || 0) + 1; q = [PX.cx - 14 + (jh - 1) * 14, PX.cy + 14]; kind = 'holed'; label = ''; }
+        else {
+          var nod = !m.dir, rr = Math.min(m.ft, 32) * PX.K, key = (m.dir || 'n') + Math.round(rr / 8), j = seen[key] = (seen[key] || 0) + 1;
+          q = pt(PX.cx, PX.cy, rr, (nod ? 90 : SG.DIR_ANGLE[m.dir]) + (j - 1) * 7); kind = nod ? 'hitnodir' : 'hit';
+          label = Math.round(m.ft) + ' ft' + (m.chipIn ? ' (chip-in)' : ''); clamped = m.ft > 32;
+        }
+      } else if (!m.dir) {
+        q = [PX.W - 22 - (nd % 6) * 26, PX.H - 92 - Math.floor(nd / 6) * 34]; nd++; kind = 'missnodir';
+        label = m.lie === 'ob' ? 'OB' : Math.round(m.yd) + ' yd';
+      } else {
+        var r0 = m.ft == null ? PX.Rg + 30 : Math.max(m.ft * PX.K, PX.Rg + 14), jm = seen['m' + m.dir] = (seen['m' + m.dir] || 0) + 1;
+        var raw = pt(PX.cx, PX.cy, r0, SG.DIR_ANGLE[m.dir] + (jm - 1) * 8); q = clampXY(raw); clamped = q[0] !== raw[0] || q[1] !== raw[1];
+        kind = 'miss'; label = m.lie === 'ob' ? 'OB' : Math.round(m.yd) + ' yd' + (clamped ? ' ›' : ''); label2 = m.lie === 'ob' ? '' : (LN[m.lie] || m.lie);
+      }
+      var x = f1(q[0]), y = f1(q[1]), ox = 180 + ((i * 29) % 9 - 4) * 6, oy = PX.H - 46;
+      if (kind !== 'missnodir') tr += '<path class="tracer" d="M' + ox + ' ' + oy + ' Q' + f1((ox + q[0]) / 2 + (q[0] - ox) * 0.15) + ' ' + f1(q[1] + (oy - q[1]) * 0.35) + ' ' + x + ' ' + y + '" fill="none" stroke="' + col + '" stroke-width="2.5" stroke-opacity=".75"/>';
+      var attrs = ' class="xdot" data-kind="' + kind + '" data-hole="' + m.hole + '" data-from="' + m.from + '"' + (clamped ? ' data-clamped="1"' : '');
+      if (kind === 'holed') dots += '<path' + attrs + ' d="M' + x + ' ' + (y - 10) + ' l3 6.5 7 .8 -5.3 4.8 1.5 7 -6.2 -3.6 -6.2 3.6 1.5 -7 -5.3 -4.8 7 -.8z" fill="#ffd23f" stroke="#1e6fd9" stroke-width="2"/>';
+      else if (kind === 'hitnodir' || kind === 'missnodir') dots += '<g' + attrs + ' data-x="' + x + '" data-y="' + y + '"><path d="M' + x + ' ' + (y - 10) + ' l10 10 -10 10 -10 -10z" fill="' + col + '" stroke="#000" stroke-width="2"/><text x="' + x + '" y="' + (+y + 4.5) + '" text-anchor="middle" font-size="12" font-weight="900" fill="#fff">?</text></g>';
+      else dots += '<circle' + attrs + ' cx="' + x + '" cy="' + y + '" r="6.5" fill="' + col + '" stroke="#000" stroke-width="2"/>';
+      if (label) pend.push([q[0], q[1], label, label2, m.hit ? '#0b3d91' : '#9b0016']);
+      boxes.push([q[0] - 8, q[1] - 10, q[0] + 8, q[1] + 10]);
+    });
+    pend.forEach(function (p) { labels += lbl(p[0], p[1], p[2], p[3], p[4]); });
+    out += tr + dots + labels + '<text x="180" y="16" text-anchor="middle" font-size="13" font-weight="800">LONG ↑</text>' +
+      '<rect x="150" y="' + (PX.H - 50) + '" width="60" height="16" rx="4" fill="#9be08a" stroke="#fff"/><text x="180" y="' + (PX.H - 22) + '" text-anchor="middle" font-size="13" font-weight="800">YOU (shots come from here)</text>' +
+      '<text x="6" y="16" font-size="13" font-weight="800">◀ LEFT</text><text x="354" y="16" text-anchor="end" font-size="13" font-weight="800">RIGHT ▶</text>' +
+      (nd ? '<text x="' + (PX.W - 8) + '" y="' + (PX.H - 112 - Math.floor((nd - 1) / 6) * 34) + '" text-anchor="end" font-size="11" font-weight="800">missed, no direction</text>' : '');
+    return out + '</svg>';
+  }
+  function proxHTML(all) {
+    var D = proxData(), L = D.list, P = SG.proxStats(L), miss = L.filter(function (m) { return !m.hit; });
+    var opts = SG.PROX_BUCKETS.map(function (b) { return '<option value="' + b.id + '"' + (b.id === D.bucket ? ' selected' : '') + '>' + b.name + '</option>'; }).join('');
+    var scope = all ? ' in ' + D.rounds + ' round' + (D.rounds === 1 ? '' : 's') : ' this round';
+    return '<label class="lbl" for="proxsel">Approach from</label><select id="proxsel" class="blsel" data-f="proxb">' + opts + '</select>' +
+      '<p class="mapsum" id="mapsum"><b>' + P.n + '</b> approach' + (P.n === 1 ? '' : 'es') + scope + '</p>' +
+      '<div class="stat-grid" id="proxstats">' +
+      stat('Shots', P.n) + stat('Greens hit', P.n ? P.hits + ' / ' + P.n + ' (' + Math.round(P.hitPct) + '%)' : '–') +
+      stat('Avg proximity – greens hit', fmtFt(P.avgHitFt)) + stat('Avg proximity – all', fmtFt(P.avgAllFt)) + '</div>' +
+      proxSVG(L) +
+      '<div class="legend"><span><i class="ln" style="background:#1e6fd9"></i><i class="dot" style="background:#1e6fd9"></i>Hit the green – first-putt distance (ft) + direction from the hole</span>' +
+      '<span><i class="ln" style="background:#e0102a"></i><i class="dot" style="background:#e0102a"></i>Missed the green – in the miss direction, distance to the pin at the same scale; label = yards left + lie (› = further than the picture, drawn at the edge)</span>' +
+      '<span><svg width="20" height="20" viewBox="0 0 20 20" style="flex:none"><path d="M10 1 l9 9 -9 9 -9 -9z" fill="#888" stroke="#000" stroke-width="2"/><text x="10" y="14.5" text-anchor="middle" font-size="12" font-weight="900" fill="#fff">?</text></svg>No direction entered: blue = hit (straight up at the right distance), red = miss (bottom-right corner)</span>' +
+      '<span><b class="star">★</b>Holed out</span><span>White rings: 5–30 ft from the hole</span></div>' +
+      '<h3>Misses by direction</h3>' + dirTable(miss).replace('(not plotted)', '(drawn as ?)') +
+      '<p class="help muted">One approach per hole: the shot that reached the green if it was hit from more than 30 yd, otherwise the last shot from more than 30 yd (it missed the green). ' +
+      'Hit/miss here is that shot\'s own result (not regulation), so it can differ from the GIR and Pin maps. A chip-in from 30 yd or closer counts as reaching the green (its proximity = the chip distance). ' +
+      'Proximity: greens hit = first-putt feet; misses = yards left × 3; OB has no proximity and is left out of the averages. Ranges: 10-yd buckets by the yardage the approach was hit from (40–50 means 40 up to 49; 190–200 includes 200). ' +
+      'Only finished holes count.</p>';
   }
   // ---------- pin-location map ----------
   // ONE entry per finished hole with a pin set (its approach into the green - see SG keyApproach)
@@ -728,6 +822,7 @@
   }
   document.addEventListener('change', function (ev) {
     var t = ev.target, f = t.getAttribute('data-f'); if (!f) return;
+    if (f === 'proxb') { view.proxB = t.value; render(); return; }
     if (f === 'baseline') { if (t.id === 'sumbl') setBaseline(t.value); return; }
     var h = round().holes[view.hole], k = +t.getAttribute('data-k'), row = h.rows[k];
     if (f === 'loc') {

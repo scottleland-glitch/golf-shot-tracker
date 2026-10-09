@@ -284,6 +284,26 @@
       lie: hit ? 'green' : (r.ob ? 'ob' : (onG || r.end.lie === 'holed') ? 'green' : r.end.lie), dist: hit ? 0 : r.end.dist,
       unit: !hit && onG ? 'ft' : 'yd', from: r.start.dist };
   }
+  /**
+   * Proximity map: the hole's ONE approach judged by its own RESULT (not by regulation):
+   *  - the shot that reached the green (reach-green rule) if it was hit from more than 30 yd -> hit;
+   *  - otherwise the last shot from more than 30 yd before it -> it missed the green.
+   * Proximity in feet: on the green = first-putt distance; holed = 0; chip-in after it (ball was
+   * off the green, then holed from <= 30 yd) = that distance in yards x 3; missed = yards left x 3.
+   * OB has no proximity (null).
+   */
+  function proxApproach(out) {
+    var far = function (r) { return r.start.lie !== 'green' && r.start.dist > 30; };
+    var fr = -1; for (var i = 0; i < out.length; i++) { if (reachedGreen(out[i])) { fr = i; break; } }
+    var k = -1, hit = false;
+    if (fr >= 0 && far(out[fr])) { k = fr; hit = true; }
+    else { for (var j = (fr >= 0 ? fr : out.length) - 1; j >= 0; j--) { if (far(out[j])) { k = j; break; } } }
+    if (k < 0) return null;
+    var r = out[k], holed = hit && r.end.lie === 'holed', chipIn = hit && !holed && r.loc === 'holedx';
+    var ft = r.ob ? null : holed ? 0 : (hit && !chipIn) ? r.end.dist : r.end.dist * 3;
+    return { shot: r.n, from: r.start.dist, fromLie: r.start.lie, hit: hit, holed: holed, chipIn: chipIn, dir: holed ? '' : r.dir,
+      ft: ft, lie: hit ? 'green' : (r.ob ? 'ob' : r.end.lie), yd: hit ? null : (r.ob ? null : r.end.dist), pen: r.penStrokes > 0 };
+  }
   function analyzeHole(hole, baseline) {
     var bad = null, problem = '', complete = null, finished = true, rowsFmt = !!hole.rows, nRows = 0, liveStrokes = 0;
     if (rowsFmt) {
@@ -345,20 +365,34 @@
       rows: nRows, liveStrokes: rowsFmt ? liveStrokes : shots.length + penalties,
       strokes: shots.length + penalties, penalties: penalties,
       putts: out.filter(function (r) { return r.cat === 'putting'; }).length,
-      done: done, gir: gir, girShot: girShot, fairway: fairway, pin: normPin(hole.pin), appr: keyApproach(out, gir),
+      done: done, gir: gir, girShot: girShot, fairway: fairway, pin: normPin(hole.pin), appr: keyApproach(out, gir), prox: proxApproach(out),
       sg: out.reduce(function (a, r) { return a + r.sg; }, 0)
     };
   }
 
   // Where a missed tee shot ended (row loc -> map category)
   var TEE_END = { rough: 'rough', deep: 'rough', bunker: 'bunker', hazard: 'hazard', trees: 'trees', ob: 'ob', sand: 'bunker', recovery: 'trees' };
+  // Proximity buckets: 10-yd ranges 40-200 (lower bound inclusive, upper exclusive; 190-200 includes 200)
+  var PROX_BUCKETS = [];
+  for (var pb = 40; pb < 200; pb += 10) PROX_BUCKETS.push({ id: pb + '-' + (pb + 10), lo: pb, hi: pb + 10, name: pb + '–' + (pb + 10) + ' yd' });
+  PROX_BUCKETS.unshift({ id: 'all', lo: 40, hi: 200, name: 'All 40–200 yd' });
+  function inBucket(id, yd) {
+    var b = PROX_BUCKETS.filter(function (x) { return x.id === id; })[0] || PROX_BUCKETS[0];
+    return yd >= b.lo && (yd < b.hi || (b.hi === 200 && yd <= 200));
+  }
+  function proxStats(list) {
+    var hits = list.filter(function (m) { return m.hit; }), withFt = list.filter(function (m) { return m.ft != null; });
+    var avg = function (a) { return a.length ? a.reduce(function (t, m) { return t + m.ft; }, 0) / a.length : null; };
+    return { n: list.length, hits: hits.length, misses: list.length - hits.length, hitPct: list.length ? 100 * hits.length / list.length : null,
+      avgHitFt: avg(hits.filter(function (m) { return m.ft != null; })), avgAllFt: avg(withFt), noProx: list.length - withFt.length };
+  }
   function summarize(round, baseline) {
     baseline = baseline || round.baseline || 'pga';
     var S = {
       strokes: 0, par: 0, holesDone: 0, holesStarted: 0, penalties: 0, putts: 0,
       fwHit: 0, fwTotal: 0, gir: 0, girHoles: 0,
       teeLeft: 0, teeRight: 0, apprLeft: 0, apprRight: 0, apprShort: 0, apprOver: 0, allLeft: 0, allRight: 0,
-      apprMiss: [], girMap: [], teeMap: [], pinHoles: [], noPin: 0,
+      apprMiss: [], girMap: [], teeMap: [], pinHoles: [], noPin: 0, proxList: [],
       sgTotal: 0,
       cats: { tee: { sg: 0, n: 0 }, approach: { sg: 0, n: 0 }, short: { sg: 0, n: 0 }, putting: { sg: 0, n: 0 } },
       buckets: {}, holes: []
@@ -372,6 +406,7 @@
       if (!a.shots.length) return;
       S.holesStarted++;
       if (!a.done) return; // only finished holes count toward totals and stats
+      if (a.prox) { var px = { hole: hi + 1, par: Number(h.par), gir: a.gir }; for (var pk in a.prox) px[pk] = a.prox[pk]; S.proxList.push(px); }
       if (normPin(h.pin)) S.pinHoles.push({ hole: hi + 1, pin: normPin(h.pin), gir: a.gir, par: Number(h.par), appr: a.appr }); else S.noPin++;
       S.penalties += a.penalties;
       S.putts += a.putts;
@@ -530,7 +565,7 @@
   }
 
   calibrate();
-  var api = { reachedGreen: reachedGreen, PIN_GRID: PIN_GRID, PIN_NAME: PIN_NAME, normPin: normPin, DIR8: DIR8, DIR_NAME: DIR_NAME, DIR_ANGLE: DIR_ANGLE, normDir: normDir, expected: expected, expectedPGA: expectedPGA, BASELINES: BASELINES, baseline: function (id) { return BL[id] || BL.pga; },
+  var api = { PROX_BUCKETS: PROX_BUCKETS, inBucket: inBucket, proxStats: proxStats, reachedGreen: reachedGreen, PIN_GRID: PIN_GRID, PIN_NAME: PIN_NAME, normPin: normPin, DIR8: DIR8, DIR_NAME: DIR_NAME, DIR_ANGLE: DIR_ANGLE, normDir: normDir, expected: expected, expectedPGA: expectedPGA, BASELINES: BASELINES, baseline: function (id) { return BL[id] || BL.pga; },
     CALIB_ROUND: CALIB_ROUND, catLoss: catLoss, analyzeHole: analyzeHole, summarize: summarize,
     rowsToShots: rowsToShots, shotsToRows: shotsToRows, migrateV2Rows: migrateV2Rows, v1ToRows: v1ToRows, holeYards: holeYards,
     rowUnit: rowUnit, lieOf: lieOf, distOf: distOf, rowStrokes: rowStrokes, isPenalty: isPenalty,

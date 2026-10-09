@@ -437,3 +437,34 @@ test('pin map consistency on random rounds: badges sum = holes, hit + missed = h
     assert.strictEqual(S.girMap.length, S.gir);
   }
 });
+
+// ---- Proximity by distance ----
+test('proximity buckets: 16 ten-yard ranges 40-200 + All; edges', () => {
+  assert.strictEqual(SG.PROX_BUCKETS.length, 17); assert.strictEqual(SG.PROX_BUCKETS[0].id, 'all');
+  assert.deepStrictEqual(SG.PROX_BUCKETS.slice(1).map(b => b.id), Array.from({ length: 16 }, (_, i) => (40 + i * 10) + '-' + (50 + i * 10)));
+  assert.ok(SG.inBucket('40-50', 40)); assert.ok(!SG.inBucket('40-50', 50)); assert.ok(SG.inBucket('50-60', 50));
+  assert.ok(SG.inBucket('190-200', 200)); assert.ok(!SG.inBucket('190-200', 201)); assert.ok(!SG.inBucket('all', 39)); assert.ok(SG.inBucket('all', 200));
+  // every yardage 40..200 is in exactly one 10-yd bucket
+  for (let y = 40; y <= 200; y += 0.5) assert.strictEqual(SG.PROX_BUCKETS.slice(1).filter(b => SG.inBucket(b.id, y)).length, 1, 'y=' + y);
+});
+
+test('proximity: one approach per hole, judged by its own result; ft for hits, yd x3 for misses; OB excluded from averages', () => {
+  const S = SG.summarize({ holes: [
+    { par: 4, finished: true, rows: [R(400, 'tee'), R(150, 'fairway'), R(12, 'green', 'left'), R(1, 'holed')] },             // hit 12 ft from 150
+    { par: 4, finished: true, rows: [R(400, 'tee'), R(145, 'fairway'), R(15, 'rough', 'short'), R(4, 'green'), R(1, 'holed')] }, // miss 15 yd -> 45 ft
+    { par: 5, finished: true, rows: [R(530, 'tee'), R(250, 'fairway'), R(95, 'fairway'), R(20, 'green', 'long'), R(2, 'green'), R(1, 'holed')] }, // par 5: only the 95-yd shot
+    { par: 4, finished: true, rows: [R(380, 'tee'), R(180, 'rough'), R(60, 'rough', 'right'), R(8, 'green', 'short'), R(1, 'holed')] }, // missed from 180, then 60-yd pitch on -> the 60 (hit)
+    { par: 4, finished: true, rows: [R(360, 'tee'), R(110, 'holedx')] },                                                     // eagle: 0 ft
+    { par: 4, finished: true, rows: [R(400, 'tee'), R(160, 'fairway'), R('', 'ob', 'right'), R(10, 'green'), R(1, 'holed')] }, // OB then re-hit on -> the re-hit (hit 10 ft)
+    { par: 3, finished: true, rows: [R(160, 'tee'), R(160, 'ob', 'left'), R(25, 'bunker', 'right'), R(5, 'green'), R(1, 'holed')] } // OB, re-tee misses right into bunker
+  ] });
+  assert.deepStrictEqual(S.proxList.map(m => [m.hole, m.shot, m.from, m.hit, m.ft, m.dir, m.lie]), [
+    [1, 2, 150, true, 12, 'left', 'green'], [2, 2, 145, false, 45, 'short', 'rough'], [3, 3, 95, true, 20, 'long', 'green'],
+    [4, 3, 60, true, 8, 'short', 'green'], [5, 2, 110, true, 0, '', 'green'], [6, 3, 160, true, 10, '', 'green'], [7, 2, 160, false, 75, 'right', 'sand']]);
+  const P = SG.proxStats(S.proxList.filter(m => SG.inBucket('all', m.from)));
+  assert.strictEqual(P.n, 7); assert.strictEqual(P.hits, 5); near(P.avgHitFt, (12 + 20 + 8 + 0 + 10) / 5, 'avg hit'); near(P.avgAllFt, (12 + 45 + 20 + 8 + 0 + 10 + 75) / 7, 'avg all');
+  const B = id => S.proxList.filter(m => SG.inBucket(id, m.from)).map(m => m.hole);
+  assert.deepStrictEqual(B('140-150'), [2]); assert.deepStrictEqual(B('150-160'), [1]); assert.deepStrictEqual(B('160-170'), [6, 7]); assert.deepStrictEqual(B('60-70'), [4]);
+  // bucket counts add up to "All"
+  assert.strictEqual(SG.PROX_BUCKETS.slice(1).reduce((n, b) => n + B(b.id).length, 0), B('all').length);
+});
