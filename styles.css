@@ -285,3 +285,12 @@ body.noscroll { overflow: hidden; }
 .pnrow .pnbtn:disabled { background: #eee; color: #b0b0b0; border-color: #d0d0d0; opacity: 1; }
 .pnrow .pnbtn:disabled small { color: #b0b0b0; }
 #puttstats { grid-template-columns: repeat(3, 1fr); }
+
+/* OneDrive backup card */
+.odcard { border: 2px solid #0a5bb5; border-radius: 14px; padding: 12px 14px 8px; margin: 12px 0; background: #f2f7ff; }
+.odcard h3 { margin: 0 0 6px; }
+.odacct, .odstat { margin: 4px 0 8px; font-size: 16px; overflow-wrap: anywhere; }
+.odbtns { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.odbtns .big { margin: 0; font-size: 16px; }
+.oddisc { display: block; margin: 10px auto 4px; color: #a00; font-weight: 700; min-height: 44px; }
+.odfile { text-align: left; }

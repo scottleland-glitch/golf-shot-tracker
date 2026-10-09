@@ -82,3 +82,13 @@ Applies to the GIR tile + map, Approach-miss tile + map, Pin location map, Proxi
 - Lie buttons (All lies / Fairway / Rough / Bunker / Tee / Other, with counts; empty ones greyed out) filter the map, stats, misses-by-direction and the yardage counts. Empty selections fall back to All.
 - "By lie" table for the selected yardage: shots, greens hit x/n (%), avg proximity on greens hit, avg overall.
 - Practice warning (red row + message): a lie with 3+ shots and no greens hit ("From the rough you've missed 4 of 4 greens — worth some practice."), or 30+ points below the fairway's % (fairway needs 2+ shots).
+
+## OneDrive automatic backup (hidden until configured)
+Set `onedriveClientId` in `config.js` to the Application (client) ID of an Entra app registration:
+1. https://entra.microsoft.com (or portal.azure.com) → App registrations → New registration. Name: Golf Shot Tracker.
+2. Supported account types: "Personal Microsoft accounts only" (keep `onedriveAuthority` = `https://login.microsoftonline.com/consumers`), or "Accounts in any organizational directory and personal Microsoft accounts" (then set it to `https://login.microsoftonline.com/common`).
+3. Redirect URI: platform "Single-page application (SPA)", `https://scottleland-glitch.github.io/golf-shot-tracker/` (exact, trailing slash).
+4. API permissions → Add → Microsoft Graph → Delegated: `Files.ReadWrite.AppFolder` and `User.Read`. No client secret, no implicit-grant boxes.
+5. Copy the Application (client) ID into `config.js` and push. config.js is fetched network-first, so no cache bump is needed.
+
+Sign-in uses MSAL.js (vendor/msal-browser.min.js, v4.30.0, MIT) with the redirect flow (auth code + PKCE), because popups are unreliable in iOS home-screen apps. Backups go to OneDrive › Apps › Golf Shot Tracker: `golf-rounds-backup.json` (latest) plus a dated copy at most weekly.
