@@ -1,14 +1,15 @@
-const { chromium } = require('playwright-core');
+const { chromium } = require(process.env.PW || 'playwright-core');
 const assert = require('assert');
 const { spawn } = require('child_process');
 const fs = require('fs');
-const SHOTS = '/workspace/golf-app/screenshots';
+const SHOTS = process.env.SHOTS || '/workspace/golf-app/screenshots';
 fs.mkdirSync(SHOTS, { recursive: true });
-const PORT = 8765, URL = `http://127.0.0.1:${PORT}/`;
+const PORT = 8765, URL = process.env.BASE_URL || `http://127.0.0.1:${PORT}/`;
+const ROOT = process.env.SERVE_ROOT || '/workspace/golf-app';
 let passed = 0; const ok = (m) => { passed++; console.log('  ✓', m); };
 
 (async () => {
-  const srv = spawn('python3', ['-m', 'http.server', String(PORT), '--bind', '127.0.0.1'], { cwd: '/workspace/golf-app', stdio: 'ignore' });
+  const srv = process.env.NO_SERVER ? { kill() {} } : spawn('python3', ['-m', 'http.server', String(PORT), '--bind', '127.0.0.1'], { cwd: ROOT, stdio: 'ignore' });
   await new Promise(r => setTimeout(r, 800));
   const browser = await chromium.launch({ executablePath: '/usr/bin/google-chrome', args: ['--no-sandbox'] });
   const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 3, isMobile: true, hasTouch: true,
@@ -29,6 +30,7 @@ let passed = 0; const ok = (m) => { passed++; console.log('  ✓', m); };
   const setup = async (par, yards) => { await act('par', par); await type(yards); await act('startHole'); };
 
   await page.goto(URL); await page.waitForSelector('text=Golf Shot Tracker');
+  const swScope = await page.evaluate(async () => (await navigator.serviceWorker.ready).scope); assert.ok(swScope.startsWith(URL), swScope); ok('service worker scope = ' + swScope);
   ok('home loads');
   // Manifest/meta present
   const meta = await page.evaluate(() => ({ m: !!document.querySelector('link[rel=manifest]'), a: !!document.querySelector('link[rel=apple-touch-icon]'),
@@ -85,7 +87,6 @@ let passed = 0; const ok = (m) => { passed++; console.log('  ✓', m); };
   assert.strictEqual(await page.locator('.shot').count(), 4); ok('delete shot works');
   await act('holed');
   await page.evaluate(() => { document.getElementById('toast').className = ''; }); await page.screenshot({ path: `${SHOTS}/3-hole-complete.png` });
-  const saveBox = await page.evaluate(() => 1);
 
   // Summary
   await act('summary');
