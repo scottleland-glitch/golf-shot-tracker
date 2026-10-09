@@ -1,4 +1,4 @@
-/* Golf Shot Tracker - UI (v2: shot table per hole). Data lives in localStorage on the phone. */
+/* Golf Shot Tracker - UI (v4: shot rows + selectable SG baselines). Data lives in localStorage on the phone. */
 (function () {
   'use strict';
   var KEY = 'golfsg.rounds.v1', CUR = 'golfsg.current.v1';
@@ -35,6 +35,14 @@
     if (changed) localStorage.setItem(KEY, JSON.stringify(rs));
     return rs;
   }
+  function blOf(r) { return SG.baseline(r && r.baseline).id; }
+  function blName(id) { return SG.baseline(id).name; }
+  function blLabel(id) { var b = SG.baseline(id); return b.name + (b.status === 'estimated' ? ' (estimated)' : ''); }
+  function AH(h) { return SG.analyzeHole(h, blOf(round())); }
+  function blSelect(id, sel) {
+    return '<select id="' + id + '" class="blsel" data-f="baseline" aria-label="Compare against">' + SG.BASELINES.map(function (b) {
+      return '<option value="' + b.id + '"' + (b.id === sel ? ' selected' : '') + '>' + blLabel(b.id) + '</option>'; }).join('') + '</select>';
+  }
   function save() { localStorage.setItem(KEY, JSON.stringify(rounds)); }
   function round() { return rounds.filter(function (r) { return r.id === view.roundId; })[0]; }
   function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return '&#' + c.charCodeAt(0) + ';'; }); }
@@ -48,7 +56,8 @@
   }
   function emptyHole() { return { par: 4, finished: false, rows: [{ loc: 'tee', dist: '', dir: '', pen: false }] }; }
   function newRound(course) {
-    var r = { v: 3, id: 'r' + Date.now(), date: new Date().toISOString(), course: course || '', holes: [] };
+    var sel = document.getElementById('newbl');
+    var r = { v: 3, id: 'r' + Date.now(), date: new Date().toISOString(), course: course || '', baseline: sel ? sel.value : 'pga', holes: [] };
     for (var i = 0; i < 18; i++) r.holes.push(emptyHole());
     rounds.unshift(r); save();
     view.roundId = r.id; localStorage.setItem(CUR, r.id);
@@ -66,8 +75,10 @@
   // ---------- rendering ----------
   function render() {
     var el = document.getElementById('app');
-    if (view.screen === 'home' || !round()) el.innerHTML = homeHTML();
+    if (view.screen === 'about') el.innerHTML = aboutHTML();
+    else if (view.screen === 'home' || !round()) el.innerHTML = homeHTML();
     else if (view.screen === 'hole') el.innerHTML = holeHTML();
+    else if (view.screen === 'about') el.innerHTML = aboutHTML();
     else el.innerHTML = summaryHTML();
   }
 
@@ -80,6 +91,7 @@
         '<br><small>' + S.holesDone + ' holes done</small></button>';
     }
     h += '<h2>New round</h2><input type="text" id="course" placeholder="Course name (optional)" autocomplete="off">' +
+      '<label class="lbl" for="newbl">Compare my shots against</label>' + blSelect('newbl', 'pga') +
       '<button class="' + (cur ? '' : 'primary ') + 'big" data-act="new">Start new round</button>';
     h += '<h2>Past rounds</h2>';
     if (!rounds.length) h += '<p class="muted">No rounds yet.</p>';
@@ -87,17 +99,18 @@
       var S = SG.summarize(r);
       h += '<button class="hist" data-act="open" data-id="' + r.id + '"><span>' + new Date(r.date).toLocaleDateString() +
         (r.course ? ' · ' + esc(r.course) : '') + '<br><small class="muted">' + S.holesDone + ' holes</small></span><span>' +
-        (S.holesDone ? S.strokes + ' (' + toPar(S.toPar) + ')' : '–') + '<br><small class="' + sgCls(S.sgTotal) + '">SG ' + fmtSG(S.sgTotal) + '</small></span></button>';
+        (S.holesDone ? S.strokes + ' (' + toPar(S.toPar) + ')' : '–') + '<br><small class="' + sgCls(S.sgTotal) + '">SG ' + fmtSG(S.sgTotal) + ' <span class="muted">vs ' + esc(blName(blOf(r))) + '</span></small></span></button>';
     });
     if (rounds.length) h += '<button class="big" data-act="csvall">Export all rounds (CSV)</button>';
+    h += '<button class="big" data-act="about">ⓘ About the numbers</button>';
     return h;
   }
 
   function holeHTML() {
-    var r = round(), h = r.holes[view.hole], a = SG.analyzeHole(h), S = SG.summarize(r), fin = !!h.finished && a.complete;
+    var r = round(), h = r.holes[view.hole], a = AH(h), S = SG.summarize(r, blOf(r)), fin = !!h.finished && a.complete;
     var out = '<div class="topbar"><button data-act="prev" aria-label="Previous hole"' + (view.hole === 0 ? ' disabled' : '') + '>‹</button>' +
       '<div class="title"><b>' + (r.course ? esc(r.course) : 'Round') + '</b><span>' +
-      (S.holesDone ? 'Total ' + S.strokes + ' (' + toPar(S.toPar) + ') thru ' + S.holesDone : 'No holes finished yet') + '</span></div>' +
+      (S.holesDone ? 'Total ' + S.strokes + ' (' + toPar(S.toPar) + ') thru ' + S.holesDone : 'No holes finished yet') + '<br>SG vs ' + esc(blName(blOf(r))) + '</span></div>' +
       '<button data-act="next" aria-label="Next hole"' + (view.hole === 17 ? ' disabled' : '') + '>›</button></div>';
 
     out += '<div class="holecard' + (fin ? ' fin' : '') + '"><div class="hc-head"><h2>Hole ' + (view.hole + 1) + '</h2>' +
@@ -183,7 +196,7 @@
   }
 
   function summaryHTML() {
-    var r = round(), S = SG.summarize(r);
+    var r = round(), bl = blOf(r), S = SG.summarize(r, bl);
     var out = '<div class="topbar"><button class="txt" data-act="backHole">‹ Round</button><div class="title"><b>Round stats</b><span>' +
       new Date(r.date).toLocaleDateString() + (r.course ? ' · ' + esc(r.course) : '') + '</span></div><button class="txt" data-act="home">Home</button></div>';
     out += '<div class="big-score"><div class="s">' + (S.holesDone ? S.strokes : '–') + '</div>' +
@@ -195,14 +208,18 @@
       out += '<button class="' + cls + '" data-act="goHole" data-i="' + i + '">' + (i + 1) + ' · P' + h.par + '<b>' + txt + '</b></button>';
     });
     out += '</div>';
-    out += '<h2>Strokes gained: <span class="' + sgCls(S.sgTotal) + '">' + fmtSG(S.sgTotal) + '</span></h2>' +
-      '<p class="help muted">vs. a PGA Tour pro. Plus = better than a pro, minus = strokes lost.</p>';
+    var B = SG.baseline(bl);
+    out += '<h2>Strokes gained: <span class="' + sgCls(S.sgTotal) + '" id="sgtotal">' + fmtSG(S.sgTotal) + '</span></h2>' +
+      '<div class="blbox"><label class="lbl" for="sumbl">Baseline – compared with</label>' + blSelect('sumbl', bl) +
+      '<p class="help muted" id="blnote">Average player in: ' + esc(B.name) +
+      (B.status === 'estimated' ? ' – <b>estimated</b> baseline (no published table; see About the numbers)' : ' – published PGA Tour data (Broadie)') +
+      '. Plus = better, minus = strokes lost. Changing this recalculates the whole round and is saved with it.</p></div>';
     out += '<table><tr><th>Category</th><th class="num">Shots</th><th class="num">SG</th></tr>';
     ['tee', 'approach', 'short', 'putting'].forEach(function (k) {
       var c = S.cats[k];
       out += '<tr><td>' + CAT_NAME[k] + '</td><td class="num">' + c.n + '</td><td class="num ' + sgCls(c.sg) + '">' + fmtSG(c.sg) + '</td></tr>';
     });
-    out += '</table><h3>By distance</h3><table><tr><th>From</th><th class="num">Shots</th><th class="num">SG</th></tr>';
+    out += '</table>' + compareHTML(r, bl) + '<h3>By distance</h3><table><tr><th>From</th><th class="num">Shots</th><th class="num">SG</th></tr>';
     var groups = [['Approach', ['30-100 yd', '100-150 yd', '150-200 yd', '200+ yd']], ['Short game', ['0-30 yd']], ['Putting', ['0-5 ft', '5-15 ft', '15-30 ft', '30+ ft']]];
     groups.forEach(function (g) {
       out += '<tr><td colspan="3" style="background:#eee"><b>' + g[0] + '</b></td></tr>';
@@ -221,9 +238,60 @@
     out += '<button class="primary big" data-act="csv" style="margin-top:16px">Export this round (CSV)</button>';
     out += '<button class="big" data-act="backHole">Back to the round</button>';
     out += '<button class="big danger" data-act="delRound">Delete this round</button>';
-    out += '<p class="help muted">How it works: each shot is compared with how many strokes a PGA Tour player averages to hole out from the same distance and lie ' +
-      '(Mark Broadie\'s published tables). A shot that leaves you better off than average gains strokes. Penalties count against the shot that caused them.</p>';
+    out += '<button class="big" data-act="about">ⓘ About the numbers</button>';
+    out += '<p class="help muted">How it works: each shot is compared with how many strokes the chosen group averages to hole out from the same distance and lie. ' +
+      'A shot that leaves you better off than average gains strokes. Penalties count against the shot that caused them.</p>';
     return out;
+  }
+  function compareHTML(r, bl) {
+    var cats = ['tee', 'approach', 'short', 'putting'];
+    var out = '<h3>Same round vs every baseline</h3><p class="help muted">Strokes gained by category. Tap a row to use it.</p>' +
+      '<table class="cmp" id="cmp"><tr><th>Baseline</th><th class="num">Tee</th><th class="num">App</th><th class="num">Short</th><th class="num">Putt</th><th class="num">Total</th></tr>';
+    SG.BASELINES.forEach(function (b) {
+      var S = SG.summarize(r, b.id);
+      out += '<tr data-act="setbl" data-v="' + b.id + '" class="' + (b.id === bl ? 'cur' : '') + '"><td>' + esc(b.name) + (b.status === 'estimated' ? '<sup>est</sup>' : '') + '</td>' +
+        cats.map(function (c) { return '<td class="num ' + sgCls(S.cats[c].sg) + '">' + fmtSG(S.cats[c].sg) + '</td>'; }).join('') +
+        '<td class="num ' + sgCls(S.sgTotal) + '"><b>' + fmtSG(S.sgTotal) + '</b></td></tr>';
+    });
+    return out + '</table><p class="help muted"><sup>est</sup> = estimated baseline, see About the numbers.</p>';
+  }
+  function aboutHTML() {
+    var L = function (u, t) { return '<a href="' + u + '" target="_blank" rel="noopener">' + esc(t || u) + '</a>'; };
+    var gaps = SG.BASELINES.map(function (b) {
+      return '<tr><td>' + esc(b.name) + '</td><td>' + (b.status === 'sourced' ? 'Published' : '<b>Estimated</b>') + '</td><td class="num">' +
+        (b.id === 'pga' ? '0' : '−' + b.gap.toFixed(1)) + '</td></tr>'; }).join('');
+    return '<div class="topbar"><button class="txt" data-act="aboutBack">‹ Back</button><div class="title"><b>About the numbers</b><span>Where the baselines come from</span></div><span></span></div>' +
+      '<div class="about">' +
+      '<p>Strokes gained compares each shot with how many strokes an average player in the chosen group needs to hole out from the same spot. ' +
+      'A shot\'s value = expected strokes before − expected strokes after − 1 (and −1 more for a penalty).</p>' +
+      '<h2>PGA Tour – published</h2>' +
+      '<p>Off the green (tee, fairway, rough, sand, recovery, 10–600 yd): Mark Broadie, “Assessing Golfer Performance on the PGA TOUR”, Table 9 (ShotLink data 2003–2010, about 8 million shots), ' +
+      'published in <i>Interfaces</i> 42(2), 2012. ' + L('https://www.columbia.edu/~mnb2/broadie/Assets/strokes_gained_pga_broadie_20110408.pdf', 'Paper (PDF)') + '.</p>' +
+      '<p>Putting (feet): Broadie, <i>Every Shot Counts</i> (2014), Table 3.10, as reproduced by ' +
+      L('https://golfingfocus.com/what-percentage-of-putts-do-pros-make-tv-does-not-tell-the-story/', 'Golfing Focus') + ', cross-checked with ' +
+      L('https://whygolf.com/pages/strokes-gained-calculator', 'WhyGolf') + '.</p>' +
+      '<p class="muted">Small approximations: values between table rows are interpolated; “deep rough” = rough + 0.15; “trees” and played-from-hazard use Broadie\'s “recovery” column; ' +
+      'shots under 10 yd use the 10-yd value; par-3 tee shots under 100 yd use the fairway column; putts over 90 ft and shots over 600 yd are extended in a straight line.</p>' +
+      '<h2>Other groups – estimated</h2>' +
+      '<p><b>No published expected-strokes table exists</b> for the LPGA Tour, D1 college men or women, or scratch men or women. (The LPGA shows strokes-gained stats via KPMG but not the table behind them. ' +
+      'Clippd/Scoreboard college rankings use their own data and don\'t publish a table.) So these baselines are <b>estimates</b>, built from two published numbers:</p>' +
+      '<ol><li><b>Scratch men vs PGA Tour:</b> 5.5 strokes per round behind, split off the tee 2.5, approach 1.5, short game 0.5, putting 1.0. Source: Peter Sanders (ShotByShot), ' +
+      L('https://clubhouse.swingu.com/statistics/the-statistical-differences-between-a-scratch-golfer-and-pga-tour-player/', 'SwingU, 8,360 scratch rounds vs 2015 ShotLink') +
+      '. This agrees with Lou Stagner\'s finding that the average tour pro is about a +5.4 handicap (' + L('https://golf.com/instruction/pro-golfer-handicap-index-score/', 'Golf.com') + ').</li>' +
+      '<li><b>Where the other groups sit:</b> Clippd\'s “Player Quality” ladder (100 = male tour average): D1 college men 95, LPGA Tour 89, D1 college women 87, scratch men 87, scratch women 84. ' +
+      L('https://www.clippd.com/insights/post/shot-quality-and-player-quality-clippds-new-performance-metrics', 'Clippd') + '.</li></ol>' +
+      '<p><b>Method:</b> we assume each Player Quality point is worth the same number of strokes. Scratch men are 13 points and 5.5 strokes behind the Tour, so 1 point ≈ 0.42 strokes per round. ' +
+      'Every group uses the scratch-men split by category. The PGA table is then shifted slightly (more for long shots, a little for putts) so that a typical 18-hole round loses exactly that many strokes in each category.</p>' +
+      '<table><tr><th>Baseline</th><th>Type</th><th class="num">Strokes/round vs Tour</th></tr>' + gaps + '</table>' +
+      '<p><b>Caveats</b></p><ul>' +
+      '<li>Estimated baselines are approximate. Use them to compare rounds with each other, not as exact numbers.</li>' +
+      '<li>Player Quality is Clippd\'s own scale. Treating it as linear in strokes is our assumption.</li>' +
+      '<li>D1 women and scratch men share the same Clippd score (87), so their baselines are identical.</li>' +
+      '<li>Women\'s baselines use the same distances as men\'s. Real tours play shorter courses (the LPGA plays roughly 700 yd shorter per round), so a given distance is harder for them than this shows.</li>' +
+      '<li>The category split for every group comes from scratch men. Other groups may lose strokes in a different mix.</li>' +
+      '<li>“Scratch” here means a 0 handicap on a typical course, as in the sources.</li></ul>' +
+      '<p class="muted">Researched October 2026.</p></div>' +
+      '<button class="big" data-act="aboutBack">‹ Back</button>';
   }
   function stat(l, v) { return '<div class="stat"><b>' + v + '</b><span>' + l + '</span></div>'; }
 
@@ -231,14 +299,14 @@
   function localDate(iso) { var t = new Date(iso); return t.getFullYear() + '-' + ('0' + (t.getMonth() + 1)).slice(-2) + '-' + ('0' + t.getDate()).slice(-2); }
   function csvFor(list) {
     var rows = [['date', 'course', 'hole', 'par', 'hole_yards', 'shot', 'from_lie', 'from_dist', 'from_unit', 'to_lie', 'to_dist', 'to_unit',
-      'distance_hit_yd', 'miss', 'penalty', 'category', 'bucket', 'expected_before', 'expected_after', 'strokes_gained', 'hole_score']];
+      'distance_hit_yd', 'miss', 'penalty', 'category', 'bucket', 'expected_before', 'expected_after', 'strokes_gained', 'hole_score', 'baseline']];
     list.forEach(function (r) {
       r.holes.forEach(function (h, hi) {
-        var a = SG.analyzeHole(h);
+        var a = SG.analyzeHole(h, blOf(r));
         a.shots.forEach(function (s) {
           rows.push([localDate(r.date), r.course, hi + 1, h.par, SG.holeYards(h), s.n, s.start.lie, s.start.dist, unit(s.start.lie), s.end.lie,
             s.end.dist, s.end.lie === 'holed' ? '' : unit(s.end.lie), s.hit == null ? '' : s.hit, s.dir, s.pen, CAT_NAME[s.cat], s.bucket,
-            s.eStart.toFixed(3), s.eEnd.toFixed(3), s.sg.toFixed(3), a.done ? a.strokes : '']);
+            s.eStart.toFixed(3), s.eEnd.toFixed(3), s.sg.toFixed(3), a.done ? a.strokes : '', blLabel(blOf(r))]);
         });
       });
     });
@@ -277,6 +345,9 @@
       case 'resume': view.roundId = localStorage.getItem(CUR); goHole(firstOpenHole(round()), true); return;
       case 'open': view.roundId = b.getAttribute('data-id'); view.screen = 'summary'; break;
       case 'home': view.screen = 'home'; break;
+      case 'about': view.back = view.screen; view.screen = 'about'; render(); window.scrollTo(0, 0); return;
+      case 'aboutBack': view.screen = view.back && view.back !== 'about' ? view.back : 'home'; render(); window.scrollTo(0, 0); return;
+      case 'setbl': setBaseline(v); return;
       case 'csvall': exportCSV(rounds, fileName(null)); return;
       case 'csv': exportCSV([r], fileName(r)); return;
       case 'delRound':
@@ -315,8 +386,14 @@
     render();
   });
 
+  function setBaseline(id) {
+    var r = round(); if (!r || r.baseline === id) return;
+    var y = window.scrollY; r.baseline = id; save(); render(); window.scrollTo(0, y);
+    toast('Now comparing with ' + blLabel(id));
+  }
   document.addEventListener('change', function (ev) {
     var t = ev.target, f = t.getAttribute('data-f'); if (!f) return;
+    if (f === 'baseline') { if (t.id === 'sumbl') setBaseline(t.value); return; }
     var h = round().holes[view.hole], k = +t.getAttribute('data-k'), row = h.rows[k];
     if (f === 'loc') {
       var v = t.value, was = row.loc;
@@ -338,7 +415,7 @@
   });
   // Update the per-shot info lines in place (no re-render, so taps and the keyboard aren't disturbed)
   function refreshInfo(h) {
-    var a = SG.analyzeHole(h), hint = document.getElementById('hint');
+    var a = AH(h), hint = document.getElementById('hint');
     if (hint) hint.textContent = hintText(h, a);
     var fb = document.querySelector('[data-act="finish"]'); if (fb) fb.disabled = !(a.complete && h.par);
     h.rows.forEach(function (row, k) {

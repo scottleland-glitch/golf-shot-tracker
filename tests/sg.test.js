@@ -178,3 +178,53 @@ test('summary counts short/over approach misses', () => {
   const S = SG.summarize({ holes: [{ par: 4, finished: true, rows: [R(400, 'tee'), R(150, 'fairway'), R(25, 'rough', 'S'), R(5, 'green'), R(1, 'holed')] }] });
   assert.strictEqual(S.apprShort, 1); assert.strictEqual(S.strokes, 5);
 });
+
+// ---- Baselines ----
+test('PGA table matches Broadie (2011) Table 9 incl. corrected 420-600 yd rows', () => {
+  near(SG.expected('fairway', 440), 4.27, 'fw 440'); near(SG.expected('rough', 600), 5.25, 'rough 600');
+  near(SG.expected('sand', 500), 5.40, 'sand 500'); near(SG.expected('recovery', 520), 5.32, 'rec 520');
+  near(SG.expected('tee', 600), 4.82, 'tee 600'); near(SG.expected('fairway', 400), 4.11, 'fw 400');
+  near(SG.expected('green', 8), 1.50, 'putt 8'); near(SG.expected('green', 30), 1.98, 'putt 30');
+});
+
+test('six baselines exist; only PGA is sourced', () => {
+  assert.deepStrictEqual(SG.BASELINES.map(b => b.id), ['pga', 'lpga', 'd1m', 'd1w', 'scm', 'scw']);
+  assert.deepStrictEqual(SG.BASELINES.filter(b => b.status === 'sourced').map(b => b.id), ['pga']);
+  assert.deepStrictEqual(SG.BASELINES.map(b => b.gap), [0, 4.7, 2.1, 5.5, 5.5, 6.8]);
+});
+
+test('each estimated baseline reproduces its sourced per-round gap by category on the calibration round', () => {
+  for (const b of SG.BASELINES) {
+    if (b.id === 'pga') continue;
+    const l = SG.catLoss(SG.CALIB_ROUND, b.id);
+    for (const c of ['tee', 'approach', 'short', 'putting']) near(+l[c].toFixed(9), +b.targets[c].toFixed(9), `${b.id} ${c}`);
+    const total = Object.values(l).reduce((x, y) => x + y, 0);
+    assert.ok(Math.abs(total - b.gap) < 1e-9, `${b.id} total ${total}`);
+    // scratch men: 2.5 / 1.5 / 0.5 / 1.0 (SwingU)
+    if (b.id === 'scm') { near(+l.tee.toFixed(9), 2.5, 'scm tee'); near(+l.putting.toFixed(9), 1.0, 'scm putt'); }
+  }
+});
+
+test('baselines are ordered sensibly and monotone in distance', () => {
+  const order = ['pga', 'd1m', 'lpga', 'scm', 'scw'];
+  for (const [lie, d] of [['tee', 420], ['fairway', 150], ['rough', 30], ['sand', 15], ['green', 20]]) {
+    const v = order.map(id => SG.expected(lie, d, id));
+    for (let i = 1; i < v.length; i++) assert.ok(v[i] >= v[i - 1], `${lie} ${d}: ${order[i]} >= ${order[i - 1]}`);
+  }
+  for (const id of order) for (let d = 20; d <= 600; d += 20) assert.ok(SG.expected('fairway', d, id) >= SG.expected('fairway', d - 20, id) - 1e-9);
+  near(SG.expected('holed', 0, 'scw'), 0, 'holed is 0 for all');
+});
+
+test("same round, different baseline: SG identity holds and Scott's 4 is still 4", () => {
+  const rows = [R(365, 'tee'), R(100, 'fairway', 'L'), R(6, 'green'), R(1, 'holed')];
+  for (const b of SG.BASELINES) {
+    const a = SG.analyzeHole({ par: 4, finished: true, rows }, b.id);
+    assert.strictEqual(a.strokes, 4);
+    near(a.sg, SG.expected('tee', 365, b.id) - 4, b.id + ' identity');
+  }
+  const S1 = SG.summarize({ holes: [{ par: 4, finished: true, rows }] }, 'pga');
+  const S2 = SG.summarize({ holes: [{ par: 4, finished: true, rows }] }, 'scm');
+  assert.ok(S2.sgTotal > S1.sgTotal, 'gains more vs scratch than vs tour'); assert.strictEqual(S2.baseline, 'scm');
+  const S3 = SG.summarize({ baseline: 'lpga', holes: [{ par: 4, finished: true, rows }] });
+  assert.strictEqual(S3.baseline, 'lpga', 'round setting used by default');
+});

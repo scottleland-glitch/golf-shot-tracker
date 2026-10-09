@@ -1,23 +1,28 @@
 /*
  * Strokes-gained engine for the golf tracker.
  *
- * BASELINE SOURCE
- * ---------------
- * Expected strokes to hole out are the PGA Tour baseline published by
- * Mark Broadie ("Every Shot Counts", 2014, Table 5.2 / Appendix and the
- * widely reproduced "PGA Tour average strokes to hole out" table, derived
- * from ShotLink data 2003-2012).
- *   - Off the green: yards, by lie (Tee, Fairway, Rough, Sand, Recovery).
- *   - On the green: feet.
- * Values between table rows are linearly interpolated.
+ * PGA TOUR BASELINE (sourced)
+ * ---------------------------
+ * Off the green (yards, by lie): Broadie, M. (2011/2012) "Assessing Golfer
+ *   Performance on the PGA TOUR", Appendix A, Table 9 (8M+ ShotLink shots,
+ *   2003-2010). https://www.columbia.edu/~mnb2/broadie/Assets/strokes_gained_pga_broadie_20110408.pdf
+ *   (Published in Interfaces 42(2), 2012.) Values below are copied verbatim.
+ *   Note: Broadie's book "Every Shot Counts" (2014, Table 5.2, 2004-2012 data)
+ *   has slightly different values beyond 400 yd; we use the verifiable paper.
+ * Putting (feet): Broadie, "Every Shot Counts" (2014) Table 3.10, as reproduced at
+ *   https://golfingfocus.com/what-percentage-of-putts-do-pros-make-tv-does-not-tell-the-story/
+ *   cross-checked with the 2011 paper text (8 ft ~ 1.5, 16 ft ~ 1.8, 33 ft = 2.0).
+ * Linear interpolation between rows.
  *
- * APPROXIMATIONS (not in Broadie's published table - our own estimates):
- *   - Tee shots under 100 yd: Broadie lists no tee values below 100 yd, so
- *     the Fairway column is used.
- *   - Under 10 yd off the green: held at the 10-yd value (no extrapolation).
+ * APPROXIMATIONS (ours, not in the published table):
+ *   - Tee shots under 100 yd: no published tee values, Fairway column used.
+ *   - Under 10 yd off the green: held at the 10-yd value.
  *   - Beyond 600 yd / 90 ft: extended with a gentle linear slope.
- *   - "Deep rough": Broadie has no such lie; estimated as Rough + 0.15.
- *   - "Hazard" (ball played from inside a hazard, no drop): uses Recovery.
+ *   - "Deep rough": not a Broadie lie; estimated as Rough + 0.15.
+ *   - "Hazard" (played from inside a hazard): Recovery column.
+ *
+ * OTHER BASELINES (LPGA, D1 men/women, scratch men/women) are ESTIMATED -
+ * see BASELINES below for sources and the derivation method.
  */
 (function (root) {
   'use strict';
@@ -31,24 +36,24 @@
   var OFF_GREEN = {
     fairway: [2.18, 2.40, 2.52, 2.60, 2.66, 2.70, 2.72, 2.75, 2.77,
       2.80, 2.85, 2.91, 2.98, 3.08, 3.19, 3.32, 3.45, 3.58, 3.69, 3.78,
-      3.84, 3.88, 3.95, 4.03, 4.11, 4.15, 4.20, 4.29, 4.40, 4.53,
-      4.66, 4.78, 4.86, 4.91, 4.94],
+      3.84, 3.88, 3.95, 4.03, 4.11, 4.19, 4.27, 4.34, 4.42, 4.50,
+      4.58, 4.66, 4.74, 4.82, 4.89],
     tee: [2.18, 2.40, 2.52, 2.60, 2.66, 2.70, 2.72, 2.75, 2.77,
       2.92, 2.99, 2.97, 2.99, 3.05, 3.12, 3.17, 3.25, 3.45, 3.65, 3.71,
       3.79, 3.86, 3.92, 3.96, 3.99, 4.02, 4.08, 4.17, 4.28, 4.41,
       4.54, 4.65, 4.74, 4.79, 4.82],
     rough: [2.34, 2.59, 2.70, 2.78, 2.87, 2.91, 2.93, 2.96, 2.99,
       3.02, 3.08, 3.15, 3.23, 3.31, 3.42, 3.53, 3.64, 3.74, 3.83, 3.90,
-      3.95, 4.02, 4.11, 4.21, 4.30, 4.34, 4.39, 4.48, 4.59, 4.72,
-      4.85, 4.97, 5.05, 5.10, 5.13],
+      3.95, 4.02, 4.11, 4.21, 4.30, 4.40, 4.49, 4.58, 4.68, 4.77,
+      4.87, 4.96, 5.06, 5.15, 5.25],
     sand: [2.43, 2.53, 2.66, 2.82, 2.92, 3.15, 3.21, 3.24, 3.24,
       3.23, 3.21, 3.22, 3.28, 3.40, 3.55, 3.70, 3.84, 3.93, 4.00, 4.04,
-      4.12, 4.26, 4.41, 4.55, 4.69, 4.73, 4.78, 4.87, 4.98, 5.11,
-      5.24, 5.36, 5.44, 5.49, 5.52],
+      4.12, 4.26, 4.41, 4.55, 4.69, 4.83, 4.97, 5.11, 5.25, 5.40,
+      5.54, 5.68, 5.82, 5.96, 6.10],
     recovery: [3.45, 3.51, 3.57, 3.71, 3.79, 3.83, 3.84, 3.84, 3.82,
       3.80, 3.78, 3.80, 3.81, 3.82, 3.87, 3.92, 3.97, 4.03, 4.10, 4.20,
-      4.31, 4.44, 4.56, 4.66, 4.75, 4.79, 4.84, 4.93, 5.04, 5.17,
-      5.30, 5.42, 5.50, 5.55, 5.58]
+      4.31, 4.44, 4.56, 4.66, 4.75, 4.84, 4.94, 5.03, 5.13, 5.22,
+      5.32, 5.41, 5.51, 5.60, 5.70]
   };
 
   // Putting (feet) - Broadie PGA Tour average putts to hole out.
@@ -76,7 +81,7 @@
    * lie: tee | fairway | rough | deep | sand | recovery | hazard | green | holed
    * dist: yards (off green) or feet (green).
    */
-  function expected(lie, dist) {
+  function expectedPGA(lie, dist) {
     if (lie === 'holed') return 0;
     dist = Math.max(0, Number(dist) || 0);
     if (lie === 'green') return interp(FEET, PUTTS, dist, 0.005);
@@ -228,7 +233,7 @@
    * position is the shot's own start (stroke and distance) - stored lie/dist
    * are ignored.
    */
-  function analyzeHole(hole) {
+  function analyzeHole(hole, baseline) {
     var bad = null, problem = '', complete = null, finished = true, rowsFmt = !!hole.rows, nRows = 0, liveStrokes = 0;
     if (rowsFmt) {
       var conv = rowsToShots(hole.rows); bad = conv.bad; problem = conv.problem; complete = conv.complete;
@@ -244,8 +249,8 @@
       var end = pen === 'ob' ? { lie: start.lie, dist: start.dist }
         : { lie: s.lie, dist: s.lie === 'holed' ? 0 : Number(s.dist) || 0 };
       var penStrokes = PENALTY_STROKES[pen] || 0;
-      var eStart = expected(start.lie, start.dist);
-      var eEnd = expected(end.lie, end.dist);
+      var eStart = expected(start.lie, start.dist, baseline);
+      var eEnd = expected(end.lie, end.dist, baseline);
       var sg = eStart - eEnd - 1 - penStrokes;
 
       var cat, bucket;
@@ -294,7 +299,8 @@
     };
   }
 
-  function summarize(round) {
+  function summarize(round, baseline) {
+    baseline = baseline || round.baseline || 'pga';
     var S = {
       strokes: 0, par: 0, holesDone: 0, holesStarted: 0, penalties: 0, putts: 0,
       fwHit: 0, fwTotal: 0, gir: 0, girHoles: 0,
@@ -307,7 +313,7 @@
       '0-5 ft', '5-15 ft', '15-30 ft', '30+ ft'];
     order.forEach(function (b) { S.buckets[b] = { sg: 0, n: 0 }; });
     (round.holes || []).forEach(function (h) {
-      var a = analyzeHole(h);
+      var a = analyzeHole(h, baseline);
       S.holes.push(a);
       if (!a.shots.length) return;
       S.holesStarted++;
@@ -331,10 +337,129 @@
       });
     });
     S.toPar = S.strokes - S.par;
+    S.baseline = baseline;
     return S;
   }
 
-  var api = { expected: expected, analyzeHole: analyzeHole, summarize: summarize,
+
+  /* ===================== BASELINES =====================
+   * Only the PGA Tour table is published (see header). For the other groups no
+   * public expected-strokes table exists (searched: Broadie papers/book, LPGA/KPMG,
+   * Clippd/Scoreboard, Lou Stagner/DECADE, Arccos, Shot Scope - Oct 2026), so they
+   * are ESTIMATED from sourced per-round gaps to the PGA Tour average:
+   *
+   *  Scratch men: 5.5 strokes/round behind the PGA Tour average, split
+   *    driving 2.5, approach 1.5, short game 0.5, putting 1.0.
+   *    Source: P. Sanders (ShotByShot/SwingU), "The Statistical Differences Between
+   *    A Scratch Golfer And PGA Tour Player" (8,360 scratch rounds vs 14,557 2015
+   *    ShotLink rounds) https://clubhouse.swingu.com/statistics/the-statistical-differences-between-a-scratch-golfer-and-pga-tour-player/
+   *    Consistent with L. Stagner: avg Tour pro = +5.4 index https://golf.com/instruction/pro-golfer-handicap-index-score/
+   *  Other groups: Clippd "Player Quality" ladder, one scale with 100 = male tour avg:
+   *    Male D1 College 95, LPGA Tour Avg 89, Female D1 College 87, Male Scratch 87,
+   *    Female Scratch 84. https://www.clippd.com/insights/post/shot-quality-and-player-quality-clippds-new-performance-metrics
+   *    We assume the scale is linear in strokes and anchor it with the scratch-men
+   *    gap: 13 points = 5.5 strokes -> 0.423 strokes/point. Gaps: D1 men 2.1,
+   *    LPGA 4.7, D1 women 5.5, scratch women 6.8 strokes/round. The scratch-men
+   *    category split (45/27/9/18 %) is applied to every group (assumption).
+   *
+   * Turning a per-round gap into a table: expected strokes for a group =
+   * PGA value + extra(lie, dist), where
+   *   on the green:  extra = cP * (E_pga - 1)
+   *   off the green: extra = 0.61*cP + k(d)*(E_pga - 2)   [k = b inside 20 yd, a beyond 40 yd, blended]
+   *   from the tee:  same + t (for holes of 280+ yd, blended from 230 yd) = par-4/5 driving
+   * (0.61 = average first-putt value above 1 on Tour: ~29 putts/18 holes.)
+   * cP, a, b, t are solved so that a typical 18-hole round (synthetic, below)
+   * loses exactly the sourced gap in each category. Because strokes gained
+   * telescopes, every hole's total difference is extra(tee).
+   */
+  var BASELINES = [
+    { id: 'pga', name: 'PGA Tour', status: 'sourced', gap: 0 },
+    { id: 'lpga', name: 'LPGA Tour', status: 'estimated', pq: 89 },
+    { id: 'd1m', name: 'D1 college men', status: 'estimated', pq: 95 },
+    { id: 'd1w', name: 'D1 college women', status: 'estimated', pq: 87 },
+    { id: 'scm', name: 'Scratch men', status: 'estimated', gap: 5.5 },
+    { id: 'scw', name: 'Scratch women', status: 'estimated', pq: 84 }
+  ];
+  var SCRATCH_SPLIT = { tee: 2.5 / 5.5, approach: 1.5 / 5.5, short: 0.5 / 5.5, putting: 1.0 / 5.5 };
+  var STROKES_PER_PQ = 5.5 / (100 - 87);
+  var BL = {};
+  BASELINES.forEach(function (b) {
+    if (b.gap == null) b.gap = Math.round((100 - b.pq) * STROKES_PER_PQ * 10) / 10;
+    b.targets = { tee: b.gap * SCRATCH_SPLIT.tee, approach: b.gap * SCRATCH_SPLIT.approach,
+      short: b.gap * SCRATCH_SPLIT.short, putting: b.gap * SCRATCH_SPLIT.putting };
+    BL[b.id] = b;
+  });
+
+  function extraFor(p, lie, dist, ePGA) {
+    if (lie === 'holed') return 0;
+    if (lie === 'green') return p.cP * (ePGA - 1);
+    var d = Number(dist) || 0;
+    var k = d <= 20 ? p.b : d >= 40 ? p.a : p.b + (p.a - p.b) * (d - 20) / 20;
+    var x = 0.61 * p.cP + k * Math.max(0, ePGA - 2);
+    if (lie === 'tee') x += p.t * (d >= 280 ? 1 : d <= 230 ? 0 : (d - 230) / 50);
+    return x;
+  }
+  function expected(lie, dist, baseline) {
+    var e = expectedPGA(lie, dist);
+    var b = BL[baseline || 'pga'];
+    if (!b || !b.params) return e;
+    return e + extraFor(b.params, lie, dist, e);
+  }
+
+  // Synthetic "typical" round used for calibration (old {par, yards, shots} format).
+  // 18 holes, 7 short-game shots, ~29-31 putts, a mix of fairways/rough.
+  function H(par, yards, n, shots) { var o = []; for (var i = 0; i < n; i++) o.push({ par: par, yards: yards, shots: shots.map(function (x) { return { lie: x[0], dist: x[1] || 0, pen: 'none' }; }) }); return o; }
+  var CALIB_ROUND = { holes: [].concat(
+    H(3, 190, 2, [['green', 30], ['green', 2], ['holed']]),
+    H(3, 190, 2, [['rough', 15], ['green', 6], ['holed']]),
+    H(4, 430, 6, [['fairway', 150], ['green', 25], ['green', 2], ['holed']]),
+    H(4, 430, 4, [['rough', 160], ['rough', 20], ['green', 7], ['holed']]),
+    H(5, 560, 3, [['fairway', 270], ['fairway', 50], ['green', 12], ['green', 1], ['holed']]),
+    H(5, 560, 1, [['fairway', 280], ['sand', 20], ['green', 8], ['holed']])) };
+  function catLoss(round, id) {
+    // strokes per round the baseline group loses to the PGA Tour, by category
+    var a = summarizeAll(round, 'pga'), b = summarizeAll(round, id), out = {};
+    ['tee', 'approach', 'short', 'putting'].forEach(function (c) { out[c] = b.cats[c].sg - a.cats[c].sg; });
+    return out;
+  }
+  function summarizeAll(round, baseline) {
+    var cats = { tee: { sg: 0 }, approach: { sg: 0 }, short: { sg: 0 }, putting: { sg: 0 } };
+    round.holes.forEach(function (h) { analyzeHole(h, baseline).shots.forEach(function (r) { cats[r.cat].sg += r.sg; }); });
+    return { cats: cats };
+  }
+  function solve(M, y) {
+    var n = y.length, A = M.map(function (r, i) { return r.concat([y[i]]); });
+    for (var c = 0; c < n; c++) {
+      var piv = c; for (var r = c + 1; r < n; r++) if (Math.abs(A[r][c]) > Math.abs(A[piv][c])) piv = r;
+      var tmp = A[c]; A[c] = A[piv]; A[piv] = tmp;
+      for (var r2 = 0; r2 < n; r2++) if (r2 !== c) {
+        var f = A[r2][c] / A[c][c]; for (var k = c; k <= n; k++) A[r2][k] -= f * A[c][k];
+      }
+    }
+    return A.map(function (r, i) { return r[n] / r[i]; });
+  }
+  function calibrate() {
+    var names = ['cP', 'a', 'b', 't'], cats = ['tee', 'approach', 'short', 'putting'];
+    var probe = { id: '__probe' }; BL.__probe = probe;
+    var cols = names.map(function (nm) {
+      probe.params = { cP: 0, a: 0, b: 0, t: 0 }; probe.params[nm] = 1;
+      var l = catLoss(CALIB_ROUND, '__probe');
+      return cats.map(function (c) { return l[c]; });
+    });
+    delete BL.__probe;
+    var M = cats.map(function (c, i) { return names.map(function (nm, j) { return cols[j][i]; }); });
+    BASELINES.forEach(function (b) {
+      if (b.id === 'pga') return;
+      var y = cats.map(function (c) { return b.targets[c]; }); // the same shots gain this much MORE vs the weaker group
+      var p = solve(M, y), o = {};
+      names.forEach(function (nm, i) { o[nm] = p[i]; });
+      b.params = o;
+    });
+  }
+
+  calibrate();
+  var api = { expected: expected, expectedPGA: expectedPGA, BASELINES: BASELINES, baseline: function (id) { return BL[id] || BL.pga; },
+    CALIB_ROUND: CALIB_ROUND, catLoss: catLoss, analyzeHole: analyzeHole, summarize: summarize,
     rowsToShots: rowsToShots, shotsToRows: shotsToRows, migrateV2Rows: migrateV2Rows, v1ToRows: v1ToRows, holeYards: holeYards,
     rowUnit: rowUnit, lieOf: lieOf, distOf: distOf, rowStrokes: rowStrokes, isPenalty: isPenalty,
     YARDS: YARDS, OFF_GREEN: OFF_GREEN, FEET: FEET, PUTTS: PUTTS };

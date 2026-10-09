@@ -1,6 +1,6 @@
 # Golf Shot Tracker (PWA)
 
-Phone web app for tracking every golf shot and strokes gained (vs. PGA Tour baseline).
+Phone web app for tracking every golf shot and strokes gained against a selectable baseline (PGA Tour by default).
 Static files only: no backend, no build step. Data is stored on the phone (localStorage).
 
 ## How a hole is entered (v3)
@@ -10,6 +10,15 @@ OB re-hit, In the hole, In the hole (chip/shot), Deep rough, Trees. The LAST row
 distance of the putt/shot that went in. LRSO = how the previous shot missed. P = +1 penalty to get here.
 Score = rows + penalties. "Finish hole" is enabled only when every row is complete; "Edit this hole" reopens it.
 Older saves are migrated automatically (a v2 "In the hole" row without a distance reopens the hole until filled).
+
+## Baselines (v4)
+Pick a baseline per round (PGA Tour, LPGA Tour, D1 college men, D1 college women, scratch men, scratch women).
+On the summary you can switch it for any saved round (instant recalculation) and see the same round
+vs all six baselines side by side. Only the PGA Tour table is published (Broadie 2011, Table 9; putting from
+Every Shot Counts Table 3.10). The other five are ESTIMATED: per-round gaps from SwingU/ShotByShot
+(scratch men 5.5 strokes behind Tour: 2.5 tee / 1.5 approach / 0.5 short / 1.0 putting) scaled by Clippd's
+Player Quality ladder, then spread over the PGA table. Full sources, method and caveats: in-app
+"About the numbers" and the BASELINES comment in `sg.js`.
 
 ## Files
 - `index.html`, `styles.css`, `app.js` – the app

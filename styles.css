@@ -130,3 +130,15 @@ td.num, th.num { text-align: right; }
 .holecard.fin .c-p .pen.on:disabled, .c-p .pen.on:disabled { opacity: 1; }
 .srow select[data-f="loc"] { font-size: 15px; letter-spacing: -0.3px; padding-left: 4px; padding-right: 14px; background-position: calc(100% - 10px) 21px, calc(100% - 5px) 21px; }
 .srow { grid-template-columns: 30px 68px minmax(0, 1fr) 50px 44px 44px; }
+/* v4: baselines */
+.lbl { display: block; font-weight: 700; font-size: 16px; margin: 12px 0 4px; }
+select.blsel { font: inherit; font-size: 19px; font-weight: 700; width: 100%; min-height: 54px; padding: 8px 12px; border: 3px solid var(--line); border-radius: 12px; background: #fff; color: #000; }
+.blbox { border: 3px solid #000; border-radius: 14px; padding: 4px 12px 2px; margin: 8px 0 12px; background: #f6f6f6; }
+table.cmp { font-size: 15px; }
+table.cmp th, table.cmp td { padding: 10px 3px; }
+table.cmp tr[data-act] { cursor: pointer; }
+table.cmp tr.cur td { background: #fff3b0; font-weight: 800; }
+table.cmp sup { font-size: 10px; margin-left: 2px; }
+.about { font-size: 17px; line-height: 1.45; }
+.about a { color: #0645ad; font-weight: 700; word-break: break-word; }
+.about li { margin-bottom: 8px; }

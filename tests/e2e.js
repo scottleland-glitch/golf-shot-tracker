@@ -61,8 +61,15 @@ let passed = 0; const ok = (m) => { passed++; console.log('  ✓', m); };
   await act('home');
 
   // New round: Scott's example 365 Tee, 130 F, 15 ft G, 3 ft In the hole
+  // Baseline picker on the new-round form
+  const opts = await page.$$eval('#newbl option', os => os.map(o => o.value + '|' + o.textContent));
+  assert.deepStrictEqual(opts, ['pga|PGA Tour', 'lpga|LPGA Tour (estimated)', 'd1m|D1 college men (estimated)', 'd1w|D1 college women (estimated)', 'scm|Scratch men (estimated)', 'scw|Scratch women (estimated)']);
+  assert.strictEqual(await page.$eval('#newbl', e => e.value), 'pga'); ok('new-round baseline picker: 6 baselines, default PGA Tour, others marked estimated');
   await page.fill('#course', 'Washoe County GC');
+  await page.selectOption('#newbl', 'd1m');
+  await hideToast(); await page.screenshot({ path: `${SHOTS}/1-new-round-baseline-picker.png` });
   await act('new');
+  assert.match(await header(), /SG vs D1 college men/); ok('round stores its baseline; hole header shows "SG vs D1 college men"');
   assert.ok(await page.evaluate(() => document.activeElement.getAttribute('data-row') === '0')); ok('new hole: cursor in row 1 distance (Tee)');
   await dist(0, 365);
   await act('addShot'); assert.ok(await page.evaluate(() => document.activeElement.getAttribute('data-row') === '1')); ok('Add Shot adds row 2 and focuses its distance');
@@ -128,6 +135,8 @@ let passed = 0; const ok = (m) => { passed++; console.log('  ✓', m); };
   // Summary
   await page.locator('[data-act="summary"]').first().click();
   const sum = await page.evaluate(() => SG.summarize(window.__golf.rounds()[0]));
+  assert.strictEqual(sum.baseline, 'd1m'); assert.strictEqual(await page.$eval('#sumbl', e => e.value), 'd1m');
+  assert.match(await page.textContent('#blnote'), /D1 college men – estimated/); ok('summary shows the baseline in use (D1 college men, estimated)');
   assert.strictEqual(sum.strokes, 16); assert.strictEqual(sum.par, 12); assert.strictEqual(sum.penalties, 2);
   assert.strictEqual(sum.putts, 6); assert.strictEqual(sum.fwHit, 1); assert.strictEqual(sum.fwTotal, 2);
   assert.match(await page.textContent('.big-score'), /16\s*\+4 vs par/); ok('summary: 16 (+4) = 4 + 4 + 8, 2 penalties, 6 putts, FW 1/2');
@@ -141,14 +150,65 @@ let passed = 0; const ok = (m) => { passed++; console.log('  ✓', m); };
   await page.locator('[data-act="summary"]').first().click();
   const csv = await page.evaluate(() => window.__golf.csvFor([window.__golf.rounds()[0]]));
   const lines = csv.trim().split('\r\n'); assert.strictEqual(lines.length, 1 + 4 + 4 + 6);
-  const scores = new Set(lines.slice(1).map(l => l.split(',').pop())); assert.deepStrictEqual([...scores].sort(), ['4', '8']);
+  assert.strictEqual(lines[0].split(',').pop(), 'baseline'); assert.ok(lines.slice(1).every(l => l.endsWith(',D1 college men (estimated)'))); ok('CSV has a baseline column');
+  const scores = new Set(lines.slice(1).map(l => l.split(',')[20])); assert.deepStrictEqual([...scores].sort(), ['4', '8']);
   ok('CSV: 14 shot rows, hole scores 4/4/8');
   const [dl] = await Promise.all([page.waitForEvent('download'), act('csv')]);
   assert.match(dl.suggestedFilename(), /golf-\d{4}-\d\d-\d\d-Washoe-County-GC\.csv/); ok('CSV download: ' + dl.suggestedFilename());
   await page.screenshot({ path: `${SHOTS}/4-summary.png` });
 
+  // Switch baseline on the summary: instant recalculation + side-by-side comparison
+  const expectAll = await page.evaluate(() => SG.BASELINES.map(b => { const S = SG.summarize(window.__golf.rounds()[0], b.id); return [b.id, S.sgTotal, S.cats.tee.sg, S.cats.putting.sg]; }));
+  const cmpRows = await page.$$eval('#cmp tr[data-act="setbl"]', trs => trs.map(t => [t.getAttribute('data-v'), t.lastElementChild.textContent]));
+  assert.strictEqual(cmpRows.length, 6);
+  const f2 = v => { const s = (Math.round(v * 100) / 100).toFixed(2); return (v > 0.004 ? '+' : '') + (s === '-0.00' ? '0.00' : s); };
+  cmpRows.forEach((r, i) => { assert.strictEqual(r[0], expectAll[i][0]); assert.strictEqual(r[1], f2(expectAll[i][1])); });
+  for (let i = 1; i < 6; i++) assert.ok(expectAll[i][1] > expectAll[0][1], 'weaker baseline → more SG');
+  ok('comparison table: same round vs all 6 baselines, totals ' + cmpRows.map(r => r[0] + ' ' + r[1]).join(', '));
+  const before = await page.textContent('#sgtotal');
+  await page.selectOption('#sumbl', 'scm');
+  assert.strictEqual(await page.textContent('#sgtotal'), f2(expectAll[4][1])); assert.notStrictEqual(await page.textContent('#sgtotal'), before);
+  assert.strictEqual(await page.evaluate(() => window.__golf.rounds()[0].baseline), 'scm');
+  assert.match(await page.textContent('#blnote'), /Scratch men – estimated/);
+  assert.strictEqual(await page.getAttribute('#cmp tr.cur', 'data-v'), 'scm');
+  ok(`switching baseline recalculates instantly: ${before} (D1 men) → ${f2(expectAll[4][1])} (scratch men), saved with the round`);
+  await page.locator('#cmp tr[data-v="pga"]').click();
+  assert.strictEqual(await page.$eval('#sumbl', e => e.value), 'pga'); assert.strictEqual(await page.textContent('#sgtotal'), f2(expectAll[0][1]));
+  assert.match(await page.textContent('#blnote'), /published PGA Tour data/); ok('tapping a comparison row switches to it (PGA Tour, published)');
+  await page.selectOption('#sumbl', 'scm'); await hideToast();
+  await page.locator('.blbox').scrollIntoViewIfNeeded(); await page.evaluate(() => window.scrollBy(0, -70));
+  await page.screenshot({ path: `${SHOTS}/11-summary-baseline-compare.png` });
+  await page.locator('[data-act="goHole"][data-i="0"]').click();
+  assert.match(await header(), /SG vs Scratch men/); ok('hole screen follows the switched baseline');
+  await page.locator('[data-act="summary"]').first().click();
+  await noOverflow('summary');
+  // About the numbers
+  await act('about');
+  const about = await page.textContent('.about');
+  assert.match(about, /Table 9/); assert.match(about, /No published expected-strokes table exists/); assert.match(about, /5\.5 strokes per round/);
+  assert.strictEqual(await page.locator('.about a[href*="columbia.edu"]').count(), 1);
+  assert.strictEqual(await page.locator('.about a[href*="swingu.com"]').count(), 1);
+  assert.strictEqual(await page.locator('.about a[href*="clippd.com"]').count(), 1);
+  assert.strictEqual(await page.locator('.about table tr').count(), 7);
+  ok('About the numbers: cites Broadie Table 9, SwingU, Clippd; 6 baselines listed as Published/Estimated');
+  await noOverflow('about');
+  await page.evaluate(() => window.scrollTo(0, 0)); await page.screenshot({ path: `${SHOTS}/12-about-the-numbers.png` });
+  await page.screenshot({ path: `${SHOTS}/12b-about-the-numbers-full.png`, fullPage: true });
+  await act('aboutBack'); await page.waitForSelector('#sumbl'); ok('About › Back returns to the summary');
+  // A past round (saved before baselines existed) can be benchmarked too
+  await act('home');
+  await page.locator('[data-act="open"][data-id="rv2"]').click();
+  assert.strictEqual(await page.$eval('#sumbl', e => e.value), 'pga'); ok('old round defaults to PGA Tour');
+  const old = await page.evaluate(() => { const r = window.__golf.rounds().find(x => x.id === 'rv2'); return [SG.summarize(r, 'pga').sgTotal, SG.summarize(r, 'scw').sgTotal]; });
+  await page.selectOption('#sumbl', 'scw');
+  assert.strictEqual(await page.textContent('#sgtotal'), f2(old[1])); ok(`past round re-benchmarked: ${f2(old[0])} vs PGA → ${f2(old[1])} vs scratch women`);
+  await page.selectOption('#sumbl', 'pga');
+  await act('home');
+  await page.locator('[data-act="open"]').first().click();
+
   // Persistence + offline
   await page.reload(); await page.waitForSelector('text=Continue round'); ok('rounds persist after reload');
+  assert.strictEqual(await page.evaluate(() => JSON.parse(localStorage.getItem('golfsg.rounds.v1'))[0].baseline), 'scm'); ok('switched baseline persists after reload');
   await page.waitForFunction(() => !!navigator.serviceWorker.controller, null, { timeout: 15000 }).catch(async () => { await page.reload(); await page.waitForFunction(() => !!navigator.serviceWorker.controller); });
   await ctx.setOffline(true);
   await page.reload(); await page.waitForSelector('text=Continue round');
