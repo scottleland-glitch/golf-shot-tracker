@@ -23,8 +23,7 @@ Player Quality ladder, then spread over the PGA table. Full sources, method and 
 ## Directions and maps (v5)
 Dir = where the previous shot ended vs its target, 8 ways (Short = toward you, Long, Left, Right,
 Short left/right, Long left/right), picked from a 3x3 grid. Old L/R/S/O saves become Left/Right/Short/Long.
-Summary tiles: "Approach misses" (approach shots that missed the green; lay-ups more than 50 yd out with
-no direction are left out) opens a map of misses around the green by direction; "Greens in reg." opens a
+Summary tiles: "Approach misses" (one per non-GIR hole: the regulation shot - see "GIR and misses (v12)") opens a map of misses around the green by direction; "Greens in reg." opens a
 map with the hole in the middle and rings at 5-30 ft (radius = first-putt distance, angle = direction).
 Both maps: This round / All rounds, legend, counts by direction.
 
@@ -61,6 +60,17 @@ Note: rounds are saved per web address, so keep using the same URL.
 ## Proximity by distance (v11)
 Stats page → **Proximity by distance** tile (value = average proximity of all approaches from 40–200 yd) opens a full-window view.
 - **Range dropdown:** *All 40–200 yd* plus 16 ten-yard buckets 40–50, 50–60 … 190–200, by the yardage the approach was hit from. Lower bound inclusive, upper exclusive (140–150 = 140 up to 149); 190–200 also includes 200.
-- **Which shot (one per finished hole):** the shot that reached the green (next row Green / In the hole, or a chip-in from ≤30 yd) if it was hit from more than 30 yd; otherwise the last shot from more than 30 yd before the green was reached, which counts as a miss. Hit/miss is that shot's own result, not regulation, so a par-5 third that finds the green is a "hit" here even if it wasn't a GIR.
+- **Which shot (one per finished hole):** the regulation shot (see "GIR and misses (v12)"): the shot that reached the green in regulation (blue) or the regulation miss (red), bucketed by the distance it was hit from.
 - **Map:** green with white rings every 5 ft to 30 ft and room around it. Tracers come up from the bottom (the golfer). Blue = hit, placed at first-putt feet in the recorded direction, labeled in ft (★ = holed). Red = miss, placed in the miss direction at yards-left × 3 ft on the same scale, labeled yards + lie. Misses farther than the picture are clamped to the edge and marked "›". No direction entered: blue "?" straight up at the right distance, red "?" in the bottom-right corner.
 - **Stats:** shots, greens hit %, average proximity on greens hit (ft), average proximity overall (misses = yards × 3; OB has no proximity and is left out of the averages), plus misses by direction. This round / All rounds toggle.
+
+## GIR and misses - Scott's definitive rule (v12)
+Applies to the GIR tile + map, Approach-miss tile + map, Pin location map, Proximity by distance, the
+"Missed greens left/right/short/long" stats and the CSV (`gir` = yes/no per hole, `regulation` = GIR/miss on the regulation shot's row).
+- Regulation stroke = par − 2 (par 3: tee shot, par 4: 2nd shot, par 5: 3rd shot), penalty strokes counted.
+- GIR: a ball reaches the green (or is holed; a chip-in from ≤30 yd right after also counts) by then. GIR position = first-putt distance/direction (holed = ★).
+- Otherwise the hole is a miss and the miss is the regulation shot, drawn where it finished (lie, direction, distance to the pin).
+  A par-4 tee shot or par-5 2nd shot short of the green is never a miss. If stroke par − 2 was a penalty stroke, the ball actually struck before it is used (e.g. par-4 tee shot OB → the tee shot is the miss; par-5 tee OB → the re-tee, stroke 3, is the miss).
+- Exactly one entry per finished hole: GIR + misses = holes, everywhere. The old 50-yd lay-up exclusion and "shot's own result" rule are gone.
+- Fairways hit: par-4 and par-5 tee shots only.
+- Tracers on the fairway and proximity maps are drawn as gentle ball-flight arcs.

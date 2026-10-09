@@ -211,7 +211,7 @@ let passed = 0; const ok = (m) => { passed++; console.log('  ✓', m); };
   await page.locator('[data-act="summary"]').first().click();
   const csv = await page.evaluate(() => window.__golf.csvFor([window.__golf.rounds()[0]]));
   const lines = csv.trim().split('\r\n'); assert.strictEqual(lines.length, 1 + 4 + 4 + 6);
-  const hdr = lines[0].split(','); assert.deepStrictEqual(hdr.slice(-2), ['baseline', 'pin']);
+  const hdr = lines[0].split(','); assert.deepStrictEqual(hdr.slice(-4), ['baseline', 'pin', 'gir', 'regulation']);
   assert.ok(lines.slice(1).every(l => l.split(',')[21] === 'D1 college men (estimated)')); ok('CSV has a baseline column');
   assert.deepStrictEqual([...new Set(lines.slice(1).map(l => l.split(',')[2] + ':' + l.split(',')[22]))], ['1:backright', '2:', '3:']); ok('CSV pin column: hole 1 = backright, others blank');
   const scores = new Set(lines.slice(1).map(l => l.split(',')[20])); assert.deepStrictEqual([...scores].sort(), ['4', '8']);
@@ -246,24 +246,28 @@ let passed = 0; const ok = (m) => { passed++; console.log('  ✓', m); };
   await page.locator('[data-act="summary"]').first().click();
   await noOverflow('summary');
   // Approach-miss and GIR maps
-  assert.match(await page.textContent('[data-act="map"][data-v="miss"]'), /^1\s*Approach misses/); 
-  assert.match(await page.textContent('[data-act="map"][data-v="miss"] .mini'), /←1/); ok('Approach misses tile: 1 (←1)');
+  assert.match(await page.textContent('[data-act="map"][data-v="miss"]'), /^2\s*Approach misses/); 
+  assert.match(await page.textContent('[data-act="map"][data-v="miss"] .mini'), /←2/); ok('Approach misses tile: 2 (←2) = hole 2 par-3 tee shot in the bunker + hole 3 par-5 regulation shot (the re-tee, stroke 3) into the hazard; GIR 1/3 + 2 misses = 3 holes');
   await hideToast(); await page.locator('[data-act="map"][data-v="gir"]').scrollIntoViewIfNeeded(); await page.evaluate(() => window.scrollBy(0, 250));
   await page.screenshot({ path: `${SHOTS}/16-summary-map-tiles.png` });
   await page.locator('[data-act="map"][data-v="miss"]').click();
   await page.waitForSelector('#missmap');
   const box = await page.$eval('#mapview', e => { const r = e.getBoundingClientRect(); return [r.width, r.height]; }); assert.deepStrictEqual(box, [390, 844]); ok('miss map opens full-window (390×844)');
-  assert.match(await page.textContent('#mapsum'), /1 approach missed the green this round/);
-  assert.strictEqual(await page.textContent('#missmap .mcount[data-dir="left"] text'), '1');
-  assert.strictEqual(await page.locator('#missmap .mdot').count(), 1);
-  assert.strictEqual(await page.textContent('#dirtab tr[data-dir="left"] td.num'), '1'); ok('this round: 1 miss, plotted left of the green, counts table Left 1');
+  assert.match(await page.textContent('#mapsum'), /2 approaches missed the green this round/);
+  assert.strictEqual(await page.textContent('#missmap .mcount[data-dir="left"] text'), '2');
+  assert.strictEqual(await page.locator('#missmap .mdot').count(), 2);
+  assert.strictEqual(await page.textContent('#dirtab tr[data-dir="left"] td.num'), '2'); ok('this round: 2 misses, plotted left of the green, counts table Left 2');
   await act('mapscope', 'all');
   const exp = await page.evaluate(() => window.__golf.rounds().reduce((n, r) => n + SG.summarize(r).apprMiss.length, 0));
-  assert.strictEqual(exp, 8);
-  assert.match(await page.textContent('#mapsum'), /8 approaches missed the green in 3 rounds/);
+  const inv = await page.evaluate(() => window.__golf.rounds().map(r => { const S = SG.summarize(r); return [S.gir, S.apprMiss.length, S.holesDone, S.girMap.length]; }));
+  inv.forEach(([g, m, h, gm]) => { assert.strictEqual(g + m, h, 'GIR + misses = holes'); assert.strictEqual(gm, g); });
+  assert.match(await page.textContent('#mapsum'), new RegExp(exp + ' approaches missed the green in 3 rounds'));
   const cnt = await page.$$eval('#missmap .mcount', gs => Object.fromEntries(gs.map(g => [g.getAttribute('data-dir'), +g.textContent])));
-  assert.deepStrictEqual(cnt, { long: 0, longright: 0, right: 2, shortright: 1, short: 2, shortleft: 1, left: 1, longleft: 1 });
-  assert.strictEqual(await page.locator('#missmap .mdot').count(), 8); ok('all rounds: 8 misses by sector ' + JSON.stringify(cnt));
+  const expCnt = await page.evaluate(() => { const c = {}; SG.DIR8.forEach(d => c[d] = 0); window.__golf.rounds().forEach(r => SG.summarize(r).apprMiss.forEach(m => { if (m.dir) c[m.dir]++; })); return c; });
+  assert.deepStrictEqual(cnt, expCnt);
+  const noDirMiss = await page.evaluate(() => window.__golf.rounds().reduce((n, r) => n + SG.summarize(r).apprMiss.filter(m => !m.dir).length, 0));
+  assert.strictEqual(await page.locator('#missmap .mdot').count() + noDirMiss, exp);
+  ok(`all rounds: ${exp} misses (GIR + misses = holes in every round: ${inv.map(x => x[0] + '+' + x[1] + '=' + x[2]).join(', ')}); by sector ` + JSON.stringify(cnt));
   await page.screenshot({ path: `${SHOTS}/14-approach-miss-map.png` });
   await page.screenshot({ path: `${SHOTS}/14b-approach-miss-map-full.png`, fullPage: false });
   await page.locator('#mapview').evaluate(e => e.scrollTo(0, e.scrollHeight)); await page.screenshot({ path: `${SHOTS}/14c-approach-miss-map-counts.png` });
@@ -313,10 +317,11 @@ let passed = 0; const ok = (m) => { passed++; console.log('  ✓', m); };
   assert.deepStrictEqual(await page.$$eval('#fwtab tr[data-kind]', rs => rs.map(r => r.getAttribute('data-kind') + ' ' + [...r.querySelectorAll('td.num')].map(t => t.textContent).join('/'))),
     ['rough 1/1/2', 'bunker 0/0/0', 'hazard 0/0/0', 'trees 0/0/0', 'ob 0/1/1']);
   // geometry: misses left end left of the tee, rights to the right, length ∝ distance hit (1.5 px/yd from y=532)
-  const ends = await page.$$eval('#fwmap path.tracer', ps => ps.map(p => { const n = p.getAttribute('d').split(/[ MQ]+/).filter(Boolean).map(Number); return [p.getAttribute('data-side'), p.getAttribute('class').split(' ')[1], n[4], n[5]]; }));
+  const ends = await page.$$eval('#fwmap path.tracer', ps => ps.map(p => { const n = p.getAttribute('d').split(/[ MC]+/).filter(Boolean).map(Number); return [p.getAttribute('data-side'), p.getAttribute('class').split(' ')[1], n[6], n[7], p.getAttribute('d')]; }));
   ends.filter(e => e[1] === 'miss').forEach(e => assert.ok(e[0] === 'L' ? e[2] < 140 : e[2] > 220, 'miss side ' + e));
   ends.filter(e => e[1] === 'hit').forEach(e => assert.ok(e[2] > 140 && e[2] < 220, 'hit inside fairway ' + e));
   assert.ok(ends.some(e => Math.abs(e[3] - (532 - 235 * 1.5)) < 0.01), 'Washoe hole 1 drive 235 yd');
+  assert.ok(ends.every(e => / C/.test(e[4])), 'fairway tracers are curved arcs');
   ok('all rounds: 10/13 (77%), left 1 / right 2, tracers end on the correct side at the scaled distance');
   assert.match(await page.textContent('#mapview .legend'), /OB \(length unknown/);
   await page.screenshot({ path: `${SHOTS}/18-fairway-map.png` });
@@ -496,6 +501,55 @@ let passed = 0; const ok = (m) => { passed++; console.log('  ✓', m); };
   assert.deepStrictEqual(ck, ['gir:1', 'gir:4', 'miss:6', 'nodir:3']); ok('Center: 4 dots for 4 holes (par 5 = 1 dot, missed-then-chip = 1 red dot), 3 + 1 = 4');
   await page.screenshot({ path: `${SHOTS}/23-pin-map-holes-center.png` });
   await act('mapclose');
+  // Scott's definitive rule: his 7-hole case, 5/7 GIR must show exactly 2 misses everywhere (old rule showed 4)
+  await page.evaluate(() => {
+    const R = (dist, loc, dir = '', pen = false) => ({ dist, loc, dir, pen });
+    const holes = [
+      { par: 4, pin: 'center', rows: [R(390, 'tee'), R(140, 'fairway'), R(15, 'green', 'left'), R(2, 'green'), R(1, 'holed')] },
+      { par: 4, pin: 'backleft', rows: [R(410, 'tee'), R(160, 'rough', 'right'), R(25, 'green'), R(3, 'green'), R(1, 'holed')] },
+      { par: 5, pin: 'center', rows: [R(520, 'tee'), R(240, 'fairway'), R(40, 'rough', 'short'), R(10, 'green', 'long'), R(1, 'holed')] },
+      { par: 5, pin: 'frontright', rows: [R(540, 'tee'), R(250, 'fairway'), R(70, 'fairway'), R(18, 'green'), R(2, 'green'), R(1, 'holed')] },
+      { par: 3, pin: 'center', rows: [R(165, 'tee'), R(9, 'green', 'right'), R(1, 'holed')] },
+      { par: 4, pin: 'center', rows: [R(400, 'tee'), R(150, 'fairway'), R(60, 'rough', 'right'), R(35, 'bunker', 'short'), R(6, 'green'), R(1, 'holed')] },
+      { par: 4, pin: 'backleft', rows: [R(380, 'tee'), R(160, 'fairway'), R(15, 'rough', 'left'), R(4, 'green'), R(1, 'holed')] }
+    ].map(h => Object.assign(h, { finished: true }));
+    while (holes.length < 18) holes.push({ par: 4, finished: false, rows: [R('', 'tee')] });
+    const rs = JSON.parse(localStorage.getItem('golfsg.rounds.v1'));
+    rs.unshift({ v: 3, dv: 2, id: 'rscott7', date: '2026-10-09T01:00:00.000Z', course: 'Scott 7 holes', baseline: 'pga', holes });
+    localStorage.setItem('golfsg.rounds.v1', JSON.stringify(rs));
+  });
+  await page.reload(); await page.locator('[data-act="open"][data-id="rscott7"]').click();
+  assert.match(await page.textContent('[data-act="map"][data-v="gir"]'), /^5 \/ 7/);
+  assert.match(await page.textContent('[data-act="map"][data-v="miss"]'), /^2\s*Approach misses/);
+  assert.match(await page.textContent('[data-act="map"][data-v="prox"]'), /greens hit 5\/7/);
+  const st7 = await page.$$eval('.stat', ss => Object.fromEntries(ss.map(x => [x.querySelector('span').textContent, x.querySelector('b').textContent])));
+  assert.strictEqual(st7['Missed greens left / right'], '1 / 1'); assert.strictEqual(st7['Missed greens short / long'], '0 / 0');
+  assert.match(await page.textContent('[data-act="map"][data-v="fw"]'), /^\d+ \/ 6/, 'fairways: 6 par-4/5 tee shots (par 3 excluded)');
+  ok("Scott's 7-hole case: GIR 5/7 + Approach misses 2 = 7; proximity greens hit 5/7; missed greens L/R 1/1; fairways out of 6 (par 4/5 only)");
+  await hideToast(); await page.locator('[data-act="map"][data-v="fw"]').scrollIntoViewIfNeeded(); await page.evaluate(() => window.scrollBy(0, -60));
+  await page.screenshot({ path: `${SHOTS}/26-stats-tiles-regulation.png` });
+  await page.locator('[data-act="map"][data-v="miss"]').click(); await act('mapscope', 'round');
+  assert.match(await page.textContent('#mapsum'), /^2 approaches missed the green this round/);
+  assert.strictEqual(await page.locator('#missmap .mdot').count(), 2); await page.screenshot({ path: `${SHOTS}/27-miss-map-regulation.png` }); await act('mapclose');
+  await page.locator('[data-act="map"][data-v="gir"]').click();
+  assert.match(await page.textContent('#mapsum'), /^5 greens in regulation this round/); assert.strictEqual(await page.locator('#girmap .gdot').count(), 5); await act('mapclose');
+  await page.locator('[data-act="map"][data-v="pin"]').click(); await page.waitForSelector('#pinstats');
+  const pb7 = await page.$$eval('#pinstats button', bs => bs.reduce((a, b) => a + +b.getAttribute('data-n'), 0)); assert.strictEqual(pb7, 7);
+  let ph = 0, pm = 0;
+  for (const seg of ['center', 'backleft', 'frontright']) {
+    await page.click(`#pinstats [data-v="${seg}"]`); await page.waitForSelector('#pinmap');
+    const t = await page.textContent('#pinsum'); ph += +t.match(/GIR\) (\d+)/)[1]; pm += +t.match(/Missed (\d+)/)[1];
+    await act('pinseg', '');
+  }
+  assert.strictEqual(ph, 5); assert.strictEqual(pm, 2); await act('mapclose');
+  await page.locator('[data-act="map"][data-v="prox"]').click(); await page.waitForSelector('#proxmap'); await act('mapscope', 'round'); await page.selectOption('#proxsel', 'all');
+  const pk7 = await page.$$eval('#proxmap .xdot', ds => ds.map(d => d.getAttribute('data-kind')));
+  assert.strictEqual(pk7.filter(k => k.startsWith('miss')).length, 2); assert.strictEqual(pk7.length - 2, 5);
+  const curved = await page.$$eval('#proxmap path.tracer', ps => ps.every(p => / C/.test(p.getAttribute('d'))));
+  assert.ok(curved, 'tracers are curved (cubic arcs)');
+  await page.locator('#mapview').evaluate(e => { const m = document.getElementById('proxmap'); e.scrollTop += m.getBoundingClientRect().top - 8; });
+  await page.screenshot({ path: `${SHOTS}/28-proximity-curved-tracers.png` }); await act('mapclose');
+  ok('7-hole case on every map: miss map 2, GIR map 5, pin map 5 GIR + 2 missed = 7 holes, proximity 5 blue + 2 red; tracers are curved arcs');
   assert.deepStrictEqual(errors, []); ok('no JS console errors');
   console.log(`\nE2E: ${passed} checks passed`);
   await browser.close(); srv.kill();

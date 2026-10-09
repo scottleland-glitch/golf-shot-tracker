@@ -254,7 +254,7 @@ test('approach miss = approach that did not finish on the green, with its direct
   ] });
   assert.deepStrictEqual(S.apprMiss.map(m => [m.hole, m.dir, m.lie]), [[1, 'shortleft', 'rough'], [2, 'right', 'sand'], [4, 'short', 'fairway']]);
   assert.strictEqual(S.teeRight, 1, 'tee shot that ended right of the fairway');
-  assert.strictEqual(S.apprShort, 2); assert.strictEqual(S.apprOver, 1); assert.strictEqual(S.apprLeft, 1); assert.strictEqual(S.apprRight, 2);
+  assert.strictEqual(S.apprShort, 2); assert.strictEqual(S.apprOver, 0); assert.strictEqual(S.apprLeft, 1); assert.strictEqual(S.apprRight, 1, 'only regulation misses count (GIR long-right is not a miss)');
   assert.strictEqual(S.gir, 1);
   assert.deepStrictEqual(S.girMap.map(g => [g.hole, g.dir, g.ft, g.holed]), [[3, 'longright', 18, false]]);
 });
@@ -270,13 +270,14 @@ test('GIR map uses the shot that reached the green in regulation; par 5 in 3; ho
   ] });
   assert.deepStrictEqual(S.girMap.map(g => [g.hole, g.dir, g.ft, g.holed]), [[1, 'short', 35, false], [2, '', 0, true]]);
   assert.strictEqual(S.gir, 2); assert.strictEqual(S.girHoles, 4);
-  // the par-5 lay-up (260 -> 90 yd fairway, no direction) is not an approach miss; hole 3's drop was off the tee
-  assert.deepStrictEqual(S.apprMiss.map(m => [m.hole, m.dir, m.lie, m.pen]), [[4, 'short', 'rough', false]]);
+  // regulation misses: hole 3 = the 2nd shot into the hazard (penalty), hole 4 = the 2nd shot that finished 30 yd short
+  assert.deepStrictEqual(S.apprMiss.map(m => [m.hole, m.dir, m.lie, m.pen]), [[3, 'left', 'hazard', true], [4, 'short', 'rough', false]]);
+  assert.strictEqual(S.gir + S.apprMiss.length, S.holesDone);
   const S2 = SG.summarize({ holes: [{ par: 5, finished: true, rows: [R(540, 'tee'), R(250, 'fairway'), R(60, 'fairway', 'right'), R(8, 'green'), R(1, 'holed')] },
     { par: 4, finished: true, rows: [R(420, 'tee'), R(230, 'rough'), R(40, 'rough'), R(5, 'green'), R(1, 'holed')] },
     { par: 4, finished: true, rows: [R(420, 'tee'), R(200, 'fairway'), R(200, 'ob', 'right'), R(10, 'green'), R(1, 'holed')] }] });
-  assert.deepStrictEqual(S2.apprMiss.map(m => [m.hole, m.dir, m.lie, m.pen]), [[1, 'right', 'fairway', false], [2, '', 'rough', false], [3, 'right', 'ob', true]],
-    'a lay-up with a direction counts; within 50 yd counts even without a direction; OB approach counts');
+  assert.deepStrictEqual(S2.apprMiss.map(m => [m.hole, m.dir, m.lie, m.pen]), [[2, '', 'rough', false], [3, 'right', 'ob', true]],
+    'par-5 2nd shot short of the green is NOT a miss (GIR in 3); par-4 2nd shot 40 yd short = the miss; OB 2nd shot = the miss');
 });
 
 // ---- Pin location + tee-shot map ----
@@ -383,7 +384,7 @@ test('pin map data: approaches tagged with the hole pin; holes with/without pin;
 });
 
 // ---- Pin map counts HOLES: one approach-into-the-green per hole ----
-test('keyApproach: one entry per hole (par 5 two long shots, missed-then-chip, drive the green, OB re-hit)', () => {
+test('regulation entry: one per hole (par 5 two long shots, missed-then-chip, drive the green, OB re-hit)', () => {
   const A = rows => SG.analyzeHole({ par: rows[0], finished: true, rows: rows[1] }).appr;
   const pick = a => [a.shot, a.hit, a.gir, a.holed, a.dir, a.ft, a.lie, a.dist];
   // par 5: 250 lay-up then wedge onto the green -> only the wedge (shot 3), GIR
@@ -400,8 +401,14 @@ test('keyApproach: one entry per hole (par 5 two long shots, missed-then-chip, d
   assert.deepStrictEqual(pick(A([4, [R(400, 'tee'), R(170, 'fairway'), R('', 'ob', 'right'), R(10, 'green'), R(1, 'holed')]])), [2, false, false, false, 'right', 0, 'ob', 170]);
   // never on the green, not GIR: 60-yd pitch finishes 15 yd off and is chipped in -> missed, the shot before = the 240-yd approach
   assert.deepStrictEqual(pick(A([4, [R(420, 'tee'), R(240, 'rough'), R(60, 'rough', 'short'), R(15, 'holedx')]])), [2, false, false, false, 'short', 0, 'rough', 60]);
-  // approach misses, chip misses again, second chip onto the green -> the shot before the green-reaching shot (1st chip)
-  assert.deepStrictEqual(pick(A([4, [R(400, 'tee'), R(150, 'fairway'), R(20, 'rough', 'left'), R(8, 'rough', 'long'), R(4, 'green'), R(1, 'holed')]])), [3, false, false, false, 'long', 0, 'rough', 8]);
+  // approach misses, chip misses again, second chip onto the green -> the regulation shot (the 2nd, the approach)
+  assert.deepStrictEqual(pick(A([4, [R(400, 'tee'), R(150, 'fairway'), R(20, 'rough', 'left'), R(8, 'rough', 'long'), R(4, 'green'), R(1, 'holed')]])), [2, false, false, false, 'left', 0, 'rough', 20]);
+  // par 5: 2nd shot short of the green is NOT the miss - the 3rd shot is
+  assert.deepStrictEqual(pick(A([5, [R(540, 'tee'), R(250, 'fairway'), R(90, 'fairway', 'short'), R(15, 'rough', 'right'), R(4, 'green'), R(1, 'holed')]])), [3, false, false, false, 'right', 0, 'rough', 15]);
+  // penalties: par-4 tee shot OB (strokes 1+1) -> the regulation stroke 2 is the penalty, so the ball struck = the tee shot
+  assert.deepStrictEqual(pick(A([4, [R(400, 'tee'), R('', 'ob', 'left'), R(150, 'fairway'), R(10, 'green'), R(1, 'holed')]])), [1, false, false, false, 'left', 0, 'ob', 400]);
+  // par 5: tee OB (1+1), re-tee is stroke 3 = the regulation shot (the ball's actual stroke)
+  assert.deepStrictEqual(pick(A([5, [R(530, 'tee'), R('', 'ob', 'right'), R(250, 'fairway', 'left'), R(100, 'fairway'), R(10, 'green'), R(1, 'holed')]])), [2, false, false, false, 'left', 0, 'fairway', 250]);
   // chip-in from off the green after the approach (Scott's rule: reached the green) and eagle hole-out
   assert.deepStrictEqual(pick(A([4, [R(400, 'tee'), R(120, 'fairway'), R(15, 'holedx')]])), [2, true, true, true, '', 0, 'green', 0]);
   assert.deepStrictEqual(pick(A([4, [R(360, 'tee'), R(110, 'holedx')]])), [2, true, true, true, '', 0, 'green', 0]);
@@ -435,6 +442,14 @@ test('pin map consistency on random rounds: badges sum = holes, hit + missed = h
     }
     assert.strictEqual(sum, S.pinHoles.length);
     assert.strictEqual(S.girMap.length, S.gir);
+    // Scott's invariant: GIR + misses = finished holes, on every tile and map
+    assert.strictEqual(S.gir + S.apprMiss.length, S.holesDone, 'GIR + misses = holes');
+    assert.strictEqual(S.girMap.length + S.apprMiss.length, S.holesDone, 'GIR map + miss map = holes');
+    assert.strictEqual(S.pinHoles.filter(x => x.appr.hit).length + S.pinHoles.filter(x => !x.appr.hit).length + S.noPin, S.holesDone);
+    assert.strictEqual(S.proxList.length, S.holesDone, 'proximity: one per hole');
+    assert.strictEqual(S.proxList.filter(m => m.hit).length, S.gir, 'proximity hits = GIR');
+    S.apprMiss.forEach(m => { const h = S.holes[m.hole - 1]; assert.ok(!h.gir && h.regShot === m.shot - 1); });
+    S.apprMiss.forEach(m => { const a = S.holes[m.hole - 1]; let st = 0; for (let k = 0; k < m.shot - 1; k++) st += 1 + a.shots[k].penStrokes; assert.ok(st + 1 <= hs[m.hole - 1].par - 2, 'miss shot is struck as stroke <= par-2'); });
   }
 });
 
@@ -448,23 +463,61 @@ test('proximity buckets: 16 ten-yard ranges 40-200 + All; edges', () => {
   for (let y = 40; y <= 200; y += 0.5) assert.strictEqual(SG.PROX_BUCKETS.slice(1).filter(b => SG.inBucket(b.id, y)).length, 1, 'y=' + y);
 });
 
-test('proximity: one approach per hole, judged by its own result; ft for hits, yd x3 for misses; OB excluded from averages', () => {
+test('proximity: the regulation shot per hole (GIR shot or regulation miss); ft for hits, yd x3 for misses; OB excluded from averages', () => {
   const S = SG.summarize({ holes: [
-    { par: 4, finished: true, rows: [R(400, 'tee'), R(150, 'fairway'), R(12, 'green', 'left'), R(1, 'holed')] },             // hit 12 ft from 150
+    { par: 4, finished: true, rows: [R(400, 'tee'), R(150, 'fairway'), R(12, 'green', 'left'), R(1, 'holed')] },             // GIR 12 ft from 150
     { par: 4, finished: true, rows: [R(400, 'tee'), R(145, 'fairway'), R(15, 'rough', 'short'), R(4, 'green'), R(1, 'holed')] }, // miss 15 yd -> 45 ft
-    { par: 5, finished: true, rows: [R(530, 'tee'), R(250, 'fairway'), R(95, 'fairway'), R(20, 'green', 'long'), R(2, 'green'), R(1, 'holed')] }, // par 5: only the 95-yd shot
-    { par: 4, finished: true, rows: [R(380, 'tee'), R(180, 'rough'), R(60, 'rough', 'right'), R(8, 'green', 'short'), R(1, 'holed')] }, // missed from 180, then 60-yd pitch on -> the 60 (hit)
+    { par: 5, finished: true, rows: [R(530, 'tee'), R(250, 'fairway'), R(95, 'fairway'), R(20, 'green', 'long'), R(2, 'green'), R(1, 'holed')] }, // par 5: the 3rd (from 95)
+    { par: 4, finished: true, rows: [R(380, 'tee'), R(180, 'rough'), R(60, 'rough', 'right'), R(8, 'green', 'short'), R(1, 'holed')] }, // regulation miss from 180 (60 yd right)
     { par: 4, finished: true, rows: [R(360, 'tee'), R(110, 'holedx')] },                                                     // eagle: 0 ft
-    { par: 4, finished: true, rows: [R(400, 'tee'), R(160, 'fairway'), R('', 'ob', 'right'), R(10, 'green'), R(1, 'holed')] }, // OB then re-hit on -> the re-hit (hit 10 ft)
-    { par: 3, finished: true, rows: [R(160, 'tee'), R(160, 'ob', 'left'), R(25, 'bunker', 'right'), R(5, 'green'), R(1, 'holed')] } // OB, re-tee misses right into bunker
+    { par: 4, finished: true, rows: [R(400, 'tee'), R(160, 'fairway'), R('', 'ob', 'right'), R(10, 'green'), R(1, 'holed')] }, // 2nd shot OB = the miss
+    { par: 3, finished: true, rows: [R(160, 'tee'), R(160, 'ob', 'left'), R(25, 'bunker', 'right'), R(5, 'green'), R(1, 'holed')] } // par 3 tee OB = the miss
   ] });
   assert.deepStrictEqual(S.proxList.map(m => [m.hole, m.shot, m.from, m.hit, m.ft, m.dir, m.lie]), [
     [1, 2, 150, true, 12, 'left', 'green'], [2, 2, 145, false, 45, 'short', 'rough'], [3, 3, 95, true, 20, 'long', 'green'],
-    [4, 3, 60, true, 8, 'short', 'green'], [5, 2, 110, true, 0, '', 'green'], [6, 3, 160, true, 10, '', 'green'], [7, 2, 160, false, 75, 'right', 'sand']]);
+    [4, 2, 180, false, 180, 'right', 'rough'], [5, 2, 110, true, 0, '', 'green'], [6, 2, 160, false, null, 'right', 'ob'], [7, 1, 160, false, null, 'left', 'ob']]);
+  assert.strictEqual(S.proxList.filter(m => m.hit).length, S.gir); assert.strictEqual(S.proxList.filter(m => !m.hit).length, S.apprMiss.length);
   const P = SG.proxStats(S.proxList.filter(m => SG.inBucket('all', m.from)));
-  assert.strictEqual(P.n, 7); assert.strictEqual(P.hits, 5); near(P.avgHitFt, (12 + 20 + 8 + 0 + 10) / 5, 'avg hit'); near(P.avgAllFt, (12 + 45 + 20 + 8 + 0 + 10 + 75) / 7, 'avg all');
+  assert.strictEqual(P.n, 7); assert.strictEqual(P.hits, 3); near(P.avgHitFt, (12 + 20 + 0) / 3, 'avg hit'); near(P.avgAllFt, (12 + 45 + 20 + 180 + 0) / 5, 'avg all'); assert.strictEqual(P.noProx, 2);
   const B = id => S.proxList.filter(m => SG.inBucket(id, m.from)).map(m => m.hole);
-  assert.deepStrictEqual(B('140-150'), [2]); assert.deepStrictEqual(B('150-160'), [1]); assert.deepStrictEqual(B('160-170'), [6, 7]); assert.deepStrictEqual(B('60-70'), [4]);
-  // bucket counts add up to "All"
+  assert.deepStrictEqual(B('140-150'), [2]); assert.deepStrictEqual(B('150-160'), [1]); assert.deepStrictEqual(B('160-170'), [6, 7]); assert.deepStrictEqual(B('180-190'), [4]); assert.deepStrictEqual(B('90-100'), [3]); assert.deepStrictEqual(B('110-120'), [5]);
   assert.strictEqual(SG.PROX_BUCKETS.slice(1).reduce((n, b) => n + B(b.id).length, 0), B('all').length);
+});
+
+test("Scott's definitive rule: par-3 tee miss = miss; par-4 tee off green not a miss; par-5 2nd short not a miss; his 7-hole case 5/7 GIR = 2 misses", () => {
+  const one = (par, rows) => SG.summarize({ holes: [{ par, finished: true, rows }] });
+  let S = one(3, [R(170, 'tee'), R(12, 'bunker', 'left'), R(3, 'green'), R(1, 'holed')]);
+  assert.strictEqual(S.gir, 0); assert.deepStrictEqual(S.apprMiss.map(m => [m.shot, m.dir, m.lie]), [[1, 'left', 'sand']]);
+  S = one(4, [R(400, 'tee'), R(150, 'rough', 'left'), R(10, 'green', 'short'), R(1, 'holed')]);
+  assert.strictEqual(S.gir, 1); assert.strictEqual(S.apprMiss.length, 0, 'par-4 tee shot off the green is not a miss');
+  S = one(4, [R(400, 'tee'), R(150, 'rough', 'left'), R(20, 'rough', 'longright'), R(5, 'green'), R(1, 'holed')]);
+  assert.deepStrictEqual(S.apprMiss.map(m => [m.shot, m.dir, m.from]), [[2, 'longright', 150]], 'not on the green after the 2nd -> the 2nd is the miss');
+  S = one(5, [R(530, 'tee'), R(250, 'fairway'), R(40, 'rough', 'short'), R(8, 'green'), R(1, 'holed')]);
+  assert.strictEqual(S.gir, 1); assert.strictEqual(S.apprMiss.length, 0, 'par-5 2nd shot short of the green is not a miss');
+  S = one(5, [R(530, 'tee'), R(250, 'fairway'), R(40, 'rough', 'short'), R(10, 'bunker', 'right'), R(5, 'green'), R(1, 'holed')]);
+  assert.deepStrictEqual(S.apprMiss.map(m => [m.shot, m.dir, m.lie, m.from]), [[3, 'right', 'sand', 40]], 'par 5: the 3rd is the miss');
+  // Scott's 7-hole round: 5 GIR -> exactly 2 misses (the old rule showed 4)
+  S = SG.summarize({ holes: [
+    { par: 4, finished: true, rows: [R(390, 'tee'), R(140, 'fairway'), R(15, 'green', 'left'), R(2, 'green'), R(1, 'holed')] },
+    { par: 4, finished: true, rows: [R(410, 'tee'), R(160, 'rough', 'right'), R(25, 'green'), R(3, 'green'), R(1, 'holed')] },
+    { par: 5, finished: true, rows: [R(520, 'tee'), R(240, 'fairway'), R(40, 'rough', 'short'), R(10, 'green', 'long'), R(1, 'holed')] }, // old: 2nd = "miss"
+    { par: 5, finished: true, rows: [R(540, 'tee'), R(250, 'fairway'), R(70, 'fairway'), R(18, 'green'), R(2, 'green'), R(1, 'holed')] },
+    { par: 3, finished: true, rows: [R(165, 'tee'), R(9, 'green', 'right'), R(1, 'holed')] },
+    { par: 4, finished: true, rows: [R(400, 'tee'), R(150, 'fairway'), R(60, 'rough', 'right'), R(35, 'sand', 'short'), R(6, 'green'), R(1, 'holed')] }, // old: 2 misses
+    { par: 4, finished: true, rows: [R(380, 'tee'), R(160, 'fairway'), R(15, 'rough', 'left'), R(4, 'green'), R(1, 'holed')] }
+  ] });
+  assert.strictEqual(S.gir, 5); assert.strictEqual(S.girHoles, 7);
+  assert.deepStrictEqual(S.apprMiss.map(m => [m.hole, m.shot, m.dir]), [[6, 2, 'right'], [7, 2, 'left']]);
+  assert.strictEqual(S.girMap.length + S.apprMiss.length, 7);
+  assert.strictEqual(S.proxList.filter(m => m.hit).length, 5); assert.strictEqual(S.proxList.length, 7);
+  assert.strictEqual(S.apprLeft, 1); assert.strictEqual(S.apprRight, 1);
+});
+
+test('fairways: only par-4 and par-5 tee shots', () => {
+  const S = SG.summarize({ holes: [
+    { par: 3, finished: true, rows: [R(170, 'tee'), R(10, 'green'), R(1, 'holed')] },
+    { par: 4, finished: true, rows: [R(400, 'tee'), R(150, 'fairway'), R(10, 'green'), R(1, 'holed')] },
+    { par: 5, finished: true, rows: [R(530, 'tee'), R(250, 'rough', 'left'), R(90, 'fairway'), R(10, 'green'), R(1, 'holed')] }
+  ] });
+  assert.strictEqual(S.fwTotal, 2); assert.strictEqual(S.fwHit, 1); assert.deepStrictEqual(S.teeMap.map(t => t.hole), [2, 3]);
 });

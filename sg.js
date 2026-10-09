@@ -265,44 +265,40 @@
     return !r.ob && (r.end.lie === 'green' || r.end.lie === 'holed' || r.loc === 'holed' || (r.loc === 'holedx' && r.end.dist <= 30));
   }
   /**
-   * The hole's ONE "approach into the green" (pin-location map: one entry per hole). Scott's rule:
-   *  - fr = the shot that reached the green = the shot before the first putt (or, if the ball was
-   *    holed from off the green, the hole-out itself / the shot before a chip-in - see reachedGreen);
-   *  - GIR hole  -> "green hit": that shot, positioned by first-putt distance + direction;
-   *  - not GIR   -> "missed green": the shot before fr (its result was off the green: where it missed,
-   *    yards left, lie). If there is none (ambiguous), fr is used and the hole is still marked missed.
-   * So greens hit = GIR holes and greens hit + missed = holes.
+   * Scott's REGULATION rule (used everywhere: GIR, approach misses, pin map, proximity, stats, CSV).
+   * The regulation stroke is stroke number par - 2 (par 3: 1, par 4: 2, par 5: 3), penalty strokes counted.
+   *  - GIR: a ball reaches the green (or is holed) with total strokes so far (incl. its own penalty) <= par - 2.
+   *  - Otherwise the hole is a MISS and the miss shot is the regulation shot = the last ball actually
+   *    struck as stroke number <= par - 2 (if that stroke number was a penalty stroke, the ball struck
+   *    before it). A par-4 tee shot or par-5 second shot that is short of the green is never the miss.
+   * Exactly one entry per finished hole -> GIR + misses = holes.
    */
-  function keyApproach(out, gir) {
+  function regulation(out, par) {
     if (!out.length) return null;
-    var fr = -1; for (var i = 0; i < out.length; i++) { if (reachedGreen(out[i])) { fr = i; break; } }
-    if (fr < 0) fr = out.length - 1;
-    var hit = !!gir, k = hit ? fr : (fr > 0 ? fr - 1 : fr), r = out[k], amb = !hit && k === fr;
-    var ho = hit && (r.end.lie === 'holed' || r.loc === 'holedx');
-    var onG = r.end.lie === 'green';
-    return { shot: r.n, hit: hit, gir: !!gir, holed: ho, ambiguous: amb, dir: ho ? '' : r.dir, ft: hit && !ho ? r.end.dist : 0,
-      lie: hit ? 'green' : (r.ob ? 'ob' : (onG || r.end.lie === 'holed') ? 'green' : r.end.lie), dist: hit ? 0 : r.end.dist,
-      unit: !hit && onG ? 'ft' : 'yd', from: r.start.dist };
+    var reg = Number(par) - 2, used = 0, last = 0;
+    for (var j = 0; j < out.length; j++) {
+      if (used + 1 > reg) break;
+      last = j; used += 1 + out[j].penStrokes;
+      if (reachedGreen(out[j]) && used <= reg) return { k: j, gir: true };
+    }
+    return { k: last, gir: false };
   }
   /**
-   * Proximity map: the hole's ONE approach judged by its own RESULT (not by regulation):
-   *  - the shot that reached the green (reach-green rule) if it was hit from more than 30 yd -> hit;
-   *  - otherwise the last shot from more than 30 yd before it -> it missed the green.
-   * Proximity in feet: on the green = first-putt distance; holed = 0; chip-in after it (ball was
-   * off the green, then holed from <= 30 yd) = that distance in yards x 3; missed = yards left x 3.
-   * OB has no proximity (null).
+   * The hole's regulation entry for the maps. GIR: position = first-putt distance (ft) + direction,
+   * holed (shot went in, or chipped in from <= 30 yd right after) = star. Miss: where the regulation
+   * shot finished - lie, direction, distance to the pin.
+   * proxFt (Proximity by distance): hit = first-putt ft (holed 0, chip-in = chip yards x 3); miss = yards x 3; OB = null.
    */
-  function proxApproach(out) {
-    var far = function (r) { return r.start.lie !== 'green' && r.start.dist > 30; };
-    var fr = -1; for (var i = 0; i < out.length; i++) { if (reachedGreen(out[i])) { fr = i; break; } }
-    var k = -1, hit = false;
-    if (fr >= 0 && far(out[fr])) { k = fr; hit = true; }
-    else { for (var j = (fr >= 0 ? fr : out.length) - 1; j >= 0; j--) { if (far(out[j])) { k = j; break; } } }
-    if (k < 0) return null;
-    var r = out[k], holed = hit && r.end.lie === 'holed', chipIn = hit && !holed && r.loc === 'holedx';
-    var ft = r.ob ? null : holed ? 0 : (hit && !chipIn) ? r.end.dist : r.end.dist * 3;
-    return { shot: r.n, from: r.start.dist, fromLie: r.start.lie, hit: hit, holed: holed, chipIn: chipIn, dir: holed ? '' : r.dir,
-      ft: ft, lie: hit ? 'green' : (r.ob ? 'ob' : r.end.lie), yd: hit ? null : (r.ob ? null : r.end.dist), pen: r.penStrokes > 0 };
+  function regApproach(out, par) {
+    var R = regulation(out, par); if (!R) return null;
+    var r = out[R.k], hit = R.gir, inHole = hit && r.end.lie === 'holed', chipIn = hit && !inHole && r.loc === 'holedx';
+    var onG = r.end.lie === 'green', ob = r.ob;
+    return { shot: r.n, hit: hit, gir: hit, holed: inHole || chipIn, chipIn: chipIn, dir: (inHole || chipIn) ? '' : r.dir,
+      ft: hit ? ((inHole || chipIn) ? 0 : r.end.dist) : 0,
+      proxFt: ob ? null : inHole ? 0 : chipIn ? r.end.dist * 3 : hit ? r.end.dist : (onG ? r.end.dist : r.end.dist * 3),
+      lie: hit ? 'green' : (ob ? 'ob' : r.loc === 'hazard' ? 'hazard' : r.end.lie === 'holed' ? 'green' : r.end.lie), dist: hit ? 0 : r.end.dist,
+      yd: hit || ob ? null : (onG ? r.end.dist / 3 : r.end.dist), unit: !hit && onG ? 'ft' : 'yd',
+      from: r.start.dist, fromLie: r.start.lie, pen: r.penStrokes > 0, ob: ob };
   }
   function analyzeHole(hole, baseline) {
     var bad = null, problem = '', complete = null, finished = true, rowsFmt = !!hole.rows, nRows = 0, liveStrokes = 0;
@@ -347,14 +343,10 @@
     var holedOut = shots.length > 0 && shots[shots.length - 1].lie === 'holed' && shots[shots.length - 1].pen !== 'ob';
     if (complete === null) complete = holedOut;
     var done = complete && finished;
-    // Green in regulation: on green (or holed) using <= par-2 strokes.
-    var gir = false, used = 0, girShot = null;
-    for (var j = 0; j < out.length; j++) {
-      used += 1 + out[j].penStrokes;
-      if (reachedGreen(out[j])) {
-        gir = used <= hole.par - 2; if (gir) girShot = j; break;
-      }
-    }
+    // Green in regulation / regulation miss (see regulation()).
+    var reg = regulation(out, hole.par), gir = !!(reg && reg.gir), girShot = gir ? reg.k : null, regShot = reg ? reg.k : null;
+    var appr = regApproach(out, hole.par), prox = null;
+    if (appr) { prox = {}; for (var pk0 in appr) prox[pk0] = appr[pk0]; prox.ft = appr.proxFt; }
     var fairway = null;
     if (hole.par >= 4 && out.length) {
       var t = out[0];
@@ -365,7 +357,7 @@
       rows: nRows, liveStrokes: rowsFmt ? liveStrokes : shots.length + penalties,
       strokes: shots.length + penalties, penalties: penalties,
       putts: out.filter(function (r) { return r.cat === 'putting'; }).length,
-      done: done, gir: gir, girShot: girShot, fairway: fairway, pin: normPin(hole.pin), appr: keyApproach(out, gir), prox: proxApproach(out),
+      done: done, gir: gir, girShot: girShot, regShot: regShot, fairway: fairway, pin: normPin(hole.pin), appr: appr, prox: prox,
       sg: out.reduce(function (a, r) { return a + r.sg; }, 0)
     };
   }
@@ -420,27 +412,23 @@
         if (r.side === 'L') S.allLeft++;
         if (r.side === 'R') S.allRight++;
         if (r.cat === 'tee') { if (r.side === 'L') S.teeLeft++; if (r.side === 'R') S.teeRight++; }
-        if (r.cat === 'approach') {
-          if (r.side === 'L') S.apprLeft++; if (r.side === 'R') S.apprRight++;
-          var dd = dirDepth(r.dir); if (dd === 'S') S.apprShort++; if (dd === 'O') S.apprOver++;
-          // Approach miss = approach shot that did not finish on the green / in the hole.
-          // Lay-ups are left out: ended more than 50 yd from the pin with no direction entered.
-          if (!reachedGreen(r) && (r.dir || r.ob || r.end.dist <= 50)) {
-            S.apprMiss.push({ hole: hi + 1, pin: normPin(h.pin), shot: r.n, dir: r.dir, from: r.start.dist, lie: r.ob ? 'ob' : r.end.lie, dist: r.end.dist, pen: r.penStrokes > 0 });
-          }
-        }
       });
+      // ONE regulation entry per finished hole: a GIR or a miss (GIR + misses = holes)
+      var ap = a.appr;
+      if (ap && !ap.gir) {
+        S.apprMiss.push({ hole: hi + 1, pin: normPin(h.pin), par: Number(h.par), shot: ap.shot, dir: ap.dir, from: ap.from, fromLie: ap.fromLie,
+          lie: ap.lie, dist: ap.dist, unit: ap.unit, pen: ap.pen });
+        if (dirSide(ap.dir) === 'L') S.apprLeft++; if (dirSide(ap.dir) === 'R') S.apprRight++;
+        if (dirDepth(ap.dir) === 'S') S.apprShort++; if (dirDepth(ap.dir) === 'O') S.apprOver++;
+      }
       if (a.fairway !== null) {
         var t = a.shots[0], kind = a.fairway ? 'fairway' : t.ob ? 'ob' : TEE_END[t.loc] || 'rough';
         S.teeMap.push({ hole: hi + 1, par: Number(h.par), hit: t.ob ? null : t.hit, fairway: a.fairway, kind: kind, side: t.side, dir: t.dir,
           yards: holeYards(h), pen: t.penStrokes > 0 });
       }
-      if (a.gir && a.girShot != null) {
-        var g = a.shots[a.girShot];
-        // holedOut: this shot went in, or the NEXT stroke was holed from off the green (chip-in / hole-out)
-        var ho = g.end.lie === 'holed' || g.loc === 'holedx';
-        S.girMap.push({ hole: hi + 1, pin: normPin(h.pin), shot: g.n, par: Number(h.par), dir: ho ? '' : g.dir,
-          ft: ho ? 0 : g.end.dist, holed: ho, from: g.start.dist, fromLie: g.start.lie });
+      if (ap && ap.gir) {
+        S.girMap.push({ hole: hi + 1, pin: normPin(h.pin), shot: ap.shot, par: Number(h.par), dir: ap.dir,
+          ft: ap.ft, holed: ap.holed, from: ap.from, fromLie: ap.fromLie });
       }
     });
     S.toPar = S.strokes - S.par;

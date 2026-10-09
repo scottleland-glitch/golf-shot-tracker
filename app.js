@@ -262,8 +262,8 @@
       tile('pin', 'Pin location – tap for map', S.pinHoles.length + ' / ' + S.holesDone, '<small class="mini">holes with a pin set</small>') +
       stat('Putts', S.putts) + stat('Penalty strokes', S.penalties) +
       stat('Tee misses L / R', S.teeLeft + ' / ' + S.teeRight) +
-      stat('Approach left / right', S.apprLeft + ' / ' + S.apprRight) +
-      stat('Approach short / long', S.apprShort + ' / ' + S.apprOver) + '</div>';
+      stat('Missed greens left / right', S.apprLeft + ' / ' + S.apprRight) +
+      stat('Missed greens short / long', S.apprShort + ' / ' + S.apprOver) + '</div>';
     out += '<button class="primary big" data-act="csv" style="margin-top:16px">Export this round (CSV)</button>';
     out += '<button class="big" data-act="backHole">Back to the round</button>';
     out += '<button class="big danger" data-act="delRound">Delete this round</button>';
@@ -428,16 +428,18 @@
         '<span><svg width="20" height="20" viewBox="0 0 20 20" style="flex:none"><path d="M10 1 l9 9 -9 9 -9 -9z" fill="#c9c9c9" stroke="#000" stroke-width="2"/><text x="10" y="14.5" text-anchor="middle" font-size="12" font-weight="900">?</text></svg>No direction entered – right distance, drawn straight up (direction unknown)</span>' +
         '<span><b class="star">★</b>Holed out (shot went in, or chipped/holed in from off the green)</span>' +
         '<span><i class="dot" style="background:#000"></i>Hole · white rings every 5 ft (5–30 ft)</span></div>' +
-        '<p class="help muted"><b>GIR</b> = on the green (or holed) in par − 2 strokes or fewer, penalties included (par 3: 1 shot, par 4: 2, par 5: 3). Only finished holes count. ' +
-        'Holing out from off the green counts as hitting it. Greens reached in more strokes are not shown. Bottom of the picture = short (toward you).</p>' +
+        '<p class="help muted"><b>GIR</b> = on the green (or holed) in par − 2 strokes or fewer, penalties included (par 3: tee shot, par 4: tee or 2nd shot, par 5: tee, 2nd or 3rd shot). ' +
+        'Every finished hole is either a GIR (shown here) or a regulation miss (Approach misses map), so GIR + misses = holes. ' +
+        'Holing out, or chipping in from 30 yd or closer right after, counts as hitting it (★). Bottom of the picture = short (toward you).</p>' +
         dirTable(list.filter(function (m) { return !m.holed; })).replace('(not plotted)', '(drawn as ?)').replace('</table>', (holed ? '<tr data-dir="holed"><td>★ Holed out</td><td class="num">' + holed + '</td></tr>' : '') + '</table>');
     } else {
       out += '<p class="mapsum" id="mapsum"><b>' + list.length + '</b> approach' + (list.length === 1 ? '' : 'es') + ' missed the green' + (all ? ' in ' + D.rounds + ' round' + (D.rounds === 1 ? '' : 's') : ' this round') + '</p>' +
         missSVG(list) + '<div class="legend">' + ['rough', 'fairway', 'sand', 'hazard', 'ob', 'recovery'].map(function (l) {
           return '<span><i class="dot" style="background:' + LIE_COL[l] + '"></i>' + LIE_NAME[l] + '</span>'; }).join('') +
         '<span><i class="dot num">3</i>Misses in that direction</span></div>' +
-        '<p class="help muted"><b>Approach miss</b> = an approach shot (over 30 yd from the pin, including par-3 tee shots) that did not finish on the green or in the hole. ' +
-        'Holing out (from anywhere) counts as hitting the green, so it is never a miss. Lay-ups are left out (finished more than 50 yd from the pin with no direction entered). Direction = where it missed the green (the Dir you entered on the next row). Only finished holes count. Bottom = short (toward you).</p>' + dirTable(list);
+        '<p class="help muted"><b>Approach miss</b> = a hole that was not a GIR. One per hole: the regulation shot (stroke par − 2: par 3 = tee shot, par 4 = 2nd shot, par 5 = 3rd shot), drawn where it finished. ' +
+        'A par-4 tee shot or a par-5 2nd shot short of the green is never a miss. Penalty strokes count: if stroke par − 2 was a penalty stroke, the ball struck before it is used. GIR + misses = holes. ' +
+        'Direction = where it missed the green (the Dir you entered on the next row). Only finished holes count. Bottom = short (toward you).</p>' + dirTable(list);
     }
     return out + '<button class="big" data-act="mapclose">Close</button></div>';
   }
@@ -456,6 +458,15 @@
       '<div class="row2"><button class="big" data-act="pinclear"' + (pin ? '' : ' disabled') + '>Clear pin</button>' +
       '<button class="primary big" data-act="pinclose">Done</button></div></div>';
     return out;
+  }
+  // Ball-flight tracer, seen from behind/above: a gentle cubic arc that bows out to one side and lands
+  // on the end point (a fade/draw shape). Shots finishing right bow left first and vice versa; straight
+  // shots alternate. Used by the fairway map and the proximity map so both look the same.
+  function flight(x0, y0, x1, y1, i) {
+    var dx = x1 - x0, dy = y1 - y0, L = Math.sqrt(dx * dx + dy * dy) || 1, nx = -dy / L, ny = dx / L;
+    var sg = Math.abs(dx) > 8 ? (dx > 0 ? -1 : 1) : (i % 2 ? 1 : -1), b = Math.min(30, L * 0.1) * sg;
+    return 'M' + f1(x0) + ' ' + f1(y0) + ' C' + f1(x0 + dx * 0.2 + nx * b) + ' ' + f1(y0 + dy * 0.35 + ny * b) + ' ' +
+      f1(x0 + dx * 0.65 + nx * b * 0.85) + ' ' + f1(y0 + dy * 0.8 + ny * b * 0.85) + ' ' + f1(x1) + ' ' + f1(y1);
   }
   // Fairway bird's-eye view: every par-4/5 tee shot as a tracer from the tee
   var FW_END = { fairway: '#ffffff', rough: '#d0213a', bunker: '#e8c766', hazard: '#1e6fd9', trees: '#6b3d12', ob: '#000000' };
@@ -482,10 +493,10 @@
       if (m.kind === 'fairway') ex = TX + sgn * 20 + jit;
       else if (!sgn) { ex = TX + jit / 2; dashed = true; }
       else ex = m.kind === 'rough' ? TX + sgn * (TX - END_X.rough + jit) : TX + sgn * (TX - END_X[m.kind]);
-      var ey = Y(yd), cx = TX + (ex - TX) * 0.1, cy = ey + (TY - ey) * 0.35;
+      var ey = Y(yd), fp = flight(TX, TY, ex, ey, i);
       var col = m.fairway ? '#00a000' : '#e0102a';
-      out += '<path class="tracer ' + (m.fairway ? 'hit' : 'miss') + '" data-kind="' + m.kind + '" data-side="' + (m.side || '') + '" d="M' + TX + ' ' + TY + ' Q' + f1(cx) + ' ' + f1(cy) + ' ' + f1(ex) + ' ' + f1(ey) + '" fill="none" stroke="#000" stroke-opacity=".35" stroke-width="6"/>' +
-        '<path d="M' + TX + ' ' + TY + ' Q' + f1(cx) + ' ' + f1(cy) + ' ' + f1(ex) + ' ' + f1(ey) + '" fill="none" stroke="' + (m.fairway ? '#b6ff9e' : '#ff4d5e') + '" stroke-width="3.5"' + (dashed ? ' stroke-dasharray="8 6"' : '') + '/>';
+      out += '<path class="tracer ' + (m.fairway ? 'hit' : 'miss') + '" data-kind="' + m.kind + '" data-side="' + (m.side || '') + '" data-ex="' + f1(ex) + '" data-ey="' + f1(ey) + '" d="' + fp + '" fill="none" stroke="#000" stroke-opacity=".35" stroke-width="6"/>' +
+        '<path d="' + fp + '" fill="none" stroke="' + (m.fairway ? '#b6ff9e' : '#ff4d5e') + '" stroke-width="3.5"' + (dashed ? ' stroke-dasharray="8 6"' : '') + '/>';
       if (m.kind === 'ob') out += '<text x="' + f1(ex) + '" y="' + f1(ey + 7) + '" text-anchor="middle" font-size="22" font-weight="900" fill="#fff" stroke="#000" stroke-width="2" paint-order="stroke">✕</text>';
       else out += '<circle cx="' + f1(ex) + '" cy="' + f1(ey) + '" r="6.5" fill="' + FW_END[m.kind] + '" stroke="' + (m.kind === 'fairway' ? col : '#000') + '" stroke-width="2.5"/>';
       if (dashed) out += '<text x="' + f1(ex + 9) + '" y="' + f1(ey + 5) + '" font-size="14" font-weight="900" fill="#fff">?</text>';
@@ -502,7 +513,7 @@
       '<div class="fwcounts" id="fwcounts"><span>⬅ Missed left <b>' + L + '</b></span><span>Missed right <b>' + R + '</b> ➡</span>' +
       (miss.length - L - R ? '<span>No direction <b>' + (miss.length - L - R) + '</b></span>' : '') + '</div>' + fwSVG(list) +
       '<div class="legend"><span><i class="ln" style="background:#00a000"></i>Hit the fairway</span><span><i class="ln" style="background:#e0102a"></i>Missed</span>' +
-      '<span><i class="ln dash"></i>Missed, no direction entered (drawn straight)</span>' +
+      '<span><i class="ln dash"></i>Missed, no direction entered (ends straight up the middle)</span>' +
       ['fairway', 'rough', 'bunker', 'hazard', 'trees'].map(function (k) { return '<span><i class="dot" style="background:' + FW_END[k] + '"></i>Ended: ' + FW_NAME[k] + '</span>'; }).join('') +
       '<span><b class="x">✕</b>OB (length unknown – drawn at 250 yd)</span></div>' +
       '<table class="dirtab" id="fwtab"><tr><th>Missed into</th><th class="num">Left</th><th class="num">Right</th><th class="num">Total</th></tr>';
@@ -571,7 +582,7 @@
         kind = 'miss'; label = m.lie === 'ob' ? 'OB' : Math.round(m.yd) + ' yd' + (clamped ? ' ›' : ''); label2 = m.lie === 'ob' ? '' : (LN[m.lie] || m.lie);
       }
       var x = f1(q[0]), y = f1(q[1]), ox = 180 + ((i * 29) % 9 - 4) * 6, oy = PX.H - 46;
-      if (kind !== 'missnodir') tr += '<path class="tracer" d="M' + ox + ' ' + oy + ' Q' + f1((ox + q[0]) / 2 + (q[0] - ox) * 0.15) + ' ' + f1(q[1] + (oy - q[1]) * 0.35) + ' ' + x + ' ' + y + '" fill="none" stroke="' + col + '" stroke-width="2.5" stroke-opacity=".75"/>';
+      if (kind !== 'missnodir') tr += '<path class="tracer" data-ex="' + x + '" data-ey="' + y + '" d="' + flight(ox, oy, q[0], q[1], i) + '" fill="none" stroke="' + col + '" stroke-width="2.5" stroke-opacity=".75"/>';
       var attrs = ' class="xdot" data-kind="' + kind + '" data-hole="' + m.hole + '" data-from="' + m.from + '"' + (clamped ? ' data-clamped="1"' : '');
       if (kind === 'holed') dots += '<path' + attrs + ' d="M' + x + ' ' + (y - 10) + ' l3 6.5 7 .8 -5.3 4.8 1.5 7 -6.2 -3.6 -6.2 3.6 1.5 -7 -5.3 -4.8 7 -.8z" fill="#ffd23f" stroke="#1e6fd9" stroke-width="2"/>';
       else if (kind === 'hitnodir' || kind === 'missnodir') dots += '<g' + attrs + ' data-x="' + x + '" data-y="' + y + '"><path d="M' + x + ' ' + (y - 10) + ' l10 10 -10 10 -10 -10z" fill="' + col + '" stroke="#000" stroke-width="2"/><text x="' + x + '" y="' + (+y + 4.5) + '" text-anchor="middle" font-size="12" font-weight="900" fill="#fff">?</text></g>';
@@ -601,13 +612,13 @@
       '<span><svg width="20" height="20" viewBox="0 0 20 20" style="flex:none"><path d="M10 1 l9 9 -9 9 -9 -9z" fill="#888" stroke="#000" stroke-width="2"/><text x="10" y="14.5" text-anchor="middle" font-size="12" font-weight="900" fill="#fff">?</text></svg>No direction entered: blue = hit (straight up at the right distance), red = miss (bottom-right corner)</span>' +
       '<span><b class="star">★</b>Holed out</span><span>White rings: 5–30 ft from the hole</span></div>' +
       '<h3>Misses by direction</h3>' + dirTable(miss).replace('(not plotted)', '(drawn as ?)') +
-      '<p class="help muted">One approach per hole: the shot that reached the green if it was hit from more than 30 yd, otherwise the last shot from more than 30 yd (it missed the green). ' +
-      'Hit/miss here is that shot\'s own result (not regulation), so it can differ from the GIR and Pin maps. A chip-in from 30 yd or closer counts as reaching the green (its proximity = the chip distance). ' +
+      '<p class="help muted">One shot per hole, the same as the GIR and Approach-miss maps: the shot that reached the green in regulation (blue), or the regulation miss (red: par 3 = tee shot, par 4 = 2nd shot, par 5 = 3rd shot). ' +
+      'It goes in the range it was hit from. A chip-in from 30 yd or closer right after counts as reaching the green (its proximity = the chip distance). ' +
       'Proximity: greens hit = first-putt feet; misses = yards left × 3; OB has no proximity and is left out of the averages. Ranges: 10-yd buckets by the yardage the approach was hit from (40–50 means 40 up to 49; 190–200 includes 200). ' +
       'Only finished holes count.</p>';
   }
   // ---------- pin-location map ----------
-  // ONE entry per finished hole with a pin set (its approach into the green - see SG keyApproach)
+  // ONE entry per finished hole with a pin set (its regulation shot - see SG regApproach)
   function pinData() {
     var D = { holes: [], noPin: 0, rounds: 0 };
     (view.mapScope === 'all' ? rounds : [round()]).forEach(function (r) {
@@ -706,8 +717,8 @@
       '<span><i class="dot" style="background:#e0102a"></i>Missed green – drawn off the green in the miss direction; label = yards left to the pin + where it finished</span>' +
       '<span><svg width="20" height="20" viewBox="0 0 20 20" style="flex:none"><path d="M10 1 l9 9 -9 9 -9 -9z" fill="#e0102a" stroke="#000" stroke-width="2"/><text x="10" y="14.5" text-anchor="middle" font-size="12" font-weight="900" fill="#fff">?</text></svg>Missed green, no direction entered (drawn in the bottom-right corner)</span></div>' +
       '<h3>Missed greens by direction</h3>' + dirTable(miss).replace('(not plotted)', '(drawn as ?)') +
-      '<p class="help muted">One dot per hole. GIR holes (on the green in par − 2 strokes or fewer) count as greens hit and use the shot before the first putt, placed by the first-putt distance and direction. ' +
-      'Other holes count as missed and use the shot before the one that got onto the green (where it finished off the green). A chip-in from 30 yd or closer counts as reaching the green. ' +
+      '<p class="help muted">One dot per hole. GIR holes (on the green in par − 2 strokes or fewer) count as greens hit, placed by the first-putt distance and direction. ' +
+      'Every other hole is a miss: the regulation shot (par 3 = tee shot, par 4 = 2nd, par 5 = 3rd), drawn where it finished. GIR + missed = holes. A chip-in from 30 yd or closer counts as reaching the green. ' +
       'Front = toward you. Distances on the green are feet; off the green, yards.</p>' + note;
     return out2;
   }
@@ -717,14 +728,14 @@
   function localDate(iso) { var t = new Date(iso); return t.getFullYear() + '-' + ('0' + (t.getMonth() + 1)).slice(-2) + '-' + ('0' + t.getDate()).slice(-2); }
   function csvFor(list) {
     var rows = [['date', 'course', 'hole', 'par', 'hole_yards', 'shot', 'from_lie', 'from_dist', 'from_unit', 'to_lie', 'to_dist', 'to_unit',
-      'distance_hit_yd', 'miss', 'penalty', 'category', 'bucket', 'expected_before', 'expected_after', 'strokes_gained', 'hole_score', 'baseline', 'pin']];
+      'distance_hit_yd', 'miss', 'penalty', 'category', 'bucket', 'expected_before', 'expected_after', 'strokes_gained', 'hole_score', 'baseline', 'pin', 'gir', 'regulation']];
     list.forEach(function (r) {
       r.holes.forEach(function (h, hi) {
         var a = SG.analyzeHole(h, blOf(r));
         a.shots.forEach(function (s) {
           rows.push([localDate(r.date), r.course, hi + 1, h.par, SG.holeYards(h), s.n, s.start.lie, s.start.dist, unit(s.start.lie), s.end.lie,
             s.end.dist, s.end.lie === 'holed' ? '' : unit(s.end.lie), s.hit == null ? '' : s.hit, s.dir, s.pen, CAT_NAME[s.cat], s.bucket,
-            s.eStart.toFixed(3), s.eEnd.toFixed(3), s.sg.toFixed(3), a.done ? a.strokes : '', blLabel(blOf(r)), SG.normPin(h.pin)]);
+            s.eStart.toFixed(3), s.eEnd.toFixed(3), s.sg.toFixed(3), a.done ? a.strokes : '', blLabel(blOf(r)), SG.normPin(h.pin), a.done ? (a.gir ? 'yes' : 'no') : '', a.done && a.regShot === s.n - 1 ? (a.gir ? 'GIR' : 'miss') : '']);
         });
       });
     });
