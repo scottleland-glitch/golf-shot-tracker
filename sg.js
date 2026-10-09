@@ -98,35 +98,97 @@
   var PENALTY_STROKES = { none: 0, water: 1, lateral: 1, drop: 1, ob: 1 };
 
   /*
-   * Row model (what the phone screen shows): each row is where a shot is
-   * played FROM. Row 1 = tee at the hole length. Later rows:
-   *   dist  - distance to pin (yards; feet when loc = green)
-   *   loc   - fairway | rough | deep | bunker | trees | green | hazard | ob | holed
-   *   dir   - how the previous shot missed: L | R | S (short) | O (over) | ''
-   *   pen   - true = a penalty stroke was taken to get here (+1), e.g. a drop
-   * loc 'ob'    = previous shot went OB: +1 and replay from the same spot
-   * loc 'holed' = the previous shot went in; the hole is finished.
-   * Hazard with pen = dropped after the hazard (rough baseline used);
-   * Hazard without pen = playing it from inside the hazard (recovery baseline).
+   * Row model v3 (what the phone screen shows) - ONE ROW = ONE STROKE.
+   *   dist - distance to the pin this stroke was hit FROM (yards; feet on the green)
+   *   loc  - where the ball was when hit: tee (row 1) | fairway | rough | deep |
+   *          bunker | trees | green | hazard | ob | holed | holedx
+   *   dir  - how the previous stroke missed: L | R | S (short) | O (over) | ''
+   *   pen  - true = a penalty stroke was added to get here (+1), e.g. a drop
+   * 'ob'     = previous stroke went OB: +1, and this stroke is the re-hit from
+   *            the same spot (distance and lie copied from the row above).
+   * 'holed'  = "In the hole - putt": this stroke (a putt, distance in feet) went in.
+   * 'holedx' = "In the hole - off green": this stroke (distance in yards) went in.
+   *            Its lie is unknown, so the Fairway baseline is used (approximation).
+   * Hazard + P = dropped (rough baseline); Hazard, no P = played from inside it.
+   * Score = number of rows + penalty strokes. Complete = every row has a
+   * distance and a location and the LAST row is In the hole (with a distance).
    */
   var LOC_LIE = { tee: 'tee', fairway: 'fairway', rough: 'rough', deep: 'deep', bunker: 'sand',
-    trees: 'recovery', green: 'green', hazard: 'hazard', holed: 'holed' };
+    trees: 'recovery', green: 'green', hazard: 'hazard', holed: 'green', holedx: 'fairway' };
   function blank(v) { return v === '' || v == null || isNaN(parseFloat(v)); }
-  function rowsToShots(rows) {
-    var shots = [], bad = null;
-    if (!rows || !rows.length || blank(rows[0].dist) || parseFloat(rows[0].dist) <= 0) return { shots: shots, bad: 0 };
-    for (var k = 1; k < rows.length; k++) {
-      var r = rows[k], side = r.dir === 'L' || r.dir === 'R' ? r.dir : '';
-      if (!r.loc) { bad = k; break; }
-      if (r.loc === 'ob') { shots.push({ lie: 'ob', dist: 0, side: side, dir: r.dir || '', pen: 'ob' }); continue; }
-      if (r.loc === 'holed') { shots.push({ lie: 'holed', dist: 0, side: '', dir: '', pen: r.pen ? 'drop' : 'none' }); break; }
-      if (blank(r.dist) || (r.loc !== 'green' && parseFloat(r.dist) <= 0) || parseFloat(r.dist) < 0) { bad = k; break; }
-      var lie = r.loc === 'hazard' ? (r.pen ? 'rough' : 'hazard') : LOC_LIE[r.loc];
-      shots.push({ lie: lie, dist: parseFloat(r.dist), side: side, dir: r.dir || '', pen: r.pen ? 'drop' : 'none' });
-    }
-    return { shots: shots, bad: bad };
+  function isHoled(r) { return r.loc === 'holed' || r.loc === 'holedx'; }
+  function lieOf(rows, k) {
+    var r = rows[k];
+    if (k === 0) return r.loc === 'holed' ? 'green' : 'tee';
+    if (r.loc === 'ob') return lieOf(rows, k - 1);
+    if (!r.loc) return null;
+    if (r.loc === 'hazard') return r.pen ? 'rough' : 'hazard';
+    return LOC_LIE[r.loc];
   }
-  function holeYards(hole) { return hole.rows ? parseFloat(hole.rows[0] && hole.rows[0].dist) || 0 : Number(hole.yards) || 0; }
+  function distOf(rows, k) {
+    var r = rows[k];
+    if (k > 0 && r.loc === 'ob') return distOf(rows, k - 1);
+    return blank(r.dist) ? null : parseFloat(r.dist);
+  }
+  function rowUnit(rows, k) { return lieOf(rows, k) === 'green' ? 'ft' : 'yd'; }
+  function isPenalty(r, k) { return k > 0 && !!(r.pen || r.loc === 'ob'); }
+  function rowStrokes(rows) {
+    return (rows || []).reduce(function (n, r, k) { return n + 1 + (isPenalty(r, k) ? 1 : 0); }, 0);
+  }
+  /** Returns {shots, bad, problem, complete}. problem: 'dist' | 'loc' | 'after' | 'last' | 'empty' | '' */
+  function rowsToShots(rows) {
+    var shots = [], bad = null, problem = '', complete = false;
+    if (!rows || !rows.length) return { shots: shots, bad: 0, problem: 'empty', complete: false };
+    for (var k = 0; k < rows.length; k++) {
+      var r = rows[k];
+      if (k > 0 && !r.loc) { bad = k; problem = 'loc'; break; }
+      var d = distOf(rows, k);
+      if (d == null || d <= 0) { bad = k; problem = 'dist'; break; }
+      if (isHoled(r) || (k === 0 && r.loc === 'holedx')) {
+        shots.push({ lie: 'holed', dist: 0, side: '', dir: '', pen: 'none' });
+        if (k < rows.length - 1) { bad = k + 1; problem = 'after'; } else complete = true;
+        break;
+      }
+      var nx = rows[k + 1];
+      if (!nx) { problem = 'last'; break; }
+      if (!nx.loc) { bad = k + 1; problem = 'loc'; break; }
+      var dn = distOf(rows, k + 1);
+      if (dn == null || dn <= 0) { bad = k + 1; problem = 'dist'; break; }
+      shots.push({ lie: lieOf(rows, k + 1), dist: dn, side: nx.dir === 'L' || nx.dir === 'R' ? nx.dir : '',
+        dir: nx.dir || '', pen: isPenalty(nx, k + 1) ? 'drop' : 'none', ob: nx.loc === 'ob' });
+    }
+    return { shots: shots, bad: bad, problem: problem, complete: complete };
+  }
+  function holeYards(hole) {
+    if (hole.rows) return parseFloat(hole.rows[0] && hole.rows[0].dist) || 0;
+    return Number(hole.yards) || 0;
+  }
+  /**
+   * v2 saved rows used a distance-less final 'holed' row meaning "the stroke
+   * above went in". Scott reads every row as a stroke, so v2 rows are kept
+   * 1:1 and the holed row now needs its own distance (hole reopens until it
+   * is filled in). Putt vs off-green is guessed from the row above.
+   */
+  function migrateV2Rows(rows) {
+    return rows.map(function (r, k) {
+      var o = { dist: r.dist == null ? '' : r.dist, loc: r.loc || '', dir: r.dir || '', pen: !!r.pen };
+      if (r.loc === 'holed') o.loc = k > 0 && rows[k - 1].loc === 'green' ? 'holed' : 'holedx';
+      if (r.loc === 'ob') o.pen = false;
+      return o;
+    });
+  }
+  /** v1 {yards, shots} -> v3 rows. In v1 the final shot record meant "the shot above went in". */
+  function v1ToRows(hole) {
+    var v2 = shotsToRows(hole);
+    var n = v2.length;
+    if (n >= 2 && v2[n - 1].loc === 'holed') {
+      var prev = v2[n - 2];
+      if (prev.loc === 'tee') prev.loc = 'holedx';
+      else if (prev.loc === 'ob') { /* rare: holed the re-hit; keep OB row and mark next */ v2[n - 1].dist = ''; }
+      else { prev.loc = prev.loc === 'green' ? 'holed' : 'holedx'; v2.pop(); }
+    }
+    return v2.map(function (r) { return { dist: r.dist == null ? '' : r.dist, loc: r.loc, dir: r.dir || '', pen: r.loc === 'ob' ? false : !!r.pen }; });
+  }
 
   /** Convert an old-format hole {par, yards, shots} to rows. */
   function shotsToRows(hole) {
@@ -167,9 +229,10 @@
    * are ignored.
    */
   function analyzeHole(hole) {
-    var bad = null;
-    if (hole.rows) {
-      var conv = rowsToShots(hole.rows); bad = conv.bad;
+    var bad = null, problem = '', complete = null, finished = true, rowsFmt = !!hole.rows, nRows = 0, liveStrokes = 0;
+    if (rowsFmt) {
+      var conv = rowsToShots(hole.rows); bad = conv.bad; problem = conv.problem; complete = conv.complete;
+      finished = !!hole.finished; nRows = hole.rows.length; liveStrokes = rowStrokes(hole.rows);
       hole = { par: hole.par, yards: holeYards(hole), shots: conv.shots };
     }
     var out = [];
@@ -199,14 +262,15 @@
         : Math.round(toYards(start.lie, start.dist) - toYards(end.lie, end.dist));
       out.push({
         n: i + 1, start: start, end: end, pen: pen, penStrokes: penStrokes,
-        side: s.side || '', dir: s.dir || s.side || '', eStart: eStart, eEnd: eEnd, sg: sg,
+        side: s.side || '', dir: s.dir || s.side || '', ob: !!s.ob, eStart: eStart, eEnd: eEnd, sg: sg,
         cat: cat, bucket: bucket, hit: hit
       });
       start = end;
     }
     var penalties = out.reduce(function (a, r) { return a + r.penStrokes; }, 0);
-    var done = shots.length > 0 && shots[shots.length - 1].lie === 'holed' &&
-      shots[shots.length - 1].pen !== 'ob';
+    var holedOut = shots.length > 0 && shots[shots.length - 1].lie === 'holed' && shots[shots.length - 1].pen !== 'ob';
+    if (complete === null) complete = holedOut;
+    var done = complete && finished;
     // Green in regulation: on green (or holed) using <= par-2 strokes.
     var gir = false, used = 0;
     for (var j = 0; j < out.length; j++) {
@@ -221,7 +285,9 @@
       fairway = t.pen === 'none' && (t.end.lie === 'fairway' || t.end.lie === 'green' || t.end.lie === 'holed');
     }
     return {
-      shots: out, bad: bad, strokes: shots.length + penalties, penalties: penalties,
+      shots: out, bad: bad, problem: problem, complete: complete, finished: finished,
+      rows: nRows, liveStrokes: rowsFmt ? liveStrokes : shots.length + penalties,
+      strokes: shots.length + penalties, penalties: penalties,
       putts: out.filter(function (r) { return r.cat === 'putting'; }).length,
       done: done, gir: gir, fairway: fairway,
       sg: out.reduce(function (a, r) { return a + r.sg; }, 0)
@@ -245,12 +311,11 @@
       S.holes.push(a);
       if (!a.shots.length) return;
       S.holesStarted++;
+      if (!a.done) return; // only finished holes count toward totals and stats
       S.penalties += a.penalties;
       S.putts += a.putts;
-      if (a.done) {
-        S.holesDone++; S.strokes += a.strokes; S.par += Number(h.par);
-        S.girHoles++; if (a.gir) S.gir++;
-      }
+      S.holesDone++; S.strokes += a.strokes; S.par += Number(h.par);
+      S.girHoles++; if (a.gir) S.gir++;
       if (a.fairway !== null) { S.fwTotal++; if (a.fairway) S.fwHit++; }
       a.shots.forEach(function (r) {
         S.sgTotal += r.sg;
@@ -270,7 +335,8 @@
   }
 
   var api = { expected: expected, analyzeHole: analyzeHole, summarize: summarize,
-    rowsToShots: rowsToShots, shotsToRows: shotsToRows, holeYards: holeYards,
+    rowsToShots: rowsToShots, shotsToRows: shotsToRows, migrateV2Rows: migrateV2Rows, v1ToRows: v1ToRows, holeYards: holeYards,
+    rowUnit: rowUnit, lieOf: lieOf, distOf: distOf, rowStrokes: rowStrokes, isPenalty: isPenalty,
     YARDS: YARDS, OFF_GREEN: OFF_GREEN, FEET: FEET, PUTTS: PUTTS };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else root.SG = api;

@@ -3,10 +3,13 @@
   'use strict';
   var KEY = 'golfsg.rounds.v1', CUR = 'golfsg.current.v1';
   // Location choices (row = where the shot is played FROM)
+  // Row = one stroke, hit FROM this location. Last row = In the hole (with the distance of the stroke that went in).
   var LOCS = [['fairway', 'Fairway'], ['rough', 'Rough'], ['bunker', 'Bunker'], ['green', 'Green'],
-    ['hazard', 'Hazard'], ['ob', 'OB'], ['holed', 'In the hole'], ['deep', 'Deep rough'], ['trees', 'Trees']];
+    ['hazard', 'Hazard'], ['ob', 'OB re-hit'], ['holed', 'In the hole'], ['holedx', 'In the hole (chip/shot)'],
+    ['deep', 'Deep rough'], ['trees', 'Trees']];
+  var LOCS0 = [['tee', 'Tee'], ['holedx', 'In the hole (ace!)']];
   var LOC_SHORT = { tee: 'Tee', fairway: 'Fairway', rough: 'Rough', bunker: 'Bunker', green: 'Green', hazard: 'Hazard',
-    ob: 'OB', holed: 'In the hole', deep: 'Deep rough', trees: 'Trees' };
+    ob: 'OB re-hit', holed: 'In the hole', holedx: 'In the hole', deep: 'Deep rough', trees: 'Trees' };
   var DIRS = [['', '–'], ['L', 'L'], ['R', 'R'], ['S', 'S'], ['O', 'O']]; // Left, Right, Short, Over
   var CAT_NAME = { tee: 'Off the tee', approach: 'Approach', short: 'Short game', putting: 'Putting' };
 
@@ -16,13 +19,18 @@
   function load() {
     var rs;
     try { rs = JSON.parse(localStorage.getItem(KEY)) || []; } catch (e) { rs = []; }
-    // Migrate v1 holes {yards, shots} -> v2 {rows}
+    // Migrate older saves to v3 rows (one row = one stroke)
     var changed = false;
     rs.forEach(function (r) {
+      if (r.v === 3) return;
       (r.holes || []).forEach(function (h) {
-        if (!h.rows) { h.rows = SG.shotsToRows(h); delete h.shots; delete h.yards; changed = true; }
-        if (!h.par) { h.par = 4; changed = true; }
+        if (h.shots) { h.rows = SG.v1ToRows(h); delete h.shots; delete h.yards; }
+        else if (h.rows) h.rows = SG.migrateV2Rows(h.rows);
+        else h.rows = [{ loc: 'tee', dist: '', dir: '', pen: false }];
+        if (!h.par) h.par = 4;
+        h.finished = SG.analyzeHole(h).complete;
       });
+      r.v = 3; changed = true;
     });
     if (changed) localStorage.setItem(KEY, JSON.stringify(rs));
     return rs;
@@ -38,9 +46,9 @@
     var t = document.getElementById('toast'); t.textContent = msg; t.className = 'show';
     clearTimeout(toast._t); toast._t = setTimeout(function () { t.className = ''; }, 1800);
   }
-  function emptyHole() { return { par: 4, rows: [{ loc: 'tee', dist: '', dir: '', pen: false }] }; }
+  function emptyHole() { return { par: 4, finished: false, rows: [{ loc: 'tee', dist: '', dir: '', pen: false }] }; }
   function newRound(course) {
-    var r = { id: 'r' + Date.now(), date: new Date().toISOString(), course: course || '', holes: [] };
+    var r = { v: 3, id: 'r' + Date.now(), date: new Date().toISOString(), course: course || '', holes: [] };
     for (var i = 0; i < 18; i++) r.holes.push(emptyHole());
     rounds.unshift(r); save();
     view.roundId = r.id; localStorage.setItem(CUR, r.id);
@@ -53,7 +61,7 @@
     if (focus && h.rows.length === 1 && h.rows[0].dist === '') focusDist(0);
   }
   function focusDist(k) { var el = document.querySelector('input[data-row="' + k + '"]'); if (el) el.focus(); }
-  function started(h) { return h.rows.length > 1 || h.rows[0].dist !== ''; }
+  function started(h) { return h.rows.length > 1 || h.rows[0].dist !== '' || !!h.finished; }
 
   // ---------- rendering ----------
   function render() {
@@ -86,68 +94,66 @@
   }
 
   function holeHTML() {
-    var r = round(), h = r.holes[view.hole], a = SG.analyzeHole(h), S = SG.summarize(r);
+    var r = round(), h = r.holes[view.hole], a = SG.analyzeHole(h), S = SG.summarize(r), fin = !!h.finished && a.complete;
     var out = '<div class="topbar"><button data-act="prev" aria-label="Previous hole"' + (view.hole === 0 ? ' disabled' : '') + '>‹</button>' +
       '<div class="title"><b>' + (r.course ? esc(r.course) : 'Round') + '</b><span>' +
       (S.holesDone ? 'Total ' + S.strokes + ' (' + toPar(S.toPar) + ') thru ' + S.holesDone : 'No holes finished yet') + '</span></div>' +
       '<button data-act="next" aria-label="Next hole"' + (view.hole === 17 ? ' disabled' : '') + '>›</button></div>';
 
-    out += '<div class="holecard"><div class="hc-head"><h2>Hole ' + (view.hole + 1) + '</h2>' +
+    out += '<div class="holecard' + (fin ? ' fin' : '') + '"><div class="hc-head"><h2>Hole ' + (view.hole + 1) + '</h2>' +
       '<div class="par"><span>Par</span>' + [3, 4, 5].map(function (p) {
-        return '<button data-act="par" data-v="' + p + '" class="' + (h.par === p ? 'sel' : '') + '">' + p + '</button>'; }).join('') + '</div></div>';
+        return '<button data-act="par" data-v="' + p + '" class="' + (h.par === p ? 'sel' : '') + '"' + (fin ? ' disabled' : '') + '>' + p + '</button>'; }).join('') + '</div></div>';
 
     out += '<div class="srow shead"><span class="c-n">#</span><span class="c-d">Dist</span><span class="c-l">Loc</span><span class="c-x">LRSO</span><span class="c-p">P</span><span class="c-del"></span></div>';
-    var holedAt = -1;
-    h.rows.forEach(function (row, k) { if (holedAt < 0 && row.loc === 'holed') holedAt = k; });
-    h.rows.forEach(function (row, k) { out += rowHTML(h, a, row, k, holedAt); });
+    h.rows.forEach(function (row, k) { out += rowHTML(h, a, row, k, fin); });
 
-    if (a.done) {
+    var pens = h.rows.reduce(function (n, rw, k) { return n + (SG.isPenalty(rw, k) ? 1 : 0); }, 0);
+    out += '<div class="count" id="count">' + countText(h, pens) + '</div>';
+    if (fin) {
       out += '<div class="hole-done">Score <b>' + a.strokes + '</b> (' + toPar(a.strokes - h.par) + ') · SG <span class="' + sgCls(a.sg) + '">' + fmtSG(a.sg) + '</span></div>';
+      out += '<button class="big" data-act="reopen">✎ Edit this hole</button>';
     } else {
+      var last = h.rows[h.rows.length - 1];
+      if (!(last.loc === 'holed' || last.loc === 'holedx')) out += '<button class="addshot big" data-act="addShot">Add Shot ⊕</button>';
+      out += '<button class="finish big" data-act="finish"' + (a.complete && h.par ? '' : ' disabled') + '>✓ Finish hole</button>';
       out += '<div id="hint" class="hint">' + hintText(h, a) + '</div>';
-      out += '<button class="addshot big" data-act="addShot">Add Shot ⊕</button>';
     }
     out += '</div>';
     out += view.hole < 17
-      ? '<button class="' + (a.done ? 'primary ' : '') + 'big" data-act="next">' + (started(r.holes[view.hole + 1]) ? 'Hole ' + (view.hole + 2) + ' ›' : 'Add Hole ' + (view.hole + 2) + ' ⊕') + '</button>'
+      ? '<button class="' + (fin ? 'primary ' : '') + 'big" data-act="next">' + (started(r.holes[view.hole + 1]) ? 'Hole ' + (view.hole + 2) + ' ›' : 'Add Hole ' + (view.hole + 2) + ' ⊕') + '</button>'
       : '<button class="primary big" data-act="summary">Finish round – see stats</button>';
     out += '<div class="row sub"><button class="txt" data-act="home">Home</button><button class="txt" data-act="summary">Scorecard &amp; stats</button></div>';
-    out += '<p class="help muted">Each row is where you hit FROM. Row 1 is the tee (hole length). Dist = yards to the pin (feet on the green). ' +
-      'LRSO = how the shot before missed (Left, Right, Short, Over). P = penalty stroke (+1), e.g. a drop. OB = +1, re-hit from the same spot. Pick "In the hole" to finish.</p>';
+    out += '<p class="help muted">Each row is ONE stroke. Dist = how far from the pin you hit it (yards; feet on the green). Loc = where the ball was. ' +
+      'Last row: pick "In the hole" and enter the distance of the putt (or chip) that went in. LRSO = how the shot before missed (Left, Right, Short, Over). ' +
+      'P = penalty stroke (+1), e.g. a drop. "OB re-hit" = +1 and you hit again from the same spot. Score = rows + penalties.</p>';
     return out;
   }
+  function countText(h, pens) {
+    var n = h.rows.length;
+    return n + ' stroke' + (n === 1 ? '' : 's') + (pens ? ' + ' + pens + ' penalty' + (pens === 1 ? '' : ' strokes') + ' = ' + (n + pens) : '');
+  }
 
-  function rowHTML(h, a, row, k, holedAt) {
-    var tee = k === 0, ob = row.loc === 'ob', holed = row.loc === 'holed', dead = holedAt >= 0 && k > holedAt;
-    var bad = a.bad === k;
-    var shotNo = k + 1;
-    var out = '<div class="srow' + (bad ? ' bad' : '') + (dead ? ' dead' : '') + '" data-k="' + k + '">';
-    out += '<button class="c-n" data-act="menu" data-k="' + k + '" aria-label="Row options">' + (holed ? '⛳' : shotNo) + '</button>';
-    // Dist
-    if (holed) out += '<span class="c-d holedtxt">–</span>';
-    else if (ob) out += '<span class="c-d obtxt">' + (prevDist(h, k)) + '</span>';
-    else out += '<span class="c-d"><input type="text" inputmode="numeric" pattern="[0-9]*" maxlength="3" data-row="' + k + '" value="' + esc(row.dist) + '" aria-label="Distance row ' + shotNo + '">' +
-      '<i class="u">' + (row.loc === 'green' ? 'ft' : 'yd') + '</i></span>';
-    // Loc
-    if (tee) out += '<span class="c-l teetxt">Tee</span>';
-    else out += '<span class="c-l' + (holed ? ' wide' : '') + '"><select data-f="loc" data-k="' + k + '" aria-label="Location row ' + shotNo + '">' +
+  function rowHTML(h, a, row, k, fin) {
+    var ob = row.loc === 'ob', bad = !fin && a.bad === k, shotNo = k + 1, dis = fin ? ' disabled' : '';
+    var out = '<div class="srow' + (bad ? ' bad' : '') + '" data-k="' + k + '">';
+    out += '<button class="c-n" data-act="menu" data-k="' + k + '" aria-label="Row options"' + dis + '>' + shotNo + '</button>';
+    if (ob) out += '<span class="c-d obtxt">' + prevDist(h, k) + '</span>';
+    else out += '<span class="c-d"><input type="text" inputmode="numeric" pattern="[0-9]*" maxlength="3" data-row="' + k + '" value="' + esc(row.dist) + '" aria-label="Distance row ' + shotNo + '"' + dis + '>' +
+      '<i class="u" data-unit="' + k + '">' + SG.rowUnit(h.rows, k) + '</i></span>';
+    var opts = k === 0 ? LOCS0 : LOCS;
+    out += '<span class="c-l"><select data-f="loc" data-k="' + k + '" aria-label="Location row ' + shotNo + '"' + dis + '>' +
       (row.loc ? '' : '<option value="" selected>–</option>') +
-      LOCS.map(function (l) { return '<option value="' + l[0] + '"' + (row.loc === l[0] ? ' selected' : '') + '>' + l[1] + '</option>'; }).join('') + '</select></span>';
-    // LRSO
-    if (holed) { /* location spans the LRSO and P columns */ }
-    else if (tee) out += '<span class="c-x"></span>';
-    else out += '<span class="c-x"><select data-f="dir" data-k="' + k + '" aria-label="Miss direction row ' + shotNo + '">' +
-      DIRS.map(function (d) { return '<option value="' + d[0] + '"' + ((row.dir || '') === d[0] ? ' selected' : '') + '>' + d[1] + '</option>'; }).join('') + '</select></span>';
-    // P
-    if (holed) { /* spanned */ }
-    else if (tee) out += '<span class="c-p"></span>';
-    else out += '<span class="c-p"><button class="pen' + (row.pen || ob ? ' on' : '') + '" data-act="pen" data-k="' + k + '"' + (ob ? ' disabled' : '') + ' aria-label="Penalty row ' + shotNo + '">' + (row.pen || ob ? '+1' : '') + '</button></span>';
-    // Delete
-    out += '<span class="c-del">' + (tee ? '' : '<button class="del" data-act="del" data-k="' + k + '" aria-label="Delete row ' + shotNo + '">⌫</button>') + '</span>';
+      opts.map(function (l) { return '<option value="' + l[0] + '"' + (row.loc === l[0] ? ' selected' : '') + '>' + l[1] + '</option>'; }).join('') + '</select></span>';
+    if (k === 0) out += '<span class="c-x"></span><span class="c-p"></span>';
+    else {
+      out += '<span class="c-x"><select data-f="dir" data-k="' + k + '" aria-label="Miss direction row ' + shotNo + '"' + dis + '>' +
+        DIRS.map(function (d) { return '<option value="' + d[0] + '"' + ((row.dir || '') === d[0] ? ' selected' : '') + '>' + d[1] + '</option>'; }).join('') + '</select></span>';
+      out += '<span class="c-p"><button class="pen' + (row.pen || ob ? ' on' : '') + '" data-act="pen" data-k="' + k + '"' + (ob || fin ? ' disabled' : '') + ' aria-label="Penalty row ' + shotNo + '">' + (row.pen || ob ? '+1' : '') + '</button></span>';
+    }
+    out += '<span class="c-del">' + (k === 0 ? '' : '<button class="del" data-act="del" data-k="' + k + '" aria-label="Delete row ' + shotNo + '"' + dis + '>⌫</button>') + '</span>';
     out += '</div>';
-    // info line: result of the shot played from this row
-    out += '<div class="sinfo" data-info="' + k + '">' + (dead ? '' : infoHTML(a.shots[k])) + '</div>';
-    if (view.menu === k) {
+    out += '<div class="sinfo" data-info="' + k + '">' + infoHTML(a.shots[k]) + '</div>';
+    if (view.menu === k && !fin) {
       out += '<div class="rowmenu">' + (k > 0 ? '<button data-act="insBefore" data-k="' + k + '">Insert shot above</button>' : '') +
         '<button data-act="insAfter" data-k="' + k + '">Insert shot below</button><button data-act="menu" data-k="' + k + '">Close</button></div>';
     }
@@ -155,21 +161,25 @@
   }
   function infoHTML(s) {
     if (!s) return '';
-    var info = s.pen === 'ob' ? ' · went OB' : s.end.lie === 'holed' ? ' · holed it!' : (s.start.lie === 'green' ? '' : ' · hit ' + s.hit + ' yd');
+    var info = s.end.lie === 'holed' ? ' · in the hole!' : s.ob ? ' · went OB' : (s.start.lie === 'green' ? ' · missed' : ' · hit ' + s.hit + ' yd');
     return CAT_NAME[s.cat] + info + ' · SG <b class="' + sgCls(s.sg) + '">' + fmtSG(s.sg) + '</b>';
   }
   function prevDist(h, k) {
-    // OB replays from the spot of the shot that went OB (walk back past other OB rows)
-    for (var j = k - 1; j >= 0; j--) if (h.rows[j].loc !== 'ob') return (h.rows[j].dist === '' ? '?' : h.rows[j].dist) + ' ' + (h.rows[j].loc === 'green' ? 'ft' : 'yd');
-    return '';
+    var d = SG.distOf(h.rows, k);
+    return (d == null ? '?' : d) + ' ' + SG.rowUnit(h.rows, k);
   }
   function hintText(h, a) {
-    if (a.bad === 0) return 'Enter the hole length (yards) in row 1.';
-    if (a.bad != null) {
-      var row = h.rows[a.bad];
-      return 'Row ' + (a.bad + 1) + ': ' + (!row.loc ? 'pick a location.' : 'enter the distance to the pin.');
+    if (!h.par) return 'Pick the par.';
+    if (a.complete) return 'All set – tap Finish hole.';
+    var n = a.bad != null ? a.bad + 1 : h.rows.length, row = h.rows[n - 1] || {};
+    var holed = row.loc === 'holed' || row.loc === 'holedx';
+    switch (a.problem) {
+      case 'dist': return n === 1 ? 'Missing: hole length in row 1.' : 'Missing: distance in row ' + n + (holed ? ' (how far was the putt/shot that went in?)' : '') + '.';
+      case 'loc': return 'Missing: location in row ' + n + '.';
+      case 'after': return 'Row ' + (n - 1) + ' is In the hole – delete the rows after it.';
+      case 'last': return 'Not finished: tap Add Shot, and make the last row "In the hole".';
     }
-    return 'Hit the next shot, then tap Add Shot. Holed it? Pick "In the hole" in the last row.';
+    return '';
   }
 
   function summaryHTML() {
@@ -181,7 +191,7 @@
     out += '<div class="label">Scorecard – tap a hole to edit</div><div class="card">';
     r.holes.forEach(function (h, i) {
       var a = S.holes[i], cls = 'empty', txt = '·';
-      if (started(h)) { txt = a.done ? a.strokes : '…'; cls = !a.done ? '' : a.strokes < h.par ? 'under' : a.strokes > h.par ? 'over' : ''; }
+      if (started(h)) { txt = a.done ? a.strokes : SG.rowStrokes(h.rows) + '…'; cls = !a.done ? '' : a.strokes < h.par ? 'under' : a.strokes > h.par ? 'over' : ''; }
       out += '<button class="' + cls + '" data-act="goHole" data-i="' + i + '">' + (i + 1) + ' · P' + h.par + '<b>' + txt + '</b></button>';
     });
     out += '</div>';
@@ -286,9 +296,17 @@
         h.rows.push(newRow(h, h.rows.length - 1)); save(); view.menu = null; render();
         focusDist(h.rows.length - 1); return;
       }
+      case 'finish': {
+        var af = SG.analyzeHole(h);
+        if (!af.complete) { toast(hintText(h, af)); return; }
+        h.finished = true; save(); view.menu = null;
+        toast('Hole ' + (view.hole + 1) + ': ' + af.strokes + ' (' + toPar(af.strokes - h.par) + ')');
+        break;
+      }
+      case 'reopen': h.finished = false; save(); break;
       case 'pen': h.rows[k].pen = !h.rows[k].pen; save(); break;
       case 'del':
-        if (!confirm('Delete row ' + (k + 1) + ' (' + (h.rows[k].dist || '') + ' ' + LOC_SHORT[h.rows[k].loc || 'fairway'] + ')?')) return;
+        if (!confirm('Delete row ' + (k + 1) + ' (' + (h.rows[k].dist || '') + ' ' + (LOC_SHORT[h.rows[k].loc] || '') + ')?')) return;
         h.rows.splice(k, 1); view.menu = null; save(); break;
       case 'menu': view.menu = view.menu === k ? null : k; break;
       case 'insBefore': h.rows.splice(k, 0, newRow(h, k - 1)); view.menu = null; save(); render(); focusDist(k); return;
@@ -301,19 +319,12 @@
     var t = ev.target, f = t.getAttribute('data-f'); if (!f) return;
     var h = round().holes[view.hole], k = +t.getAttribute('data-k'), row = h.rows[k];
     if (f === 'loc') {
-      var v = t.value;
-      if (v === 'holed' && k < h.rows.length - 1) {
-        if (!confirm('Mark as holed? The ' + (h.rows.length - 1 - k) + ' row(s) after it will be removed.')) { render(); return; }
-        h.rows.splice(k + 1);
-      }
-      var was = row.loc;
+      var v = t.value, was = row.loc;
       row.loc = v;
-      if (was === 'ob' && v !== 'ob') row.pen = false;
-      if (v === 'ob') { row.pen = true; row.dist = ''; }
-      else if (v === 'holed') { row.dist = ''; row.dir = ''; row.pen = false; }
+      if (v === 'ob') { row.dist = ''; row.pen = false; }
+      if (was === 'ob' && v !== 'ob') row.dist = '';
       save(); render();
-      if ((v === 'holed')) { var a = SG.analyzeHole(h); if (a.done) toast('Hole done: ' + a.strokes + ' (' + toPar(a.strokes - h.par) + ')'); }
-      else if (v !== 'ob' && row.dist === '') focusDist(k);
+      if (v !== 'ob' && row.dist === '') focusDist(k);
     } else if (f === 'dir') { row.dir = t.value; save(); render(); }
   });
 
@@ -329,6 +340,7 @@
   function refreshInfo(h) {
     var a = SG.analyzeHole(h), hint = document.getElementById('hint');
     if (hint) hint.textContent = hintText(h, a);
+    var fb = document.querySelector('[data-act="finish"]'); if (fb) fb.disabled = !(a.complete && h.par);
     h.rows.forEach(function (row, k) {
       var el = document.querySelector('.sinfo[data-info="' + k + '"]'); if (el) el.innerHTML = infoHTML(a.shots[k]);
       var rw = document.querySelector('.srow[data-k="' + k + '"]'); if (rw) rw.classList.toggle('bad', a.bad === k);
@@ -337,7 +349,7 @@
   }
 
   function firstOpenHole(r) {
-    for (var i = 0; i < 18; i++) { var a = SG.analyzeHole(r.holes[i]); if (!a.done) return i; }
+    for (var i = 0; i < 18; i++) { if (!SG.analyzeHole(r.holes[i]).done) return i; }
     return 17;
   }
 

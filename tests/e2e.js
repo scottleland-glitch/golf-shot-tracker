@@ -30,56 +30,68 @@ let passed = 0; const ok = (m) => { passed++; console.log('  ✓', m); };
   const hideToast = () => page.evaluate(() => { document.getElementById('toast').className = ''; });
   const noOverflow = async (label) => { const w = await page.evaluate(() => document.documentElement.scrollWidth); assert.ok(w <= 390, label + ' overflow ' + w); };
 
-  // Seed an OLD (v1) round to prove migration works
+  const count = () => page.textContent('#count');
+  const finishDisabled = () => page.$eval('[data-act="finish"]', e => e.disabled);
+  const hint = () => page.textContent('#hint');
+  const header = () => page.textContent('.topbar .title span');
+
+  // Seed Scott's real v2 save: 365 Tee, 100 Fairway L, 6 ft Green, In the hole (no distance)
   await page.goto(URL);
   await page.evaluate(() => {
     localStorage.clear();
-    const holes = []; for (let i = 0; i < 18; i++) holes.push({ par: null, yards: null, shots: [] });
-    holes[0] = { par: 4, yards: 400, shots: [{ lie: 'rough', dist: 0, side: 'R', pen: 'ob' }, { lie: 'rough', dist: 180, side: 'L', pen: 'water' },
-      { lie: 'green', dist: 20, side: '', pen: 'none' }, { lie: 'holed', dist: 0, side: '', pen: 'none' }] };
-    localStorage.setItem('golfsg.rounds.v1', JSON.stringify([{ id: 'rold', date: '2026-10-01T18:00:00.000Z', course: 'Old v1 round', holes }]));
+    const holes = []; for (let i = 0; i < 18; i++) holes.push({ par: 4, rows: [{ loc: 'tee', dist: '', dir: '', pen: false }] });
+    holes[0] = { par: 4, rows: [{ loc: 'tee', dist: 365, dir: '', pen: false }, { loc: 'fairway', dist: 100, dir: 'L', pen: false },
+      { loc: 'green', dist: 6, dir: '', pen: false }, { loc: 'holed', dist: '', dir: '', pen: false }] };
+    localStorage.setItem('golfsg.rounds.v1', JSON.stringify([{ id: 'rv2', date: '2026-10-08T05:00:00.000Z', course: 'Scott v2 save', holes }]));
+    localStorage.setItem('golfsg.current.v1', 'rv2');
   });
   await page.reload(); await page.waitForSelector('text=Golf Shot Tracker');
   const swScope = await page.evaluate(async () => (await navigator.serviceWorker.ready).scope); assert.ok(swScope.startsWith(URL), swScope); ok('service worker scope = ' + swScope);
-  const mig = await page.evaluate(() => { const r = window.__golf.rounds()[0]; return { rows: r.holes[0].rows.length, s: SG.summarize(r) }; });
-  assert.strictEqual(mig.rows, 5); assert.strictEqual(mig.s.strokes, 6); assert.strictEqual(mig.s.penalties, 2);
-  ok('old saved round migrated to new table format (hole 1: 6 strokes, 2 penalties)');
+  await act('resume'); await page.waitForSelector('.holecard');
+  assert.match(await count(), /^4 strokes/); ok("Scott's saved hole (365 Tee, 100 F L, 6 G, In the hole) counts 4 strokes");
+  assert.ok(await finishDisabled()); assert.match(await hint(), /Missing: distance in row 4/);
+  assert.match(await header(), /No holes finished/); ok('…and stays unfinished (Finish disabled, "Missing: distance in row 4"), not in totals');
+  assert.ok(!(await page.textContent('.sinfo[data-info="2"]')).includes('in the hole'), 'the 6 ft putt is not marked holed'); ok('6 ft putt is NOT shown as holed');
+  await hideToast(); await page.screenshot({ path: `${SHOTS}/10-finish-disabled.png` });
+  await dist(3, 1);
+  assert.ok(!(await finishDisabled())); ok('entering the last putt distance enables Finish hole');
+  await act('finish');
+  assert.match(await page.textContent('.hole-done'), /Score 4 \(E\)/); assert.match(await header(), /Total 4 \(E\) thru 1/);
+  ok('Finish → Score 4 (E), header Total 4 (E) thru 1');
+  await act('home');
 
+  // New round: Scott's example 365 Tee, 130 F, 15 ft G, 3 ft In the hole
   await page.fill('#course', 'Washoe County GC');
   await act('new');
-  assert.ok(await page.evaluate(() => document.activeElement.getAttribute('data-row') === '0')); ok('new hole: cursor in row 1 distance (tee)');
-  assert.match(await page.textContent('.srow[data-k="0"]'), /Tee/);
-  // Hole 1 like Scott's screenshot: 365 tee, 125 F R, 15 ft G O, 3 ft G, holed
+  assert.ok(await page.evaluate(() => document.activeElement.getAttribute('data-row') === '0')); ok('new hole: cursor in row 1 distance (Tee)');
   await dist(0, 365);
+  await act('addShot'); assert.ok(await page.evaluate(() => document.activeElement.getAttribute('data-row') === '1')); ok('Add Shot adds row 2 and focuses its distance');
+  await dist(1, 130);
+  await act('addShot'); assert.match(await page.textContent('#toast'), /location in row 2/); ok('Add Shot asks for missing location');
+  await loc(1, 'fairway');
+  assert.match(await page.textContent('.sinfo[data-info="0"]'), /hit 235 yd/); ok('row 1 info: hit 235 yd (365 - 130)');
+  await act('addShot'); await loc(2, 'green'); await dist(2, 15);
+  assert.match(await page.textContent('[data-unit="2"]'), /ft/); ok('green row in feet');
   await act('addShot');
-  assert.strictEqual(await rows(), 2);
-  assert.ok(await page.evaluate(() => document.activeElement.getAttribute('data-row') === '1')); ok('Add Shot adds row 2 and focuses its distance');
-  await dist(1, 125);
-  await act('addShot'); assert.match(await page.textContent('#toast'), /Row 2: pick a location/); ok('validation: Add Shot asks for missing location');
-  await loc(1, 'fairway'); await dir(1, 'R');
-  assert.match(await page.textContent('.sinfo[data-info="0"]'), /hit 240 yd/); ok('row 1 info: hit 240 yd (365 - 125)');
-  await act('addShot'); await dist(2, 15); await loc(2, 'green'); await dir(2, 'O');
-  assert.match(await page.textContent('.srow[data-k="2"] .u'), /ft/); ok('green row shows feet');
-  await act('addShot');
-  assert.strictEqual(await page.$eval('select[data-f="loc"][data-k="3"]', e => e.value), 'green'); ok('next row after green defaults to Green');
+  assert.strictEqual(await page.$eval('select[data-f="loc"][data-k="3"]', e => e.value), 'green'); ok('row after green defaults to Green');
   await dist(3, 3);
-  await hideToast(); await page.screenshot({ path: `${SHOTS}/7-hole-table-entry.png` });
+  assert.ok(await finishDisabled()); assert.match(await hint(), /last row "In the hole"/); ok('Finish disabled until last row is In the hole');
+  await loc(3, 'holed');
+  assert.strictEqual(await page.locator('.hole-done').count(), 0); assert.ok(!(await finishDisabled()));
+  ok('choosing In the hole does NOT auto-finish; Finish becomes active');
+  assert.match(await count(), /^4 strokes/);
+  await hideToast(); await page.evaluate(() => window.scrollTo(0, 0)); await page.screenshot({ path: `${SHOTS}/7-hole-complete-finish-ready.png` });
+  await act('finish');
+  assert.match(await page.textContent('.hole-done'), /Score 4 \(E\)/); ok("Scott's example scores 4 (E)");
+  await hideToast(); await page.evaluate(() => window.scrollTo(0, 0)); await page.screenshot({ path: `${SHOTS}/8-hole-finished-score4.png` });
+  // Reopen, edit, re-finish
+  await act('reopen'); assert.ok(!(await page.$eval('input[data-row="2"]', e => e.disabled))); ok('Edit this hole reopens it');
+  await actK('del', 2); assert.match(await count(), /^3 strokes/); await act('finish');
+  assert.match(await page.textContent('.hole-done'), /Score 3 \(-1\)/); ok('delete a row + re-finish → 3 (-1)');
+  await act('reopen'); await actK('menu', 1); await actK('insAfter', 1);
+  assert.ok(await finishDisabled()); await dist(2, 15); await loc(2, 'green'); await act('finish');
+  assert.match(await page.textContent('.hole-done'), /Score 4 \(E\)/); ok('insert a row + re-finish → 4 (E)');
   await noOverflow('hole table');
-  await act('addShot'); await loc(4, 'holed');
-  assert.match(await doneText(), /Score 4 \(E\)/); ok('"In the hole" finishes hole: 4 (E)');
-  // Delete a row
-  await actK('del', 3);
-  assert.match(await doneText(), /Score 3 \(-1\)/); ok('delete row works (now 3, -1)');
-  // Insert a row below row 3
-  await actK('menu', 2); await actK('insAfter', 2);
-  assert.strictEqual(await rows(), 5);
-  await dist(3, 3); await page.locator('h2').first().click();
-  await page.evaluate(() => 0);
-  await act('par', 4); // triggers re-render
-  assert.match(await doneText(), /Score 4 \(E\)/); ok('insert row works (back to 4, E)');
-  // Edit a distance in the middle: 125 -> 130
-  await dist(1, 130); assert.match(await page.textContent('.sinfo[data-info="0"]'), /hit 235 yd/); ok('editing a distance updates live (hit 235 yd)');
-  await hideToast(); await page.screenshot({ path: `${SHOTS}/8-hole-table-done.png` });
 
   // Hole 2 via Add Hole
   assert.match(await page.textContent('[data-act="next"].big'), /Add Hole 2/);
@@ -88,39 +100,49 @@ let passed = 0; const ok = (m) => { passed++; console.log('  ✓', m); };
   await act('par', 3); await dist(0, 165);
   await act('addShot'); await dist(1, 15); await loc(1, 'bunker'); await dir(1, 'L');
   await act('addShot'); await dist(2, 4); await loc(2, 'green');
-  await act('addShot'); await dist(3, 1);
-  await act('addShot'); await loc(4, 'holed');
-  assert.match(await doneText(), /Score 4 \(\+1\)/); ok('hole 2 (par 3, bunker, 2 putts) = 4 (+1)');
+  await act('addShot'); await dist(3, 1); await loc(3, 'holed'); await act('finish');
+  assert.match(await page.textContent('.hole-done'), /Score 4 \(\+1\)/); ok('hole 2: 165 Tee, 15 Bunker L, 4 ft G, 1 ft In the hole = 4 (+1)');
 
-  // Hole 3: OB, hazard drop
+  // Hole 3: OB re-hit + hazard drop
   await page.locator('[data-act="next"].big').click();
   await act('par', 5); await dist(0, 520);
   await act('addShot'); await loc(1, 'ob'); await dir(1, 'R');
   assert.match(await page.textContent('.srow[data-k="1"]'), /520 yd/);
-  assert.match(await page.getAttribute('[data-act="pen"][data-k="1"]', 'class'), /on/); ok('OB row: re-hit from 520, penalty auto on');
+  assert.match(await page.getAttribute('[data-act="pen"][data-k="1"]', 'class'), /on/); ok('OB re-hit row: same 520 yd spot, +1 automatic');
   await act('addShot'); await dist(2, 250); await loc(2, 'hazard'); await actK('pen', 2); await dir(2, 'L');
   await act('addShot'); await dist(3, 90); await loc(3, 'fairway');
   await act('addShot'); await dist(4, 8); await loc(4, 'green');
-  await act('addShot'); await loc(5, 'holed');
-  assert.match(await doneText(), /Score 7 \(\+2\)/); ok('hole 3 with OB + hazard drop = 7 (+2)');
+  await act('addShot'); await dist(5, 2); await loc(5, 'holed');
+  assert.match(await count(), /6 strokes \+ 2 penalty strokes = 8/); ok('count line: 6 strokes + 2 penalty strokes = 8');
+  // a row after In the hole blocks Finish
+  await actK('menu', 5); await actK('insAfter', 5);
+  assert.ok(await finishDisabled()); assert.match(await hint(), /delete the rows after it/); ok('rows after In the hole block Finish');
+  await actK('del', 6);
+  await act('finish');
+  assert.match(await page.textContent('.hole-done'), /Score 8 \(\+3\)/); ok('hole 3 with OB + hazard drop = 8 (+3)');
   await page.screenshot({ path: `${SHOTS}/9-hole-ob-hazard.png`, fullPage: true });
-  // Changing a middle row to "In the hole" trims later rows
-  await loc(3, 'holed'); assert.strictEqual(await rows(), 4); ok('setting "In the hole" mid-hole trims later rows');
-  await loc(3, 'fairway'); await dist(3, 90); await act('addShot'); await dist(4, 8); await loc(4, 'green'); await act('addShot'); await loc(5, 'holed');
-  assert.match(await doneText(), /Score 7/);
+  // back arrows to a finished hole
+  await act('prev'); await act('prev');
+  assert.match(await page.textContent('.hc-head'), /Hole 1/); assert.match(await page.textContent('.hole-done'), /Score 4/); ok('‹ arrows go back to finished hole 1');
 
   // Summary
   await page.locator('[data-act="summary"]').first().click();
   const sum = await page.evaluate(() => SG.summarize(window.__golf.rounds()[0]));
-  assert.strictEqual(sum.strokes, 15); assert.strictEqual(sum.par, 12); assert.strictEqual(sum.penalties, 2);
-  assert.strictEqual(sum.putts, 5); assert.strictEqual(sum.fwHit, 1); assert.strictEqual(sum.fwTotal, 2); assert.strictEqual(sum.teeRight, 2);
-  assert.strictEqual(sum.apprOver, 1);
-  assert.match(await page.textContent('.big-score'), /15\s*\+3 vs par/); ok('summary: 15 (+3), 2 penalties, 5 putts, FW 1/2, approach over 1');
-  await page.locator('[data-act="goHole"][data-i="1"]').click();
-  assert.match(await page.textContent('.hc-head'), /Hole 2/); ok('tap scorecard hole opens it');
+  assert.strictEqual(sum.strokes, 16); assert.strictEqual(sum.par, 12); assert.strictEqual(sum.penalties, 2);
+  assert.strictEqual(sum.putts, 6); assert.strictEqual(sum.fwHit, 1); assert.strictEqual(sum.fwTotal, 2);
+  assert.match(await page.textContent('.big-score'), /16\s*\+4 vs par/); ok('summary: 16 (+4) = 4 + 4 + 8, 2 penalties, 6 putts, FW 1/2');
+  const card = await page.$$eval('.card button b', els => els.slice(0, 3).map(e => e.textContent));
+  assert.deepStrictEqual(card, ['4', '4', '8']); ok('scorecard shows 4, 4, 8');
+  await page.locator('[data-act="goHole"][data-i="2"]').click();
+  assert.match(await page.textContent('.hc-head'), /Hole 3/); ok('tap scorecard hole opens it');
+  await act('reopen'); await page.locator('[data-act="summary"]').first().click();
+  assert.match(await page.textContent('.big-score'), /8\s*\+1 vs par · 2 holes/); ok('reopened hole drops out of totals until re-finished');
+  await page.locator('[data-act="goHole"][data-i="2"]').click(); await act('finish');
   await page.locator('[data-act="summary"]').first().click();
   const csv = await page.evaluate(() => window.__golf.csvFor([window.__golf.rounds()[0]]));
-  assert.strictEqual(csv.trim().split('\r\n').length, 1 + 4 + 4 + 5); ok('CSV: 13 shot rows + header');
+  const lines = csv.trim().split('\r\n'); assert.strictEqual(lines.length, 1 + 4 + 4 + 6);
+  const scores = new Set(lines.slice(1).map(l => l.split(',').pop())); assert.deepStrictEqual([...scores].sort(), ['4', '8']);
+  ok('CSV: 14 shot rows, hole scores 4/4/8');
   const [dl] = await Promise.all([page.waitForEvent('download'), act('csv')]);
   assert.match(dl.suggestedFilename(), /golf-\d{4}-\d\d-\d\d-Washoe-County-GC\.csv/); ok('CSV download: ' + dl.suggestedFilename());
   await page.screenshot({ path: `${SHOTS}/4-summary.png` });

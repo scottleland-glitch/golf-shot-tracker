@@ -3,13 +3,13 @@
 Phone web app for tracking every golf shot and strokes gained (vs. PGA Tour baseline).
 Static files only: no backend, no build step. Data is stored on the phone (localStorage).
 
-## How a hole is entered (v2)
-Each hole is a table, one row per shot, like a paper shot log. Each row is where a shot is played FROM:
-Row 1 = tee (enter the hole length). Then for each next shot: Dist (yards to pin, feet on the green),
-Loc (Fairway, Rough, Bunker, Green, Hazard, OB, In the hole, Deep rough, Trees), LRSO (how the previous
-shot missed: Left/Right/Short/Over), P (+1 penalty, e.g. a drop). OB = +1 and re-hit from the same spot.
-"In the hole" finishes the hole. Tap a row number to insert a shot above/below; red button deletes.
-Rounds saved by v1 are converted automatically.
+## How a hole is entered (v3)
+Each hole is a table. ONE ROW = ONE STROKE, hit from that row's Dist/Loc. Row 1 = Tee (hole length).
+Dist = yards to the pin (feet on the green). Loc = where the ball was: Fairway, Rough, Bunker, Green, Hazard,
+OB re-hit, In the hole, In the hole (chip/shot), Deep rough, Trees. The LAST row is "In the hole" with the
+distance of the putt/shot that went in. LRSO = how the previous shot missed. P = +1 penalty to get here.
+Score = rows + penalties. "Finish hole" is enabled only when every row is complete; "Edit this hole" reopens it.
+Older saves are migrated automatically (a v2 "In the hole" row without a distance reopens the hole until filled).
 
 ## Files
 - `index.html`, `styles.css`, `app.js` – the app
