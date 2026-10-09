@@ -103,5 +103,5 @@ For the planned PDF report, approach tracers can be coloured by the strokes-gain
 On any round's stats page tap **📄 Make PDF report**. Built on the phone, offline (jsPDF 4.2.1 bundled in `vendor/`), letter portrait, 9 pages:
 1 header + score + scorecard + key stats · 2 strokes gained (category, by distance with avg to pin after, every baseline) ·
 3 fairways · 4 GIR · 5 approach misses · 6 pin location (one green, 3x3 grid, badge + mini plots per segment, table; empty segments skipped) ·
-7 proximity (lines coloured by `SG.REPORT_GROUPS`) · 8 1st putts · 9 2nd putts. Maps are rendered to 3x images.
+then one proximity page per distance group with shots (`SG.REPORT_GROUPS`, group colour, lie strip, stats, by lie, misses by direction; first one carries an all-groups summary; empty groups skipped) · 1st putts · 2nd putts. Maps are rendered to 3x images.
 Save with the share sheet (`golf-report-<player>-<date>.pdf`) or, when connected, **Save to OneDrive** → app folder `/Reports`.

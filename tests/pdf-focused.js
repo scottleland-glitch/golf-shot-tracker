@@ -31,10 +31,14 @@ const BASE = process.env.BASE_URL || 'http://127.0.0.1:8766/', OUT = process.env
   assert.strictEqual(d.suggestedFilename(), 'golf-report-scott-2026-10-09.pdf');
   const f = OUT + '/report.pdf'; await d.saveAs(f);
   const info = execSync('pdfinfo ' + f).toString(); const pages = +/Pages:\s+(\d+)/.exec(info)[1];
-  assert.ok(/Page size:\s+612 x 792/.test(info), info); assert.strictEqual(pages, 9, info);
+  assert.ok(/Page size:\s+612 x 792/.test(info), info); const groups = await page.evaluate(() => { const S = SG.summarize(window.__golf.rounds()[0], 'pga'); return SG.REPORT_GROUPS.filter(g => S.proxList.some(m => SG.reportGroup(m.from) === g.id)).map(g => g.name.replace('\u2013', '-')); });
+  assert.ok(groups.length >= 2, groups); assert.strictEqual(pages, 8 + groups.length, info + groups);
   const txt = execSync('pdftotext -layout ' + f + ' -').toString();
   ['Round report', 'Scott', 'Lakeridge', 'Front 9', 'Back 9', 'Key stats', 'Greens in regulation', 'By category', 'By distance', 'Avg to pin after', 'vs every baseline',
-    'Tee shots - fairways', 'Approach misses', 'Pin location', 'Back left', 'Misses by direction', 'Proximity by distance', 'distance group', 'Putting - 1st putts', 'Putting - 2nd putts', 'Page 9 of 9'].forEach(s => assert.ok(txt.includes(s), 'missing ' + s));
+    'Tee shots - fairways', 'Approach misses', 'Pin location', 'Back left', 'Misses by direction', 'All approach groups this round', 'Misses by direction', 'Lie', 'Putting - 1st putts', 'Putting - 2nd putts', ].forEach(s => assert.ok(txt.includes(s), 'missing ' + s));
+  groups.forEach(g => assert.ok(txt.includes('Proximity - ' + g), 'missing page ' + g)); assert.ok(txt.includes('Page ' + pages + ' of ' + pages));
+  const absent = ['20-60 yd', '60-100 yd', '100-130 yd', '130-160 yd', '160-200 yd', '200+ yd'].filter(g => !groups.includes(g)); absent.forEach(g => assert.ok(!txt.includes('Proximity - ' + g), 'empty group page ' + g));
+  console.log('groups', groups, 'skipped', absent);
   assert.ok(!txt.includes('Front left'), 'empty pin segments skipped');
   execSync(`pdftoppm -png -r 80 ${f} ${OUT}/page`);
   assert.deepStrictEqual(errors, []);

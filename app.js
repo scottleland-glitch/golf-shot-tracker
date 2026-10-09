@@ -119,8 +119,8 @@
   }
   // Render one of the app's map views for THIS round and pull out its main SVG + stats text
   function mapForReport(kind, extra) {
-    var keep = { map: view.map, mapScope: view.mapScope, proxB: view.proxB, proxLie: view.proxLie, puttN: view.puttN, proxReport: view.proxReport };
-    view.map = kind; view.mapScope = 'round'; view.proxB = 'all'; view.proxLie = 'all'; view.proxReport = false; for (var k in (extra || {})) view[k] = extra[k];
+    var keep = { proxGroup: view.proxGroup, map: view.map, mapScope: view.mapScope, proxB: view.proxB, proxLie: view.proxLie, puttN: view.puttN, proxReport: view.proxReport };
+    view.map = kind; view.mapScope = 'round'; view.proxB = 'all'; view.proxLie = 'all'; view.proxReport = false; view.proxGroup = null; for (var k in (extra || {})) view[k] = extra[k];
     var box = document.createElement('div'); box.innerHTML = mapHTML();
     for (var k2 in keep) view[k2] = keep[k2];
     var svgs = [].slice.call(box.querySelectorAll('svg')).filter(function (e) { return /viewBox="0 0 \d{3}/.test(e.outerHTML.slice(0, 300)); });
@@ -247,18 +247,24 @@
         return [b.name + (b.status === 'estimated' ? ' (est.)' : '') + (b.id === R.bl ? '  <' : ''), fmtSG(X.cats.tee.sg), fmtSG(X.cats.approach.sg), fmtSG(X.cats.short.sg), fmtSG(X.cats.putting.sg), fmtSG(X.sgTotal)]; })), M, y, [170, 70, 70, 70, 70, 80]);
       // ---- map pages ----
       var segs = SG.pinSegments(pinDataRound());
-      var pages = [['Tee shots – fairways', 'fw'], ['Greens in regulation', 'gir'], ['Approach misses', 'miss'], ['Pin location', 'pin'], ['Proximity by distance', 'prox', { proxReport: true }],
-        ['Putting – 1st putts', 'putt', { puttN: '1' }], ['Putting – 2nd putts', 'putt', { puttN: '2' }]];
+      var pages = [['Tee shots – fairways', 'fw'], ['Greens in regulation', 'gir'], ['Approach misses', 'miss'], ['Pin location', 'pin'],         'PROX', ['Putting – 1st putts', 'putt', { puttN: '1' }], ['Putting – 2nd putts', 'putt', { puttN: '2' }]];
+      var plist = S.proxList.filter(function (m) { return SG.reportGroup(m.from); }), gsum = SG.REPORT_GROUPS.map(function (g) {
+        var L = plist.filter(function (m) { return SG.reportGroup(m.from) === g.id; }); return { g: g, L: L, P: SG.proxStats(L) }; }).filter(function (x) { return x.L.length; });
+      var pi = pages.indexOf('PROX');
+      pages.splice.apply(pages, [pi, 1].concat(gsum.map(function (x, k) { return ['Proximity – ' + x.g.name, 'prox', { proxReport: true, proxGroup: x.g.id }, x.g, k === 0]; })));
       var chain = Promise.resolve();
       pages.forEach(function (pg) {
         chain = chain.then(function () {
           var mp = pg[1] === 'pin' ? { svg: pinReportSVG(segs), lines: [] } : mapForReport(pg[1], pg[2]);
           if (!mp.svg) return;
           return svgToPng(mp.svg, 3).then(function (im) {
-            doc.addPage(); var yy = header(pg[0]), maxW = PW - 2 * M, maxH = pg[1] === 'pin' ? 380 : 430, sc = Math.min(maxW / im.w, maxH / im.h), w = im.w * sc, h = im.h * sc;
+            doc.addPage(); var yy = header(pg[0]);
+            if (pg[4]) { font(10, true); T('All approach groups this round', M, yy); yy = table([['Group', 'Shots', 'Greens hit', 'Avg ft - greens hit', 'Avg ft - all']].concat(gsum.map(function (x) { var Q = x.P;
+                return [x.g.name, String(Q.n), Q.hits + '/' + Q.n + ' (' + Math.round(Q.hitPct) + '%)', Q.avgHitFt == null ? '-' : Math.round(Q.avgHitFt) + ' ft', Q.avgAllFt == null ? '-' : Math.round(Q.avgAllFt) + ' ft']; })), M, yy + 14, [130, 60, 110, 120, 120], { fs: 8.5, rh: 13 }) + 8; }
+            var maxW = PW - 2 * M, maxH = pg[1] === 'pin' ? 380 : pg[4] ? 330 - 13 * gsum.length : pg[1] === 'prox' ? 380 : 430, sc = Math.min(maxW / im.w, maxH / im.h), w = im.w * sc, h = im.h * sc;
             doc.addImage(im.data, 'JPEG', M + (maxW - w) / 2, yy, w, h); yy += h + 14;
             if (pg[1] === 'prox') { font(9, true); T('Line colour = distance group:', M, yy); var lx = M + 128;
-              SG.REPORT_GROUPS.forEach(function (g) { var c = parseInt(g.color.slice(1), 16); doc.setDrawColor((c >> 16) & 255, (c >> 8) & 255, c & 255); doc.setLineWidth(4); doc.line(lx, yy - 3, lx + 16, yy - 3); font(9); font(8); T(g.name, lx + 19, yy); lx += 70; });
+              [pg[3]].forEach(function (g) { var c = parseInt(g.color.slice(1), 16); doc.setDrawColor((c >> 16) & 255, (c >> 8) & 255, c & 255); doc.setLineWidth(4); doc.line(lx, yy - 3, lx + 16, yy - 3); font(9); font(8); T(g.name, lx + 19, yy); lx += 70; });
               doc.setDrawColor(0); yy += 14; font(9); T('Filled dot = hit the green · white ring with x = missed · * = holed · ? = no direction entered. Lines start at the lie the shot was hit from.', M, yy); yy += 16; }
             if (pg[1] === 'pin') {
               font(9); T('Badges: holes with the pin in that part of the green and GIR. Dots: each hole\'s approach around that pin (white = GIR, red = missed green); 60 ft or more drawn at the edge.', M, yy, { maxWidth: maxW }); yy += 24;
@@ -1066,6 +1072,7 @@
   function proxData() {
     var all = [], n = 0;
     (view.mapScope === 'all' ? rounds : [round()]).forEach(function (r) { n++; SG.summarize(r, 'pga').proxList.forEach(function (m) { all.push(m); }); });
+    if (view.proxGroup) all = all.filter(function (m) { return SG.reportGroup(m.from) === view.proxGroup; });
     var lie = view.proxLie || 'all', b = view.proxB || '~auto', auto = b === '~auto', counts, inB, lieCounts;
     var byLie = function (L) { return lie === 'all' ? L : L.filter(function (m) { return m.fromGroup === lie; }); };
     var calc = function () {
@@ -1073,10 +1080,11 @@
       // Default (nothing tapped yet): the busiest yardage, so the map opens uncluttered. Ties -> the shorter yardage.
       if (auto) { b = 'all'; var mx = 0; SG.PROX_BUCKETS.slice(1).forEach(function (x) { if (counts[x.id] > mx) { mx = counts[x.id]; b = x.id; } }); }
       if (!counts[b]) b = 'all';
-      inB = all.filter(function (m) { return SG.inBucket(b, m.from); });
+      inB = view.proxGroup ? all.slice() : all.filter(function (m) { return SG.inBucket(b, m.from); });
       lieCounts = { all: inB.length }; SG.PROX_LIES.forEach(function (l) { lieCounts[l.id] = inB.filter(function (m) { return m.fromGroup === l.id; }).length; });
     };
     calc(); if (lie !== 'all' && !lieCounts[lie]) { lie = 'all'; calc(); }
+    if (view.proxGroup) counts.all = all.length;
     return { list: byLie(inB), inB: inB, rounds: n, bucket: b, auto: auto && b !== 'all', lie: lie, counts: counts, lieCounts: lieCounts, outside: byLie(all).length - counts.all };
   }
   var PX = { cx: 150, cy: 245, K: 3.2, Rg: 106, W: 300, H: 620, Z: 476 }; // Z = top of the lie strip
@@ -1177,7 +1185,7 @@
       return '<button class="ybtn' + (b.id === D.bucket ? ' sel' : '') + '" data-act="proxb" data-v="' + b.id + '" data-n="' + c + '"' + (c ? '' : ' disabled') +
         ' aria-pressed="' + (b.id === D.bucket) + '" aria-label="' + b.yd + ' yards, ' + c + ' shot' + (c === 1 ? '' : 's') + '"><b>' + b.yd + '</b>' + (c ? '<small>' + c + '</small>' : '') + '</button>';
     }).join('');
-    var bname = D.bucket === 'all' ? 'All 40–200 yd' : D.bucket + ' yd (' + (Number(D.bucket) - 5) + '–' + (Number(D.bucket) + 4) + ')';
+    var bname = view.proxGroup ? view.proxGroup + ' yd group' : D.bucket === 'all' ? 'All 40–200 yd' : D.bucket + ' yd (' + (Number(D.bucket) - 5) + '–' + (Number(D.bucket) + 4) + ')';
     var scope = all ? ' in ' + D.rounds + ' round' + (D.rounds === 1 ? '' : 's') : ' this round';
     var LIE_NM = { all: 'All lies' }; SG.PROX_LIES.forEach(function (l) { LIE_NM[l.id] = l.name; });
     var chips = ['all'].concat(SG.PROX_LIES.map(function (l) { return l.id; })).map(function (id) {
