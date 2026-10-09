@@ -278,3 +278,32 @@ test('GIR map uses the shot that reached the green in regulation; par 5 in 3; ho
   assert.deepStrictEqual(S2.apprMiss.map(m => [m.hole, m.dir, m.lie, m.pen]), [[1, 'right', 'fairway', false], [2, '', 'rough', false], [3, 'right', 'ob', true]],
     'a lay-up with a direction counts; within 50 yd counts even without a direction; OB approach counts');
 });
+
+// ---- Pin location + tee-shot map ----
+test('pin location: 9 segments, front = toward golfer, kept on the hole, invalid values dropped', () => {
+  assert.deepStrictEqual(SG.PIN_GRID, [['backleft', 'backcenter', 'backright'], ['midleft', 'center', 'midright'], ['frontleft', 'frontcenter', 'frontright']]);
+  assert.strictEqual(Object.keys(SG.PIN_NAME).length, 9); assert.strictEqual(SG.PIN_NAME.frontleft, 'Front left');
+  assert.strictEqual(SG.normPin('bogus'), ''); assert.strictEqual(SG.normPin(undefined), '');
+  const rows = [R(365, 'tee'), R(100, 'fairway'), R(6, 'green'), R(1, 'holed')];
+  assert.strictEqual(SG.analyzeHole({ par: 4, finished: true, pin: 'backright', rows }).pin, 'backright');
+  assert.strictEqual(SG.analyzeHole({ par: 4, finished: true, rows }).pin, '');
+  assert.strictEqual(SG.analyzeHole({ par: 4, finished: true, pin: 'x', rows }).strokes, 4, 'pin does not affect scoring');
+});
+
+test('tee-shot map: par 4/5 first tee shots, fairway vs miss kind and side, distance hit', () => {
+  const S = SG.summarize({ holes: [
+    { par: 4, finished: true, rows: [R(400, 'tee'), R(140, 'fairway'), R(10, 'green'), R(1, 'holed')] },
+    { par: 4, finished: true, rows: [R(420, 'tee'), R(170, 'rough', 'left'), R(10, 'green'), R(1, 'holed')] },
+    { par: 5, finished: true, rows: [R(530, 'tee'), R(260, 'bunker', 'shortright'), R(90, 'fairway'), R(5, 'green'), R(1, 'holed')] },
+    { par: 4, finished: true, rows: [R(410, 'tee'), R('', 'ob', 'right'), R(150, 'trees', 'left'), R(10, 'green'), R(1, 'holed')] },
+    { par: 4, finished: true, rows: [R(400, 'tee'), R(160, 'hazard', 'left', true), R(10, 'green'), R(1, 'holed')] },
+    { par: 4, finished: true, rows: [R(390, 'tee'), R(150, 'deep'), R(10, 'green'), R(1, 'holed')] },
+    { par: 3, finished: true, rows: [R(170, 'tee'), R(10, 'green'), R(1, 'holed')] },
+    { par: 4, finished: false, rows: [R(400, 'tee'), R(150, 'rough', 'right')] }
+  ] });
+  assert.deepStrictEqual(S.teeMap.map(t => [t.hole, t.fairway, t.kind, t.side, t.hit]), [
+    [1, true, 'fairway', '', 260], [2, false, 'rough', 'L', 250], [3, false, 'bunker', 'R', 270],
+    [4, false, 'ob', 'R', null], [5, false, 'hazard', 'L', 240], [6, false, 'rough', '', 240]]);
+  assert.strictEqual(S.fwHit, 1); assert.strictEqual(S.fwTotal, 6);
+  assert.strictEqual(S.teeLeft, 3, 'drive left + re-tee left + hazard left');
+});

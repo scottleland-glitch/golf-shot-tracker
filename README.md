@@ -28,6 +28,13 @@ no direction are left out) opens a map of misses around the green by direction; 
 map with the hole in the middle and rings at 5-30 ft (radius = first-putt distance, angle = direction).
 Both maps: This round / All rounds, legend, counts by direction.
 
+## Pin location and fairway map (v6)
+Each hole card has "Set pin location": a full-window green split 3x3 (back/middle/front x left/center/right,
+front = toward you). Saved as `hole.pin` (backleft, backcenter, backright, midleft, center, midright,
+frontleft, frontcenter, frontright, or empty) and exported in the CSV `pin` column.
+Summary "Fairways hit" tile opens a bird's-eye fairway with every par-4/5 tee shot drawn as a tracer
+(green = fairway, red = miss; end marker = rough/bunker/hazard/trees, X = OB), with left/right counts.
+
 ## Files
 - `index.html`, `styles.css`, `app.js` – the app
 - `sg.js` – strokes-gained engine + Broadie baseline tables (sources/approximations documented at top)

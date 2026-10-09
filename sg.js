@@ -131,6 +131,11 @@
   function normDir(d) { d = d || ''; return OLD_DIR[d] || (DIR_NAME[d] ? d : ''); }
   function dirSide(d) { return /left$/.test(d) ? 'L' : /right$/.test(d) ? 'R' : ''; }
   function dirDepth(d) { return /^short/.test(d) ? 'S' : /^long/.test(d) ? 'O' : ''; }
+  // Pin location on the green: 3x3 grid, front = toward the golfer (bottom of the pictures)
+  var PIN_GRID = [['backleft', 'backcenter', 'backright'], ['midleft', 'center', 'midright'], ['frontleft', 'frontcenter', 'frontright']];
+  var PIN_NAME = { backleft: 'Back left', backcenter: 'Back center', backright: 'Back right', midleft: 'Middle left', center: 'Center',
+    midright: 'Middle right', frontleft: 'Front left', frontcenter: 'Front center', frontright: 'Front right' };
+  function normPin(p) { return PIN_NAME[p] ? p : ''; }
   var LOC_LIE = { tee: 'tee', fairway: 'fairway', rough: 'rough', deep: 'deep', bunker: 'sand',
     trees: 'recovery', green: 'green', hazard: 'hazard', holed: 'green', holedx: 'fairway' };
   function blank(v) { return v === '' || v == null || isNaN(parseFloat(v)); }
@@ -174,7 +179,7 @@
       if (dn == null || dn <= 0) { bad = k + 1; problem = 'dist'; break; }
       var nd = normDir(nx.dir);
       shots.push({ lie: lieOf(rows, k + 1), dist: dn, side: dirSide(nd),
-        dir: nd, pen: isPenalty(nx, k + 1) ? 'drop' : 'none', ob: nx.loc === 'ob' });
+        dir: nd, pen: isPenalty(nx, k + 1) ? 'drop' : 'none', ob: nx.loc === 'ob', loc: nx.loc });
     }
     return { shots: shots, bad: bad, problem: problem, complete: complete };
   }
@@ -252,7 +257,7 @@
     if (rowsFmt) {
       var conv = rowsToShots(hole.rows); bad = conv.bad; problem = conv.problem; complete = conv.complete;
       finished = !!hole.finished; nRows = hole.rows.length; liveStrokes = rowStrokes(hole.rows);
-      hole = { par: hole.par, yards: holeYards(hole), shots: conv.shots };
+      hole = { pin: hole.pin, par: hole.par, yards: holeYards(hole), shots: conv.shots };
     }
     var out = [];
     var start = { lie: 'tee', dist: Number(hole.yards) || 0 };
@@ -281,7 +286,7 @@
         : Math.round(toYards(start.lie, start.dist) - toYards(end.lie, end.dist));
       out.push({
         n: i + 1, start: start, end: end, pen: pen, penStrokes: penStrokes,
-        side: s.side || dirSide(normDir(s.dir)), dir: normDir(s.dir || s.side), ob: !!s.ob, eStart: eStart, eEnd: eEnd, sg: sg,
+        side: s.side || dirSide(normDir(s.dir)), dir: normDir(s.dir || s.side), ob: !!s.ob, loc: s.loc || (pen === 'ob' ? 'ob' : s.lie), eStart: eStart, eEnd: eEnd, sg: sg,
         cat: cat, bucket: bucket, hit: hit
       });
       start = end;
@@ -308,18 +313,20 @@
       rows: nRows, liveStrokes: rowsFmt ? liveStrokes : shots.length + penalties,
       strokes: shots.length + penalties, penalties: penalties,
       putts: out.filter(function (r) { return r.cat === 'putting'; }).length,
-      done: done, gir: gir, girShot: girShot, fairway: fairway,
+      done: done, gir: gir, girShot: girShot, fairway: fairway, pin: normPin(hole.pin),
       sg: out.reduce(function (a, r) { return a + r.sg; }, 0)
     };
   }
 
+  // Where a missed tee shot ended (row loc -> map category)
+  var TEE_END = { rough: 'rough', deep: 'rough', bunker: 'bunker', hazard: 'hazard', trees: 'trees', ob: 'ob', sand: 'bunker', recovery: 'trees' };
   function summarize(round, baseline) {
     baseline = baseline || round.baseline || 'pga';
     var S = {
       strokes: 0, par: 0, holesDone: 0, holesStarted: 0, penalties: 0, putts: 0,
       fwHit: 0, fwTotal: 0, gir: 0, girHoles: 0,
       teeLeft: 0, teeRight: 0, apprLeft: 0, apprRight: 0, apprShort: 0, apprOver: 0, allLeft: 0, allRight: 0,
-      apprMiss: [], girMap: [],
+      apprMiss: [], girMap: [], teeMap: [],
       sgTotal: 0,
       cats: { tee: { sg: 0, n: 0 }, approach: { sg: 0, n: 0 }, short: { sg: 0, n: 0 }, putting: { sg: 0, n: 0 } },
       buckets: {}, holes: []
@@ -355,6 +362,11 @@
           }
         }
       });
+      if (a.fairway !== null) {
+        var t = a.shots[0], kind = a.fairway ? 'fairway' : t.ob ? 'ob' : TEE_END[t.loc] || 'rough';
+        S.teeMap.push({ hole: hi + 1, par: Number(h.par), hit: t.ob ? null : t.hit, fairway: a.fairway, kind: kind, side: t.side, dir: t.dir,
+          yards: holeYards(h), pen: t.penStrokes > 0 });
+      }
       if (a.gir && a.girShot != null) {
         var g = a.shots[a.girShot];
         S.girMap.push({ hole: hi + 1, shot: g.n, par: Number(h.par), dir: g.end.lie === 'holed' ? '' : g.dir,
@@ -483,7 +495,7 @@
   }
 
   calibrate();
-  var api = { DIR8: DIR8, DIR_NAME: DIR_NAME, DIR_ANGLE: DIR_ANGLE, normDir: normDir, expected: expected, expectedPGA: expectedPGA, BASELINES: BASELINES, baseline: function (id) { return BL[id] || BL.pga; },
+  var api = { PIN_GRID: PIN_GRID, PIN_NAME: PIN_NAME, normPin: normPin, DIR8: DIR8, DIR_NAME: DIR_NAME, DIR_ANGLE: DIR_ANGLE, normDir: normDir, expected: expected, expectedPGA: expectedPGA, BASELINES: BASELINES, baseline: function (id) { return BL[id] || BL.pga; },
     CALIB_ROUND: CALIB_ROUND, catLoss: catLoss, analyzeHole: analyzeHole, summarize: summarize,
     rowsToShots: rowsToShots, shotsToRows: shotsToRows, migrateV2Rows: migrateV2Rows, v1ToRows: v1ToRows, holeYards: holeYards,
     rowUnit: rowUnit, lieOf: lieOf, distOf: distOf, rowStrokes: rowStrokes, isPenalty: isPenalty,

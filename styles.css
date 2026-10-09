@@ -173,3 +173,28 @@ body.noscroll { overflow: hidden; }
 .legend span { display: flex; align-items: center; gap: 6px; }
 .legend .dot { display: inline-block; width: 16px; height: 16px; border-radius: 50%; border: 2px solid #000; flex: none; }
 .legend .dot.num { width: 22px; height: 22px; background: #000; color: #fff; font-style: normal; font-size: 13px; text-align: center; line-height: 18px; font-weight: 900; }
+/* v6: pin location + fairway map */
+.pinbtn { display: block; width: 100%; min-height: 50px; margin: 8px 0 4px; font-size: 18px; font-weight: 800; border: 3px dashed #000; border-radius: 12px; background: #fff; color: #000; }
+.pinbtn.set { border-style: solid; border-color: #0b5d1e; background: #e9f7e6; }
+.pinbtn small { font-size: 14px; font-weight: 700; text-decoration: underline; margin-left: 6px; }
+.pinwrap { margin: 6px 0; }
+.pinlbl { text-align: center; font-weight: 900; font-size: 16px; margin: 4px 0; }
+.pingreen { display: grid; grid-template-columns: repeat(3, 1fr); grid-template-rows: repeat(3, 1fr); height: 420px; border-radius: 50%;
+  overflow: hidden; border: 5px solid #145214; background: #3da33d; }
+.pingreen button { border: 0; border-radius: 0; outline: 2px dashed rgba(255,255,255,.75); outline-offset: -1px; background: transparent; color: #fff;
+  font-size: 16px; font-weight: 900; padding: 2px; min-height: 44px; text-shadow: 0 1px 2px #000; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+.pingreen button.sel { background: #ffd23f; color: #000; text-shadow: none; outline: 4px solid #000; outline-offset: -4px; }
+.pingreen .flag { font-size: 30px; line-height: 1; }
+.pincur { font-size: 19px; text-align: center; margin: 10px 0; }
+.row2 { display: flex; gap: 8px; }
+.row2 .big { flex: 1; }
+.fwcounts { display: flex; justify-content: space-between; flex-wrap: wrap; gap: 4px 10px; font-size: 17px; font-weight: 700; margin: 4px 0 8px; }
+.legend .ln { display: inline-block; width: 26px; height: 5px; border-radius: 3px; flex: none; }
+.legend .ln.dash { background: repeating-linear-gradient(90deg, #e0102a 0 7px, transparent 7px 11px); }
+.legend .x { font-size: 18px; width: 16px; text-align: center; }
+.pingreen { border-radius: 44%; }
+.pingreen button { line-height: 1.1; }
+.pingreen button:nth-child(3n+1) { align-items: flex-end; padding-right: 8px; text-align: right; }
+.pingreen button:nth-child(3n) { align-items: flex-start; padding-left: 8px; text-align: left; }
+.pingreen button:nth-child(-n+3) { justify-content: flex-end; padding-bottom: 14px; }
+.pingreen button:nth-child(n+7) { justify-content: flex-start; padding-top: 14px; }
