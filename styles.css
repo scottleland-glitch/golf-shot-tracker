@@ -328,3 +328,12 @@ th, td { border-bottom-color: #e6ebe7; }
 .infowrap { display: flex; align-items: center; gap: 4px; color: #57615a; font-size: 14px; font-weight: 600; }
 .infotext[hidden] { display: none; }
 .infotext { background: #f6f8f6; border-radius: 12px; padding: 10px 12px; }
+.rpall { display: flex; align-items: center; gap: 10px; min-height: 48px; font-weight: 800; }
+.rpall input, .rpchk input { width: 26px; height: 26px; accent-color: var(--green); }
+.rprow { display: flex; align-items: stretch; gap: 8px; margin: 8px 0; }
+.rpchk { display: flex; align-items: center; justify-content: center; min-width: 48px; }
+.rpopen { flex: 1; text-align: left; display: flex; flex-direction: column; gap: 2px; min-height: 64px; }
+.rpopen span { font-size: 15px; font-weight: 600; }
+.rpst { font-size: 13px; font-weight: 700; }
+.rp-new { color: var(--green); } .rp-same { color: #666; } .rp-diff { color: #a15c00; }
+.hc.ro { opacity: 1; }

@@ -56,6 +56,24 @@ const BASE = process.env.BASE_URL || 'http://127.0.0.1:8765/', SHOTS = process.e
   await page.waitForSelector('#notice'); assert.strictEqual(await page.locator('#bkremind').count(), 0);
   bk.rounds[2].course = 'Older (edited)'; bk.rounds.push({ id: 'rnew', date: '2026-09-01T10:00:00.000Z', course: 'New', baseline: 'pga', v: 3, dv: 2, holes: [{ par: 4, finished: false, rows: [{ dist: 400, loc: 'tee', dir: '', pen: false }] }] });
   await page.setInputFiles('#restorefile', { name: 'b.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(bk)) });
+  // v37 picker: list of every round in the backup, marked new / same / different
+  await page.waitForSelector('#rplist');
+  const rp = await page.$$eval('.rprow', rs => rs.map(r => [r.getAttribute('data-id'), r.querySelector('.rpst').textContent]));
+  assert.strictEqual(rp.length, 4); assert.ok(rp.some(x => x[0] === 'rnew' && /Not on this phone/.test(x[1]))); assert.ok(rp.some(x => /different version/.test(x[1]))); assert.strictEqual(rp.filter(x => /Already/.test(x[1])).length, 2);
+  assert.ok(await page.isDisabled('#rpgo')); await page.evaluate(() => { document.getElementById('toast').className = ''; }); await page.waitForTimeout(300);
+  await page.screenshot({ path: '/workspace/golf-app/screenshots/restore-list.png' });
+  // preview (read-only) of a round, then back
+  await page.click('.rpopen[data-id="rcard"]'); await page.waitForSelector('.scard');
+  assert.match(await page.textContent('.topbar'), /Preview \(read-only\)/); assert.strictEqual(await page.locator('[data-act="goHole"], [data-act="delRound"], [data-act="pdf"]').count(), 0);
+  const nBefore = await page.evaluate(() => window.__golf.rounds().length);
+  await page.screenshot({ path: '/workspace/golf-app/screenshots/restore-preview.png' });
+  await page.click('[data-act="map"][data-v="gir"]').catch(() => {}); await page.waitForTimeout(200);
+  await page.screenshot({ path: '/workspace/golf-app/screenshots/restore-preview-map.png' });
+  await page.click('.maphead .close').catch(() => {});
+  await page.click('[data-act="rpback"] >> nth=0'); await page.waitForSelector('#rplist');
+  assert.strictEqual(await page.evaluate(() => window.__golf.rounds().length), nBefore, 'preview changes nothing');
+  await page.click('#rpall'); assert.match(await page.textContent('#rpgo'), /Restore 4 selected/);
+  await page.click('#rpgo');
   await page.waitForFunction(() => /Restored/.test((document.getElementById('notice') || {}).textContent || ''));
   assert.strictEqual(await page.textContent('#notice'), '✓ Restored from backup: 1 added, 1 replaced, 2 already here. You now have 4 rounds.');
   await page.screenshot({ path: SHOTS + '/36-restore-success.png' });

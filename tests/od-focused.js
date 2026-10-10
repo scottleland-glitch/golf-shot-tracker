@@ -95,7 +95,7 @@ const MSAL_STUB = `window.msal = { PublicClientApplication: class {
   assert.deepStrictEqual(groups.map(g => g[0]), ['👤 Emma', '👤 Scott Leland (you)', '🗂 Older backup']);
   assert.deepStrictEqual(groups[0][1], ['golf-rounds-emma.json', 'golf-rounds-emma-2026-10-01.json']); assert.deepStrictEqual(groups[2][1], ['golf-rounds-backup.json']);
   await page.screenshot({ path: SHOTS + '/42-onedrive-restore-list.png' });
-  await page.click('.odfile[data-v="golf-rounds-emma.json"]'); await page.waitForSelector('#notice');
+  await page.click('.odfile[data-v="golf-rounds-emma.json"]'); await page.waitForSelector('#rplist'); await page.click('.rpchk input >> nth=0'); await page.click('#rpgo'); await page.waitForSelector('#notice');
   assert.strictEqual(await page.textContent('#notice'), '✓ Restored from backup: 1 added. You now have 2 rounds.');
   await page.click('[data-act="history"]'); await page.waitForSelector('#playerchips');
   assert.deepStrictEqual(await page.$$eval('#playerchips button', bs => bs.map(b => b.textContent)), ['All players', 'Emma (1)', 'Scott Leland (1)']);

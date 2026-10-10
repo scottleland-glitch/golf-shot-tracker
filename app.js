@@ -60,7 +60,7 @@
       return '<option value="' + b.id + '"' + (b.id === sel ? ' selected' : '') + '>' + blLabel(b.id) + '</option>'; }).join('') + '</select>';
   }
   function save() { localStorage.setItem(KEY, JSON.stringify(rounds)); odDirty(60000); }
-  function round() { return rounds.filter(function (r) { return r.id === view.roundId; })[0]; }
+  function round() { if (view.preview) return view.preview; return rounds.filter(function (r) { return r.id === view.roundId; })[0]; }
   function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return '&#' + c.charCodeAt(0) + ';'; }); }
   function fmtSG(v) { var s = (Math.round(v * 100) / 100).toFixed(2); return (v > 0.004 ? '+' : '') + (s === '-0.00' ? '0.00' : s); }
   function sgCls(v) { return v > 0.004 ? 'pos' : v < -0.004 ? 'neg' : ''; }
@@ -97,10 +97,11 @@
     if (view.screen === 'about') el.innerHTML = aboutHTML();
     else if (view.screen === 'history') el.innerHTML = historyHTML();
     else if (view.screen === 'odrestore') el.innerHTML = odRestoreHTML();
+    else if (view.screen === 'restorepick') el.innerHTML = restorePickHTML();
     else if (view.screen === 'home' || !round()) el.innerHTML = homeHTML();
     else if (view.screen === 'hole') el.innerHTML = holeHTML() + (view.pinOpen ? pinHTML() : '');
     else if (view.screen === 'about') el.innerHTML = aboutHTML();
-    else el.innerHTML = summaryHTML() + (view.map ? mapHTML() : '');
+    else { el.innerHTML = summaryHTML() + (view.map ? mapHTML() : ''); if (view.preview) previewOnly(el); }
     if (view.screen !== 'hole') document.body.classList.toggle('noscroll', !!(view.map && view.screen === 'summary'));
     if (view.screen !== 'about') infoize(el);
   }
@@ -456,11 +457,41 @@
     }
     download(json, name, 'application/json'); backupDone();
   }
+  // Restore = pick from the backup: list every round, preview read-only, merge only the selected ones.
   function restoreFrom(text) {
     var P = SG.parseBackup(text);
     if (P.error) { view.notice = { text: P.error, bad: true }; render(); return; }
     var bp = ''; try { bp = (JSON.parse(text) || {}).player || ''; } catch (e) {}
     if (bp) P.rounds.forEach(function (r) { if (!r.player) r.player = bp; }); // label rounds with the backup's player
+    P.rounds.sort(function (a, b) { return new Date(b.date) - new Date(a.date); });
+    view.restore = { rounds: P.rounds, sel: {}, player: bp }; view.preview = null; view.screen = 'restorepick'; render(); window.scrollTo(0, 0);
+  }
+  function restoreState(r) { var cur = rounds.filter(function (x) { return x.id === r.id; })[0]; return !cur ? 'new' : JSON.stringify(cur) === JSON.stringify(r) ? 'same' : 'diff'; }
+  function restorePickHTML() {
+    var R = view.restore, L = R.rounds, nSel = L.filter(function (r) { return R.sel[r.id]; }).length;
+    var o = '<div class="topbar"><button class="txt" data-act="rpcancel">‹ Cancel</button><div class="title"><b>Restore rounds</b><span>' + L.length + ' in backup' + (R.player ? ' · ' + esc(R.player) : '') + '</span></div><span style="width:70px"></span></div>' +
+      '<p class="help muted">Tap a round to look at it. Tick the ones to bring onto this phone – nothing on the phone is deleted.</p>' +
+      '<label class="rpall"><input type="checkbox" id="rpall" data-act="rpall"' + (nSel && nSel === L.length ? ' checked' : '') + '> Select all</label><div id="rplist">';
+    L.forEach(function (r) {
+      var S = SG.summarize(r, blOf(r)), st = restoreState(r);
+      o += '<div class="rprow" data-id="' + esc(r.id) + '"><label class="rpchk"><input type="checkbox" data-act="rpsel" data-id="' + esc(r.id) + '"' + (R.sel[r.id] ? ' checked' : '') + ' aria-label="Select round ' + esc(new Date(r.date).toLocaleDateString()) + '"></label>' +
+        '<button class="rpopen" data-act="rpview" data-id="' + esc(r.id) + '"><b>' + new Date(r.date).toLocaleDateString() + (r.course ? ' · ' + esc(r.course) : '') + '</b>' +
+        '<span>' + (S.holesDone ? S.strokes + ' (' + toPar(S.toPar) + ')' : '–') + ' · ' + S.holesDone + '/' + r.holes.length + ' holes · <span class="' + sgCls(S.sgTotal) + '">SG ' + fmtSG(S.sgTotal) + '</span>' + (r.player ? ' · ' + esc(r.player) : '') + '</span>' +
+        '<small class="rpst rp-' + st + '">' + (st === 'new' ? 'Not on this phone' : st === 'same' ? '✓ Already on this phone' : 'On this phone – different version') + '</small></button></div>';
+    });
+    return o + '</div><button class="primary big" data-act="rpgo" id="rpgo"' + (nSel ? '' : ' disabled') + '>Restore ' + nSel + ' selected</button>';
+  }
+  function previewOnly(el) { // read-only round preview: no editing, deleting or exporting
+    var tb = el.querySelector('.topbar'); if (tb) tb.innerHTML = '<button class="txt" data-act="rpback">‹ Backup list</button><div class="title"><b>Preview (read-only)</b><span>' + new Date(view.preview.date).toLocaleDateString() + (view.preview.course ? ' · ' + esc(view.preview.course) : '') + '</span></div><span style="width:70px"></span>';
+    [].slice.call(el.querySelectorAll('[data-act="goHole"]')).forEach(function (b) { b.removeAttribute('data-act'); b.disabled = true; b.classList.add('ro'); });
+    [].slice.call(el.querySelectorAll('[data-act="pdf"],[data-act="csv"],[data-act="backHole"],[data-act="delRound"],[data-act="history"],[data-act="home"],[data-act="about"],#pdfsheet')).forEach(function (b) { if (!b.closest('.maphead')) b.remove(); });
+    [].slice.call(el.querySelectorAll('select, input')).forEach(function (x) { x.disabled = true; });
+    [].slice.call(el.querySelectorAll('[data-act="mapscope"]')).forEach(function (x) { var g = x.closest('.seg') || x; g.remove(); });
+    var lab = el.querySelector('.label'); if (lab) lab.textContent = 'Scorecard';
+    if (!el.querySelector('#rpprevsel')) el.insertAdjacentHTML('beforeend', '<button class="primary big" id="rpprevsel" data-act="rpselone" data-id="' + esc(view.preview.id) + '">' + (view.restore.sel[view.preview.id] ? '✓ Selected – tap to unselect' : 'Select this round to restore') + '</button><button class="big" data-act="rpback">‹ Back to the backup list</button>');
+  }
+  function restoreSelected() {
+    var R = view.restore, pick = R.rounds.filter(function (r) { return R.sel[r.id]; }), P = { rounds: pick };
     var conf = SG.conflictsOf(rounds, P.rounds), replace = false;
     if (conf.length) replace = confirm(conf.length + ' round' + (conf.length === 1 ? '' : 's') + ' in the backup ' + (conf.length === 1 ? 'is' : 'are') + ' different from the copy on this phone (' +
       conf.slice(0, 3).map(function (r) { return new Date(r.date).toLocaleDateString() + (r.course ? ' ' + r.course : ''); }).join(', ') + (conf.length > 3 ? ', …' : '') +
@@ -472,7 +503,7 @@
     if (M.kept) parts.push(M.kept + ' kept as on this phone');
     if (M.same) parts.push(M.same + ' already here');
     view.notice = { text: '✓ Restored from backup: ' + parts.join(', ') + '. You now have ' + rounds.length + ' round' + (rounds.length === 1 ? '' : 's') + '.' };
-    view.screen = 'home'; render(); window.scrollTo(0, 0);
+    view.restore = null; view.preview = null; view.screen = 'home'; render(); window.scrollTo(0, 0);
   }
   // ---------- OneDrive backup (hidden unless config.js has a client ID) ----------
   // Sign-in uses MSAL redirect flow (auth code + PKCE): popups are unreliable in iOS home-screen apps.
@@ -1480,6 +1511,13 @@
       case 'backup': backupRounds(); return;
       case 'pdf': case 'pdfshare': case 'pdfod': pdfAct(act); return;
       case 'info': { infoOpen[v] = !infoOpen[v]; var t = b && document.getElementById(b.getAttribute('aria-controls')); if (b) b.setAttribute('aria-expanded', !!infoOpen[v]); if (t) t.hidden = !infoOpen[v]; return; }
+      case 'rpcancel': view.restore = null; view.preview = null; view.screen = 'home'; render(); return;
+      case 'rpview': view.mapScope = 'round'; view.preview = view.restore.rounds.filter(function (x) { return x.id === b.getAttribute('data-id'); })[0]; view.map = null; view.pdf = null; view.screen = 'summary'; render(); window.scrollTo(0, 0); return;
+      case 'rpback': view.preview = null; view.map = null; view.screen = 'restorepick'; render(); window.scrollTo(0, 0); return;
+      case 'rpsel': view.restore.sel[b.getAttribute('data-id')] = b.checked; render(); return;
+      case 'rpselone': { var id1 = b.getAttribute('data-id'); view.restore.sel[id1] = !view.restore.sel[id1]; render(); return; }
+      case 'rpall': { var all1 = b.checked; view.restore.rounds.forEach(function (x) { view.restore.sel[x.id] = all1; }); render(); return; }
+      case 'rpgo': restoreSelected(); return;
       case 'pdfclose': view.pdf = null; render(); return;
       case 'setname': setName((document.getElementById('pname') || {}).value); return;
       case 'editname': view.editName = true; render(); var pi = document.getElementById('pname'); if (pi) pi.focus(); return;
