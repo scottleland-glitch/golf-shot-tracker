@@ -54,7 +54,7 @@ const BASE = process.env.BASE_URL || 'http://127.0.0.1:8765/', SHOTS = process.e
   assert.match(dl.suggestedFilename(), /^golf-rounds-scott-\d{4}-\d\d-\d\d\.json$/);
   const bk = JSON.parse(require('fs').readFileSync(await dl.path(), 'utf8')); assert.strictEqual(bk.rounds.length, 3);
   await page.waitForSelector('#notice'); assert.strictEqual(await page.locator('#bkremind').count(), 0);
-  bk.rounds[2].course = 'Older (edited)'; bk.rounds.push({ id: 'rnew', date: '2026-09-01T10:00:00.000Z', course: 'New', baseline: 'pga', v: 3, dv: 2, holes: [{ par: 4, finished: false, rows: [{ dist: 400, loc: 'tee', dir: '', pen: false }] }] });
+  bk.rounds[2].course = 'Older (edited)'; bk.rounds.push({ id: 'rnew', date: '2026-09-01T10:00:00.000Z', course: 'New', baseline: 'pga', v: 3, dv: 2, holes: [{ par: 4, finished: false, rows: [{ dist: 400, loc: 'tee', dir: '', pen: false }, { dist: 150, loc: 'fairway', dir: '', pen: false }] }] });
   await page.setInputFiles('#restorefile', { name: 'b.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(bk)) });
   // v37 picker: list of every round in the backup, marked new / same / different
   await page.waitForSelector('#rplist');

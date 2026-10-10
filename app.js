@@ -47,7 +47,7 @@
       r.dv = 2; changed = true;
     });
     // recovery: an empty stub (0 shots) left beside the real round played that day is merged into it
-    var F = SG.foldStubs(rs); if (F.folded.length) { rs = F.rounds; changed = true; var c0 = localStorage.getItem(CUR); if (c0 && F.folded.indexOf(c0) >= 0) localStorage.removeItem(CUR); }
+    var F = SG.foldStubs(rs, null, localStorage.getItem(CUR)); /* the round in progress is never removed silently */ if (F.folded.length) { rs = F.rounds; changed = true; var c0 = localStorage.getItem(CUR); if (c0 && F.folded.indexOf(c0) >= 0) localStorage.removeItem(CUR); }
     if (changed) localStorage.setItem(KEY, JSON.stringify(rs));
     return rs;
   }
@@ -418,7 +418,7 @@
   function historyHTML() {
     var P = playersIn(), names = Object.keys(P).sort(), multi = names.length + (rounds.some(function (r) { return !r.player; }) && names.length ? 1 : 0) > 1;
     if (!multi || (view.histPlayer && view.histPlayer !== '~none' && !P[view.histPlayer])) view.histPlayer = null;
-    var list = rounds.filter(function (r) { return !view.histPlayer || (view.histPlayer === '~none' ? !r.player : r.player === view.histPlayer); }).sort(function (a, b) { return String(b.date || '').localeCompare(String(a.date || '')); });
+    var list = rounds.filter(function (r) { return !SG.roundEmpty(r); }).filter(function (r) { return !view.histPlayer || (view.histPlayer === '~none' ? !r.player : r.player === view.histPlayer); }).sort(function (a, b) { return String(b.date || '').localeCompare(String(a.date || '')); });
     var h = '<div class="topbar"><button class="txt" data-act="home">‹ Home</button><div class="title"><b>History</b><span>' + rounds.length + ' round' + (rounds.length === 1 ? '' : 's') + ', newest first</span></div><span class="tbspace"></span></div>';
     if (multi) h += '<div class="liechips" id="playerchips" role="group" aria-label="Filter by player">' + [''].concat(names).map(function (n) {
         var sel = (view.histPlayer || '') === n; return '<button class="' + (sel ? 'sel' : '') + '" data-act="histplayer" data-v="' + esc(n) + '" aria-pressed="' + sel + '">' + (n ? esc(n) + ' (' + P[n] + ')' : 'All players') + '</button>'; }).join('') +
@@ -443,10 +443,10 @@
     if (days == null) return 'Tip: you haven\'t backed up your rounds yet. Tap Back up rounds to save a copy to Files or OneDrive.';
     return days >= 14 ? 'It\'s been ' + days + ' days since your last backup. Tap Back up rounds to save a fresh copy.' : '';
   }
-  function backupDone() { localStorage.setItem(BK, new Date().toISOString()); var nO = ownRounds().length; view.notice = { text: 'Backup ready: ' + nO + ' round' + (nO === 1 ? '' : 's') + ' for ' + playerName() + ' saved.' }; if (view.screen === 'home') render(); }
+  function backupDone() { localStorage.setItem(BK, new Date().toISOString()); var nO = ownRounds().filter(function (x) { return !SG.roundEmpty(x); }).length; view.notice = { text: 'Backup ready: ' + nO + ' round' + (nO === 1 ? '' : 's') + ' for ' + playerName() + ' saved.' }; if (view.screen === 'home') render(); }
   function backupRounds() {
     if (!playerName()) { askName('Enter your player name first – it goes in the backup file name.'); return; }
-    var name = 'golf-rounds-' + window.OD.slug(playerName()) + '-' + localDay(new Date()) + '.json', json = JSON.stringify(SG.makeBackup(rounds, null, playerName()), null, 1), file;
+    var name = 'golf-rounds-' + window.OD.slug(playerName()) + '-' + localDay(new Date()) + '.json', json = JSON.stringify(SG.makeBackup(rounds.filter(function (x) { return !SG.roundEmpty(x); }), null, playerName()), null, 1), file;
     try { file = new File([json], name, { type: 'application/json' }); } catch (e) { file = null; }
     if (file && navigator.canShare && navigator.canShare({ files: [file] })) {
       navigator.share({ files: [file] }).then(backupDone).catch(function (e) {
@@ -524,7 +524,7 @@
       var x = new Error('Reconnect needed'); x.kind = (e && /interaction_required|login_required|consent_required|no_tokens_found|InteractionRequired/i.test((e.errorCode || '') + ' ' + (e.name || ''))) ? 'interaction' : 'offline'; throw x;
     });
   }
-  function odBackupJson() { return JSON.stringify(SG.makeBackup(ownRounds(), null, playerName()), null, 1); }
+  function odBackupJson() { return JSON.stringify(SG.makeBackup(ownRounds().filter(function (x) { return !SG.roundEmpty(x); }), null, playerName()), null, 1); }
   function odSync() {
     if (!odOn || !odAcct || odBusy || !odState.pending) return Promise.resolve();
     odBusy = true;
@@ -653,12 +653,14 @@
     if (cur) {
       var S = SG.summarize(cur);
       h += '<button class="primary big" data-act="resume">Continue round' + (cur.course ? ' – ' + esc(cur.course) : '') +
-        '<br><small>' + S.holesDone + ' holes done</small></button>';
+        '<br><small>' + S.holesDone + ' holes done</small></button>' +
+        '<button class="danger discard" data-act="discard" data-id="' + esc(cur.id) + '">🗑 Discard round</button>';
     }
     h += '<h2>New round</h2><input type="text" id="course" placeholder="Course name (optional)" autocomplete="off">' +
       '<label class="lbl" for="newbl">Compare my shots against</label>' + blSelect('newbl', 'pga') +
       '<button class="' + (cur ? '' : 'primary ') + 'big" data-act="new">Start new round</button>';
-    h += '<button class="big histbtn" data-act="history">📋 History<br><small>' + rounds.length + ' saved round' + (rounds.length === 1 ? '' : 's') + ' – review stats &amp; maps</small></button>';
+    var nSaved = rounds.filter(function (x) { return !SG.roundEmpty(x); }).length;
+    h += '<button class="big histbtn" data-act="history">📋 History<br><small>' + nSaved + ' saved round' + (nSaved === 1 ? '' : 's') + ' – review stats &amp; maps</small></button>';
     h += '<h2>Your data</h2>' + playerHTML();
     if (view.notice) h += '<p class="notice ' + (view.notice.bad ? 'bad' : 'good') + '" id="notice" role="status">' + esc(view.notice.text) + '</p>';
     h += odCardHTML();
@@ -702,7 +704,8 @@
     out += view.hole < 17
       ? '<button class="' + (fin ? 'primary ' : '') + 'big" data-act="next">' + (started(r.holes[view.hole + 1]) ? 'Hole ' + (view.hole + 2) + ' ›' : 'Add Hole ' + (view.hole + 2) + ' ⊕') + '</button>'
       : '<button class="primary big" data-act="summary" data-end="1">Finish round – see stats</button>';
-    out += '<div class="row sub"><button class="txt" data-act="home">Home</button><button class="txt" data-act="summary">Scorecard &amp; stats</button></div>';
+    out += '<div class="row sub"><button class="txt" data-act="home">Home</button><button class="txt" data-act="summary">Scorecard &amp; stats</button></div>' +
+      '<button class="danger discard" data-act="discard" data-id="' + esc(r.id) + '">🗑 Discard round</button>';
     out += '<p class="help muted">Each row is ONE stroke. Dist = how far from the pin you hit it (yards; feet on the green). Loc = where the ball was. ' +
       'Last row: pick "In the hole" and enter the distance of the putt (or chip) that went in. Dir = where the shot before ended vs its target (8 ways: Short = toward you, Long = past it, Left, Right, and the corners). For an approach that missed the green, pick where it missed the green; if it found the green, pick where it stopped vs the hole. ' +
       'P = penalty stroke (+1), e.g. a drop. "OB re-hit" = +1 and you hit again from the same spot. Score = rows + penalties.</p>';
@@ -1511,6 +1514,14 @@
       case 'backup': backupRounds(); return;
       case 'pdf': case 'pdfshare': case 'pdfod': pdfAct(act); return;
       case 'info': { infoOpen[v] = !infoOpen[v]; var t = b && document.getElementById(b.getAttribute('aria-controls')); if (b) b.setAttribute('aria-expanded', !!infoOpen[v]); if (t) t.hidden = !infoOpen[v]; return; }
+      case 'discard': { // remove the round for good: rounds list (History), current-round key, and from the next backup upload
+        var did = b.getAttribute('data-id'), dr2 = rounds.filter(function (x) { return x.id === did; })[0];
+        if (!confirm('Discard this round? Shots will be deleted.')) return;
+        rounds = rounds.filter(function (x) { return x.id !== did; }); save();
+        if (localStorage.getItem(CUR) === did) localStorage.removeItem(CUR);
+        if (view.roundId === did) view.roundId = null;
+        view.screen = 'home'; view.map = null; toast(dr2 ? 'Round discarded' : 'Nothing to discard'); render(); window.scrollTo(0, 0); return;
+      }
       case 'rpcancel': view.restore = null; view.preview = null; view.screen = 'home'; render(); return;
       case 'rpview': view.mapScope = 'round'; view.preview = view.restore.rounds.filter(function (x) { return x.id === b.getAttribute('data-id'); })[0]; view.map = null; view.pdf = null; view.screen = 'summary'; render(); window.scrollTo(0, 0); return;
       case 'rpback': view.preview = null; view.map = null; view.screen = 'restorepick'; render(); window.scrollTo(0, 0); return;

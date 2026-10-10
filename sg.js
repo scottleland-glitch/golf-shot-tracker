@@ -721,11 +721,11 @@
   function roundEmpty(r) { return !(r.holes || []).some(function (h) { var rw = h.rows || []; return rw.length > 1 || rw.some(function (x) { return x.loc && x.loc !== 'tee'; }); }); }
   // Fold empty stub rounds into a real round played the same local day (course copied over if the real one has none).
   // Only rounds with no shots are ever removed, so no data can be lost. Returns { rounds, folded }.
-  function foldStubs(list, dayOf) {
+  function foldStubs(list, dayOf, keepId) {
     dayOf = dayOf || function (r) { var d = new Date(r.date); return d.getFullYear() + '-' + d.getMonth() + '-' + d.getDate(); };
     var real = list.filter(function (r) { return !roundEmpty(r); }), drop = [];
     list.forEach(function (st) {
-      if (!roundEmpty(st)) return;
+      if (!roundEmpty(st) || st.id === keepId) return;
       var t = real.filter(function (r) { return dayOf(r) === dayOf(st) && (!r.course || !st.course || r.course === st.course) && (!r.player || !st.player || r.player === st.player); })[0];
       if (!t) return;
       if (!t.course && st.course) t.course = st.course;
