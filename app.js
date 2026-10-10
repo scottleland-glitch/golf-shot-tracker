@@ -133,7 +133,21 @@
       var rows = [].slice.call(t.rows).map(function (r) { return [].slice.call(r.cells).map(txt); }).filter(function (r) { return r.join(''); });
       if (rows.length) lines.push({ table: rows });
     });
-    return { svg: main ? main.outerHTML : '', lines: lines };
+    var legend = [];
+    [].slice.call(box.querySelectorAll('.legend:not(.sclegend) > span')).forEach(function (sp) {
+      var it = { k: 'none', t: '' }, sw = sp.querySelectorAll('i, svg, b.star'), last = null;
+      [].slice.call(sw).forEach(function (e) {
+        if (e.tagName.toLowerCase() === 'svg') { it.k = 'diamond'; var pth = e.querySelector('path'); it.c = pth ? pth.getAttribute('fill') : '#888'; return; }
+        if (e.classList.contains('star')) { it.k = 'star'; return; }
+        var st = e.getAttribute('style') || '', bg = (/background:\s*(#[0-9a-f]{3,6})/i.exec(st) || [])[1], bd = (/border:\s*\d+px solid (#[0-9a-f]{3,6})/i.exec(st) || /border-color:\s*(#[0-9a-f]{3,6})/i.exec(st) || [])[1];
+        if (e.classList.contains('ln')) { if (it.k === 'none') { it.k = e.classList.contains('dash') ? 'dash' : 'ln'; it.c = bg || '#e0102a'; } }
+        else if (e.classList.contains('dot')) { it.k = e.classList.contains('num') ? 'num' : (bg && bg.toLowerCase() === '#fff' && bd && bd.toLowerCase() !== '#000' ? 'ring' : (it.k === 'ln' ? 'lndot' : 'dot')); it.c = bg || '#000'; it.b = bd || '#000'; it.n = e.textContent; }
+        else if (e.classList.contains('sw')) { it.k = 'sw'; it.c = bg || '#888'; it.b = bd; }
+      });
+      it.t = SG.pdfSafe(sp.textContent.replace(/^\s*[?★\d]?\s*/, '')); if (it.k === 'none' && /^x\S/.test(it.t)) { it.k = 'txt'; it.c = 'x'; it.t = it.t.slice(1); }
+      if (it.t) legend.push(it);
+    });
+    return { svg: main ? main.outerHTML : '', lines: lines, legend: legend };
   }
   // ONE pin-location page: big green with the 3x3 grid; each segment with a pin shows a badge + mini plots
   function pinReportSVG(segs) {
@@ -217,6 +231,33 @@
         });
         return yy;
       };
+      var rgb = function (h) { h = (h || '#000').replace('#', ''); if (h.length === 3) h = h.replace(/./g, '$&$&'); var c = parseInt(h, 16); return [(c >> 16) & 255, (c >> 8) & 255, c & 255]; };
+      var swatch = function (it, x, y) { // x,y = left / vertical middle of a 22pt swatch box
+        var f = function (c) { var v = rgb(c); doc.setFillColor(v[0], v[1], v[2]); }, d = function (c) { var v = rgb(c); doc.setDrawColor(v[0], v[1], v[2]); };
+        doc.setLineDashPattern([], 0);
+        if (it.k === 'ln' || it.k === 'lndot') { d(it.c); doc.setLineWidth(3); doc.line(x, y, x + (it.k === 'lndot' ? 14 : 22), y); if (it.k === 'lndot') { f(it.c); d('#000'); doc.setLineWidth(1); doc.circle(x + 17, y, 4, 'FD'); } }
+        else if (it.k === 'dash') { d(it.c); doc.setLineWidth(2); doc.setLineDashPattern([4, 2], 0); doc.line(x, y, x + 22, y); doc.setLineDashPattern([], 0); }
+        else if (it.k === 'dot' || it.k === 'num') { f(it.c); d(it.b || '#000'); doc.setLineWidth(1.2); doc.circle(x + 8, y, 5, 'FD'); if (it.k === 'num' && it.n) { doc.setTextColor(255); font(6, true); T(it.n, x + 8, y + 2, { align: 'center' }); doc.setTextColor(0); } }
+        else if (it.k === 'ring') { f('#fff'); d(it.b); doc.setLineWidth(2.2); doc.circle(x + 8, y, 4.6, 'FD'); }
+        else if (it.k === 'ringx') { f('#fff'); d(it.c); doc.setLineWidth(2); doc.circle(x + 8, y, 5, 'FD'); d('#000'); doc.setLineWidth(1.2); doc.line(x + 5.6, y - 2.4, x + 10.4, y + 2.4); doc.line(x + 5.6, y + 2.4, x + 10.4, y - 2.4); }
+        else if (it.k === 'sw') { f(it.c); d(it.b || '#555'); doc.setLineWidth(0.5); doc.rect(x, y - 5, 22, 10, 'FD'); }
+        else if (it.k === 'diamond') { f(it.c || '#888'); d('#000'); doc.setLineWidth(1); doc.lines([[6, 6], [-6, 6], [-6, -6], [6, -6]], x + 8, y - 6, [1, 1], 'FD', true); doc.setTextColor(255); font(7, true); T('?', x + 8, y + 2.5, { align: 'center' }); doc.setTextColor(0); }
+        else if (it.k === 'star') { f('#ffd23f'); d('#1e6fd9'); doc.setLineWidth(1); var pts = []; for (var a = 0; a < 10; a++) { var rr = a % 2 ? 2.4 : 6, an = -Math.PI / 2 + a * Math.PI / 5; pts.push([x + 8 + rr * Math.cos(an), y + rr * Math.sin(an)]); }
+          doc.lines(pts.slice(1).map(function (p, k) { return [p[0] - pts[k][0], p[1] - pts[k][1]]; }), pts[0][0], pts[0][1], [1, 1], 'FD', true); }
+        else if (it.k === 'pin') { d('#000'); doc.setLineWidth(1.2); doc.line(x + 8, y + 5, x + 8, y - 6); f('#d0213a'); doc.triangle(x + 8, y - 6, x + 15, y - 3.5, x + 8, y - 1, 'F'); f('#000'); doc.circle(x + 8, y + 5, 1.6, 'F'); }
+        else if (it.k === 'dring') { d('#555'); doc.setLineWidth(1); doc.setLineDashPattern([2, 2], 0); doc.circle(x + 11, y, 5.5, 'S'); doc.setLineDashPattern([], 0); }
+        else if (it.k === 'txt') { font(11, true); T(it.c, x + 8, y + 4, { align: 'center' }); }
+        else if (it.k === 'badge') { f('#222'); doc.roundedRect(x, y - 5, 22, 10, 5, 5, 'F'); }
+        doc.setLineWidth(1); doc.setDrawColor(0);
+      };
+      var legendBox = function (items, x, y, w, cols) {
+        if (!items || !items.length) return y;
+        font(9, true); T('Legend', x, y); y += 6; var cw2 = (w - (cols - 1) * 10) / cols, col = 0, rowH = 0, y0 = y;
+        items.forEach(function (it) { font(8); var tl = doc.splitTextToSize(P(it.t), cw2 - (it.k === 'none' ? 0 : 28)), hh = Math.max(14, tl.length * 9.5 + 4), xx = x + col * (cw2 + 10);
+          if (it.k !== 'none') swatch(it, xx, y0 + 7); font(8); doc.text(tl, xx + (it.k === 'none' ? 0 : 28), y0 + 10); rowH = Math.max(rowH, hh);
+          if (++col >= cols) { col = 0; y0 += rowH; rowH = 0; } });
+        return y0 + rowH + 14;
+      };
       // ---- Page 1: header, score, scorecard, key stats ----
       y = header('Round report');
       font(12, true); T((player || 'Player') + ' – ' + (r.course || 'Round'), M, y); font(11); T(dateTxt + ' · compared with ' + blName(R.bl), M, y + 16); y += 44;
@@ -287,15 +328,25 @@
             doc.addPage(); var yy = header(pg[0]);
             if (pg[4]) { font(10, true); T('All approach groups this round', M, yy); yy = table([['Group', 'Shots', 'Greens hit', 'Avg ft - greens hit', 'Avg ft - all']].concat(gsum.map(function (x) { var Q = x.P;
                 return [x.g.name, String(Q.n), Q.hits + '/' + Q.n + ' (' + Math.round(Q.hitPct) + '%)', Q.avgHitFt == null ? '-' : Math.round(Q.avgHitFt) + ' ft', Q.avgAllFt == null ? '-' : Math.round(Q.avgAllFt) + ' ft']; })), M, yy + 14, [130, 60, 110, 120, 120], { fs: 8.5, rh: 13 }) + 8; }
-            var maxW = PW - 2 * M, maxH = pg[1] === 'pin' ? 470 : pg[4] ? 330 - 13 * gsum.length : pg[1] === 'prox' ? 380 : 430, sc = Math.min(maxW / im.w, maxH / im.h), w = im.w * sc, h = im.h * sc;
+            var maxW = PW - 2 * M, maxH = pg[1] === 'pin' ? 400 : pg[4] ? 330 - 13 * gsum.length : pg[1] === 'prox' ? 380 : 360, sc = Math.min(maxW / im.w, maxH / im.h), w = im.w * sc, h = im.h * sc;
             var TX = M;
             if (pg[1] === 'prox') { h = Math.min(PH - M - 14 - yy, 290 * im.h / im.w); w = h * im.w / im.h; doc.addImage(im.data, 'JPEG', M, yy, w, h); TX = M + w + 14; maxW = PW - M - TX; }
-            else { doc.addImage(im.data, 'JPEG', M + (maxW - w) / 2, yy, w, h); yy += h + 14; }
-            if (pg[1] === 'prox') { yy += 10; font(9, true); T('Line colour:', TX, yy); var lx = TX + 58;
-              [pg[3]].forEach(function (g) { var c = parseInt(g.color.slice(1), 16); doc.setDrawColor((c >> 16) & 255, (c >> 8) & 255, c & 255); doc.setLineWidth(4); doc.line(lx, yy - 3, lx + 16, yy - 3); font(9); font(8); T(g.name, lx + 19, yy); lx += 70; });
-              doc.setDrawColor(0); yy += 14; font(8.5); var kt = doc.splitTextToSize(P('Filled dot = hit the green · white ring with x = missed (always drawn outside the green, farther out = farther from the pin) · * = holed · ? = no direction entered. Lines start at the lie the shot was hit from.'), maxW); doc.text(kt, TX, yy); yy += kt.length * 11 + 10; }
+            else { doc.addImage(im.data, 'JPEG', M + (maxW - w) / 2, yy, w, h); yy += h + 14; if (pg[1] !== 'pin') yy = legendBox(mp.legend, M, yy, maxW, 2); }
+            if (pg[1] === 'prox') { yy += 10; var G = pg[3];
+              yy = legendBox([{ k: 'ln', c: G.color, t: 'Shot from ' + G.name + ' (line starts at the lie it was hit from)' },
+                { k: 'dot', c: G.color, b: '#000', t: 'Hit the green - label = first-putt distance (ft)' },
+                { k: 'ringx', c: G.color, t: 'Missed the green - always outside the green, farther out = farther from the pin; label = yards left + lie' },
+                { k: 'star', t: 'Holed out' }, { k: 'diamond', c: G.color, t: 'No direction entered' },
+                { k: 'txt', c: '>', t: 'Further than the picture - drawn at the edge (label ends with >)' },
+                { k: 'none', t: 'White rings on the green: 5 to 30 ft from the hole.' },
+                { k: 'sw', c: '#9fdf86', t: 'Fairway' }, { k: 'sw', c: '#5f9e47', t: 'Rough (left / right side)' }, { k: 'sw', c: '#ecd27e', t: 'Bunker' },
+                { k: 'sw', c: '#c9f2b8', t: 'Tee box (par 3s)' }, { k: 'sw', c: '#2f6b2a', t: 'Trees / other' }], TX, yy, maxW, 1) + 8; }
             if (pg[1] === 'pin') {
-              font(9); T('Badges: holes with the pin in that part of the green and GIR. Light green ring = putting surface around that pin (pin drawn where it sits on the green, front = bottom; dashed ring = 20 ft from the pin): white dots = GIR at first-putt distance. Red dots in the rough = missed greens, in the miss direction, farther out = more yards off (30 yd+ at the edge, marked >).', M, yy, { maxWidth: maxW }); yy += 36;
+              yy = legendBox([{ k: 'dot', c: '#ffffff', b: '#000', t: 'Green hit in regulation - first-putt distance and direction from the pin' },
+                { k: 'dot', c: '#e0102a', b: '#000', t: 'Missed green - in the rough, in the miss direction from the pin; farther out = more yards off (30 yd+ at the edge, label ends with >); label = yards + lie' },
+                { k: 'sw', c: '#8fd66f', t: 'Putting surface (the green) for that pin segment' }, { k: 'sw', c: '#2f6b2a', t: 'Rough around the green' },
+                { k: 'pin', t: 'Pin - drawn where it sits on the green (front = bottom)' }, { k: 'dring', t: 'Dashed ring = 20 ft from the pin' },
+                { k: 'badge', t: 'Badge: pin segment, holes, greens hit (GIR x/y)' }], M, yy, maxW, 2); yy += 12;
               if (!segs.length) { font(11); T('No holes with a pin location set this round.', M, yy); return; }
               var dirTxt = function (md) { return Object.keys(md).map(function (k) { return (k ? SG.DIR_NAME[k] : 'No direction') + ' ' + md[k]; }).join(', ') || 'None'; };
               table([['Pin', 'Holes', 'GIR', 'GIR %', 'Avg ft (GIR)', 'Misses by direction']].concat(segs.map(function (s) {
