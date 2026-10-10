@@ -5,7 +5,8 @@
   function playerName() { return (localStorage.getItem(PN) || '').trim(); }
   // Rounds that belong to this phone's player (unnamed rounds count as theirs). Backups contain only these,
   // so another player's rounds loaded from OneDrive are never written into this player's file.
-  function ownRounds() { var n = playerName(); return rounds.filter(function (r) { return !r.player || r.player === n; }); }
+  function samePlayer(a, b) { return String(a || '').trim().toLowerCase() === String(b || '').trim().toLowerCase(); }
+  function ownRounds() { var n = playerName(); return rounds.filter(function (r) { return !r.player || samePlayer(r.player, n); }); }
   // Location choices (row = where the shot is played FROM)
   // Row = one stroke, hit FROM this location. Last row = In the hole (with the distance of the stroke that went in).
   var LOCS = [['fairway', 'Fairway'], ['rough', 'Rough'], ['bunker', 'Bunker'], ['green', 'Green'],
@@ -45,6 +46,8 @@
       (r.holes || []).forEach(function (h) { (h.rows || []).forEach(function (row) { row.dir = SG.normDir(row.dir); }); });
       r.dv = 2; changed = true;
     });
+    // recovery: an empty stub (0 shots) left beside the real round played that day is merged into it
+    var F = SG.foldStubs(rs); if (F.folded.length) { rs = F.rounds; changed = true; var c0 = localStorage.getItem(CUR); if (c0 && F.folded.indexOf(c0) >= 0) localStorage.removeItem(CUR); }
     if (changed) localStorage.setItem(KEY, JSON.stringify(rs));
     return rs;
   }
@@ -442,7 +445,7 @@
   function backupDone() { localStorage.setItem(BK, new Date().toISOString()); var nO = ownRounds().length; view.notice = { text: 'Backup ready: ' + nO + ' round' + (nO === 1 ? '' : 's') + ' for ' + playerName() + ' saved.' }; if (view.screen === 'home') render(); }
   function backupRounds() {
     if (!playerName()) { askName('Enter your player name first – it goes in the backup file name.'); return; }
-    var name = 'golf-rounds-' + window.OD.slug(playerName()) + '-' + localDay(new Date()) + '.json', json = JSON.stringify(SG.makeBackup(ownRounds(), null, playerName()), null, 1), file;
+    var name = 'golf-rounds-' + window.OD.slug(playerName()) + '-' + localDay(new Date()) + '.json', json = JSON.stringify(SG.makeBackup(rounds, null, playerName()), null, 1), file;
     try { file = new File([json], name, { type: 'application/json' }); } catch (e) { file = null; }
     if (file && navigator.canShare && navigator.canShare({ files: [file] })) {
       navigator.share({ files: [file] }).then(backupDone).catch(function (e) {
@@ -667,7 +670,7 @@
     out += '</div>';
     out += view.hole < 17
       ? '<button class="' + (fin ? 'primary ' : '') + 'big" data-act="next">' + (started(r.holes[view.hole + 1]) ? 'Hole ' + (view.hole + 2) + ' ›' : 'Add Hole ' + (view.hole + 2) + ' ⊕') + '</button>'
-      : '<button class="primary big" data-act="summary">Finish round – see stats</button>';
+      : '<button class="primary big" data-act="summary" data-end="1">Finish round – see stats</button>';
     out += '<div class="row sub"><button class="txt" data-act="home">Home</button><button class="txt" data-act="summary">Scorecard &amp; stats</button></div>';
     out += '<p class="help muted">Each row is ONE stroke. Dist = how far from the pin you hit it (yards; feet on the green). Loc = where the ball was. ' +
       'Last row: pick "In the hole" and enter the distance of the putt (or chip) that went in. Dir = where the shot before ended vs its target (8 ways: Short = toward you, Long = past it, Left, Right, and the corners). For an approach that missed the green, pick where it missed the green; if it found the green, pick where it stopped vs the hole. ' +
@@ -1514,7 +1517,13 @@
         rounds = rounds.filter(function (x) { return x !== r; }); save();
         if (localStorage.getItem(CUR) === r.id) localStorage.removeItem(CUR);
         view.screen = view.from === 'history' ? 'history' : 'home'; break;
-      case 'summary': view.screen = 'summary'; if (odOn && odState.pending) odSoon(300); render(); window.scrollTo(0, 0); return;
+      case 'summary':
+        if (b.getAttribute('data-end') === '1') { // Finish round: mark every holed-out hole finished, keep the round in History, clear 'Continue round'
+          var rr = round(); rr.holes.forEach(function (hh) { if (!hh.finished && hh.par && SG.analyzeHole(hh).complete) hh.finished = true; });
+          var F2 = SG.foldStubs(rounds); rounds = F2.rounds; if (localStorage.getItem(CUR) === rr.id) localStorage.removeItem(CUR);
+          save(); odSoon(1500); toast('Round saved to History');
+        }
+        view.screen = 'summary'; if (odOn && odState.pending) odSoon(300); render(); window.scrollTo(0, 0); return;
       case 'backHole': goHole(view.hole); return;
       case 'goHole': goHole(+b.getAttribute('data-i')); return;
       case 'prev': goHole(view.hole - 1); return;

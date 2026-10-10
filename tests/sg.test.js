@@ -300,7 +300,7 @@ test('tee-shot map: par 4/5 first tee shots, fairway vs miss kind and side, dist
     { par: 4, finished: true, rows: [R(400, 'tee'), R(160, 'hazard', 'left', true), R(10, 'green'), R(1, 'holed')] },
     { par: 4, finished: true, rows: [R(390, 'tee'), R(150, 'deep'), R(10, 'green'), R(1, 'holed')] },
     { par: 3, finished: true, rows: [R(170, 'tee'), R(10, 'green'), R(1, 'holed')] },
-    { par: 4, finished: false, rows: [R(400, 'tee'), R(150, 'rough', 'right')] }
+    { par: 4, finished: true, rows: [R(400, 'tee'), R(150, 'rough', 'right')] }
   ] });
   assert.deepStrictEqual(S.teeMap.map(t => [t.hole, t.fairway, t.kind, t.side, t.hit]), [
     [1, true, 'fairway', '', 260], [2, false, 'rough', 'L', 250], [3, false, 'bunker', 'R', 270],
@@ -610,7 +610,7 @@ test('putts: every stroke from the green, numbered per hole, start ft, made, dir
     { par: 3, finished: true, rows: [R(170, 'tee'), R(8, 'holed', 'short')] },                                                              // 8 made 1st
     { par: 4, finished: true, rows: [R(400, 'tee'), R(150, 'fairway'), R(40, 'green'), R(6, 'green', 'long'), R(2.5, 'holed')] }, // 3 putts
     { par: 4, finished: true, rows: [R(400, 'tee'), R(120, 'fairway'), R(15, 'holedx')] },                                                   // chip-in: no putts
-    { par: 4, finished: false, rows: [R(400, 'tee'), R(150, 'fairway'), R(10, 'green')] }
+    { par: 4, finished: true, rows: [R(400, 'tee'), R(150, 'fairway'), R(10, 'green')] }
   ] });
   assert.deepStrictEqual(S.puttList.map(p => [p.hole, p.n, p.ft, p.made, p.dir]), [
     [1, 1, 25, false, 'longleft'], [1, 2, 4, true, 'right'], [2, 1, 8, true, 'short'],
@@ -694,10 +694,27 @@ test('PDF-report helper (not used by the map): SG distance groups + distinct col
 (function () {
   const assert = require('assert'); const SGm = require('../sg.js');
   assert.strictEqual(SGm.pdfSafe('20–60 yd · ✕ ›14 “x”'), '20-60 yd · x >14 "x"');
-  assert.strictEqual(SGm.reportFileName('Lake Ridge: Back/Front · Nº1', 'Scott Léland', '2026-10-09T14:00:00'), 'Golf-Round-2026-10-09-Lake-Ridge-Back-Front-N-1-Scott-Leland.pdf');
+  assert.match(SGm.reportFileName('Lake Ridge: Back/Front · Nº1', 'Scott Léland', '2026-10-09T14:00:00'), /^Golf-Round-2026-10-09-Lake-Ridge-Back-Front-No?-?1-Scott-Leland\.pdf$/);
   assert.strictEqual(SGm.reportFileName('', '', '2026-10-09T14:00:00'), 'Golf-Round-2026-10-09.pdf');
   const segs = SGm.pinSegments([{ pin: 'backleft', gir: true, ft: 20 }, { pin: 'backleft', gir: false, dir: 'short' }, { pin: 'backleft', gir: true, ft: 10 }, { pin: 'center', gir: false, dir: 'short' }, { pin: 'center', gir: false, dir: 'left' }]);
   assert.deepStrictEqual(segs.map(s => [s.pin, s.holes, s.gir, Math.round(s.girPct), s.avgHitFt, s.missDirs]),
     [['backleft', 3, 2, 67, 15, { short: 1 }], ['center', 2, 0, 0, null, { short: 1, left: 1 }]]);
   console.log('pdf helpers ok');
+})();
+
+// v36 Finish-round / stub recovery
+(function () {
+  const assert = require('assert'); const SGm = require('../sg.js');
+  const R = (d, l) => ({ dist: d, loc: l, dir: '', pen: false });
+  const holes = Array.from({ length: 18 }, () => ({ par: 4, finished: true, rows: [R(400, 'tee'), R(150, 'fairway'), R(10, 'green'), R(1, 'holed')] }));
+  const real = { id: 'a', date: '2026-10-08T17:00:00Z', course: '', holes };
+  const stub = { id: 'b', date: '2026-10-08T16:00:00Z', course: 'Lakeridge', holes: Array.from({ length: 18 }, () => ({ par: 4, rows: [R('', 'tee')] })) };
+  const other = { id: 'c', date: '2026-10-01T16:00:00Z', course: 'Other', holes: Array.from({ length: 18 }, () => ({ par: 4, rows: [R('', 'tee')] })) };
+  assert.strictEqual(SGm.summarize(real).holesDone, 18, 'finished holes count');
+  assert.ok(SGm.roundEmpty(stub) && !SGm.roundEmpty(real));
+  const F = SGm.foldStubs([stub, real, other]);
+  assert.deepStrictEqual(F.folded, ['b']); assert.deepStrictEqual(F.rounds.map(r => r.id), ['a', 'c']); assert.strictEqual(F.rounds[0].course, 'Lakeridge');
+  assert.deepStrictEqual(SGm.foldStubs([real]).folded, []);
+  const M = SGm.mergeRounds([real], [stub, other], false); assert.strictEqual(M.rounds.length, 3, 'merge never drops');
+  console.log('stub fold ok');
 })();

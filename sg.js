@@ -717,7 +717,24 @@
     return incoming.filter(function (r) { return byId[r.id] && JSON.stringify(byId[r.id]) !== JSON.stringify(r); });
   }
 
-  var api = { pdfSafe: pdfSafe, reportFileName: reportFileName, pinSegments: pinSegments, REPORT_GROUPS: REPORT_GROUPS, reportGroup: reportGroup, SHORT_MAX_YD: SHORT_MAX_YD, APPR_BUCKETS: APPR_BUCKETS, apprBucket: apprBucket, proxAfterFt: proxAfterFt, puttKind: puttKind, threePutts: threePutts, puttScale: puttScale, puttRadius: puttRadius, puttPlace: puttPlace, PUTT_BANDS: PUTT_BANDS, puttGroup: puttGroup, puttStats: puttStats, makeBackup: makeBackup, parseBackup: parseBackup, mergeRounds: mergeRounds, conflictsOf: conflictsOf, PROX_LIES: PROX_LIES, lieGroup: lieGroup, proxByLie: proxByLie, proxWarnings: proxWarnings, PROX_BUCKETS: PROX_BUCKETS, inBucket: inBucket, roundYd: roundYd, proxStats: proxStats, reachedGreen: reachedGreen, PIN_GRID: PIN_GRID, PIN_NAME: PIN_NAME, normPin: normPin, DIR8: DIR8, DIR_NAME: DIR_NAME, DIR_ANGLE: DIR_ANGLE, normDir: normDir, expected: expected, expectedPGA: expectedPGA, BASELINES: BASELINES, baseline: function (id) { return BL[id] || BL.pga; },
+  // Empty round = no shot entered beyond (at most) a tee yardage on each hole.
+  function roundEmpty(r) { return !(r.holes || []).some(function (h) { var rw = h.rows || []; return rw.length > 1 || rw.some(function (x) { return x.loc && x.loc !== 'tee'; }); }); }
+  // Fold empty stub rounds into a real round played the same local day (course copied over if the real one has none).
+  // Only rounds with no shots are ever removed, so no data can be lost. Returns { rounds, folded }.
+  function foldStubs(list, dayOf) {
+    dayOf = dayOf || function (r) { var d = new Date(r.date); return d.getFullYear() + '-' + d.getMonth() + '-' + d.getDate(); };
+    var real = list.filter(function (r) { return !roundEmpty(r); }), drop = [];
+    list.forEach(function (st) {
+      if (!roundEmpty(st)) return;
+      var t = real.filter(function (r) { return dayOf(r) === dayOf(st) && (!r.course || !st.course || r.course === st.course) && (!r.player || !st.player || r.player === st.player); })[0];
+      if (!t) return;
+      if (!t.course && st.course) t.course = st.course;
+      if (!t.player && st.player) t.player = st.player;
+      drop.push(st.id);
+    });
+    return { rounds: list.filter(function (r) { return drop.indexOf(r.id) < 0; }), folded: drop };
+  }
+  var api = { roundEmpty: roundEmpty, foldStubs: foldStubs, pdfSafe: pdfSafe, reportFileName: reportFileName, pinSegments: pinSegments, REPORT_GROUPS: REPORT_GROUPS, reportGroup: reportGroup, SHORT_MAX_YD: SHORT_MAX_YD, APPR_BUCKETS: APPR_BUCKETS, apprBucket: apprBucket, proxAfterFt: proxAfterFt, puttKind: puttKind, threePutts: threePutts, puttScale: puttScale, puttRadius: puttRadius, puttPlace: puttPlace, PUTT_BANDS: PUTT_BANDS, puttGroup: puttGroup, puttStats: puttStats, makeBackup: makeBackup, parseBackup: parseBackup, mergeRounds: mergeRounds, conflictsOf: conflictsOf, PROX_LIES: PROX_LIES, lieGroup: lieGroup, proxByLie: proxByLie, proxWarnings: proxWarnings, PROX_BUCKETS: PROX_BUCKETS, inBucket: inBucket, roundYd: roundYd, proxStats: proxStats, reachedGreen: reachedGreen, PIN_GRID: PIN_GRID, PIN_NAME: PIN_NAME, normPin: normPin, DIR8: DIR8, DIR_NAME: DIR_NAME, DIR_ANGLE: DIR_ANGLE, normDir: normDir, expected: expected, expectedPGA: expectedPGA, BASELINES: BASELINES, baseline: function (id) { return BL[id] || BL.pga; },
     CALIB_ROUND: CALIB_ROUND, catLoss: catLoss, analyzeHole: analyzeHole, summarize: summarize,
     rowsToShots: rowsToShots, shotsToRows: shotsToRows, migrateV2Rows: migrateV2Rows, v1ToRows: v1ToRows, holeYards: holeYards,
     rowUnit: rowUnit, lieOf: lieOf, distOf: distOf, rowStrokes: rowStrokes, isPenalty: isPenalty,
