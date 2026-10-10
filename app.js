@@ -112,7 +112,7 @@
       if (!/xmlns=/.test(svg)) svg = svg.replace('<svg', '<svg xmlns="http://www.w3.org/2000/svg"');
       svg = svg.replace('<svg', '<svg font-family="Helvetica, Arial, sans-serif" width="' + w + '" height="' + h + '"');
       var img = new Image();
-      img.onload = function () { var c = document.createElement('canvas'); c.width = w * scale; c.height = h * scale; var x = c.getContext('2d'); x.fillStyle = '#fff'; x.fillRect(0, 0, c.width, c.height); x.drawImage(img, 0, 0, c.width, c.height); res({ data: c.toDataURL('image/jpeg', 0.92), w: w, h: h }); };
+      img.onload = function () { var c = document.createElement('canvas'); c.width = w * scale; c.height = h * scale; var x = c.getContext('2d'); x.fillStyle = '#fff'; x.fillRect(0, 0, c.width, c.height); x.drawImage(img, 0, 0, c.width, c.height); res({ data: c.toDataURL('image/jpeg', 0.8), w: w, h: h }); };
       img.onerror = function () { rej(new Error('map image failed')); };
       img.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svg);
     });
@@ -324,7 +324,7 @@
         chain = chain.then(function () {
           var mp = pg[1] === 'pin' ? { svg: pinReportSVG(segs), lines: [] } : mapForReport(pg[1], pg[2]);
           if (!mp.svg) return;
-          return svgToPng(mp.svg, 3).then(function (im) {
+          return svgToPng(mp.svg, 2.5).then(function (im) {
             doc.addPage(); var yy = header(pg[0]);
             if (pg[4]) { font(10, true); T('All approach groups this round', M, yy); yy = table([['Group', 'Shots', 'Greens hit', 'Avg ft - greens hit', 'Avg ft - all']].concat(gsum.map(function (x) { var Q = x.P;
                 return [x.g.name, String(Q.n), Q.hits + '/' + Q.n + ' (' + Math.round(Q.hitPct) + '%)', Q.avgHitFt == null ? '-' : Math.round(Q.avgHitFt) + ' ft', Q.avgAllFt == null ? '-' : Math.round(Q.avgAllFt) + ' ft']; })), M, yy + 14, [130, 60, 110, 120, 120], { fs: 8.5, rh: 13 }) + 8; }
@@ -367,7 +367,7 @@
       return chain.then(function () {
         var n = doc.getNumberOfPages();
         for (var i = 1; i <= n; i++) { doc.setPage(i); font(8); doc.setTextColor(120); T('Page ' + i + ' of ' + n, PW - M, PH - 18, { align: 'right' }); doc.setTextColor(0); }
-        return { blob: doc.output('blob'), pages: n, name: SG.reportFileName(window.OD.slug(player) || '', r.date) };
+        return { blob: new Blob([doc.output('arraybuffer')], { type: 'application/pdf' }), pages: n, name: SG.reportFileName(r.course, player, r.date) };
       });
     });
   }
@@ -386,8 +386,8 @@
       makeReport().then(function (o) { view.pdf = o; window.__golf.lastPdf = o; render(); }, function (e) { view.pdf = { error: 'Could not make the PDF: ' + (e && e.message) }; render(); }); return; }
     var p = view.pdf; if (!p || !p.blob) return;
     if (act === 'pdfshare') {
-      var f = null; try { f = new File([p.blob], p.name, { type: 'application/pdf' }); } catch (e) {}
-      if (f && navigator.canShare && navigator.canShare({ files: [f] })) { navigator.share({ files: [f], title: p.name }).catch(function (e) { if (!e || e.name !== 'AbortError') pdfDownload(p); }); return; }
+      var f = null; try { f = new File([p.blob], p.name, { type: 'application/pdf', lastModified: Date.now() }); } catch (e) {}
+      if (f && navigator.canShare && navigator.canShare({ files: [f] })) { navigator.share({ files: [f] }).catch(function (e) { if (!e || e.name !== 'AbortError') pdfDownload(p); }); return; }
       pdfDownload(p); return;
     }
     if (act === 'pdfod') { p.od = 'Uploading…'; render();
@@ -432,7 +432,7 @@
     var name = 'golf-rounds-' + window.OD.slug(playerName()) + '-' + localDay(new Date()) + '.json', json = JSON.stringify(SG.makeBackup(ownRounds(), null, playerName()), null, 1), file;
     try { file = new File([json], name, { type: 'application/json' }); } catch (e) { file = null; }
     if (file && navigator.canShare && navigator.canShare({ files: [file] })) {
-      navigator.share({ files: [file], title: name }).then(backupDone).catch(function (e) {
+      navigator.share({ files: [file] }).then(backupDone).catch(function (e) {
         if (e && e.name === 'AbortError') { toast('Backup cancelled'); return; }
         download(json, name, 'application/json'); backupDone();
       });
@@ -1432,7 +1432,7 @@
     var csv = csvFor(list), file;
     try { file = new File([csv], name, { type: 'text/csv' }); } catch (e) { file = null; }
     if (file && navigator.canShare && navigator.canShare({ files: [file] })) {
-      navigator.share({ files: [file], title: name }).catch(function (e) { if (e && e.name !== 'AbortError') download(csv, name); });
+      navigator.share({ files: [file] }).catch(function (e) { if (e && e.name !== 'AbortError') download(csv, name); });
       return;
     }
     download(csv, name);

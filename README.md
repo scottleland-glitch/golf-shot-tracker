@@ -104,4 +104,4 @@ On any round's stats page tap **📄 Make PDF report**. Built on the phone, offl
 1 header + score + scorecard + key stats · 2 strokes gained (category, by distance with avg to pin after, every baseline) ·
 3 fairways · 4 GIR · 5 approach misses · 6 pin location (one green, 3x3 grid, badge + mini plots per segment, table; empty segments skipped) ·
 then one proximity page per distance group with shots (`SG.REPORT_GROUPS`, group colour, lie strip, stats, by lie, misses by direction; first one carries an all-groups summary; empty groups skipped) · 1st putts · 2nd putts. Maps are rendered to 3x images.
-Save with the share sheet (`golf-report-<player>-<date>.pdf`) or, when connected, **Save to OneDrive** → app folder `/Reports`.
+Save with the share sheet (`Golf-Round-<date>-<course>-<player>.pdf`, letters/digits/hyphens only; shared as files only, no title/text, so iOS Mail sends it) or, when connected, **Save to OneDrive** → app folder `/Reports`.

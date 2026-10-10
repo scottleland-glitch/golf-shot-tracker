@@ -33,10 +33,17 @@ const BASE = process.env.BASE_URL || 'http://127.0.0.1:8766/', OUT = process.env
     assert.ok(Math.hypot(g.x - cx, g.y - cy) > 44, 'miss in rough ' + JSON.stringify(g)); });
   console.log('pin labels', [...new Set(lbls)]);
   await page.click('[data-act="pdf"]'); await page.waitForSelector('#pdfname', { timeout: 120000 });
-  assert.match(await page.textContent('#pdfname'), /golf-report-scott-2026-10-09\.pdf · \d+ pages/);
+  assert.match(await page.textContent('#pdfname'), /Golf-Round-2026-10-09-Lakeridge-Scott\.pdf · \d+ pages/);
   await page.screenshot({ path: OUT + '/app-pdf-ready.png' });
+  // share sheet call: files only, application/pdf, mail-safe name
+  const shared = await page.evaluate(async () => { let got = null; const os = navigator.share, oc = navigator.canShare;
+    navigator.canShare = () => true; navigator.share = d => { got = { keys: Object.keys(d), n: d.files.length, type: d.files[0].type, name: d.files[0].name, size: d.files[0].size }; return Promise.resolve(); };
+    document.querySelector('[data-act="pdfshare"]').click(); await new Promise(r => setTimeout(r, 300)); navigator.share = os; navigator.canShare = oc; return got; });
+  assert.deepStrictEqual([shared.keys, shared.n, shared.type, shared.name], [['files'], 1, 'application/pdf', 'Golf-Round-2026-10-09-Lakeridge-Scott.pdf']);
+  assert.ok(shared.size < 1200000, 'size ' + shared.size); console.log('share payload', shared);
+  await page.evaluate(() => { delete navigator.share; delete navigator.canShare; });
   const dl = page.waitForEvent('download'); await page.click('[data-act="pdfshare"]'); const d = await dl;
-  assert.strictEqual(d.suggestedFilename(), 'golf-report-scott-2026-10-09.pdf');
+  assert.strictEqual(d.suggestedFilename(), 'Golf-Round-2026-10-09-Lakeridge-Scott.pdf');
   const f = OUT + '/report.pdf'; await d.saveAs(f);
   const info = execSync('pdfinfo ' + f).toString(); const pages = +/Pages:\s+(\d+)/.exec(info)[1];
   assert.ok(/Page size:\s+612 x 792/.test(info), info); const groups = await page.evaluate(() => { const S = SG.summarize(window.__golf.rounds()[0], 'pga'); return SG.REPORT_GROUPS.filter(g => S.proxList.some(m => SG.reportGroup(m.from) === g.id)).map(g => g.name.replace('\u2013', '-')); });

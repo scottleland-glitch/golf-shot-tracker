@@ -395,9 +395,11 @@
   function pdfSafe(t) {
     return String(t == null ? '' : t).replace(/[^\x00-\xff]/g, function (c) { return PDF_MAP[c] != null ? PDF_MAP[c] : ''; }).replace(/[ \t]+/g, ' ').trim();
   }
-  function reportFileName(slug, dateISO) {
+  // Mail-safe file name: letters, digits and hyphens only, e.g. Golf-Round-2026-10-09-Lakeridge-Scott.pdf
+  function fileWord(t) { return String(t || '').normalize('NFKD').replace(/[\u0300-\u036f]/g, '').replace(/[^A-Za-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 30); }
+  function reportFileName(course, player, dateISO) {
     var d = dateISO ? new Date(dateISO) : new Date(), p = function (n) { return (n < 10 ? '0' : '') + n; };
-    return 'golf-report-' + (slug || 'golfer') + '-' + d.getFullYear() + '-' + p(d.getMonth() + 1) + '-' + p(d.getDate()) + '.pdf';
+    return ['Golf-Round', d.getFullYear() + '-' + p(d.getMonth() + 1) + '-' + p(d.getDate()), fileWord(course), fileWord(player)].filter(Boolean).join('-') + '.pdf';
   }
   // Pin-location summary per segment (skips segments with no holes): holes, GIR, avg first-putt ft on greens hit, misses by direction
   function pinSegments(holes) {
