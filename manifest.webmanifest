@@ -1,6 +1,6 @@
 {
-  "name": "Golf Shot Tracker",
-  "short_name": "Golf SG",
+  "name": "Pin High",
+  "short_name": "Pin High",
   "description": "Track golf shots and strokes gained on the course.",
   "start_url": "./",
   "scope": "./",

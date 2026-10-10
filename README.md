@@ -1,4 +1,6 @@
-# Golf Shot Tracker (PWA)
+# Pin High (PWA) — formerly "Golf Shot Tracker"
+
+Renamed to **Pin High** (title, home-screen label, header, PDF). Storage keys (`golfsg.*`), backup files (`golf-rounds-*.json`) and the OneDrive app folder (named after the Entra app registration, Apps › Golf Shot Tracker) are unchanged, so restore keeps working.
 
 Phone web app for tracking every golf shot and strokes gained against a selectable baseline (PGA Tour by default).
 Static files only: no backend, no build step. Data is stored on the phone (localStorage).

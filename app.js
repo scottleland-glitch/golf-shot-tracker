@@ -1,4 +1,4 @@
-/* Golf Shot Tracker - UI (v4: shot rows + selectable SG baselines). Data lives in localStorage on the phone. */
+/* Pin High (formerly Golf Shot Tracker) - UI (v4: shot rows + selectable SG baselines). Data lives in localStorage on the phone. */
 (function () {
   'use strict';
   var KEY = 'golfsg.rounds.v1', CUR = 'golfsg.current.v1', PN = 'golfsg.player.v1';
@@ -99,6 +99,19 @@
     else if (view.screen === 'about') el.innerHTML = aboutHTML();
     else el.innerHTML = summaryHTML() + (view.map ? mapHTML() : '');
     if (view.screen !== 'hole') document.body.classList.toggle('noscroll', !!(view.map && view.screen === 'summary'));
+    if (view.screen !== 'about') infoize(el);
+  }
+  // Long explanations collapse behind a small (i) button; the first sentence stays as a short caption.
+  var infoOpen = {};
+  function infoize(root) {
+    [].slice.call(root.querySelectorAll('p.help, p.muted.help')).forEach(function (p, i) {
+      var txt = p.textContent.trim(); if (txt.length < 90 || p.closest('.infotext, .odcard, .pdfsheet, .playerbox') || /^(proxauto|pdfname|pdfodmsg|odstat)$/.test(p.id)) return;
+      var key = p.id || ('i' + i + ':' + txt.slice(0, 24)), id = p.id || ('info-' + key.replace(/[^\w-]/g, '_'));
+      var w = document.createElement('div'); w.className = 'infowrap';
+      var short = (txt.match(/^[^.!?–]{8,60}[.!?]?/) || [txt.slice(0, 50)])[0].replace(/[.:–]\s*$/, '');
+      w.innerHTML = '<button type="button" class="infobtn" data-act="info" data-v="' + esc(key) + '" aria-controls="' + id + '" aria-expanded="' + !!infoOpen[key] + '" aria-label="More info"><span>i</span></button><span class="infocap">' + esc(short) + '…</span>';
+      p.parentNode.insertBefore(w, p); p.classList.add('infotext'); p.hidden = !infoOpen[key]; p.setAttribute('data-info', id); if (!p.id) p.id = id;
+    });
   }
 
   // ---------- PDF round report (on-device, offline: vendor/jspdf.umd.min.js) ----------
@@ -205,11 +218,11 @@
     var R = reportData(r), S = R.S, P = SG.pdfSafe, player = playerName() || r.player || '', dateTxt = new Date(r.date).toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' });
     return loadJsPDF().then(function () {
       var doc = new window.jspdf.jsPDF({ unit: 'pt', format: 'letter', orientation: 'portrait' }), M = 36, PW = 612, PH = 792, y;
-      doc.setProperties({ title: 'Golf round report – ' + (r.course || '') + ' ' + dateTxt, author: player, creator: 'Golf Shot Tracker' });
+      doc.setProperties({ title: 'Pin High round report – ' + (r.course || '') + ' ' + dateTxt, author: player, creator: 'Pin High' });
       var T = function (t, x, yy, o) { doc.text(P(t), x, yy, o); };
       var font = function (sz, b) { doc.setFont('helvetica', b ? 'bold' : 'normal'); doc.setFontSize(sz); };
       var header = function (title) {
-        font(9); doc.setTextColor(90); T(P((player ? player + ' · ' : '') + (r.course || 'Round') + ' · ' + dateTxt), M, 24); T('Golf Shot Tracker', PW - M, 24, { align: 'right' }); doc.setTextColor(0);
+        font(9); doc.setTextColor(90); T(P((player ? player + ' · ' : '') + (r.course || 'Round') + ' · ' + dateTxt), M, 24); T('Pin High', PW - M, 24, { align: 'right' }); doc.setTextColor(0);
         font(18, true); T(title, M, 52); doc.setLineWidth(1); doc.line(M, 60, PW - M, 60); return 78;
       };
       // simple table: rows[0] = header; widths in pt; numeric cols right-aligned
@@ -602,7 +615,7 @@
   }
   function homeHTML() {
     var cur = rounds.filter(function (r) { return r.id === localStorage.getItem(CUR); })[0];
-    var h = '<h1>⛳ Golf Shot Tracker</h1><p class="muted">Track every shot. See where you gain and lose strokes.</p>';
+    var h = '<h1>⛳ Pin High</h1><p class="muted">Track every shot. See where you gain and lose strokes.</p>';
     if (cur) {
       var S = SG.summarize(cur);
       h += '<button class="primary big" data-act="resume">Continue round' + (cur.course ? ' – ' + esc(cur.course) : '') +
@@ -1463,6 +1476,7 @@
       case 'history': view.screen = 'history'; view.notice = null; render(); window.scrollTo(0, 0); return;
       case 'backup': backupRounds(); return;
       case 'pdf': case 'pdfshare': case 'pdfod': pdfAct(act); return;
+      case 'info': { infoOpen[v] = !infoOpen[v]; var t = b && document.getElementById(b.getAttribute('aria-controls')); if (b) b.setAttribute('aria-expanded', !!infoOpen[v]); if (t) t.hidden = !infoOpen[v]; return; }
       case 'pdfclose': view.pdf = null; render(); return;
       case 'setname': setName((document.getElementById('pname') || {}).value); return;
       case 'editname': view.editName = true; render(); var pi = document.getElementById('pname'); if (pi) pi.focus(); return;

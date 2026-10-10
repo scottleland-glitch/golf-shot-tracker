@@ -70,7 +70,7 @@ let passed = 0; const ok = (m) => { passed++; console.log('  ✓', m); };
       { v: 3, id: 'rdemo', date: '2026-10-01T20:00:00.000Z', course: 'Lakeridge', baseline: 'pga', holes: demo }]));
     localStorage.setItem('golfsg.current.v1', 'rv2');
   });
-  await page.reload(); await page.waitForSelector('text=Golf Shot Tracker');
+  await page.reload(); await page.waitForSelector('text=Pin High');
   const swScope = await page.evaluate(async () => (await navigator.serviceWorker.ready).scope); assert.ok(swScope.startsWith(URL), swScope); ok('service worker scope = ' + swScope);
   const mig = await page.evaluate(() => { const rs = JSON.parse(localStorage.getItem('golfsg.rounds.v1')); return [rs[0].holes[0].rows[1].dir, rs[1].holes[1].rows[2].dir, rs[1].holes[2].rows[1].dir, rs[1].holes[11].rows[2].dir, rs[1].holes[3].rows[1].dir, rs[1].dv]; });
   assert.deepStrictEqual(mig, ['left', 'right', 'short', 'long', 'left', 2]); ok('old direction codes migrated: L→Left, R→Right, S→Short, O→Long');
