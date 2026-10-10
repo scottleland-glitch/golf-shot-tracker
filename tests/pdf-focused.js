@@ -16,7 +16,7 @@ const BASE = process.env.BASE_URL || 'http://127.0.0.1:8766/', OUT = process.env
       const p = [4, 3, 5][i % 3], pin = pins[i % 6];
       const rows = p === 3 ? [R(165 + i, 'tee', i % 2 ? 'short' : '')] : [R(390 + i, 'tee', i % 4 ? 'left' : ''), R(60 + i * 8, i % 4 ? 'rough' : 'fairway', i % 2 ? 'right' : '')];
       if (p === 5) rows.splice(1, 0, R(250, 'fairway'));
-      if (i % 2) rows.push(R(12, i % 4 === 1 ? 'sand' : 'rough', 'short'), R(6, 'green', 'left'), R(2, 'holed', 'right')); else rows.push(R(18, 'green', 'longleft'), R(3, 'holed', 'right'));
+      if (i % 2) rows.push(R(12, ['bunker', 'rough', 'trees', 'deep', 'hazard'][(i >> 1) % 5], i % 6 === 1 ? 'short' : 'left'), R(6, 'green', 'left'), R(2, 'holed', 'right')); else rows.push(R(18, 'green', 'longleft'), R(3, 'holed', 'right'));
       holes.push({ par: p, pin, finished: true, rows });
     }
     localStorage.setItem('golfsg.player.v1', 'Scott');
@@ -24,6 +24,9 @@ const BASE = process.env.BASE_URL || 'http://127.0.0.1:8766/', OUT = process.env
   });
   await page.reload();
   await page.click('[data-act="history"]'); await page.click('#histlist [data-act="open"][data-id="rpdf"]');
+  const lbls = await page.evaluate(() => { const d = document.createElement('div'); d.innerHTML = window.__golf.pinSVG(); return [...d.querySelectorAll('.pminilbl')].map(t => t.textContent); });
+  assert.ok(lbls.length >= 3, lbls); lbls.forEach(t => assert.match(t, /^(\? )?[\d.]+ yd( ›)? (Bunker|Rough|Trees|Deep rough|Hazard|Fairway|Green)$|^OB$/, 'label ' + t));
+  console.log('pin labels', [...new Set(lbls)]);
   await page.click('[data-act="pdf"]'); await page.waitForSelector('#pdfname', { timeout: 120000 });
   assert.match(await page.textContent('#pdfname'), /golf-report-scott-2026-10-09\.pdf · \d+ pages/);
   await page.screenshot({ path: OUT + '/app-pdf-ready.png' });

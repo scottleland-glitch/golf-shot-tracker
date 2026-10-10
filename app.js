@@ -165,7 +165,7 @@
           var rr2 = edge + 6 + (yd == null ? out : Math.min(yd, 30) / 30 * out); q = pt(px, py, rr2, ang);
           var qc = [Math.max(x0 + 6, Math.min(x0 + cw - 6, q[0])), Math.max(y0 + 28, Math.min(y0 + ch - 6, q[1]))]; if (qc[0] !== q[0] || qc[1] !== q[1]) { cap = true; q = qc; }
           dots += '<circle class="pmini" data-gir="0" data-r="' + f1(rr2) + '" cx="' + f1(q[0]) + '" cy="' + f1(q[1]) + '" r="4.5" fill="#e0102a" stroke="#fff" stroke-width="1.5"/>';
-          t = h.ob ? 'OB' : (h.dir ? '' : '? ') + (Math.round(yd * 10) / 10) + ' yd' + (cap ? ' ›' : '') + ' ' + (LN[h.lie] || h.lie || ''); }
+          t = h.ob ? 'OB' : (h.dir ? '' : '? ') + (Math.round(yd * 10) / 10) + ' yd' + (cap ? ' ›' : '') + ' ' + (LN[h.lie] || h.lie || 'Off green'); }
         if (t) pend.push([q[0], q[1], t]);
         boxes.push([q[0] - 5, q[1] - 5, q[0] + 5, q[1] + 5]);
       });
@@ -1532,5 +1532,5 @@
     });
     window.addEventListener('load', function () { navigator.serviceWorker.register('./sw.js').catch(function () {}); });
   }
-  window.__golf = { odState: function () { return odState; }, csvFor: csvFor, rounds: function () { return rounds; } };
+  window.__golf = { pinSVG: function () { return pinReportSVG(SG.pinSegments(pinDataRound())); }, odState: function () { return odState; }, csvFor: csvFor, rounds: function () { return rounds; } };
 })();
