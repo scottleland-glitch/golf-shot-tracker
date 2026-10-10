@@ -138,7 +138,7 @@
   // ONE pin-location page: big green with the 3x3 grid; each segment with a pin shows a badge + mini plots
   function pinReportSVG(segs) {
     // each segment: dark rough cell, light-green ring = putting surface around that segment's pin
-    var W = 560, H = 650, gx = 10, gy = 30, cw = 180, ch = 196, R = 44, o = '<svg viewBox="0 0 ' + W + ' ' + H + '"><rect width="' + W + '" height="' + H + '" fill="#fff"/>' +
+    var W = 560, H = 650, gx = 10, gy = 30, cw = 180, ch = 196, R = 40, o = '<svg viewBox="0 0 ' + W + ' ' + H + '"><rect width="' + W + '" height="' + H + '" fill="#fff"/>' +
       '<rect x="' + gx + '" y="' + gy + '" width="' + cw * 3 + '" height="' + ch * 3 + '" rx="30" fill="#2f6b2a" stroke="#123d10" stroke-width="4"/>';
     for (var i = 1; i < 3; i++) o += '<line x1="' + (gx + cw * i) + '" y1="' + gy + '" x2="' + (gx + cw * i) + '" y2="' + (gy + ch * 3) + '" stroke="#fff" stroke-opacity=".5" stroke-dasharray="6 5"/><line x1="' + gx + '" y1="' + (gy + ch * i) + '" x2="' + (gx + cw * 3) + '" y2="' + (gy + ch * i) + '" stroke="#fff" stroke-opacity=".5" stroke-dasharray="6 5"/>';
     var by = {}; segs.forEach(function (s) { by[s.pin] = s; });
@@ -146,11 +146,17 @@
     SG.PIN_GRID.forEach(function (row, ri) { row.forEach(function (id, ci) {
       var s = by[id], x0 = gx + cw * ci, y0 = gy + ch * ri;
       if (!s) { o += '<text x="' + (x0 + cw / 2) + '" y="' + (y0 + ch / 2) + '" text-anchor="middle" font-size="10" fill="#fff" fill-opacity=".55">' + SG.PIN_NAME[id] + ' – no pins</text>'; return; }
-      var cx = x0 + cw / 2, cy = y0 + 24 + (ch - 24) / 2, out = Math.min(cw / 2, (ch - 24) / 2) - R - 10, boxes = [], seen = {};
-      var lbl = function (x, y, t) { var w = t.length * 4.6 + 4, cand = [[7, 3], [-7 - w, 3], [-w / 2, -7], [-w / 2, 15], [7, 13], [-7 - w, 13], [7, -7], [-7 - w, -7], [-w / 2, 25]], b = null;
+      var cx = x0 + cw / 2, cy = y0 + 24 + (ch - 24) / 2, out = Math.min(cw / 2, (ch - 24) / 2) - R - 16, boxes = [], seen = {};
+      var onRing = function (bb) { var nx = Math.max(bb[0], Math.min(cx, bb[2])), ny = Math.max(bb[1], Math.min(cy, bb[3])); return Math.hypot(nx - cx, ny - cy) < R + 1; };
+      var lbl = function (x, y, t, ang) { var w = t.length * 4.6 + 4, cand = [[7, 3], [-7 - w, 3], [-w / 2, -7], [-w / 2, 15], [7, 13], [-7 - w, 13], [7, -7], [-7 - w, -7], [-w / 2, 25]], b = null;
         cand.some(function (c) { var bb = [x + c[0], y + c[1] - 8, x + c[0] + w, y + c[1] + 2]; if (bb[0] < x0 + 2 || bb[2] > x0 + cw - 2 || bb[1] < y0 + 24 || bb[3] > y0 + ch - 2) return false;
-          if (boxes.some(function (q) { return bb[0] < q[2] && bb[2] > q[0] && bb[1] < q[3] && bb[3] > q[1]; })) return false; b = bb; return true; });
-        if (!b) return ''; boxes.push(b); return '<text class="pminilbl" x="' + f1(b[0] + 2) + '" y="' + f1(b[3] - 2) + '" font-size="8" font-weight="800" fill="#fff" stroke="#123d10" stroke-width="2.5" paint-order="stroke">' + esc(t) + '</text>'; };
+          if (onRing(bb) || boxes.some(function (q) { return bb[0] < q[2] && bb[2] > q[0] && bb[1] < q[3] && bb[3] > q[1]; })) return false; b = bb; return true; });
+        var lead = '';
+        if (!b) { [16, 24, 34, 46, 60].some(function (d) { return [0, 30, -30, 60, -60, 90, -90, 120, -120, 150, -150, 180].some(function (da) { var e = pt(x, y, d, (ang == null ? 270 : ang) + da); return [[0, 0], [-w, 0], [-w / 2, -4], [-w / 2, 8]].some(function (c) {
+            var bb = [e[0] + c[0], e[1] + c[1] - 4, e[0] + c[0] + w, e[1] + c[1] + 6]; if (bb[0] < x0 + 2 || bb[2] > x0 + cw - 2 || bb[1] < y0 + 24 || bb[3] > y0 + ch - 2) return false;
+            if (onRing(bb) || boxes.some(function (q) { return bb[0] < q[2] && bb[2] > q[0] && bb[1] < q[3] && bb[3] > q[1]; })) return false;
+            b = bb; lead = '<line class="pleader" x1="' + f1(x) + '" y1="' + f1(y) + '" x2="' + f1(Math.max(bb[0], Math.min(bb[2], x))) + '" y2="' + f1(Math.max(bb[1], Math.min(bb[3], y))) + '" stroke="#fff" stroke-width=".8"/>'; return true; }); }); }); }
+        if (!b) return ''; boxes.push(b); return lead + '<text class="pminilbl" x="' + f1(b[0] + 2) + '" y="' + f1(b[3] - 2) + '" font-size="8" font-weight="800" fill="#fff" stroke="#123d10" stroke-width="2.5" paint-order="stroke">' + esc(t) + '</text>'; };
       o += '<circle cx="' + f1(cx) + '" cy="' + f1(cy) + '" r="' + R + '" fill="#8fd66f" stroke="#e8f8e0" stroke-width="2"/>' +
         '';
       // the pin sits where it really is on the green (front = bottom); everything is plotted from it
@@ -166,10 +172,10 @@
           var qc = [Math.max(x0 + 6, Math.min(x0 + cw - 6, q[0])), Math.max(y0 + 28, Math.min(y0 + ch - 6, q[1]))]; if (qc[0] !== q[0] || qc[1] !== q[1]) { cap = true; q = qc; }
           dots += '<circle class="pmini" data-gir="0" data-r="' + f1(rr2) + '" cx="' + f1(q[0]) + '" cy="' + f1(q[1]) + '" r="4.5" fill="#e0102a" stroke="#fff" stroke-width="1.5"/>';
           t = h.ob ? 'OB' : (h.dir ? '' : '? ') + (Math.round(yd * 10) / 10) + ' yd' + (cap ? ' ›' : '') + ' ' + (LN[h.lie] || h.lie || 'Off green'); }
-        if (t) pend.push([q[0], q[1], t]);
+        if (t) pend.push([q[0], q[1], t, ang]);
         boxes.push([q[0] - 5, q[1] - 5, q[0] + 5, q[1] + 5]);
       });
-      pend.forEach(function (p) { labs += lbl(p[0], p[1], p[2]); });
+      pend.forEach(function (p) { labs += lbl(p[0], p[1], p[2], p[3]); });
       o += '<circle class="ppin" cx="' + f1(px) + '" cy="' + f1(py) + '" r="2.5" fill="#000"/><line x1="' + f1(px) + '" y1="' + f1(py) + '" x2="' + f1(px) + '" y2="' + f1(py - 13) + '" stroke="#000" stroke-width="1.8"/><path d="M' + f1(px) + ' ' + f1(py - 13) + ' l8 3 l-8 3z" fill="#d0213a"/>' + dots + labs;
       var bt = SG.PIN_NAME[id] + ' · ' + s.holes + ' hole' + (s.holes === 1 ? '' : 's') + ' · GIR ' + s.gir + '/' + s.holes, bw = bt.length * 5.2 + 12;
       o += '<g class="pbadge" data-pin="' + id + '"><rect x="' + f1(cx - bw / 2) + '" y="' + f1(y0 + 5) + '" width="' + f1(bw) + '" height="16" rx="8" fill="#000" fill-opacity=".8"/><text x="' + f1(cx) + '" y="' + f1(y0 + 17) + '" text-anchor="middle" font-size="9.5" font-weight="800" fill="#fff">' + bt + '</text></g>';
