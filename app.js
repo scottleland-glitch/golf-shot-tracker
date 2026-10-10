@@ -150,7 +150,7 @@
       var lbl = function (x, y, t) { var w = t.length * 4.6 + 4, cand = [[7, 3], [-7 - w, 3], [-w / 2, -7], [-w / 2, 15], [7, 13], [-7 - w, 13], [7, -7], [-7 - w, -7], [-w / 2, 25]], b = null;
         cand.some(function (c) { var bb = [x + c[0], y + c[1] - 8, x + c[0] + w, y + c[1] + 2]; if (bb[0] < x0 + 2 || bb[2] > x0 + cw - 2 || bb[1] < y0 + 24 || bb[3] > y0 + ch - 2) return false;
           if (boxes.some(function (q) { return bb[0] < q[2] && bb[2] > q[0] && bb[1] < q[3] && bb[3] > q[1]; })) return false; b = bb; return true; });
-        if (!b) return ''; boxes.push(b); return '<text class="pminilbl" x="' + f1(b[0] + 2) + '" y="' + f1(b[3] - 2) + '" font-size="8" font-weight="800" fill="#fff">' + esc(t) + '</text>'; };
+        if (!b) return ''; boxes.push(b); return '<text class="pminilbl" x="' + f1(b[0] + 2) + '" y="' + f1(b[3] - 2) + '" font-size="8" font-weight="800" fill="#fff" stroke="#123d10" stroke-width="2.5" paint-order="stroke">' + esc(t) + '</text>'; };
       o += '<circle cx="' + f1(cx) + '" cy="' + f1(cy) + '" r="' + R + '" fill="#8fd66f" stroke="#e8f8e0" stroke-width="2"/>' +
         '';
       // the pin sits where it really is on the green (front = bottom); everything is plotted from it
