@@ -345,3 +345,8 @@ button.discard { display: block; width: 100%; min-height: 48px; margin: 4px 0 10
 .rpnav { align-items: center; gap: 6px; }
 .rpnav button { flex: 0 0 auto; min-width: 96px; }
 .rpinfo { flex: 1; text-align: center; font-size: 15px; font-weight: 800; }
+.sgsec { margin: 18px 0 10px; border: 1px solid var(--line); border-radius: 16px; background: #fff; box-shadow: var(--shadow); overflow: hidden; }
+.sghead { width: 100%; min-height: 60px; display: flex; justify-content: space-between; align-items: center; border: 0; border-radius: 0; background: #f4f8f4; font-size: 19px; font-weight: 800; padding: 12px 16px; text-align: left; }
+.sghead small { font-size: 13px; color: #666; font-weight: 600; }
+.sghead .chev { font-size: 18px; color: #145214; }
+#sgbody { padding: 4px 12px 12px; }

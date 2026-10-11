@@ -826,7 +826,7 @@
     out += '<div class="big-score"><div class="s">' + (S.holesDone ? S.strokes : '–') + '</div>' +
       (S.holesDone ? toPar(S.toPar) + ' vs par · ' + S.holesDone + ' hole' + (S.holesDone === 1 ? '' : 's') + ' done' : 'No holes finished yet') + '</div>';
     out += scorecardHTML(r, S) + '<button class="big rpbtn" data-act="replay" data-v="0" id="sumreplay">▶ Hole replay (hole by hole)</button>';
-    var B = SG.baseline(bl);
+    var B = SG.baseline(bl), main = out; out = '';
     out += '<h2>Strokes gained: <span class="' + sgCls(S.sgTotal) + '" id="sgtotal">' + fmtSG(S.sgTotal) + '</span></h2>' +
       '<div class="blbox"><label class="lbl" for="sumbl">Baseline – compared with</label>' + blSelect('sumbl', bl) +
       '<p class="help muted" id="blnote">Average player in: ' + esc(B.name) +
@@ -850,8 +850,8 @@
     out += '</table><p class="help muted" id="bydistnote">Approach = every shot from more than 20 yd off the green, par-3 tee shots included (par-4/5 tee shots are Off the tee). ' +
       'Short game = off the green from 20 yd and in. Ranges include the lower number (60–100 = 60 to under 100 yd); 20–60 = over 20 up to under 60 yd (it also takes the 20–30 yd shots). ' +
       'Avg to pin after = how far from the hole the ball finished: feet on the green, yards × 3 off it, 0 if holed' +
-      (pex ? '; <b>' + pex + '</b> approach shot' + (pex === 1 ? '' : 's') + ' with a penalty or OB left out of that average' : '; shots with a penalty or OB are left out of it') + '.</p>' +
-      '<h2>Stats</h2><div class="stat-grid">' +
+      (pex ? '; <b>' + pex + '</b> approach shot' + (pex === 1 ? '' : 's') + ' with a penalty or OB left out of that average' : '; shots with a penalty or OB are left out of it') + '.</p>';
+    var sgPart = out; out = main + '<h2>Stats</h2><div class="stat-grid">' +
       tile('fw', 'Fairways hit – tap for map', S.fwHit + ' / ' + S.fwTotal) +
       tile('gir', 'Greens in reg. – tap for map', S.gir + ' / ' + S.girHoles) +
       tile('miss', 'Approach misses (missed green) – tap for map', S.apprMiss.length, missMini(S.apprMiss)) +
@@ -866,8 +866,13 @@
     out += '<button class="big" data-act="backHole">Back to the round</button>';
     out += '<button class="big danger" data-act="delRound">Delete this round</button>';
     out += '<button class="big" data-act="about">ⓘ About the numbers</button>';
+    out += '<div class="sgsec' + (view.sgOpen ? ' open' : '') + '" id="sgsec"><button class="sghead" data-act="sgtoggle" aria-expanded="' + !!view.sgOpen + '" aria-controls="sgbody">' +
+      '<span>Strokes gained <span class="' + sgCls(S.sgTotal) + '" id="sghtotal">' + fmtSG(S.sgTotal) + '</span> <small>vs ' + esc(B.name) + '</small></span><span class="chev" aria-hidden="true">' + (view.sgOpen ? '▲' : '▼') + '</span></button>' +
+      (view.sgOpen ? '<div id="sgbody">' + sgPart.replace('<h2>Strokes gained:', '<h2 class="sgsub">Total:') : '');
     out += '<p class="help muted">How it works: each shot is compared with how many strokes the chosen group averages to hole out from the same distance and lie. ' +
       'A shot that leaves you better off than average gains strokes. Penalties count against the shot that caused them.</p>';
+    if (!view.sgOpen) out = out.replace(/<p class="help muted">How it works:[\s\S]*$/, '');
+    out += (view.sgOpen ? '</div>' : '') + '</div>';
     return out;
   }
   function compareHTML(r, bl) {
@@ -1721,6 +1726,7 @@
       case 'pinclear': h.pin = ''; save(); render(); return;
       case 'proxb': { var mv0 = document.getElementById('mapview'), st0 = mv0 ? mv0.scrollTop : 0; view.proxB = v; render(); var mv1 = document.getElementById('mapview'); if (mv1) mv1.scrollTop = st0; return; }
       case 'proxlie': { var mvl = document.getElementById('mapview'), stl = mvl ? mvl.scrollTop : 0; view.proxLie = v; render(); var mvl2 = document.getElementById('mapview'); if (mvl2) mvl2.scrollTop = stl; return; }
+      case 'sgtoggle': view.sgOpen = !view.sgOpen; render(); if (view.sgOpen) { var sh = document.getElementById('sgsec'); if (sh) window.scrollTo(0, sh.getBoundingClientRect().top + window.scrollY - 90); } return;
       case 'replay': view.replay = Math.max(0, +v || 0); render(); return;
       case 'rpgreen': view.rpGreen = true; render(); return;
       case 'rpgreenback': view.rpGreen = false; render(); return;

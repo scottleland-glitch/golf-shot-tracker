@@ -83,6 +83,7 @@ const BASE = process.env.BASE_URL || 'http://127.0.0.1:8765/', SHOTS = process.e
   // Putting green
   await page.click('#histlist [data-act="open"][data-id="rputt"]');
   // SG by distance: approach > 20 yd in Scott's buckets, short game <= 20 yd, avg to pin after (ft)
+  if (!(await page.$('#sgbody'))) await page.click('[data-act="sgtoggle"]');
   const bd = await page.$$eval('#bydist tr[data-bucket]', ts => ts.map(t => [...t.querySelectorAll('td')].map(d => d.textContent)));
   assert.deepStrictEqual(bd.map(r => r[0]), ['20-60 yd', '60-100 yd', '100-130 yd', '130-160 yd', '160-200 yd', '200+ yd', '0-20 yd', '0-5 ft', '5-15 ft', '15-30 ft', '30+ ft']);
   assert.deepStrictEqual(bd.slice(0, 6).map(r => [r[1], r[3]]), [['0', '–'], ['1', '12 ft'], ['0', '–'], ['3', '23 ft'], ['2', '19 ft'], ['1', '270 ft']]);
