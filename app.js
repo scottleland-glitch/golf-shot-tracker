@@ -92,6 +92,7 @@
   function render() {
     var el = document.getElementById('app');
     if (view.screen !== 'summary') view.map = null;
+    if (view.screen !== 'summary' && view.screen !== 'hole') view.replay = null;
     if (view.screen !== 'hole') view.pinOpen = false;
     document.body.classList.toggle('noscroll', !!(view.pinOpen && view.screen === 'hole'));
     if (view.screen === 'about') el.innerHTML = aboutHTML();
@@ -99,10 +100,11 @@
     else if (view.screen === 'odrestore') el.innerHTML = odRestoreHTML();
     else if (view.screen === 'restorepick') el.innerHTML = restorePickHTML();
     else if (view.screen === 'home' || !round()) el.innerHTML = homeHTML();
-    else if (view.screen === 'hole') el.innerHTML = holeHTML() + (view.pinOpen ? pinHTML() : '');
+    else if (view.screen === 'hole') el.innerHTML = holeHTML() + (view.pinOpen ? pinHTML() : '') + (view.replay != null ? replayHTML() : '');
     else if (view.screen === 'about') el.innerHTML = aboutHTML();
-    else { el.innerHTML = summaryHTML() + (view.map ? mapHTML() : ''); if (view.preview) previewOnly(el); }
+    else { el.innerHTML = summaryHTML() + (view.map ? mapHTML() : '') + (view.replay != null ? replayHTML() : ''); if (view.preview) previewOnly(el); }
     if (view.screen !== 'hole') document.body.classList.toggle('noscroll', !!(view.map && view.screen === 'summary'));
+    if (view.replay != null) document.body.classList.add('noscroll');
     if (view.screen !== 'about') infoize(el);
   }
   // Long explanations collapse behind a small (i) button; the first sentence stays as a short caption.
@@ -705,6 +707,7 @@
     out += view.hole < 17
       ? '<button class="' + (fin ? 'primary ' : '') + 'big" data-act="next">' + (started(r.holes[view.hole + 1]) ? 'Hole ' + (view.hole + 2) + ' ›' : 'Add Hole ' + (view.hole + 2) + ' ⊕') + '</button>'
       : '<button class="primary big" data-act="summary" data-end="1">Finish round – see stats</button>';
+    out += '<button class="big rpbtn" data-act="replay" data-v="' + view.hole + '">▶ Hole replay</button>';
     out += '<div class="row sub"><button class="txt" data-act="home">Home</button><button class="txt" data-act="summary">Scorecard &amp; stats</button></div>' +
       '<button class="danger discard" data-act="discard" data-id="' + esc(r.id) + '">🗑 Discard round</button>';
     out += '<p class="help muted">Each row is ONE stroke. Dist = how far from the pin you hit it (yards; feet on the green). Loc = where the ball was. ' +
@@ -822,7 +825,7 @@
       new Date(r.date).toLocaleDateString() + (r.course ? ' · ' + esc(r.course) : '') + '</span></div><button class="txt" data-act="home">Home</button></div>';
     out += '<div class="big-score"><div class="s">' + (S.holesDone ? S.strokes : '–') + '</div>' +
       (S.holesDone ? toPar(S.toPar) + ' vs par · ' + S.holesDone + ' hole' + (S.holesDone === 1 ? '' : 's') + ' done' : 'No holes finished yet') + '</div>';
-    out += scorecardHTML(r, S);
+    out += scorecardHTML(r, S) + '<button class="big rpbtn" data-act="replay" data-v="0" id="sumreplay">▶ Hole replay (hole by hole)</button>';
     var B = SG.baseline(bl);
     out += '<h2>Strokes gained: <span class="' + sgCls(S.sgTotal) + '" id="sgtotal">' + fmtSG(S.sgTotal) + '</span></h2>' +
       '<div class="blbox"><label class="lbl" for="sumbl">Baseline – compared with</label>' + blSelect('sumbl', bl) +
@@ -1125,6 +1128,94 @@
   // ---------- proximity by distance ----------
   function fmtFt(v) { return v == null ? '–' : Math.round(v) + ' ft'; }
   // ---------- Putting green ----------
+  // ---------- Hole replay (app only): bird's-eye drawing of one hole with every shot chained ----------
+  var RPC = { tee: '#1565e0', approach: '#6a1b9a', short: '#ef6c00', putting: '#111' };
+  var RPN = { tee: 'Tee shot', approach: 'Approach', short: 'Short game', putting: 'Putt' };
+  function replaySVG(h, hi) {
+    var A = SG.analyzeHole(h, 'pga'), shots = A.shots || [], yd = Number(SG.holeYards(h)) || Number((h.rows[0] || {}).dist) || 400;
+    var A0 = (SG.analyzeHole(h, 'pga').shots || []).some(function (x) { return x.cat === 'putting'; }), K = 1.15, W = 360, cx = 180, top = A0 ? 170 : 40, gY = top + 50, H = Math.round(gY + yd * K + 70), teeY = gY + yd * K, GR = 26;
+    var pr = -1, pc = -1; SG.PIN_GRID.forEach(function (row, ri) { var ci = row.indexOf(h.pin); if (ci >= 0) { pr = ri; pc = ci; } }); if (pr < 0) { pr = 1; pc = 1; }
+    var pin = [cx + (pc - 1) * GR * 0.5, gY + (pr - 1) * GR * 0.5];
+    var LATS = { fairway: 0, green: 0, fringe: 0, rough: 58, deep: 78, sand: 44, bunker: 44, recovery: 100, trees: 100, hazard: 120, ob: 158 };
+    var side = function (d, i) { return /left$/.test(d || '') ? -1 : /right$/.test(d || '') ? 1 : (i % 2 ? 1 : -1); };
+    // where the ball lay: off the green by yards to the pin, lie and direction; on the green by feet
+    var place = function (dist, lie, dir, i) {
+      if (lie === 'holed') return pin.slice();
+      if (lie === 'green') { var ft = Number(dist) || 0, a = dir ? SG.DIR_ANGLE[dir] : 270, r = Math.min(GR - 3, ft / 3 * K * 1.6 + 2); return pt(pin[0], pin[1], r, a); }
+      var d = Number(dist) || 0, lat = (LATS[lie] != null ? LATS[lie] : 60);
+      if (d <= 45) { // around the green: polar from the pin in the miss direction, always off the putting surface
+        var ang = dir ? SG.DIR_ANGLE[dir] : 270, rr = Math.max(GR + 8, d * K * 1.3);
+        var q = pt(pin[0], pin[1], rr, ang), dx = q[0] - cx, dy = q[1] - gY, dd = Math.hypot(dx, dy) || 1;
+        return dd < GR + 10 ? [cx + dx / dd * (GR + 10), gY + dy / dd * (GR + 10)] : q;
+      }
+      var y = gY + d * K; if (/^long/.test(dir || '')) y = gY - Math.min(d * K, 50);
+      return [Math.max(10, Math.min(W - 10, cx + (lat ? side(dir, i) * lat : 0))), Math.min(y, teeY)];
+    };
+    var o = '<svg id="replaymap" viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="Hole ' + (hi + 1) + ' replay"><rect width="' + W + '" height="' + H + '" fill="#4f8f3a"/>' +
+      '<rect x="0" y="0" width="22" height="' + H + '" fill="#e9e9e9"/><rect x="' + (W - 22) + '" y="0" width="22" height="' + H + '" fill="#e9e9e9"/>' +
+      '<text x="11" y="40" text-anchor="middle" font-size="9" font-weight="900" fill="#666" transform="rotate(-90 11 40)">OB</text><text x="' + (W - 11) + '" y="40" text-anchor="middle" font-size="9" font-weight="900" fill="#666" transform="rotate(90 ' + (W - 11) + ' 40)">OB</text>' +
+      '<rect x="22" y="0" width="' + (W - 44) + '" height="' + H + '" fill="#5f9e47"/>' +
+      '<path d="M' + (cx - 26) + ' ' + (teeY - 30) + ' C' + (cx - 40) + ' ' + ((teeY + gY) / 2) + ' ' + (cx - 44) + ' ' + (gY + 80) + ' ' + (cx - 24) + ' ' + (gY + GR + 6) + ' L' + (cx + 24) + ' ' + (gY + GR + 6) + ' C' + (cx + 44) + ' ' + (gY + 80) + ' ' + (cx + 40) + ' ' + ((teeY + gY) / 2) + ' ' + (cx + 26) + ' ' + (teeY - 30) + ' Z" fill="#9fdf86"/>';
+    for (var y0 = teeY - 60; y0 > gY + 60; y0 -= 55) o += '<rect x="' + (cx - 34) + '" y="' + f1(y0) + '" width="68" height="16" fill="#b3ea9e" opacity=".5"/>';
+    o += '<ellipse cx="' + (cx + 52) + '" cy="' + f1(gY + 6) + '" rx="14" ry="9" fill="#ecd27e" stroke="#c9a94f"/><ellipse cx="' + (cx - 50) + '" cy="' + f1(gY + 30) + '" rx="12" ry="8" fill="#ecd27e" stroke="#c9a94f"/>' +
+      (yd > 300 ? '<ellipse cx="' + (cx + 62) + '" cy="' + f1(gY + yd * K * 0.45) + '" rx="16" ry="9" fill="#ecd27e" stroke="#c9a94f"/>' : '') +
+      '<circle cx="' + cx + '" cy="' + gY + '" r="' + GR + '" fill="#8fd66f" stroke="#e8f8e0" stroke-width="2"/>' +
+      '<rect x="' + (cx - 16) + '" y="' + f1(teeY - 6) + '" width="32" height="14" rx="4" fill="#c9f2b8" stroke="#fff" stroke-width="2"/><text x="' + (cx + 20) + '" y="' + f1(teeY + 5) + '" font-size="10" font-weight="900" fill="#fff">TEE · ' + yd + ' yd</text>';
+    // chain
+    var cur = [cx, teeY], tr = '', marks = '', labs = '', boxes = [], putts = [];
+    var lbl = function (x, y, t, col) { var w = t.length * 5.8 + 6;
+      var c = [[10, 4], [-10 - w, 4], [-w / 2, -10], [-w / 2, 18], [12, 16], [-12 - w, 16]].filter(function (q) { var b = [x + q[0], y + q[1] - 10, x + q[0] + w, y + q[1] + 2]; return b[0] > 2 && b[2] < W - 2 && b[1] > 2 && !boxes.some(function (z) { return b[0] < z[2] && b[2] > z[0] && b[1] < z[3] && b[3] > z[1]; }); })[0];
+      if (!c) return ''; var b = [x + c[0], y + c[1] - 10, x + c[0] + w, y + c[1] + 2]; boxes.push(b);
+      return '<text class="rplbl" x="' + f1(b[0] + 3) + '" y="' + f1(b[3] - 2) + '" font-size="10" font-weight="900" fill="' + col + '" stroke="#fff" stroke-width="3" paint-order="stroke">' + esc(t) + '</text>'; };
+    shots.forEach(function (s, i) {
+      var cat = s.cat || 'approach', col = RPC[cat] || '#333';
+      if (cat === 'putting') putts.push(s);
+      var endLie = s.ob ? 'ob' : s.loc === 'holed' || s.end.lie === 'holed' ? 'holed' : s.loc === 'hazard' ? 'hazard' : s.end.lie;
+      var e = s.ob ? [s.side === 'R' || /right$/.test(s.dir) ? W - 11 : 11, Math.max(cur[1] - 140, gY)] : place(s.end.dist, endLie, s.dir, i);
+      var mx = (cur[0] + e[0]) / 2 + (e[1] - cur[1]) * 0.08, my = (cur[1] + e[1]) / 2 - (e[0] - cur[0]) * 0.08;
+      if (cat !== 'putting') tr += '<path class="rptr" data-cat="' + cat + '" data-n="' + s.n + '" d="M' + f1(cur[0]) + ' ' + f1(cur[1]) + ' Q' + f1(mx) + ' ' + f1(my) + ' ' + f1(e[0]) + ' ' + f1(e[1]) + '" fill="none" stroke="#fff" stroke-width="5" stroke-opacity=".7"' + (s.ob ? ' stroke-dasharray="6 4"' : '') + '/>' +
+        '<path d="M' + f1(cur[0]) + ' ' + f1(cur[1]) + ' Q' + f1(mx) + ' ' + f1(my) + ' ' + f1(e[0]) + ' ' + f1(e[1]) + '" fill="none" stroke="' + col + '" stroke-width="2.8"' + (s.ob ? ' stroke-dasharray="6 4"' : '') + '/>';
+      if (cat !== 'putting') {
+        marks += '<g class="rpshot" data-n="' + s.n + '" data-cat="' + cat + '" data-lie="' + endLie + '"><circle cx="' + f1(e[0]) + '" cy="' + f1(e[1]) + '" r="8" fill="' + col + '" stroke="#fff" stroke-width="2"/><text x="' + f1(e[0]) + '" y="' + f1(e[1] + 3.5) + '" text-anchor="middle" font-size="10" font-weight="900" fill="#fff">' + s.n + '</text></g>';
+        boxes.push([e[0] - 9, e[1] - 9, e[0] + 9, e[1] + 9]);
+        var t = endLie === 'holed' ? 'holed!' : s.ob ? 'OB +' + s.penStrokes : endLie === 'green' ? s.end.dist + ' ft' : s.end.dist + ' yd' + (endLie && endLie !== 'fairway' ? ' ' + ({ rough: 'rough', deep: 'deep rough', sand: 'bunker', hazard: 'hazard', recovery: 'trees' }[endLie] || '') : '');
+        if (s.penStrokes && !s.ob) t += ' +' + s.penStrokes + ' pen';
+        labs += lbl(e[0], e[1], t.trim(), s.penStrokes ? '#c00' : '#111');
+        if (s.penStrokes) marks += '<path class="rppen" d="M' + f1(e[0] + 7) + ' ' + f1(e[1] - 14) + ' l8 8 m0 -8 l-8 8" stroke="#e0102a" stroke-width="3"/>';
+      }
+      cur = s.ob ? cur : e; // OB: replay from the same spot
+    });
+    o += tr + '<line x1="' + f1(pin[0]) + '" y1="' + f1(pin[1]) + '" x2="' + f1(pin[0]) + '" y2="' + f1(pin[1] - 18) + '" stroke="#000" stroke-width="2"/><path d="M' + f1(pin[0]) + ' ' + f1(pin[1] - 18) + ' l10 3.5 l-10 3.5z" fill="#d0213a"/><circle cx="' + f1(pin[0]) + '" cy="' + f1(pin[1]) + '" r="3" fill="#000"/>' + marks + labs;
+    // putting inset (true-ish feet)
+    if (putts.length) {
+      var ix = W / 2, iy = 92, IR = 62, mft = Math.max(10, Math.max.apply(null, putts.map(function (p) { return Number(p.start.dist) || 0; }))), PK = (IR - 8) / mft, prevDir = '';
+      var i0 = shots.indexOf(putts[0]); prevDir = i0 > 0 ? shots[i0 - 1].dir : '';
+      o += '<g id="puttinset"><rect x="' + (ix - IR - 70) + '" y="' + (iy - IR - 22) + '" width="' + (2 * IR + 140) + '" height="' + (2 * IR + 34) + '" rx="12" fill="#fff" fill-opacity=".92" stroke="#145214"/>' +
+        '<text x="' + ix + '" y="' + (iy - IR - 7) + '" text-anchor="middle" font-size="10" font-weight="900">Putts (green close-up, ' + Math.round(mft) + ' ft)</text><circle cx="' + ix + '" cy="' + iy + '" r="' + IR + '" fill="#8fd66f"/>';
+      [5, 10, 20, 30, 40].filter(function (f) { return f < mft; }).forEach(function (f) { o += '<circle cx="' + ix + '" cy="' + iy + '" r="' + f1(f * PK) + '" fill="none" stroke="#fff" stroke-opacity=".8"/>'; });
+      var pp = null;
+      putts.forEach(function (p, k) {
+        var sd = k === 0 ? prevDir : putts[k - 1].dir, s0 = pp || pt(ix, iy, (Number(p.start.dist) || 0) * PK, sd ? SG.DIR_ANGLE[sd] : 270);
+        var holed = p.loc === 'holed' || p.end.lie === 'holed', e0 = holed ? [ix, iy] : pt(ix, iy, Math.max(4, (Number(p.end.dist) || 0) * PK), p.dir ? SG.DIR_ANGLE[p.dir] : 90);
+        o += '<path class="rpputt" data-n="' + p.n + '" d="M' + f1(s0[0]) + ' ' + f1(s0[1]) + ' L' + f1(e0[0]) + ' ' + f1(e0[1]) + '" stroke="#111" stroke-width="2.2"/>' +
+          '<circle cx="' + f1(s0[0]) + '" cy="' + f1(s0[1]) + '" r="7" fill="#111" stroke="#fff" stroke-width="1.5"/><text x="' + f1(s0[0]) + '" y="' + f1(s0[1] + 3.5) + '" text-anchor="middle" font-size="9" font-weight="900" fill="#fff">' + p.n + '</text>' +
+          '<text x="' + f1(s0[0] + 9) + '" y="' + f1(s0[1] - 6) + '" font-size="9" font-weight="800">' + p.start.dist + ' ft</text>';
+        pp = e0;
+      });
+      o += '<circle cx="' + ix + '" cy="' + iy + '" r="3" fill="#000"/></g>';
+    }
+    return { svg: o + '</svg>', A: A, yd: yd };
+  }
+  function replayHTML() {
+    var r = round(), hi = view.replay, h = r.holes[hi], R = replaySVG(h, hi), A = R.A, n = r.holes.length;
+    return '<div class="mapview" id="replayview" role="dialog" aria-label="Hole replay"><div class="maphead"><b>Hole ' + (hi + 1) + ' replay</b><button class="close" data-act="rpclose" aria-label="Close replay">✕ Close</button></div>' +
+      '<div class="seg rpnav"><button data-act="rphole" data-v="' + (hi - 1) + '"' + (hi > 0 ? '' : ' disabled') + ' aria-label="Previous hole">‹ Hole ' + hi + '</button><span class="rpinfo" id="rpinfo">Par ' + h.par + ' · ' + R.yd + ' yd · ' +
+      (A.complete ? A.strokes + ' (' + toPar(A.strokes - h.par) + ')' : (A.shots || []).length + ' shots so far') + '</span><button data-act="rphole" data-v="' + (hi + 1) + '"' + (hi < n - 1 ? '' : ' disabled') + ' aria-label="Next hole">Hole ' + (hi + 2) + ' ›</button></div>' +
+      ((A.shots || []).length ? R.svg : '<p class="notice">No shots entered on this hole yet.</p>') +
+      '<div class="legend" id="rplegend">' + ['tee', 'approach', 'short', 'putting'].map(function (k) { return '<span><i class="ln" style="background:' + RPC[k] + '"></i><i class="dot num" style="background:' + RPC[k] + '">1</i>' + RPN[k] + '</span>'; }).join('') +
+      '<span><b style="color:#e0102a">✕</b>Penalty (label shows the penalty strokes); dashed line = OB, replayed from the same spot</span><span>Number = shot; label = distance left (yd off the green, ft on it) and lie. Putts are drawn in the close-up green.</span></div>' +
+      '<p class="help muted">A generic drawing, roughly to scale by hole length (straight hole, tee at the bottom, green at the top, pin at its set spot – centre if none). Positions come from your distances to the pin and the direction / lie entered, so they are approximate.</p></div>';
+  }
   // ---------- Putt misses map ----------
   var PMC = { short: '#ef6c00', long: '#6a1b9a', left: '#1565e0', right: '#d81b60', nearlong: '#555', nodir: '#888' };
   var PMN = { short: 'Short', long: 'Long (over 3 ft past)', left: 'Left', right: 'Right', nearlong: 'Just long (within 3 ft)', nodir: 'No direction entered' };
@@ -1619,6 +1710,9 @@
       case 'pinclear': h.pin = ''; save(); render(); return;
       case 'proxb': { var mv0 = document.getElementById('mapview'), st0 = mv0 ? mv0.scrollTop : 0; view.proxB = v; render(); var mv1 = document.getElementById('mapview'); if (mv1) mv1.scrollTop = st0; return; }
       case 'proxlie': { var mvl = document.getElementById('mapview'), stl = mvl ? mvl.scrollTop : 0; view.proxLie = v; render(); var mvl2 = document.getElementById('mapview'); if (mvl2) mvl2.scrollTop = stl; return; }
+      case 'replay': view.replay = Math.max(0, +v || 0); render(); return;
+      case 'rphole': { var nh = +v; if (nh >= 0 && nh < round().holes.length) { view.replay = nh; render(); var rv = document.getElementById('replayview'); if (rv) rv.scrollTop = rv.scrollHeight; } return; }
+      case 'rpclose': view.replay = null; document.body.classList.remove('noscroll'); render(); return;
       case 'pmg': { var mvq = document.getElementById('mapview'), stq = mvq ? mvq.scrollTop : 0; view.pmG = v; render(); var mvq2 = document.getElementById('mapview'); if (mvq2) mvq2.scrollTop = stq; return; }
       case 'puttn': { var mvp = document.getElementById('mapview'), stp = mvp ? mvp.scrollTop : 0; view.puttN = v; render(); var mvp2 = document.getElementById('mapview'); if (mvp2) mvp2.scrollTop = stp; return; }
       case 'mapscope': view.mapScope = v; render(); var mv = document.getElementById('mapview'); if (mv) mv.scrollTop = 0; return;

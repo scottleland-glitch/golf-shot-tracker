@@ -341,3 +341,7 @@ button.discard { display: block; width: 100%; min-height: 48px; margin: 4px 0 10
 .pmgroups { flex-wrap: wrap; gap: 6px; }
 .pmgroups button { flex: 1 1 30%; min-height: 48px; font-size: 15px; }
 .pmgroups button small { font-weight: 600; }
+.rpbtn { font-size: 18px; min-height: 52px; }
+.rpnav { align-items: center; gap: 6px; }
+.rpnav button { flex: 0 0 auto; min-width: 96px; }
+.rpinfo { flex: 1; text-align: center; font-size: 15px; font-weight: 800; }
