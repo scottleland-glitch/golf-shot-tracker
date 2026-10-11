@@ -389,7 +389,7 @@
     return { id: g[0], name: g[0].replace('-', '–') + ' yd', color: g[1], colorName: g[2], halo: g[0] === '130-160' ? '#000' : '#fff' }; });
   // ---- PDF report helpers ----
   // jsPDF's built-in Helvetica only covers Latin-1: map the symbols the app uses to plain equivalents.
-  var PDF_MAP = { '\u2013': '-', '\u2014': '-', '\u2212': '-', '\u2018': "'", '\u2019': "'", '\u201c': '"', '\u201d': '"', '\u2022': '-', '\u2026': '...',
+  var PDF_MAP = { '\u2264': '<=', '\u2265': '>=', '\u2013': '-', '\u2014': '-', '\u2212': '-', '\u2018': "'", '\u2019': "'", '\u201c': '"', '\u201d': '"', '\u2022': '-', '\u2026': '...',
     '\u2715': 'x', '\u2605': '*', '\u203a': '>', '\u2039': '<', '\u2191': '', '\u2193': '', '\u25c0': '', '\u25b6': '', '\u2190': '', '\u2192': '', '\u2197': '', '\u2196': '',
     '\u2198': '', '\u2199': '', '\u26a0': '!', '\u2713': '', '\u00a0': ' ', '\u2192\ufe0f': '' };
   function pdfSafe(t) {
@@ -478,7 +478,8 @@
       var pn = 0;
       a.shots.forEach(function (r, k) {
         if (r.start.lie !== 'green') return; pn++;
-        S.puttList.push({ hole: hi + 1, n: pn, ft: r.start.dist, made: r.end.lie === 'holed', dir: k > 0 ? a.shots[k - 1].dir : '' });
+        S.puttList.push({ hole: hi + 1, n: pn, ft: r.start.dist, made: r.end.lie === 'holed', dir: k > 0 ? a.shots[k - 1].dir : '',
+          endFt: r.end.lie === 'holed' ? 0 : r.end.lie === 'green' ? r.end.dist : r.end.dist * 3, endDir: r.end.lie === 'holed' ? '' : (r.dir || ''), endLie: r.end.lie });
       });
       for (var q = S.puttList.length - pn; q < S.puttList.length; q++) S.puttList[q].holePutts = pn; // putts the hole ended with
       S.holesDone++; S.strokes += a.strokes; S.par += Number(h.par);
@@ -734,7 +735,29 @@
     });
     return { rounds: list.filter(function (r) { return drop.indexOf(r.id) < 0; }), folded: drop };
   }
-  var api = { roundEmpty: roundEmpty, foldStubs: foldStubs, pdfSafe: pdfSafe, reportFileName: reportFileName, pinSegments: pinSegments, REPORT_GROUPS: REPORT_GROUPS, reportGroup: reportGroup, SHORT_MAX_YD: SHORT_MAX_YD, APPR_BUCKETS: APPR_BUCKETS, apprBucket: apprBucket, proxAfterFt: proxAfterFt, puttKind: puttKind, threePutts: threePutts, puttScale: puttScale, puttRadius: puttRadius, puttPlace: puttPlace, PUTT_BANDS: PUTT_BANDS, puttGroup: puttGroup, puttStats: puttStats, makeBackup: makeBackup, parseBackup: parseBackup, mergeRounds: mergeRounds, conflictsOf: conflictsOf, PROX_LIES: PROX_LIES, lieGroup: lieGroup, proxByLie: proxByLie, proxWarnings: proxWarnings, PROX_BUCKETS: PROX_BUCKETS, inBucket: inBucket, roundYd: roundYd, proxStats: proxStats, reachedGreen: reachedGreen, PIN_GRID: PIN_GRID, PIN_NAME: PIN_NAME, normPin: normPin, DIR8: DIR8, DIR_NAME: DIR_NAME, DIR_ANGLE: DIR_ANGLE, normDir: normDir, expected: expected, expectedPGA: expectedPGA, BASELINES: BASELINES, baseline: function (id) { return BL[id] || BL.pga; },
+  // ---- Putt misses ----
+  // Groups by start distance (no overlap, lower bound included): under 6 ft; 6 to under 10; 10 to under 20; 20 to under 30; 30 to 50. Over 50 ft not shown.
+  var PMISS_GROUPS = [{ id: '30-50', name: '30–50 ft', min: 30, max: 50 }, { id: '20-30', name: '20–30 ft', min: 20, max: 30 }, { id: '10-20', name: '10–20 ft', min: 10, max: 20 },
+    { id: '6-10', name: '6–10 ft', min: 6, max: 10 }, { id: '0-6', name: 'Under 6 ft', min: 0, max: 6 }];
+  function pmissGroup(ft) { ft = Number(ft); if (!(ft > 0) || ft > 50) return null; for (var i = PMISS_GROUPS.length - 1; i >= 0; i--) { var g = PMISS_GROUPS[i]; if (ft < g.max || (g.max === 50 && ft <= 50)) return g.id; } return null; }
+  // Where a missed putt finished: Short = any short (incl. short left/right); Long = finished long AND more than 3 ft past;
+  // otherwise left/right by the entered side (long left/right within 3 ft = Left/Right); straight long within 3 ft = 'nearlong'
+  // (a good-speed miss, shown separately, not counted as Long); no direction = 'nodir'.
+  function pmissClass(p) {
+    var d = p.endDir || '';
+    if (/^short/.test(d)) return 'short';
+    if (/^long/.test(d)) { if (p.endFt > 3) return 'long'; return /left$/.test(d) ? 'left' : /right$/.test(d) ? 'right' : 'nearlong'; }
+    if (d === 'left' || d === 'right') return d;
+    return 'nodir';
+  }
+  function pmissStats(list) { // list = putts in one group (made + missed)
+    var miss = list.filter(function (p) { return !p.made; }), c = { left: 0, right: 0, short: 0, long: 0, nearlong: 0, nodir: 0 };
+    miss.forEach(function (p) { c[pmissClass(p)]++; });
+    var pct = function (k) { return miss.length ? 100 * c[k] / miss.length : null; };
+    return { attempts: list.length, made: list.length - miss.length, misses: miss.length, counts: c, pct: { left: pct('left'), right: pct('right'), short: pct('short'), long: pct('long'), nearlong: pct('nearlong'), nodir: pct('nodir') },
+      avgLeftFt: miss.length ? miss.reduce(function (t, p) { return t + (p.endFt || 0); }, 0) / miss.length : null };
+  }
+  var api = { PMISS_GROUPS: PMISS_GROUPS, pmissGroup: pmissGroup, pmissClass: pmissClass, pmissStats: pmissStats, roundEmpty: roundEmpty, foldStubs: foldStubs, pdfSafe: pdfSafe, reportFileName: reportFileName, pinSegments: pinSegments, REPORT_GROUPS: REPORT_GROUPS, reportGroup: reportGroup, SHORT_MAX_YD: SHORT_MAX_YD, APPR_BUCKETS: APPR_BUCKETS, apprBucket: apprBucket, proxAfterFt: proxAfterFt, puttKind: puttKind, threePutts: threePutts, puttScale: puttScale, puttRadius: puttRadius, puttPlace: puttPlace, PUTT_BANDS: PUTT_BANDS, puttGroup: puttGroup, puttStats: puttStats, makeBackup: makeBackup, parseBackup: parseBackup, mergeRounds: mergeRounds, conflictsOf: conflictsOf, PROX_LIES: PROX_LIES, lieGroup: lieGroup, proxByLie: proxByLie, proxWarnings: proxWarnings, PROX_BUCKETS: PROX_BUCKETS, inBucket: inBucket, roundYd: roundYd, proxStats: proxStats, reachedGreen: reachedGreen, PIN_GRID: PIN_GRID, PIN_NAME: PIN_NAME, normPin: normPin, DIR8: DIR8, DIR_NAME: DIR_NAME, DIR_ANGLE: DIR_ANGLE, normDir: normDir, expected: expected, expectedPGA: expectedPGA, BASELINES: BASELINES, baseline: function (id) { return BL[id] || BL.pga; },
     CALIB_ROUND: CALIB_ROUND, catLoss: catLoss, analyzeHole: analyzeHole, summarize: summarize,
     rowsToShots: rowsToShots, shotsToRows: shotsToRows, migrateV2Rows: migrateV2Rows, v1ToRows: v1ToRows, holeYards: holeYards,
     rowUnit: rowUnit, lieOf: lieOf, distOf: distOf, rowStrokes: rowStrokes, isPenalty: isPenalty,

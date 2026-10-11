@@ -47,10 +47,12 @@ const BASE = process.env.BASE_URL || 'http://127.0.0.1:8766/', OUT = process.env
   const f = OUT + '/report.pdf'; await d.saveAs(f);
   const info = execSync('pdfinfo ' + f).toString(); const pages = +/Pages:\s+(\d+)/.exec(info)[1];
   assert.ok(/Page size:\s+612 x 792/.test(info), info); const groups = await page.evaluate(() => { const S = SG.summarize(window.__golf.rounds()[0], 'pga'); return SG.REPORT_GROUPS.filter(g => S.proxList.some(m => SG.reportGroup(m.from) === g.id)).map(g => g.name.replace('\u2013', '-')); });
-  assert.ok(groups.length >= 2, groups); assert.strictEqual(pages, 8 + groups.length, info + groups);
+  const pmg = await page.evaluate(() => { const S = SG.summarize(window.__golf.rounds()[0], 'pga'); return SG.PMISS_GROUPS.filter(g => S.puttList.some(p => SG.pmissGroup(p.ft) === g.id)).map(g => g.name.replace('\u2013', '-')); });
+  assert.ok(groups.length >= 2, groups); assert.ok(pmg.length >= 1, pmg); assert.strictEqual(pages, 8 + groups.length + pmg.length, info + groups + pmg);
   const txt = execSync('pdftotext -layout ' + f + ' -').toString();
   ['Round report', 'Scott', 'Lakeridge', 'Front 9', 'Back 9', 'Key stats', 'Greens in regulation', 'By category', 'By distance', 'Avg to pin after', 'vs every baseline',
     'Tee shots - fairways', 'Approach misses', 'Pin location', 'Back left', 'Misses by direction', 'All approach groups this round', 'Misses by direction', 'Lie', 'Putting - 1st putts', 'Putting - 2nd putts', ].forEach(s => assert.ok(txt.includes(s), 'missing ' + s));
+  pmg.forEach(g => assert.ok(txt.includes('Putt misses - ' + g), 'missing putt-miss page ' + g)); assert.ok(txt.includes('Made / attempts') || txt.includes('MADE / ATTEMPTS'));
   groups.forEach(g => assert.ok(txt.includes('Proximity - ' + g), 'missing page ' + g)); assert.ok(txt.includes('Page ' + pages + ' of ' + pages));
   const absent = ['20-60 yd', '60-100 yd', '100-130 yd', '130-160 yd', '160-200 yd', '200+ yd'].filter(g => !groups.includes(g)); absent.forEach(g => assert.ok(!txt.includes('Proximity - ' + g), 'empty group page ' + g));
   console.log('groups', groups, 'skipped', absent);

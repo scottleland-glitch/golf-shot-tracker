@@ -718,3 +718,9 @@ test('PDF-report helper (not used by the map): SG distance groups + distinct col
   const M = SGm.mergeRounds([real], [stub, other], false); assert.strictEqual(M.rounds.length, 3, 'merge never drops');
   console.log('stub fold ok');
 })();
+(function () { const assert = require('assert'); const SGm = require('../sg.js');
+  assert.deepStrictEqual([0.5, 5.9, 6, 9.9, 10, 19.9, 20, 29.9, 30, 50, 50.1].map(SGm.pmissGroup), ['0-6', '0-6', '6-10', '6-10', '10-20', '10-20', '20-30', '20-30', '30-50', '30-50', null]);
+  const c = (d, ft) => SGm.pmissClass({ endDir: d, endFt: ft });
+  assert.deepStrictEqual([c('short', 1), c('shortleft', 5), c('long', 4), c('long', 3), c('longleft', 2), c('longright', 5), c('left', 1), c('', 2)], ['short', 'short', 'long', 'nearlong', 'left', 'long', 'left', 'nodir']);
+  const st = SGm.pmissStats([{ made: true }, { made: false, endDir: 'short', endFt: 2 }, { made: false, endDir: 'right', endFt: 1 }]);
+  assert.deepStrictEqual([st.attempts, st.made, st.misses, st.pct.short, st.pct.right], [3, 1, 2, 50, 50]); console.log('pmiss ok'); })();

@@ -338,3 +338,6 @@ th, td { border-bottom-color: #e6ebe7; }
 .rp-new { color: var(--green); } .rp-same { color: #666; } .rp-diff { color: #a15c00; }
 .hc.ro { opacity: 1; }
 button.discard { display: block; width: 100%; min-height: 48px; margin: 4px 0 10px; font-size: 16px; font-weight: 700; color: var(--red); border-color: #e7b9c0; background: #fff; }
+.pmgroups { flex-wrap: wrap; gap: 6px; }
+.pmgroups button { flex: 1 1 30%; min-height: 48px; font-size: 15px; }
+.pmgroups button small { font-weight: 600; }
