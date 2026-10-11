@@ -10,7 +10,7 @@ const BASE = process.env.BASE_URL || 'http://127.0.0.1:8771/', OUT = '/workspace
   await page.evaluate(() => {
     const R = (d, l, dir, pen) => ({ dist: d, loc: l, dir: dir || '', pen: !!pen });
     const holes = [
-      { par: 4, pin: 'backleft', finished: true, rows: [R(410, 'tee'), R(165, 'rough', 'left'), R(18, 'bunker', 'shortright'), R(14, 'green', 'right'), R(3, 'green', 'long'), R(1, 'holed')] },
+      { par: 4, pin: 'backleft', finished: true, rows: [R(410, 'tee'), R(165, 'rough', 'left'), R(18, 'bunker', 'shortright'), R(17, 'green', 'right'), R(2, 'holed', 'longleft')] },
       { par: 5, pin: 'frontright', finished: true, rows: [R(540, 'tee'), R(285, 'fairway'), R(110, 'rough', 'right'), R(22, 'green', 'short'), R(2, 'holed')] },
       { par: 4, pin: 'center', finished: true, rows: [R(395, 'tee'), R(395, 'tee', 'right', true), R(150, 'fairway'), R(30, 'hazard', 'left', true), R(30, 'deep', 'left'), R(8, 'green', 'longleft'), R(1, 'holed')] }];
     localStorage.clear(); localStorage.setItem('golfsg.player.v1', 'Scott');
@@ -31,6 +31,12 @@ const BASE = process.env.BASE_URL || 'http://127.0.0.1:8771/', OUT = '/workspace
     await page.locator('.rpgreen circle').click(); await page.waitForSelector('#rpgreenmap');
     assert.strictEqual(await page.locator('#rpgreenmap .rpputt').count(), nPutts, 'putts on zoomed green');
     assert.strictEqual(await page.locator('#rparrive').count(), 1, 'approach arrival drawn');
+    assert.strictEqual(await page.locator('#rpgreenmap .rpfinish').count(), nPutts - 1, 'missed putts end at a white finish ball');
+    assert.strictEqual(await page.locator('#rpgreenmap .rpputt.holed[stroke-dasharray]').count(), 1, 'holed putt dashed');
+    assert.strictEqual(await page.locator('#rpgreenmap .rpcup').count(), 1);
+    const far = await page.evaluate(() => { const c = document.querySelector('#rpgreenmap .rpcup'); return [...document.querySelectorAll('#rpgreenmap .rpfinish circle')].map(e => Math.hypot(e.getAttribute('cx') - c.getAttribute('cx'), e.getAttribute('cy') - c.getAttribute('cy'))); });
+    assert.ok(far.every(d => d >= 13), 'finish spots outside the cup ' + far);
+    assert.ok([...(await page.locator('#rpgreenmap path.rpputt').evaluateAll(es => es.map(e => e.getAttribute('stroke'))))].every(c => c === '#fff'));
     if (i === 0) await page.screenshot({ path: OUT + 'hole-replay-green-zoom.png' });
     await page.click('#rpgreenback'); await page.waitForSelector('#replaymap');
     assert.match(await page.textContent('#rpinfo'), new RegExp('Par ' + [4, 5, 4][i]));
