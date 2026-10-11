@@ -733,3 +733,10 @@ test('pmissScale: linear rings per putt-miss group, shrink to data, capped', () 
   assert.deepStrictEqual(SG.pmissScale(g(30), [40]), { step: 3, max: 15 });
   assert.deepStrictEqual(SG.pmissScale(g(50), [7]), { step: 5, max: 15 });
 });
+
+test('arrivalDepth: pin high / long / short for the shot that reached the green', () => {
+  assert.strictEqual(SG.arrivalDepth('left', 30), 'pin high'); assert.strictEqual(SG.arrivalDepth('right', 3), 'pin high');
+  assert.strictEqual(SG.arrivalDepth('longleft', 2), 'pin high'); assert.strictEqual(SG.arrivalDepth('short', 1.5), 'pin high');
+  assert.strictEqual(SG.arrivalDepth('longright', 9), 'long'); assert.strictEqual(SG.arrivalDepth('long', 2.5), 'long');
+  assert.strictEqual(SG.arrivalDepth('shortleft', 12), 'short'); assert.strictEqual(SG.arrivalDepth('', 12), '');
+});

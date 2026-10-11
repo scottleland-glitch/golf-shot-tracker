@@ -1205,7 +1205,7 @@
       if (prev) { var pc2 = RPC[prev.cat] || '#333', fx = Math.max(20, Math.min(Wg - 20, ix + (s0[0] - ix) * 0.4)), fy = Hg - 22;
         G += '<path id="rparrive" d="M' + f1(fx) + ' ' + fy + ' Q' + f1((fx + s0[0]) / 2 + 20) + ' ' + f1((fy + s0[1]) / 2) + ' ' + f1(s0[0]) + ' ' + f1(s0[1]) + '" fill="none" stroke="' + pc2 + '" stroke-width="3" stroke-dasharray="7 4"/>' +
           '<circle cx="' + f1(fx) + '" cy="' + fy + '" r="9" fill="' + pc2 + '" stroke="#fff" stroke-width="2"/><text x="' + f1(fx) + '" y="' + (fy + 4) + '" text-anchor="middle" font-size="10" font-weight="900" fill="#fff">' + prev.n + '</text>' +
-          '<text x="' + f1(fx + 13) + '" y="' + (fy + 4) + '" font-size="10" font-weight="900" fill="#fff">' + esc(RPN[prev.cat] || 'Shot') + ' arrived</text>'; }
+          '<text x="' + f1(fx + 13) + '" y="' + (fy + 4) + '" font-size="10" font-weight="900" fill="#fff">' + '<tspan id="rparrlbl">' + esc((RPN[prev.cat] || 'Shot') + (SG.arrivalDepth(prev.dir, putts[0].start.dist) ? ' ' + SG.arrivalDepth(prev.dir, putts[0].start.dist) : '')) + '</tspan></text>'; }
       var pp = s0, fin = '', st0 = [];
       putts.forEach(function (p, k) {
         var st = pp, holed = p.end.lie === 'holed', nr = h.rows[p.n] || {}, ed = nr.dir || p.dir || '';
