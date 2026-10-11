@@ -24,7 +24,15 @@ const BASE = process.env.BASE_URL || 'http://127.0.0.1:8771/', OUT = '/workspace
   for (let i = 0; i < 3; i++) {
     const A = info[i], nShots = A[2].split(',').length, nPutts = A[2].split(',').filter(x => x.startsWith('putting')).length;
     assert.strictEqual(await page.locator('#replaymap .rpshot').count(), nShots - nPutts, 'numbered off-green shots, hole ' + (i + 1));
-    assert.strictEqual(await page.locator('#replaymap .rpputt').count(), nPutts, 'putts in inset');
+    assert.strictEqual(await page.locator('#replaymap .rpputt').count(), 0, 'no inset on main map');
+    assert.strictEqual(await page.$('#puttinset'), null); assert.match(await page.textContent('#rptapnote'), /Tap the green/);
+    const bb = await page.locator('.rpgreen circle').boundingBox(); assert.ok(bb.width >= 44, 'big tap target ' + bb.width);
+    if (i === 0) await page.screenshot({ path: OUT + 'hole-replay-main.png' });
+    await page.locator('.rpgreen circle').click(); await page.waitForSelector('#rpgreenmap');
+    assert.strictEqual(await page.locator('#rpgreenmap .rpputt').count(), nPutts, 'putts on zoomed green');
+    assert.strictEqual(await page.locator('#rparrive').count(), 1, 'approach arrival drawn');
+    if (i === 0) await page.screenshot({ path: OUT + 'hole-replay-green-zoom.png' });
+    await page.click('#rpgreenback'); await page.waitForSelector('#replaymap');
     assert.match(await page.textContent('#rpinfo'), new RegExp('Par ' + [4, 5, 4][i]));
     if (i === 2) { assert.ok(await page.locator('#replaymap .rppen').count() >= 1, 'penalty marked'); assert.ok((await page.textContent('#replaymap')).includes('OB')); }
     // the last off-green shot sits near the pin when it reached the green
