@@ -1155,21 +1155,19 @@
     var misses = list.filter(function (p) { return !p.made; }), pend = [];
     misses.forEach(function (p, i) {
       var cls = SG.pmissClass(p), col = PMC[cls];
-      var sa = p.dir ? SG.DIR_ANGLE[p.dir] : 270 + ((ns++ % 7) - 3) * 9, sk = (p.dir || 'n') + Math.round(p.ft), js = seenS[sk] = (seenS[sk] || 0) + 1;
-      var s = pt(cx, cy, rad(p.ft), sa + (js - 1) * 5);
+      var s = [cx, cy + RR]; // every putt starts from one spot straight below the hole (the hole is the target)
       var ea = p.endDir ? SG.DIR_ANGLE[p.endDir] : 90, clamped = p.endFt > maxFt, ek = (p.endDir || 'n') + Math.round(p.endFt * 2), je = seenE[ek] = (seenE[ek] || 0) + 1;
       var e = pt(cx, cy, Math.max(rad(p.endFt), 9), ea + (je - 1) * 9);
       var mx = (s[0] + e[0]) / 2 + (e[1] - s[1]) * 0.12, my = (s[1] + e[1]) / 2 - (e[0] - s[0]) * 0.12;
       tr += '<path class="pmtr" data-class="' + cls + '" d="M' + f1(s[0]) + ' ' + f1(s[1]) + ' Q' + f1(mx) + ' ' + f1(my) + ' ' + f1(e[0]) + ' ' + f1(e[1]) + '" fill="none" stroke="#fff" stroke-width="5" stroke-opacity=".7"/>' +
         '<path d="M' + f1(s[0]) + ' ' + f1(s[1]) + ' Q' + f1(mx) + ' ' + f1(my) + ' ' + f1(e[0]) + ' ' + f1(e[1]) + '" fill="none" stroke="' + col + '" stroke-width="2.6"/>';
-      dots += '<circle cx="' + f1(s[0]) + '" cy="' + f1(s[1]) + '" r="3.5" fill="#fff" stroke="' + col + '" stroke-width="2"/>';
       dots += cls === 'nodir' ? '<g class="pmend" data-class="nodir"><path d="M' + f1(e[0]) + ' ' + f1(e[1] - 8) + ' l8 8 -8 8 -8 -8z" fill="#fff" stroke="#555" stroke-width="2"/><text x="' + f1(e[0]) + '" y="' + f1(e[1] + 4) + '" text-anchor="middle" font-size="10" font-weight="900">?</text></g>'
         : '<circle class="pmend" data-class="' + cls + '" cx="' + f1(e[0]) + '" cy="' + f1(e[1]) + '" r="5.5" fill="' + col + '" stroke="#000" stroke-width="1.5"/>';
       boxes.push([e[0] - 6, e[1] - 6, e[0] + 6, e[1] + 6]);
       pend.push([e[0], e[1], (Math.round(p.endFt * 10) / 10) + ' ft' + (clamped ? ' ›' : ''), col]);
     });
     pend.forEach(function (q) { labs += lbl(q[0], q[1], q[2], q[3] === '#888' ? '#333' : q[3]); });
-    return o + tr + '<circle cx="' + cx + '" cy="' + cy + '" r="4.5" fill="#000"/>' + dots + labs + '</svg>';
+    return o + tr + '<circle cx="' + cx + '" cy="' + cy + '" r="4.5" fill="#000"/><circle id="pmorigin" cx="' + cx + '" cy="' + (cy + RR) + '" r="7" fill="#fff" stroke="#000" stroke-width="2"/><text x="' + (cx + 11) + '" y="' + (cy + RR + 4) + '" font-size="10" font-weight="800" fill="#fff">putts start here</text>' + dots + labs + '</svg>';
   }
   function pmissCells(st) {
     var pc = function (k) { return st.misses ? Math.round(st.pct[k]) + '%' : '–'; };
@@ -1179,7 +1177,7 @@
   function pmissLegend() {
     return '<div class="legend" id="pmlegend">' + ['left', 'right', 'short', 'long', 'nearlong'].map(function (k) { return '<span><i class="ln" style="background:' + PMC[k] + '"></i><i class="dot" style="background:' + PMC[k] + '"></i>' + PMN[k] + '</span>'; }).join('') +
       '<span><svg width="20" height="20" viewBox="0 0 20 20" style="flex:none"><path d="M10 2 l8 8 -8 8 -8 -8z" fill="#fff" stroke="#555" stroke-width="2"/><text x="10" y="14" text-anchor="middle" font-size="10" font-weight="900">?</text></svg>No direction entered for where it finished (drawn long)</span>' +
-      '<span><i class="dot" style="background:#fff"></i>Where the putt started (its distance and side of the hole)</span>' +
+      '<span><i class="dot" style="background:#fff"></i>Common start point: every putt is drawn from straight below the hole, so the hole is the target</span>' +
       '<span>Label = feet left to the hole (› = further than the picture, drawn at the edge). Rings = feet from the hole (square-root scale, so short leftovers are easy to see).</span></div>';
   }
   function pmissHTML(all) {
@@ -1188,7 +1186,7 @@
       return '<button data-act="pmg" data-v="' + g.id + '" data-n="' + c + '" class="' + (g.id === D.group ? 'sel' : '') + '"' + (c ? '' : ' disabled') + ' aria-pressed="' + (g.id === D.group) + '">' + g.name + (c ? '<small> ' + c + '</small>' : '') + '</button>'; }).join('') + '</div>';
     return btns + '<p class="mapsum" id="mapsum"><b>' + D.stats.misses + '</b> missed of <b>' + D.stats.attempts + '</b> putts from <b id="pmsel">' + G.name + '</b>' + (all ? ' in ' + D.rounds + ' round' + (D.rounds === 1 ? '' : 's') : ' this round') + '</p>' +
       pmissSVG(D.list, D.group) + pmissCells(D.stats) + pmissLegend() +
-      '<p class="help muted">Where each missed putt finished, from the direction and distance of the next putt. Short = finished short (incl. short left/right). Long = finished long and more than 3 ft past the hole. Long left/right within 3 ft count as Left/Right; straight long within 3 ft = "just long" (good speed, not counted as Long). Percentages are of misses. Groups: under 6, 6 to under 10, 10 to under 20, 20 to under 30, 30 to 50 ft.</p>';
+      '<p class="help muted">Each line runs from one common start (below the hole) to where the putt finished, placed around the hole by the direction and distance of the next putt: short = below the hole, long = above, left/right to the sides. Short = finished short (incl. short left/right). Long = finished long and more than 3 ft past the hole. Long left/right within 3 ft count as Left/Right; straight long within 3 ft = "just long" (good speed, not counted as Long). Percentages are of misses. Groups: under 6, 6 to under 10, 10 to under 20, 20 to under 30, 30 to 50 ft.</p>';
   }
   function puttTile(S) {
     var P1 = SG.puttStats(S.puttList.filter(function (p) { return p.n === 1; }));
