@@ -724,3 +724,12 @@ test('PDF-report helper (not used by the map): SG distance groups + distinct col
   assert.deepStrictEqual([c('short', 1), c('shortleft', 5), c('long', 4), c('long', 3), c('longleft', 2), c('longright', 5), c('left', 1), c('', 2)], ['short', 'short', 'long', 'nearlong', 'left', 'long', 'left', 'nodir']);
   const st = SGm.pmissStats([{ made: true }, { made: false, endDir: 'short', endFt: 2 }, { made: false, endDir: 'right', endFt: 1 }]);
   assert.deepStrictEqual([st.attempts, st.made, st.misses, st.pct.short, st.pct.right], [3, 1, 2, 50, 50]); console.log('pmiss ok'); })();
+
+test('pmissScale: linear rings per putt-miss group, shrink to data, capped', () => {
+  const g = id => SG.PMISS_GROUPS.find(x => x.max === id);
+  assert.deepStrictEqual(SG.pmissScale(g(6), []), { step: 1, max: 5 });
+  assert.deepStrictEqual(SG.pmissScale(g(10), [2, 4.5]), { step: 1, max: 5 });
+  assert.deepStrictEqual(SG.pmissScale(g(20), [3]), { step: 2, max: 6 });
+  assert.deepStrictEqual(SG.pmissScale(g(30), [40]), { step: 3, max: 15 });
+  assert.deepStrictEqual(SG.pmissScale(g(50), [7]), { step: 5, max: 15 });
+});

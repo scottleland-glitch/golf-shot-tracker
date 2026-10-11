@@ -750,6 +750,14 @@
     if (d === 'left' || d === 'right') return d;
     return 'nodir';
   }
+  // Linear ring scale per putt-miss group: ring step and outer ring (ft); shrinks to the data, leftovers beyond the edge get '›'.
+  var PMISS_SCALE = { 6: [1, 5], 10: [1, 6], 20: [2, 10], 30: [3, 15], 50: [5, 20] };
+  function pmissScale(g, ends) {
+    var d = PMISS_SCALE[g.max] || [5, 20], step = d[0], cap = d[1], m = 0;
+    (ends || []).forEach(function (f) { if (Number(f) > m) m = Number(f); });
+    var max = m ? Math.min(cap, Math.max(step * 3, Math.ceil(m / step) * step)) : cap;
+    return { step: step, max: max };
+  }
   function pmissStats(list) { // list = putts in one group (made + missed)
     var miss = list.filter(function (p) { return !p.made; }), c = { left: 0, right: 0, short: 0, long: 0, nearlong: 0, nodir: 0 };
     miss.forEach(function (p) { c[pmissClass(p)]++; });
@@ -757,7 +765,7 @@
     return { attempts: list.length, made: list.length - miss.length, misses: miss.length, counts: c, pct: { left: pct('left'), right: pct('right'), short: pct('short'), long: pct('long'), nearlong: pct('nearlong'), nodir: pct('nodir') },
       avgLeftFt: miss.length ? miss.reduce(function (t, p) { return t + (p.endFt || 0); }, 0) / miss.length : null };
   }
-  var api = { PMISS_GROUPS: PMISS_GROUPS, pmissGroup: pmissGroup, pmissClass: pmissClass, pmissStats: pmissStats, roundEmpty: roundEmpty, foldStubs: foldStubs, pdfSafe: pdfSafe, reportFileName: reportFileName, pinSegments: pinSegments, REPORT_GROUPS: REPORT_GROUPS, reportGroup: reportGroup, SHORT_MAX_YD: SHORT_MAX_YD, APPR_BUCKETS: APPR_BUCKETS, apprBucket: apprBucket, proxAfterFt: proxAfterFt, puttKind: puttKind, threePutts: threePutts, puttScale: puttScale, puttRadius: puttRadius, puttPlace: puttPlace, PUTT_BANDS: PUTT_BANDS, puttGroup: puttGroup, puttStats: puttStats, makeBackup: makeBackup, parseBackup: parseBackup, mergeRounds: mergeRounds, conflictsOf: conflictsOf, PROX_LIES: PROX_LIES, lieGroup: lieGroup, proxByLie: proxByLie, proxWarnings: proxWarnings, PROX_BUCKETS: PROX_BUCKETS, inBucket: inBucket, roundYd: roundYd, proxStats: proxStats, reachedGreen: reachedGreen, PIN_GRID: PIN_GRID, PIN_NAME: PIN_NAME, normPin: normPin, DIR8: DIR8, DIR_NAME: DIR_NAME, DIR_ANGLE: DIR_ANGLE, normDir: normDir, expected: expected, expectedPGA: expectedPGA, BASELINES: BASELINES, baseline: function (id) { return BL[id] || BL.pga; },
+  var api = { PMISS_GROUPS: PMISS_GROUPS, pmissGroup: pmissGroup, pmissClass: pmissClass, pmissStats: pmissStats, pmissScale: pmissScale, roundEmpty: roundEmpty, foldStubs: foldStubs, pdfSafe: pdfSafe, reportFileName: reportFileName, pinSegments: pinSegments, REPORT_GROUPS: REPORT_GROUPS, reportGroup: reportGroup, SHORT_MAX_YD: SHORT_MAX_YD, APPR_BUCKETS: APPR_BUCKETS, apprBucket: apprBucket, proxAfterFt: proxAfterFt, puttKind: puttKind, threePutts: threePutts, puttScale: puttScale, puttRadius: puttRadius, puttPlace: puttPlace, PUTT_BANDS: PUTT_BANDS, puttGroup: puttGroup, puttStats: puttStats, makeBackup: makeBackup, parseBackup: parseBackup, mergeRounds: mergeRounds, conflictsOf: conflictsOf, PROX_LIES: PROX_LIES, lieGroup: lieGroup, proxByLie: proxByLie, proxWarnings: proxWarnings, PROX_BUCKETS: PROX_BUCKETS, inBucket: inBucket, roundYd: roundYd, proxStats: proxStats, reachedGreen: reachedGreen, PIN_GRID: PIN_GRID, PIN_NAME: PIN_NAME, normPin: normPin, DIR8: DIR8, DIR_NAME: DIR_NAME, DIR_ANGLE: DIR_ANGLE, normDir: normDir, expected: expected, expectedPGA: expectedPGA, BASELINES: BASELINES, baseline: function (id) { return BL[id] || BL.pga; },
     CALIB_ROUND: CALIB_ROUND, catLoss: catLoss, analyzeHole: analyzeHole, summarize: summarize,
     rowsToShots: rowsToShots, shotsToRows: shotsToRows, migrateV2Rows: migrateV2Rows, v1ToRows: v1ToRows, holeYards: holeYards,
     rowUnit: rowUnit, lieOf: lieOf, distOf: distOf, rowStrokes: rowStrokes, isPenalty: isPenalty,

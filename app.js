@@ -1249,9 +1249,9 @@
   }
   function pmissSVG(list, gid) {
     var G = SG.PMISS_GROUPS.filter(function (x) { return x.id === gid; })[0], W = 360, H = 400, cx = 180, cy = 200, R = 170;
-    var maxFt = G.max, RR = R - 14, rad = function (ft) { return RR * Math.sqrt(Math.max(0, Math.min(ft, maxFt)) / maxFt); }, step = maxFt <= 6 ? 1 : maxFt <= 10 ? 2 : maxFt <= 20 ? 5 : 10;
+    var sc = SG.pmissScale(G, list.filter(function (p) { return !p.made; }).map(function (p) { return p.endFt; })), maxFt = sc.max, step = sc.step, RR = R - 14, rad = function (ft) { return RR * Math.max(0, Math.min(ft, maxFt)) / maxFt; };
     var o = '<svg id="pmissmap" viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="Missed putts"><rect width="' + W + '" height="' + H + '" fill="#cfe8c4"/><circle cx="' + cx + '" cy="' + cy + '" r="' + R + '" fill="#3da33d" stroke="#145214" stroke-width="4"/>';
-    for (var f = step; f <= maxFt; f += step) o += '<circle cx="' + cx + '" cy="' + cy + '" r="' + f1(rad(f)) + '" fill="none" stroke="#fff" stroke-opacity=".7" stroke-width="' + (f === G.min ? 2 : 1) + '"/><text class="ring" x="' + f1(cx + rad(f) * 0.707 + 3) + '" y="' + f1(cy + rad(f) * 0.707 + 11) + '" font-size="10" font-weight="800" fill="#fff">' + f + '</text>';
+    for (var f = step; f <= maxFt; f += step) o += '<circle cx="' + cx + '" cy="' + cy + '" r="' + f1(rad(f)) + '" fill="none" stroke="#fff" stroke-opacity=".7" stroke-width="' + (f === maxFt ? 2 : 1) + '"/><text class="ring" x="' + f1(cx + rad(f) * 0.707 + 3) + '" y="' + f1(cy + rad(f) * 0.707 + 11) + '" font-size="10" font-weight="800" fill="#fff">' + f + ' ft</text>';
     o += '<text x="' + cx + '" y="18" text-anchor="middle" font-size="12" font-weight="900">LONG ↑</text><text x="' + cx + '" y="' + (H - 6) + '" text-anchor="middle" font-size="12" font-weight="900">SHORT ↓ (toward you)</text>' +
       '<text x="6" y="' + (cy + 4) + '" font-size="12" font-weight="900">L</text><text x="' + (W - 6) + '" y="' + (cy + 4) + '" text-anchor="end" font-size="12" font-weight="900">R</text>';
     var tr = '', dots = '', labs = '', boxes = [], seenS = {}, seenE = {}, ns = 0;
@@ -1285,7 +1285,7 @@
     return '<div class="legend" id="pmlegend">' + ['left', 'right', 'short', 'long', 'nearlong'].map(function (k) { return '<span><i class="ln" style="background:' + PMC[k] + '"></i><i class="dot" style="background:' + PMC[k] + '"></i>' + PMN[k] + '</span>'; }).join('') +
       '<span><svg width="20" height="20" viewBox="0 0 20 20" style="flex:none"><path d="M10 2 l8 8 -8 8 -8 -8z" fill="#fff" stroke="#555" stroke-width="2"/><text x="10" y="14" text-anchor="middle" font-size="10" font-weight="900">?</text></svg>No direction entered for where it finished (drawn long)</span>' +
       '<span><i class="dot" style="background:#fff"></i>Common start point: every putt is drawn from straight below the hole, so the hole is the target</span>' +
-      '<span>Label = feet left to the hole (› = further than the picture, drawn at the edge). Rings = feet from the hole (square-root scale, so short leftovers are easy to see).</span></div>';
+      '<span>Label = feet left to the hole (› = further than the picture, drawn at the edge). Rings = feet from the hole, evenly spaced (linear scale, set per distance group so misses spread out).</span></div>';
   }
   function pmissHTML(all) {
     var D = pmissData(all), G = SG.PMISS_GROUPS.filter(function (x) { return x.id === D.group; })[0];

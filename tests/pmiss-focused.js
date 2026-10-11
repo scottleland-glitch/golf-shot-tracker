@@ -34,6 +34,8 @@ const BASE = process.env.BASE_URL || 'http://127.0.0.1:8770/', OUT = '/workspace
     assert.strictEqual(nMiss, exp.misses); assert.ok(cells.some(t => t.includes(exp.made + ' / ' + exp.attempts)));
     const starts = await page.$$eval('#pmissmap path.pmtr', ps => [...new Set(ps.map(p => p.getAttribute('d').split(' Q')[0]))]); assert.ok(starts.length <= 1, 'one common start ' + starts);
     if (exp.counts.short) { const sh = await page.$$eval('#pmissmap .pmend[data-class="short"]', e => e.map(x => +x.getAttribute('cy'))); assert.ok(sh.every(y => y > 200), 'short ends below the hole'); }
+    const rings = await page.$$eval('#pmissmap circle[fill="none"]', cs => cs.map(c => +c.getAttribute('r')));
+    const gaps = rings.map((r, i) => r - (rings[i - 1] || 0)); assert.ok(rings.length >= 3 && gaps.every(g => Math.abs(g - gaps[0]) < 0.6), 'linear evenly spaced rings ' + rings);
     const lab = await page.locator('#pmissmap .pmlbl').count(); assert.ok(lab >= Math.min(1, exp.misses));
     const f = OUT + 'putt-miss-' + c[0] + '.png'; await page.locator('#mapview').evaluate(e => e.scrollTop = 0); await page.screenshot({ path: f }); shots.push(f);
   }
