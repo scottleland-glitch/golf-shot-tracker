@@ -1199,7 +1199,7 @@
     var mft = putts.length ? Math.max(10, Math.max.apply(null, putts.map(function (p) { return Number(p.start.dist) || 0; }))) : 10, PK = (IR - 16) / mft;
     G += '<svg id="rpgreenmap" viewBox="0 0 ' + Wg + ' ' + Hg + '" role="img" aria-label="Enlarged green"><rect width="' + Wg + '" height="' + Hg + '" fill="#4f8f3a"/><circle cx="' + ix + '" cy="' + iy + '" r="' + IR + '" fill="#8fd66f" stroke="#e8f8e0" stroke-width="3"/>';
     [3, 5, 10, 20, 30, 40, 60].filter(function (f) { return f < mft; }).forEach(function (f) { G += '<circle cx="' + ix + '" cy="' + iy + '" r="' + f1(f * PK) + '" fill="none" stroke="#fff" stroke-opacity=".75" stroke-dasharray="3 3"/><text x="' + f1(ix + 3) + '" y="' + f1(iy - f * PK - 2) + '" font-size="9" fill="#fff" font-weight="800">' + f + ' ft</text>'; });
-    G += '<text x="' + ix + '" y="' + (Hg - 8) + '" text-anchor="middle" font-size="10" fill="#fff" font-weight="800">▼ front of green (toward the tee)</text>';
+    G += '<text x="' + ix + '" y="' + (Hg - 8) + '" text-anchor="middle" font-size="10" fill="#fff" font-weight="800">▼ front of green</text>';
     if (putts.length) {
       var prev = shots[i0 - 1], sd0 = prev ? prev.dir : '', s0 = pt(ix, iy, (Number(putts[0].start.dist) || 0) * PK, sd0 ? SG.DIR_ANGLE[sd0] : 270);
       if (prev) { var pc2 = RPC[prev.cat] || '#333', fx = Math.max(20, Math.min(Wg - 20, ix + (s0[0] - ix) * 0.4)), fy = Hg - 22;
