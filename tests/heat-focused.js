@@ -28,6 +28,11 @@ const BASE = process.env.BASE_URL || 'http://127.0.0.1:8774/', OUT = '/workspace
     await page.waitForSelector('#heattog');
     if (m === 'prox') { const all = await page.$('[data-act="proxb"][data-v="all"]'); if (all) await all.click(); await page.waitForSelector('#heattog'); }
     if (m === 'pmiss') { await page.waitForSelector('#heattog'); }
+    const gr = await page.evaluate(() => ({ img: !!document.querySelector('#mapview svg.heat #heatgrad'), hs: [...document.querySelectorAll('#mapview .hotspot text')].map(t => t.textContent), avg: !!document.querySelector('#heatavg'), sel: document.querySelector('#heattog .sel').dataset.v }));
+    assert.ok(gr.img && gr.avg && gr.sel === 'grad', m + ' gradient by default for multi-round ' + JSON.stringify(gr));
+    assert.ok(gr.hs.every(t => /^\d+ (ft|yd) · \d+ shots$/.test(t)), m + ' hot-spot tags ' + gr.hs);
+    await page.locator('#heattog').scrollIntoViewIfNeeded(); await page.screenshot({ path: OUT + 'heatmap-gradient-' + m + '.png' });
+    await page.click('[data-act="heat"][data-v="isl"]');
     const st = await page.evaluate(() => { const s = document.querySelector('#mapview svg.heat'); if (!s) return null;
       return { blobs: s.querySelectorAll('.hblob').length, isl: [...s.querySelectorAll('.island')].map(g => +g.dataset.n), lbl: [...s.querySelectorAll('.island text')].map(t => t.textContent), avg: !!s.querySelector('#heatavg'), sum: document.getElementById('heatsum').textContent }; });
     assert.ok(st, m + ': heat map on automatically for 2 rounds');
@@ -39,9 +44,9 @@ const BASE = process.env.BASE_URL || 'http://127.0.0.1:8774/', OUT = '/workspace
     assert.ok(st.avg && /Average (finish|putt start)/.test(st.sum), m + ' centroid');
     console.log(m, st.blobs, 'shots', st.isl.length, 'islands', st.sum);
     await page.locator('#heattog').scrollIntoViewIfNeeded(); await page.screenshot({ path: OUT + 'heatmap-' + m + '.png' });
-    await page.click('[data-act="heat"][data-v="0"]'); assert.strictEqual(await page.$('#mapview svg.heat'), null, m + ' toggles back to dots');
+    await page.click('[data-act="heat"][data-v="dots"]'); assert.strictEqual(await page.$('#mapview svg.heat'), null, m + ' toggles back to dots');
     if (m === 'gir') { await page.locator('#heattog').scrollIntoViewIfNeeded(); await page.screenshot({ path: OUT + 'heatmap-gir-dots.png' }); }
-    await page.click('[data-act="heat"][data-v="1"]'); assert.ok(await page.$('#mapview svg.heat'));
+    await page.click('[data-act="heat"][data-v="isl"]'); assert.ok(await page.$('#mapview svg.heat'));
     await page.click('[data-act="mapscope"][data-v="round"]');
     const one = await page.evaluate(() => [document.querySelectorAll('#mapview svg [data-hd]').length, !!document.querySelector('#mapview svg.heat')]);
     if (one[0] <= 15) assert.strictEqual(one[1], false, m + ' single round with few shots stays dots');

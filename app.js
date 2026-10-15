@@ -1188,6 +1188,35 @@
     return '<path class="hedge" d="' + path + '" fill="transparent" stroke="#3a0000" stroke-width="' + f1(2 * R + 2.4) + '" stroke-linecap="round" stroke-linejoin="round"/>' +
       '<path class="hfill" d="' + path + '" fill="transparent" stroke="' + col + '" stroke-width="' + f1(2 * R) + '" stroke-linecap="round" stroke-linejoin="round"/>';
   }
+  // Continuous density (Gaussian kernel, sigma 13 px) painted to a canvas and embedded as an image: clear where
+  // there are no shots, light -> dark red with density. Hot-spot tags at local density peaks (>= 30% of the max).
+  function heatGradient(svg, pts) {
+    var vb = svg.viewBox.baseVal, W = vb.width, H = vb.height, S = 3, gw = Math.ceil(W / S), gh = Math.ceil(H / S), sig = 16, D = new Float32Array(gw * gh), mx = 0;
+    for (var y = 0; y < gh; y++) for (var x = 0; x < gw; x++) { var v = 0, px = x * S + S / 2, py = y * S + S / 2;
+      for (var i = 0; i < pts.length; i++) { var dx = px - pts[i].x, dy = py - pts[i].y, q = dx * dx + dy * dy; if (q < 9 * sig * sig) v += Math.exp(-q / (2 * sig * sig)); }
+      D[y * gw + x] = v; if (v > mx) mx = v; }
+    var cv = document.createElement('canvas'); cv.width = gw; cv.height = gh; var cx = cv.getContext('2d'), im = cx.createImageData(gw, gh);
+    // classic click-heat-map ramp: transparent -> blue -> cyan -> green -> yellow -> orange -> red (densest)
+    var RB = [[0, [0, 0, 255]], [0.12, [0, 60, 255]], [0.3, [0, 220, 255]], [0.5, [0, 230, 60]], [0.68, [255, 240, 0]], [0.84, [255, 140, 0]], [1, [230, 0, 0]]];
+    for (var k = 0; k < D.length; k++) { var t = mx ? D[k] / mx : 0, a = t < 0.02 ? 0 : Math.min(0.78, 0.18 + t * 0.75) * Math.min(1, t / 0.08), j = 1;
+      while (j < RB.length - 1 && t > RB[j][0]) j++; var u = Math.max(0, Math.min(1, (t - RB[j - 1][0]) / (RB[j][0] - RB[j - 1][0])));
+      for (var ch = 0; ch < 3; ch++) im.data[k * 4 + ch] = Math.round(RB[j - 1][1][ch] + (RB[j][1][ch] - RB[j - 1][1][ch]) * u); im.data[k * 4 + 3] = Math.round(a * 255); }
+    cx.putImageData(im, 0, 0);
+    var o = '<image id="heatgrad" href="' + cv.toDataURL('image/png') + '" x="0" y="0" width="' + W + '" height="' + H + '" preserveAspectRatio="none"/>';
+    var peaks = [];
+    for (y = 1; y < gh - 1; y++) for (x = 1; x < gw - 1; x++) { var c = D[y * gw + x]; if (c < 0.3 * mx) continue; var top = true;
+      for (var yy = -4; yy <= 4 && top; yy++) for (var xx = -4; xx <= 4; xx++) { var Y = y + yy, X = x + xx; if ((yy || xx) && Y >= 0 && X >= 0 && Y < gh && X < gw && D[Y * gw + X] > c) { top = false; break; } }
+      if (top) peaks.push([x * S + S / 2, y * S + S / 2, c]); }
+    peaks.sort(function (a, b) { return b[2] - a[2]; }); peaks = peaks.slice(0, 6);
+    var boxes = [], n = 0;
+    peaks.forEach(function (p) { var near = pts.filter(function (q) { return Math.hypot(q.x - p[0], q.y - p[1]) <= 2 * sig; }); if (near.length < 2) return; n++;
+      var t = heatFmt(near) + ' · ' + near.length + ' shots', w = t.length * 6.2 + 10, x0 = Math.max(4, Math.min(W - 4 - w, p[0] - w / 2)), y0 = p[1] - 32;
+      for (var k2 = 0; k2 < 6 && boxes.some(function (b) { return x0 < b[2] && x0 + w > b[0] && y0 < b[3] && y0 + 18 > b[1]; }); k2++) y0 += 22;
+      if (y0 < 4) y0 = p[1] + 14; boxes.push([x0, y0, x0 + w, y0 + 18]);
+      o += '<g class="hotspot" data-n="' + near.length + '"><circle cx="' + f1(p[0]) + '" cy="' + f1(p[1]) + '" r="2.5" fill="#fff" stroke="#3a0000"/><rect x="' + f1(x0) + '" y="' + f1(y0) + '" width="' + f1(w) + '" height="18" rx="9" fill="#fff" fill-opacity=".93" stroke="#7a2a00"/>' +
+        '<text x="' + f1(x0 + w / 2) + '" y="' + f1(y0 + 13) + '" text-anchor="middle" font-size="11" font-weight="900" fill="#7a2a00">' + esc(t) + '</text></g>'; });
+    return { svg: o, peaks: n };
+  }
   function heatIslands(pts, link) {
     var id = pts.map(function (_, i) { return i; }), find = function (i) { while (id[i] !== i) i = id[i] = id[id[i]]; return i; };
     for (var i = 0; i < pts.length; i++) for (var j = i + 1; j < pts.length; j++) if (Math.hypot(pts[i].x - pts[j].x, pts[i].y - pts[j].y) <= link) id[find(i)] = find(j);
@@ -1206,23 +1235,25 @@
       var k = (e.getAttribute('data-kind') || '') + (e.getAttribute('data-class') || ''); if (/nodir/.test(k)) return;
       var b = e.getBBox(); pts.push({ x: b.x + b.width / 2, y: b.y + b.height / 2, d: +e.getAttribute('data-hd') || 0, u: e.getAttribute('data-hu') || 'ft' });
     });
-    var auto = (view.mapScope === 'all' && rounds.length > 1) || pts.length > 15, on = view.heat == null ? auto : view.heat;
+    var multi = view.mapScope === 'all' && rounds.length > 1, mode = view.heat || (multi ? 'grad' : pts.length > 15 ? 'isl' : 'dots'), on = mode !== 'dots';
     var tg = document.createElement('div'); tg.className = 'seg heattog'; tg.id = 'heattog';
-    tg.innerHTML = '<button data-act="heat" data-v="0" class="' + (on ? '' : 'sel') + '" aria-pressed="' + !on + '">● Dots</button><button data-act="heat" data-v="1" class="' + (on ? 'sel' : '') + '" aria-pressed="' + on + '"' + (pts.length ? '' : ' disabled') + '>🔥 Heat map</button>';
+    tg.innerHTML = [['dots', '● Dots'], ['isl', '⬭ Islands'], ['grad', '🔥 Gradient']].map(function (b) { return '<button data-act="heat" data-v="' + b[0] + '" class="' + (mode === b[0] ? 'sel' : '') + '" aria-pressed="' + (mode === b[0]) + '"' + (pts.length || b[0] === 'dots' ? '' : ' disabled') + '>' + b[1] + '</button>'; }).join('');
     var anc = svg; while (anc.parentNode && anc.parentNode !== mv) anc = anc.parentNode;
     anc.parentNode.insertBefore(tg, anc);
     if (!on || !pts.length) return;
     svg.classList.add('heat');
     var h = '';
     // blobs are drawn per island below (after islands are known)
-    var isl = heatIslandsReal(pts, heatReal(pts, C)), boxes = [];
+    var isl = heatIslandsReal(pts, heatReal(pts, C)), boxes = [], lone = 0, tagged = 0;
+    if (mode === 'grad') { var GR = heatGradient(svg, pts); h += GR.svg; isl = []; tagged = GR.peaks; }
+    else {
     // one red ramp, light -> dark by the island's share of all shots; crisp thin border around each island (union of discs)
     var ramp = function (t) { var a = [253, 224, 218], b = [139, 0, 0]; return 'rgb(' + a.map(function (v, i) { return Math.round(v + (b[i] - v) * t); }).join(',') + ')'; };
     var maxShare = Math.max.apply(null, isl.map(function (g) { return g.length; })) / pts.length;
     isl.forEach(function (g) { var share = g.length / pts.length, t = maxShare > 0 ? Math.min(1, 0.15 + 0.85 * share / maxShare) : 1, col = ramp(t);
       h += '<g class="hisland" data-n="' + g.length + '" data-share="' + share.toFixed(3) + '" data-col="' + col + '">' +
         islandShape(g, col) + g.map(function (p) { return '<circle class="hblob" cx="' + f1(p.x) + '" cy="' + f1(p.y) + '" r="1.6" fill="#3a0000" fill-opacity=".55"/>'; }).join('') + '</g>'; });
-    var lone = isl.filter(function (g) { return g.length === 1; }).length, tagged = isl.length - lone;
+    lone = isl.filter(function (g) { return g.length === 1; }).length; tagged = isl.length - lone;
     isl.forEach(function (g, i) {
       if (g.length === 1 && tagged) { h += '<g class="island lone" data-n="1"></g>'; return; }
       var mx = g.reduce(function (a, p) { return a + p.x; }, 0) / g.length, top = g.reduce(function (a, p) { return a + p.y; }, 0) / g.length + 8;
@@ -1232,6 +1263,7 @@
       h += '<g class="island" data-n="' + g.length + '"><rect x="' + f1(x) + '" y="' + f1(y) + '" width="' + f1(w) + '" height="18" rx="9" fill="#fff" fill-opacity=".93" stroke="#7a2a00"/>' +
         '<text x="' + f1(x + w / 2) + '" y="' + f1(y + 13) + '" text-anchor="middle" font-size="11" font-weight="900" fill="#7a2a00">' + esc(t) + '</text></g>';
     });
+    }
     // average finish (all plotted shots): pixel mean for the marker, real distances for the words
     var ax = 0, ay = 0, lr = 0, lg = 0, yd = pts.every(function (p) { return p.u === 'yd'; });
     pts.forEach(function (p) { ax += p.x; ay += p.y; var dx = p.x - C[0], dy = C[1] - p.y, L = Math.hypot(dx, dy) || 1, d = yd ? p.d : p.u === 'yd' ? p.d * 3 : p.d; lr += d * dx / L; lg += d * dy / L; });
@@ -1242,10 +1274,10 @@
     var U = yd ? ' yd' : ' ft', part = function (v, a, b) { return Math.round(Math.abs(v)) ? Math.round(Math.abs(v)) + U + ' ' + (v > 0 ? a : b) : ''; };
     var words = [part(lg, 'long', 'short'), part(lr, 'right', 'left')].filter(Boolean).join(', ');
     var sm = document.createElement('p'); sm.className = 'heatsum'; sm.id = 'heatsum';
-    sm.innerHTML = '<b>⊕ Average ' + (view.map === 'putt' ? 'putt start' : 'finish') + ':</b> ' + (words ? words + ' of the hole' : 'centred on the hole') + ' · ' + pts.length + ' shot' + (pts.length === 1 ? '' : 's') + (tagged > 1 || (tagged && lone) ? ' – ' + tagged + ' cluster' + (tagged === 1 ? '' : 's') + (lone ? ' + ' + lone + ' single shot' + (lone === 1 ? '' : 's') + ' (no tag)' : '') : '') + '.';
+    sm.innerHTML = '<b>⊕ Average ' + (view.map === 'putt' ? 'putt start' : 'finish') + ':</b> ' + (words ? words + ' of the hole' : 'centred on the hole') + ' · ' + pts.length + ' shot' + (pts.length === 1 ? '' : 's') + (mode === 'grad' ? (tagged ? ' – ' + tagged + ' hot spot' + (tagged === 1 ? '' : 's') : '') : tagged > 1 || (tagged && lone) ? ' – ' + tagged + ' cluster' + (tagged === 1 ? '' : 's') + (lone ? ' + ' + lone + ' single shot' + (lone === 1 ? '' : 's') + ' (no tag)' : '') : '') + '.';
     anc.parentNode.insertBefore(sm, anc.nextSibling);
     var lg2 = document.createElement('p'); lg2.className = 'help heatnote'; lg2.id = 'heatnote';
-    lg2.innerHTML = '<span class="ramp" aria-hidden="true"></span> Heat map: each island is shaded by its share of the shots – light = few, dark red = most. Each white tag is one cluster – shots within 3 ft of each other (3 yd off the green), clusters less than 2 ft apart merged – with its average distance to the hole · number of shots. Single, isolated shots get no tag. ⊕ = average finish of all shots shown. Shots with no direction entered are left out.';
+    lg2.innerHTML = mode === 'grad' ? '<span class="ramp rainbow" aria-hidden="true"></span> Gradient: a smooth density map of where the shots finished – clear = none, blue = a few, then green, yellow, red = most. White tags mark the hot spots (average distance to the hole · shots nearby). ⊕ = average finish of all shots shown. Shots with no direction entered are left out.' : '<span class="ramp" aria-hidden="true"></span> Islands: each island is shaded by its share of the shots – light = few, dark red = most. Each white tag is one cluster – shots within 3 ft of each other (3 yd off the green), clusters less than 2 ft apart merged – with its average distance to the hole · number of shots. Single, isolated shots get no tag. ⊕ = average finish of all shots shown. Shots with no direction entered are left out.';
     sm.parentNode.insertBefore(lg2, sm.nextSibling);
   }
   // ---------- Club performance (app only): everything from where the ball FINISHED (next row's distance + direction) ----------
@@ -1993,7 +2025,7 @@
       case 'cmpkind': view.cmpKind = v; render(); return;
       case 'cmpgrp': view.cmpGrp = v; render(); return;
       case 'cmpov': view.cmpOverlay = v === '1'; render(); return;
-      case 'heat': view.heat = v === '1'; render(); return;
+      case 'heat': view.heat = v; render(); return;
       case 'replay': view.replay = Math.max(0, +v || 0); render(); return;
       case 'rpgreen': view.rpGreen = true; render(); return;
       case 'rpgreenback': view.rpGreen = false; render(); return;

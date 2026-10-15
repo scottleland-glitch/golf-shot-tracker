@@ -42,7 +42,7 @@ const BASE = process.env.BASE_URL || 'http://127.0.0.1:8775/', OUT = '/workspace
   assert.match(await page.textContent('#clubbias'), /7i finishes \d+ yd short on average/);
   if (ns > 15) assert.ok(await page.$('#clubmap.heat'), 'heat map when many');
   await page.evaluate(() => document.getElementById('mapview').scrollTop = 0); await page.screenshot({ path: OUT + 'club-dispersion-heat.png' });
-  await page.click('[data-act="heat"][data-v="0"]'); await page.screenshot({ path: OUT + 'club-dispersion-dots.png' });
+  await page.click('[data-act="heat"][data-v="dots"]'); await page.screenshot({ path: OUT + 'club-dispersion-dots.png' });
   await page.locator('#clubrank').scrollIntoViewIfNeeded(); await page.screenshot({ path: OUT + 'club-sg-ranking.png' });
   await page.locator('#clubrank tr[data-v="9i"]').click(); assert.strictEqual(await page.textContent('#clubcur'), '9i');
   assert.deepStrictEqual(errors, []); console.log('CLUBPERF OK', JSON.stringify(rank)); await b.close(); if (srv) srv.kill();
