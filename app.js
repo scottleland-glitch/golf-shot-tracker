@@ -1199,9 +1199,16 @@
     anc.parentNode.insertBefore(tg, anc);
     if (!on || !pts.length) return;
     svg.classList.add('heat');
-    var h = '<defs><radialGradient id="hgrad"><stop offset="0" stop-color="#ff1e00" stop-opacity=".62"/><stop offset=".45" stop-color="#ff9a00" stop-opacity=".34"/><stop offset="1" stop-color="#ffe600" stop-opacity="0"/></radialGradient></defs>';
-    pts.forEach(function (p) { h += '<circle class="hblob" cx="' + f1(p.x) + '" cy="' + f1(p.y) + '" r="26" fill="url(#hgrad)"/>'; });
+    var h = '';
+    // blobs are drawn per island below (after islands are known)
     var isl = heatIslandsReal(pts, heatReal(pts, C)), boxes = [];
+    // one red ramp, light -> dark by the island's share of all shots; crisp thin border around each island (union of discs)
+    var ramp = function (t) { var a = [253, 224, 218], b = [139, 0, 0]; return 'rgb(' + a.map(function (v, i) { return Math.round(v + (b[i] - v) * t); }).join(',') + ')'; };
+    var maxShare = Math.max.apply(null, isl.map(function (g) { return g.length; })) / pts.length;
+    isl.forEach(function (g) { var share = g.length / pts.length, t = maxShare > 0 ? Math.min(1, 0.15 + 0.85 * share / maxShare) : 1, col = ramp(t);
+      h += '<g class="hisland" data-n="' + g.length + '" data-share="' + share.toFixed(3) + '" data-col="' + col + '">' +
+        g.map(function (p) { return '<circle cx="' + f1(p.x) + '" cy="' + f1(p.y) + '" r="13.5" fill="#3a0000"/>'; }).join('') +
+        g.map(function (p) { return '<circle class="hblob" cx="' + f1(p.x) + '" cy="' + f1(p.y) + '" r="12.3" fill="' + col + '" fill-opacity=".92"/>'; }).join('') + '</g>'; });
     var lone = isl.filter(function (g) { return g.length === 1; }).length, tagged = isl.length - lone;
     isl.forEach(function (g, i) {
       if (g.length === 1 && tagged) { h += '<g class="island lone" data-n="1"></g>'; return; }
@@ -1224,8 +1231,8 @@
     var sm = document.createElement('p'); sm.className = 'heatsum'; sm.id = 'heatsum';
     sm.innerHTML = '<b>⊕ Average ' + (view.map === 'putt' ? 'putt start' : 'finish') + ':</b> ' + (words ? words + ' of the hole' : 'centred on the hole') + ' · ' + pts.length + ' shot' + (pts.length === 1 ? '' : 's') + (tagged > 1 || (tagged && lone) ? ' – ' + tagged + ' cluster' + (tagged === 1 ? '' : 's') + (lone ? ' + ' + lone + ' single shot' + (lone === 1 ? '' : 's') + ' (no tag)' : '') : '') + '.';
     anc.parentNode.insertBefore(sm, anc.nextSibling);
-    var lg2 = document.createElement('p'); lg2.className = 'help muted'; lg2.id = 'heatnote';
-    lg2.textContent = 'Heat map: red = most shots, yellow = few. Each white tag is one cluster – shots within 3 ft of each other (3 yd off the green), clusters less than 2 ft apart merged – with its average distance to the hole · number of shots. Single, isolated shots get no tag. ⊕ = average finish of all shots shown. Shots with no direction entered are left out.';
+    var lg2 = document.createElement('p'); lg2.className = 'help heatnote'; lg2.id = 'heatnote';
+    lg2.innerHTML = '<span class="ramp" aria-hidden="true"></span> Heat map: each island is shaded by its share of the shots – light = few, dark red = most. Each white tag is one cluster – shots within 3 ft of each other (3 yd off the green), clusters less than 2 ft apart merged – with its average distance to the hole · number of shots. Single, isolated shots get no tag. ⊕ = average finish of all shots shown. Shots with no direction entered are left out.';
     sm.parentNode.insertBefore(lg2, sm.nextSibling);
   }
   // ---------- Club performance (app only): everything from where the ball FINISHED (next row's distance + direction) ----------

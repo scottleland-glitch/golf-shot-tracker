@@ -366,3 +366,4 @@ svg.heat path[fill="none"] { opacity: .12; }
 .clubbtns button small { color: #1565e0; }
 #clubrank tr[data-act] { cursor: pointer; }
 #clubrank tr.cur td { background: #fff6c2; }
+.heatnote .ramp { display: inline-block; width: 70px; height: 12px; border-radius: 6px; vertical-align: middle; border: 1px solid #3a0000; background: linear-gradient(90deg, rgb(253,224,218), rgb(139,0,0)); }

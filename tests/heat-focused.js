@@ -33,6 +33,9 @@ const BASE = process.env.BASE_URL || 'http://127.0.0.1:8774/', OUT = '/workspace
     assert.ok(st, m + ': heat map on automatically for 2 rounds');
     assert.ok(st.blobs > 0 && st.isl.reduce((a, b) => a + b, 0) === st.blobs, m + ' islands cover every shot ' + JSON.stringify(st));
     assert.ok(st.lbl.every(t => /^\d+ (ft|yd) · \d+ shots?$/.test(t)), m + ' island labels ' + st.lbl);
+    const sh = await page.evaluate(() => [...document.querySelectorAll('#mapview svg.heat .hisland')].map(g => [+g.dataset.n, g.dataset.col.match(/\d+/g).map(Number).reduce((a, b) => a + b, 0)]));
+    sh.forEach(a => sh.forEach(b => { if (a[0] > b[0]) assert.ok(a[1] < b[1], m + ' bigger island darker ' + JSON.stringify(sh)); }));
+    assert.ok(await page.$('#heatnote .ramp'), 'ramp legend');
     assert.ok(st.avg && /Average (finish|putt start)/.test(st.sum), m + ' centroid');
     console.log(m, st.blobs, 'shots', st.isl.length, 'islands', st.sum);
     await page.locator('#heattog').scrollIntoViewIfNeeded(); await page.screenshot({ path: OUT + 'heatmap-' + m + '.png' });
