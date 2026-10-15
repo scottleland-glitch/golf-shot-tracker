@@ -97,6 +97,7 @@
     document.body.classList.toggle('noscroll', !!(view.pinOpen && view.screen === 'hole'));
     if (view.screen === 'about') el.innerHTML = aboutHTML();
     else if (view.screen === 'history') el.innerHTML = historyHTML();
+    else if (view.screen === 'compare') { el.innerHTML = compareHTML2(); applyCompare(); }
     else if (view.screen === 'odrestore') el.innerHTML = odRestoreHTML();
     else if (view.screen === 'restorepick') el.innerHTML = restorePickHTML();
     else if (view.screen === 'home' || !round()) el.innerHTML = homeHTML();
@@ -427,6 +428,7 @@
         var sel = (view.histPlayer || '') === n; return '<button class="' + (sel ? 'sel' : '') + '" data-act="histplayer" data-v="' + esc(n) + '" aria-pressed="' + sel + '">' + (n ? esc(n) + ' (' + P[n] + ')' : 'All players') + '</button>'; }).join('') +
       (rounds.some(function (r) { return !r.player; }) ? '<button class="' + (view.histPlayer === '~none' ? 'sel' : '') + '" data-act="histplayer" data-v="~none">No name</button>' : '') + '</div>';
     if (!list.length) h += '<p class="muted">No rounds yet. Start one from Home.</p>';
+    if (list.length >= 2) h += '<button class="big cmpbtn" data-act="compare" id="cmpopen">⚖ Best vs worst rounds</button>';
     h += '<div id="histlist">';
     list.forEach(function (r) {
       var S = SG.summarize(r);
@@ -1302,6 +1304,79 @@
       '<p class="help muted">Best club per shot at the top (vs PGA Tour baseline). Layup tee shots are not in SG. Bias ⚠ = finishes more than 5 yd short or long on average (from the distance + direction of the next shot; straight left/right counts as pin high). Tap a row to see that club.</p>';
     return o;
   }
+  // ---------- Best vs worst rounds (app only) ----------
+  var CMP_KINDS = [['prox', 'Proximity'], ['gir', 'GIR'], ['miss', 'Approach misses'], ['putt', '1st putts']];
+  function cmpRounds() {
+    var L = rounds.filter(function (r) { return !SG.roundEmpty(r); }).map(function (r) { var S = SG.summarize(r, 'pga'); return { r: r, S: S, rel: S.holesDone ? S.toPar / S.holesDone * 18 : null }; })
+      .filter(function (x) { return x.rel != null; }).sort(function (a, b) { return a.rel - b.rel || (a.S.strokes - b.S.strokes); });
+    var maxN = Math.floor(L.length / 2), n = Math.max(1, Math.min(view.cmpN || 3, maxN));
+    return { all: L, n: n, maxN: maxN, best: L.slice(0, n), worst: L.slice(L.length - n).reverse() };
+  }
+  function cmpList(set, kind, grp) {
+    var out = [];
+    set.forEach(function (x) { var S = x.S;
+      (kind === 'gir' ? S.girMap : kind === 'miss' ? S.apprMiss : kind === 'putt' ? S.puttList.filter(function (p) { return p.n === 1; }) : S.proxList.filter(function (m) { return !grp || SG.apprBucket(m.from) === grp; }))
+        .forEach(function (m) { out.push(m); }); });
+    return out;
+  }
+  function cmpSVG(kind, list) {
+    var s = kind === 'gir' ? girSVG(list) : kind === 'miss' ? missSVG(list) : kind === 'putt' ? puttSVG(list, '1') : proxSVG(list);
+    return s.replace(/<svg id="[a-z]+"/, '<svg data-kind="' + kind + '"');
+  }
+  function cmpAgg(set) {
+    var b = {}, keys = SG.APPR_BUCKETS.map(function (x) { return x.id; }).concat(['0-20 yd', '0-5 ft', '5-15 ft', '15-30 ft', '30+ ft']);
+    keys.forEach(function (k) { b[k] = { n: 0, sg: 0, pS: 0, pN: 0, gir: 0, girN: 0 }; });
+    set.forEach(function (x) { keys.forEach(function (k) { var B = x.S.buckets[k]; if (!B) return; b[k].n += B.n; b[k].sg += B.sg; b[k].pS += B.proxSum; b[k].pN += B.proxN; });
+      x.S.proxList.forEach(function (m) { var k = SG.apprBucket(m.from); if (b[k]) { b[k].girN++; if (m.hit) b[k].gir++; } }); });
+    return { b: b, keys: keys, n: set.length };
+  }
+  function cmpGapHTML(C) {
+    var B = cmpAgg(C.best), W = cmpAgg(C.worst), pr = function (x) { return x.pN ? Math.round(x.pS / x.pN) + ' ft' : '–'; }, gp = function (x) { return x.girN ? Math.round(x.gir / x.girN * 100) + '%' : '–'; };
+    var o = '<table id="gaptable" class="gaptable"><tr><th>From</th><th class="num">Avg to pin<br><small>best · worst</small></th><th class="num">GIR %<br><small>best · worst</small></th><th class="num">SG / round<br><small>best · worst</small></th><th class="num">Gap</th></tr>';
+    B.keys.forEach(function (k) { var b = B.b[k], w = W.b[k]; if (!b.n && !w.n) return;
+      var sb = b.sg / B.n, sw = w.sg / W.n, gap = sb - sw, ap = SG.APPR_BUCKETS.some(function (x) { return x.id === k; });
+      o += '<tr data-bucket="' + k + '"><td><b>' + k + '</b></td><td class="num">' + (ap ? pr(b) + ' · ' + pr(w) : '') + '</td><td class="num">' + (ap ? gp(b) + ' · ' + gp(w) : '') + '</td><td class="num"><span class="' + sgCls(sb) + '">' + fmtSG(sb) + '</span> · <span class="' + sgCls(sw) + '">' + fmtSG(sw) + '</span></td><td class="num gap ' + sgCls(gap) + '"><b>' + fmtSG(gap) + '</b></td></tr>'; });
+    return o + '</table><p class="help muted">Gap = strokes gained per round in your best rounds minus your worst (vs PGA Tour) – the biggest positive gaps are where your bad rounds lose the most. Avg to pin = where approaches from that distance finished; GIR % = regulation greens hit from there.</p>';
+  }
+  function compareHTML2() {
+    var C = cmpRounds(), kind = view.cmpKind || 'prox', ov = !!view.cmpOverlay;
+    var h = '<div class="topbar"><button class="txt" data-act="history">‹ History</button><div class="title"><b>Best vs worst rounds</b><span>by score vs par</span></div><span></span></div>';
+    if (C.maxN < 1) return h + '<p class="notice" id="cmpnone">You need at least 2 rounds with finished holes to compare.</p>';
+    h += '<div class="cmpn" id="cmpn"><button data-act="cmpn" data-v="-1"' + (C.n <= 1 ? ' disabled' : '') + ' aria-label="Fewer rounds">−</button><span>Best <b>' + C.n + '</b> vs worst <b>' + C.n + '</b> round' + (C.n === 1 ? '' : 's') + '</span><button data-act="cmpn" data-v="1"' + (C.n >= C.maxN ? ' disabled' : '') + ' aria-label="More rounds">+</button></div>';
+    var line = function (x) { return '<li>' + esc(localDate(x.r.date)) + ' · ' + esc(x.r.course || 'Round') + ' · <b>' + x.S.strokes + '</b> (' + toPar(x.S.toPar) + ', ' + x.S.holesDone + ' holes)</li>'; };
+    h += '<div class="cmpcols"><div><h3>Best</h3><ul class="cmplist" id="cmpbest">' + C.best.map(line).join('') + '</ul></div><div><h3>Worst</h3><ul class="cmplist" id="cmpworst">' + C.worst.map(line).join('') + '</ul></div></div>';
+    h += '<h2>Where the strokes go</h2>' + cmpGapHTML(C);
+    h += '<h2>Maps</h2><div class="seg cmpkinds" id="cmpkinds">' + CMP_KINDS.map(function (k) { return '<button data-act="cmpkind" data-v="' + k[0] + '" class="' + (k[0] === kind ? 'sel' : '') + '">' + k[1] + '</button>'; }).join('') + '</div>';
+    var grp = null;
+    if (kind === 'prox') { var all = cmpList(C.best.concat(C.worst), 'prox'), cnt = {}; all.forEach(function (m) { var k = SG.apprBucket(m.from); cnt[k] = (cnt[k] || 0) + 1; });
+      grp = view.cmpGrp && cnt[view.cmpGrp] ? view.cmpGrp : SG.APPR_BUCKETS.map(function (x) { return x.id; }).filter(function (k) { return cnt[k]; }).sort(function (a, b) { return cnt[b] - cnt[a]; })[0] || null;
+      h += '<div class="seg cmpgrps" id="cmpgrps">' + SG.APPR_BUCKETS.map(function (x) { return '<button data-act="cmpgrp" data-v="' + x.id + '" class="' + (x.id === grp ? 'sel' : '') + '"' + (cnt[x.id] ? '' : ' disabled') + '>' + x.id.replace(' yd', '') + '<small> ' + (cnt[x.id] || 0) + '</small></button>'; }).join('') + '</div>'; }
+    var lb = cmpList(C.best, kind, grp), lw = cmpList(C.worst, kind, grp);
+    h += '<div class="seg" id="cmpmode"><button data-act="cmpov" data-v="0" class="' + (ov ? '' : 'sel') + '">Side by side</button><button data-act="cmpov" data-v="1" class="' + (ov ? 'sel' : '') + '">Overlay</button></div>';
+    if (!ov) h += '<div class="cmpmaps" id="cmpmaps"><figure class="cmpbest"><figcaption>Best · ' + lb.length + '</figcaption>' + cmpSVG(kind, lb) + '</figure><figure class="cmpworst"><figcaption>Worst · ' + lw.length + '</figcaption>' + cmpSVG(kind, lw) + '</figure></div>' +
+      '<p class="help muted">Same scale on both sides. Best rounds left, worst right (dashed border).</p>';
+    else h += '<div class="cmpov" id="cmpov">' + cmpSVG(kind, lw).replace('<svg ', '<svg id="cmpovmap" ') + '<div class="cmphide" aria-hidden="true">' + cmpSVG(kind, lb).replace('<svg ', '<svg id="cmpbestsrc" ') + '</div></div>' +
+      '<div class="legend" id="cmplegend"><span><span class="ramp"></span> Worst rounds – red islands, darker = more shots there</span><span><i class="dot" style="background:#fff;border:2.5px solid #000"></i>Best rounds – black rings</span></div>' +
+      '<p class="help muted">Overlay: where your worst rounds finished (red, see-through) with your best rounds drawn on top as black rings, same scale. Best ' + lb.length + ' · worst ' + lw.length + ' shots.</p>';
+    return h;
+  }
+  function cmpPoints(svg) {
+    var out = []; svg.querySelectorAll('[data-hd]').forEach(function (e) { var k = (e.getAttribute('data-kind') || '') + (e.getAttribute('data-class') || ''); if (/nodir/.test(k)) return;
+      var b = e.getBBox(); out.push({ x: b.x + b.width / 2, y: b.y + b.height / 2, d: +e.getAttribute('data-hd') || 0, u: e.getAttribute('data-hu') || 'ft' }); });
+    return out;
+  }
+  function applyCompare() {
+    var ov = document.getElementById('cmpovmap'), src = document.getElementById('cmpbestsrc'); if (!ov || !src) return;
+    var kind = ov.getAttribute('data-kind'), C = heatCenter(ov, kind), wp = cmpPoints(ov), bp = cmpPoints(src), h = '';
+    ov.classList.add('heat');
+    if (wp.length) { var isl = heatIslandsReal(wp, heatReal(wp, C)), mx = Math.max.apply(null, isl.map(function (g) { return g.length; }));
+      isl.forEach(function (g) { var t = Math.min(1, 0.15 + 0.85 * g.length / mx), a = [253, 224, 218], b = [139, 0, 0], col = 'rgb(' + a.map(function (v, i) { return Math.round(v + (b[i] - v) * t); }).join(',') + ')';
+        h += '<g class="hisland" data-n="' + g.length + '" opacity=".6">' + g.map(function (p) { return '<circle cx="' + f1(p.x) + '" cy="' + f1(p.y) + '" r="13.5" fill="#3a0000"/>'; }).join('') +
+          g.map(function (p) { return '<circle cx="' + f1(p.x) + '" cy="' + f1(p.y) + '" r="12.3" fill="' + col + '"/>'; }).join('') + '</g>'; }); }
+    bp.forEach(function (p) { h += '<circle class="bestring" cx="' + f1(p.x) + '" cy="' + f1(p.y) + '" r="8" fill="none" stroke="#000" stroke-width="2.6"/>'; });
+    var g = document.createElementNS('http://www.w3.org/2000/svg', 'g'); g.setAttribute('id', 'cmplayer'); g.innerHTML = h; ov.appendChild(g);
+    src.parentNode.remove();
+  }
   // ---------- Hole replay (app only): bird's-eye drawing of one hole with every shot chained ----------
   var RPC = { tee: '#1565e0', approach: '#6a1b9a', short: '#ef6c00', putting: '#fff' };
   var RPN = { tee: 'Tee shot', approach: 'Approach', short: 'Short game', putting: 'Putt' };
@@ -1903,6 +1978,11 @@
       case 'proxlie': { var mvl = document.getElementById('mapview'), stl = mvl ? mvl.scrollTop : 0; view.proxLie = v; render(); var mvl2 = document.getElementById('mapview'); if (mvl2) mvl2.scrollTop = stl; return; }
       case 'sgtoggle': view.sgOpen = !view.sgOpen; render(); if (view.sgOpen) { var sh = document.getElementById('sgsec'); if (sh) window.scrollTo(0, sh.getBoundingClientRect().top + window.scrollY - 90); } return;
       case 'clubsel': view.club = v; view.heat = null; render(); return;
+      case 'compare': view.screen = 'compare'; render(); window.scrollTo(0, 0); return;
+      case 'cmpn': view.cmpN = Math.max(1, cmpRounds().n + (+v)); render(); return;
+      case 'cmpkind': view.cmpKind = v; render(); return;
+      case 'cmpgrp': view.cmpGrp = v; render(); return;
+      case 'cmpov': view.cmpOverlay = v === '1'; render(); return;
       case 'heat': view.heat = v === '1'; render(); return;
       case 'replay': view.replay = Math.max(0, +v || 0); render(); return;
       case 'rpgreen': view.rpGreen = true; render(); return;
