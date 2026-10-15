@@ -385,3 +385,6 @@ svg.heat path[fill="none"] { opacity: .12; }
 .gaptable td.gap { font-size: 16px; }
 #cmplegend .ramp, .heatnote .ramp { display: inline-block; width: 60px; height: 12px; border-radius: 6px; vertical-align: middle; border: 1px solid #3a0000; background: linear-gradient(90deg, rgb(253,224,218), rgb(139,0,0)); }
 .heatnote .ramp.rainbow { border-color: #333; background: linear-gradient(90deg, rgba(0,0,255,.5), #00dcff, #00e63c, #fff000, #ff8c00, #e60000); }
+.heatclus { display: flex; align-items: center; gap: 8px; margin: 8px 2px; font-size: 14px; }
+.heatclus label { display: flex; gap: 6px; align-items: center; }
+.heatclus input[type=range] { flex: 1; min-height: 44px; accent-color: #8b0000; }

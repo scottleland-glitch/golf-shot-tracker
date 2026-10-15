@@ -1163,9 +1163,11 @@
       p.rx = L ? d * dx / L : 0; p.ry = L ? d * dy / L : 0; p.big = !yd && p.u === 'yd'; });
     return yd;
   }
-  function heatIslandsReal(pts, yd) {
+  function heatClus() { var v = +(view.clus || localStorage.getItem('golfsg.heatclus.v1') || 3); return Math.max(1, Math.min(10, v || 3)); }
+  function heatIslandsReal(pts, yd, L) {
+    L = L || 3;
     var id = pts.map(function (_, i) { return i; }), find = function (i) { while (id[i] !== i) i = id[i] = id[id[i]]; return i; };
-    var link = function (a, b) { return yd ? 3 : (a.big || b.big ? 9 : 3); }, gap = yd ? 2 : 2;
+    var link = function (a, b) { return yd ? L : (a.big || b.big ? 3 * L : L); }, gap = L * 2 / 3;
     for (var i = 0; i < pts.length; i++) for (var j = i + 1; j < pts.length; j++) if (Math.hypot(pts[i].rx - pts[j].rx, pts[i].ry - pts[j].ry) <= link(pts[i], pts[j])) id[find(i)] = find(j);
     var groups = {}; pts.forEach(function (p, i) { (groups[find(i)] = groups[find(i)] || []).push(p); });
     var G = Object.keys(groups).map(function (k) { return groups[k]; });
@@ -1185,13 +1187,13 @@
     for (var k = 1; k < n; k++) { var bi = -1; for (var i = 0; i < n; i++) if (!used[i] && (bi < 0 || best[i][0] < best[bi][0])) bi = i;
       used[bi] = true; edges.push([best[bi][1], bi]); for (var j = 0; j < n; j++) if (!used[j]) { var d = Math.hypot(g[j].x - g[bi].x, g[j].y - g[bi].y); if (d < best[j][0]) best[j] = [d, bi]; } }
     var path = g.map(function (p) { return 'M' + f1(p.x) + ' ' + f1(p.y) + 'h0.01'; }).join('') + edges.map(function (e) { return 'M' + f1(g[e[0]].x) + ' ' + f1(g[e[0]].y) + 'L' + f1(g[e[1]].x) + ' ' + f1(g[e[1]].y); }).join('');
-    return '<path class="hedge" d="' + path + '" fill="transparent" stroke="#3a0000" stroke-width="' + f1(2 * R + 2.4) + '" stroke-linecap="round" stroke-linejoin="round"/>' +
-      '<path class="hfill" d="' + path + '" fill="transparent" stroke="' + col + '" stroke-width="' + f1(2 * R) + '" stroke-linecap="round" stroke-linejoin="round"/>';
+    return '<g filter="url(#hgoo)"><path class="hedge" d="' + path + '" fill="transparent" stroke="#3a0000" stroke-width="' + f1(2 * R + 3) + '" stroke-linecap="round" stroke-linejoin="round"/></g>' +
+      '<g filter="url(#hgoo)"><path class="hfill" d="' + path + '" fill="transparent" stroke="' + col + '" stroke-width="' + f1(2 * R) + '" stroke-linecap="round" stroke-linejoin="round"/></g>';
   }
   // Continuous density (Gaussian kernel, sigma 13 px) painted to a canvas and embedded as an image: clear where
   // there are no shots, light -> dark red with density. Hot-spot tags at local density peaks (>= 30% of the max).
-  function heatGradient(svg, pts) {
-    var vb = svg.viewBox.baseVal, W = vb.width, H = vb.height, S = 3, gw = Math.ceil(W / S), gh = Math.ceil(H / S), sig = 16, D = new Float32Array(gw * gh), mx = 0;
+  function heatGradient(svg, pts, CL) {
+    var vb = svg.viewBox.baseVal, W = vb.width, H = vb.height, S = 3, gw = Math.ceil(W / S), gh = Math.ceil(H / S), sig = 6 + 3.4 * (CL || 3), D = new Float32Array(gw * gh), mx = 0;
     for (var y = 0; y < gh; y++) for (var x = 0; x < gw; x++) { var v = 0, px = x * S + S / 2, py = y * S + S / 2;
       for (var i = 0; i < pts.length; i++) { var dx = px - pts[i].x, dy = py - pts[i].y, q = dx * dx + dy * dy; if (q < 9 * sig * sig) v += Math.exp(-q / (2 * sig * sig)); }
       D[y * gw + x] = v; if (v > mx) mx = v; }
@@ -1210,12 +1212,23 @@
     peaks.sort(function (a, b) { return b[2] - a[2]; }); peaks = peaks.slice(0, 6);
     var boxes = [], n = 0;
     peaks.forEach(function (p) { var near = pts.filter(function (q) { return Math.hypot(q.x - p[0], q.y - p[1]) <= 2 * sig; }); if (near.length < 2) return; n++;
-      var t = heatFmt(near) + ' · ' + near.length + ' shots', w = t.length * 6.2 + 10, x0 = Math.max(4, Math.min(W - 4 - w, p[0] - w / 2)), y0 = p[1] - 32;
-      for (var k2 = 0; k2 < 6 && boxes.some(function (b) { return x0 < b[2] && x0 + w > b[0] && y0 < b[3] && y0 + 18 > b[1]; }); k2++) y0 += 22;
-      if (y0 < 4) y0 = p[1] + 14; boxes.push([x0, y0, x0 + w, y0 + 18]);
-      o += '<g class="hotspot" data-n="' + near.length + '"><circle cx="' + f1(p[0]) + '" cy="' + f1(p[1]) + '" r="2.5" fill="#fff" stroke="#3a0000"/><rect x="' + f1(x0) + '" y="' + f1(y0) + '" width="' + f1(w) + '" height="18" rx="9" fill="#fff" fill-opacity=".93" stroke="#7a2a00"/>' +
-        '<text x="' + f1(x0 + w / 2) + '" y="' + f1(y0 + 13) + '" text-anchor="middle" font-size="11" font-weight="900" fill="#7a2a00">' + esc(t) + '</text></g>'; });
+      o += heatTag('hotspot', near.length, p[0], p[1], heatFmt(near) + ' · ' + near.length + ' shots', boxes, W, H); });
     return { svg: o, peaks: n };
+  }
+  // Tag placement: try spots around the anchor (nearest first); never over another tag; if the tag ends up
+  // away from its anchor, a thin leader line joins them.
+  function heatTag(cls, n, ax, ay, t, boxes, W, H) {
+    var w = t.length * 6.2 + 10, hh = 18, c = [], best = null;
+    [0, 1, 2, 3, 4].forEach(function (ring) { var d = 16 + ring * 22;
+      [[0, -1], [0, 1], [1, 0], [-1, 0], [1, -1], [-1, -1], [1, 1], [-1, 1]].forEach(function (v) { c.push([ax + v[0] * (d + (v[0] ? w / 2 : 0)) - w / 2, ay + v[1] * d - hh / 2]); }); });
+    for (var i = 0; i < c.length; i++) { var x = Math.max(3, Math.min(W - 3 - w, c[i][0])), y = Math.max(3, Math.min(H - 3 - hh, c[i][1]));
+      if (!boxes.some(function (b) { return x < b[2] + 2 && x + w > b[0] - 2 && y < b[3] + 2 && y + hh > b[1] - 2; })) { best = [x, y]; break; } }
+    if (!best) best = [Math.max(3, Math.min(W - 3 - w, ax - w / 2)), Math.max(3, ay - 30)];
+    var x0 = best[0], y0 = best[1]; boxes.push([x0, y0, x0 + w, y0 + hh]);
+    var nx = Math.max(x0, Math.min(x0 + w, ax)), ny = Math.max(y0, Math.min(y0 + hh, ay)), far = Math.hypot(nx - ax, ny - ay) > 18;
+    return '<g class="' + cls + '" data-n="' + n + '"' + (far ? ' data-leader="1"' : '') + '>' + (far ? '<line class="leader" x1="' + f1(ax) + '" y1="' + f1(ay) + '" x2="' + f1(nx) + '" y2="' + f1(ny) + '" stroke="#3a0000" stroke-width="1.2"/>' : '') +
+      '<circle cx="' + f1(ax) + '" cy="' + f1(ay) + '" r="2.5" fill="#fff" stroke="#3a0000"/><rect x="' + f1(x0) + '" y="' + f1(y0) + '" width="' + f1(w) + '" height="' + hh + '" rx="9" fill="#fff" fill-opacity=".95" stroke="#7a2a00"/>' +
+      '<text x="' + f1(x0 + w / 2) + '" y="' + f1(y0 + 13) + '" text-anchor="middle" font-size="11" font-weight="900" fill="#7a2a00">' + esc(t) + '</text></g>';
   }
   function heatIslands(pts, link) {
     var id = pts.map(function (_, i) { return i; }), find = function (i) { while (id[i] !== i) i = id[i] = id[id[i]]; return i; };
@@ -1240,28 +1253,30 @@
     tg.innerHTML = [['dots', '● Dots'], ['isl', '⬭ Islands'], ['grad', '🔥 Gradient']].map(function (b) { return '<button data-act="heat" data-v="' + b[0] + '" class="' + (mode === b[0] ? 'sel' : '') + '" aria-pressed="' + (mode === b[0]) + '"' + (pts.length || b[0] === 'dots' ? '' : ' disabled') + '>' + b[1] + '</button>'; }).join('');
     var anc = svg; while (anc.parentNode && anc.parentNode !== mv) anc = anc.parentNode;
     anc.parentNode.insertBefore(tg, anc);
+    if (on && pts.length) { var sl = document.createElement('div'); sl.className = 'heatclus'; sl.id = 'heatclus';
+      var CL = heatClus(), U0 = pts.every(function (p) { return p.u === 'yd'; }) ? 'yd' : 'ft';
+      sl.innerHTML = '<label for="clusr"><b>Cluster</b> <span>tight</span></label><input type="range" id="clusr" min="1" max="10" step="1" value="' + CL + '" aria-label="Cluster distance"><span>loose</span> <b id="clusv">' + CL + ' ' + U0 + '</b>';
+      anc.parentNode.insertBefore(sl, anc.nextSibling); }
     if (!on || !pts.length) return;
     svg.classList.add('heat');
-    var h = '';
+    var h = '<defs><filter id="hgoo" x="-30%" y="-30%" width="160%" height="160%"><feGaussianBlur in="SourceGraphic" stdDeviation="4.5" result="b"/><feColorMatrix in="b" mode="matrix" values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 22 -9"/></filter></defs>';
     // blobs are drawn per island below (after islands are known)
-    var isl = heatIslandsReal(pts, heatReal(pts, C)), boxes = [], lone = 0, tagged = 0;
-    if (mode === 'grad') { var GR = heatGradient(svg, pts); h += GR.svg; isl = []; tagged = GR.peaks; }
+    var VW = svg.viewBox.baseVal.width, VH = svg.viewBox.baseVal.height, CL = heatClus();
+    var isl = heatIslandsReal(pts, heatReal(pts, C), CL), boxes = [], lone = 0, tagged = 0;
+    if (mode === 'grad') { var GR = heatGradient(svg, pts, CL); h += GR.svg; isl = []; tagged = GR.peaks; }
     else {
     // one red ramp, light -> dark by the island's share of all shots; crisp thin border around each island (union of discs)
     var ramp = function (t) { var a = [253, 224, 218], b = [139, 0, 0]; return 'rgb(' + a.map(function (v, i) { return Math.round(v + (b[i] - v) * t); }).join(',') + ')'; };
     var maxShare = Math.max.apply(null, isl.map(function (g) { return g.length; })) / pts.length;
     isl.forEach(function (g) { var share = g.length / pts.length, t = maxShare > 0 ? Math.min(1, 0.15 + 0.85 * share / maxShare) : 1, col = ramp(t);
       h += '<g class="hisland" data-n="' + g.length + '" data-share="' + share.toFixed(3) + '" data-col="' + col + '">' +
-        islandShape(g, col) + g.map(function (p) { return '<circle class="hblob" cx="' + f1(p.x) + '" cy="' + f1(p.y) + '" r="1.6" fill="#3a0000" fill-opacity=".55"/>'; }).join('') + '</g>'; });
+        islandShape(g, col) + g.map(function (p) { return '<circle class="hblob" cx="' + f1(p.x) + '" cy="' + f1(p.y) + '" r="1.6" fill="#3a0000" fill-opacity="0"/>'; }).join('') + '</g>'; });
     lone = isl.filter(function (g) { return g.length === 1; }).length; tagged = isl.length - lone;
     isl.forEach(function (g, i) {
       if (g.length === 1 && tagged) { h += '<g class="island lone" data-n="1"></g>'; return; }
-      var mx = g.reduce(function (a, p) { return a + p.x; }, 0) / g.length, top = g.reduce(function (a, p) { return a + p.y; }, 0) / g.length + 8;
-      var t = heatFmt(g) + ' · ' + g.length + (g.length === 1 ? ' shot' : ' shots'), w = t.length * 6.2 + 10, x = Math.max(4, Math.min(356 - w, mx - w / 2)), y = top - 34;
-      for (var k = 0; k < 6 && boxes.some(function (b) { return x < b[2] && x + w > b[0] && y < b[3] && y + 18 > b[1]; }); k++) y += 22;
-      if (y < 4) y = top + 28; boxes.push([x, y, x + w, y + 18]);
-      h += '<g class="island" data-n="' + g.length + '"><rect x="' + f1(x) + '" y="' + f1(y) + '" width="' + f1(w) + '" height="18" rx="9" fill="#fff" fill-opacity=".93" stroke="#7a2a00"/>' +
-        '<text x="' + f1(x + w / 2) + '" y="' + f1(y + 13) + '" text-anchor="middle" font-size="11" font-weight="900" fill="#7a2a00">' + esc(t) + '</text></g>';
+      var mx = g.reduce(function (a, p) { return a + p.x; }, 0) / g.length, my = g.reduce(function (a, p) { return a + p.y; }, 0) / g.length;
+      var cp = g.reduce(function (b, p) { return Math.hypot(p.x - mx, p.y - my) < Math.hypot(b.x - mx, b.y - my) ? p : b; }, g[0]); // anchor on a real shot of the island
+      h += heatTag('island', g.length, cp.x, cp.y, heatFmt(g) + ' · ' + g.length + (g.length === 1 ? ' shot' : ' shots'), boxes, VW, VH);
     });
     }
     // average finish (all plotted shots): pixel mean for the marker, real distances for the words
@@ -1410,9 +1425,9 @@
   }
   function applyCompare() {
     var ov = document.getElementById('cmpovmap'), src = document.getElementById('cmpbestsrc'); if (!ov || !src) return;
-    var kind = ov.getAttribute('data-kind'), C = heatCenter(ov, kind), wp = cmpPoints(ov), bp = cmpPoints(src), h = '';
+    var kind = ov.getAttribute('data-kind'), C = heatCenter(ov, kind), wp = cmpPoints(ov), bp = cmpPoints(src), h = '<defs><filter id="hgoo" x="-30%" y="-30%" width="160%" height="160%"><feGaussianBlur in="SourceGraphic" stdDeviation="4.5" result="b"/><feColorMatrix in="b" mode="matrix" values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 22 -9"/></filter></defs>';
     ov.classList.add('heat');
-    if (wp.length) { var isl = heatIslandsReal(wp, heatReal(wp, C)), mx = Math.max.apply(null, isl.map(function (g) { return g.length; }));
+    if (wp.length) { var isl = heatIslandsReal(wp, heatReal(wp, C), heatClus()), mx = Math.max.apply(null, isl.map(function (g) { return g.length; }));
       isl.forEach(function (g) { var t = Math.min(1, 0.15 + 0.85 * g.length / mx), a = [253, 224, 218], b = [139, 0, 0], col = 'rgb(' + a.map(function (v, i) { return Math.round(v + (b[i] - v) * t); }).join(',') + ')';
         h += '<g class="hisland" data-n="' + g.length + '" opacity=".6">' + islandShape(g, col) + '</g>'; }); }
     bp.forEach(function (p) { h += '<circle class="bestring" cx="' + f1(p.x) + '" cy="' + f1(p.y) + '" r="8" fill="none" stroke="#000" stroke-width="2.6"/>'; });
@@ -2107,6 +2122,12 @@
     else if (f === 'layup') { if (t.checked) row.layup = true; else delete row.layup; save(); refreshInfo(h); }
   });
 
+  document.addEventListener('input', function (ev) {
+    if (!ev.target || ev.target.id !== 'clusr') return;
+    view.clus = +ev.target.value; try { localStorage.setItem('golfsg.heatclus.v1', String(view.clus)); } catch (e) {}
+    var mv = document.getElementById('mapview'), st = mv ? mv.scrollTop : 0; render();
+    var mv2 = document.getElementById('mapview'); if (mv2) mv2.scrollTop = st; var r2 = document.getElementById('clusr'); if (r2) r2.focus();
+  });
   // Distance typing: update data without re-rendering (keeps the keyboard up)
   document.addEventListener('input', function (ev) {
     var t = ev.target; if (!t.hasAttribute || !t.hasAttribute('data-row')) return;

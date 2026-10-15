@@ -43,7 +43,20 @@ const BASE = process.env.BASE_URL || 'http://127.0.0.1:8774/', OUT = '/workspace
     assert.ok(await page.$('#heatnote .ramp'), 'ramp legend');
     assert.ok(st.avg && /Average (finish|putt start)/.test(st.sum), m + ' centroid');
     console.log(m, st.blobs, 'shots', st.isl.length, 'islands', st.sum);
-    await page.locator('#heattog').scrollIntoViewIfNeeded(); await page.screenshot({ path: OUT + 'heatmap-' + m + '.png' });
+    await page.locator('#heattog').scrollIntoViewIfNeeded(); await page.screenshot({ path: OUT + 'heatmap-islands-' + m + '.png' });
+    // tags never overlap
+    const bx = await page.$$eval('#mapview .island rect, #mapview .hotspot rect', r => r.map(e => [+e.getAttribute('x'), +e.getAttribute('y'), +e.getAttribute('width'), +e.getAttribute('height')]));
+    bx.forEach((a, i) => bx.forEach((b, j) => { if (i < j) assert.ok(!(a[0] < b[0] + b[2] && a[0] + a[2] > b[0] && a[1] < b[1] + b[3] && a[1] + a[3] > b[1]), m + ' tags overlap'); }));
+    // cluster slider: looser -> fewer (or equal) islands; remembered
+    if (m === 'putt') {
+      const cnt = () => page.$$eval('#mapview .hisland', g => g.length);
+      const n3 = await cnt(); await page.$eval('#clusr', e => { e.value = '8'; e.dispatchEvent(new Event('input', { bubbles: true })); });
+      const n8 = await cnt(); assert.ok(n8 < n3, 'looser slider merges islands ' + n3 + ' -> ' + n8);
+      assert.strictEqual(await page.evaluate(() => localStorage.getItem('golfsg.heatclus.v1')), '8'); assert.match(await page.textContent('#clusv'), /^8 ft/);
+      await page.locator('#heattog').scrollIntoViewIfNeeded(); await page.screenshot({ path: OUT + 'heatmap-islands-putt-loose.png' });
+      await page.click('[data-act="heat"][data-v="grad"]'); await page.screenshot({ path: OUT + 'heatmap-gradient-putt-loose.png' });
+      await page.$eval('#clusr', e => { e.value = '3'; e.dispatchEvent(new Event('input', { bubbles: true })); }); await page.click('[data-act="heat"][data-v="isl"]');
+    }
     await page.click('[data-act="heat"][data-v="dots"]'); assert.strictEqual(await page.$('#mapview svg.heat'), null, m + ' toggles back to dots');
     if (m === 'gir') { await page.locator('#heattog').scrollIntoViewIfNeeded(); await page.screenshot({ path: OUT + 'heatmap-gir-dots.png' }); }
     await page.click('[data-act="heat"][data-v="isl"]'); assert.ok(await page.$('#mapview svg.heat'));
