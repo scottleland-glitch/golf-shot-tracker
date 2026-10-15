@@ -1418,8 +1418,8 @@
     if (!ov) h += '<div class="cmpmaps" id="cmpmaps"><figure class="cmpbest"><figcaption>Best · ' + lb.length + '</figcaption>' + cmpSVG(kind, lb) + '</figure><figure class="cmpworst"><figcaption>Worst · ' + lw.length + '</figcaption>' + cmpSVG(kind, lw) + '</figure></div>' +
       '<p class="help muted">Same scale on both sides. Best rounds left, worst right (dashed border).</p>';
     else h += '<div class="cmpov" id="cmpov">' + cmpSVG(kind, lw).replace('<svg ', '<svg id="cmpovmap" ') + '<div class="cmphide" aria-hidden="true">' + cmpSVG(kind, lb).replace('<svg ', '<svg id="cmpbestsrc" ') + '</div></div>' +
-      '<div class="legend" id="cmplegend"><span><span class="ramp"></span> Worst rounds – red islands, darker = more shots there</span><span><i class="dot" style="background:transparent;border:2.5px solid #000"></i>Best rounds – black island outlines (no fill)</span></div>' +
-      '<p class="help muted">Overlay: where your worst rounds finished (red, see-through) with your best rounds drawn on top as black island outlines (same clustering), same scale. Best ' + lb.length + ' · worst ' + lw.length + ' shots.</p>';
+      '<div class="legend" id="cmplegend"><span><i class="dot" style="background:transparent;border:2.5px solid #db1420"></i>Worst rounds – red cluster outlines</span><span><i class="dot" style="background:transparent;border:2.5px solid #000"></i>Best rounds – black cluster outlines</span></div>' +
+      '<p class="help muted">Overlay: outlines of where shots clustered – worst rounds red, best rounds black, same scale and the same Cluster setting. No fill and no dots; a lone shot gets a small outline. Best ' + lb.length + ' · worst ' + lw.length + ' shots.</p>';
     return h;
   }
   function cmpPoints(svg) {
@@ -1432,14 +1432,15 @@
     var kind = ov.getAttribute('data-kind'), C = heatCenter(ov, kind), wp = cmpPoints(ov), bp = cmpPoints(src), h = '<defs><filter id="hgoo" filterUnits="userSpaceOnUse" x="-2000" y="-2000" width="6000" height="6000"><feGaussianBlur in="SourceGraphic" stdDeviation="4.5" result="b"/><feColorMatrix in="b" mode="matrix" values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 22 -9"/></filter>' +
       // best-round islands: the same goo shape, hollowed out to a 2.6 px black outline (no fill)
       '<filter id="houtl" filterUnits="userSpaceOnUse" x="-2000" y="-2000" width="6000" height="6000"><feGaussianBlur in="SourceGraphic" stdDeviation="4.5" result="b"/><feColorMatrix in="b" mode="matrix" values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 22 -9" result="s"/>' +
+      '<feMorphology in="s" operator="erode" radius="2.6" result="e"/><feComposite in="s" in2="e" operator="out"/></filter>' +
+      '<filter id="houtlr" filterUnits="userSpaceOnUse" x="-2000" y="-2000" width="6000" height="6000"><feGaussianBlur in="SourceGraphic" stdDeviation="4.5" result="b"/><feColorMatrix in="b" mode="matrix" values="0 0 0 0 .86  0 0 0 0 .08  0 0 0 0 .12  0 0 0 22 -9" result="s"/>' +
       '<feMorphology in="s" operator="erode" radius="2.6" result="e"/><feComposite in="s" in2="e" operator="out"/></filter></defs>';
     ov.classList.add('heat');
-    if (wp.length) { var isl = heatIslandsReal(wp, heatReal(wp, C), heatClus()), mx = Math.max.apply(null, isl.map(function (g) { return g.length; }));
-      isl.forEach(function (g) { var t = mx > 1 ? (g.length - 1) / (mx - 1) : 0, a = [255, 40, 40], b = [150, 0, 0], col = 'rgb(' + a.map(function (v, i) { return Math.round(v + (b[i] - v) * t); }).join(',') + ')';
-        h += '<g class="hisland" data-n="' + g.length + '" opacity=".78">' + (g.length === 1 ? '<circle cx="' + f1(g[0].x) + '" cy="' + f1(g[0].y) + '" r="12" fill="' + col + '" stroke="#7a0000" stroke-width="1.5"/>' : islandShape(g, col)) + '</g>'; }); }
-    if (bp.length) { var bisl = heatIslandsReal(bp, heatReal(bp, C), heatClus());
-      // every best island (single shots too) is the same hugging goo shape as the red ones, hollowed to a black outline; one filter pass so touching islands share one outline
-      h += '<g id="bestisls" filter="url(#houtl)">' + bisl.map(function (g) { return '<path class="bestisl" data-n="' + g.length + '" d="' + islandShape(g, '~path') + '" fill="transparent" stroke="#000" stroke-width="25.4" stroke-linecap="round" stroke-linejoin="round"/>'; }).join('') + '</g>'; }
+    // Overlay = outlines only: each cluster's smooth hugging island shape, hollowed (no fill, no dots). Worst = red, best = black on top.
+    var outl = function (pts, id, cls) { if (!pts.length) return ''; var I = heatIslandsReal(pts, heatReal(pts, C), heatClus());
+      return '<g id="' + id + '" filter="url(#' + (cls === 'worstisl' ? 'houtlr' : 'houtl') + ')">' + I.map(function (g) { return '<path class="' + cls + '" data-n="' + g.length + '" d="' + islandShape(g, '~path') + '" fill="transparent" stroke="#000" stroke-width="25.4" stroke-linecap="round" stroke-linejoin="round"/>'; }).join('') + '</g>'; };
+    h += outl(wp, 'worstisls', 'worstisl');
+    h += outl(bp, 'bestisls', 'bestisl');
     var g = document.createElementNS('http://www.w3.org/2000/svg', 'g'); g.setAttribute('id', 'cmplayer'); g.innerHTML = h; ov.appendChild(g);
     src.parentNode.remove();
   }
