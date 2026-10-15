@@ -1208,13 +1208,19 @@
     cx.putImageData(im, 0, 0);
     var o = '<image id="heatgrad" href="' + cv.toDataURL('image/png') + '" x="0" y="0" width="' + W + '" height="' + H + '" preserveAspectRatio="none"/>';
     var peaks = [];
-    for (y = 1; y < gh - 1; y++) for (x = 1; x < gw - 1; x++) { var c = D[y * gw + x]; if (c < 0.3 * mx) continue; var top = true;
+    for (y = 1; y < gh - 1; y++) for (x = 1; x < gw - 1; x++) { var c = D[y * gw + x]; if (c < Math.min(0.3 * mx, 0.6)) continue; var top = true;
       for (var yy = -4; yy <= 4 && top; yy++) for (var xx = -4; xx <= 4; xx++) { var Y = y + yy, X = x + xx; if ((yy || xx) && Y >= 0 && X >= 0 && Y < gh && X < gw && D[Y * gw + X] > c) { top = false; break; } }
       if (top) peaks.push([x * S + S / 2, y * S + S / 2, c]); }
-    peaks.sort(function (a, b) { return b[2] - a[2]; }); peaks = peaks.slice(0, 6);
+    // one hot spot per blob: a flat or twin-topped peak (2+ shots at the same spot) yields several local maxima -> keep the
+    // strongest and drop any within 1.5 sigma of a kept one; each shot then belongs to its nearest kept peak (counted once)
+    peaks.sort(function (a, b) { return b[2] - a[2]; });
+    var keep = []; peaks.forEach(function (p) { if (!keep.some(function (k) { return Math.hypot(k[0] - p[0], k[1] - p[1]) < 1.5 * sig; })) keep.push(p); });
+    keep = keep.slice(0, 12);
+    var own = keep.map(function () { return []; });
+    pts.forEach(function (q) { var bi = -1, bd = 2 * sig; keep.forEach(function (k, i) { var d = Math.hypot(q.x - k[0], q.y - k[1]); if (d <= bd) { bd = d; bi = i; } }); if (bi >= 0) own[bi].push(q); });
     var boxes = [], n = 0;
-    peaks.forEach(function (p) { var near = pts.filter(function (q) { return Math.hypot(q.x - p[0], q.y - p[1]) <= 2 * sig; }); if (near.length < 2) return; n++;
-      o += heatTag('hotspot', near.length, p[0], p[1], heatFmt(near) + ' · ' + near.length + ' shots', boxes, W, H); });
+    keep.forEach(function (p, i) { var near = own[i]; if (!near.length) return; n++;
+      o += heatTag('hotspot', near.length, p[0], p[1], heatFmt(near) + ' · ' + near.length + ' shot' + (near.length === 1 ? '' : 's'), boxes, W, H); });
     return { svg: o, peaks: n };
   }
   // Tag placement: try spots around the anchor (nearest first); never over another tag; if the tag ends up
@@ -1250,9 +1256,9 @@
       var k = (e.getAttribute('data-kind') || '') + (e.getAttribute('data-class') || ''); if (/nodir/.test(k)) return;
       var b = e.getBBox(); pts.push({ x: b.x + b.width / 2, y: b.y + b.height / 2, d: +e.getAttribute('data-hd') || 0, u: e.getAttribute('data-hu') || 'ft' });
     });
-    var multi = view.mapScope === 'all' && rounds.length > 1, mode = view.heat || (multi ? 'grad' : pts.length > 15 ? 'isl' : 'dots'), on = mode !== 'dots';
+    var multi = view.mapScope === 'all' && rounds.length > 1, mode = view.heat === 'isl' ? 'grad' : view.heat || (multi || pts.length > 15 ? 'grad' : 'dots'), on = mode !== 'dots';
     var tg = document.createElement('div'); tg.className = 'seg heattog'; tg.id = 'heattog';
-    tg.innerHTML = [['dots', '● Dots'], ['isl', '⬭ Islands'], ['grad', '🔥 Gradient']].map(function (b) { return '<button data-act="heat" data-v="' + b[0] + '" class="' + (mode === b[0] ? 'sel' : '') + '" aria-pressed="' + (mode === b[0]) + '"' + (pts.length || b[0] === 'dots' ? '' : ' disabled') + '>' + b[1] + '</button>'; }).join('');
+    tg.innerHTML = [['dots', '● Dots'], ['grad', '🔥 Gradient']].map(function (b) { return '<button data-act="heat" data-v="' + b[0] + '" class="' + (mode === b[0] ? 'sel' : '') + '" aria-pressed="' + (mode === b[0]) + '"' + (pts.length || b[0] === 'dots' ? '' : ' disabled') + '>' + b[1] + '</button>'; }).join('');
     var anc = svg; while (anc.parentNode && anc.parentNode !== mv) anc = anc.parentNode;
     anc.parentNode.insertBefore(tg, anc);
     if (on && pts.length) { var sl = document.createElement('div'); sl.className = 'heatclus'; sl.id = 'heatclus';
@@ -1294,7 +1300,7 @@
     sm.innerHTML = '<b>⊕ Average ' + (view.map === 'putt' ? 'putt start' : 'finish') + ':</b> ' + (words ? words + ' of the hole' : 'centred on the hole') + ' · ' + pts.length + ' shot' + (pts.length === 1 ? '' : 's') + (mode === 'grad' ? (tagged ? ' – ' + tagged + ' hot spot' + (tagged === 1 ? '' : 's') : '') : tagged > 1 || (tagged && lone) ? ' – ' + tagged + ' cluster' + (tagged === 1 ? '' : 's') + (lone ? ' + ' + lone + ' single shot' + (lone === 1 ? '' : 's') + ' (no tag)' : '') : '') + '.';
     anc.parentNode.insertBefore(sm, anc.nextSibling);
     var lg2 = document.createElement('p'); lg2.className = 'help heatnote'; lg2.id = 'heatnote';
-    lg2.innerHTML = mode === 'grad' ? '<span class="ramp rainbow" aria-hidden="true"></span> Gradient: a smooth density map of where the shots finished – clear = none, blue = a few, then green, yellow, red = most. White tags mark the hot spots (average distance to the hole · shots nearby). ⊕ = average finish of all shots shown. Shots with no direction entered are left out.' : '<span class="ramp" aria-hidden="true"></span> Islands: each island is shaded by its share of the shots – light = few, dark red = most. Each white tag is one cluster – shots within 3 ft of each other (3 yd off the green), clusters less than 2 ft apart merged – with its average distance to the hole · number of shots. Single, isolated shots get no tag. ⊕ = average finish of all shots shown. Shots with no direction entered are left out.';
+    lg2.innerHTML = mode === 'grad' ? '<span class="ramp rainbow" aria-hidden="true"></span> Gradient: a smooth density map of where the shots finished – clear = none, blue = a few, then green, yellow, red = most. One white tag per hot spot (average distance to the hole · shots in it). Cluster slider: tight = more, smaller hot spots; loose = fewer, wider ones. ⊕ = average finish of all shots shown. Shots with no direction entered are left out.' : '<span class="ramp" aria-hidden="true"></span> Islands: each island is shaded by its share of the shots – light = few, dark red = most. Each white tag is one cluster – shots within 3 ft of each other (3 yd off the green), clusters less than 2 ft apart merged – with its average distance to the hole · number of shots. Single, isolated shots get no tag. ⊕ = average finish of all shots shown. Shots with no direction entered are left out.';
     sm.parentNode.insertBefore(lg2, sm.nextSibling);
   }
   // ---------- Club performance (app only): everything from where the ball FINISHED (next row's distance + direction) ----------
