@@ -357,3 +357,7 @@ button.discard { display: block; width: 100%; min-height: 48px; margin: 4px 0 10
 .clubrow .layup input { width: 26px; height: 26px; }
 .clubrow .layup small { font-weight: 500; color: #666; }
 .clubrow.putter { color: #777; padding-top: 0; }
+.heattog { margin: 6px 0; }
+svg.heat .xdot, svg.heat .gdot, svg.heat .mdot, svg.heat .pdot, svg.heat .pdot2, svg.heat .pmend, svg.heat .xlbl, svg.heat .plbl, svg.heat .pmlbl, svg.heat .mlbl, svg.heat .farlbl, svg.heat .xstart, svg.heat .mcount { display: none; }
+svg.heat path[fill="none"] { opacity: .12; }
+.heatsum { margin: 8px 2px; font-size: 16px; }

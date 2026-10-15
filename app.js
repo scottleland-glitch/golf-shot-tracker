@@ -102,7 +102,7 @@
     else if (view.screen === 'home' || !round()) el.innerHTML = homeHTML();
     else if (view.screen === 'hole') el.innerHTML = holeHTML() + (view.pinOpen ? pinHTML() : '') + (view.replay != null ? replayHTML() : '');
     else if (view.screen === 'about') el.innerHTML = aboutHTML();
-    else { el.innerHTML = summaryHTML() + (view.map ? mapHTML() : '') + (view.replay != null ? replayHTML() : ''); if (view.preview) previewOnly(el); }
+    else { el.innerHTML = summaryHTML() + (view.map ? mapHTML() : '') + (view.replay != null ? replayHTML() : ''); if (view.map) applyHeat(); if (view.preview) previewOnly(el); }
     if (view.screen !== 'hole') document.body.classList.toggle('noscroll', !!(view.map && view.screen === 'summary'));
     if (view.replay != null) document.body.classList.add('noscroll');
     if (view.screen !== 'about') infoize(el);
@@ -974,7 +974,7 @@
       ms.forEach(function (m, i) {
         var ring = i % 3, col = Math.floor(i / 3) % 7, off = (col % 2 ? 1 : -1) * Math.ceil(col / 2) * 6;
         var p = pt(C, CY, (diag ? 96 : 92) + ring * 14, a + off);
-        out += '<circle class="mdot" cx="' + f1(p[0]) + '" cy="' + f1(p[1]) + '" r="6" fill="' + (LIE_COL[m.lie] || '#888') + '" stroke="#000" stroke-width="2"/>';
+        out += '<circle class="mdot" data-hd="' + (m.dist || 0) + '" data-hu="' + (m.unit || 'yd') + '" cx="' + f1(p[0]) + '" cy="' + f1(p[1]) + '" r="6" fill="' + (LIE_COL[m.lie] || '#888') + '" stroke="#000" stroke-width="2"/>';
       });
       var b = pt(C, CY, diag ? 172 : 150, a);
       out += '<g class="mcount" data-dir="' + d + '"><circle cx="' + f1(b[0]) + '" cy="' + f1(b[1]) + '" r="15" fill="' + (c[d] ? '#000' : '#fff') + '" stroke="#000" stroke-width="2"/>' +
@@ -1001,10 +1001,10 @@
       var key = (m.holed ? 'h' : m.dir || 'none') + Math.round(rr / 6), j = seen[key] = (seen[key] || 0) + 1;
       var p = m.holed ? [C - 14 + (j - 1) * 14, CY + 16] : pt(C, CY, rr, (nodir ? 90 : SG.DIR_ANGLE[m.dir]) + (j - 1) * (nodir ? 8 : 6));
       var x = f1(p[0]), y = f1(p[1]), kind = m.holed ? 'holed' : nodir ? 'nodir' : 'dir';
-      if (m.holed) out += '<path class="gdot" data-kind="holed" data-hole="' + m.hole + '" d="M' + x + ' ' + (y - 10) + ' l3 6.5 7 .8 -5.3 4.8 1.5 7 -6.2 -3.6 -6.2 3.6 1.5 -7 -5.3 -4.8 7 -.8z" fill="#ffd23f" stroke="#000" stroke-width="2"/>';
-      else if (nodir) out += '<g class="gdot" data-kind="nodir" data-hole="' + m.hole + '" data-x="' + x + '" data-y="' + y + '"><path d="M' + x + ' ' + (y - 10) + ' l10 10 -10 10 -10 -10z" fill="' + (far ? '#ffd23f' : '#c9c9c9') + '" stroke="#000" stroke-width="2.5"/>' +
+      if (m.holed) out += '<path class="gdot" data-hd="' + (m.holed ? 0 : m.ft) + '" data-hu="ft" data-kind="holed" data-hole="' + m.hole + '" d="M' + x + ' ' + (y - 10) + ' l3 6.5 7 .8 -5.3 4.8 1.5 7 -6.2 -3.6 -6.2 3.6 1.5 -7 -5.3 -4.8 7 -.8z" fill="#ffd23f" stroke="#000" stroke-width="2"/>';
+      else if (nodir) out += '<g class="gdot" data-hd="' + (m.holed ? 0 : m.ft) + '" data-hu="ft" data-kind="nodir" data-hole="' + m.hole + '" data-x="' + x + '" data-y="' + y + '"><path d="M' + x + ' ' + (y - 10) + ' l10 10 -10 10 -10 -10z" fill="' + (far ? '#ffd23f' : '#c9c9c9') + '" stroke="#000" stroke-width="2.5"/>' +
         '<text x="' + x + '" y="' + f1(p[1] + 5) + '" text-anchor="middle" font-size="13" font-weight="900" fill="#000">?</text></g>';
-      else out += '<circle class="gdot" data-kind="dir" data-hole="' + m.hole + '" cx="' + x + '" cy="' + y + '" r="8" fill="' + (far ? '#ffd23f' : '#fff') + '" stroke="#000" stroke-width="2.5"/>';
+      else out += '<circle class="gdot" data-hd="' + (m.holed ? 0 : m.ft) + '" data-hu="ft" data-kind="dir" data-hole="' + m.hole + '" cx="' + x + '" cy="' + y + '" r="8" fill="' + (far ? '#ffd23f' : '#fff') + '" stroke="#000" stroke-width="2.5"/>';
       if (far) out += '<text class="farlbl" x="' + f1(p[0] + 12) + '" y="' + f1(p[1] + 5) + '" font-size="14" font-weight="900" fill="#000" stroke="#ffd23f" stroke-width="3" paint-order="stroke">' + Math.round(ft) + ' ft</text>';
     });
     out += '<text x="180" y="17" text-anchor="middle" font-size="14" font-weight="800">LONG ↑</text>' +
@@ -1140,6 +1140,70 @@
   // ---------- proximity by distance ----------
   function fmtFt(v) { return v == null ? '–' : Math.round(v) + ' ft'; }
   // ---------- Putting green ----------
+  // ---------- Heat maps (app only) ----------
+  // Every map marker carries data-hd (distance to the hole) + data-hu (ft|yd). Heat mode hides the dots and
+  // paints soft density blobs; nearby blobs are grouped into "islands" (single-linkage, 40 px), each labelled
+  // with its average distance and shot count; a crosshair marks the average finish of all plotted shots.
+  var HEAT_MAPS = { gir: 'girmap', miss: 'missmap', pin: 'pinmap', prox: 'proxmap', putt: 'puttmap', pmiss: 'pmissmap' };
+  var HEAT_LINK = 62;
+  function heatCenter(svg, kind) {
+    if (kind === 'prox') return [PX.cx, PX.cy];
+    if (kind === 'putt') return [PG2.cx, PG2.cy];
+    if (kind === 'pin') { var f = svg.querySelector('#pinflag'); if (f) return [+f.getAttribute('cx'), +f.getAttribute('cy')]; }
+    return [180, 200];
+  }
+  function heatIslands(pts, link) {
+    var id = pts.map(function (_, i) { return i; }), find = function (i) { while (id[i] !== i) i = id[i] = id[id[i]]; return i; };
+    for (var i = 0; i < pts.length; i++) for (var j = i + 1; j < pts.length; j++) if (Math.hypot(pts[i].x - pts[j].x, pts[i].y - pts[j].y) <= link) id[find(i)] = find(j);
+    var g = {}; pts.forEach(function (p, i) { (g[find(i)] = g[find(i)] || []).push(p); });
+    return Object.keys(g).map(function (k) { return g[k]; }).sort(function (a, b) { return b.length - a.length; });
+  }
+  function heatFmt(list) { // average distance; yards when every shot is off the green in yd, else feet
+    var yd = list.every(function (p) { return p.u === 'yd'; }), v = list.reduce(function (a, p) { return a + (yd ? p.d : p.u === 'yd' ? p.d * 3 : p.d); }, 0) / list.length;
+    return Math.round(v) + (yd ? ' yd' : ' ft');
+  }
+  function applyHeat() {
+    var mv = document.getElementById('mapview'); if (!mv || !HEAT_MAPS[view.map]) return;
+    var svg = mv.querySelector('#' + HEAT_MAPS[view.map]); if (!svg) return;
+    var C = heatCenter(svg, view.map), NS = 'http://www.w3.org/2000/svg', pts = [];
+    svg.querySelectorAll('[data-hd]').forEach(function (e) {
+      var k = (e.getAttribute('data-kind') || '') + (e.getAttribute('data-class') || ''); if (/nodir/.test(k)) return;
+      var b = e.getBBox(); pts.push({ x: b.x + b.width / 2, y: b.y + b.height / 2, d: +e.getAttribute('data-hd') || 0, u: e.getAttribute('data-hu') || 'ft' });
+    });
+    var auto = (view.mapScope === 'all' && rounds.length > 1) || pts.length > 15, on = view.heat == null ? auto : view.heat;
+    var tg = document.createElement('div'); tg.className = 'seg heattog'; tg.id = 'heattog';
+    tg.innerHTML = '<button data-act="heat" data-v="0" class="' + (on ? '' : 'sel') + '" aria-pressed="' + !on + '">● Dots</button><button data-act="heat" data-v="1" class="' + (on ? 'sel' : '') + '" aria-pressed="' + on + '"' + (pts.length ? '' : ' disabled') + '>🔥 Heat map</button>';
+    var anc = svg; while (anc.parentNode && anc.parentNode !== mv) anc = anc.parentNode;
+    anc.parentNode.insertBefore(tg, anc);
+    if (!on || !pts.length) return;
+    svg.classList.add('heat');
+    var h = '<defs><radialGradient id="hgrad"><stop offset="0" stop-color="#ff1e00" stop-opacity=".62"/><stop offset=".45" stop-color="#ff9a00" stop-opacity=".34"/><stop offset="1" stop-color="#ffe600" stop-opacity="0"/></radialGradient></defs>';
+    pts.forEach(function (p) { h += '<circle class="hblob" cx="' + f1(p.x) + '" cy="' + f1(p.y) + '" r="26" fill="url(#hgrad)"/>'; });
+    var isl = heatIslands(pts, HEAT_LINK), boxes = [];
+    isl.forEach(function (g, i) {
+      var mx = g.reduce(function (a, p) { return a + p.x; }, 0) / g.length, top = Math.min.apply(null, g.map(function (p) { return p.y; }));
+      var t = heatFmt(g) + ' · ' + g.length + (g.length === 1 ? ' shot' : ' shots'), w = t.length * 6.2 + 10, x = Math.max(4, Math.min(356 - w, mx - w / 2)), y = top - 34;
+      for (var k = 0; k < 6 && boxes.some(function (b) { return x < b[2] && x + w > b[0] && y < b[3] && y + 18 > b[1]; }); k++) y += 22;
+      if (y < 4) y = top + 28; boxes.push([x, y, x + w, y + 18]);
+      h += '<g class="island" data-n="' + g.length + '"><rect x="' + f1(x) + '" y="' + f1(y) + '" width="' + f1(w) + '" height="18" rx="9" fill="#fff" fill-opacity=".93" stroke="#7a2a00"/>' +
+        '<text x="' + f1(x + w / 2) + '" y="' + f1(y + 13) + '" text-anchor="middle" font-size="11" font-weight="900" fill="#7a2a00">' + esc(t) + '</text></g>';
+    });
+    // average finish (all plotted shots): pixel mean for the marker, real distances for the words
+    var ax = 0, ay = 0, lr = 0, lg = 0, yd = pts.every(function (p) { return p.u === 'yd'; });
+    pts.forEach(function (p) { ax += p.x; ay += p.y; var dx = p.x - C[0], dy = C[1] - p.y, L = Math.hypot(dx, dy) || 1, d = yd ? p.d : p.u === 'yd' ? p.d * 3 : p.d; lr += d * dx / L; lg += d * dy / L; });
+    ax /= pts.length; ay /= pts.length; lr /= pts.length; lg /= pts.length;
+    h += '<g id="heatavg"><circle cx="' + f1(ax) + '" cy="' + f1(ay) + '" r="9" fill="none" stroke="#000" stroke-width="3"/><circle cx="' + f1(ax) + '" cy="' + f1(ay) + '" r="9" fill="none" stroke="#fff" stroke-width="1.2"/>' +
+      '<path d="M' + f1(ax - 15) + ' ' + f1(ay) + ' h30 M' + f1(ax) + ' ' + f1(ay - 15) + ' v30" stroke="#000" stroke-width="2.4"/></g>';
+    var g = document.createElementNS(NS, 'g'); g.setAttribute('id', 'heatlayer'); g.innerHTML = h; svg.appendChild(g);
+    var U = yd ? ' yd' : ' ft', part = function (v, a, b) { return Math.round(Math.abs(v)) ? Math.round(Math.abs(v)) + U + ' ' + (v > 0 ? a : b) : ''; };
+    var words = [part(lg, 'long', 'short'), part(lr, 'right', 'left')].filter(Boolean).join(', ');
+    var sm = document.createElement('p'); sm.className = 'heatsum'; sm.id = 'heatsum';
+    sm.innerHTML = '<b>⊕ Average ' + (view.map === 'putt' ? 'putt start' : 'finish') + ':</b> ' + (words ? words + ' of the hole' : 'centred on the hole') + ' · ' + pts.length + ' shot' + (pts.length === 1 ? '' : 's') + (isl.length > 1 ? ' in ' + isl.length + ' groups' : '') + '.';
+    anc.parentNode.insertBefore(sm, anc.nextSibling);
+    var lg2 = document.createElement('p'); lg2.className = 'help muted'; lg2.id = 'heatnote';
+    lg2.textContent = 'Heat map: red = most shots, yellow = few. Each white tag is one cluster of shots (average distance to the hole · number of shots). ⊕ = average finish of all shots shown. Shots with no direction entered are left out.';
+    sm.parentNode.insertBefore(lg2, sm.nextSibling);
+  }
   // ---------- Hole replay (app only): bird's-eye drawing of one hole with every shot chained ----------
   var RPC = { tee: '#1565e0', approach: '#6a1b9a', short: '#ef6c00', putting: '#fff' };
   var RPN = { tee: 'Tee shot', approach: 'Approach', short: 'Short game', putting: 'Putt' };
@@ -1278,7 +1342,7 @@
       tr += '<path class="pmtr" data-class="' + cls + '" d="M' + f1(s[0]) + ' ' + f1(s[1]) + ' Q' + f1(mx) + ' ' + f1(my) + ' ' + f1(e[0]) + ' ' + f1(e[1]) + '" fill="none" stroke="#fff" stroke-width="5" stroke-opacity=".7"/>' +
         '<path d="M' + f1(s[0]) + ' ' + f1(s[1]) + ' Q' + f1(mx) + ' ' + f1(my) + ' ' + f1(e[0]) + ' ' + f1(e[1]) + '" fill="none" stroke="' + col + '" stroke-width="2.6"/>';
       dots += cls === 'nodir' ? '<g class="pmend" data-class="nodir"><path d="M' + f1(e[0]) + ' ' + f1(e[1] - 8) + ' l8 8 -8 8 -8 -8z" fill="#fff" stroke="#555" stroke-width="2"/><text x="' + f1(e[0]) + '" y="' + f1(e[1] + 4) + '" text-anchor="middle" font-size="10" font-weight="900">?</text></g>'
-        : '<circle class="pmend" data-class="' + cls + '" cx="' + f1(e[0]) + '" cy="' + f1(e[1]) + '" r="5.5" fill="' + col + '" stroke="#000" stroke-width="1.5"/>';
+        : '<circle class="pmend" data-hd="' + p.endFt + '" data-hu="ft" data-class="' + cls + '" cx="' + f1(e[0]) + '" cy="' + f1(e[1]) + '" r="5.5" fill="' + col + '" stroke="#000" stroke-width="1.5"/>';
       boxes.push([e[0] - 6, e[1] - 6, e[0] + 6, e[1] + 6]);
       pend.push([e[0], e[1], (Math.round(p.endFt * 10) / 10) + ' ft' + (clamped ? ' ›' : ''), col]);
     });
@@ -1339,7 +1403,7 @@
     var dots = '', boxes = ringBoxes.concat([[130, 3, 230, 21], [80, 380, 280, 398], [0, PG2.cy - 10, 30, PG2.cy + 6], [330, PG2.cy - 10, 360, PG2.cy + 6]]), lbls = '';
     SG.puttPlace(list, sc, PG2.cx, PG2.cy, PG2.R, 15).forEach(function (d) {
       var p = d.p, q = [d.x, d.y], x = f1(d.x), y = f1(d.y), kd = SG.puttKind(p), col = PCOL[kd];
-      var at = ' class="pdot2" data-made="' + (p.made ? 1 : 0) + '" data-ft="' + p.ft + '" data-hole="' + p.hole + '" data-dir="' + (p.dir || '') + '" data-beyond="' + (d.beyond ? 1 : 0) + '" data-pk="' + kd + '"';
+      var at = ' class="pdot2" data-hd="' + p.ft + '" data-hu="ft" data-made="' + (p.made ? 1 : 0) + '" data-ft="' + p.ft + '" data-hole="' + p.hole + '" data-dir="' + (p.dir || '') + '" data-beyond="' + (d.beyond ? 1 : 0) + '" data-pk="' + kd + '"';
       if (d.nodir) dots += '<g' + at + ' data-kind="nodir"><path d="M' + x + ' ' + (y - 9) + ' l9 9 -9 9 -9 -9z" fill="' + (p.made ? col : '#fff') + '" stroke="' + col + '" stroke-width="3"/><text x="' + x + '" y="' + (+y + 4.5) + '" text-anchor="middle" font-size="11" font-weight="900" fill="' + (p.made ? '#fff' : col) + '">?</text></g>';
       else dots += '<circle' + at + ' data-kind="dir" cx="' + x + '" cy="' + y + '" r="6.5" fill="' + (p.made ? col : '#fff') + '" stroke="' + col + '" stroke-width="3"/>';
       boxes.push([q[0] - 8, q[1] - 9, q[0] + 8, q[1] + 9]);
@@ -1475,7 +1539,7 @@
       if (kind !== 'missnodir') tr += (RG ? '<path d="' + flight(ox, oy, q[0], q[1], i) + '" fill="none" stroke="' + RG.halo + '" stroke-width="5.5" stroke-opacity=".8"/>' : '') +
         '<path class="tracer"' + (RG ? ' data-group="' + SG.reportGroup(m.from) + '"' : '') + ' data-start="' + st[2] + '" data-sx="' + f1(ox) + '" data-sy="' + f1(oy) + '" data-ex="' + x + '" data-ey="' + y + '" d="' + flight(ox, oy, q[0], q[1], i) + '" fill="none" stroke="' + col + '" stroke-width="' + (RG ? 3 : 2.5) + '" stroke-opacity="' + (RG ? 1 : 0.75) + '"/>';
       starts += '<circle class="xstart" data-start="' + st[2] + '" data-hole="' + m.hole + '" cx="' + f1(ox) + '" cy="' + f1(oy) + '" r="4" fill="#fff" stroke="' + col + '" stroke-width="2"/>';
-      var attrs = ' class="xdot" data-kind="' + kind + '" data-hole="' + m.hole + '" data-from="' + m.from + '"' + (clamped ? ' data-clamped="1"' : '');
+      var attrs = ' class="xdot" data-hd="' + (kind === 'holed' ? 0 : /^miss/.test(kind) ? (m.yd || 0) : (m.proxFt || 0)) + '" data-hu="' + (/^miss/.test(kind) ? 'yd' : 'ft') + '" data-kind="' + kind + '" data-hole="' + m.hole + '" data-from="' + m.from + '"' + (clamped ? ' data-clamped="1"' : '');
       if (kind === 'holed') dots += '<path' + attrs + ' d="M' + x + ' ' + (y - 10) + ' l3 6.5 7 .8 -5.3 4.8 1.5 7 -6.2 -3.6 -6.2 3.6 1.5 -7 -5.3 -4.8 7 -.8z" fill="#ffd23f" stroke="#1e6fd9" stroke-width="2"/>';
       else if (kind === 'hitnodir' || kind === 'missnodir') dots += '<g' + attrs + ' data-x="' + x + '" data-y="' + y + '"><path d="M' + x + ' ' + (y - 10) + ' l10 10 -10 10 -10 -10z" fill="' + (RG && !m.hit ? '#fff' : col) + '" stroke="' + (RG && !m.hit ? col : '#000') + '" stroke-width="' + (RG && !m.hit ? 3.5 : 2) + '"/><text x="' + x + '" y="' + (+y + 4.5) + '" text-anchor="middle" font-size="12" font-weight="900" fill="' + (RG && (!m.hit || RG.halo === '#000') ? '#000' : '#fff') + '">?</text></g>';
       else if (RG && !m.hit) dots += '<g' + attrs + '><circle cx="' + x + '" cy="' + y + '" r="7.5" fill="#fff" stroke="' + col + '" stroke-width="3.5"/><path d="M' + f1(q[0] - 3.5) + ' ' + f1(q[1] - 3.5) + ' l7 7 m0 -7 l-7 7" stroke="#000" stroke-width="2.2"/></g>';
@@ -1578,9 +1642,9 @@
       if (!m.holed && !inside(q)) { var lo = 0, hi = 1; for (var it = 0; it < 20; it++) { var md = (lo + hi) / 2; if (inside([P[0] + (q[0] - P[0]) * md, P[1] + (q[1] - P[1]) * md])) lo = md; else hi = md; }
         q = [P[0] + (q[0] - P[0]) * lo, P[1] + (q[1] - P[1]) * lo]; cl = ' data-edge="1"'; }
       var x = f1(q[0]), y = f1(q[1]);
-      if (m.holed) out += '<path class="pdot" data-kind="holed" data-hole="' + m.hole + '" d="M' + x + ' ' + (y - 10) + ' l3 6.5 7 .8 -5.3 4.8 1.5 7 -6.2 -3.6 -6.2 3.6 1.5 -7 -5.3 -4.8 7 -.8z" fill="#ffd23f" stroke="#000" stroke-width="2"/>';
+      if (m.holed) out += '<path class="pdot" data-hd="0" data-hu="ft" data-kind="holed" data-hole="' + m.hole + '" d="M' + x + ' ' + (y - 10) + ' l3 6.5 7 .8 -5.3 4.8 1.5 7 -6.2 -3.6 -6.2 3.6 1.5 -7 -5.3 -4.8 7 -.8z" fill="#ffd23f" stroke="#000" stroke-width="2"/>';
       else if (nod) out += '<g class="pdot" data-kind="nodir" data-hole="' + m.hole + '" data-x="' + x + '" data-y="' + y + '"><path d="M' + x + ' ' + (y - 9) + ' l9 9 -9 9 -9 -9z" fill="' + (m.gir ? '#fff' : '#bdbdbd') + '" stroke="#000" stroke-width="2.5"/><text x="' + x + '" y="' + (y + 4.5) + '" text-anchor="middle" font-size="12" font-weight="900">?</text></g>';
-      else out += '<circle class="pdot" data-kind="' + (m.gir ? 'gir' : 'hit') + '"' + cl + ' data-hole="' + m.hole + '" cx="' + x + '" cy="' + y + '" r="7" fill="' + (m.gir ? '#fff' : '#bdbdbd') + '" stroke="#000" stroke-width="2.5"/>';
+      else out += '<circle class="pdot" data-hd="' + ft + '" data-hu="ft" data-kind="' + (m.gir ? 'gir' : 'hit') + '"' + cl + ' data-hole="' + m.hole + '" cx="' + x + '" cy="' + y + '" r="7" fill="' + (m.gir ? '#fff' : '#bdbdbd') + '" stroke="#000" stroke-width="2.5"/>';
       if (!m.holed) out += lbl(q[0], q[1] + 20, Math.round(ft) + ' ft', '', 'plbl');
     });
     // missed greens: off the green in the miss direction
@@ -1600,7 +1664,7 @@
       var side = Math.floor((j - 1) / 2) * 34 * (j % 4 < 2 ? 1 : -1);
       q = [q[0] + side * Math.sin(t), q[1] + side * Math.cos(t)];
       q = [Math.max(24, Math.min(336, q[0])), Math.max(14, Math.min(420, q[1]))];
-      out += '<circle class="pdot" data-kind="miss" data-gir="' + (m.gir ? 1 : 0) + '" data-hole="' + m.hole + '" cx="' + f1(q[0]) + '" cy="' + f1(q[1]) + '" r="7" fill="#e0102a" stroke="#000" stroke-width="2.5"/>' +
+       out += '<circle class="pdot" data-hd="' + (m.dist || 0) + '" data-hu="' + (m.unit || 'yd') + '" data-kind="miss" data-gir="' + (m.gir ? 1 : 0) + '" data-hole="' + m.hole + '" cx="' + f1(q[0]) + '" cy="' + f1(q[1]) + '" r="7" fill="#e0102a" stroke="#000" stroke-width="2.5"/>' +
         lbl(q[0], q[1] + 20, m.lie === 'ob' ? 'OB' : Math.round(m.dist) + (m.unit === 'ft' ? ' ft' : ' yd'), m.lie === 'ob' ? '' : (LN[m.lie] || (m.lie === 'green' ? 'Green' : m.lie)), 'mlbl');
     });
     out += '<line x1="' + f1(P[0]) + '" y1="' + f1(P[1]) + '" x2="' + f1(P[0]) + '" y2="' + f1(P[1] - 30) + '" stroke="#000" stroke-width="3"/>' +
@@ -1726,7 +1790,7 @@
       case 'about': view.back = view.screen; view.screen = 'about'; render(); window.scrollTo(0, 0); return;
       case 'aboutBack': view.screen = view.back && view.back !== 'about' ? view.back : 'home'; render(); window.scrollTo(0, 0); return;
       case 'setbl': setBaseline(v); return;
-      case 'map': view.map = v; view.pinSeg = null; if (v === 'prox') view.proxB = null; view.mapScope = view.mapScope || 'round'; render(); return;
+      case 'map': view.map = v; view.pinSeg = null; view.heat = null; if (v === 'prox') view.proxB = null; view.mapScope = view.mapScope || 'round'; render(); return;
       case 'pinseg': view.pinSeg = v || null; render(); var pv = document.getElementById('mapview'); if (pv) pv.scrollTop = 0; return;
       case 'mapclose': view.map = null; render(); return;
       case 'pinopen': view.pinOpen = true; view.menu = null; view.dirk = null; render(); return;
@@ -1736,6 +1800,7 @@
       case 'proxb': { var mv0 = document.getElementById('mapview'), st0 = mv0 ? mv0.scrollTop : 0; view.proxB = v; render(); var mv1 = document.getElementById('mapview'); if (mv1) mv1.scrollTop = st0; return; }
       case 'proxlie': { var mvl = document.getElementById('mapview'), stl = mvl ? mvl.scrollTop : 0; view.proxLie = v; render(); var mvl2 = document.getElementById('mapview'); if (mvl2) mvl2.scrollTop = stl; return; }
       case 'sgtoggle': view.sgOpen = !view.sgOpen; render(); if (view.sgOpen) { var sh = document.getElementById('sgsec'); if (sh) window.scrollTo(0, sh.getBoundingClientRect().top + window.scrollY - 90); } return;
+      case 'heat': view.heat = v === '1'; render(); return;
       case 'replay': view.replay = Math.max(0, +v || 0); render(); return;
       case 'rpgreen': view.rpGreen = true; render(); return;
       case 'rpgreenback': view.rpGreen = false; render(); return;
@@ -1743,7 +1808,7 @@
       case 'rpclose': view.replay = null; view.rpGreen = false; document.body.classList.remove('noscroll'); render(); return;
       case 'pmg': { var mvq = document.getElementById('mapview'), stq = mvq ? mvq.scrollTop : 0; view.pmG = v; render(); var mvq2 = document.getElementById('mapview'); if (mvq2) mvq2.scrollTop = stq; return; }
       case 'puttn': { var mvp = document.getElementById('mapview'), stp = mvp ? mvp.scrollTop : 0; view.puttN = v; render(); var mvp2 = document.getElementById('mapview'); if (mvp2) mvp2.scrollTop = stp; return; }
-      case 'mapscope': view.mapScope = v; render(); var mv = document.getElementById('mapview'); if (mv) mv.scrollTop = 0; return;
+      case 'mapscope': view.mapScope = v; view.heat = null; render(); var mv = document.getElementById('mapview'); if (mv) mv.scrollTop = 0; return;
       case 'dirpick': view.dirk = k; view.menu = null; break;
       case 'dirclose': view.dirk = null; break;
       case 'setdir': h.rows[view.dirk].dir = v || ''; view.dirk = null; save(); break;

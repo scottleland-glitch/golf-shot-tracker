@@ -147,6 +147,7 @@ const BASE = process.env.BASE_URL || 'http://127.0.0.1:8765/', SHOTS = process.e
   await page.screenshot({ path: SHOTS + '/37b-putting-2nd.png' });
   console.log('✓ 2nd putts: 10 ft close-up (linear, rings 1-10), 14 ft on edge with ›, row Dir used, no overlapping dots; 3rd+ greyed out (none this round)');
   await page.click('[data-act="mapscope"][data-v="all"]'); await page.click('#puttbtns [data-v="1"]');
+  if (await page.$('#mapview svg.heat')) await page.click('[data-act="heat"][data-v="0"]'); // 2 rounds -> heat map by default; check the dots
   await page.click('#puttbtns [data-v="2"]'); const n2 = await noOverlap('All 2nd'); await page.screenshot({ path: SHOTS + '/37c-putting-2nd-all.png' }); await page.click('#puttbtns [data-v="1"]');
   const allExp = await page.evaluate(() => { const c = { 1: 0, 2: 0, 3: 0 }; window.__golf.rounds().forEach(r => SG.summarize(r).puttList.forEach(p => c[SG.puttGroup(p.n)]++)); return c; });
   const pbAll = await page.$$eval('#puttbtns .pnbtn', bs => bs.map(b => [+b.getAttribute('data-n'), b.disabled]));
