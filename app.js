@@ -1153,6 +1153,27 @@
     if (kind === 'pin') { var f = svg.querySelector('#pinflag'); if (f) return [+f.getAttribute('cx'), +f.getAttribute('cy')]; }
     return [180, 200];
   }
+  // Real-distance islands: shots within 3 ft (3 yd on yardage maps / for off-green shots) chain into one island;
+  // then islands whose edges come within 2 ft (2 yd) of each other are merged (edge = 3 ft link zone around each shot).
+  function heatReal(pts, C) {
+    var yd = pts.every(function (p) { return p.u === 'yd'; });
+    pts.forEach(function (p) { var dx = p.x - C[0], dy = C[1] - p.y, L = Math.hypot(dx, dy), d = yd ? p.d : p.u === 'yd' ? p.d * 3 : p.d;
+      p.rx = L ? d * dx / L : 0; p.ry = L ? d * dy / L : 0; p.big = !yd && p.u === 'yd'; });
+    return yd;
+  }
+  function heatIslandsReal(pts, yd) {
+    var id = pts.map(function (_, i) { return i; }), find = function (i) { while (id[i] !== i) i = id[i] = id[id[i]]; return i; };
+    var link = function (a, b) { return yd ? 3 : (a.big || b.big ? 9 : 3); }, gap = yd ? 2 : 2;
+    for (var i = 0; i < pts.length; i++) for (var j = i + 1; j < pts.length; j++) if (Math.hypot(pts[i].rx - pts[j].rx, pts[i].ry - pts[j].ry) <= link(pts[i], pts[j])) id[find(i)] = find(j);
+    var groups = {}; pts.forEach(function (p, i) { (groups[find(i)] = groups[find(i)] || []).push(p); });
+    var G = Object.keys(groups).map(function (k) { return groups[k]; });
+    var circ = function (g) { var cx = 0, cy = 0; g.forEach(function (p) { cx += p.rx; cy += p.ry; }); cx /= g.length; cy /= g.length;
+      return [cx, cy, Math.max.apply(null, g.map(function (p) { return Math.hypot(p.rx - cx, p.ry - cy); }))]; };
+    for (var merged = true; merged;) { merged = false;
+      for (var a = 0; a < G.length && !merged; a++) for (var b = a + 1; b < G.length && !merged; b++) {
+        var md = Infinity; G[a].forEach(function (p) { G[b].forEach(function (q) { md = Math.min(md, Math.hypot(p.rx - q.rx, p.ry - q.ry) - link(p, q)); }); }); if (md <= gap) { G[a] = G[a].concat(G[b]); G.splice(b, 1); merged = true; } } }
+    return G.sort(function (a, b) { return b.length - a.length; });
+  }
   function heatIslands(pts, link) {
     var id = pts.map(function (_, i) { return i; }), find = function (i) { while (id[i] !== i) i = id[i] = id[id[i]]; return i; };
     for (var i = 0; i < pts.length; i++) for (var j = i + 1; j < pts.length; j++) if (Math.hypot(pts[i].x - pts[j].x, pts[i].y - pts[j].y) <= link) id[find(i)] = find(j);
@@ -1180,9 +1201,11 @@
     svg.classList.add('heat');
     var h = '<defs><radialGradient id="hgrad"><stop offset="0" stop-color="#ff1e00" stop-opacity=".62"/><stop offset=".45" stop-color="#ff9a00" stop-opacity=".34"/><stop offset="1" stop-color="#ffe600" stop-opacity="0"/></radialGradient></defs>';
     pts.forEach(function (p) { h += '<circle class="hblob" cx="' + f1(p.x) + '" cy="' + f1(p.y) + '" r="26" fill="url(#hgrad)"/>'; });
-    var isl = heatIslands(pts, HEAT_LINK), boxes = [];
+    var isl = heatIslandsReal(pts, heatReal(pts, C)), boxes = [];
+    var lone = isl.filter(function (g) { return g.length === 1; }).length, tagged = isl.length - lone;
     isl.forEach(function (g, i) {
-      var mx = g.reduce(function (a, p) { return a + p.x; }, 0) / g.length, top = Math.min.apply(null, g.map(function (p) { return p.y; }));
+      if (g.length === 1 && tagged) { h += '<g class="island lone" data-n="1"></g>'; return; }
+      var mx = g.reduce(function (a, p) { return a + p.x; }, 0) / g.length, top = g.reduce(function (a, p) { return a + p.y; }, 0) / g.length + 8;
       var t = heatFmt(g) + ' · ' + g.length + (g.length === 1 ? ' shot' : ' shots'), w = t.length * 6.2 + 10, x = Math.max(4, Math.min(356 - w, mx - w / 2)), y = top - 34;
       for (var k = 0; k < 6 && boxes.some(function (b) { return x < b[2] && x + w > b[0] && y < b[3] && y + 18 > b[1]; }); k++) y += 22;
       if (y < 4) y = top + 28; boxes.push([x, y, x + w, y + 18]);
@@ -1199,10 +1222,10 @@
     var U = yd ? ' yd' : ' ft', part = function (v, a, b) { return Math.round(Math.abs(v)) ? Math.round(Math.abs(v)) + U + ' ' + (v > 0 ? a : b) : ''; };
     var words = [part(lg, 'long', 'short'), part(lr, 'right', 'left')].filter(Boolean).join(', ');
     var sm = document.createElement('p'); sm.className = 'heatsum'; sm.id = 'heatsum';
-    sm.innerHTML = '<b>⊕ Average ' + (view.map === 'putt' ? 'putt start' : 'finish') + ':</b> ' + (words ? words + ' of the hole' : 'centred on the hole') + ' · ' + pts.length + ' shot' + (pts.length === 1 ? '' : 's') + (isl.length > 1 ? ' in ' + isl.length + ' groups' : '') + '.';
+    sm.innerHTML = '<b>⊕ Average ' + (view.map === 'putt' ? 'putt start' : 'finish') + ':</b> ' + (words ? words + ' of the hole' : 'centred on the hole') + ' · ' + pts.length + ' shot' + (pts.length === 1 ? '' : 's') + (tagged > 1 || (tagged && lone) ? ' – ' + tagged + ' cluster' + (tagged === 1 ? '' : 's') + (lone ? ' + ' + lone + ' single shot' + (lone === 1 ? '' : 's') + ' (no tag)' : '') : '') + '.';
     anc.parentNode.insertBefore(sm, anc.nextSibling);
     var lg2 = document.createElement('p'); lg2.className = 'help muted'; lg2.id = 'heatnote';
-    lg2.textContent = 'Heat map: red = most shots, yellow = few. Each white tag is one cluster of shots (average distance to the hole · number of shots). ⊕ = average finish of all shots shown. Shots with no direction entered are left out.';
+    lg2.textContent = 'Heat map: red = most shots, yellow = few. Each white tag is one cluster – shots within 3 ft of each other (3 yd off the green), clusters less than 2 ft apart merged – with its average distance to the hole · number of shots. Single, isolated shots get no tag. ⊕ = average finish of all shots shown. Shots with no direction entered are left out.';
     sm.parentNode.insertBefore(lg2, sm.nextSibling);
   }
   // ---------- Club performance (app only): everything from where the ball FINISHED (next row's distance + direction) ----------
