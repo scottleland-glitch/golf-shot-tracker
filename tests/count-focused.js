@@ -1,0 +1,21 @@
+const { chromium } = require('playwright-core'); const assert = require('assert'); const { spawn } = require('child_process');
+const BASE = 'http://127.0.0.1:8771/';
+(async () => {
+  const srv = spawn('python3', ['-m', 'http.server', '8771', '--bind', '127.0.0.1'], { cwd: '/workspace/golf-app', stdio: 'ignore' });
+  await new Promise(r => setTimeout(r, 1500)); const errors = [];
+  const b = await chromium.launch({ executablePath: '/usr/bin/google-chrome', args: ['--no-sandbox'] });
+  const page = await (await b.newContext({ viewport: { width: 390, height: 844 } })).newPage(); page.on('pageerror', e => errors.push(String(e)));
+  await page.goto(BASE + '?x=' + Date.now());
+  await page.evaluate(() => { const R = (d, l) => ({ dist: d, loc: l, dir: '', pen: false });
+    const real = (id, date, c) => ({ v: 3, dv: 2, id, date, course: c, baseline: 'pga', player: 'Scott', holes: Array.from({ length: 18 }, () => ({ par: 4, finished: true, rows: [R(400, 'tee'), R(150, 'fairway'), R(10, 'green'), R(1, 'holed')] })) });
+    const empty = (id, date, c) => ({ v: 3, dv: 2, id, date, course: c, baseline: 'pga', player: 'Scott', holes: Array.from({ length: 18 }, () => ({ par: 4, rows: [R('', 'tee')] })) });
+    localStorage.clear(); localStorage.setItem('golfsg.player.v1', 'Scott');
+    localStorage.setItem('golfsg.rounds.v1', JSON.stringify([real('a', '2026-10-01T17:00:00Z', 'A'), real('b', '2026-10-08T17:00:00Z', 'B'), empty('e1', '2026-10-12T17:00:00Z', 'X'), empty('e2', '2026-10-13T17:00:00Z', 'Y')])); });
+  await page.reload();
+  assert.match(await page.textContent('[data-act="history"]'), /2 saved rounds/);
+  await page.click('[data-act="history"]');
+  const rows = await page.$$eval('#histlist .hrow', r => r.length);
+  const hdr = await page.textContent('.topbar .title span');
+  assert.strictEqual(rows, 2); assert.match(hdr, /^2 rounds/, 'header was: ' + hdr);
+  assert.deepStrictEqual(errors, []); console.log('COUNT OK', hdr); await b.close(); srv.kill();
+})().catch(e => { console.error(e); process.exit(1); });

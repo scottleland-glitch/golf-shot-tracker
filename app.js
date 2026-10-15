@@ -418,15 +418,16 @@
   }
   function pdfDownload(p) { var u = URL.createObjectURL(p.blob), a = document.createElement('a'); a.href = u; a.download = p.name; document.body.appendChild(a); a.click(); setTimeout(function () { URL.revokeObjectURL(u); a.remove(); }, 4000); toast('PDF downloaded'); }
   // ---------- History ----------
-  function playersIn() { var o = {}; rounds.forEach(function (r) { if (r.player) o[r.player] = (o[r.player] || 0) + 1; }); return o; }
+  function savedRounds() { return rounds.filter(function (r) { return !SG.roundEmpty(r); }); }
+  function playersIn() { var o = {}; savedRounds().forEach(function (r) { if (r.player) o[r.player] = (o[r.player] || 0) + 1; }); return o; }
   function historyHTML() {
-    var P = playersIn(), names = Object.keys(P).sort(), multi = names.length + (rounds.some(function (r) { return !r.player; }) && names.length ? 1 : 0) > 1;
+    var P = playersIn(), names = Object.keys(P).sort(), multi = names.length + (savedRounds().some(function (r) { return !r.player; }) && names.length ? 1 : 0) > 1;
     if (!multi || (view.histPlayer && view.histPlayer !== '~none' && !P[view.histPlayer])) view.histPlayer = null;
-    var list = rounds.filter(function (r) { return !SG.roundEmpty(r); }).filter(function (r) { return !view.histPlayer || (view.histPlayer === '~none' ? !r.player : r.player === view.histPlayer); }).sort(function (a, b) { return String(b.date || '').localeCompare(String(a.date || '')); });
-    var h = '<div class="topbar"><button class="txt" data-act="home">‹ Home</button><div class="title"><b>History</b><span>' + rounds.length + ' round' + (rounds.length === 1 ? '' : 's') + ', newest first</span></div><span class="tbspace"></span></div>';
+    var list = savedRounds().filter(function (r) { return !view.histPlayer || (view.histPlayer === '~none' ? !r.player : r.player === view.histPlayer); }).sort(function (a, b) { return String(b.date || '').localeCompare(String(a.date || '')); });
+    var h = '<div class="topbar"><button class="txt" data-act="home">‹ Home</button><div class="title"><b>History</b><span>' + list.length + ' round' + (list.length === 1 ? '' : 's') + ', newest first</span></div><span class="tbspace"></span></div>';
     if (multi) h += '<div class="liechips" id="playerchips" role="group" aria-label="Filter by player">' + [''].concat(names).map(function (n) {
         var sel = (view.histPlayer || '') === n; return '<button class="' + (sel ? 'sel' : '') + '" data-act="histplayer" data-v="' + esc(n) + '" aria-pressed="' + sel + '">' + (n ? esc(n) + ' (' + P[n] + ')' : 'All players') + '</button>'; }).join('') +
-      (rounds.some(function (r) { return !r.player; }) ? '<button class="' + (view.histPlayer === '~none' ? 'sel' : '') + '" data-act="histplayer" data-v="~none">No name</button>' : '') + '</div>';
+      (savedRounds().some(function (r) { return !r.player; }) ? '<button class="' + (view.histPlayer === '~none' ? 'sel' : '') + '" data-act="histplayer" data-v="~none">No name</button>' : '') + '</div>';
     if (!list.length) h += '<p class="muted">No rounds yet. Start one from Home.</p>';
     if (list.length >= 2) h += '<button class="big cmpbtn" data-act="compare" id="cmpopen">⚖ Best vs worst rounds</button>';
     h += '<div id="histlist">';
@@ -507,7 +508,7 @@
     if (M.replaced) parts.push(M.replaced + ' replaced');
     if (M.kept) parts.push(M.kept + ' kept as on this phone');
     if (M.same) parts.push(M.same + ' already here');
-    view.notice = { text: '✓ Restored from backup: ' + parts.join(', ') + '. You now have ' + rounds.length + ' round' + (rounds.length === 1 ? '' : 's') + '.' };
+    view.notice = { text: '✓ Restored from backup: ' + parts.join(', ') + '. You now have ' + savedRounds().length + ' round' + (savedRounds().length === 1 ? '' : 's') + '.' };
     view.restore = null; view.preview = null; view.screen = 'home'; render(); window.scrollTo(0, 0);
   }
   // ---------- OneDrive backup (hidden unless config.js has a client ID) ----------
@@ -664,7 +665,7 @@
     h += '<h2>New round</h2><input type="text" id="course" placeholder="Course name (optional)" autocomplete="off">' +
       '<label class="lbl" for="newbl">Compare my shots against</label>' + blSelect('newbl', 'pga') +
       '<button class="' + (cur ? '' : 'primary ') + 'big" data-act="new">Start new round</button>';
-    var nSaved = rounds.filter(function (x) { return !SG.roundEmpty(x); }).length;
+    var nSaved = savedRounds().length;
     h += '<button class="big histbtn" data-act="history">📋 History<br><small>' + nSaved + ' saved round' + (nSaved === 1 ? '' : 's') + ' – review stats &amp; maps</small></button>';
     h += '<h2>Your data</h2>' + playerHTML();
     if (view.notice) h += '<p class="notice ' + (view.notice.bad ? 'bad' : 'good') + '" id="notice" role="status">' + esc(view.notice.text) + '</p>';
@@ -1027,7 +1028,7 @@
     var out = '<div class="mapview" id="mapview" role="dialog" aria-label="' + (kind === 'gir' ? 'GIR map' : kind === 'fw' ? 'Fairway map' : kind === 'pin' ? 'Pin location map' : kind === 'prox' ? 'Proximity map' : kind === 'putt' ? 'Putting map' : kind === 'club' ? 'Club performance' : kind === 'pmiss' ? 'Putt misses map' : 'Approach miss map') + '">' +
       '<div class="maphead"><b>' + (kind === 'gir' ? 'Greens in regulation' : kind === 'fw' ? 'Tee shots – fairways' : kind === 'pin' ? 'Pin location' : kind === 'prox' ? 'Proximity by distance' : kind === 'putt' ? 'Putting' : kind === 'club' ? 'Club performance' : kind === 'pmiss' ? 'Putt misses' : 'Approach misses') + '</b><button class="close" data-act="mapclose" aria-label="Close map">✕ Close</button></div>' +
       '<div class="seg"><button data-act="mapscope" data-v="round" class="' + (all ? '' : 'sel') + '">This round</button>' +
-      '<button data-act="mapscope" data-v="all" class="' + (all ? 'sel' : '') + '">All rounds (' + rounds.length + ')</button></div>';
+      '<button data-act="mapscope" data-v="all" class="' + (all ? 'sel' : '') + '">All rounds (' + savedRounds().length + ')</button></div>';
     if (kind === 'pin') out += pinMapHTML(all);
     else if (kind === 'prox') out += proxHTML(all);
     else if (kind === 'putt') out += puttHTML(all);
@@ -1259,7 +1260,7 @@
       anc.parentNode.insertBefore(sl, anc.nextSibling); }
     if (!on || !pts.length) return;
     svg.classList.add('heat');
-    var h = '<defs><filter id="hgoo" x="-30%" y="-30%" width="160%" height="160%"><feGaussianBlur in="SourceGraphic" stdDeviation="4.5" result="b"/><feColorMatrix in="b" mode="matrix" values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 22 -9"/></filter></defs>';
+    var h = '<defs><filter id="hgoo" filterUnits="userSpaceOnUse" x="-2000" y="-2000" width="6000" height="6000"><feGaussianBlur in="SourceGraphic" stdDeviation="4.5" result="b"/><feColorMatrix in="b" mode="matrix" values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 22 -9"/></filter></defs>';
     // blobs are drawn per island below (after islands are known)
     var VW = svg.viewBox.baseVal.width, VH = svg.viewBox.baseVal.height, CL = heatClus();
     var isl = heatIslandsReal(pts, heatReal(pts, C), CL), boxes = [], lone = 0, tagged = 0;
@@ -1425,11 +1426,11 @@
   }
   function applyCompare() {
     var ov = document.getElementById('cmpovmap'), src = document.getElementById('cmpbestsrc'); if (!ov || !src) return;
-    var kind = ov.getAttribute('data-kind'), C = heatCenter(ov, kind), wp = cmpPoints(ov), bp = cmpPoints(src), h = '<defs><filter id="hgoo" x="-30%" y="-30%" width="160%" height="160%"><feGaussianBlur in="SourceGraphic" stdDeviation="4.5" result="b"/><feColorMatrix in="b" mode="matrix" values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 22 -9"/></filter></defs>';
+    var kind = ov.getAttribute('data-kind'), C = heatCenter(ov, kind), wp = cmpPoints(ov), bp = cmpPoints(src), h = '<defs><filter id="hgoo" filterUnits="userSpaceOnUse" x="-2000" y="-2000" width="6000" height="6000"><feGaussianBlur in="SourceGraphic" stdDeviation="4.5" result="b"/><feColorMatrix in="b" mode="matrix" values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 22 -9"/></filter></defs>';
     ov.classList.add('heat');
     if (wp.length) { var isl = heatIslandsReal(wp, heatReal(wp, C), heatClus()), mx = Math.max.apply(null, isl.map(function (g) { return g.length; }));
-      isl.forEach(function (g) { var t = Math.min(1, 0.15 + 0.85 * g.length / mx), a = [253, 224, 218], b = [139, 0, 0], col = 'rgb(' + a.map(function (v, i) { return Math.round(v + (b[i] - v) * t); }).join(',') + ')';
-        h += '<g class="hisland" data-n="' + g.length + '" opacity=".6">' + islandShape(g, col) + '</g>'; }); }
+      isl.forEach(function (g) { var t = mx > 1 ? (g.length - 1) / (mx - 1) : 0, a = [255, 40, 40], b = [150, 0, 0], col = 'rgb(' + a.map(function (v, i) { return Math.round(v + (b[i] - v) * t); }).join(',') + ')';
+        h += '<g class="hisland" data-n="' + g.length + '" opacity=".78">' + (g.length === 1 ? '<circle cx="' + f1(g[0].x) + '" cy="' + f1(g[0].y) + '" r="12" fill="' + col + '" stroke="#7a0000" stroke-width="1.5"/>' : islandShape(g, col)) + '</g>'; }); }
     bp.forEach(function (p) { h += '<circle class="bestring" cx="' + f1(p.x) + '" cy="' + f1(p.y) + '" r="8" fill="none" stroke="#000" stroke-width="2.6"/>'; });
     var g = document.createElementNS('http://www.w3.org/2000/svg', 'g'); g.setAttribute('id', 'cmplayer'); g.innerHTML = h; ov.appendChild(g);
     src.parentNode.remove();
