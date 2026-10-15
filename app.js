@@ -1113,8 +1113,11 @@
       var col = m.fairway ? '#00a000' : '#e0102a';
       out += '<path class="tracer ' + (m.fairway ? 'hit' : 'miss') + '" data-kind="' + m.kind + '" data-side="' + (m.side || '') + '" data-ex="' + f1(ex) + '" data-ey="' + f1(ey) + '" d="' + fp + '" fill="none" stroke="#000" stroke-opacity=".35" stroke-width="6"/>' +
         '<path d="' + fp + '" fill="none" stroke="' + (m.fairway ? '#b6ff9e' : '#ff4d5e') + '" stroke-width="3.5"' + (dashed ? ' stroke-dasharray="8 6"' : '') + '/>';
-      if (m.kind === 'ob') out += '<text x="' + f1(ex) + '" y="' + f1(ey + 7) + '" text-anchor="middle" font-size="22" font-weight="900" fill="#fff" stroke="#000" stroke-width="2" paint-order="stroke">✕</text>';
-      else out += '<circle cx="' + f1(ex) + '" cy="' + f1(ey) + '" r="6.5" fill="' + FW_END[m.kind] + '" stroke="' + (m.kind === 'fairway' ? col : '#000') + '" stroke-width="2.5"/>';
+      // heat data: distance the drive went (yd), fairway hit or not; misses with no L/R entered are left out of the heat map
+      var hd = ' class="fwdot" data-hd="' + Math.round(yd) + '" data-hu="yd" data-fw="' + (m.fairway ? 1 : 0) + '" data-lie="' + m.kind + '"' + (dashed ? ' data-class="nodir"' : '') + (m.layup ? ' data-layup="1"' : '');
+      if (m.kind === 'ob') out += '<text' + hd + ' x="' + f1(ex) + '" y="' + f1(ey + 7) + '" text-anchor="middle" font-size="22" font-weight="900" fill="#fff" stroke="#000" stroke-width="2" paint-order="stroke">✕</text>';
+      else out += '<circle' + hd + ' cx="' + f1(ex) + '" cy="' + f1(ey) + '" r="6.5" fill="' + FW_END[m.kind] + '" stroke="' + (m.kind === 'fairway' ? col : '#000') + '" stroke-width="2.5"/>';
+      if (m.layup) out += '<text class="fwdot" x="' + f1(ex - 9) + '" y="' + f1(ey - 9) + '" text-anchor="end" font-size="11" font-weight="900" fill="#fff" stroke="#000" stroke-width="2.5" paint-order="stroke">LU</text>';
       if (dashed) out += '<text x="' + f1(ex + 9) + '" y="' + f1(ey + 5) + '" font-size="14" font-weight="900" fill="#fff">?</text>';
     });
     out += '<text x="180" y="556" text-anchor="middle" font-size="12" font-weight="800" fill="#fff">TEE</text>';
@@ -1148,11 +1151,12 @@
   // Every map marker carries data-hd (distance to the hole) + data-hu (ft|yd). Heat mode hides the dots and
   // paints soft density blobs; nearby blobs are grouped into "islands" (single-linkage, 40 px), each labelled
   // with its average distance and shot count; a crosshair marks the average finish of all plotted shots.
-  var HEAT_MAPS = { club: 'clubmap', gir: 'girmap', miss: 'missmap', pin: 'pinmap', prox: 'proxmap', putt: 'puttmap', pmiss: 'pmissmap' };
+  var HEAT_MAPS = { fw: 'fwmap', club: 'clubmap', gir: 'girmap', miss: 'missmap', pin: 'pinmap', prox: 'proxmap', putt: 'puttmap', pmiss: 'pmissmap' };
   var HEAT_LINK = 62;
   function heatCenter(svg, kind) {
     if (kind === 'prox') return [PX.cx, PX.cy];
     if (kind === 'putt') return [PG2.cx, PG2.cy];
+    if (kind === 'fw') return [180, 532];
     if (kind === 'pin') { var f = svg.querySelector('#pinflag'); if (f) return [+f.getAttribute('cx'), +f.getAttribute('cy')]; }
     return [180, 200];
   }
@@ -1220,7 +1224,7 @@
     pts.forEach(function (q) { var bi = -1, bd = 2 * sig; keep.forEach(function (k, i) { var d = Math.hypot(q.x - k[0], q.y - k[1]); if (d <= bd) { bd = d; bi = i; } }); if (bi >= 0) own[bi].push(q); });
     var boxes = [], n = 0;
     keep.forEach(function (p, i) { var near = own[i]; if (!near.length) return; n++;
-      o += heatTag('hotspot', near.length, p[0], p[1], heatFmt(near) + ' · ' + near.length + ' shot' + (near.length === 1 ? '' : 's'), boxes, W, H); });
+      o += heatTag('hotspot', near.length, p[0], p[1], heatLabel(near), boxes, W, H); });
     return { svg: o, peaks: n };
   }
   // Tag placement: try spots around the anchor (nearest first); never over another tag; if the tag ends up
@@ -1244,6 +1248,10 @@
     var g = {}; pts.forEach(function (p, i) { (g[find(i)] = g[find(i)] || []).push(p); });
     return Object.keys(g).map(function (k) { return g[k]; }).sort(function (a, b) { return b.length - a.length; });
   }
+  // tee-shot map: a hot spot's count + fairway share (its average distance would mislead: hits and misses mix); else avg distance + count
+  function heatLabel(g) { var n = g.length + ' shot' + (g.length === 1 ? '' : 's');
+    if (view.map === 'fw') return n + ' · ' + Math.round(100 * g.filter(function (p) { return p.fw === '1'; }).length / g.length) + '% fairway';
+    return heatFmt(g) + ' · ' + n; }
   function heatFmt(list) { // average distance; yards when every shot is off the green in yd, else feet
     var yd = list.every(function (p) { return p.u === 'yd'; }), v = list.reduce(function (a, p) { return a + (yd ? p.d : p.u === 'yd' ? p.d * 3 : p.d); }, 0) / list.length;
     return Math.round(v) + (yd ? ' yd' : ' ft');
@@ -1254,7 +1262,7 @@
     var C = heatCenter(svg, view.map), NS = 'http://www.w3.org/2000/svg', pts = [];
     svg.querySelectorAll('[data-hd]').forEach(function (e) {
       var k = (e.getAttribute('data-kind') || '') + (e.getAttribute('data-class') || ''); if (/nodir/.test(k)) return;
-      var b = e.getBBox(); pts.push({ x: b.x + b.width / 2, y: b.y + b.height / 2, d: +e.getAttribute('data-hd') || 0, u: e.getAttribute('data-hu') || 'ft' });
+      var b = e.getBBox(); pts.push({ x: b.x + b.width / 2, y: b.y + b.height / 2, d: +e.getAttribute('data-hd') || 0, u: e.getAttribute('data-hu') || 'ft', fw: e.getAttribute('data-fw') });
     });
     var multi = view.mapScope === 'all' && rounds.length > 1, mode = view.heat === 'isl' ? 'grad' : view.heat || (multi || pts.length > 15 ? 'grad' : 'dots'), on = mode !== 'dots';
     var tg = document.createElement('div'); tg.className = 'seg heattog'; tg.id = 'heattog';
@@ -1293,18 +1301,19 @@
     ax /= pts.length; ay /= pts.length; lr /= pts.length; lg /= pts.length;
     // putt-start map: putts start all around the cup, so their average POSITION cancels out near the hole -> no ⊕ there; report the mean distance instead
     var puttStart = view.map === 'putt';
-    if (!puttStart) h += '<g id="heatavg"><circle cx="' + f1(ax) + '" cy="' + f1(ay) + '" r="9" fill="none" stroke="#000" stroke-width="3"/><circle cx="' + f1(ax) + '" cy="' + f1(ay) + '" r="9" fill="none" stroke="#fff" stroke-width="1.2"/>' +
+    if (!puttStart && view.map !== 'fw') h += '<g id="heatavg"><circle cx="' + f1(ax) + '" cy="' + f1(ay) + '" r="9" fill="none" stroke="#000" stroke-width="3"/><circle cx="' + f1(ax) + '" cy="' + f1(ay) + '" r="9" fill="none" stroke="#fff" stroke-width="1.2"/>' +
       '<path d="M' + f1(ax - 15) + ' ' + f1(ay) + ' h30 M' + f1(ax) + ' ' + f1(ay - 15) + ' v30" stroke="#000" stroke-width="2.4"/></g>';
     var g = document.createElementNS(NS, 'g'); g.setAttribute('id', 'heatlayer'); g.innerHTML = h; svg.appendChild(g);
     var U = yd ? ' yd' : ' ft', part = function (v, a, b) { return Math.round(Math.abs(v)) ? Math.round(Math.abs(v)) + U + ' ' + (v > 0 ? a : b) : ''; };
     var words = [part(lg, 'long', 'short'), part(lr, 'right', 'left')].filter(Boolean).join(', ');
     var sm = document.createElement('p'); sm.className = 'heatsum'; sm.id = 'heatsum';
-    sm.innerHTML = (puttStart ? '<b>Average ' + ({ '2': 'second-putt', '3': '3rd+ putt' }[view.puttN] || 'first-putt') + ' distance:</b> ' + (function () { var PL = puttData().list, m = PL.length ? PL.reduce(function (t, p) { return t + Number(p.ft); }, 0) / PL.length : 0; /* simple mean of the entered starting distances of every putt on this map */
+    var fwMap = view.map === 'fw', fwN = pts.filter(function (p) { return p.fw === '1'; }).length;
+    sm.innerHTML = fwMap ? '<b>Tee shots on the heat map:</b> ' + pts.length + ' · fairway ' + fwN + ' / ' + pts.length + ' (' + Math.round(100 * fwN / pts.length) + '%)' + (tagged ? ' · ' + tagged + ' hot spot' + (tagged === 1 ? '' : 's') : '') + '.' : (puttStart ? '<b>Average ' + ({ '2': 'second-putt', '3': '3rd+ putt' }[view.puttN] || 'first-putt') + ' distance:</b> ' + (function () { var PL = puttData().list, m = PL.length ? PL.reduce(function (t, p) { return t + Number(p.ft); }, 0) / PL.length : 0; /* simple mean of the entered starting distances of every putt on this map */
         return (Math.round(m * 10) / 10) + ' ft · ' + PL.length + ' putt' + (PL.length === 1 ? '' : 's'); })() :
       '<b>⊕ Average finish:</b> ' + (words ? words + ' of the hole' : 'centred on the hole') + ' · ' + pts.length + ' shot' + (pts.length === 1 ? '' : 's')) + (mode === 'grad' ? (tagged ? (puttStart ? ' · ' : ' – ') + tagged + ' hot spot' + (tagged === 1 ? '' : 's') : '') : tagged > 1 || (tagged && lone) ? ' – ' + tagged + ' cluster' + (tagged === 1 ? '' : 's') + (lone ? ' + ' + lone + ' single shot' + (lone === 1 ? '' : 's') + ' (no tag)' : '') : '') + '.';
     anc.parentNode.insertBefore(sm, anc.nextSibling);
     var lg2 = document.createElement('p'); lg2.className = 'help heatnote'; lg2.id = 'heatnote';
-    lg2.innerHTML = mode === 'grad' ? '<span class="ramp rainbow" aria-hidden="true"></span> Gradient: a smooth density map of where the shots finished – clear = none, blue = a few, then green, yellow, red = most. One white tag per hot spot (average distance to the hole · shots in it). Cluster slider: tight = more, smaller hot spots; loose = fewer, wider ones. ' + (puttStart ? 'No ⊕ here: putts start all around the hole, so an average position would cancel out – the summary gives the average distance instead. ' : '⊕ = average finish of all shots shown. ') + 'Shots with no direction entered are left out.' : '<span class="ramp" aria-hidden="true"></span> Islands: each island is shaded by its share of the shots – light = few, dark red = most. Each white tag is one cluster – shots within 3 ft of each other (3 yd off the green), clusters less than 2 ft apart merged – with its average distance to the hole · number of shots. Single, isolated shots get no tag. ⊕ = average finish of all shots shown. Shots with no direction entered are left out.';
+    lg2.innerHTML = mode === 'grad' && view.map === 'fw' ? '<span class="ramp rainbow" aria-hidden="true"></span> Gradient: where your tee shots (par 4s and 5s) finished – blue = a few, then green, yellow, red = most. The app records how far each drive went, where it finished (fairway, rough, bunker, hazard, trees, OB) and the side you missed – not the exact spot – so shots are placed by distance, lie and side: fairway hits in the fairway, rough just off it, bunkers / hazards / trees further out, OB at the white line (OB length is unknown, drawn at 250 yd). Misses with no side entered are left off the heat map. Each tag = shots in that hot spot · % that hit the fairway. Layup tee shots are included (marked LU on the dots view), the same as in Fairways hit. No ⊕: a left/right average would cancel out.' : mode === 'grad' ? '<span class="ramp rainbow" aria-hidden="true"></span> Gradient: a smooth density map of where the shots finished – clear = none, blue = a few, then green, yellow, red = most. One white tag per hot spot (average distance to the hole · shots in it). Cluster slider: tight = more, smaller hot spots; loose = fewer, wider ones. ' + (puttStart ? 'No ⊕ here: putts start all around the hole, so an average position would cancel out – the summary gives the average distance instead. ' : '⊕ = average finish of all shots shown. ') + 'Shots with no direction entered are left out.' : '<span class="ramp" aria-hidden="true"></span> Islands: each island is shaded by its share of the shots – light = few, dark red = most. Each white tag is one cluster – shots within 3 ft of each other (3 yd off the green), clusters less than 2 ft apart merged – with its average distance to the hole · number of shots. Single, isolated shots get no tag. ⊕ = average finish of all shots shown. Shots with no direction entered are left out.';
     sm.parentNode.insertBefore(lg2, sm.nextSibling);
   }
   // ---------- Club performance (app only): everything from where the ball FINISHED (next row's distance + direction) ----------
