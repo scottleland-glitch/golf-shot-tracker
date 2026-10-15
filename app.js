@@ -1188,6 +1188,7 @@
     for (var k = 1; k < n; k++) { var bi = -1; for (var i = 0; i < n; i++) if (!used[i] && (bi < 0 || best[i][0] < best[bi][0])) bi = i;
       used[bi] = true; edges.push([best[bi][1], bi]); for (var j = 0; j < n; j++) if (!used[j]) { var d = Math.hypot(g[j].x - g[bi].x, g[j].y - g[bi].y); if (d < best[j][0]) best[j] = [d, bi]; } }
     var path = g.map(function (p) { return 'M' + f1(p.x) + ' ' + f1(p.y) + 'h0.01'; }).join('') + edges.map(function (e) { return 'M' + f1(g[e[0]].x) + ' ' + f1(g[e[0]].y) + 'L' + f1(g[e[1]].x) + ' ' + f1(g[e[1]].y); }).join('');
+    if (col === '~path') return path;
     return '<g filter="url(#hgoo)"><path class="hedge" d="' + path + '" fill="transparent" stroke="#3a0000" stroke-width="' + f1(2 * R + 3) + '" stroke-linecap="round" stroke-linejoin="round"/></g>' +
       '<g filter="url(#hgoo)"><path class="hfill" d="' + path + '" fill="transparent" stroke="' + col + '" stroke-width="' + f1(2 * R) + '" stroke-linecap="round" stroke-linejoin="round"/></g>';
   }
@@ -1371,10 +1372,12 @@
     var maxN = Math.floor(L.length / 2), n = Math.max(1, Math.min(view.cmpN || 3, maxN));
     return { all: L, n: n, maxN: maxN, best: L.slice(0, n), worst: L.slice(L.length - n).reverse() };
   }
+  // same yardage as the round's proximity rail: rounded to the nearest 10 yd (e.g. 97 yd shows as 100 -> 100-130 group)
+  function cmpBucket(yd) { return SG.apprBucket(SG.roundYd(yd)); }
   function cmpList(set, kind, grp) {
     var out = [];
     set.forEach(function (x) { var S = x.S;
-      (kind === 'gir' ? S.girMap : kind === 'miss' ? S.apprMiss : kind === 'putt' ? S.puttList.filter(function (p) { return p.n === 1; }) : S.proxList.filter(function (m) { return !grp || SG.apprBucket(m.from) === grp; }))
+      (kind === 'gir' ? S.girMap : kind === 'miss' ? S.apprMiss : kind === 'putt' ? S.puttList.filter(function (p) { return p.n === 1; }) : S.proxList.filter(function (m) { return !grp || cmpBucket(m.from) === grp; }))
         .forEach(function (m) { out.push(m); }); });
     return out;
   }
@@ -1386,7 +1389,7 @@
     var b = {}, keys = SG.APPR_BUCKETS.map(function (x) { return x.id; }).concat(['0-20 yd', '0-5 ft', '5-15 ft', '15-30 ft', '30+ ft']);
     keys.forEach(function (k) { b[k] = { n: 0, sg: 0, pS: 0, pN: 0, gir: 0, girN: 0 }; });
     set.forEach(function (x) { keys.forEach(function (k) { var B = x.S.buckets[k]; if (!B) return; b[k].n += B.n; b[k].sg += B.sg; b[k].pS += B.proxSum; b[k].pN += B.proxN; });
-      x.S.proxList.forEach(function (m) { var k = SG.apprBucket(m.from); if (b[k]) { b[k].girN++; if (m.hit) b[k].gir++; } }); });
+      x.S.proxList.forEach(function (m) { var k = cmpBucket(m.from); if (b[k]) { b[k].girN++; if (m.hit) b[k].gir++; } }); });
     return { b: b, keys: keys, n: set.length };
   }
   function cmpGapHTML(C) {
@@ -1407,7 +1410,7 @@
     h += '<h2>Where the strokes go</h2>' + cmpGapHTML(C);
     h += '<h2>Maps</h2><div class="seg cmpkinds" id="cmpkinds">' + CMP_KINDS.map(function (k) { return '<button data-act="cmpkind" data-v="' + k[0] + '" class="' + (k[0] === kind ? 'sel' : '') + '">' + k[1] + '</button>'; }).join('') + '</div>';
     var grp = null;
-    if (kind === 'prox') { var all = cmpList(C.best.concat(C.worst), 'prox'), cnt = {}; all.forEach(function (m) { var k = SG.apprBucket(m.from); cnt[k] = (cnt[k] || 0) + 1; });
+    if (kind === 'prox') { var all = cmpList(C.best.concat(C.worst), 'prox'), cnt = {}; all.forEach(function (m) { var k = cmpBucket(m.from); cnt[k] = (cnt[k] || 0) + 1; });
       grp = view.cmpGrp && cnt[view.cmpGrp] ? view.cmpGrp : SG.APPR_BUCKETS.map(function (x) { return x.id; }).filter(function (k) { return cnt[k]; }).sort(function (a, b) { return cnt[b] - cnt[a]; })[0] || null;
       h += '<div class="seg cmpgrps" id="cmpgrps">' + SG.APPR_BUCKETS.map(function (x) { return '<button data-act="cmpgrp" data-v="' + x.id + '" class="' + (x.id === grp ? 'sel' : '') + '"' + (cnt[x.id] ? '' : ' disabled') + '>' + x.id.replace(' yd', '') + '<small> ' + (cnt[x.id] || 0) + '</small></button>'; }).join('') + '</div>'; }
     var lb = cmpList(C.best, kind, grp), lw = cmpList(C.worst, kind, grp);
@@ -1415,8 +1418,8 @@
     if (!ov) h += '<div class="cmpmaps" id="cmpmaps"><figure class="cmpbest"><figcaption>Best · ' + lb.length + '</figcaption>' + cmpSVG(kind, lb) + '</figure><figure class="cmpworst"><figcaption>Worst · ' + lw.length + '</figcaption>' + cmpSVG(kind, lw) + '</figure></div>' +
       '<p class="help muted">Same scale on both sides. Best rounds left, worst right (dashed border).</p>';
     else h += '<div class="cmpov" id="cmpov">' + cmpSVG(kind, lw).replace('<svg ', '<svg id="cmpovmap" ') + '<div class="cmphide" aria-hidden="true">' + cmpSVG(kind, lb).replace('<svg ', '<svg id="cmpbestsrc" ') + '</div></div>' +
-      '<div class="legend" id="cmplegend"><span><span class="ramp"></span> Worst rounds – red islands, darker = more shots there</span><span><i class="dot" style="background:#fff;border:2.5px solid #000"></i>Best rounds – black rings</span></div>' +
-      '<p class="help muted">Overlay: where your worst rounds finished (red, see-through) with your best rounds drawn on top as black rings, same scale. Best ' + lb.length + ' · worst ' + lw.length + ' shots.</p>';
+      '<div class="legend" id="cmplegend"><span><span class="ramp"></span> Worst rounds – red islands, darker = more shots there</span><span><i class="dot" style="background:transparent;border:2.5px solid #000"></i>Best rounds – black island outlines (no fill)</span></div>' +
+      '<p class="help muted">Overlay: where your worst rounds finished (red, see-through) with your best rounds drawn on top as black island outlines (same clustering), same scale. Best ' + lb.length + ' · worst ' + lw.length + ' shots.</p>';
     return h;
   }
   function cmpPoints(svg) {
@@ -1426,12 +1429,17 @@
   }
   function applyCompare() {
     var ov = document.getElementById('cmpovmap'), src = document.getElementById('cmpbestsrc'); if (!ov || !src) return;
-    var kind = ov.getAttribute('data-kind'), C = heatCenter(ov, kind), wp = cmpPoints(ov), bp = cmpPoints(src), h = '<defs><filter id="hgoo" filterUnits="userSpaceOnUse" x="-2000" y="-2000" width="6000" height="6000"><feGaussianBlur in="SourceGraphic" stdDeviation="4.5" result="b"/><feColorMatrix in="b" mode="matrix" values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 22 -9"/></filter></defs>';
+    var kind = ov.getAttribute('data-kind'), C = heatCenter(ov, kind), wp = cmpPoints(ov), bp = cmpPoints(src), h = '<defs><filter id="hgoo" filterUnits="userSpaceOnUse" x="-2000" y="-2000" width="6000" height="6000"><feGaussianBlur in="SourceGraphic" stdDeviation="4.5" result="b"/><feColorMatrix in="b" mode="matrix" values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 22 -9"/></filter>' +
+      // best-round islands: the same goo shape, hollowed out to a 2.6 px black outline (no fill)
+      '<filter id="houtl" filterUnits="userSpaceOnUse" x="-2000" y="-2000" width="6000" height="6000"><feGaussianBlur in="SourceGraphic" stdDeviation="4.5" result="b"/><feColorMatrix in="b" mode="matrix" values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 22 -9" result="s"/>' +
+      '<feMorphology in="s" operator="erode" radius="2.6" result="e"/><feComposite in="s" in2="e" operator="out"/></filter></defs>';
     ov.classList.add('heat');
     if (wp.length) { var isl = heatIslandsReal(wp, heatReal(wp, C), heatClus()), mx = Math.max.apply(null, isl.map(function (g) { return g.length; }));
       isl.forEach(function (g) { var t = mx > 1 ? (g.length - 1) / (mx - 1) : 0, a = [255, 40, 40], b = [150, 0, 0], col = 'rgb(' + a.map(function (v, i) { return Math.round(v + (b[i] - v) * t); }).join(',') + ')';
         h += '<g class="hisland" data-n="' + g.length + '" opacity=".78">' + (g.length === 1 ? '<circle cx="' + f1(g[0].x) + '" cy="' + f1(g[0].y) + '" r="12" fill="' + col + '" stroke="#7a0000" stroke-width="1.5"/>' : islandShape(g, col)) + '</g>'; }); }
-    bp.forEach(function (p) { h += '<circle class="bestring" cx="' + f1(p.x) + '" cy="' + f1(p.y) + '" r="8" fill="none" stroke="#000" stroke-width="2.6"/>'; });
+    if (bp.length) { var bisl = heatIslandsReal(bp, heatReal(bp, C), heatClus());
+      // every best island (single shots too) is the same hugging goo shape as the red ones, hollowed to a black outline; one filter pass so touching islands share one outline
+      h += '<g id="bestisls" filter="url(#houtl)">' + bisl.map(function (g) { return '<path class="bestisl" data-n="' + g.length + '" d="' + islandShape(g, '~path') + '" fill="transparent" stroke="#000" stroke-width="25.4" stroke-linecap="round" stroke-linejoin="round"/>'; }).join('') + '</g>'; }
     var g = document.createElementNS('http://www.w3.org/2000/svg', 'g'); g.setAttribute('id', 'cmplayer'); g.innerHTML = h; ov.appendChild(g);
     src.parentNode.remove();
   }

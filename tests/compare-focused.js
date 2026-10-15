@@ -36,9 +36,9 @@ const BASE = process.env.BASE_URL || 'http://127.0.0.1:8776/', OUT = '/workspace
     const vb = await page.$$eval('#cmpmaps svg', s => s.map(x => x.getAttribute('viewBox'))); assert.strictEqual(vb[0], vb[1], 'same scale');
     if (k === 'prox' || k === 'gir') { await page.locator('#cmpmaps').scrollIntoViewIfNeeded(); await page.screenshot({ path: OUT + 'compare-side-' + k + '.png' }); }
     await page.click('[data-act="cmpov"][data-v="1"]'); await page.waitForSelector('#cmplayer');
-    const ov = await page.evaluate(() => ({ isl: document.querySelectorAll('#cmplayer .hisland').length, rings: document.querySelectorAll('#cmplayer .bestring').length, last: document.querySelector('#cmpovmap').lastElementChild.id, hidden: !!document.getElementById('cmpbestsrc') }));
+    const ov = await page.evaluate(() => ({ isl: document.querySelectorAll('#cmplayer .hisland').length, rings: document.querySelectorAll('#cmplayer .bestisl').length, last: document.querySelector('#cmpovmap').lastElementChild.id, hidden: !!document.getElementById('cmpbestsrc') }));
     assert.ok(ov.rings + ov.isl > 0 && ov.last === 'cmplayer' && !ov.hidden, k + ' overlay ' + JSON.stringify(ov));
-    const order = await page.evaluate(() => { const L = [...document.querySelectorAll('#cmplayer > *')]; const fr = L.findIndex(e => e.classList.contains('bestring')), li = L.map(e => e.classList.contains('hisland')).lastIndexOf(true); return fr === -1 || fr > li; });
+    const order = await page.evaluate(() => { const L = [...document.querySelectorAll('#cmplayer > *')]; const fr = L.findIndex(e => e.classList.contains('bestisl')), li = L.map(e => e.classList.contains('hisland')).lastIndexOf(true); return fr === -1 || fr > li; });
     assert.ok(order, 'best rings drawn on top');
     if (k === 'prox' || k === 'putt') { await page.locator('#cmpov').scrollIntoViewIfNeeded(); await page.screenshot({ path: OUT + 'compare-overlay-' + k + '.png' }); }
   }
