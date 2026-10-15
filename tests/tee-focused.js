@@ -19,22 +19,21 @@ const BASE = 'http://127.0.0.1:8783/', OUT = '/workspace/golf-app/screenshots/';
   await page.click('[data-act="map"][data-v="fw"]'); await page.waitForSelector('#fwmap');
   // this round: Dots + Gradient toggle exists; no Islands
   assert.ok(await page.$('#heattog [data-v="dots"]') && await page.$('#heattog [data-v="grad"]') && !(await page.$('#heattog [data-v="isl"]')));
-  await page.click('[data-act="heat"][data-v="dots"]'); assert.ok(await page.$('#fwmap text.fwdot'), 'layup marked LU');
-  assert.strictEqual(await page.$$eval('#fwmap text.fwdot', t => t.filter(x => x.textContent === 'LU').length), 1);
-  await page.locator('#fwmap').scrollIntoViewIfNeeded(); await page.screenshot({ path: OUT + 'tee-heat-dots.png' });
-  await page.click('[data-act="mapscope"][data-v="all"]'); await page.waitForSelector('#heattog');
-  await page.click('[data-act="heat"][data-v="grad"]'); await page.waitForSelector('#fwmap #heatgrad');
-  const r = await page.evaluate(() => { const pts = [...document.querySelectorAll('#fwmap [data-hd]')].filter(e => e.getAttribute('data-class') !== 'nodir');
-    return { tags: [...document.querySelectorAll('#fwmap .hotspot text')].map(t => t.textContent), n: pts.length, fw: pts.filter(e => e.dataset.fw === '1').length,
-      sum: document.getElementById('heatsum').textContent, avg: !!document.getElementById('heatavg'), note: document.getElementById('heatnote').textContent, clus: !!document.getElementById('clusr') }; });
-  console.log(JSON.stringify(r));
-  assert.ok(r.tags.length > 1 && r.tags.every(t => /^\d+ shots? · \d+% fairway$/.test(t)), 'tags ' + r.tags);
-  assert.strictEqual(r.tags.reduce((a, t) => a + +t.match(/^\d+/)[0], 0) <= r.n, true, 'no shot counted twice');
-  assert.strictEqual(new Set(r.tags.map((t, i) => i)).size, r.tags.length);
-  assert.ok(!r.avg, 'no ⊕ on the tee map'); assert.ok(r.clus, 'cluster slider');
-  assert.ok(r.sum.includes('fairway ' + r.fw + ' / ' + r.n), r.sum); assert.ok(r.sum.includes(r.tags.length + ' hot spot'), r.sum);
-  assert.match(r.note, /not the exact spot/); assert.match(r.note, /LU/);
-  await page.locator('#heattog').scrollIntoViewIfNeeded(); await page.screenshot({ path: OUT + 'tee-heat-gradient.png' });
-  await page.locator('#heatsum').scrollIntoViewIfNeeded(); await page.screenshot({ path: OUT + 'tee-heat-summary.png' });
+  const chk = async label => { const r = await page.evaluate(() => { const pct = {}; document.querySelectorAll('#fwmap .fwpct').forEach(t => pct[t.dataset.k] = [t.textContent, +t.dataset.n]);
+      const shown = [...document.querySelectorAll('#fwmap [data-hd]')]; return { pct, n: shown.length, lay: shown.filter(e => e.dataset.layup).length, note: (document.getElementById('fwpctnote') || {}).textContent || '',
+        tags: document.querySelectorAll('#fwmap .hotspot').length, sum: document.getElementById('mapsum').textContent }; });
+    const N = r.n, p = k => Math.round(100 * r.pct[k][1] / N) + '%';
+    assert.strictEqual(r.lay, 0, label + ' no layups'); assert.strictEqual(r.tags, 0, label + ' no hot-spot labels');
+    ['L', 'F', 'R'].forEach(k => assert.strictEqual(r.pct[k][0], p(k), label + ' ' + k));
+    const nU = N - r.pct.L[1] - r.pct.F[1] - r.pct.R[1]; assert.ok(nU === 0 ? !r.note : r.note.includes(nU + ' miss'), label + ' note ' + r.note);
+    assert.ok(r.sum.includes(r.pct.F[1] + ' / ' + N), label + ' summary excludes layups ' + r.sum); console.log(label, JSON.stringify(r.pct), N, r.note); return r; };
+  await page.click('[data-act="heat"][data-v="dots"]'); const r1 = await chk('round dots');
+  assert.strictEqual(r1.n, 14, '15 par 4/5 tee shots minus 1 layup');
+  await page.click('[data-act="heat"][data-v="grad"]'); await chk('round grad');
+  await page.click('[data-act="mapscope"][data-v="all"]'); await page.waitForSelector('#heattog'); await page.click('[data-act="heat"][data-v="grad"]'); await page.waitForSelector('#fwmap #heatgrad');
+  const r2 = await chk('all grad'); assert.strictEqual(r2.n, 28, '30 minus 2 layups');
+  assert.match(await page.textContent('#heatnote'), /Layup tee shots are left off/);
+  await page.locator('#heattog').scrollIntoViewIfNeeded(); await page.screenshot({ path: OUT + 'tee-pct-row.png' });
+  await page.click('[data-act="heat"][data-v="dots"]'); await chk('all dots');
   assert.deepStrictEqual(errors, []); console.log('TEE OK'); await b.close(); srv.kill();
 })().catch(e => { console.error(e); process.exit(1); });

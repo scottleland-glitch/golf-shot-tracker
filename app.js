@@ -1117,13 +1117,20 @@
       var hd = ' class="fwdot" data-hd="' + Math.round(yd) + '" data-hu="yd" data-fw="' + (m.fairway ? 1 : 0) + '" data-lie="' + m.kind + '"' + (dashed ? ' data-class="nodir"' : '') + (m.layup ? ' data-layup="1"' : '');
       if (m.kind === 'ob') out += '<text' + hd + ' x="' + f1(ex) + '" y="' + f1(ey + 7) + '" text-anchor="middle" font-size="22" font-weight="900" fill="#fff" stroke="#000" stroke-width="2" paint-order="stroke">✕</text>';
       else out += '<circle' + hd + ' cx="' + f1(ex) + '" cy="' + f1(ey) + '" r="6.5" fill="' + FW_END[m.kind] + '" stroke="' + (m.kind === 'fairway' ? col : '#000') + '" stroke-width="2.5"/>';
-      if (m.layup) out += '<text class="fwdot" x="' + f1(ex - 9) + '" y="' + f1(ey - 9) + '" text-anchor="end" font-size="11" font-weight="900" fill="#fff" stroke="#000" stroke-width="2.5" paint-order="stroke">LU</text>';
       if (dashed) out += '<text x="' + f1(ex + 9) + '" y="' + f1(ey + 5) + '" font-size="14" font-weight="900" fill="#fff">?</text>';
     });
     out += '<text x="180" y="556" text-anchor="middle" font-size="12" font-weight="800" fill="#fff">TEE</text>';
+    // top row: left miss % · fairway % · right miss % (of every tee shot shown; misses with no side are in the total only)
+    var N = list.length, pc = function (k) { return N ? Math.round(100 * k / N) + '%' : '–'; };
+    var nL = list.filter(function (m) { return !m.fairway && m.side === 'L'; }).length, nR = list.filter(function (m) { return !m.fairway && m.side === 'R'; }).length, nF = list.filter(function (m) { return m.fairway; }).length, nU = N - nL - nR - nF;
+    out += '<g id="fwpct"><rect x="40" y="4" width="280" height="' + (nU ? 52 : 42) + '" rx="10" fill="#fff" fill-opacity=".92"/>' +
+      [[100, 'Left', nL, 'L'], [180, 'Fairway', nF, 'F'], [260, 'Right', nR, 'R']].map(function (c) { return '<text x="' + c[0] + '" y="16" text-anchor="middle" font-size="10" font-weight="700" fill="#555">' + c[1] + '</text>' +
+        '<text class="fwpct" data-k="' + c[3] + '" data-n="' + c[2] + '" x="' + c[0] + '" y="38" text-anchor="middle" font-size="20" font-weight="900" fill="' + (c[3] === 'F' ? '#00791b' : '#b00020') + '">' + pc(c[2]) + '</text>'; }).join('') +
+      (nU ? '<text id="fwpctnote" x="180" y="51" text-anchor="middle" font-size="9.5" font-weight="700" fill="#555">+ ' + nU + ' miss' + (nU === 1 ? '' : 'es') + ' with no side entered (' + pc(nU) + ')</text>' : '') + '</g>';
     return out + '</svg>';
   }
   function fwHTML(list, all, D) {
+    list = list.filter(function (m) { return !m.layup; }); // layup tee shots are left off this map (and its numbers) entirely
     var hit = list.filter(function (m) { return m.fairway; }).length, miss = list.filter(function (m) { return !m.fairway; });
     var L = miss.filter(function (m) { return m.side === 'L'; }).length, R = miss.filter(function (m) { return m.side === 'R'; }).length;
     var by = {}; miss.forEach(function (m) { by[m.kind] = (by[m.kind] || 0) + 1; });
@@ -1140,7 +1147,7 @@
       var l = miss.filter(function (m) { return m.kind === k && m.side === 'L'; }).length, r = miss.filter(function (m) { return m.kind === k && m.side === 'R'; }).length;
       out += '<tr data-kind="' + k + '"><td>' + FW_NAME[k] + '</td><td class="num">' + l + '</td><td class="num">' + r + '</td><td class="num">' + (by[k] || 0) + '</td></tr>';
     });
-    out += '</table><p class="help muted">Every tee shot on a par 4 or 5 (finished holes only), drawn from the tee to the distance it went (hole length minus the distance left). ' +
+    out += '</table><p class="help muted">Every tee shot on a par 4 or 5 (finished holes only; layup tee shots are left off this map and its percentages), drawn from the tee to the distance it went (hole length minus the distance left). ' +
       'Left/right comes from the Dir you entered on row 2. Fairway hit = first tee shot finished on the fairway or green with no penalty. Bird\'s-eye view: the fairway runs away from you.</p>';
     return out;
   }
@@ -1223,7 +1230,7 @@
     var own = keep.map(function () { return []; });
     pts.forEach(function (q) { var bi = -1, bd = 2 * sig; keep.forEach(function (k, i) { var d = Math.hypot(q.x - k[0], q.y - k[1]); if (d <= bd) { bd = d; bi = i; } }); if (bi >= 0) own[bi].push(q); });
     var boxes = [], n = 0;
-    keep.forEach(function (p, i) { var near = own[i]; if (!near.length) return; n++;
+    keep.forEach(function (p, i) { var near = own[i]; if (!near.length) return; n++; if (view.map === 'fw') return; // tee map: no hot-spot labels
       o += heatTag('hotspot', near.length, p[0], p[1], heatLabel(near), boxes, W, H); });
     return { svg: o, peaks: n };
   }
@@ -1308,12 +1315,12 @@
     var words = [part(lg, 'long', 'short'), part(lr, 'right', 'left')].filter(Boolean).join(', ');
     var sm = document.createElement('p'); sm.className = 'heatsum'; sm.id = 'heatsum';
     var fwMap = view.map === 'fw', fwN = pts.filter(function (p) { return p.fw === '1'; }).length;
-    sm.innerHTML = fwMap ? '<b>Tee shots on the heat map:</b> ' + pts.length + ' · fairway ' + fwN + ' / ' + pts.length + ' (' + Math.round(100 * fwN / pts.length) + '%)' + (tagged ? ' · ' + tagged + ' hot spot' + (tagged === 1 ? '' : 's') : '') + '.' : (puttStart ? '<b>Average ' + ({ '2': 'second-putt', '3': '3rd+ putt' }[view.puttN] || 'first-putt') + ' distance:</b> ' + (function () { var PL = puttData().list, m = PL.length ? PL.reduce(function (t, p) { return t + Number(p.ft); }, 0) / PL.length : 0; /* simple mean of the entered starting distances of every putt on this map */
+    sm.innerHTML = fwMap ? '<b>Tee shots on the heat map:</b> ' + pts.length + ' · fairway ' + fwN + ' / ' + pts.length + ' (' + Math.round(100 * fwN / pts.length) + '%).' : (puttStart ? '<b>Average ' + ({ '2': 'second-putt', '3': '3rd+ putt' }[view.puttN] || 'first-putt') + ' distance:</b> ' + (function () { var PL = puttData().list, m = PL.length ? PL.reduce(function (t, p) { return t + Number(p.ft); }, 0) / PL.length : 0; /* simple mean of the entered starting distances of every putt on this map */
         return (Math.round(m * 10) / 10) + ' ft · ' + PL.length + ' putt' + (PL.length === 1 ? '' : 's'); })() :
       '<b>⊕ Average finish:</b> ' + (words ? words + ' of the hole' : 'centred on the hole') + ' · ' + pts.length + ' shot' + (pts.length === 1 ? '' : 's')) + (mode === 'grad' ? (tagged ? (puttStart ? ' · ' : ' – ') + tagged + ' hot spot' + (tagged === 1 ? '' : 's') : '') : tagged > 1 || (tagged && lone) ? ' – ' + tagged + ' cluster' + (tagged === 1 ? '' : 's') + (lone ? ' + ' + lone + ' single shot' + (lone === 1 ? '' : 's') + ' (no tag)' : '') : '') + '.';
     anc.parentNode.insertBefore(sm, anc.nextSibling);
     var lg2 = document.createElement('p'); lg2.className = 'help heatnote'; lg2.id = 'heatnote';
-    lg2.innerHTML = mode === 'grad' && view.map === 'fw' ? '<span class="ramp rainbow" aria-hidden="true"></span> Gradient: where your tee shots (par 4s and 5s) finished – blue = a few, then green, yellow, red = most. The app records how far each drive went, where it finished (fairway, rough, bunker, hazard, trees, OB) and the side you missed – not the exact spot – so shots are placed by distance, lie and side: fairway hits in the fairway, rough just off it, bunkers / hazards / trees further out, OB at the white line (OB length is unknown, drawn at 250 yd). Misses with no side entered are left off the heat map. Each tag = shots in that hot spot · % that hit the fairway. Layup tee shots are included (marked LU on the dots view), the same as in Fairways hit. No ⊕: a left/right average would cancel out.' : mode === 'grad' ? '<span class="ramp rainbow" aria-hidden="true"></span> Gradient: a smooth density map of where the shots finished – clear = none, blue = a few, then green, yellow, red = most. One white tag per hot spot (average distance to the hole · shots in it). Cluster slider: tight = more, smaller hot spots; loose = fewer, wider ones. ' + (puttStart ? 'No ⊕ here: putts start all around the hole, so an average position would cancel out – the summary gives the average distance instead. ' : '⊕ = average finish of all shots shown. ') + 'Shots with no direction entered are left out.' : '<span class="ramp" aria-hidden="true"></span> Islands: each island is shaded by its share of the shots – light = few, dark red = most. Each white tag is one cluster – shots within 3 ft of each other (3 yd off the green), clusters less than 2 ft apart merged – with its average distance to the hole · number of shots. Single, isolated shots get no tag. ⊕ = average finish of all shots shown. Shots with no direction entered are left out.';
+    lg2.innerHTML = mode === 'grad' && view.map === 'fw' ? '<span class="ramp rainbow" aria-hidden="true"></span> Gradient: where your tee shots (par 4s and 5s) finished – blue = a few, then green, yellow, red = most. The app records how far each drive went, where it finished (fairway, rough, bunker, hazard, trees, OB) and the side you missed – not the exact spot – so shots are placed by distance, lie and side: fairway hits in the fairway, rough just off it, bunkers / hazards / trees further out, OB at the white line (OB length is unknown, drawn at 250 yd). Misses with no side entered are left off the heat map. The row across the top gives the share of tee shots missed left, hit in the fairway and missed right (misses with no side entered count in the total only). Layup tee shots are left off this map and out of its percentages (they still count in your other stats). No ⊕: a left/right average would cancel out.' : mode === 'grad' ? '<span class="ramp rainbow" aria-hidden="true"></span> Gradient: a smooth density map of where the shots finished – clear = none, blue = a few, then green, yellow, red = most. One white tag per hot spot (average distance to the hole · shots in it). Cluster slider: tight = more, smaller hot spots; loose = fewer, wider ones. ' + (puttStart ? 'No ⊕ here: putts start all around the hole, so an average position would cancel out – the summary gives the average distance instead. ' : '⊕ = average finish of all shots shown. ') + 'Shots with no direction entered are left out.' : '<span class="ramp" aria-hidden="true"></span> Islands: each island is shaded by its share of the shots – light = few, dark red = most. Each white tag is one cluster – shots within 3 ft of each other (3 yd off the green), clusters less than 2 ft apart merged – with its average distance to the hole · number of shots. Single, isolated shots get no tag. ⊕ = average finish of all shots shown. Shots with no direction entered are left out.';
     sm.parentNode.insertBefore(lg2, sm.nextSibling);
   }
   // ---------- Club performance (app only): everything from where the ball FINISHED (next row's distance + direction) ----------
