@@ -1176,6 +1176,18 @@
         var md = Infinity; G[a].forEach(function (p) { G[b].forEach(function (q) { md = Math.min(md, Math.hypot(p.rx - q.rx, p.ry - q.ry) - link(p, q)); }); }); if (md <= gap) { G[a] = G[a].concat(G[b]); G.splice(b, 1); merged = true; } } }
     return G.sort(function (a, b) { return b.length - a.length; });
   }
+  // Island outline that takes the cluster's shape: union of a disc per shot plus a round-capped band along the
+  // island's minimum spanning tree (so an elongated cluster is a sausage, an L-shaped one bends); drawn twice for
+  // a crisp thin border. Single fill colour, padded ~R px around the shots, rounded everywhere.
+  function islandShape(g, col, R) {
+    R = R || 11; var n = g.length, inT = [0], edges = [], best = g.map(function (p) { return [Math.hypot(p.x - g[0].x, p.y - g[0].y), 0]; });
+    var used = g.map(function (_, i) { return i === 0; });
+    for (var k = 1; k < n; k++) { var bi = -1; for (var i = 0; i < n; i++) if (!used[i] && (bi < 0 || best[i][0] < best[bi][0])) bi = i;
+      used[bi] = true; edges.push([best[bi][1], bi]); for (var j = 0; j < n; j++) if (!used[j]) { var d = Math.hypot(g[j].x - g[bi].x, g[j].y - g[bi].y); if (d < best[j][0]) best[j] = [d, bi]; } }
+    var path = g.map(function (p) { return 'M' + f1(p.x) + ' ' + f1(p.y) + 'h0.01'; }).join('') + edges.map(function (e) { return 'M' + f1(g[e[0]].x) + ' ' + f1(g[e[0]].y) + 'L' + f1(g[e[1]].x) + ' ' + f1(g[e[1]].y); }).join('');
+    return '<path class="hedge" d="' + path + '" fill="transparent" stroke="#3a0000" stroke-width="' + f1(2 * R + 2.4) + '" stroke-linecap="round" stroke-linejoin="round"/>' +
+      '<path class="hfill" d="' + path + '" fill="transparent" stroke="' + col + '" stroke-width="' + f1(2 * R) + '" stroke-linecap="round" stroke-linejoin="round"/>';
+  }
   function heatIslands(pts, link) {
     var id = pts.map(function (_, i) { return i; }), find = function (i) { while (id[i] !== i) i = id[i] = id[id[i]]; return i; };
     for (var i = 0; i < pts.length; i++) for (var j = i + 1; j < pts.length; j++) if (Math.hypot(pts[i].x - pts[j].x, pts[i].y - pts[j].y) <= link) id[find(i)] = find(j);
@@ -1209,8 +1221,7 @@
     var maxShare = Math.max.apply(null, isl.map(function (g) { return g.length; })) / pts.length;
     isl.forEach(function (g) { var share = g.length / pts.length, t = maxShare > 0 ? Math.min(1, 0.15 + 0.85 * share / maxShare) : 1, col = ramp(t);
       h += '<g class="hisland" data-n="' + g.length + '" data-share="' + share.toFixed(3) + '" data-col="' + col + '">' +
-        g.map(function (p) { return '<circle cx="' + f1(p.x) + '" cy="' + f1(p.y) + '" r="13.5" fill="#3a0000"/>'; }).join('') +
-        g.map(function (p) { return '<circle class="hblob" cx="' + f1(p.x) + '" cy="' + f1(p.y) + '" r="12.3" fill="' + col + '" fill-opacity=".92"/>'; }).join('') + '</g>'; });
+        islandShape(g, col) + g.map(function (p) { return '<circle class="hblob" cx="' + f1(p.x) + '" cy="' + f1(p.y) + '" r="1.6" fill="#3a0000" fill-opacity=".55"/>'; }).join('') + '</g>'; });
     var lone = isl.filter(function (g) { return g.length === 1; }).length, tagged = isl.length - lone;
     isl.forEach(function (g, i) {
       if (g.length === 1 && tagged) { h += '<g class="island lone" data-n="1"></g>'; return; }
@@ -1371,8 +1382,7 @@
     ov.classList.add('heat');
     if (wp.length) { var isl = heatIslandsReal(wp, heatReal(wp, C)), mx = Math.max.apply(null, isl.map(function (g) { return g.length; }));
       isl.forEach(function (g) { var t = Math.min(1, 0.15 + 0.85 * g.length / mx), a = [253, 224, 218], b = [139, 0, 0], col = 'rgb(' + a.map(function (v, i) { return Math.round(v + (b[i] - v) * t); }).join(',') + ')';
-        h += '<g class="hisland" data-n="' + g.length + '" opacity=".6">' + g.map(function (p) { return '<circle cx="' + f1(p.x) + '" cy="' + f1(p.y) + '" r="13.5" fill="#3a0000"/>'; }).join('') +
-          g.map(function (p) { return '<circle cx="' + f1(p.x) + '" cy="' + f1(p.y) + '" r="12.3" fill="' + col + '"/>'; }).join('') + '</g>'; }); }
+        h += '<g class="hisland" data-n="' + g.length + '" opacity=".6">' + islandShape(g, col) + '</g>'; }); }
     bp.forEach(function (p) { h += '<circle class="bestring" cx="' + f1(p.x) + '" cy="' + f1(p.y) + '" r="8" fill="none" stroke="#000" stroke-width="2.6"/>'; });
     var g = document.createElementNS('http://www.w3.org/2000/svg', 'g'); g.setAttribute('id', 'cmplayer'); g.innerHTML = h; ov.appendChild(g);
     src.parentNode.remove();
