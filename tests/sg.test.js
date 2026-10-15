@@ -740,3 +740,19 @@ test('arrivalDepth: pin high / long / short for the shot that reached the green'
   assert.strictEqual(SG.arrivalDepth('longright', 9), 'long'); assert.strictEqual(SG.arrivalDepth('long', 2.5), 'long');
   assert.strictEqual(SG.arrivalDepth('shortleft', 12), 'short'); assert.strictEqual(SG.arrivalDepth('', 12), '');
 });
+
+test('club + layup: club kept on shots, layup tee shot excluded from SG entirely', () => {
+  const R = (d, l, dir, x) => Object.assign({ dist: d, loc: l, dir: dir || '', pen: false }, x || {});
+  const rows = [R(400, 'tee', '', { club: '3W' }), R(160, 'fairway', '', { club: '7i' }), R(20, 'green', 'right'), R(2, 'holed')];
+  const h = { par: 4, finished: true, rows }, lay = { par: 4, finished: true, rows: rows.map((r, i) => i ? r : Object.assign({}, r, { layup: true })) };
+  const a = SG.analyzeHole(h, 'pga'), b = SG.analyzeHole(lay, 'pga');
+  assert.deepStrictEqual(a.shots.map(s => s.club), ['3W', '7i', '', '']);
+  assert.ok(!a.shots[0].layup && b.shots[0].layup && b.shots[0].sg === 0 && Math.abs(b.shots[0].sgRaw - a.shots[0].sg) < 1e-9);
+  const mk = hole => ({ id: 'x', date: '2026-10-10', baseline: 'pga', holes: [hole].concat(Array.from({ length: 17 }, () => ({ par: 4, rows: [R('', 'tee')] }))) });
+  const Sa = SG.summarize(mk(h), 'pga'), Sb = SG.summarize(mk(lay), 'pga');
+  assert.strictEqual(Sb.cats.tee.n, 0); assert.strictEqual(Sb.cats.tee.sg, 0); assert.strictEqual(Sa.cats.tee.n, 1);
+  assert.ok(Math.abs(Sb.sgTotal - (Sa.sgTotal - a.shots[0].sg)) < 1e-9); assert.strictEqual(Sb.layups, 1);
+  assert.strictEqual(Sb.strokes, Sa.strokes); // score unchanged
+  // old rows without club/layup still work
+  assert.deepStrictEqual(SG.analyzeHole({ par: 4, finished: true, rows: [R(400, 'tee'), R(2, 'holed')] }, 'pga').shots[0].club, '');
+});

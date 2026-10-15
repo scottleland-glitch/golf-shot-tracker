@@ -350,3 +350,10 @@ button.discard { display: block; width: 100%; min-height: 48px; margin: 4px 0 10
 .sghead small { font-size: 13px; color: #666; font-weight: 600; }
 .sghead .chev { font-size: 18px; color: #145214; }
 #sgbody { padding: 4px 12px 12px; }
+.clubrow { display: flex; align-items: center; gap: 14px; padding: 2px 0 6px 52px; }
+.clubrow .clublbl { display: flex; align-items: center; gap: 6px; font-size: 14px; color: #555; }
+.clubrow select { min-height: 44px; min-width: 92px; font-size: 17px; border: 1px solid #9faba1; border-radius: 10px; padding: 0 8px; background: #fff; }
+.clubrow .layup { display: flex; align-items: center; gap: 6px; min-height: 44px; font-size: 16px; font-weight: 700; }
+.clubrow .layup input { width: 26px; height: 26px; }
+.clubrow .layup small { font-weight: 500; color: #666; }
+.clubrow.putter { color: #777; padding-top: 0; }

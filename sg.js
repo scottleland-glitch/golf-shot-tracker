@@ -311,8 +311,9 @@
       yd: hit || ob ? null : (onG ? r.end.dist / 3 : r.end.dist), unit: !hit && onG ? 'ft' : 'yd',
       from: r.start.dist, fromLie: r.start.lie, fromGroup: lieGroup(r.start.lie), fromDir: R.k > 0 ? out[R.k - 1].dir : '', pen: r.penStrokes > 0, ob: ob };
   }
+  var CLUBS = ['Driver', '3W', '5W', '7W', '4H', '5H', '5i', '6i', '7i', '8i', '9i', 'PW', '52', '54', '56', '58', '60'];
   function analyzeHole(hole, baseline) {
-    var bad = null, problem = '', complete = null, finished = true, rowsFmt = !!hole.rows, nRows = 0, liveStrokes = 0;
+    var bad = null, problem = '', complete = null, finished = true, rowsFmt = !!hole.rows, nRows = 0, liveStrokes = 0, raw = hole.rows || hole.shots || [];
     if (rowsFmt) {
       var conv = rowsToShots(hole.rows); bad = conv.bad; problem = conv.problem; complete = conv.complete;
       finished = !!hole.finished; nRows = hole.rows.length; liveStrokes = rowStrokes(hole.rows);
@@ -346,8 +347,10 @@
       out.push({
         n: i + 1, start: start, end: end, pen: pen, penStrokes: penStrokes,
         side: s.side || dirSide(normDir(s.dir)), dir: normDir(s.dir || s.side), ob: !!s.ob, loc: s.loc || (pen === 'ob' ? 'ob' : s.lie), eStart: eStart, eEnd: eEnd, sg: sg,
-        cat: cat, bucket: bucket, hit: hit
+        cat: cat, bucket: bucket, hit: hit, club: CLUBS.indexOf((raw[i] || {}).club) >= 0 ? raw[i].club : ''
       });
+      // Layup tee shot: its strokes gained is left out entirely (0 toward Off the tee and the total; not counted as a tee shot).
+      if (i === 0 && cat === 'tee' && raw[0] && raw[0].layup) { var L0 = out[out.length - 1]; L0.layup = true; L0.sgRaw = sg; L0.sg = 0; }
       start = end;
     }
     var penalties = out.reduce(function (a, r) { return a + r.penStrokes; }, 0);
@@ -486,6 +489,7 @@
       S.girHoles++; if (a.gir) S.gir++;
       if (a.fairway !== null) { S.fwTotal++; if (a.fairway) S.fwHit++; }
       a.shots.forEach(function (r) {
+        if (r.layup) { S.layups = (S.layups || 0) + 1; if (r.side === 'L') { S.allLeft++; S.teeLeft++; } if (r.side === 'R') { S.allRight++; S.teeRight++; } return; }
         S.sgTotal += r.sg;
         S.cats[r.cat].sg += r.sg; S.cats[r.cat].n++;
         var B = S.buckets[r.bucket]; B.sg += r.sg; B.n++;
@@ -772,7 +776,7 @@
     return { attempts: list.length, made: list.length - miss.length, misses: miss.length, counts: c, pct: { left: pct('left'), right: pct('right'), short: pct('short'), long: pct('long'), nearlong: pct('nearlong'), nodir: pct('nodir') },
       avgLeftFt: miss.length ? miss.reduce(function (t, p) { return t + (p.endFt || 0); }, 0) / miss.length : null };
   }
-  var api = { PMISS_GROUPS: PMISS_GROUPS, pmissGroup: pmissGroup, pmissClass: pmissClass, pmissStats: pmissStats, pmissScale: pmissScale, arrivalDepth: arrivalDepth, roundEmpty: roundEmpty, foldStubs: foldStubs, pdfSafe: pdfSafe, reportFileName: reportFileName, pinSegments: pinSegments, REPORT_GROUPS: REPORT_GROUPS, reportGroup: reportGroup, SHORT_MAX_YD: SHORT_MAX_YD, APPR_BUCKETS: APPR_BUCKETS, apprBucket: apprBucket, proxAfterFt: proxAfterFt, puttKind: puttKind, threePutts: threePutts, puttScale: puttScale, puttRadius: puttRadius, puttPlace: puttPlace, PUTT_BANDS: PUTT_BANDS, puttGroup: puttGroup, puttStats: puttStats, makeBackup: makeBackup, parseBackup: parseBackup, mergeRounds: mergeRounds, conflictsOf: conflictsOf, PROX_LIES: PROX_LIES, lieGroup: lieGroup, proxByLie: proxByLie, proxWarnings: proxWarnings, PROX_BUCKETS: PROX_BUCKETS, inBucket: inBucket, roundYd: roundYd, proxStats: proxStats, reachedGreen: reachedGreen, PIN_GRID: PIN_GRID, PIN_NAME: PIN_NAME, normPin: normPin, DIR8: DIR8, DIR_NAME: DIR_NAME, DIR_ANGLE: DIR_ANGLE, normDir: normDir, expected: expected, expectedPGA: expectedPGA, BASELINES: BASELINES, baseline: function (id) { return BL[id] || BL.pga; },
+  var api = { PMISS_GROUPS: PMISS_GROUPS, pmissGroup: pmissGroup, pmissClass: pmissClass, pmissStats: pmissStats, pmissScale: pmissScale, CLUBS: CLUBS, arrivalDepth: arrivalDepth, roundEmpty: roundEmpty, foldStubs: foldStubs, pdfSafe: pdfSafe, reportFileName: reportFileName, pinSegments: pinSegments, REPORT_GROUPS: REPORT_GROUPS, reportGroup: reportGroup, SHORT_MAX_YD: SHORT_MAX_YD, APPR_BUCKETS: APPR_BUCKETS, apprBucket: apprBucket, proxAfterFt: proxAfterFt, puttKind: puttKind, threePutts: threePutts, puttScale: puttScale, puttRadius: puttRadius, puttPlace: puttPlace, PUTT_BANDS: PUTT_BANDS, puttGroup: puttGroup, puttStats: puttStats, makeBackup: makeBackup, parseBackup: parseBackup, mergeRounds: mergeRounds, conflictsOf: conflictsOf, PROX_LIES: PROX_LIES, lieGroup: lieGroup, proxByLie: proxByLie, proxWarnings: proxWarnings, PROX_BUCKETS: PROX_BUCKETS, inBucket: inBucket, roundYd: roundYd, proxStats: proxStats, reachedGreen: reachedGreen, PIN_GRID: PIN_GRID, PIN_NAME: PIN_NAME, normPin: normPin, DIR8: DIR8, DIR_NAME: DIR_NAME, DIR_ANGLE: DIR_ANGLE, normDir: normDir, expected: expected, expectedPGA: expectedPGA, BASELINES: BASELINES, baseline: function (id) { return BL[id] || BL.pga; },
     CALIB_ROUND: CALIB_ROUND, catLoss: catLoss, analyzeHole: analyzeHole, summarize: summarize,
     rowsToShots: rowsToShots, shotsToRows: shotsToRows, migrateV2Rows: migrateV2Rows, v1ToRows: v1ToRows, holeYards: holeYards,
     rowUnit: rowUnit, lieOf: lieOf, distOf: distOf, rowStrokes: rowStrokes, isPenalty: isPenalty,

@@ -11,7 +11,7 @@ const BASE = process.env.BASE_URL || 'http://127.0.0.1:8771/', OUT = '/workspace
     const R = (d, l, dir, pen) => ({ dist: d, loc: l, dir: dir || '', pen: !!pen });
     const holes = [
       { par: 4, pin: 'backleft', finished: true, rows: [R(410, 'tee'), R(165, 'rough', 'left'), R(18, 'bunker', 'shortright'), R(17, 'green', 'right'), R(2, 'holed', 'longleft')] },
-      { par: 5, pin: 'frontright', finished: true, rows: [R(540, 'tee'), R(285, 'fairway'), R(110, 'rough', 'right'), R(22, 'green', 'short'), R(2, 'holed')] },
+      { par: 5, pin: 'frontright', finished: true, rows: [Object.assign(R(540, 'tee'), { club: 'Driver' }), R(285, 'fairway'), R(110, 'rough', 'right'), R(22, 'green', 'short'), R(2, 'holed')] },
       { par: 4, pin: 'center', finished: true, rows: [R(395, 'tee'), R(395, 'tee', 'right', true), R(150, 'fairway'), R(30, 'hazard', 'left', true), R(30, 'deep', 'left'), R(8, 'green', 'longleft'), R(1, 'holed')] }];
     localStorage.clear(); localStorage.setItem('golfsg.player.v1', 'Scott');
     localStorage.setItem('golfsg.rounds.v1', JSON.stringify([{ v: 3, dv: 2, id: 'rr', date: '2026-10-10T17:00:00.000Z', course: 'Replay test', baseline: 'pga', player: 'Scott', holes }]));
@@ -42,6 +42,7 @@ const BASE = process.env.BASE_URL || 'http://127.0.0.1:8771/', OUT = '/workspace
     if (i === 0) await page.screenshot({ path: OUT + 'hole-replay-green-zoom.png' });
     await page.click('#rpgreenback'); await page.waitForSelector('#replaymap');
     assert.match(await page.textContent('#rpinfo'), new RegExp('Par ' + [4, 5, 4][i]));
+    if (i === 1) { const t = await page.$$eval('#replaymap .rplbl', e => e.map(x => x.textContent)); assert.ok(t.some(x => /^Driver → \d+ yd/.test(x)), t.join('|')); }
     if (i === 2) { assert.ok(await page.locator('#replaymap .rppen').count() >= 1, 'penalty marked'); assert.ok((await page.textContent('#replaymap')).includes('OB')); }
     // the last off-green shot sits near the pin when it reached the green
     await page.screenshot({ path: OUT + 'hole-replay-' + names[i] + '.png' });

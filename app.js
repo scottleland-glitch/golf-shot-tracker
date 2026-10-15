@@ -750,6 +750,11 @@
     }
     out += '<span class="c-del">' + (k === 0 ? '' : '<button class="del" data-act="del" data-k="' + k + '" aria-label="Delete row ' + shotNo + '"' + dis + '>⌫</button>') + '</span>';
     out += '</div>';
+    if (row.loc !== 'green' && row.loc !== 'holed') {
+      out += '<div class="clubrow" data-club="' + k + '"><label class="clublbl"><span>Club</span><select data-f="club" data-k="' + k + '" aria-label="Club row ' + shotNo + '"' + dis + '><option value=""' + (row.club ? '' : ' selected') + '>–</option>' +
+        SG.CLUBS.map(function (c) { return '<option' + (row.club === c ? ' selected' : '') + '>' + c + '</option>'; }).join('') + '</select></label>' +
+        (k === 0 && Number(h.par) !== 3 ? '<label class="layup"><input type="checkbox" data-f="layup" data-k="0"' + (row.layup ? ' checked' : '') + dis + '> Layup <small>(not in SG)</small></label>' : '') + '</div>';
+    } else if (row.loc === 'green') out += '<div class="clubrow putter" data-club="' + k + '"><small>Putter</small></div>';
     out += '<div class="sinfo" data-info="' + k + '">' + infoHTML(a.shots[k]) + '</div>';
     if (view.menu === k && !fin) {
       out += '<div class="rowmenu">' + (k > 0 ? '<button data-act="insBefore" data-k="' + k + '">Insert shot above</button>' : '') +
@@ -761,6 +766,7 @@
     if (!s) return '';
     var info = s.end.lie === 'holed' ? ' · in the hole!' : s.ob ? ' · went OB' : (s.start.lie === 'green' ? ' · missed' : ' · hit ' + s.hit + ' yd');
     if (s.dir && s.end.lie !== 'holed') info += ' ' + SG.DIR_NAME[s.dir].toLowerCase() + (s.cat === 'approach' && s.end.lie !== 'green' ? ' (missed green)' : '');
+    if (s.layup) return CAT_NAME[s.cat] + info + ' · <b>layup – SG not counted</b> <small>(would be ' + fmtSG(s.sgRaw) + ')</small>';
     return CAT_NAME[s.cat] + info + ' · SG <b class="' + sgCls(s.sg) + '">' + fmtSG(s.sg) + '</b>';
   }
   function prevDist(h, k) {
@@ -896,6 +902,7 @@
       '<div class="about">' +
       '<p>Strokes gained compares each shot with how many strokes an average player in the chosen group needs to hole out from the same spot. ' +
       'A shot\'s value = expected strokes before − expected strokes after − 1 (and −1 more for a penalty).</p>' +
+      '<p><b>Layup tee shots:</b> a tee shot marked “Layup” is left out of strokes gained entirely – it adds 0 to Off the tee and to the total, and is not counted as a tee shot. The stroke still counts in your score, and the next shot is rated as usual from where the layup finished.</p>' +
       '<h2>PGA Tour – published</h2>' +
       '<p>Off the green (tee, fairway, rough, sand, recovery, 10–600 yd): Mark Broadie, “Assessing Golfer Performance on the PGA TOUR”, Table 9 (ShotLink data 2003–2010, about 8 million shots), ' +
       'published in <i>Interfaces</i> 42(2), 2012. ' + L('https://www.columbia.edu/~mnb2/broadie/Assets/strokes_gained_pga_broadie_20110408.pdf', 'Paper (PDF)') + '.</p>' +
@@ -1184,6 +1191,8 @@
         marks += '<g class="rpshot" data-n="' + s.n + '" data-cat="' + cat + '" data-lie="' + endLie + '"><circle cx="' + f1(e[0]) + '" cy="' + f1(e[1]) + '" r="8" fill="' + col + '" stroke="#fff" stroke-width="2"/><text x="' + f1(e[0]) + '" y="' + f1(e[1] + 3.5) + '" text-anchor="middle" font-size="10" font-weight="900" fill="#fff">' + s.n + '</text></g>';
         boxes.push([e[0] - 9, e[1] - 9, e[0] + 9, e[1] + 9]);
         var t = endLie === 'holed' ? 'holed!' : s.ob ? 'OB +' + s.penStrokes : endLie === 'green' ? s.end.dist + ' ft' : s.end.dist + ' yd' + (endLie && endLie !== 'fairway' ? ' ' + ({ rough: 'rough', deep: 'deep rough', sand: 'bunker', hazard: 'hazard', recovery: 'trees' }[endLie] || '') : '');
+        if (s.club) t = s.club + ' → ' + t;
+        if (s.layup) t += ' (layup)';
         if (s.penStrokes && !s.ob) t += ' +' + s.penStrokes + ' pen';
         labs += lbl(e[0], e[1], t.trim(), s.penStrokes ? '#c00' : '#111');
         if (s.penStrokes) marks += '<path class="rppen" d="M' + f1(e[0] + 7) + ' ' + f1(e[1] - 14) + ' l8 8 m0 -8 l-8 8" stroke="#e0102a" stroke-width="3"/>';
@@ -1636,14 +1645,14 @@
   function localDate(iso) { var t = new Date(iso); return t.getFullYear() + '-' + ('0' + (t.getMonth() + 1)).slice(-2) + '-' + ('0' + t.getDate()).slice(-2); }
   function csvFor(list) {
     var rows = [['date', 'course', 'hole', 'par', 'hole_yards', 'shot', 'from_lie', 'from_dist', 'from_unit', 'to_lie', 'to_dist', 'to_unit',
-      'distance_hit_yd', 'miss', 'penalty', 'category', 'bucket', 'expected_before', 'expected_after', 'strokes_gained', 'hole_score', 'baseline', 'pin', 'gir', 'regulation']];
+      'distance_hit_yd', 'miss', 'penalty', 'category', 'bucket', 'expected_before', 'expected_after', 'strokes_gained', 'club', 'layup', 'hole_score', 'baseline', 'pin', 'gir', 'regulation']];
     list.forEach(function (r) {
       r.holes.forEach(function (h, hi) {
         var a = SG.analyzeHole(h, blOf(r));
         a.shots.forEach(function (s) {
           rows.push([localDate(r.date), r.course, hi + 1, h.par, SG.holeYards(h), s.n, s.start.lie, s.start.dist, unit(s.start.lie), s.end.lie,
             s.end.dist, s.end.lie === 'holed' ? '' : unit(s.end.lie), s.hit == null ? '' : s.hit, s.dir, s.pen, CAT_NAME[s.cat], s.bucket,
-            s.eStart.toFixed(3), s.eEnd.toFixed(3), s.sg.toFixed(3), a.done ? a.strokes : '', blLabel(blOf(r)), SG.normPin(h.pin), a.done ? (a.gir ? 'yes' : 'no') : '', a.done && a.regShot === s.n - 1 ? (a.gir ? 'GIR' : 'miss') : '']);
+            s.eStart.toFixed(3), s.eEnd.toFixed(3), s.sg.toFixed(3), s.club || '', s.layup ? 'yes (SG excluded)' : '', a.done ? a.strokes : '', blLabel(blOf(r)), SG.normPin(h.pin), a.done ? (a.gir ? 'yes' : 'no') : '', a.done && a.regShot === s.n - 1 ? (a.gir ? 'GIR' : 'miss') : '']);
         });
       });
     });
@@ -1804,6 +1813,8 @@
       save(); render();
       if (v !== 'ob' && row.dist === '') focusDist(k);
     } else if (f === 'dir') { row.dir = t.value; save(); render(); }
+    else if (f === 'club') { if (t.value) row.club = t.value; else delete row.club; save(); }
+    else if (f === 'layup') { if (t.checked) row.layup = true; else delete row.layup; save(); refreshInfo(h); }
   });
 
   // Distance typing: update data without re-rendering (keeps the keyboard up)
