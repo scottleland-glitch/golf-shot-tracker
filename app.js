@@ -863,7 +863,7 @@
       tile('miss', 'Approach misses (missed green) – tap for map', S.apprMiss.length, missMini(S.apprMiss)) +
       proxTile(S) +
       tile('pin', 'Pin location – tap for map', S.pinHoles.length + ' / ' + S.holesDone, '<small class="mini">holes with a pin set</small>') +
-      puttTile(S) + pmissTile(S) + stat('Penalty strokes', S.penalties) +
+      puttTile(S) + pmissTile(S) + clubTile() + stat('Penalty strokes', S.penalties) +
       stat('Tee misses L / R', S.teeLeft + ' / ' + S.teeRight) +
       stat('Missed greens left / right', S.apprLeft + ' / ' + S.apprRight) +
       stat('Missed greens short / long', S.apprShort + ' / ' + S.apprOver) + '</div>';
@@ -949,7 +949,7 @@
   // ---------- maps (full-window overlays) ----------
   function mapData(kind) {
     var list = [], n = 0;
-    if (kind === 'pin' || kind === 'prox' || kind === 'putt' || kind === 'pmiss') return { list: [], rounds: 0 };
+    if (kind === 'pin' || kind === 'prox' || kind === 'putt' || kind === 'pmiss' || kind === 'club') return { list: [], rounds: 0 };
     var src = view.mapScope === 'all' ? rounds : [round()];
     src.forEach(function (r) {
       var S = SG.summarize(r, 'pga'); n++;
@@ -1022,14 +1022,15 @@
   var DIR_ORDER = ['short', 'shortleft', 'shortright', 'left', 'right', 'long', 'longleft', 'longright'];
   function mapHTML() {
     var kind = view.map, D = mapData(kind), list = D.list, all = view.mapScope === 'all';
-    var out = '<div class="mapview" id="mapview" role="dialog" aria-label="' + (kind === 'gir' ? 'GIR map' : kind === 'fw' ? 'Fairway map' : kind === 'pin' ? 'Pin location map' : kind === 'prox' ? 'Proximity map' : kind === 'putt' ? 'Putting map' : kind === 'pmiss' ? 'Putt misses map' : 'Approach miss map') + '">' +
-      '<div class="maphead"><b>' + (kind === 'gir' ? 'Greens in regulation' : kind === 'fw' ? 'Tee shots – fairways' : kind === 'pin' ? 'Pin location' : kind === 'prox' ? 'Proximity by distance' : kind === 'putt' ? 'Putting' : kind === 'pmiss' ? 'Putt misses' : 'Approach misses') + '</b><button class="close" data-act="mapclose" aria-label="Close map">✕ Close</button></div>' +
+    var out = '<div class="mapview" id="mapview" role="dialog" aria-label="' + (kind === 'gir' ? 'GIR map' : kind === 'fw' ? 'Fairway map' : kind === 'pin' ? 'Pin location map' : kind === 'prox' ? 'Proximity map' : kind === 'putt' ? 'Putting map' : kind === 'club' ? 'Club performance' : kind === 'pmiss' ? 'Putt misses map' : 'Approach miss map') + '">' +
+      '<div class="maphead"><b>' + (kind === 'gir' ? 'Greens in regulation' : kind === 'fw' ? 'Tee shots – fairways' : kind === 'pin' ? 'Pin location' : kind === 'prox' ? 'Proximity by distance' : kind === 'putt' ? 'Putting' : kind === 'club' ? 'Club performance' : kind === 'pmiss' ? 'Putt misses' : 'Approach misses') + '</b><button class="close" data-act="mapclose" aria-label="Close map">✕ Close</button></div>' +
       '<div class="seg"><button data-act="mapscope" data-v="round" class="' + (all ? '' : 'sel') + '">This round</button>' +
       '<button data-act="mapscope" data-v="all" class="' + (all ? 'sel' : '') + '">All rounds (' + rounds.length + ')</button></div>';
     if (kind === 'pin') out += pinMapHTML(all);
     else if (kind === 'prox') out += proxHTML(all);
     else if (kind === 'putt') out += puttHTML(all);
     else if (kind === 'pmiss') out += pmissHTML(all);
+    else if (kind === 'club') out += clubHTML(all);
     else if (kind === 'fw') out += fwHTML(list, all, D);
     else if (kind === 'gir') {
       var far = list.filter(function (m) { return m.ft > 30; }).length, holed = list.filter(function (m) { return m.holed; }).length;
@@ -1144,7 +1145,7 @@
   // Every map marker carries data-hd (distance to the hole) + data-hu (ft|yd). Heat mode hides the dots and
   // paints soft density blobs; nearby blobs are grouped into "islands" (single-linkage, 40 px), each labelled
   // with its average distance and shot count; a crosshair marks the average finish of all plotted shots.
-  var HEAT_MAPS = { gir: 'girmap', miss: 'missmap', pin: 'pinmap', prox: 'proxmap', putt: 'puttmap', pmiss: 'pmissmap' };
+  var HEAT_MAPS = { club: 'clubmap', gir: 'girmap', miss: 'missmap', pin: 'pinmap', prox: 'proxmap', putt: 'puttmap', pmiss: 'pmissmap' };
   var HEAT_LINK = 62;
   function heatCenter(svg, kind) {
     if (kind === 'prox') return [PX.cx, PX.cy];
@@ -1203,6 +1204,73 @@
     var lg2 = document.createElement('p'); lg2.className = 'help muted'; lg2.id = 'heatnote';
     lg2.textContent = 'Heat map: red = most shots, yellow = few. Each white tag is one cluster of shots (average distance to the hole · number of shots). ⊕ = average finish of all shots shown. Shots with no direction entered are left out.';
     sm.parentNode.insertBefore(lg2, sm.nextSibling);
+  }
+  // ---------- Club performance (app only): everything from where the ball FINISHED (next row's distance + direction) ----------
+  var DIR_LG = { long: 1, longleft: 1, longright: 1, short: -1, shortleft: -1, shortright: -1, left: 0, right: 0 };
+  var DIR_LR = { left: -1, longleft: -1, shortleft: -1, right: 1, longright: 1, shortright: 1, long: 0, short: 0 };
+  function clubShots(all) {
+    var out = [];
+    (all ? rounds : [round()]).forEach(function (r) { r.holes.forEach(function (h, hi) {
+      if (!h.rows) return; var a = SG.analyzeHole(h, 'pga'); if (!a.complete) return;
+      a.shots.forEach(function (s) { if (!s.club) return;
+        var holed = s.end.lie === 'holed', ob = s.ob, yd = holed ? 0 : s.end.lie === 'green' ? s.end.dist / 3 : s.end.dist, d = s.dir || '';
+        var c = Math.SQRT1_2, diag = DIR_LG[d] && DIR_LR[d];
+        out.push({ r: r, hole: hi + 1, s: s, club: s.club, holed: holed, ob: ob, yd: yd, dir: d, green: holed || s.end.lie === 'green',
+          tee: s.cat === 'tee', lg: ob || !d || s.cat === 'tee' ? null : DIR_LG[d] * yd * (diag ? c : 1), lr: ob || !d || s.cat === 'tee' ? null : DIR_LR[d] * yd * (diag ? c : 1), sg: s.sg, layup: !!s.layup });
+      });
+    }); });
+    return out;
+  }
+  function clubStats(list) {
+    var dl = list.filter(function (x) { return x.lg != null; }), n = list.length, avg = function (k) { return dl.length ? dl.reduce(function (a, x) { return a + x[k]; }, 0) / dl.length : null; };
+    var lg = avg('lg'), lr = avg('lr');
+    return { n: n, lg: lg, lr: lr, nDir: dl.length, green: list.filter(function (x) { return x.green; }).length, ob: list.filter(function (x) { return x.ob; }).length,
+      sg: list.reduce(function (a, x) { return a + (x.layup ? 0 : x.sg); }, 0), sgN: list.filter(function (x) { return !x.layup; }).length,
+      bias: lg != null && Math.abs(lg) > 5 ? (lg > 0 ? 'long' : 'short') : '' };
+  }
+  function clubSVG(list) {
+    var C = 180, CY = 200, pts = list.filter(function (x) { return !x.ob && !x.tee && (x.dir || x.holed); }), mx = Math.max(10, Math.max.apply(null, pts.map(function (x) { return x.yd; }).concat([0])));
+    var step = mx <= 15 ? 5 : mx <= 40 ? 10 : mx <= 80 ? 20 : 25, max = Math.ceil(mx / step) * step, K = 160 / max, G = Math.max(6, 10 * K);
+    var o = '<svg id="clubmap" viewBox="0 0 360 400" role="img" aria-label="Where shots with this club finished"><rect width="360" height="400" fill="#5f9e47"/>' +
+      '<circle cx="' + C + '" cy="' + CY + '" r="' + f1(Math.min(G, 160)) + '" fill="#8fd66f" stroke="#e8f8e0" stroke-width="2"/>';
+    for (var f = step; f <= max; f += step) o += '<circle cx="' + C + '" cy="' + CY + '" r="' + f1(f * K) + '" fill="none" stroke="#fff" stroke-opacity=".6" stroke-dasharray="4 4"/><text x="' + f1(C + f * K * 0.707 + 3) + '" y="' + f1(CY + f * K * 0.707 + 11) + '" font-size="10" font-weight="800" fill="#fff">' + f + ' yd</text>';
+    o += '<line x1="' + C + '" y1="' + CY + '" x2="' + C + '" y2="' + (CY - 24) + '" stroke="#000" stroke-width="2.5"/><path d="M' + C + ' ' + (CY - 24) + ' l14 5 l-14 5z" fill="#d0213a"/><circle cx="' + C + '" cy="' + CY + '" r="4" fill="#000"/>' +
+      '<text x="180" y="16" text-anchor="middle" font-size="13" font-weight="900" fill="#fff">LONG ↑</text><text x="180" y="394" text-anchor="middle" font-size="13" font-weight="900" fill="#fff">SHORT ↓ (toward you)</text>' +
+      '<text x="6" y="' + (CY - 6) + '" font-size="13" font-weight="900" fill="#fff">L</text><text x="354" y="' + (CY - 6) + '" text-anchor="end" font-size="13" font-weight="900" fill="#fff">R</text>';
+    var seen = {};
+    pts.forEach(function (x) {
+      var k = x.dir + Math.round(x.yd), j = seen[k] = (seen[k] || 0) + 1, p = x.holed ? [C + (j - 1) * 8, CY] : pt(C, CY, Math.max(4, Math.min(x.yd, max) * K), SG.DIR_ANGLE[x.dir] + (j - 1) * 7);
+      var col = x.holed ? '#ffd23f' : x.green ? '#fff' : '#d0213a';
+      o += '<circle class="cdot" data-hd="' + (x.green ? Math.round(x.yd * 3) : Math.round(x.yd)) + '" data-hu="' + (x.green ? 'ft' : 'yd') + '" data-hole="' + x.hole + '" cx="' + f1(p[0]) + '" cy="' + f1(p[1]) + '" r="6.5" fill="' + col + '" stroke="#000" stroke-width="2"/>';
+    });
+    return o + '</svg>';
+  }
+  function clubHTML(all) {
+    var L = clubShots(all), by = {}; L.forEach(function (x) { (by[x.club] = by[x.club] || []).push(x); });
+    var used = SG.CLUBS.filter(function (c) { return by[c]; });
+    if (!used.length) return '<p class="notice" id="clubnone">No clubs entered yet' + (all ? '' : ' this round') + '. Pick a club under each shot when entering a hole, then come back here.</p>';
+    var cur = view.club && by[view.club] ? view.club : used.slice().sort(function (a, b) { return by[b].length - by[a].length; })[0], list = by[cur], st = clubStats(list);
+    var fmtD = function (v, a, b) { return v == null ? '–' : Math.abs(v) < 0.5 ? 'on line' : Math.round(Math.abs(v)) + ' yd ' + (v > 0 ? a : b); };
+    var o = '<div class="seg clubbtns" id="clubbtns">' + SG.CLUBS.map(function (c) { var n = by[c] ? by[c].length : 0;
+      return '<button data-act="clubsel" data-v="' + c + '" class="' + (c === cur ? 'sel' : '') + '"' + (n ? '' : ' disabled') + ' aria-pressed="' + (c === cur) + '">' + c + (n ? '<small> ' + n + '</small>' : '') + '</button>'; }).join('') + '</div>';
+    o += '<p class="mapsum" id="mapsum"><b id="clubcur">' + cur + '</b> · <b>' + st.n + '</b> shot' + (st.n === 1 ? '' : 's') + (all ? ' in all rounds' : ' this round') + '</p>';
+    if (st.bias) o += '<p class="warnmsg" id="clubbias">⚠ ' + cur + ' finishes <b>' + Math.round(Math.abs(st.lg)) + ' yd ' + st.bias + '</b> on average – ' + (st.bias === 'short' ? 'consider clubbing up or checking your yardage for it.' : 'consider clubbing down for it.') + '</p>';
+    var tees = list.filter(function (x) { return x.tee; });
+    if (tees.length) o += '<p class="help" id="clubtee"><b>' + tees.length + ' tee shot' + (tees.length === 1 ? '' : 's') + ' on par 4/5</b> (judged by the fairway, not the pin – not on the map or in the short/long numbers): ' +
+      tees.filter(function (x) { return !x.ob && x.s.end.lie === 'fairway'; }).length + ' fairway, ' + tees.filter(function (x) { return /left$/.test(x.dir); }).length + ' left, ' + tees.filter(function (x) { return /right$/.test(x.dir); }).length + ' right' + (tees.filter(function (x) { return x.ob; }).length ? ', ' + tees.filter(function (x) { return x.ob; }).length + ' OB' : '') + '.</p>';
+    if (tees.length < list.length) o += clubSVG(list);
+    o += '<div class="stat-grid" id="clubcells">' + stat('Avg short / long', fmtD(st.lg, 'long', 'short')) + stat('Avg left / right', fmtD(st.lr, 'right', 'left')) +
+      stat('Finished on green', st.n ? st.green + ' / ' + st.n + ' (' + Math.round(st.green / st.n * 100) + '%)' : '–') + stat('Strokes gained', '<span class="' + sgCls(st.sg) + '">' + fmtSG(st.sg) + '</span>' + (st.sgN ? ' <small>(' + fmtSG(st.sg / st.sgN) + '/shot)</small>' : '')) + '</div>' +
+      '<div class="legend"><span><i class="dot" style="background:#fff"></i>Finished on the green</span><span><i class="dot" style="background:#d0213a"></i>Finished off the green</span><span><i class="dot" style="background:#ffd23f"></i>Holed</span>' +
+      '<span>Rings = yards from the hole; points use the distance left and direction you entered on the next shot. ' + (st.ob ? st.ob + ' OB shot(s) and ' : '') + (st.n - st.nDir - st.ob - tees.length > 0 ? (st.n - st.nDir - st.ob - tees.length) + ' shot(s) with no direction are not drawn / not in the averages.' : '') + '</span></div>';
+    o += '<h3>Shots with ' + cur + '</h3><table id="clubshots"><tr><th>Hole</th><th>From</th><th>Finished</th><th class="num">SG</th></tr>' + list.map(function (x) {
+      var fin = x.holed ? 'holed' : x.ob ? 'OB' : (x.s.end.lie === 'green' ? Math.round(x.s.end.dist) + ' ft' : Math.round(x.s.end.dist) + ' yd') + (x.dir ? ' ' + SG.DIR_NAME[x.dir].toLowerCase() : '') + (x.s.end.lie !== 'green' ? ' · ' + (LIE_NAME[x.s.end.lie] || x.s.end.lie) : ' · green');
+      return '<tr><td>' + (all ? localDate(x.r.date).slice(5) + ' #' : '#') + x.hole + '</td><td>' + Math.round(x.s.start.dist) + ' yd ' + (LIE_NAME[x.s.start.lie] || (x.s.start.lie === 'tee' ? 'tee' : x.s.start.lie)) + '</td><td>' + esc(fin) + '</td><td class="num ' + sgCls(x.sg) + '">' + (x.layup ? 'layup' : fmtSG(x.sg)) + '</td></tr>'; }).join('') + '</table>';
+    var rank = used.map(function (c) { var s2 = clubStats(by[c]); return { c: c, s: s2 }; }).filter(function (x) { return x.s.sgN; }).sort(function (a, b) { return b.s.sg / b.s.sgN - a.s.sg / a.s.sgN; });
+    o += '<h3>Strokes gained by club</h3><table id="clubrank"><tr><th>#</th><th>Club</th><th class="num">Shots</th><th class="num">SG/shot</th><th class="num">Total</th><th>Bias</th></tr>' + rank.map(function (x, i) {
+      return '<tr data-act="clubsel" data-v="' + x.c + '" class="' + (x.c === cur ? 'cur' : '') + '"><td>' + (i + 1) + '</td><td><b>' + x.c + '</b></td><td class="num">' + x.s.sgN + '</td><td class="num ' + sgCls(x.s.sg) + '">' + fmtSG(x.s.sg / x.s.sgN) + '</td><td class="num ' + sgCls(x.s.sg) + '">' + fmtSG(x.s.sg) + '</td><td>' + (x.s.bias ? '⚠ ' + Math.round(Math.abs(x.s.lg)) + ' yd ' + x.s.bias : '') + '</td></tr>'; }).join('') + '</table>' +
+      '<p class="help muted">Best club per shot at the top (vs PGA Tour baseline). Layup tee shots are not in SG. Bias ⚠ = finishes more than 5 yd short or long on average (from the distance + direction of the next shot; straight left/right counts as pin high). Tap a row to see that club.</p>';
+    return o;
   }
   // ---------- Hole replay (app only): bird's-eye drawing of one hole with every shot chained ----------
   var RPC = { tee: '#1565e0', approach: '#6a1b9a', short: '#ef6c00', putting: '#fff' };
@@ -1367,6 +1435,10 @@
     return btns + '<p class="mapsum" id="mapsum"><b>' + D.stats.misses + '</b> missed of <b>' + D.stats.attempts + '</b> putts from <b id="pmsel">' + G.name + '</b>' + (all ? ' in ' + D.rounds + ' round' + (D.rounds === 1 ? '' : 's') : ' this round') + '</p>' +
       pmissSVG(D.list, D.group) + pmissCells(D.stats) + pmissLegend() +
       '<p class="help muted">Each line runs from one common start (below the hole) to where the putt finished, placed around the hole by the direction and distance of the next putt: short = below the hole, long = above, left/right to the sides. Short = finished short (incl. short left/right). Long = finished long and more than 3 ft past the hole. Long left/right within 3 ft count as Left/Right; straight long within 3 ft = "just long" (good speed, not counted as Long). Percentages are of misses. Groups: under 6, 6 to under 10, 10 to under 20, 20 to under 30, 30 to 50 ft.</p>';
+  }
+  function clubTile() {
+    var n = clubShots(false).length, c = {}; clubShots(false).forEach(function (x) { c[x.club] = 1; });
+    return tile('club', 'Club performance – tap', n ? Object.keys(c).length + (Object.keys(c).length === 1 ? ' club' : ' clubs') : '–', '<small class="mini">' + (n ? n + ' shots with a club' : 'pick clubs on shots') + '</small>');
   }
   function puttTile(S) {
     var P1 = SG.puttStats(S.puttList.filter(function (p) { return p.n === 1; }));
@@ -1800,6 +1872,7 @@
       case 'proxb': { var mv0 = document.getElementById('mapview'), st0 = mv0 ? mv0.scrollTop : 0; view.proxB = v; render(); var mv1 = document.getElementById('mapview'); if (mv1) mv1.scrollTop = st0; return; }
       case 'proxlie': { var mvl = document.getElementById('mapview'), stl = mvl ? mvl.scrollTop : 0; view.proxLie = v; render(); var mvl2 = document.getElementById('mapview'); if (mvl2) mvl2.scrollTop = stl; return; }
       case 'sgtoggle': view.sgOpen = !view.sgOpen; render(); if (view.sgOpen) { var sh = document.getElementById('sgsec'); if (sh) window.scrollTo(0, sh.getBoundingClientRect().top + window.scrollY - 90); } return;
+      case 'clubsel': view.club = v; view.heat = null; render(); return;
       case 'heat': view.heat = v === '1'; render(); return;
       case 'replay': view.replay = Math.max(0, +v || 0); render(); return;
       case 'rpgreen': view.rpGreen = true; render(); return;
