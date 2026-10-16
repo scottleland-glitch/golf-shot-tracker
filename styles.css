@@ -419,3 +419,28 @@ body.onhome { overflow: hidden; }
 .home .hsheet .lbl { color: #47604f; padding: 0 4px; }
 .home .sheet-go { margin-top: 6px; border: 0; border-radius: 999px; padding: 13px; font-size: 17px; font-weight: 600; background: #2f6b3f; color: #fff; }
 .home .pill, .home .plusbtn { background: rgba(25, 45, 30, .26); border-color: rgba(255, 255, 255, .6); }
+
+/* ---------- Frosted glass (shared): add .frostpage to a page wrapper, then .frost / .frostpage .frostbtn / .frostpage .frostchip / .frostpage .frostcard / .frostpage .frostdanger ---------- */
+:root { --frost-bg: rgba(255, 255, 255, .55); --frost-bg-strong: rgba(255, 255, 255, .72); --frost-line: rgba(255, 255, 255, .7);
+  --frost-ink: #17301f; --frost-ink-soft: #3f5a48; --frost-accent: #2f6b3f; --frost-shadow: 0 6px 22px rgba(20, 45, 30, .14); --frost-blur: blur(18px) saturate(140%); }
+.frostpage { color: var(--frost-ink); min-height: 100%; }
+.frostpage::before { content: ''; position: fixed; inset: -40px; z-index: -1; pointer-events: none;
+  background: linear-gradient(rgba(214, 233, 228, .58), rgba(220, 236, 214, .62)), url('img/home-bg.webp') 50% 50% / cover no-repeat; filter: blur(22px) saturate(115%); }
+body:has(.frostpage) { background: #d9e8df; }
+.frost { background: var(--frost-bg); -webkit-backdrop-filter: var(--frost-blur); backdrop-filter: var(--frost-blur);
+  border: 1px solid var(--frost-line); border-radius: 22px; box-shadow: var(--frost-shadow); }
+.topbar.frost { top: calc(env(safe-area-inset-top) + 4px); margin: 4px 0 10px; padding: 8px 10px; }
+.frostpage .muted, .frostpage small.muted { color: var(--frost-ink-soft); }
+.frostpage .frostbtn, .frostpage .frostchip, .frostpage .frostcard, .frostpage .frostdanger { -webkit-backdrop-filter: var(--frost-blur); backdrop-filter: var(--frost-blur);
+  border: 1px solid var(--frost-line); box-shadow: var(--frost-shadow); color: var(--frost-ink); transition: background .15s, transform .1s; }
+.frostpage .frostbtn { background: var(--frost-bg-strong); border-radius: 999px; font-weight: 600; }
+.frostpage .topbar .frostbtn { padding: 8px 14px; box-shadow: none; }
+.frostpage .frostbtn.big { border-radius: 20px; }
+.frostpage .frostbtn:active, .frostpage .frostchip:active, .frostpage .frostcard:active, .frostpage .frostdanger:active { transform: scale(.98); background: rgba(255, 255, 255, .85); }
+.frostpage .frostchip { background: var(--frost-bg); border-radius: 999px; font-weight: 500; }
+.frostpage .frostchip.sel { background: var(--frost-accent); color: #fff; border-color: rgba(255, 255, 255, .5); }
+.frostpage .frostchip small { color: inherit; }
+.frostpage .frostcard { background: var(--frost-bg); border-radius: 20px; padding: 12px 14px; }
+.frostpage .frostcard b { color: var(--frost-ink); }
+.frostpage .frostdanger { background: rgba(255, 236, 236, .5); border-color: rgba(200, 70, 70, .35); color: #a33a3a; border-radius: 20px; }
+.frostpage .frostnote { background: var(--frost-bg); border-radius: 16px; padding: 12px 14px; }

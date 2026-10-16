@@ -455,21 +455,21 @@
     var P = playersIn(), names = Object.keys(P).sort(), multi = names.length + (savedRounds().some(function (r) { return !r.player; }) && names.length ? 1 : 0) > 1;
     if (!multi || (view.histPlayer && view.histPlayer !== '~none' && !P[view.histPlayer])) view.histPlayer = null;
     var list = savedRounds().filter(function (r) { return !view.histPlayer || (view.histPlayer === '~none' ? !r.player : r.player === view.histPlayer); }).sort(function (a, b) { return String(b.date || '').localeCompare(String(a.date || '')); });
-    var h = '<div class="topbar"><button class="txt" data-act="home">‹ Home</button><div class="title"><b>History</b><span>' + list.length + ' round' + (list.length === 1 ? '' : 's') + ', newest first</span></div><span class="tbspace"></span></div>';
+    var h = '<div class="frostpage"><div class="topbar frost"><button class="txt frostbtn" data-act="home">‹ Home</button><div class="title"><b>History</b><span>' + list.length + ' round' + (list.length === 1 ? '' : 's') + ', newest first</span></div><span class="tbspace"></span></div>';
     if (multi) h += '<div class="liechips" id="playerchips" role="group" aria-label="Filter by player">' + [''].concat(names).map(function (n) {
-        var sel = (view.histPlayer || '') === n; return '<button class="' + (sel ? 'sel' : '') + '" data-act="histplayer" data-v="' + esc(n) + '" aria-pressed="' + sel + '">' + (n ? esc(n) + ' (' + P[n] + ')' : 'All players') + '</button>'; }).join('') +
-      (savedRounds().some(function (r) { return !r.player; }) ? '<button class="' + (view.histPlayer === '~none' ? 'sel' : '') + '" data-act="histplayer" data-v="~none">No name</button>' : '') + '</div>';
-    if (!list.length) h += '<p class="muted">No rounds yet. Start one from Home.</p>';
-    if (list.length >= 2) h += '<button class="big cmpbtn" data-act="compare" id="cmpopen">⚖ Best vs worst rounds</button>';
+        var sel = (view.histPlayer || '') === n; return '<button class="frostchip' + (sel ? ' sel' : '') + '" data-act="histplayer" data-v="' + esc(n) + '" aria-pressed="' + sel + '">' + (n ? esc(n) + ' (' + P[n] + ')' : 'All players') + '</button>'; }).join('') +
+      (savedRounds().some(function (r) { return !r.player; }) ? '<button class="frostchip' + (view.histPlayer === '~none' ? ' sel' : '') + '" data-act="histplayer" data-v="~none">No name</button>' : '') + '</div>';
+    if (!list.length) h += '<p class="muted frostnote">No rounds yet. Start one from Home.</p>';
+    if (list.length >= 2) h += '<button class="big cmpbtn frostbtn" data-act="compare" id="cmpopen">⚖ Best vs worst rounds</button>';
     h += '<div id="histlist">';
     list.forEach(function (r) {
       var S = SG.summarize(r);
-      h += '<div class="hrow" data-id="' + r.id + '"><button class="hist" data-act="open" data-id="' + r.id + '"><span><b>' + new Date(r.date).toLocaleDateString() + '</b>' +
+      h += '<div class="hrow" data-id="' + r.id + '"><button class="hist frostcard" data-act="open" data-id="' + r.id + '"><span><b>' + new Date(r.date).toLocaleDateString() + '</b>' +
         (r.course ? '<br>' + esc(r.course) : '') + (r.player ? '<br><span class="hplayer">👤 ' + esc(r.player) + '</span>' : '') + '<br><small class="muted">' + S.holesDone + ' of ' + r.holes.length + ' holes played</small></span><span class="hscore">' +
         (S.holesDone ? '<b>' + S.strokes + '</b> (' + toPar(S.toPar) + ')' : '–') + '<br><small class="' + sgCls(S.sgTotal) + '">SG ' + fmtSG(S.sgTotal) + '</small><br><small class="muted">vs ' + esc(blName(blOf(r))) + '</small></span></button>' +
-        '<button class="hdel" data-act="delHist" data-id="' + r.id + '" aria-label="Delete round ' + esc(new Date(r.date).toLocaleDateString() + (r.course ? ' ' + r.course : '')) + '">🗑</button></div>';
+        '<button class="hdel frostdanger" data-act="delHist" data-id="' + r.id + '" aria-label="Delete round ' + esc(new Date(r.date).toLocaleDateString() + (r.course ? ' ' + r.course : '')) + '">🗑</button></div>';
     });
-    return h + '</div>';
+    return h + '</div></div>';
   }
   // ---------- Backup / restore ----------
   var BK = 'golfsg.lastBackup.v1';
