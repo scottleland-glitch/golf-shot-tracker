@@ -1297,6 +1297,7 @@
   }
   // tee-shot map: a hot spot's count + fairway share (its average distance would mislead: hits and misses mix); else avg distance + count
   function heatLabel(g) { var n = g.length + ' shot' + (g.length === 1 ? '' : 's');
+    if (view.map === 'prox') return heatFmt(g); // the yardage rail already gives the counts
     if (view.map === 'fw') return n + ' · ' + Math.round(100 * g.filter(function (p) { return p.fw === '1'; }).length / g.length) + '% fairway';
     return heatFmt(g) + ' · ' + n; }
   function heatFmt(list) { // average distance; yards when every shot is off the green in yd, else feet

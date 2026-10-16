@@ -30,7 +30,8 @@ const BASE = process.env.BASE_URL || 'http://127.0.0.1:8774/', OUT = '/workspace
     if (m === 'pmiss') { await page.waitForSelector('#heattog'); }
     const gr = await page.evaluate(() => ({ img: !!document.querySelector('#mapview svg.heat #heatgrad'), hs: [...document.querySelectorAll('#mapview .hotspot text')].map(t => t.textContent), avg: !!document.querySelector('#heatavg'), sel: document.querySelector('#heattog .sel').dataset.v }));
     assert.ok(gr.img && (m === 'miss' ? gr.avg : !gr.avg) && gr.sel === 'grad', m + ' gradient by default for multi-round ' + JSON.stringify(gr));
-    assert.ok(gr.hs.every(t => /^\d+ (ft|yd) · \d+ shots?$/.test(t)), m + ' hot-spot tags ' + gr.hs);
+    assert.ok(gr.hs.length && gr.hs.every(t => (m === 'prox' ? /^\d+ (ft|yd)$/ : /^\d+ (ft|yd) · \d+ shots?$/).test(t)), m + ' hot-spot tags ' + gr.hs);
+    if (m === 'prox') { await page.locator('#mapview svg.heat').scrollIntoViewIfNeeded(); await page.screenshot({ path: OUT + 'prox-labels-dist.png' }); }
     await page.locator('#heattog').scrollIntoViewIfNeeded(); await page.screenshot({ path: OUT + 'heatmap-gradient-' + m + '.png' });
     if (m === 'putt') { // putt starts: no ⊕, summary = mean distance of the putts shown
       const ps = await page.evaluate(() => { const rs = JSON.parse(localStorage.getItem('golfsg.rounds.v1')); const d = []; // raw entered first-putt distances
