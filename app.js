@@ -1358,6 +1358,7 @@
     if (avgPos) h += '<g id="heatavg"><circle cx="' + f1(ax) + '" cy="' + f1(ay) + '" r="9" fill="none" stroke="#000" stroke-width="3"/><circle cx="' + f1(ax) + '" cy="' + f1(ay) + '" r="9" fill="none" stroke="#fff" stroke-width="1.2"/>' +
       '<path d="M' + f1(ax - 15) + ' ' + f1(ay) + ' h30 M' + f1(ax) + ' ' + f1(ay - 15) + ' v30" stroke="#000" stroke-width="2.4"/></g>';
     var g = document.createElementNS(NS, 'g'); g.setAttribute('id', 'heatlayer'); g.innerHTML = h; svg.appendChild(g);
+    var d1 = svg.querySelector('#d1ring'); if (d1) svg.appendChild(d1); // benchmark ring stays above the heat
     var U = yd ? ' yd' : ' ft', part = function (v, a, b) { return Math.round(Math.abs(v)) ? Math.round(Math.abs(v)) + U + ' ' + (v > 0 ? a : b) : ''; };
     var words = [part(lg, 'long', 'short'), part(lr, 'right', 'left')].filter(Boolean).join(', ');
     var sm = document.createElement('p'); sm.className = 'heatsum'; sm.id = 'heatsum';
@@ -1797,7 +1798,19 @@
       t(31, H - 46, 'OTHER') + t(PX.cx + 26, H - 12, 'TEE', 'start', '#1d5c12') + t(4, Z - 4, '↓ toward you', 'start', '#2f6b2a') + '</g>';
     return o;
   }
-  function proxSVG(list) {
+  // D1 women's approach proximity benchmark (Shot Scope D1 women's chart, ft): one row per 10-yd band [from yd, low ft, high ft, estimated?].
+  // A rail button at Y yd uses the band containing Y; a boundary goes to the band that starts there (150 -> 150-160). Ring radius = midpoint.
+  // 180 yd and up are not on the chart: extended from the trend and marked estimated.
+  var D1_PROX = [[40, 12, 18], [50, 14, 20], [60, 15, 22], [70, 16, 24], [80, 18, 26], [90, 20, 28], [100, 22, 32], [110, 24, 36], [120, 26, 40], [130, 28, 45],
+    [140, 30, 50], [150, 33, 55], [160, 36, 60], [170, 39, 65], [180, 42, 70, true], [190, 45, 75, true], [200, 48, 80, true]];
+  function d1Bench(yd) { yd = Number(yd); if (!isFinite(yd) || yd < 40) return null; var b = null; D1_PROX.forEach(function (r) { if (yd >= r[0]) b = r; });
+    return b ? { from: b[0], lo: b[1], hi: b[2], ft: (b[1] + b[2]) / 2, est: !!b[3] } : null; }
+  function d1Ring(bucket) { var B = d1Bench(bucket); if (!B) return '';
+    var r = B.ft * PX.K, ty = Math.max(14, PX.cy - r - 5), lab = 'D1 avg ' + Math.round(B.ft) + '\u2019' + (B.est ? ' est.' : '');
+    return '<g id="d1ring" data-ft="' + B.ft + '" data-est="' + (B.est ? 1 : 0) + '"><circle cx="' + PX.cx + '" cy="' + PX.cy + '" r="' + f1(r) + '" fill="none" stroke="#fff" stroke-opacity=".7" stroke-width="5"/>' +
+      '<circle cx="' + PX.cx + '" cy="' + PX.cy + '" r="' + f1(r) + '" fill="none" stroke="#e00016" stroke-width="2.6" stroke-dasharray="9 6"/>' +
+      '<text x="' + PX.cx + '" y="' + f1(ty) + '" text-anchor="middle" font-size="11" font-weight="900" fill="#c00012" stroke="#fff" stroke-width="3" paint-order="stroke">' + lab + '</text></g>'; }
+  function proxSVG(list, bucket) {
     var out = '<svg id="proxmap" viewBox="0 0 ' + PX.W + ' ' + PX.H + '" role="img" aria-label="Approach proximity">' +
       '<rect width="' + PX.W + '" height="' + PX.H + '" fill="#cfe8c4"/>' + lieStrip() + '<circle cx="' + PX.cx + '" cy="' + PX.cy + '" r="' + PX.Rg + '" fill="#3da33d" stroke="#145214" stroke-width="4"/>';
     [30, 25, 20, 15, 10, 5].forEach(function (ft) {
@@ -1870,7 +1883,7 @@
     out += tr + starts + dots + labels + '<text x="' + PX.cx + '" y="16" text-anchor="middle" font-size="13" font-weight="800">LONG ↑</text>' +
       '<text x="6" y="16" font-size="13" font-weight="800">◀ LEFT</text><text x="' + (PX.W - 6) + '" y="16" text-anchor="end" font-size="13" font-weight="800">RIGHT ▶</text>' +
       (nd ? '<text x="' + (PX.W - 8) + '" y="34" text-anchor="end" font-size="11" font-weight="800">missed, no direction ↓</text>' : '');
-    return out + '</svg>';
+    return out + d1Ring(bucket) + '</svg>';
   }
   function proxHTML(all) {
     var D = proxData(), L = D.list, P = SG.proxStats(L), miss = L.filter(function (m) { return !m.hit; });
@@ -1901,10 +1914,11 @@
       '<div id="proxwarn">' + warnHTML + '</div>' +
       '<div class="liechips" id="liechips" role="group" aria-label="Starting lie">' + chips + '</div>' +
       '<button class="yall' + (D.bucket === 'all' ? ' sel' : '') + '" data-act="proxb" data-v="all" data-n="' + D.counts.all + '" aria-pressed="' + (D.bucket === 'all') + '">All 40–200 yd · ' + D.counts.all + ' shot' + (D.counts.all === 1 ? '' : 's') + '</button>' +
-      '<div class="proxwrap"><div class="proxrail" id="proxrail" role="group" aria-label="Approach yardage">' + rail + '</div>' + proxSVG(L) + '</div>' +
+      '<div class="proxwrap"><div class="proxrail" id="proxrail" role="group" aria-label="Approach yardage">' + rail + '</div>' + proxSVG(L, view.proxGroup ? null : D.bucket) + '</div>' +
       (D.outside ? '<p class="help muted" id="proxout">' + D.outside + ' regulation shot' + (D.outside === 1 ? '' : 's') + ' from outside 40–200 yd (e.g. a par-4 tee shot that missed, or under 35 yd) not shown.</p>' : '') +
       '<h3>By lie – ' + bname + '</h3>' + lieTab +
-      '<div class="legend"><span><i class="ln" style="background:#1e6fd9"></i><i class="dot" style="background:#1e6fd9"></i>Hit the green – first-putt distance (ft) + direction from the hole</span>' +
+      (d1Bench(D.bucket) && !view.proxGroup ? '<p class="help muted" id="d1note">Red dashed ring = D1 women\u2019s average proximity from ' + d1Bench(D.bucket).from + '\u2013' + (d1Bench(D.bucket).from + 10) + ' yd (' + d1Bench(D.bucket).lo + '\u2013' + d1Bench(D.bucket).hi + ' ft range, ring at the middle' + (d1Bench(D.bucket).est ? '; 180 yd and beyond is our estimate from the trend, not on the chart' : '') + '). Source: Shot Scope D1 women\u2019s benchmarks. A yardage on the rail uses the 10-yd band that starts there (150 = 150\u2013160 yd).</p>' : '') +
+      '<div class="legend">' + (d1Bench(D.bucket) && !view.proxGroup ? '<span><i class="ln dash"></i>Red dashed = D1 women avg for this distance</span>' : '') + '<span><i class="ln" style="background:#1e6fd9"></i><i class="dot" style="background:#1e6fd9"></i>Hit the green – first-putt distance (ft) + direction from the hole</span>' +
       '<span><i class="ln" style="background:#e0102a"></i><i class="dot" style="background:#e0102a"></i>Missed the green – in the miss direction, distance to the pin at the same scale; label = yards left + lie (› = further than the picture, drawn at the edge)</span>' +
       '<span><svg width="20" height="20" viewBox="0 0 20 20" style="flex:none"><path d="M10 1 l9 9 -9 9 -9 -9z" fill="#888" stroke="#000" stroke-width="2"/><text x="10" y="14.5" text-anchor="middle" font-size="12" font-weight="900" fill="#fff">?</text></svg>No direction entered: blue = hit (straight up at the right distance), red = miss (top-right corner)</span>' +
       '<span><i class="dot" style="background:#fff;border:2px solid #555"></i>Where the shot was hit from (the strip under the green):</span>' +
@@ -2247,5 +2261,5 @@
     });
     window.addEventListener('load', function () { navigator.serviceWorker.register('./sw.js').catch(function () {}); });
   }
-  window.__golf = { pinSVG: function () { return pinReportSVG(SG.pinSegments(pinDataRound())); }, odState: function () { return odState; }, csvFor: csvFor, rounds: function () { return rounds; } };
+  window.__golf = { d1Bench: d1Bench, pinSVG: function () { return pinReportSVG(SG.pinSegments(pinDataRound())); }, odState: function () { return odState; }, csvFor: csvFor, rounds: function () { return rounds; } };
 })();
