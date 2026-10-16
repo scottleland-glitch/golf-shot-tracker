@@ -387,7 +387,7 @@
                 { k: 'ringx', c: G.color, t: 'Missed the green - always outside the green, farther out = farther from the pin; label = yards left + lie' },
                 { k: 'star', t: 'Holed out' }, { k: 'diamond', c: G.color, t: 'No direction entered' },
                 { k: 'txt', c: '>', t: 'Further than the picture - drawn at the edge (label ends with >)' },
-                { k: 'none', t: 'White rings on the green: 5 to 30 ft from the hole.' },
+                { k: 'none', t: 'White rings on the green: 10, 20, 30, 45, 60, 75 ft from the hole; the green is drawn 60 yd across (90 ft from the pin).' },
                 { k: 'sw', c: '#9fdf86', t: 'Fairway' }, { k: 'sw', c: '#5f9e47', t: 'Rough (left / right side)' }, { k: 'sw', c: '#ecd27e', t: 'Bunker' },
                 { k: 'sw', c: '#c9f2b8', t: 'Tee box (par 3s)' }, { k: 'sw', c: '#2f6b2a', t: 'Trees / other' }], TX, yy, maxW, 1) + 8; }
             if (pg[1] === 'pin') {
@@ -1783,7 +1783,8 @@
     if (view.proxGroup) counts.all = all.length;
     return { list: byLie(inB), inB: inB, rounds: n, bucket: b, auto: auto && b !== 'all', lie: lie, counts: counts, lieCounts: lieCounts, outside: byLie(all).length - counts.all };
   }
-  var PX = { cx: 150, cy: 245, K: 3.2, Rg: 106, W: 300, H: 620, Z: 476 }; // Z = top of the lie strip
+  // green drawn 60 yd across (90 ft radius) at K px per ft, so shots, rings and the D1 benchmark ring share one scale
+  var PX = { cx: 150, cy: 250, K: 1.3, Rg: 117, W: 300, H: 620, Z: 476 }; // Rg = 90 ft * K; Z = top of the lie strip
   // Where the shots come from: fairway strip in the middle, rough both sides, a bunker (right),
   // trees / other (bottom-left corner) and the tee box (par 3s) at the bottom of the fairway.
   function lieStrip() {
@@ -1813,9 +1814,9 @@
   function proxSVG(list, bucket) {
     var out = '<svg id="proxmap" viewBox="0 0 ' + PX.W + ' ' + PX.H + '" role="img" aria-label="Approach proximity">' +
       '<rect width="' + PX.W + '" height="' + PX.H + '" fill="#cfe8c4"/>' + lieStrip() + '<circle cx="' + PX.cx + '" cy="' + PX.cy + '" r="' + PX.Rg + '" fill="#3da33d" stroke="#145214" stroke-width="4"/>';
-    [30, 25, 20, 15, 10, 5].forEach(function (ft) {
-      out += '<circle cx="' + PX.cx + '" cy="' + PX.cy + '" r="' + ft * PX.K + '" fill="none" stroke="#fff" stroke-width="' + (ft % 10 ? 1.3 : 2.2) + '" stroke-opacity=".85"/>' +
-        '<text class="ring" x="' + f1(PX.cx + 2 + ft * PX.K * 0.707) + '" y="' + f1(PX.cy + 12 + ft * PX.K * 0.707) + '" font-size="11" font-weight="800" fill="#fff">' + ft + '</text>';
+    [75, 60, 45, 30, 20, 10].forEach(function (ft) {
+      out += '<circle cx="' + PX.cx + '" cy="' + PX.cy + '" r="' + f1(ft * PX.K) + '" fill="none" stroke="#fff" stroke-width="' + (ft % 30 ? 1.3 : 2.2) + '" stroke-opacity=".85"/>' +
+        '<text class="ring" x="' + f1(PX.cx + 2 + ft * PX.K * 0.707) + '" y="' + f1(PX.cy + 11 + ft * PX.K * 0.707) + '" font-size="10" font-weight="800" fill="#fff">' + ft + (ft === 75 ? ' ft' : '') + '</text>';
     });
     out += '<circle cx="' + PX.cx + '" cy="' + PX.cy + '" r="5" fill="#000"/><line x1="' + PX.cx + '" y1="' + PX.cy + '" x2="' + PX.cx + '" y2="' + (PX.cy - 28) + '" stroke="#000" stroke-width="3"/>' +
       '<path d="M' + PX.cx + ' ' + (PX.cy - 28) + ' l18 6 l-18 6z" fill="#d0213a"/>';
@@ -1855,15 +1856,15 @@
       if (m.hit) {
         if (m.holed) { var jh = seen.h = (seen.h || 0) + 1; q = [PX.cx - 14 + (jh - 1) * 14, PX.cy + 14]; kind = 'holed'; label = ''; }
         else {
-          var nod = !m.dir, rr = Math.min(m.ft, 32) * PX.K, key = (m.dir || 'n') + Math.round(rr / 8), j = seen[key] = (seen[key] || 0) + 1;
+          var nod = !m.dir, rr = Math.min(m.ft, 88) * PX.K, key = (m.dir || 'n') + Math.round(rr / 8), j = seen[key] = (seen[key] || 0) + 1;
           q = pt(PX.cx, PX.cy, rr, (nod ? 90 : SG.DIR_ANGLE[m.dir]) + (j - 1) * 7); kind = nod ? 'hitnodir' : 'hit';
-          label = Math.round(m.ft) + ' ft' + (m.chipIn ? ' (chip-in)' : ''); clamped = m.ft > 32;
+          label = Math.round(m.ft) + ' ft' + (m.chipIn ? ' (chip-in)' : ''); clamped = m.ft > 88;
         }
       } else if (!m.dir) {
         q = [PX.W - 22 - (nd % 6) * 26, 52 + Math.floor(nd / 6) * 34]; nd++; kind = 'missnodir';
         label = m.lie === 'ob' ? 'OB' : Math.round(m.yd) + ' yd';
       } else {
-        var r0 = PX.Rg + 20 + (m.proxFt == null ? 40 : Math.min(m.proxFt, 150) * 0.45), jm = seen['m' + m.dir] = (seen['m' + m.dir] || 0) + 1;
+        var r0 = PX.Rg + 12 + (m.proxFt == null ? 30 : Math.min(m.proxFt, 150) * 0.35), jm = seen['m' + m.dir] = (seen['m' + m.dir] || 0) + 1;
         var raw = pt(PX.cx, PX.cy, r0, SG.DIR_ANGLE[m.dir] + (jm - 1) * 8); q = clampXY(raw); clamped = q[0] !== raw[0] || q[1] !== raw[1];
         kind = 'miss'; label = m.lie === 'ob' ? 'OB' : Math.round(m.yd) + ' yd' + (clamped ? ' ›' : ''); label2 = m.lie === 'ob' ? '' : (LN[m.lie] || m.lie);
       }
@@ -1924,7 +1925,7 @@
       '<span><i class="dot" style="background:#fff;border:2px solid #555"></i>Where the shot was hit from (the strip under the green):</span>' +
       '<span><i class="sw" style="background:#9fdf86"></i>Fairway (middle)</span><span><i class="sw" style="background:#5f9e47"></i>Rough – left or right side from the direction you entered for the shot before, otherwise the side with fewer shots</span>' +
       '<span><i class="sw" style="background:#ecd27e"></i>Bunker</span><span><i class="sw" style="background:#c9f2b8;border:2px solid #9c9"></i>Tee box (par 3s)</span><span><i class="sw" style="background:#2f6b2a"></i>Trees / hazard drop / other</span>' +
-      '<span><b class="star">★</b>Holed out</span><span>White rings: 5–30 ft from the hole</span></div>' +
+      '<span><b class="star">★</b>Holed out</span><span>White rings: 10–75 ft from the hole · green drawn 60 yd across (90 ft radius)</span></div>' +
       '<h3>Misses by direction</h3>' + dirTable(miss).replace('(not plotted)', '(drawn as ?)') +
       '<p class="help muted">One shot per hole, the same as the GIR and Approach-miss maps: the shot that reached the green in regulation (blue), or the regulation miss (red: par 3 = tee shot, par 4 = 2nd shot, par 5 = 3rd shot). ' +
       'It goes in the range it was hit from. A chip-in from 30 yd or closer right after counts as reaching the green (its proximity = the chip distance). ' +
