@@ -387,7 +387,7 @@
                 { k: 'ringx', c: G.color, t: 'Missed the green - always outside the green, farther out = farther from the pin; label = yards left + lie' },
                 { k: 'star', t: 'Holed out' }, { k: 'diamond', c: G.color, t: 'No direction entered' },
                 { k: 'txt', c: '>', t: 'Further than the picture - drawn at the edge (label ends with >)' },
-                { k: 'none', t: 'White rings: distance from the hole in ft. Scale changes per group: the green reaches the D1 women average for the group midpoint + 30 ft.' }, { k: 'dash', c: '#e00016', t: 'Red dashed = D1 women avg for the group midpoint (Shot Scope D1 women benchmarks)' },
+                { k: 'none', t: 'White rings: distance from the hole in ft. Scale changes per group: the green reaches the D1 women average for the group midpoint + 10 ft.' }, { k: 'dash', c: '#e00016', t: 'Red dashed = D1 women avg for the group midpoint (Shot Scope D1 women benchmarks)' },
                 { k: 'sw', c: '#9fdf86', t: 'Fairway' }, { k: 'sw', c: '#5f9e47', t: 'Rough (left / right side)' }, { k: 'sw', c: '#ecd27e', t: 'Bunker' },
                 { k: 'sw', c: '#c9f2b8', t: 'Tee box (par 3s)' }, { k: 'sw', c: '#2f6b2a', t: 'Trees / other' }], TX, yy, maxW, 1) + 8; }
             if (pg[1] === 'pin') {
@@ -1811,18 +1811,18 @@
     return '<g id="d1ring" data-ft="' + B.ft + '" data-est="' + (B.est ? 1 : 0) + '"><circle cx="' + PX.cx + '" cy="' + PX.cy + '" r="' + f1(r) + '" fill="none" stroke="#fff" stroke-opacity=".7" stroke-width="5"/>' +
       '<circle cx="' + PX.cx + '" cy="' + PX.cy + '" r="' + f1(r) + '" fill="none" stroke="#e00016" stroke-width="2.6" stroke-dasharray="9 6"/>' +
       '<text x="' + PX.cx + '" y="' + f1(ty) + '" text-anchor="middle" font-size="11" font-weight="900" fill="#c00012" stroke="#fff" stroke-width="3" paint-order="stroke">' + lab + '</text></g>'; }
-  // Zoom: a selected yardage shows the D1 ring + 30 ft (10 yd) as the green radius; a distance group uses the ring at its midpoint;
+  // Zoom: a selected yardage shows the D1 ring + 10 ft as the green radius; a distance group uses the ring at its midpoint;
   // All 40-200 keeps the 60-yd green (90 ft). The green is always PX.Rg px across, so K (px per ft) changes per distance.
   function grpMid(group) { var g = String(group).replace(' yd', '').split(/[-+]/), lo = +g[0], hi = g[1] ? +g[1] : lo + 20; return (lo + hi) / 2; } // '130-160' -> 145, '200+' -> 210
   function proxZoomFt(bucket, group) {
     if (group) bucket = grpMid(group);
-    var B2 = d1Bench(bucket); return B2 ? B2.ft + 30 : 90; }
+    var B2 = d1Bench(bucket); return B2 ? B2.ft + 10 : 90; }
   function proxSVG(list, bucket, zoomFt) {
     var RFT = zoomFt || proxZoomFt(bucket); PX.K = PX.Rg / RFT; var HMAX = RFT * 0.97;
     var out = '<svg id="proxmap" viewBox="0 0 ' + PX.W + ' ' + PX.H + '" role="img" aria-label="Approach proximity">' +
       '<rect width="' + PX.W + '" height="' + PX.H + '" fill="#cfe8c4"/>' + lieStrip() + '<circle cx="' + PX.cx + '" cy="' + PX.cy + '" r="' + PX.Rg + '" fill="#3da33d" stroke="#145214" stroke-width="4"/>';
-    // ring step per zoom: 5 ft under 50 ft, 10 ft under 80, else 15; labels every ring, or every other one at 5-ft steps
-    var step = RFT < 50 ? 5 : RFT < 80 ? 10 : 15, rings = []; for (var rf = step; rf < RFT - 2; rf += step) rings.push(rf);
+    // ring step per zoom: 5 ft under 40 ft, 10 ft under 80, else 15; labels every ring, or every other one at 5-ft steps
+    var step = RFT < 40 ? 5 : RFT < 80 ? 10 : 15, rings = []; for (var rf = step; rf < RFT - 2; rf += step) rings.push(rf);
     out += '<g id="proxrings" data-step="' + step + '" data-rft="' + Math.round(RFT) + '">';
     rings.reverse().forEach(function (ft, i) { var lab = step === 5 ? ft % 10 === 0 : true;
       out += '<circle cx="' + PX.cx + '" cy="' + PX.cy + '" r="' + f1(ft * PX.K) + '" fill="none" stroke="#fff" stroke-width="' + (ft % (step * 2) ? 1.2 : 2) + '" stroke-opacity=".85"/>' +
@@ -1835,8 +1835,8 @@
     // labels avoid each other, the dots and the canvas edge: try below, above, right, left, then further out
     var boxes = [], hit2 = function (b) { return boxes.some(function (o) { return b[0] < o[2] && b[2] > o[0] && b[1] < o[3] && b[3] > o[1]; }); };
     var lbl = function (x, y, t1, t2, col) {
-      var w = Math.max(t1.length, (t2 || '').length) * 6.6 + 4, h = t2 ? 23 : 12, best = null;
-      [[0, 19], [0, -12 - h], [10 + w / 2, 4 - h / 2], [-10 - w / 2, 4 - h / 2], [0, 32], [0, -25 - h], [16 + w / 2, 16 - h / 2], [-16 - w / 2, 16 - h / 2], [0, 45], [0, -38 - h]].some(function (o) {
+      var w = Math.max(t1.length, (t2 || '').length) * 7.4 + 4, h = t2 ? 23 : 12, best = null;
+      [[0, 19], [0, -12 - h], [12 + w / 2, 4 - h / 2], [-12 - w / 2, 4 - h / 2], [0, 32], [0, -25 - h], [16 + w / 2, 16 - h / 2], [-16 - w / 2, 16 - h / 2], [0, 45], [0, -38 - h]].some(function (o) {
         var cx = Math.max(w / 2 + 2, Math.min(PX.W - w / 2 - 2, x + o[0])), ty = y + o[1], b = [cx - w / 2, ty - 10, cx + w / 2, ty - 10 + h];
         if (!best) best = [cx, ty, b];
         if (!hit2(b) && b[1] >= 22 && b[3] <= PX.H - 2) { best = [cx, ty, b]; return true; }
@@ -1936,7 +1936,7 @@
       '<span><i class="dot" style="background:#fff;border:2px solid #555"></i>Where the shot was hit from (the strip under the green):</span>' +
       '<span><i class="sw" style="background:#9fdf86"></i>Fairway (middle)</span><span><i class="sw" style="background:#5f9e47"></i>Rough – left or right side from the direction you entered for the shot before, otherwise the side with fewer shots</span>' +
       '<span><i class="sw" style="background:#ecd27e"></i>Bunker</span><span><i class="sw" style="background:#c9f2b8;border:2px solid #9c9"></i>Tee box (par 3s)</span><span><i class="sw" style="background:#2f6b2a"></i>Trees / hazard drop / other</span>' +
-      '<span><b class="star">★</b>Holed out</span><span>White rings: distance from the hole in ft. The scale changes per distance: for a yardage the green reaches the D1 ring + 30 ft; for All, 60 yd across (90 ft). Hits farther than that sit at the edge (label ends with ›)</span></div>' +
+      '<span><b class="star">★</b>Holed out</span><span>White rings: distance from the hole in ft. The scale changes per distance: for a yardage the green reaches the D1 ring + 10 ft; for All, 60 yd across (90 ft). Hits farther than that sit at the edge (label ends with ›)</span></div>' +
       '<h3>Misses by direction</h3>' + dirTable(miss).replace('(not plotted)', '(drawn as ?)') +
       '<p class="help muted">One shot per hole, the same as the GIR and Approach-miss maps: the shot that reached the green in regulation (blue), or the regulation miss (red: par 3 = tee shot, par 4 = 2nd shot, par 5 = 3rd shot). ' +
       'It goes in the range it was hit from. A chip-in from 30 yd or closer right after counts as reaching the green (its proximity = the chip distance). ' +
@@ -2273,5 +2273,5 @@
     });
     window.addEventListener('load', function () { navigator.serviceWorker.register('./sw.js').catch(function () {}); });
   }
-  window.__golf = { d1Bench: d1Bench, pinSVG: function () { return pinReportSVG(SG.pinSegments(pinDataRound())); }, odState: function () { return odState; }, csvFor: csvFor, rounds: function () { return rounds; } };
+  window.__golf = { d1Bench: d1Bench, proxSVG: proxSVG, pinSVG: function () { return pinReportSVG(SG.pinSegments(pinDataRound())); }, odState: function () { return odState; }, csvFor: csvFor, rounds: function () { return rounds; } };
 })();
