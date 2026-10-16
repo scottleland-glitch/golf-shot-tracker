@@ -29,18 +29,24 @@ const BASE = process.env.BASE_URL || 'http://127.0.0.1:8774/', OUT = '/workspace
     if (m === 'prox') { const all = await page.$('[data-act="proxb"][data-v="all"]'); if (all) await all.click(); await page.waitForSelector('#heattog'); }
     if (m === 'pmiss') { await page.waitForSelector('#heattog'); }
     const gr = await page.evaluate(() => ({ img: !!document.querySelector('#mapview svg.heat #heatgrad'), hs: [...document.querySelectorAll('#mapview .hotspot text')].map(t => t.textContent), avg: !!document.querySelector('#heatavg'), sel: document.querySelector('#heattog .sel').dataset.v }));
-    assert.ok(gr.img && (m === 'putt' ? !gr.avg : gr.avg) && gr.sel === 'grad', m + ' gradient by default for multi-round ' + JSON.stringify(gr));
+    assert.ok(gr.img && (m === 'miss' ? gr.avg : !gr.avg) && gr.sel === 'grad', m + ' gradient by default for multi-round ' + JSON.stringify(gr));
     assert.ok(gr.hs.every(t => /^\d+ (ft|yd) · \d+ shots?$/.test(t)), m + ' hot-spot tags ' + gr.hs);
     await page.locator('#heattog').scrollIntoViewIfNeeded(); await page.screenshot({ path: OUT + 'heatmap-gradient-' + m + '.png' });
     if (m === 'putt') { // putt starts: no ⊕, summary = mean distance of the putts shown
       const ps = await page.evaluate(() => { const rs = JSON.parse(localStorage.getItem('golfsg.rounds.v1')); const d = []; // raw entered first-putt distances
         rs.forEach(r => SG.summarize(r, 'pga').puttList.filter(p => SG.puttGroup(p.n) === '1').forEach(p => d.push(Number(p.ft)))); return { t: document.getElementById('heatsum').textContent, d }; });
-      const mm = ps.t.match(/^Average first-putt distance: ([\d.]+) ft · (\d+) putts · (\d+) hot spots?\.$/); assert.ok(mm, 'putt summary ' + ps.t);
+      const mm = ps.t.match(/^Average first-putt distance: ([\d.]+) ft · (\d+) putts · (\d+) hot spots?( \(\+ \d+ putts? with no direction entered – not on the heat map\))?\.$/); assert.ok(mm, 'putt summary ' + ps.t);
       assert.strictEqual(+mm[2], ps.d.length); assert.strictEqual(+mm[1], Math.round(ps.d.reduce((a, b) => a + b, 0) / ps.d.length * 10) / 10, 'raw mean ' + ps.t);
       assert.match(await page.textContent('#puttstats'), new RegExp(mm[1].replace('.', '\\.') + ' ft'), 'matches the Avg distance tile');
       assert.strictEqual(+mm[3], await page.$$eval('#mapview .hotspot', g => g.length)); assert.ok(!/⊕/.test(ps.t));
       await page.locator('#heatsum').scrollIntoViewIfNeeded(); await page.screenshot({ path: OUT + 'putt-avg-fixed.png' }); console.log('putt', ps.t); }
-    else assert.match(await page.textContent('#heatsum'), /^⊕ Average finish:/);
+    else if (m === 'miss') assert.match(await page.textContent('#heatsum'), /^⊕ Average finish:/);
+    else { const a = await page.evaluate(() => { const E = [...document.querySelectorAll('#mapview svg [data-hd]')], yd = E.every(e => e.dataset.hu === 'yd');
+        return { t: document.getElementById('heatsum').textContent, mean: E.reduce((s, e) => s + (+e.dataset.hd || 0) * (!yd && e.dataset.hu === 'yd' ? 3 : 1), 0) / E.length, v: +document.getElementById('heatmean').dataset.v, n: E.length,
+          nd: document.getElementById('heatnodir') ? +document.getElementById('heatnodir').dataset.n : 0, nodirEls: E.filter(e => /nodir/.test((e.dataset.kind || '') + (e.dataset.class || ''))).length }; });
+      assert.match(a.t, /^Average (proximity|distance from the hole|miss distance): \d+ (ft|yd) · \d+ shots?/, m + ' ' + a.t); assert.ok(!/⊕/.test(a.t));
+      assert.strictEqual(a.v, Math.round(a.mean * 10) / 10, m + ' raw mean'); assert.ok(a.t.includes(' · ' + a.n + ' shot'), m + ' count = every marker ' + a.t);
+      assert.strictEqual(a.nd, a.nodirEls, m + ' no-direction note'); console.log(m, a.t); }
     // Islands view retired: only Dots and Gradient; tags never overlap
     assert.strictEqual(await page.$('[data-act="heat"][data-v="isl"]'), null, m + ' no Islands button');
     await page.click('[data-act="heat"][data-v="grad"]');
