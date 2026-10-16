@@ -1297,7 +1297,7 @@
   }
   // tee-shot map: a hot spot's count + fairway share (its average distance would mislead: hits and misses mix); else avg distance + count
   function heatLabel(g) { var n = g.length + ' shot' + (g.length === 1 ? '' : 's');
-    if (view.map === 'prox') return heatFmt(g); // the yardage rail already gives the counts
+    if (view.map === 'prox' || view.map === 'gir') return heatFmt(g); // the yardage rail already gives the counts
     if (view.map === 'fw') return n + ' · ' + Math.round(100 * g.filter(function (p) { return p.fw === '1'; }).length / g.length) + '% fairway';
     return heatFmt(g) + ' · ' + n; }
   function heatFmt(list) { // average distance; yards when every shot is off the green in yd, else feet
@@ -1869,7 +1869,7 @@
         else {
           var nod = !m.dir, rr = Math.min(m.ft, HMAX) * PX.K, key = (m.dir || 'n') + Math.round(rr / 8), j = seen[key] = (seen[key] || 0) + 1;
           q = pt(PX.cx, PX.cy, rr, (nod ? 90 : SG.DIR_ANGLE[m.dir]) + (j - 1) * 7); kind = nod ? 'hitnodir' : 'hit';
-          clamped = m.ft > HMAX; label = Math.round(m.ft) + ' ft' + (clamped ? ' ›' : '') + (m.chipIn ? ' (chip-in)' : '');
+          clamped = m.ft > HMAX; label = Math.round(m.ft) + '’' + (clamped ? ' ›' : '') + (m.chipIn ? ' (chip-in)' : '');
         }
       } else if (!m.dir) {
         q = [PX.W - 22 - (nd % 6) * 26, 52 + Math.floor(nd / 6) * 34]; nd++; kind = 'missnodir';

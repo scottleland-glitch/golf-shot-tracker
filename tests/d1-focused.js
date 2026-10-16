@@ -38,7 +38,7 @@ const BASE = 'http://127.0.0.1:8786/', OUT = '/workspace/golf-app/screenshots/';
   const cl = await page.evaluate(() => { const L = [['long',38],['right',12],['left',30],['short',24],['longleft',60]].map((d, i) => ({ hit: true, ft: d[1], proxFt: d[1], dir: d[0], hole: i + 1, from: 40, yd: 40 }));
     const host = document.getElementById('proxmap'); host.outerHTML = window.__golf.proxSVG(L, 40); const s = document.getElementById('proxmap'), R = +s.querySelector('#proxrings').dataset.rft, K = 117 / R;
     const hits = [...s.querySelectorAll('.xdot[data-kind="hit"]')].map(e => ({ ft: +e.dataset.hd, cl: !!e.dataset.clamped, d: Math.hypot(+e.getAttribute('cx') - 150, +e.getAttribute('cy') - 250) }));
-    const marks = [...s.querySelectorAll('text')].filter(t => /ft ›$/.test(t.textContent)).map(t => t.textContent); return { R, K, hits, marks }; });
+    const marks = [...s.querySelectorAll('text')].filter(t => /^\d+\u2019 ›$/.test(t.textContent)).map(t => t.textContent); return { R, K, hits, marks }; });
   const over = cl.hits.filter(h => h.ft > cl.R * 0.97); console.log('40 yd edge test: radius', cl.R, 'ft; beyond edge', over.length, 'labels', cl.marks.join(' | '));
   assert.strictEqual(over.length, 3, 'three hits past the edge'); assert.ok(over.every(h => h.cl && Math.abs(h.d - cl.R * 0.97 * cl.K) < 1.5), 'clamped at the edge ' + JSON.stringify(over));
   assert.ok(cl.hits.filter(h => !h.cl).every(h => Math.abs(h.d - h.ft * cl.K) < 1.5), 'true distance inside'); assert.strictEqual(cl.marks.length, 3, 'one › label per clamped hit');
