@@ -1,4 +1,6 @@
 // Focused OneDrive test: config.js with a client ID, MSAL stubbed (redirect sign-in simulated), Graph mocked.
+const arc = async p => { await p.waitForSelector('#app > *'); if (await p.$('#archivepill')) await p.click('#archivepill'); }; // data tools live on Archive
+const goHist = async p => { if (await p.$('#plusbtn')) await p.click('#plusbtn'); await p.click('[data-act="history"]'); };
 const { chromium } = require('playwright-core'); const assert = require('assert'); const { spawn } = require('child_process');
 const BASE = process.env.BASE_URL || 'http://127.0.0.1:8766/', SHOTS = process.env.SHOTS || '/tmp/shots-od';
 const MSAL_STUB = `window.msal = { PublicClientApplication: class {
@@ -19,7 +21,7 @@ const MSAL_STUB = `window.msal = { PublicClientApplication: class {
   // 1) default config: OneDrive hidden, MSAL not even loaded
   let msalLoads = 0; page.on('request', r => { if (/msal-browser/.test(r.url())) msalLoads++; });
   await ctx.route('**/config.js*', r => r.fulfill({ contentType: 'application/javascript', body: "window.GOLF_CONFIG = { onedriveClientId: '' };" }));
-  await page.goto(BASE + '?x=' + Date.now()); await page.waitForSelector('[data-act="history"]');
+  await page.goto(BASE + '?x=' + Date.now()); await arc(page); await page.waitForSelector('[data-act="history"]');
   assert.strictEqual(await page.locator('#odcard, [data-act="odconnect"]').count(), 0); assert.strictEqual(msalLoads, 0);
   console.log('✓ no client ID: OneDrive features hidden, MSAL not loaded');
   // 2) client ID set
@@ -40,7 +42,7 @@ const MSAL_STUB = `window.msal = { PublicClientApplication: class {
     holes: [{ par: 4, finished: true, rows: [{ dist: 400, loc: 'tee', dir: '', pen: false }, { dist: 150, loc: 'fairway', dir: '', pen: false }, { dist: 12, loc: 'green', dir: '', pen: false }, { dist: 2, loc: 'holed', dir: '', pen: false }] },
       { par: 4, finished: false, rows: [{ dist: 380, loc: 'tee', dir: '', pen: false }, { dist: 140, loc: 'fairway', dir: '', pen: false }, { dist: 3, loc: 'holed', dir: '', pen: false }] }].concat(Array.from({ length: 16 }, () => ({ par: 4, finished: false, rows: [{ dist: 400, loc: 'tee', dir: '', pen: false }] }))) }])); localStorage.setItem('golfsg.current.v1', 'r1'); localStorage.setItem('stub.acct', '1'); localStorage.setItem('golfsg.onedrive.v1', JSON.stringify({ pending: true, lastOk: '2026-10-09T19:00:00.000Z', lastDated: '2026-10-09T19:00:00.000Z' })); });
   files['golf-rounds-backup.json'] = JSON.stringify({ app: 'golf-shot-tracker', kind: 'rounds-backup', version: 1, rounds: [] });
-  await page.goto(BASE + '?x=' + Date.now()); await page.waitForSelector('#odacct');
+  await page.goto(BASE + '?x=' + Date.now()); await arc(page); await page.waitForSelector('#odacct');
   const cfg = await page.evaluate(() => window.__msalCfg);
   assert.deepStrictEqual([cfg.auth.clientId, cfg.auth.authority, cfg.auth.redirectUri, cfg.cache.cacheLocation], ['11111111-2222-3333-4444-555555555555', 'https://login.microsoftonline.com/consumers', BASE.replace(/\?.*/, ''), 'localStorage']);
   // Scott's phone: already connected (uploaded the legacy file), no player name yet -> backups wait for the name
@@ -66,21 +68,21 @@ const MSAL_STUB = `window.msal = { PublicClientApplication: class {
   await ctxR.route('**/vendor/msal-browser.min.js*', r => r.fulfill({ contentType: 'application/javascript', body: MSAL_STUB }));
   await ctxR.route('https://graph.microsoft.com/**', r => ctx._graph(r));
   const pR = await ctxR.newPage(); pR.on('pageerror', e => errors.push('relaunch: ' + e));
-  await pR.goto(BASE + '?x=' + Date.now());
+  await pR.goto(BASE + '?x=' + Date.now()); await arc(pR);
   await pR.waitForSelector('#odacct'); assert.strictEqual(await pR.locator('[data-act="odconnect"]').count(), 0);
   assert.match(await pR.textContent('#odacct'), /scott\.leland@gmail\.com/); await pR.waitForTimeout(800); const dbg = await pR.evaluate(() => [!!window.__msalCfg, localStorage.getItem('stub.acct'), localStorage.getItem('golfsg.onedrive.v1')]); assert.doesNotMatch(await pR.textContent('#odstat'), /expired/, JSON.stringify(dbg));
   // if MSAL's own cache were lost, the remembered account shows Reconnect (not a fresh Connect)
-  await pR.evaluate(() => localStorage.removeItem('stub.acct')); await pR.reload(); await pR.waitForSelector('[data-act="odreauth"]');
+  await pR.evaluate(() => localStorage.removeItem('stub.acct')); await pR.reload(); await arc(pR); await pR.waitForSelector('[data-act="odreauth"]');
   assert.strictEqual(await pR.locator('[data-act="odconnect"]').count(), 0); await ctxR.close();
   console.log('✓ relaunch (no session cookies) → still "Connected as …", silent token OK; lost MSAL cache → Reconnect, not Connect');
   // 3) finish a hole while offline → queued; back online → uploaded
   await ctx.setOffline(true); await page.evaluate(() => window.dispatchEvent(new Event('offline')));
-  await page.click('[data-act="resume"]'); await page.waitForSelector('[data-act="finish"]');
+  if (!await page.$('[data-act="resume"]')) await page.click('[data-act="home"] >> nth=0'); await page.click('[data-act="resume"]'); await page.waitForSelector('[data-act="finish"]');
   const before = calls.filter(c => c[0] === 'PUT').length;
   await page.click('[data-act="finish"]'); await page.waitForTimeout(2500);
   let st = await page.evaluate(() => window.__golf.odState());
   assert.ok(st.pending, 'queued while offline'); assert.strictEqual(calls.filter(c => c[0] === 'PUT').length, before);
-  await page.click('[data-act="home"]'); assert.match(await page.textContent('#odstat'), /Waiting to upload/);
+  await page.click('[data-act="home"]'); await arc(page); assert.match(await page.textContent('#odstat'), /Waiting to upload/);
   await page.screenshot({ path: SHOTS + '/41-onedrive-queued.png' });
   await ctx.setOffline(false); await page.evaluate(() => window.dispatchEvent(new Event('online')));
   await page.waitForFunction(() => !window.__golf.odState().pending);
@@ -97,7 +99,7 @@ const MSAL_STUB = `window.msal = { PublicClientApplication: class {
   await page.screenshot({ path: SHOTS + '/42-onedrive-restore-list.png' });
   await page.click('.odfile[data-v="golf-rounds-emma.json"]'); await page.waitForSelector('#rplist'); await page.click('.rpchk input >> nth=0'); await page.click('#rpgo'); await page.waitForSelector('#notice');
   assert.strictEqual(await page.textContent('#notice'), '✓ Restored from backup: 1 added. You now have 2 rounds.');
-  await page.click('[data-act="history"]'); await page.waitForSelector('#playerchips');
+  await goHist(page); await page.waitForSelector('#playerchips');
   assert.deepStrictEqual(await page.$$eval('#playerchips button', bs => bs.map(b => b.textContent)), ['All players', 'Emma (1)', 'Scott Leland (1)']);
   assert.deepStrictEqual(await page.$$eval('#histlist .hplayer', x => x.map(e => e.textContent)), ['👤 Scott Leland', '👤 Emma']);
   await page.screenshot({ path: SHOTS + '/45-history-players.png' });
@@ -106,7 +108,7 @@ const MSAL_STUB = `window.msal = { PublicClientApplication: class {
   const emmaKept = await page.evaluate(() => window.__golf.rounds().find(r => r.id === 'e1').player); assert.strictEqual(emmaKept, 'Emma');
   console.log("✓ Restore lists files by player (Emma, Scott Leland (you), Older backup); Emma's rounds merged, keep her name; History shows player + filter");
   // name change asks for confirmation (dialog auto-accepted), relabels own rounds only
-  await page.click('[data-act="home"]'); let asked = null; page.once('dialog', d => { asked = d.message(); });
+  await page.click('[data-act="home"]'); await arc(page); let asked = null; page.once('dialog', d => { asked = d.message(); });
   await page.click('[data-act="editname"]'); await page.fill('#pname', 'Scott L'); await page.click('[data-act="setname"]');
   assert.match(asked || '', /Change player name from "Scott Leland" to "Scott L"/);
   const pl = await page.evaluate(() => window.__golf.rounds().map(r => r.id + ':' + r.player).sort()); assert.deepStrictEqual(pl, ['e1:Emma', 'r1:Scott L']);
@@ -121,9 +123,9 @@ const MSAL_STUB = `window.msal = { PublicClientApplication: class {
   await ctx2.route('**/vendor/msal-browser.min.js*', r => r.fulfill({ contentType: 'application/javascript', body: MSAL_STUB }));
   await ctx2.route('https://graph.microsoft.com/**', r => ctx._graph(r));
   const p2 = await ctx2.newPage(); p2.on('pageerror', e => errors.push('phone2: ' + e)); p2.on('dialog', d => d.accept());
-  await p2.goto(BASE + '?x=' + Date.now());
+  await p2.goto(BASE + '?x=' + Date.now()); await arc(p2);
   await p2.evaluate(e => { localStorage.setItem('stub.acct', '1'); localStorage.setItem('golfsg.player.v1', 'Emma'); localStorage.setItem('golfsg.rounds.v1', JSON.stringify([e, { ...e, id: 'e2', player: 'Emma', date: '2026-10-08T15:00:00.000Z' }])); }, emmaRound);
-  await p2.reload(); await p2.waitForSelector('#odacct'); await p2.click('[data-act="odsync"]');
+  await p2.reload(); await arc(p2); await p2.waitForSelector('#odacct'); await p2.click('[data-act="odsync"]');
   await p2.waitForFunction(() => !window.__golf.odState().pending && /Backed up/.test(document.getElementById('odstat').textContent));
   assert.notStrictEqual(files['golf-rounds-emma.json'], emmaBefore); assert.deepStrictEqual(JSON.parse(files['golf-rounds-emma.json']).rounds.map(r => r.id).sort(), ['e1', 'e2']);
   assert.strictEqual(JSON.stringify([files['golf-rounds-scott-l.json'], files['golf-rounds-scott-leland.json'], files['golf-rounds-backup.json']]), scottSnap, "Emma's phone never touches Scott's files");
@@ -138,7 +140,7 @@ const MSAL_STUB = `window.msal = { PublicClientApplication: class {
   await page.click('[data-act="oddisconnect"]'); await page.waitForSelector('[data-act="odconnect"]');
   assert.strictEqual(await page.evaluate(() => Object.keys(localStorage).filter(k => k === 'stub.acct').length), 0);
   // first connect on a phone with no name asks for the name before signing in
-  await page.evaluate(() => localStorage.removeItem('golfsg.player.v1')); await page.reload(); await page.waitForSelector('[data-act="odconnect"]');
+  await page.evaluate(() => localStorage.removeItem('golfsg.player.v1')); await page.reload(); await arc(page); await page.waitForSelector('[data-act="odconnect"]');
   await page.screenshot({ path: SHOTS + '/39-onedrive-connect.png' });
   await page.click('[data-act="odconnect"]'); await page.waitForSelector('#needname'); assert.match(await page.textContent('#needname'), /player name before connecting/);
   await page.fill('#pname', 'Emma'); await page.click('[data-act="setname"]'); await page.click('[data-act="odconnect"]');

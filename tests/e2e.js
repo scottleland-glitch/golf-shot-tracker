@@ -20,7 +20,9 @@ let passed = 0; const ok = (m) => { passed++; console.log('  ✓', m); };
   const page = await ctx.newPage();
   const errors = []; page.on('pageerror', e => errors.push(e.message)); page.on('console', m => { if (m.type() === 'error') errors.push(m.text()); });
   page.on('dialog', d => d.accept());
-  const act = (a, v) => page.locator(v == null ? `[data-act="${a}"]` : `[data-act="${a}"][data-v="${v}"]`).first().click();
+  const act = async (a, v) => { if (a === 'history' && await page.$('#plusbtn') && !await page.$('#plusmenu')) await page.click('#plusbtn'); // History lives in the + menu on Home
+    else if (['backup', 'csvall', 'about', 'discard', 'odconnect', 'editname'].includes(a) && await page.$('#archivepill')) await page.click('#archivepill'); // data tools live on Archive
+    return page.locator(v == null ? `[data-act="${a}"]` : `[data-act="${a}"][data-v="${v}"]`).first().click(); };
   const actK = (a, k) => page.locator(`[data-act="${a}"][data-k="${k}"]`).first().click();
   const dist = (k, v) => page.fill(`input[data-row="${k}"]`, String(v));
   const loc = (k, v) => page.selectOption(`select[data-f="loc"][data-k="${k}"]`, v);
@@ -91,6 +93,7 @@ let passed = 0; const ok = (m) => { passed++; console.log('  ✓', m); };
 
   // New round: Scott's example 365 Tee, 130 F, 15 ft G, 3 ft In the hole
   // Baseline picker on the new-round form
+  await act('plus'); await act('newform'); // + button → New round sheet
   const opts = await page.$$eval('#newbl option', os => os.map(o => o.value + '|' + o.textContent));
   assert.deepStrictEqual(opts, ['pga|PGA Tour', 'lpga|LPGA Tour (estimated)', 'd1m|D1 college men (estimated)', 'd1w|D1 college women (estimated)', 'scm|Scratch men (estimated)', 'scw|Scratch women (estimated)']);
   assert.strictEqual(await page.$eval('#newbl', e => e.value), 'pga'); ok('new-round baseline picker: 6 baselines, default PGA Tour, others marked estimated');
@@ -696,7 +699,7 @@ let passed = 0; const ok = (m) => { passed++; console.log('  ✓', m); };
   await page.locator('[data-act="summary"]').first().click();
   await page.locator('#card-back tr.shole [data-act="goHole"][data-i="17"]').click(); assert.match(await page.textContent('.hc-head'), /Hole 18/); ok('tapping the hole number opens it too (unfinished 18)');
   // History: big button on Home, list newest first, open a round's full stats, back to History, delete
-  await act('home');
+  await act('home'); await act('archive');
   assert.match(await page.textContent('[data-act="history"].histbtn'), /History\s*7 saved rounds/);
   const hb = await page.$eval('[data-act="history"].histbtn', b => { const r = b.getBoundingClientRect(); return [r.width, r.height]; }); assert.ok(hb[0] > 350 && hb[1] >= 66, 'big History button ' + hb);
   await act('history');
@@ -721,7 +724,7 @@ let passed = 0; const ok = (m) => { passed++; console.log('  ✓', m); };
   await page.locator('#histlist [data-act="open"][data-id="rlie"]').click(); await act('delRound'); await page.waitForSelector('#histlist');
   assert.strictEqual(await page.locator('#histlist .hrow').count(), hist.length - 2); ok('delete from the History list (🗑, confirm) and from a round opened from History (returns to History)');
   // Backup: share sheet with a File (stubbed) and the download fallback
-  await act('home');
+  await act('home'); await act('archive');
   assert.match(await page.textContent('#bkremind'), /haven't backed up/);
   await page.evaluate(() => { window.__shared = null; navigator.canShare = () => true; navigator.share = async d => { window.__shared = { name: d.files[0].name, type: d.files[0].type, text: await d.files[0].text() }; }; });
   await act('backup'); await page.waitForFunction(() => window.__shared);
@@ -736,7 +739,7 @@ let passed = 0; const ok = (m) => { passed++; console.log('  ✓', m); };
   await page.evaluate(() => { delete navigator.share; navigator.canShare = undefined; });
   const [bdl] = await Promise.all([page.waitForEvent('download'), act('backup')]);
   assert.strictEqual(bdl.suggestedFilename(), `golf-rounds-backup-${today}.json`); ok('no share sheet → the same file downloads');
-  await page.evaluate(() => localStorage.setItem('golfsg.lastBackup.v1', new Date(Date.now() - 20 * 864e5).toISOString())); await act('history'); await act('home');
+  await page.evaluate(() => localStorage.setItem('golfsg.lastBackup.v1', new Date(Date.now() - 20 * 864e5).toISOString())); await act('history'); await act('home'); await act('archive');
   assert.match(await page.textContent('#bkremind'), /It's been 20 days since your last backup/); ok('gentle reminder after 14+ days ("It\'s been 20 days …")');
   await page.screenshot({ path: `${SHOTS}/35-home-history-backup.png` });
   // Restore: 1 new, 1 identical, 1 conflict (confirm → replace), plus a duplicate id inside the file

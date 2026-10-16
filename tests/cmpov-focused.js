@@ -1,4 +1,5 @@
 const { chromium } = require('playwright-core'); const assert = require('assert'); const { spawn } = require('child_process');
+const goHist = async p => { if (await p.$('#plusbtn')) await p.click('#plusbtn'); await p.click('[data-act="history"]'); };
 const BASE = 'http://127.0.0.1:8777/', OUT = '/workspace/golf-app/screenshots/';
 (async () => {
   const srv = spawn('python3', ['-m', 'http.server', '8777', '--bind', '127.0.0.1'], { cwd: '/workspace/golf-app', stdio: 'ignore' });
@@ -15,7 +16,7 @@ const BASE = 'http://127.0.0.1:8777/', OUT = '/workspace/golf-app/screenshots/';
           : [R(400, 'tee'), R(app, 'fairway'), R(8 + (i * 7) % 30, 'green', D[i % 6]), R(2, 'green', D[(i + 2) % 6]), R(1, 'holed')].slice(0, (i % 2) ? 5 : 4).map((r, j, a) => j === a.length - 1 ? R(1, 'holed') : r);
         return { par: 4, finished: true, rows }; }) });
     localStorage.clear(); localStorage.setItem('golfsg.player.v1', 'Scott'); localStorage.setItem('golfsg.rounds.v1', JSON.stringify([mk('best', 13, 0), mk('worst', 12, 1)])); });
-  await page.reload(); await page.click('[data-act="history"]'); await page.click('#cmpopen'); await page.waitForSelector('#gaptable');
+  await page.reload(); await goHist(page); await page.click('#cmpopen'); await page.waitForSelector('#gaptable');
   // bucketing = the round's own proximity rail (yards rounded to 10): 60-100 group = rail 60,70,80,90
   const exp = await page.evaluate(() => { const rs = JSON.parse(localStorage.getItem('golfsg.rounds.v1')); const c = {};
     rs.forEach(r => SG.summarize(r, 'pga').proxList.forEach(m => { ['60', '70', '80', '90'].forEach(b => { if (SG.inBucket(b, m.from)) c[r.id] = (c[r.id] || 0) + 1; }); })); return c; });
@@ -41,7 +42,7 @@ const BASE = 'http://127.0.0.1:8777/', OUT = '/workspace/golf-app/screenshots/';
     if (k === 'gir' || k === 'putt') { await page.locator('#cmpov').scrollIntoViewIfNeeded(); await page.locator('#cmpov').screenshot({ path: OUT + (k === 'gir' ? 'compare-overlay-outlines.png' : 'compare-overlay-outlines-putt.png') }); }
   }
   // loose clustering: best shots merge into multi-shot outline islands that are really painted (black, unfilled)
-  await page.evaluate(() => localStorage.setItem('golfsg.heatclus.v1', '10')); await page.reload(); await page.click('[data-act="history"]'); await page.click('#cmpopen');
+  await page.evaluate(() => localStorage.setItem('golfsg.heatclus.v1', '10')); await page.reload(); await goHist(page); await page.click('#cmpopen');
   await page.click('[data-act="cmpkind"][data-v="putt"]'); await page.click('[data-act="cmpov"][data-v="1"]'); await page.waitForSelector('#cmplayer');
   const multi = await page.evaluate(() => [...document.querySelectorAll('#cmplayer .bestisl')].map(r => +r.dataset.n));
   assert.ok(multi.length && multi.some(n => n > 1), 'multi-shot best islands ' + multi);

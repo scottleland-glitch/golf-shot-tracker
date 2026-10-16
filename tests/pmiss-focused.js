@@ -1,4 +1,5 @@
 const { chromium } = require('playwright-core'); const assert = require('assert'); const { spawn } = require('child_process');
+const goHist = async p => { if (await p.$('#plusbtn')) await p.click('#plusbtn'); await p.click('[data-act="history"]'); };
 const BASE = process.env.BASE_URL || 'http://127.0.0.1:8770/', OUT = '/workspace/golf-app/screenshots/';
 (async () => {
   const srv = process.env.NO_SERVER ? null : spawn('python3', ['-m', 'http.server', '8770', '--bind', '127.0.0.1'], { cwd: '/workspace/golf-app', stdio: 'ignore' });
@@ -18,7 +19,7 @@ const BASE = process.env.BASE_URL || 'http://127.0.0.1:8770/', OUT = '/workspace
     localStorage.clear(); localStorage.setItem('golfsg.player.v1', 'Scott');
     localStorage.setItem('golfsg.rounds.v1', JSON.stringify([{ v: 3, dv: 2, id: 'rp', date: '2026-10-10T17:00:00.000Z', course: 'Putt test', baseline: 'pga', player: 'Scott', holes }]));
   });
-  await page.reload(); await page.click('[data-act="history"]'); await page.click('#histlist [data-act="open"][data-id="rp"]');
+  await page.reload(); await goHist(page); await page.click('#histlist [data-act="open"][data-id="rp"]');
   const st = await page.evaluate(() => { const S = SG.summarize(window.__golf.rounds()[0], 'pga'); return S.puttList.filter(p => p.n === 1).map(p => [p.dir, p.ft, p.made, p.endDir, p.endFt, SG.pmissClass(p)]); });
   console.log(JSON.stringify(st));
   await page.click('[data-act="map"][data-v="pmiss"]'); await page.waitForSelector('#pmissmap');

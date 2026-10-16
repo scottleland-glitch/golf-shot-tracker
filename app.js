@@ -24,6 +24,7 @@
   var rounds = load();
   (function () { var n = playerName(), ch = false; if (n) rounds.forEach(function (r) { if (!r.player) { r.player = n; ch = true; } }); if (ch) localStorage.setItem(KEY, JSON.stringify(rounds)); })(); // rounds belong to this phone's player
   var view = { screen: 'home', roundId: localStorage.getItem(CUR), hole: 0, menu: null };
+  try { if (sessionStorage.getItem('golfsg.afterRedirect')) { view.screen = sessionStorage.getItem('golfsg.afterRedirect'); sessionStorage.removeItem('golfsg.afterRedirect'); } } catch (e) {}
 
   function load() {
     var rs;
@@ -100,10 +101,12 @@
     else if (view.screen === 'compare') { el.innerHTML = compareHTML2(); applyCompare(); }
     else if (view.screen === 'odrestore') el.innerHTML = odRestoreHTML();
     else if (view.screen === 'restorepick') el.innerHTML = restorePickHTML();
+    else if (view.screen === 'archive') el.innerHTML = archiveHTML();
     else if (view.screen === 'home' || !round()) el.innerHTML = homeHTML();
     else if (view.screen === 'hole') el.innerHTML = holeHTML() + (view.pinOpen ? pinHTML() : '') + (view.replay != null ? replayHTML() : '');
     else if (view.screen === 'about') el.innerHTML = aboutHTML();
     else { el.innerHTML = summaryHTML() + (view.map ? mapHTML() : '') + (view.replay != null ? replayHTML() : ''); if (view.map) applyHeat(); if (view.preview) previewOnly(el); }
+    document.body.classList.toggle('onhome', !!el.querySelector('#home'));
     if (view.screen !== 'hole') document.body.classList.toggle('noscroll', !!(view.map && view.screen === 'summary'));
     if (view.replay != null) document.body.classList.add('noscroll');
     if (view.screen !== 'about') infoize(el);
@@ -477,7 +480,7 @@
     if (days == null) return 'Tip: you haven\'t backed up your rounds yet. Tap Back up rounds to save a copy to Files or OneDrive.';
     return days >= 14 ? 'It\'s been ' + days + ' days since your last backup. Tap Back up rounds to save a fresh copy.' : '';
   }
-  function backupDone() { localStorage.setItem(BK, new Date().toISOString()); var nO = ownRounds().filter(function (x) { return !SG.roundEmpty(x); }).length; view.notice = { text: 'Backup ready: ' + nO + ' round' + (nO === 1 ? '' : 's') + ' for ' + playerName() + ' saved.' }; if (view.screen === 'home') render(); }
+  function backupDone() { localStorage.setItem(BK, new Date().toISOString()); var nO = ownRounds().filter(function (x) { return !SG.roundEmpty(x); }).length; view.notice = { text: 'Backup ready: ' + nO + ' round' + (nO === 1 ? '' : 's') + ' for ' + playerName() + ' saved.' }; if (view.screen === 'home' || view.screen === 'archive') render(); }
   function backupRounds() {
     if (!playerName()) { askName('Enter your player name first – it goes in the backup file name.'); return; }
     var name = 'golf-rounds-' + window.OD.slug(playerName()) + '-' + localDay(new Date()) + '.json', json = JSON.stringify(SG.makeBackup(rounds.filter(function (x) { return !SG.roundEmpty(x); }), null, playerName()), null, 1), file;
@@ -537,7 +540,7 @@
     if (M.kept) parts.push(M.kept + ' kept as on this phone');
     if (M.same) parts.push(M.same + ' already here');
     view.notice = { text: '✓ Restored from backup: ' + parts.join(', ') + '. You now have ' + savedRounds().length + ' round' + (savedRounds().length === 1 ? '' : 's') + '.' };
-    view.restore = null; view.preview = null; view.screen = 'home'; render(); window.scrollTo(0, 0);
+    view.restore = null; view.preview = null; view.screen = 'archive'; render(); window.scrollTo(0, 0);
   }
   // ---------- OneDrive backup (hidden unless config.js has a client ID) ----------
   // Sign-in uses MSAL redirect flow (auth code + PKCE): popups are unreliable in iOS home-screen apps.
@@ -634,6 +637,7 @@
       if (!navigator.onLine) { toast('You\'re offline – connect OneDrive when you have signal'); return; }
       var req = { scopes: ODX.SCOPES, prompt: 'select_account' };
       var real = odAcct && pca.getAllAccounts().filter(function (a) { return a.homeAccountId === odAcct.homeAccountId; })[0];
+      try { sessionStorage.setItem('golfsg.afterRedirect', 'archive'); } catch (e) {} // come back to Archive after the Microsoft sign-in page
       if (act === 'odreauth' && real) pca.acquireTokenRedirect({ scopes: ODX.SCOPES, account: real });
       else pca.loginRedirect(act === 'odreauth' && odAcct && odAcct.username ? { scopes: ODX.SCOPES, loginHint: odAcct.username } : req);
       return;
@@ -649,7 +653,7 @@
     }
     if (act === 'odpick') {
       toast('Downloading…');
-      odToken().then(function (t) { return ODX.download(window.fetch.bind(window), t, v); }).then(restoreFrom, function (e) { view.notice = { text: 'Could not download that backup: ' + e.message, bad: true }; view.screen = 'home'; render(); });
+      odToken().then(function (t) { return ODX.download(window.fetch.bind(window), t, v); }).then(restoreFrom, function (e) { view.notice = { text: 'Could not download that backup: ' + e.message, bad: true }; view.screen = 'archive'; render(); });
       return;
     }
     if (act === 'oddisconnect') {
@@ -662,7 +666,7 @@
       });
     }
   }
-  function askName(msg) { view.screen = 'home'; view.editName = true; view.needName = msg; render(); var i = document.getElementById('pname'); if (i) { i.scrollIntoView({ block: 'center' }); i.focus(); } }
+  function askName(msg) { view.screen = 'archive'; view.editName = true; view.needName = msg; render(); var i = document.getElementById('pname'); if (i) { i.scrollIntoView({ block: 'center' }); i.focus(); } }
   function setName(n) {
     n = String(n || '').trim().replace(/\s+/g, ' ').slice(0, 40);
     if (!window.OD.slug(n)) { toast('Please enter a name (letters or numbers)'); return; }
@@ -683,18 +687,28 @@
   }
   function homeHTML() {
     var cur = rounds.filter(function (r) { return r.id === localStorage.getItem(CUR); })[0];
-    var h = '<h1>⛳ Pin High</h1><p class="muted">Track every shot. See where you gain and lose strokes.</p>';
-    if (cur) {
-      var S = SG.summarize(cur);
-      h += '<button class="primary big" data-act="resume">Continue round' + (cur.course ? ' – ' + esc(cur.course) : '') +
-        '<br><small>' + S.holesDone + ' holes done</small></button>' +
-        '<button class="danger discard" data-act="discard" data-id="' + esc(cur.id) + '">🗑 Discard round</button>';
+    var h = '<div class="home" id="home"><div class="home-bg" aria-hidden="true"></div><div class="home-fade" aria-hidden="true"></div>' +
+      '<h1 class="home-title">Pin High</h1>' +
+      '<button class="glass plusbtn" id="plusbtn" data-act="plus" aria-label="New round or history" aria-expanded="' + !!view.hmenu + '">+</button>';
+    var bot = '';
+    if (cur) { var S = SG.summarize(cur); bot += '<button class="glass pill" id="resumepill" data-act="resume">Resume round<small>' + (cur.course ? esc(cur.course) + ' · ' : '') + S.holesDone + ' holes done</small></button>'; }
+    bot += '<button class="glass pill" id="archivepill" data-act="archive">Archive</button>';
+    h += '<div class="home-bottom">' + bot + '</div>';
+    if (view.hmenu) {
+      h += '<div class="sheet-back" data-act="menuclose"></div><div class="hsheet glass" id="plusmenu" role="menu">';
+      if (view.hmenu === 'new') h += '<div class="sheet-h">New round</div><input type="text" id="course" placeholder="Course name (optional)" autocomplete="off">' +
+        '<label class="lbl" for="newbl">Compare my shots against</label>' + blSelect('newbl', 'pga') +
+        '<button class="sheet-go" data-act="new">Start round</button><button class="sheet-item muted" data-act="plus">Back</button>';
+      else h += '<button class="sheet-item" role="menuitem" data-act="newform">New round</button><button class="sheet-item" role="menuitem" data-act="history">History</button>';
+      h += '</div>';
     }
-    h += '<h2>New round</h2><input type="text" id="course" placeholder="Course name (optional)" autocomplete="off">' +
-      '<label class="lbl" for="newbl">Compare my shots against</label>' + blSelect('newbl', 'pga') +
-      '<button class="' + (cur ? '' : 'primary ') + 'big" data-act="new">Start new round</button>';
-    var nSaved = savedRounds().length;
+    return h + '</div>';
+  }
+  function archiveHTML() {
+    var cur = rounds.filter(function (r) { return r.id === localStorage.getItem(CUR); })[0], nSaved = savedRounds().length;
+    var h = '<div class="topbar"><button class="txt" data-act="home">‹ Home</button><div class="title"><b>Archive</b><span>' + nSaved + ' saved round' + (nSaved === 1 ? '' : 's') + '</span></div><span></span></div>';
     h += '<button class="big histbtn" data-act="history">📋 History<br><small>' + nSaved + ' saved round' + (nSaved === 1 ? '' : 's') + ' – review stats &amp; maps</small></button>';
+    if (cur) h += '<button class="danger discard" data-act="discard" data-id="' + esc(cur.id) + '">🗑 Discard round in progress' + (cur.course ? ' – ' + esc(cur.course) : '') + '</button>';
     h += '<h2>Your data</h2>' + playerHTML();
     if (view.notice) h += '<p class="notice ' + (view.notice.bad ? 'bad' : 'good') + '" id="notice" role="status">' + esc(view.notice.text) + '</p>';
     h += odCardHTML();
@@ -2096,11 +2110,15 @@
     var act = b.getAttribute('data-act'), v = b.getAttribute('data-v'), k = +b.getAttribute('data-k');
     var r = round(), h = r && r.holes[view.hole];
     switch (act) {
-      case 'new': view.from = null; newRound(document.getElementById('course').value.trim()); return;
+      case 'new': view.from = null; view.hmenu = null; newRound(document.getElementById('course').value.trim()); return;
       case 'resume': view.from = null; view.roundId = localStorage.getItem(CUR); goHole(firstOpenHole(round()), true); return;
       case 'open': view.pdf = null; view.roundId = b.getAttribute('data-id'); view.from = view.screen === 'history' ? 'history' : null; view.screen = 'summary'; view.map = null; render(); window.scrollTo(0, 0); return;
-      case 'home': view.screen = 'home'; view.from = null; break;
-      case 'history': view.screen = 'history'; view.notice = null; render(); window.scrollTo(0, 0); return;
+      case 'home': view.screen = 'home'; view.from = null; view.hmenu = null; break;
+      case 'archive': view.screen = 'archive'; view.hmenu = null; render(); window.scrollTo(0, 0); return;
+      case 'plus': view.hmenu = view.hmenu ? (view.hmenu === 'new' ? 'menu' : null) : 'menu'; render(); return;
+      case 'newform': view.hmenu = 'new'; render(); var ci = document.getElementById('course'); if (ci) ci.focus(); return;
+      case 'menuclose': view.hmenu = null; render(); return;
+      case 'history': view.hmenu = null; view.screen = 'history'; view.notice = null; render(); window.scrollTo(0, 0); return;
       case 'backup': backupRounds(); return;
       case 'pdf': case 'pdfshare': case 'pdfod': pdfAct(act); return;
       case 'info': { infoOpen[v] = !infoOpen[v]; var t = b && document.getElementById(b.getAttribute('aria-controls')); if (b) b.setAttribute('aria-expanded', !!infoOpen[v]); if (t) t.hidden = !infoOpen[v]; return; }
@@ -2112,7 +2130,7 @@
         if (view.roundId === did) view.roundId = null;
         view.screen = 'home'; view.map = null; toast(dr2 ? 'Round discarded' : 'Nothing to discard'); render(); window.scrollTo(0, 0); return;
       }
-      case 'rpcancel': view.restore = null; view.preview = null; view.screen = 'home'; render(); return;
+      case 'rpcancel': view.restore = null; view.preview = null; view.screen = 'archive'; render(); return;
       case 'rpview': view.mapScope = 'round'; view.preview = view.restore.rounds.filter(function (x) { return x.id === b.getAttribute('data-id'); })[0]; view.map = null; view.pdf = null; view.screen = 'summary'; render(); window.scrollTo(0, 0); return;
       case 'rpback': view.preview = null; view.map = null; view.screen = 'restorepick'; render(); window.scrollTo(0, 0); return;
       case 'rpsel': view.restore.sel[b.getAttribute('data-id')] = b.checked; render(); return;

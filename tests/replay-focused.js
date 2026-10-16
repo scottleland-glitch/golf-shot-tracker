@@ -1,4 +1,5 @@
 const { chromium } = require('playwright-core'); const assert = require('assert'); const { spawn } = require('child_process');
+const goHist = async p => { if (await p.$('#plusbtn')) await p.click('#plusbtn'); await p.click('[data-act="history"]'); };
 const BASE = process.env.BASE_URL || 'http://127.0.0.1:8771/', OUT = '/workspace/golf-app/screenshots/';
 (async () => {
   const srv = process.env.NO_SERVER ? null : spawn('python3', ['-m', 'http.server', '8771', '--bind', '127.0.0.1'], { cwd: '/workspace/golf-app', stdio: 'ignore' });
@@ -16,7 +17,7 @@ const BASE = process.env.BASE_URL || 'http://127.0.0.1:8771/', OUT = '/workspace
     localStorage.clear(); localStorage.setItem('golfsg.player.v1', 'Scott');
     localStorage.setItem('golfsg.rounds.v1', JSON.stringify([{ v: 3, dv: 2, id: 'rr', date: '2026-10-10T17:00:00.000Z', course: 'Replay test', baseline: 'pga', player: 'Scott', holes }]));
   });
-  await page.reload(); await page.click('[data-act="history"]'); await page.click('#histlist [data-act="open"][data-id="rr"]');
+  await page.reload(); await goHist(page); await page.click('#histlist [data-act="open"][data-id="rr"]');
   const info = await page.evaluate(() => window.__golf.rounds()[0].holes.map(h => { const a = SG.analyzeHole(h, 'pga'); return [a.complete, a.strokes, a.shots.map(s => s.cat + (s.ob ? ':ob' : '') + (s.penStrokes ? ':pen' + s.penStrokes : '')).join(',')]; }));
   console.log(JSON.stringify(info));
   await page.click('#sumreplay'); await page.waitForSelector('#replaymap');

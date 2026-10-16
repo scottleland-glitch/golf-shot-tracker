@@ -1,4 +1,5 @@
 const { chromium } = require('playwright-core'); const assert = require('assert'); const { spawn, execSync } = require('child_process'); const fs = require('fs');
+const goHist = async p => { if (await p.$('#plusbtn')) await p.click('#plusbtn'); await p.click('[data-act="history"]'); };
 const BASE = process.env.BASE_URL || 'http://127.0.0.1:8766/', OUT = process.env.SHOTS || '/tmp/pdf-v25';
 (async () => {
   fs.mkdirSync(OUT, { recursive: true });
@@ -23,7 +24,7 @@ const BASE = process.env.BASE_URL || 'http://127.0.0.1:8766/', OUT = process.env
     localStorage.setItem('golfsg.rounds.v1', JSON.stringify([{ v: 3, dv: 2, id: 'rpdf', date: '2026-10-09T14:00:00.000Z', course: 'Lakeridge', baseline: 'pga', player: 'Scott', holes }]));
   });
   await page.reload();
-  await page.click('[data-act="history"]'); await page.click('#histlist [data-act="open"][data-id="rpdf"]');
+  await goHist(page); await page.click('#histlist [data-act="open"][data-id="rpdf"]');
   const lbls = await page.evaluate(() => { const d = document.createElement('div'); d.innerHTML = window.__golf.pinSVG(); return [...d.querySelectorAll('.pminilbl')].map(t => t.textContent); });
   assert.ok(lbls.length >= 3, lbls); lbls.forEach(t => assert.match(t, /^(\? )?[\d.]+ yd( ›)? (Bunker|Rough|Trees|Deep rough|Hazard|Fairway|Green)$|^OB$/, 'label ' + t));
   const geo = await page.evaluate(() => { const d = document.createElement('div'); d.innerHTML = window.__golf.pinSVG();

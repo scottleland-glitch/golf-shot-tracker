@@ -1,4 +1,5 @@
 const { chromium } = require('playwright-core'); const assert = require('assert'); const { spawn } = require('child_process');
+const goHist = async p => { if (await p.$('#plusbtn')) await p.click('#plusbtn'); await p.click('[data-act="history"]'); };
 const BASE = 'http://127.0.0.1:8786/', OUT = '/workspace/golf-app/screenshots/';
 (async () => {
   const srv = spawn('python3', ['-m', 'http.server', '8786', '--bind', '127.0.0.1'], { cwd: '/workspace/golf-app', stdio: 'ignore' });
@@ -12,7 +13,7 @@ const BASE = 'http://127.0.0.1:8786/', OUT = '/workspace/golf-app/screenshots/';
     const mk = (id, day) => ({ v: 3, dv: 2, id, date: '2026-10-' + day + 'T17:00:00.000Z', course: id, baseline: 'pga', player: 'Scott',
       holes: Array.from({ length: 18 }, (_, i) => { const a = AP[i % AP.length]; return { par: 4, pin: 'center', finished: true, rows: i % 4 === 0 ? [R(400, 'tee'), R(a, 'fairway'), R(8 + i, 'rough', D[(i + 1) % 6]), R(12, 'green', 'left'), R(1, 'holed')] : [R(400, 'tee'), R(a, 'fairway'), R(6 + (i * 7) % 40, 'green', D[i % 6]), R(1, 'holed')] }; }) });
     localStorage.clear(); localStorage.setItem('golfsg.player.v1', 'Scott'); localStorage.setItem('golfsg.rounds.v1', JSON.stringify([mk('a', 12), mk('b', 13)])); });
-  await page.reload(); await page.click('[data-act="history"]'); await page.click('#histlist [data-act="open"] >> nth=0');
+  await page.reload(); await goHist(page); await page.click('#histlist [data-act="open"] >> nth=0');
   await page.click('[data-act="map"][data-v="prox"]'); await page.click('[data-act="mapscope"][data-v="all"]'); await page.waitForSelector('#proxrail');
   const ring = () => page.evaluate(() => { const g = document.getElementById('d1ring'); if (!g) return null; const svg = g.ownerSVGElement;
     return { r: +g.querySelector('circle').getAttribute('r'), t: g.querySelector('text').textContent, last: svg.lastElementChild === g, legend: !!document.querySelector('.legend .ln.dash') && /D1 women avg/.test(document.querySelector('#mapview').textContent), note: (document.getElementById('d1note') || {}).textContent || '' }; });

@@ -1,4 +1,5 @@
 const { chromium } = require('playwright-core'); const assert = require('assert'); const { spawn } = require('child_process');
+const goHist = async p => { if (await p.$('#plusbtn')) await p.click('#plusbtn'); await p.click('[data-act="history"]'); };
 const BASE = process.env.BASE_URL || 'http://127.0.0.1:8775/', OUT = '/workspace/golf-app/screenshots/';
 (async () => {
   const srv = process.env.NO_SERVER ? null : spawn('python3', ['-m', 'http.server', '8775', '--bind', '127.0.0.1'], { cwd: '/workspace/golf-app', stdio: 'ignore' });
@@ -20,7 +21,7 @@ const BASE = process.env.BASE_URL || 'http://127.0.0.1:8775/', OUT = '/workspace
     localStorage.clear(); localStorage.setItem('golfsg.player.v1', 'Scott');
     localStorage.setItem('golfsg.rounds.v1', JSON.stringify([mk('c1', 7, 0), mk('c2', 8, 3)]));
   });
-  await page.reload(); await page.click('[data-act="history"]'); await page.click('#histlist [data-act="open"][data-id="c2"]');
+  await page.reload(); await goHist(page); await page.click('#histlist [data-act="open"][data-id="c2"]');
   assert.match(await page.textContent('[data-act="map"][data-v="club"]'), /3 clubs|4 clubs/);
   await page.locator('[data-act="map"][data-v="club"]').scrollIntoViewIfNeeded(); await page.screenshot({ path: OUT + 'club-tile.png' });
   await page.click('[data-act="map"][data-v="club"]'); await page.waitForSelector('#clubbtns');

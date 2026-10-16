@@ -388,3 +388,34 @@ svg.heat path[fill="none"] { opacity: .12; }
 .heatclus { display: flex; align-items: center; gap: 8px; margin: 8px 2px; font-size: 14px; }
 .heatclus label { display: flex; gap: 6px; align-items: center; }
 .heatclus input[type=range] { flex: 1; min-height: 44px; accent-color: #8b0000; }
+
+/* ---------- Home: full-bleed watercolor, frosted glass controls ---------- */
+body.onhome { overflow: hidden; }
+.home { position: fixed; inset: 0; z-index: 1; color: #fff; overflow: hidden; }
+.home-bg { position: absolute; inset: 0; background: #cfe0c4 url('img/home-bg.webp') 50% 50% / cover no-repeat; }
+.home-fade { position: absolute; left: 0; right: 0; top: 0; height: calc(env(safe-area-inset-top) + 150px);
+  background: linear-gradient(to bottom, rgba(10, 25, 35, .62), rgba(10, 25, 35, .3) 55%, rgba(10, 25, 35, 0)); pointer-events: none; }
+.home-title { position: absolute; left: 0; right: 0; top: calc(env(safe-area-inset-top) + 22px); margin: 0; text-align: center;
+  font-family: "Didot", "Bodoni 72", "Playfair Display", Georgia, serif; font-weight: 300; font-size: 40px; letter-spacing: .06em;
+  color: #fff; text-shadow: 0 1px 12px rgba(0, 0, 0, .35); pointer-events: none; }
+.glass { background: rgba(255, 255, 255, .28); -webkit-backdrop-filter: blur(16px) saturate(140%); backdrop-filter: blur(16px) saturate(140%);
+  border: 1px solid rgba(255, 255, 255, .55); color: #fff; box-shadow: 0 6px 24px rgba(0, 0, 0, .18); }
+.home .plusbtn { position: absolute; top: calc(env(safe-area-inset-top) + 24px); right: calc(env(safe-area-inset-right) + 18px); z-index: 3;
+  width: 46px; height: 46px; border-radius: 50%; padding: 0; font-size: 30px; font-weight: 200; line-height: 1; display: flex; align-items: center; justify-content: center; }
+.home-bottom { position: absolute; left: 0; right: 0; bottom: calc(env(safe-area-inset-bottom) + 26px); display: flex; flex-direction: column; align-items: center; gap: 12px; }
+.home .pill { min-width: 170px; padding: 12px 28px; border-radius: 999px; font-size: 17px; font-weight: 500; letter-spacing: .04em;
+  display: flex; flex-direction: column; align-items: center; text-shadow: 0 1px 6px rgba(0, 0, 0, .3); }
+.home .pill small { font-size: 12px; font-weight: 400; opacity: .9; letter-spacing: 0; margin-top: 2px; }
+.sheet-back { position: absolute; inset: 0; z-index: 4; background: rgba(0, 0, 0, .12); }
+.home .hsheet { position: absolute; z-index: 5; top: calc(env(safe-area-inset-top) + 80px); right: calc(env(safe-area-inset-right) + 18px);
+  width: min(300px, calc(100vw - 36px)); border-radius: 22px; padding: 8px; background: rgba(255, 255, 255, .72); color: #17301f;
+  display: flex; flex-direction: column; gap: 4px; animation: sheetin .18s ease-out; }
+@keyframes sheetin { from { opacity: 0; transform: translateY(-6px) scale(.98); } to { opacity: 1; transform: none; } }
+.home .sheet-item { background: transparent; border: 0; color: #17301f; text-align: left; font-size: 17px; font-weight: 500; padding: 13px 14px; border-radius: 14px; }
+.home .sheet-item + .sheet-item { border-top: 1px solid rgba(23, 48, 31, .1); border-radius: 0 0 14px 14px; }
+.home .sheet-item.muted { text-align: center; font-size: 15px; color: #47604f; }
+.home .sheet-h { font-size: 13px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: #47604f; padding: 8px 8px 2px; }
+.home .hsheet input, .home .hsheet select { margin: 4px 0; border-radius: 12px; }
+.home .hsheet .lbl { color: #47604f; padding: 0 4px; }
+.home .sheet-go { margin-top: 6px; border: 0; border-radius: 999px; padding: 13px; font-size: 17px; font-weight: 600; background: #2f6b3f; color: #fff; }
+.home .pill, .home .plusbtn { background: rgba(25, 45, 30, .26); border-color: rgba(255, 255, 255, .6); }

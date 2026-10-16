@@ -1,4 +1,5 @@
 const { chromium } = require('playwright-core'); const assert = require('assert'); const { spawn } = require('child_process');
+const goHist = async p => { if (await p.$('#plusbtn')) await p.click('#plusbtn'); await p.click('[data-act="history"]'); };
 const errors = [];
 const BASE = process.env.BASE_URL || 'http://127.0.0.1:8765/', SHOTS = process.env.SHOTS || '/tmp/shots-v15f';
 (async () => {
@@ -26,7 +27,7 @@ const BASE = process.env.BASE_URL || 'http://127.0.0.1:8765/', SHOTS = process.e
   });
   await page.evaluate(() => localStorage.setItem('golfsg.player.v1', 'Scott'));
   await page.reload();
-  await page.click('[data-act="history"]'); await page.waitForSelector('#histlist');
+  await goHist(page); await page.waitForSelector('#histlist');
   assert.deepStrictEqual(await page.$$eval('#histlist .hrow', r => r.map(x => x.getAttribute('data-id'))), ['rcard', 'rputt', 'rold']);
   await page.screenshot({ path: SHOTS + '/34-history.png' });
   await page.click('#histlist [data-act="open"][data-id="rcard"]');
@@ -48,7 +49,7 @@ const BASE = process.env.BASE_URL || 'http://127.0.0.1:8765/', SHOTS = process.e
   await page.locator('[data-act="summary"]').first().click(); await page.click('.topbar [data-act="history"]'); await page.waitForSelector('#histlist');
   console.log('✓ scorecard: marks, OUT/IN/TOTAL, fits 390 (cells ' + fit.h.toFixed(0) + 'px), tap opens hole; History newest first, ‹ History back');
   // backup (download fallback) + restore
-  await page.click('[data-act="home"]');
+  await page.click('[data-act="home"]'); await page.click('#archivepill');
   assert.match(await page.textContent('#bkremind'), /haven't backed up/);
   const [dl] = await Promise.all([page.waitForEvent('download'), page.click('[data-act="backup"]')]);
   assert.match(dl.suggestedFilename(), /^golf-rounds-scott-\d{4}-\d\d-\d\d\.json$/);
@@ -78,7 +79,7 @@ const BASE = process.env.BASE_URL || 'http://127.0.0.1:8765/', SHOTS = process.e
   assert.strictEqual(await page.textContent('#notice'), '✓ Restored from backup: 1 added, 1 replaced, 2 already here. You now have 4 rounds.');
   await page.screenshot({ path: SHOTS + '/36-restore-success.png' });
   console.log('✓ backup ' + dl.suggestedFilename() + ' (3 rounds); restore: 1 added, 1 replaced (asked), 2 already here');
-  await page.click('[data-act="history"]'); await page.click('#histlist [data-act="delHist"][data-id="rnew"]'); assert.strictEqual(await page.locator('#histlist .hrow').count(), 3);
+  await goHist(page); await page.click('#histlist [data-act="delHist"][data-id="rnew"]'); assert.strictEqual(await page.locator('#histlist .hrow').count(), 3);
   console.log('✓ delete from History');
   // Putting green
   await page.click('#histlist [data-act="open"][data-id="rputt"]');

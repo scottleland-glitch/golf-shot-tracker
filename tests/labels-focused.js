@@ -1,4 +1,5 @@
 const { chromium } = require('playwright-core'); const assert = require('assert'); const { spawn } = require('child_process');
+const goHist = async p => { if (await p.$('#plusbtn')) await p.click('#plusbtn'); await p.click('[data-act="history"]'); };
 const BASE = 'http://127.0.0.1:8781/', OUT = '/workspace/golf-app/screenshots/';
 (async () => {
   const srv = spawn('python3', ['-m', 'http.server', '8781', '--bind', '127.0.0.1'], { cwd: '/workspace/golf-app', stdio: 'ignore' });
@@ -14,7 +15,7 @@ const BASE = 'http://127.0.0.1:8781/', OUT = '/workspace/golf-app/screenshots/';
       holes: Array.from({ length: 18 }, (_, i) => { const s = i < 4 ? spots[i] : i === 4 ? one[id] : null;
         return { par: 4, pin: 'center', finished: true, rows: s ? [R(400, 'tee'), R(150, 'fairway'), R(s[0], 'rough', s[1]), R(10, 'green', 'left'), R(1, 'holed')] : [R(400, 'tee'), R(150, 'fairway'), R(15, 'green', 'right'), R(2, 'green', 'left'), R(1, 'holed')] }; }) });
     localStorage.clear(); localStorage.setItem('golfsg.player.v1', 'Scott'); localStorage.setItem('golfsg.rounds.v1', JSON.stringify([mk('a', 12), mk('b', 13)])); });
-  await page.reload(); await page.click('[data-act="history"]'); await page.click('#histlist [data-act="open"] >> nth=0');
+  await page.reload(); await goHist(page); await page.click('#histlist [data-act="open"] >> nth=0');
   for (const m of ['prox', 'gir', 'miss', 'pin', 'putt', 'pmiss']) {
     await page.click('[data-act="map"][data-v="' + m + '"]'); await page.waitForSelector('#mapview'); await page.click('[data-act="mapscope"][data-v="all"]');
     if (m === 'pin') await page.click('[data-act="pinseg"][data-v="center"]');

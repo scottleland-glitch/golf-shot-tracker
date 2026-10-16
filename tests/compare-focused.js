@@ -1,4 +1,5 @@
 const { chromium } = require('playwright-core'); const assert = require('assert'); const { spawn } = require('child_process');
+const goHist = async p => { if (await p.$('#plusbtn')) await p.click('#plusbtn'); await p.click('[data-act="history"]'); };
 const BASE = process.env.BASE_URL || 'http://127.0.0.1:8776/', OUT = '/workspace/golf-app/screenshots/';
 (async () => {
   const srv = process.env.NO_SERVER ? null : spawn('python3', ['-m', 'http.server', '8776', '--bind', '127.0.0.1'], { cwd: '/workspace/golf-app', stdio: 'ignore' });
@@ -19,7 +20,7 @@ const BASE = process.env.BASE_URL || 'http://127.0.0.1:8776/', OUT = '/workspace
     const rs = [mk('a', 1, 0), mk('b', 3, 1), mk('c', 5, 0), mk('d', 7, 1), mk('e', 9, 0), mk('f', 11, 1), mk('g', 13, 0)];
     localStorage.clear(); localStorage.setItem('golfsg.player.v1', 'Scott'); localStorage.setItem('golfsg.rounds.v1', JSON.stringify(rs));
   });
-  await page.reload(); await page.click('[data-act="history"]'); await page.click('#cmpopen'); await page.waitForSelector('#gaptable');
+  await page.reload(); await goHist(page); await page.click('#cmpopen'); await page.waitForSelector('#gaptable');
   const ids = async s => page.$$eval(s + ' li', l => l.map(x => x.textContent));
   assert.strictEqual((await ids('#cmpbest')).length, 3); assert.strictEqual((await ids('#cmpworst')).length, 3);
   assert.ok((await ids('#cmpbest')).every(t => /Course [aceg]/.test(t)) && (await ids('#cmpworst')).every(t => /Course [bdf]/.test(t)), 'best = good rounds');

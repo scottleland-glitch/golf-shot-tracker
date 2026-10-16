@@ -1,4 +1,5 @@
 const { chromium } = require('playwright-core'); const { spawn } = require('child_process');
+const goHist = async p => { if (await p.$('#plusbtn')) await p.click('#plusbtn'); await p.click('[data-act="history"]'); };
 const PFX = process.argv[2] || 'before', OUT = '/workspace/golf-app/screenshots/', BASE = process.env.BASE_URL || 'http://127.0.0.1:8767/';
 (async () => {
   const srv = process.env.NO_SERVER ? null : spawn('python3', ['-m', 'http.server', '8767', '--bind', '127.0.0.1'], { cwd: '/workspace/golf-app', stdio: 'ignore' });
@@ -16,12 +17,12 @@ const PFX = process.argv[2] || 'before', OUT = '/workspace/golf-app/screenshots/
   });
   await page.reload(); await page.waitForTimeout(500);
   await page.screenshot({ path: OUT + PFX + '-home.png' });
-  await page.click('[data-act="history"]'); await page.click('#histlist [data-act="open"][data-id="rs"]'); await page.waitForTimeout(300);
+  await goHist(page); await page.click('#histlist [data-act="open"][data-id="rs"]'); await page.waitForTimeout(300);
   await page.screenshot({ path: OUT + PFX + '-stats.png' }); await page.screenshot({ path: OUT + PFX + '-stats-full.png', fullPage: true });
   await page.click('[data-act="map"][data-v="gir"]'); await page.waitForTimeout(300); await page.screenshot({ path: OUT + PFX + '-map.png' });
   await page.goto(BASE + '?y=' + Date.now()); await page.waitForTimeout(500);
   if (!(await page.$('[data-act="history"]'))) await page.click('[data-act="home"] >> nth=0').catch(() => {});
-  await page.click('[data-act="history"]'); await page.click('#histlist [data-act="open"][data-id="rs"]');
+  await goHist(page); await page.click('#histlist [data-act="open"][data-id="rs"]');
   await page.click('[data-act="goHole"][data-i="17"] >> nth=0'); await page.waitForTimeout(300); await page.screenshot({ path: OUT + PFX + '-hole.png' });
   await b.close(); if (srv) srv.kill(); console.log('shots done');
 })().catch(e => { console.error(e); process.exit(1); });
