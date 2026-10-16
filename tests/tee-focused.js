@@ -35,5 +35,17 @@ const BASE = 'http://127.0.0.1:8783/', OUT = '/workspace/golf-app/screenshots/';
   assert.match(await page.textContent('#heatnote'), /Layup tee shots are left off/);
   await page.locator('#heattog').scrollIntoViewIfNeeded(); await page.screenshot({ path: OUT + 'tee-pct-row.png' });
   await page.click('[data-act="heat"][data-v="dots"]'); await chk('all dots');
+  // drive distance: raw (hole length - next distance), par 4/5, no layup / OB / penalty
+  const exp = () => page.evaluate(() => { const rs = JSON.parse(localStorage.getItem('golfsg.rounds.v1')); const L = [];
+    rs.forEach(r => SG.summarize(r, 'pga').teeMap.forEach(m => { if (!m.layup && m.kind !== 'ob' && !m.pen && m.hit > 0) L.push(m); }));
+    const drv = L.filter(m => m.club).length / L.length > 0.5, U = drv ? L.filter(m => m.club === 'Driver') : L, d = U.map(m => m.hit);
+    return { avg: Math.round(d.reduce((a, b) => a + b, 0) / d.length), max: Math.max(...d), n: d.length, rule: drv ? 'driver' : 'all' }; });
+  const got = () => page.$eval('#fwdrive', e => ({ avg: +e.dataset.avg, max: +e.dataset.max, n: +e.dataset.n, rule: e.dataset.rule, t: e.textContent }));
+  let e1 = await exp(), g1 = await got(); console.log('all-rule', JSON.stringify(g1)); assert.deepStrictEqual({ avg: g1.avg, max: g1.max, n: g1.n, rule: g1.rule }, e1); assert.match(g1.t, /^Avg drive \d+ yd · Longest \d+ yd \(\d+ drives\)$/);
+  await page.locator('#fwdrive').scrollIntoViewIfNeeded(); await page.screenshot({ path: OUT + 'tee-drive-dist.png' });
+  // most tee shots have a club -> Driver only
+  await page.evaluate(() => { const rs = JSON.parse(localStorage.getItem('golfsg.rounds.v1')); rs.forEach(r => r.holes.forEach((h, i) => { h.rows[0].club = i % 4 === 3 ? '3W' : 'Driver'; })); localStorage.setItem('golfsg.rounds.v1', JSON.stringify(rs)); });
+  await page.reload(); await page.click('[data-act="history"]'); await page.click('#histlist [data-act="open"] >> nth=0'); await page.click('[data-act="map"][data-v="fw"]'); await page.click('[data-act="mapscope"][data-v="all"]'); await page.waitForSelector('#fwdrive');
+  e1 = await exp(); g1 = await got(); console.log('driver-rule', JSON.stringify(g1)); assert.strictEqual(e1.rule, 'driver'); assert.deepStrictEqual({ avg: g1.avg, max: g1.max, n: g1.n, rule: g1.rule }, e1); assert.match(g1.t, /^Driver – avg/);
   assert.deepStrictEqual(errors, []); console.log('TEE OK'); await b.close(); srv.kill();
 })().catch(e => { console.error(e); process.exit(1); });

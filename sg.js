@@ -509,7 +509,7 @@
       if (a.fairway !== null) {
         var t = a.shots[0], kind = a.fairway ? 'fairway' : t.ob ? 'ob' : TEE_END[t.loc] || 'rough';
         S.teeMap.push({ hole: hi + 1, par: Number(h.par), hit: t.ob ? null : t.hit, fairway: a.fairway, kind: kind, side: t.side, dir: t.dir,
-          yards: holeYards(h), pen: t.penStrokes > 0, layup: !!t.layup });
+          yards: holeYards(h), pen: t.penStrokes > 0, layup: !!t.layup, club: t.club || '' });
       }
       if (ap && ap.gir) {
         S.girMap.push({ hole: hi + 1, pin: normPin(h.pin), shot: ap.shot, par: Number(h.par), dir: ap.dir,

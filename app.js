@@ -138,6 +138,25 @@
     });
   }
   // Render one of the app's map views for THIS round and pull out its main SVG + stats text
+  // All-rounds gradient heat map for the PDF: render the map off-screen, paint the heat layer, then strip what the
+  // on-screen CSS would hide (dots, labels) so the SVG stands alone.
+  var HEAT_HIDE = '.fwdot, .xdot, .gdot, .mdot, .pdot, .pdot2, .pmend, .xlbl, .plbl, .pmlbl, .mlbl, .farlbl, .xstart, .mcount';
+  function heatReport(kind) {
+    var keep = { map: view.map, mapScope: view.mapScope, heat: view.heat, proxB: view.proxB, proxLie: view.proxLie, proxReport: view.proxReport, proxGroup: view.proxGroup };
+    view.map = kind; view.mapScope = 'all'; view.heat = 'grad'; view.proxReport = false; view.proxGroup = null;
+    var box = document.createElement('div'); box.style.cssText = 'position:fixed;left:-10000px;top:0;width:390px'; box.innerHTML = mapHTML(); document.body.appendChild(box);
+    var out = { svg: '', lines: [] };
+    try {
+      var mv = box.querySelector('#mapview'); applyHeat(mv); var svg = mv.querySelector('#' + HEAT_MAPS[kind]);
+      if (svg && svg.querySelector('#heatgrad')) { var c = svg.cloneNode(true); c.removeAttribute('class');
+        [].slice.call(c.querySelectorAll(HEAT_HIDE)).forEach(function (e) { e.remove(); });
+        [].slice.call(c.querySelectorAll('path[fill="none"]')).forEach(function (e) { if (!e.closest('#heatlayer')) e.setAttribute('opacity', '.12'); });
+        out.svg = c.outerHTML; }
+      var pr = [].slice.call(mv.querySelectorAll('#fwpct .fwpct')); if (pr.length) out.lines.push({ b: true, t: pr.map(function (e) { return { L: 'Left', F: 'Fairway', R: 'Right' }[e.getAttribute('data-k')] + ' ' + e.textContent; }).join('    |    ') + (mv.querySelector('#fwpctnote') ? '   (' + SG.pdfSafe(mv.querySelector('#fwpctnote').textContent) + ')' : '') });
+      ['#mapsum', '#fwdrive', '#heatsum'].forEach(function (q) { var e = mv.querySelector(q); if (e && SG.pdfSafe(e.textContent)) out.lines.push({ b: q !== '#heatsum', t: SG.pdfSafe(e.textContent) }); });
+    } finally { box.remove(); for (var k in keep) view[k] = keep[k]; }
+    return out;
+  }
   function mapForReport(kind, extra) {
     var keep = { pmG: view.pmG, proxGroup: view.proxGroup, map: view.map, mapScope: view.mapScope, proxB: view.proxB, proxLie: view.proxLie, puttN: view.puttN, proxReport: view.proxReport };
     view.map = kind; view.mapScope = 'round'; view.proxB = 'all'; view.proxLie = 'all'; view.proxReport = false; view.proxGroup = null; for (var k in (extra || {})) view[k] = extra[k];
@@ -340,9 +359,18 @@
         var L = plist.filter(function (m) { return SG.reportGroup(m.from) === g.id; }); return { g: g, L: L, P: SG.proxStats(L) }; }).filter(function (x) { return x.L.length; });
       var pi = pages.indexOf('PROX');
       pages.splice.apply(pages, [pi, 1].concat(gsum.map(function (x, k) { return ['Proximity – ' + x.g.name, 'prox', { proxReport: true, proxGroup: x.g.id }, x.g, k === 0]; })));
+      if (savedRounds().length > 1) pages.push(['Tee shots – all rounds heat map', 'fw', null, null, false, 'heat'], ['Greens in regulation – all rounds heat map', 'gir', null, null, false, 'heat']);
       var chain = Promise.resolve();
       pages.forEach(function (pg) {
         chain = chain.then(function () {
+          if (pg[5] === 'heat') { var hm = heatReport(pg[1]); if (!hm.svg) return;
+            return svgToPng(hm.svg, 1.5).then(function (im) { doc.addPage(); var yy = header(pg[0]), maxW = PW - 2 * M, sc = Math.min(maxW / im.w, (pg[1] === 'fw' ? 430 : 360) / im.h), w = im.w * sc, h = im.h * sc;
+              hm.lines.forEach(function (L) { font(L.b ? 10 : 9, !!L.b); var tl = doc.splitTextToSize(P(L.t), maxW); doc.text(tl, M, yy); yy += tl.length * 12 + 2; }); yy += 4;
+              doc.addImage(im.data, 'JPEG', M + (maxW - w) / 2, yy, w, h); yy += h + 14;
+              var ramp = [{ k: 'sw', c: '#0050ff', t: 'Blue = a few shots' }, { k: 'sw', c: '#00e63c', t: 'Green' }, { k: 'sw', c: '#fff000', t: 'Yellow' }, { k: 'sw', c: '#e60000', t: 'Red = the most shots' }];
+              legendBox(pg[1] === 'fw' ? ramp.concat([{ k: 'sw', c: '#7fd16a', t: 'Fairway' }, { k: 'sw', c: '#4f9a3c', t: 'Rough' }, { k: 'sw', c: '#e8c766', t: 'Bunker' }, { k: 'sw', c: '#2f6b2a', t: 'Trees' }, { k: 'dash', c: '#ffffff', t: 'White dashed line = OB' },
+                { k: 'none', t: 'All rounds, par 4 and 5 tee shots, layups left out. Placed by drive length, where it finished and the side missed (exact spot not recorded); OB drawn at 250 yd; misses with no side are not on the heat map. Top row: % missed left / fairway / % missed right.' }])
+                : ramp.concat([{ k: 'none', t: 'All rounds: where each green in regulation finished around the hole. White rings: 5 to 30 ft. (+) = average finish of all shots shown.' }]), M, yy, maxW, 2); }); }
           var mp = pg[1] === 'pin' ? { svg: pinReportSVG(segs), lines: [] } : mapForReport(pg[1], pg[2]);
           if (!mp.svg) return;
           return svgToPng(mp.svg, 2.5).then(function (im) {
@@ -1129,6 +1157,17 @@
       (nU ? '<text id="fwpctnote" x="180" y="51" text-anchor="middle" font-size="9.5" font-weight="700" fill="#555">+ ' + nU + ' miss' + (nU === 1 ? '' : 'es') + ' with no side entered (' + pc(nU) + ')</text>' : '') + '</g>';
     return out + '</svg>';
   }
+  // Drive distance = hole length minus the next shot's distance (the value used to place the shot). Par 4/5 tee shots only;
+  // no layups, OB or penalty tee shots, nor shots with no computable distance. If most of those have a club entered,
+  // only Driver shots count ('Driver'); otherwise every one counts ('Tee shots').
+  function fwDrives(list) {
+    var L = list.filter(function (m) { return !m.layup && m.kind !== 'ob' && !m.pen && m.hit != null && isFinite(m.hit) && m.hit > 0; });
+    var withClub = L.filter(function (m) { return m.club; }).length, drv = L.length && withClub / L.length > 0.5;
+    var U = drv ? L.filter(function (m) { return m.club === 'Driver'; }) : L, d = U.map(function (m) { return Number(m.hit); });
+    return { driverOnly: drv, n: d.length, avg: d.length ? Math.round(d.reduce(function (a, b) { return a + b; }, 0) / d.length) : null, max: d.length ? Math.max.apply(null, d) : null };
+  }
+  function fwDriveLine(list) { var V = fwDrives(list); if (!V.n) return '<p class="mapsum fwdrive" id="fwdrive">' + (V.driverOnly ? 'Driver' : 'Drives') + ': no measurable drives yet.</p>';
+    return '<p class="mapsum fwdrive" id="fwdrive" data-avg="' + V.avg + '" data-max="' + V.max + '" data-n="' + V.n + '" data-rule="' + (V.driverOnly ? 'driver' : 'all') + '">' + (V.driverOnly ? '<b>Driver</b> – avg' : 'Avg drive') + ' <b>' + V.avg + ' yd</b> · Longest <b>' + V.max + ' yd</b> <small>(' + V.n + ' drive' + (V.n === 1 ? '' : 's') + ')</small></p>'; }
   function fwHTML(list, all, D) {
     list = list.filter(function (m) { return !m.layup; }); // layup tee shots are left off this map (and its numbers) entirely
     var hit = list.filter(function (m) { return m.fairway; }).length, miss = list.filter(function (m) { return !m.fairway; });
@@ -1137,7 +1176,7 @@
     var out = '<p class="mapsum" id="mapsum">Fairways hit <b>' + hit + ' / ' + list.length + '</b>' + (list.length ? ' (' + Math.round(100 * hit / list.length) + '%)' : '') +
       (all ? ' in ' + D.rounds + ' round' + (D.rounds === 1 ? '' : 's') : ' this round') + '</p>' +
       '<div class="fwcounts" id="fwcounts"><span>⬅ Missed left <b>' + L + '</b></span><span>Missed right <b>' + R + '</b> ➡</span>' +
-      (miss.length - L - R ? '<span>No direction <b>' + (miss.length - L - R) + '</b></span>' : '') + '</div>' + fwSVG(list) +
+      (miss.length - L - R ? '<span>No direction <b>' + (miss.length - L - R) + '</b></span>' : '') + '</div>' + fwDriveLine(list) + fwSVG(list) +
       '<div class="legend"><span><i class="ln" style="background:#00a000"></i>Hit the fairway</span><span><i class="ln" style="background:#e0102a"></i>Missed</span>' +
       '<span><i class="ln dash"></i>Missed, no direction entered (ends straight up the middle)</span>' +
       ['fairway', 'rough', 'bunker', 'hazard', 'trees'].map(function (k) { return '<span><i class="dot" style="background:' + FW_END[k] + '"></i>Ended: ' + FW_NAME[k] + '</span>'; }).join('') +
@@ -1147,7 +1186,7 @@
       var l = miss.filter(function (m) { return m.kind === k && m.side === 'L'; }).length, r = miss.filter(function (m) { return m.kind === k && m.side === 'R'; }).length;
       out += '<tr data-kind="' + k + '"><td>' + FW_NAME[k] + '</td><td class="num">' + l + '</td><td class="num">' + r + '</td><td class="num">' + (by[k] || 0) + '</td></tr>';
     });
-    out += '</table><p class="help muted">Every tee shot on a par 4 or 5 (finished holes only; layup tee shots are left off this map and its percentages), drawn from the tee to the distance it went (hole length minus the distance left). ' +
+    out += '</table><p class="help muted">Every tee shot on a par 4 or 5 (finished holes only; layup tee shots are left off this map and its percentages). Avg / Longest drive = hole length minus the distance left for the next shot, leaving out OB and penalty tee shots; when most tee shots have a club entered only Driver shots count (labelled Driver), otherwise every tee shot counts, drawn from the tee to the distance it went (hole length minus the distance left). ' +
       'Left/right comes from the Dir you entered on row 2. Fairway hit = first tee shot finished on the fairway or green with no penalty. Bird\'s-eye view: the fairway runs away from you.</p>';
     return out;
   }
@@ -1263,8 +1302,8 @@
     var yd = list.every(function (p) { return p.u === 'yd'; }), v = list.reduce(function (a, p) { return a + (yd ? p.d : p.u === 'yd' ? p.d * 3 : p.d); }, 0) / list.length;
     return Math.round(v) + (yd ? ' yd' : ' ft');
   }
-  function applyHeat() {
-    var mv = document.getElementById('mapview'); if (!mv || !HEAT_MAPS[view.map]) return;
+  function applyHeat(root) {
+    var mv = root || document.getElementById('mapview'); if (!mv || !HEAT_MAPS[view.map]) return;
     var svg = mv.querySelector('#' + HEAT_MAPS[view.map]); if (!svg) return;
     var C = heatCenter(svg, view.map), NS = 'http://www.w3.org/2000/svg', pts = [];
     svg.querySelectorAll('[data-hd]').forEach(function (e) {
