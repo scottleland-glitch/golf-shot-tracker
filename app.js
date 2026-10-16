@@ -1302,7 +1302,7 @@
     return heatFmt(g) + ' · ' + n; }
   function heatFmt(list) { // average distance; yards when every shot is off the green in yd, else feet
     var yd = list.every(function (p) { return p.u === 'yd'; }), v = list.reduce(function (a, p) { return a + (yd ? p.d : p.u === 'yd' ? p.d * 3 : p.d); }, 0) / list.length;
-    return Math.round(v) + (yd ? ' yd' : ' ft');
+    return Math.round(v) + (yd ? ' yd' : '\u2019'); // feet as 17’ (right single quote renders in every font)
   }
   function applyHeat(root) {
     var mv = root || document.getElementById('mapview'); if (!mv || !HEAT_MAPS[view.map]) return;
