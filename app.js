@@ -90,6 +90,8 @@
   function started(h) { return h.rows.length > 1 || h.rows[0].dist !== '' || !!h.finished; }
 
   // ---------- rendering ----------
+  // in-round look: B = sky gradient (default), A = light-blue accents on the photo (?theme=A or localStorage golfsg.roundTheme = A).
+  function roundTheme() { var t = (location.search.match(/[?&]theme=([AB])/) || [])[1] || localStorage.getItem('golfsg.roundTheme'); return t === 'A' ? ' theme-blue' : ' theme-sky'; }
   function render() {
     var el = document.getElementById('app');
     if (view.screen !== 'summary') view.map = null;
@@ -103,9 +105,9 @@
     else if (view.screen === 'restorepick') el.innerHTML = restorePickHTML();
     else if (view.screen === 'archive') el.innerHTML = archiveHTML();
     else if (view.screen === 'home' || !round()) el.innerHTML = homeHTML();
-    else if (view.screen === 'hole') el.innerHTML = holeHTML() + (view.pinOpen ? pinHTML() : '') + (view.replay != null ? replayHTML() : '');
+    else if (view.screen === 'hole') el.innerHTML = '<div class="frostpage roundpage' + roundTheme() + '">' + holeHTML() + (view.pinOpen ? pinHTML() : '') + (view.replay != null ? replayHTML() : '') + '</div>';
     else if (view.screen === 'about') el.innerHTML = aboutHTML();
-    else { el.innerHTML = summaryHTML() + (view.map ? mapHTML() : '') + (view.replay != null ? replayHTML() : ''); if (view.map) applyHeat(); if (view.preview) previewOnly(el); }
+    else { el.innerHTML = '<div class="frostpage roundpage' + roundTheme() + '">' + summaryHTML() + (view.map ? mapHTML() : '') + (view.replay != null ? replayHTML() : '') + '</div>'; if (view.map) applyHeat(); if (view.preview) previewOnly(el); }
     document.body.classList.toggle('onhome', !!el.querySelector('#home'));
     if (view.screen !== 'hole') document.body.classList.toggle('noscroll', !!(view.map && view.screen === 'summary'));
     if (view.replay != null) document.body.classList.add('noscroll');
@@ -723,16 +725,16 @@
 
   function holeHTML() {
     var r = round(), h = r.holes[view.hole], a = AH(h), S = SG.summarize(r, blOf(r)), fin = !!h.finished && a.complete;
-    var out = '<div class="topbar"><button data-act="prev" aria-label="Previous hole"' + (view.hole === 0 ? ' disabled' : '') + '>‹</button>' +
+    var out = '<div class="topbar frost"><button class="frostbtn" data-act="prev" aria-label="Previous hole"' + (view.hole === 0 ? ' disabled' : '') + '>‹</button>' +
       '<div class="title"><b>' + (r.course ? esc(r.course) : 'Round') + '</b><span>' +
       (S.holesDone ? 'Total ' + S.strokes + ' (' + toPar(S.toPar) + ') thru ' + S.holesDone : 'No holes finished yet') + '<br>SG vs ' + esc(blName(blOf(r))) + '</span></div>' +
-      '<button data-act="next" aria-label="Next hole"' + (view.hole === 17 ? ' disabled' : '') + '>›</button></div>';
+      '<button class="frostbtn" data-act="next" aria-label="Next hole"' + (view.hole === 17 ? ' disabled' : '') + '>›</button></div>';
 
-    out += '<div class="holecard' + (fin ? ' fin' : '') + '"><div class="hc-head"><h2>Hole ' + (view.hole + 1) + '</h2>' +
+    out += '<div class="holecard frostcard' + (fin ? ' fin' : '') + '"><div class="hc-head"><h2>Hole ' + (view.hole + 1) + '</h2>' +
       '<div class="par"><span>Par</span>' + [3, 4, 5].map(function (p) {
         return '<button data-act="par" data-v="' + p + '" class="' + (h.par === p ? 'sel' : '') + '"' + (fin ? ' disabled' : '') + '>' + p + '</button>'; }).join('') + '</div></div>';
     var pin = SG.normPin(h.pin);
-    out += '<button class="pinbtn' + (pin ? ' set' : '') + '" id="pinbtn" data-act="pinopen">⛳ ' + (pin ? 'Pin: ' + SG.PIN_NAME[pin].toLowerCase() + ' <small>change</small>' : 'Set pin location') + '</button>';
+    out += '<button class="pinbtn frostbtn' + (pin ? ' set' : '') + '" id="pinbtn" data-act="pinopen">⛳ ' + (pin ? 'Pin: ' + SG.PIN_NAME[pin].toLowerCase() + ' <small>change</small>' : 'Set pin location') + '</button>';
 
     out += '<div class="srow shead"><span class="c-n">#</span><span class="c-d">Dist</span><span class="c-l">Loc</span><span class="c-x">Dir</span><span class="c-p">P</span><span class="c-del"></span></div>';
     h.rows.forEach(function (row, k) { out += rowHTML(h, a, row, k, fin); });
@@ -741,7 +743,7 @@
     out += '<div class="count" id="count">' + countText(h, pens) + '</div>';
     if (fin) {
       out += '<div class="hole-done">Score <b>' + a.strokes + '</b> (' + toPar(a.strokes - h.par) + ') · SG <span class="' + sgCls(a.sg) + '">' + fmtSG(a.sg) + '</span></div>';
-      out += '<button class="big" data-act="reopen">✎ Edit this hole</button>';
+      out += '<button class="big frostbtn" data-act="reopen">✎ Edit this hole</button>';
     } else {
       var last = h.rows[h.rows.length - 1];
       if (!(last.loc === 'holed' || last.loc === 'holedx')) out += '<button class="addshot big" data-act="addShot">Add Shot ⊕</button>';
@@ -750,11 +752,11 @@
     }
     out += '</div>';
     out += view.hole < 17
-      ? '<button class="' + (fin ? 'primary ' : '') + 'big" data-act="next">' + (started(r.holes[view.hole + 1]) ? 'Hole ' + (view.hole + 2) + ' ›' : 'Add Hole ' + (view.hole + 2) + ' ⊕') + '</button>'
+      ? '<button class="' + (fin ? 'primary ' : 'frostbtn ') + 'big" data-act="next">' + (started(r.holes[view.hole + 1]) ? 'Hole ' + (view.hole + 2) + ' ›' : 'Add Hole ' + (view.hole + 2) + ' ⊕') + '</button>'
       : '<button class="primary big" data-act="summary" data-end="1">Finish round – see stats</button>';
-    out += '<button class="big rpbtn" data-act="replay" data-v="' + view.hole + '">▶ Hole replay</button>';
-    out += '<div class="row sub"><button class="txt" data-act="home">Home</button><button class="txt" data-act="summary">Scorecard &amp; stats</button></div>' +
-      '<button class="danger discard" data-act="discard" data-id="' + esc(r.id) + '">🗑 Discard round</button>';
+    out += '<button class="big rpbtn frostbtn" data-act="replay" data-v="' + view.hole + '">▶ Hole replay</button>';
+    out += '<div class="row sub"><button class="txt frostbtn" data-act="home">Home</button><button class="txt frostbtn" data-act="summary">Scorecard &amp; stats</button></div>' +
+      '<button class="danger discard frostdanger" data-act="discard" data-id="' + esc(r.id) + '">🗑 Discard round</button>';
     out += '<p class="help muted">Each row is ONE stroke. Dist = how far from the pin you hit it (yards; feet on the green). Loc = where the ball was. ' +
       'Last row: pick "In the hole" and enter the distance of the putt (or chip) that went in. Dir = where the shot before ended vs its target (8 ways: Short = toward you, Long = past it, Left, Right, and the corners). For an approach that missed the green, pick where it missed the green; if it found the green, pick where it stopped vs the hole. ' +
       'P = penalty stroke (+1), e.g. a drop. "OB re-hit" = +1 and you hit again from the same spot. Score = rows + penalties.</p>';
@@ -763,13 +765,13 @@
   }
   function dirSheetHTML(h, k) {
     var cur = SG.normDir(h.rows[k].dir), prevLie = SG.lieOf(h.rows, k - 1), prevGreen = prevLie === 'green';
-    var out = '<div class="sheet-bg" data-act="dirclose"></div><div class="sheet" role="dialog" aria-label="Pick direction">' +
+    var out = '<div class="sheet-bg" data-act="dirclose"></div><div class="sheet frostsheet" role="dialog" aria-label="Pick direction">' +
       '<h3>Shot ' + k + ' ended…</h3><p class="help">' + (prevGreen ? 'Where the putt finished vs the hole.' :
         'Missed the green? Where vs the green. On the green? Where vs the hole.') + ' <b>Short = toward you.</b></p><div class="dirgrid">';
     DIR_GRID.forEach(function (rw) { rw.forEach(function (d) {
       out += '<button data-act="setdir" data-v="' + d + '" class="' + (d === cur ? 'sel' : '') + (d ? '' : ' none') + '"><span>' + (d ? ARROW[d] : '⊘') + '</span>' + (d ? SG.DIR_NAME[d] : 'None') + '</button>';
     }); });
-    return out + '</div><button class="big" data-act="dirclose">Cancel</button></div>';
+    return out + '</div><button class="big frostbtn" data-act="dirclose">Cancel</button></div>';
   }
   function countText(h, pens) {
     var n = h.rows.length;
@@ -872,8 +874,8 @@
   }
   function summaryHTML() {
     var r = round(), bl = blOf(r), S = SG.summarize(r, bl);
-    var out = '<div class="topbar">' + (view.from === 'history' ? '<button class="txt" data-act="history">‹ History</button>' : '<button class="txt" data-act="backHole">‹ Round</button>') + '<div class="title"><b>Round stats</b><span>' +
-      new Date(r.date).toLocaleDateString() + (r.course ? ' · ' + esc(r.course) : '') + '</span></div><button class="txt" data-act="home">Home</button></div>';
+    var out = '<div class="topbar frost">' + (view.from === 'history' ? '<button class="txt frostbtn" data-act="history">‹ History</button>' : '<button class="txt frostbtn" data-act="backHole">‹ Round</button>') + '<div class="title"><b>Round stats</b><span>' +
+      new Date(r.date).toLocaleDateString() + (r.course ? ' · ' + esc(r.course) : '') + '</span></div><button class="txt frostbtn" data-act="home">Home</button></div>';
     out += '<div class="big-score"><div class="s">' + (S.holesDone ? S.strokes : '–') + '</div>' +
       (S.holesDone ? toPar(S.toPar) + ' vs par · ' + S.holesDone + ' hole' + (S.holesDone === 1 ? '' : 's') + ' done' : 'No holes finished yet') + '</div>';
     out += scorecardHTML(r, S) + '<button class="big rpbtn" data-act="replay" data-v="0" id="sumreplay">▶ Hole replay (hole by hole)</button>';

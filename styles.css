@@ -426,7 +426,7 @@ body.onhome { overflow: hidden; }
 .frostpage { color: var(--frost-ink); min-height: 100%; }
 .frostpage::before { content: ''; position: fixed; inset: -40px; z-index: -1; pointer-events: none;
   background: linear-gradient(rgba(214, 233, 228, .58), rgba(220, 236, 214, .62)), url('img/home-bg.webp') 50% 50% / cover no-repeat; filter: blur(22px) saturate(115%); }
-body:has(.frostpage) { background: #d9e8df; }
+html:has(.frostpage) { background: #d9e8df; } body:has(.frostpage) { background: transparent; } /* body bg would paint over the z-index:-1 backdrop */
 .frost { background: var(--frost-bg); -webkit-backdrop-filter: var(--frost-blur); backdrop-filter: var(--frost-blur);
   border: 1px solid var(--frost-line); border-radius: 22px; box-shadow: var(--frost-shadow); }
 .topbar.frost { top: calc(env(safe-area-inset-top) + 4px); margin: 4px 0 10px; padding: 8px 10px; }
@@ -444,3 +444,66 @@ body:has(.frostpage) { background: #d9e8df; }
 .frostpage .frostcard b { color: var(--frost-ink); }
 .frostpage .frostdanger { background: rgba(255, 236, 236, .5); border-color: rgba(200, 70, 70, .35); color: #a33a3a; border-radius: 20px; }
 .frostpage .frostnote { background: var(--frost-bg); border-radius: 16px; padding: 12px 14px; }
+
+/* ---------- In-round pages (hole entry, scorecard, pickers): frosted, sunlight-readable ---------- */
+:root { --frost-sel: #2f6b3f; --frost-pink: rgba(255, 228, 230, .78); --frost-pink-line: rgba(196, 72, 82, .45); --frost-pink-ink: #9e2a35; }
+.roundpage .topbar.frost { position: sticky; z-index: 5; }
+.roundpage .holecard.frostcard { background: rgba(255, 255, 255, .62); border: 1px solid var(--frost-line); border-radius: 24px; padding: 12px 10px 14px; }
+.roundpage .holecard.fin { border-color: var(--rp-fin); box-shadow: 0 0 0 2px var(--rp-fin), var(--frost-shadow); }
+.roundpage .hc-head h2, .roundpage .topbar .title b, .roundpage .holecard { color: var(--frost-ink); }
+/* every control: soft white glass, rounded, large */
+.roundpage .holecard button, .roundpage .topbar button, .roundpage .sheet button, .roundpage > button, .roundpage > .row button, .roundpage .holecard select, .roundpage .c-d input { background-color: rgba(255, 255, 255, .8); border: 1px solid rgba(150, 175, 160, .55); color: var(--frost-ink);
+  border-radius: 16px; box-shadow: 0 2px 8px rgba(20, 45, 30, .08); }
+.roundpage .c-d input { background-color: rgba(255, 255, 255, .92); font-weight: 800; }
+.roundpage .c-d input:focus { outline: 3px solid var(--rp-sel); outline-offset: 1px; }
+.roundpage select { border-radius: 14px; }
+/* selected = solid soft green, white text (clear in sunlight) */
+html body .roundpage button.sel, html body .roundpage .par button.sel, html body .roundpage .srow .dirbtn.on, html body .roundpage .pinbtn.set, html body .roundpage .dirgrid button.sel {
+  background: var(--rp-sel); border-color: var(--rp-sel); color: var(--rp-sel-ink); box-shadow: 0 3px 10px var(--rp-sel-shadow); }
+.roundpage .pinbtn.set small { color: #fff; }
+.roundpage .srow .dirbtn { color: #6b7d72; }
+/* penalty on: clear red pill; delete keys: soft pink */
+html body .roundpage .c-p .pen.on { background: #b83a45; border-color: #b83a45; color: #fff; }
+html body .roundpage .srow .del, html body .roundpage .frostdanger, html body .roundpage button.danger { background: var(--frost-pink); border: 1px solid var(--frost-pink-line); color: var(--frost-pink-ink); }
+/* main actions: same smooth button, primary/Add Shot in the green */
+.roundpage .frostbtn { background: rgba(255, 255, 255, .78); border: 1px solid var(--frost-line); color: var(--frost-ink); box-shadow: var(--frost-shadow); }
+.roundpage .frostbtn.big, .roundpage button.big { border-radius: 22px; }
+html body .roundpage button.primary, html body .roundpage .addshot { background: var(--rp-main); border-color: var(--rp-main-line); color: var(--rp-main-ink); box-shadow: 0 6px 18px var(--rp-main-shadow); }
+html body .roundpage .finish:not(:disabled) { background: var(--rp-main); border-color: var(--rp-main-line); color: var(--rp-main-ink); }
+.roundpage button:disabled { opacity: .45; }
+.roundpage .pinbtn { border-style: solid; }
+.roundpage .count, .roundpage .hint, .roundpage .hole-done { color: var(--frost-ink); }
+.roundpage .hole-done { background: var(--rp-done); border-radius: 16px; }
+.roundpage .rowmenu { background: rgba(255, 255, 255, .75); -webkit-backdrop-filter: var(--frost-blur); backdrop-filter: var(--frost-blur); border-radius: 18px; padding: 6px; border: 1px solid var(--frost-line); }
+.roundpage .sinfo, .roundpage .clubrow small { color: var(--frost-ink-soft); }
+.roundpage > .help { background: rgba(255, 255, 255, .55); border-radius: 16px; padding: 10px 12px; color: var(--frost-ink-soft); }
+.roundpage .holecard.fin .srow select:disabled, .roundpage .holecard.fin .srow input:disabled { background-color: rgba(240, 246, 242, .9); }
+/* sheets and modals during a round */
+.roundpage .sheet-bg { background: rgba(20, 40, 30, .25); }
+.roundpage .sheet.frostsheet { background: rgba(236, 245, 240, .82); -webkit-backdrop-filter: var(--frost-blur); backdrop-filter: var(--frost-blur);
+  border: 1px solid var(--frost-line); border-radius: 26px 26px 0 0; color: var(--frost-ink); }
+.roundpage #pinview, .roundpage #replayview { background: rgba(225, 238, 232, .86); -webkit-backdrop-filter: blur(24px) saturate(130%); backdrop-filter: blur(24px) saturate(130%); color: var(--frost-ink); }
+.roundpage #pinview .maphead, .roundpage #replayview .maphead { background: transparent; }
+.roundpage .maphead .close { background: var(--frost-ink); color: #fff; border-color: var(--frost-ink); }
+/* scorecard + stats */
+.roundpage table { background: rgba(255, 255, 255, .7); border-radius: 14px; overflow: hidden; }
+.roundpage .stat, .roundpage button.stat.tile { background: rgba(255, 255, 255, .7); border: 1px solid var(--frost-line); border-radius: 16px; color: var(--frost-ink); }
+html body .roundpage .holecard.fin button.sel:disabled, html body .roundpage .holecard.fin .dirbtn.on:disabled, html body .roundpage .holecard.fin .pen.on:disabled { opacity: 1; }
+
+/* Round themes: A = soft light-blue accents on the photo backdrop (default); B = "sky" – dusty blue → sand gradient, near-black selected pills */
+.roundpage { --rp-sel: #3b6e9f; --rp-sel-ink: #fff; --rp-sel-shadow: rgba(40, 90, 140, .35);
+  --rp-main: linear-gradient(180deg, #a9cdf0, #7fb2e5); --rp-main-line: #79a9da; --rp-main-ink: #0e2a44; --rp-main-shadow: rgba(60, 120, 180, .3);
+  --rp-fin: rgba(59, 110, 159, .35); --rp-done: rgba(226, 238, 250, .88); }
+.roundpage.theme-sky { --rp-sel: #1c1c1e; --rp-sel-ink: #fff; --rp-sel-shadow: rgba(0, 0, 0, .28); --rp-fin: rgba(28, 28, 30, .18); --rp-done: rgba(240, 245, 250, .8);
+  --frost-ink: #1a2230; --frost-ink-soft: #445064; --frost-line: rgba(255, 255, 255, .6); --frost-shadow: 0 6px 22px rgba(30, 50, 80, .12); }
+.roundpage.theme-sky::before { background: linear-gradient(180deg, #7491b0 0%, #8ba5bf 22%, #9db5c4 48%, #d7d5bd 74%, #e6dcb8 88%, #c9b98e 100%); filter: blur(0); inset: 0; }
+.roundpage.theme-sky .holecard.frostcard, .roundpage.theme-sky table, .roundpage.theme-sky .stat { background: rgba(244, 248, 252, .58); }
+.roundpage.theme-sky .topbar.frost { background: rgba(236, 243, 250, .45); border-radius: 999px; }
+.roundpage.theme-sky .holecard button, .roundpage.theme-sky .topbar button, .roundpage.theme-sky .sheet button, .roundpage.theme-sky > button, .roundpage.theme-sky > .row button,
+.roundpage.theme-sky .holecard select, .roundpage.theme-sky .frostbtn { background-color: rgba(240, 246, 252, .72); border-color: rgba(255, 255, 255, .7); }
+.roundpage.theme-sky .topbar .frostbtn { border-radius: 50%; width: 48px; height: 48px; padding: 0; }
+.roundpage.theme-sky .topbar .frostbtn.txt { border-radius: 999px; width: auto; padding: 0 14px; }
+.roundpage.theme-sky .sheet.frostsheet { background: rgba(230, 238, 246, .8); }
+.roundpage.theme-sky, .roundpage.theme-sky .hc-head h2 { font-family: -apple-system, "SF Pro Text", "Helvetica Neue", "Inter", system-ui, sans-serif; letter-spacing: .005em; }
+.roundpage.theme-sky .hc-head h2, .roundpage.theme-sky .topbar .title b { font-weight: 600; }
+.roundpage.theme-sky > .help { background: rgba(244, 248, 252, .5); }
