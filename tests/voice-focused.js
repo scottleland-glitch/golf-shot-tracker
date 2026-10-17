@@ -89,10 +89,19 @@ console.log('VOICE PARSER OK – ' + n + ' checks');
 if (process.env.UNIT_ONLY) process.exit(0);
 const { chromium } = require('playwright-core'); const { spawn } = require('child_process');
 const BASE = 'http://127.0.0.1:8798/', OUT = '/workspace/golf-app/screenshots/';
-const FAKE = () => { // stand-in for the phone's speech recognizer; the test feeds it words
-  class FakeRec { constructor() { window.__recs = (window.__recs || 0) + 1; window.__rec = this; }
-    start() { this.on = true; } stop() { this.on = false; setTimeout(() => { if (window.__finalOnStop) { this.say(window.__finalOnStop, true); window.__finalOnStop = null; } this.onend && this.onend(); }, 60); } abort() { this.on = false; }
-    say(t, fin) { const r = [{ transcript: t }]; r.isFinal = !!fin; this.onresult && this.onresult({ results: [r] }); } }
+const FAKE = () => { // stand-in for the phone's speech recognizer; the test feeds it words. window.__mode queues iOS failure modes per session.
+  class FakeRec { constructor() { window.__recs = (window.__recs || 0) + 1; window.__rec = this; (window.__all = window.__all || []).push(this); }
+    start() { if (window.__startThrow) { window.__startThrow--; throw new Error('InvalidStateError: already started'); }
+      this.on = true; const m = (window.__mode || []).shift(); this.mode = m;
+      setTimeout(() => { if (m === 'hang' || !this.on) return; this.onstart && this.onstart(); if (m === 'hang-audio') { this.onaudiostart && this.onaudiostart(); return; } // stuck: starts, mic on, no words ever
+        if (m === 'immediate-end') { this.on = false; this.onend && this.onend(); }
+        else if (m === 'no-speech' || m === 'aborted') { this.on = false; this.onerror && this.onerror({ error: m }); this.onend && this.onend(); }
+        else if (m === 'empty') this.say('', false); }, 20); }
+    stop() { this.on = false; setTimeout(() => { if (window.__finalOnStop) { this.say(window.__finalOnStop, true); window.__finalOnStop = null; } this.onend && this.onend(); }, 60); }
+    abort() { this.on = false; this.aborted = true; }
+    say(t, fin) { const r = [{ transcript: t }]; r.isFinal = !!fin; this.onresult && this.onresult({ results: [r] }); }
+    sayList(list) { this.onresult && this.onresult({ results: list.map(([t, f]) => { const r = [{ transcript: t }]; r.isFinal = !!f; return r; }) }); } // iOS splits speech into several entries
+    endEarly() { this.on = false; this.onend && this.onend(); } }
   window.webkitSpeechRecognition = FakeRec; window.SpeechRecognition = FakeRec;
 };
 (async () => {
@@ -128,7 +137,7 @@ const FAKE = () => { // stand-in for the phone's speech recognizer; the test fee
   const down = () => page.dispatchEvent('#micbtn', 'pointerdown', { pointerId: 1, pointerType: 'touch', isPrimary: true, bubbles: true });
   const up = () => page.dispatchEvent('#micbtn', 'pointerup', { pointerId: 1, pointerType: 'touch', isPrimary: true, bubbles: true });
   await down(); await page.waitForTimeout(300); if (process.env.DBG) console.log(await page.evaluate(() => JSON.stringify({ vs: window.__golf.voiceState(), recs: window.__recs, ss: sessionStorage.getItem("golfsg.voiceOff"), b: document.getElementById("micbubble").hidden }))); await page.waitForFunction(() => window.__rec && window.__rec.on);
-  assert.strictEqual(await page.evaluate(() => [window.__rec.lang, window.__rec.continuous, window.__rec.interimResults].join()), 'en-US,false,true');
+  assert.strictEqual(await page.evaluate(() => [window.__rec.lang, window.__rec.continuous, window.__rec.interimResults].join()), 'en-US,true,true');
   await page.evaluate(() => window.__rec.say('third shot green 25', false)); await page.waitForTimeout(400);
   assert.match(await page.textContent('#micbubble .mictext'), /third shot green 25/); assert.ok(await page.$eval('#micbtn', e => e.classList.contains('on')));
   await shot('voice-listening');
@@ -149,9 +158,11 @@ const FAKE = () => { // stand-in for the phone's speech recognizer; the test fee
   assert.strictEqual(await page.$eval('.dirbtn[data-k="2"]', e => e.getAttribute('data-dir')), 'short');
   // Retry closes without saving; Edit lets her fix fields first
   await down(); await page.evaluate(() => window.__rec.say('putt 3 feet long', true)); await page.waitForTimeout(400); await up();
-  await page.waitForSelector('.voicecard'); await page.click('[data-act="vretry"]'); await page.waitForSelector('.voicecard', { state: 'detached' });
+  await page.waitForSelector('.voicecard'); const nR = await page.evaluate(() => window.__recs); await page.click('[data-act="vretry"]'); await page.waitForSelector('.voicecard', { state: 'detached' });
   assert.strictEqual(await page.evaluate(() => JSON.parse(localStorage.getItem('golfsg.rounds.v1'))[0].holes[6].rows.length), 3);
-  await down(); await page.evaluate(() => window.__rec.say('putt 3 feet long', true)); await page.waitForTimeout(400); await up();
+  // Retry's own tap starts a fresh listen (hands-off): say it, tap the mic to finish
+  await page.waitForFunction(n => window.__recs === n + 1 && window.__rec.on, nR); assert.match(await page.textContent('#micbtn'), /Tap to stop/);
+  await page.evaluate(() => window.__rec.say('putt 3 feet long', true)); await page.waitForTimeout(100); await down(); await up();
   await page.waitForSelector('.voicecard'); await page.click('[data-act="vedit"]'); await page.waitForSelector('.vedit');
   assert.strictEqual(await page.$eval('.vedit select[data-vf="shot"]', e => e.value), '4'); await page.fill('.vedit input[data-vf="dist"]', '4'); await page.selectOption('.vedit select[data-vf="dir"]', 'longright');
   await shot('voice-edit');
@@ -163,7 +174,8 @@ const FAKE = () => { // stand-in for the phone's speech recognizer; the test fee
   await page.evaluate(() => window.__rec.say('putt 4 feet in the hole', true)); await down(); await up();
   await page.waitForSelector('.voicecard'); assert.match(await page.textContent('.voicecard'), /Shot 4Putt from 4’ – in the hole!/); await page.click('[data-act="vsave"]');
   await page.waitForSelector('.hint'); assert.match(await page.textContent('#hint'), /Finish hole/); assert.strictEqual(await page.$('#micbtn'), null, 'mic hidden once holed');
-  // mic permission denied → friendly message + type/dictate box, mic marked off
+  // mic permission denied (fresh app start, voice never worked yet) → friendly message + type/dictate box, mic marked off
+  await page.reload(); await page.click('#resumepill'); await page.waitForSelector('.holecard');
   await page.click('[data-act="next"]'); await page.waitForSelector('#micbtn');
   await down(); await page.evaluate(() => { window.__rec.onerror({ error: 'not-allowed' }); window.__rec.onend(); });
   await page.waitForTimeout(200); await up(); await page.waitForTimeout(100); // first not-allowed during a hold → falls back to tap-to-start
@@ -184,5 +196,90 @@ const FAKE = () => { // stand-in for the phone's speech recognizer; the test fee
   await p2.dispatchEvent('#micbtn', 'pointerdown', { pointerId: 1, pointerType: 'touch', bubbles: true }); await p2.waitForSelector('#vtext');
   assert.match(await p2.textContent('.voicecard'), /Voice isn’t available in this app on this phone/);
   await p2.screenshot({ path: OUT + 'voice-unavailable.png' });
-  assert.deepStrictEqual(errors, []); console.log('VOICE UI OK'); await b2.close(); srv.kill();
+  assert.deepStrictEqual(errors, []); await b2.close();
+  // ---- several presses in a row, with a stub that behaves like iOS WebKit (v82) ----
+  const b3 = await chromium.launch({ executablePath: '/usr/bin/google-chrome', args: ['--no-sandbox'] });
+  const c3 = await b3.newContext({ viewport: { width: 393, height: 852 }, deviceScaleFactor: 3, isMobile: true, hasTouch: true });
+  await c3.addInitScript(FAKE); const p3 = await c3.newPage(); p3.on('pageerror', e => errors.push(String(e)));
+  await p3.goto(BASE + '?x=' + Date.now()); await p3.evaluate(() => { localStorage.clear(); localStorage.setItem('golfsg.player.v1', 'Quincy');
+    const R = (d, l, x) => Object.assign({ dist: d, loc: l, dir: '', pen: false }, x || {});
+    const holes = Array.from({ length: 18 }, () => ({ par: 4, finished: false, rows: [R(364, 'tee', { club: 'Driver' }), R(156, 'fairway', { club: '7i' })] }));
+    localStorage.setItem('golfsg.rounds.v1', JSON.stringify([{ v: 3, dv: 2, id: 'r3', date: '2026-10-16T17:00:00Z', course: 'X', baseline: 'pga', player: 'Quincy', holes }])); localStorage.setItem('golfsg.current.v1', 'r3'); });
+  await p3.reload(); await p3.click('#resumepill'); await p3.waitForSelector('#micbtn');
+  const D3 = () => p3.dispatchEvent('#micbtn', 'pointerdown', { pointerId: 1, pointerType: 'touch', isPrimary: true, bubbles: true });
+  const U3 = () => p3.dispatchEvent('#micbtn', 'pointerup', { pointerId: 1, pointerType: 'touch', isPrimary: true, bubbles: true });
+  const recs = () => p3.evaluate(() => window.__recs || 0), live = () => p3.waitForFunction(() => window.__rec && window.__rec.on && window.__rec.onresult);
+  const heardText = async () => { await p3.waitForSelector('.voicecard .vraw'); return (await p3.textContent('.voicecard .vraw')).replace(/[“”]/g, ''); };
+  const retry = async () => { await p3.evaluate(() => document.querySelector('.sheet-bg[data-act="vcancel"]').click()); await p3.waitForSelector('.voicecard', { state: 'detached' }); }; // close the card (Retry itself is tested in step 11)
+  const allDead = () => p3.evaluate(() => window.__all.slice(0, -1).every(r => !r.on));
+  // 1) a normal first press
+  let n0 = await recs(); await D3(); await live(); await p3.evaluate(() => window.__rec.say('driver fairway', true)); await p3.waitForTimeout(200); await U3();
+  assert.strictEqual(await heardText(), 'driver fairway'); await retry(); assert.strictEqual(await recs() - n0, 1, 'one recognizer per press');
+  // 2) Scott's bug: iOS ends the session mid-hold after "3rd shot green" and the rest only ever comes as interim results → keep listening, append, use the last interim
+  n0 = await recs(); await D3(); await live(); const first = await p3.evaluate(() => { const r = window.__rec; r.sayList([['3rd shot green', true]]); r.endEarly(); return window.__recs; });
+  await p3.waitForFunction(n => window.__recs > n && window.__rec.on, first); assert.match(await p3.textContent('#micbubble .mictext'), /3rd shot green/);
+  await p3.evaluate(() => { window.__rec.sayList([['25 feet', false]]); window.__rec.sayList([['25 feet short', false]]); }); await p3.waitForTimeout(150);
+  assert.strictEqual((await p3.textContent('#micbubble .mictext')).trim(), '3rd shot green 25 feet short'); await U3();
+  assert.strictEqual(await heardText(), '3rd shot green 25 feet short', 'whole phrase kept across the iOS restart');
+  assert.deepStrictEqual(await p3.$$eval('.voicecard .vf', es => es.map(e => [e.querySelector('span').textContent, e.querySelector('b').textContent])), [['Shot 3 (new)', 'Green · 25’'], ['Shot 2 missed', 'Short']]);
+  await p3.evaluate(() => { const t = document.getElementById('toast'); if (t) t.className = ''; }); await p3.waitForTimeout(300); await p3.screenshot({ path: OUT + 'voice-ios-restart.png' }); await retry(); assert.strictEqual(await recs() - n0, 2); assert.ok(await allDead(), 'old recognizers stopped');
+  // 3) the next session errors 'no-speech' straight away, then works
+  await p3.evaluate(() => { window.__mode = ['no-speech']; }); n0 = await recs(); await D3();
+  await p3.waitForFunction(n => window.__recs >= n + 2 && window.__rec.on, n0); await p3.evaluate(() => window.__rec.say('putt 12 feet', true)); await p3.waitForTimeout(100); await U3();
+  assert.strictEqual(await heardText(), 'putt 12 feet'); await retry();
+  // 4) 'aborted', then an immediate end, then an empty result, and only interim words before release
+  await p3.evaluate(() => { window.__mode = ['aborted', 'immediate-end', 'empty']; }); n0 = await recs(); await D3();
+  await p3.waitForFunction(n => window.__recs >= n + 3 && window.__rec.on && window.__rec.mode === 'empty', n0); await p3.waitForTimeout(60);
+  await p3.evaluate(() => window.__rec.say('green 25 feet short', false)); await p3.waitForTimeout(100); await U3();
+  assert.strictEqual(await heardText(), 'green 25 feet short'); await retry();
+  // 5) cumulative entries (iOS repeats earlier words) are not doubled; trailing words in the 400 ms grace after release still count
+  await D3(); await live(); await p3.evaluate(() => window.__rec.sayList([['third shot', true], ['third shot green 25 feet', false]])); await p3.waitForTimeout(100); await U3();
+  await p3.waitForTimeout(150); assert.strictEqual(await p3.$('.voicecard'), null, 'still listening during the grace');
+  await p3.evaluate(() => window.__rec.sayList([['third shot', true], ['third shot green 25 feet short', false]]));
+  assert.strictEqual(await heardText(), 'third shot green 25 feet short');
+  await p3.click('[data-act="vsave"]'); await p3.waitForSelector('.voicecard', { state: 'detached' });
+  assert.deepStrictEqual(await p3.evaluate(() => JSON.parse(localStorage.getItem('golfsg.rounds.v1'))[0].holes[0].rows[2]), { loc: 'green', dist: 25, dir: 'short', pen: false });
+  // 6) start() throws because the last session is still ending → one retry
+  await p3.evaluate(() => { window.__startThrow = 1; }); n0 = await recs(); await D3(); await p3.waitForFunction(n => window.__recs >= n + 2 && window.__rec.on, n0);
+  await p3.evaluate(() => window.__rec.say('made it', true)); await p3.waitForTimeout(100); await U3(); assert.strictEqual(await heardText(), 'made it'); await retry();
+  // 7) a session that never starts or ends (WebKit 321436) is replaced by the watchdog
+  await p3.evaluate(() => { window.__mode = ['hang']; }); n0 = await recs(); await D3(); await p3.waitForFunction(n => window.__recs >= n + 2 && window.__rec.on && window.__rec.onresult, n0, { timeout: 5000 });
+  await p3.evaluate(() => window.__rec.say('putt 25', true)); await p3.waitForTimeout(100); await U3(); assert.strictEqual(await heardText(), 'putt 25'); await retry();
+  // 8) nothing heard at all → clear message + type/dictate box (no dead end); typing works, "Use mic" goes back
+  await D3(); await live(); await p3.waitForTimeout(500); await U3(); await p3.waitForSelector('#vtext');
+  const miss = await p3.textContent('.voicecard'); assert.match(miss, /Try again/); assert.match(miss, /didn’t hear anything/); assert.match(miss, /Use mic/);
+  await p3.evaluate(() => { const t = document.getElementById('toast'); if (t) t.className = ''; }); await p3.waitForTimeout(300); await p3.screenshot({ path: OUT + 'voice-ios-retry.png' });
+  await p3.fill('#vtext', 'putt 25 feet short'); await p3.click('[data-act="vtype"]'); await p3.waitForSelector('.vfields'); await retry();
+  // 10) stuck twice in a row (the replacement gets no audio either, even though it reports audio start) → "Mic got stuck" + type/dictate, no dead end
+  await p3.evaluate(() => { window.__mode = ['hang-audio', 'hang-audio']; }); n0 = await recs(); await D3();
+  await p3.waitForSelector('.voicecard #vtext', { timeout: 8000 }); const stuck = await p3.textContent('.voicecard');
+  assert.match(stuck, /Mic got stuck/); assert.match(stuck, /dictate/); assert.match(stuck, /Use mic/); assert.strictEqual(await recs() - n0, 2, 'exactly one fresh restart before giving up');
+  assert.ok(await p3.evaluate(() => window.__all.every(r => !r.on)), 'stuck recognizers aborted'); await U3();
+  await p3.evaluate(() => { const t = document.getElementById('toast'); if (t) t.className = ''; }); await p3.waitForTimeout(300); await p3.screenshot({ path: OUT + 'voice-ios-stuck.png' });
+  n0 = await recs(); await p3.click('[data-act="vmic"]'); await p3.waitForSelector('.voicecard', { state: 'detached' }); // "Use mic" = a fresh start on that tap
+  await p3.waitForFunction(n => window.__recs === n + 1 && window.__rec.on, n0); await p3.evaluate(() => window.__rec.say('putt 6 feet', true)); await p3.waitForTimeout(100); await D3(); await U3();
+  assert.strictEqual(await heardText(), 'putt 6 feet'); await retry();
+  // 9) and the mic still works after all that
+  n0 = await recs(); await D3(); await live(); await p3.evaluate(() => window.__rec.say('shot 3 green 20 feet', true)); await p3.waitForTimeout(100); await U3();
+  assert.strictEqual(await heardText(), 'shot 3 green 20 feet'); assert.strictEqual(await recs() - n0, 1);
+  await retry();
+  // 12) a spurious 'not-allowed' mid-hold after voice has worked keeps the words and never switches voice off
+  await D3(); await live(); await p3.evaluate(() => { const r = window.__rec; r.say('green 30 feet', false); r.onerror({ error: 'not-allowed' }); r.on = false; r.onend(); });
+  assert.strictEqual(await heardText(), 'green 30 feet'); assert.strictEqual(await p3.evaluate(() => sessionStorage.getItem('golfsg.voiceOff')), null);
+  await p3.evaluate(() => window.__rec.say('x', true)); // the old one is dead: ignored
+  assert.strictEqual(await heardText(), 'green 30 feet');
+  // 11) Retry, then a new session – three times in a row (v81 bug: voice died after Retry until the app restarted)
+  for (const say of ['third shot green 25 feet short', 'putt 25 feet', 'made it']) {
+    n0 = await recs(); await p3.click('[data-act="vretry"]'); await p3.waitForSelector('.voicecard', { state: 'detached' });
+    await p3.waitForFunction(n => window.__recs === n + 1 && window.__rec.on, n0); assert.ok(await allDead(), 'old recognizers released on Retry');
+    assert.strictEqual(await p3.evaluate(() => { const v = window.__golf.voiceState(); return [v.active, v.tap, v.needTap, v.stopping, v.committed].join(); }), 'true,true,false,false,', 'fresh state after Retry');
+    await p3.evaluate(t => window.__rec.say(t, true), say); await p3.waitForTimeout(100); await D3(); await U3(); assert.strictEqual(await heardText(), say);
+  }
+  await retry(); // and a normal hold still works after Retry
+  n0 = await recs(); await D3(); await live(); await p3.evaluate(() => window.__rec.say('shot 3 green 15 feet', true)); await p3.waitForTimeout(100); await U3();
+  assert.strictEqual(await heardText(), 'shot 3 green 15 feet'); await retry(); assert.strictEqual(await recs() - n0, 1);
+  assert.strictEqual(await p3.evaluate(() => sessionStorage.getItem('golfsg.voiceOff')), null, 'voice never switched off');
+  assert.strictEqual(await p3.evaluate(() => { const v = window.__golf.voiceState(); return [v.active, v.stopping, !!v.rec].join(); }), 'false,false,false', 'recognizer fully released');
+  assert.deepStrictEqual(errors, []); console.log('VOICE MULTI-SESSION (iOS stub) OK'); await b3.close();
+  console.log('VOICE UI OK'); srv.kill();
 })().catch(e => { console.error(e); process.exit(1); });

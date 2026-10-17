@@ -888,7 +888,7 @@
   // ---------- Voice entry: hold the mic, say the shot, confirm ----------
   var SpeechRec = window.SpeechRecognition || window.webkitSpeechRecognition;
   var MIC_SVG = '<svg class="micico" viewBox="0 0 24 24" width="26" height="26" aria-hidden="true"><rect x="8.5" y="2.5" width="7" height="12" rx="3.5" fill="currentColor"/><path d="M5.5 11a6.5 6.5 0 0 0 13 0M12 17.5V21M8.5 21h7" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>';
-  var VS = { active: false, holding: false, tap: false, finals: '', interim: '', rec: null, err: '', restarts: 0, timer: null, needTap: false, fromDown: false };
+  var VS = { active: false, holding: false, tap: false, stopping: false, committed: '', cur: '', rec: null, ending: null, restarts: 0, quickEnds: 0, timer: null, needTap: false, fromDown: false, misses: 0 };
   function voiceBlocked() { return !SpeechRec || sessionStorage.getItem('golfsg.voiceOff') === '1'; }
   function micHTML() {
     var off = voiceBlocked();
@@ -901,72 +901,133 @@
     b.hidden = false; b.querySelector('b').textContent = title; b.querySelector('.mictext').textContent = text || '';
     if (btn) { btn.classList.add('on'); btn.querySelector('.miclbl').textContent = VS.tap ? 'Tap to stop' : 'Listening…'; }
   }
-  function micStartRec() {
+  // v82 engine. iOS WebKit quirks this works around (seen live on iOS home-screen app, v81):
+  //  - a session can end on its own mid-hold (after a pause, or right away with 'no-speech'/'aborted'), so speech was cut to the first phrase
+  //  - results arrive split into several entries, isFinal may never be true, and some come cumulative (repeat earlier words)
+  //  - stop() may fire onend before the last words arrive; a second session started while the old one is still tearing down can fail
+  // So: a fresh recognizer per session, sessions restarted and appended while the mic is held, the transcript joined from ALL results
+  // (finals + last interim) across sessions, a 400 ms grace after release, and the last interim used if no final ever comes.
+  function joinText(a, b) { // append b to a, without repeating words iOS sends again
+    a = (a || '').trim(); b = (b || '').trim(); if (!a) return b; if (!b) return a;
+    var la = a.toLowerCase(), lb = b.toLowerCase();
+    if (lb.indexOf(la) === 0) return b; if (la.indexOf(lb) === 0 || la.slice(-lb.length) === lb) return a;
+    return a + ' ' + b;
+  }
+  function sessionText(results) { // every result of this session, in order; a cumulative entry replaces the one it extends
+    var out = '';
+    for (var i = 0; i < results.length; i++) { var alt = results[i] && results[i][0]; if (alt && alt.transcript) out = joinText(out, alt.transcript); }
+    return out;
+  }
+  function micText() { return joinText(VS.committed, VS.cur).replace(/\s+/g, ' ').trim(); }
+  function micKill(rec) { if (!rec) return; rec.__dead = true; try { rec.abort(); } catch (e) {} } // ignore everything it says from now on
+  function micStartRec(isRetry) {
     var rec; try { rec = new SpeechRec(); } catch (e) { return micFail('unavailable'); }
-    VS.rec = rec; rec.lang = 'en-US'; rec.continuous = false; rec.interimResults = true; rec.maxAlternatives = 1;
-    var base = VS.finals;
+    var old = VS.rec; if (old && old !== rec) { micKill(old); VS.ending = old; }
+    VS.rec = rec; VS.cur = ''; rec.lang = 'en-US'; rec.continuous = true; rec.interimResults = true; rec.maxAlternatives = 1;
+    var started = Date.now(), heard = false, err = '';
+    // 'alive' = words or speech actually detected. iOS can fire onstart/onaudiostart on a stuck recognizer, so those don't count.
+    rec.onspeechstart = function () { if (!rec.__dead) { VS.alive = true; VS.sawSpeech = true; } };
     rec.onresult = function (e) {
-      var fin = '', mid = '';
-      for (var i = 0; i < e.results.length; i++) { var t = e.results[i][0].transcript; if (e.results[i].isFinal) fin += t + ' '; else mid += t + ' '; }
-      VS.finals = (base + ' ' + fin).replace(/\s+/g, ' ').trim(); VS.interim = mid.trim();
-      bubble('Listening…', (VS.finals + ' ' + VS.interim).trim() || '…');
+      if (rec.__dead) return; heard = true; VS.alive = true; VS.gotAny = true; VS.sawSpeech = true; VS.everWorked = true;
+      VS.cur = sessionText(e.results);
+      bubble('Listening…', micText() || '…');
     };
-    rec.onerror = function (e) { VS.err = e.error || 'error'; };
+    rec.onerror = function (e) { if (!rec.__dead) err = (e && e.error) || 'error'; };
     rec.onend = function () {
-      if (VS.rec !== rec) return;
-      var err = VS.err; VS.err = '';
+      if (VS.ending === rec) VS.ending = null;
+      if (rec.__dead || VS.rec !== rec) return;
+      VS.committed = micText(); VS.cur = '';
       if (err === 'not-allowed' || err === 'service-not-allowed' || err === 'audio-capture') {
+        // After voice has worked once, iOS can throw a spurious not-allowed (e.g. a restart it didn't like): keep what we heard, never switch voice off
+        if (VS.everWorked || VS.gotAny) { VS.active = false; return micFinish(err); }
         if (err === 'not-allowed' && VS.fromDown && !VS.needTap) { VS.needTap = true; micReset(); toast('Tap the mic once to start, then tap again when you’re done'); return; }
         return micFail(err);
       }
-      if (VS.active && VS.restarts < 6 && (!err || err === 'no-speech')) { VS.restarts++; VS.finals = (VS.finals + ' ' + VS.interim).trim(); VS.interim = ''; return micStartRec(); } // still holding: keep listening through pauses
+      if (err === 'network' && !VS.gotAny) { micReset(); return openTyped('Voice needs a signal right now.', 'retry'); }
+      if (VS.active && !VS.stopping) { // still holding: iOS ended the session early – start a fresh one and keep appending
+        var quick = !heard && Date.now() - started < 700; VS.quickEnds = quick ? VS.quickEnds + 1 : 0;
+        if (VS.restarts++ < 40 && VS.quickEnds < 4) { var wait = quick ? 150 * VS.quickEnds : 0; VS.rec = null; clearTimeout(VS.rtimer); VS.rtimer = setTimeout(function () { if (VS.active && !VS.stopping && !VS.rec) micStartRec(true); }, wait); return; }
+      }
       micFinish(err);
     };
-    try { rec.start(); } catch (e) { micFail('unavailable'); }
+    VS.alive = false;
+    try { rec.start(); } catch (e) {
+      if (!isRetry) { micKill(rec); VS.rec = null; clearTimeout(VS.rtimer); VS.rtimer = setTimeout(function () { if (VS.active && !VS.rec) micStartRec(true); }, 250); return; } // previous session still ending: retry once
+      return micFail('unavailable');
+    }
+    // Watchdog for the iOS stuck recognizer (WebKit 317741/321436): "Listening" but no audio/results ever arrive.
+    // No words or speech within 2.5 s → abort, fresh instance, restart once; still nothing → "Mic got stuck" + type/dictate box.
+    if (!VS.sawSpeech) { clearTimeout(VS.wdog); VS.wdog = setTimeout(function () {
+      if (VS.sawSpeech || !VS.active || VS.stopping || VS.rec !== rec) return;
+      if (!VS.wdogUsed) { VS.wdogUsed = true; micKill(rec); VS.rec = null; micStartRec(true); return; }
+      micStuck();
+    }, 2500); }
+  }
+  function micBegin(tap) {
+    VS.active = true; VS.holding = !tap; VS.tap = !!tap; VS.stopping = false; VS.committed = ''; VS.cur = ''; VS.restarts = 0; VS.quickEnds = 0; VS.gotAny = false; VS.wdogUsed = false; VS.sawSpeech = false;
+    clearTimeout(VS.timer); clearTimeout(VS.rtimer); clearTimeout(VS.grace);
   }
   function micDown(btn) {
     if (voiceBlocked()) { openTyped(SpeechRec ? 'The microphone is turned off for Pin High.' : null); return; }
     if (VS.active && VS.tap) { micStop(); return; }
+    if (VS.stopping) { micFinish(''); return; } // pressed again during the release grace: keep what we have
     if (VS.active || VS.needTap) return;
-    VS.active = true; VS.holding = true; VS.tap = false; VS.finals = ''; VS.interim = ''; VS.err = ''; VS.restarts = 0; VS.downAt = Date.now(); VS.fromDown = true;
-    bubble('Listening…', 'Say the shot, e.g. “7 iron 150, green, 20 feet left”'); micStartRec();
+    micBegin(false); VS.downAt = Date.now(); VS.fromDown = true;
+    bubble('Listening…', 'Say the shot, e.g. “third shot, green, 25 feet short”'); micStartRec(); // start() inside the touch handler
   }
   function micUp() {
-    if (VS.needTap && !VS.active) { VS.active = true; VS.tap = true; VS.finals = ''; VS.interim = ''; VS.err = ''; VS.restarts = 0; VS.fromDown = false; bubble('Listening…', 'Say the shot, then tap the mic'); micStartRec(); return; }
+    if (VS.needTap && !VS.active) { micBegin(true); VS.fromDown = false; bubble('Listening…', 'Say the shot, then tap the mic'); micStartRec(); return; }
     if (!VS.active || !VS.holding) return;
     VS.holding = false;
-    if (Date.now() - VS.downAt < 350 && !VS.finals && !VS.interim) { VS.tap = true; bubble('Listening…', 'Say the shot, then tap the mic'); return; } // quick tap = hands-off mode
+    if (Date.now() - VS.downAt < 350 && !micText()) { VS.tap = true; bubble('Listening…', 'Say the shot, then tap the mic'); return; } // quick tap = hands-off mode
     micStop();
   }
-  function micStop() {
-    if (!VS.active) return; VS.active = false; VS.tap = false; bubble('Got it…', (VS.finals + ' ' + VS.interim).trim());
-    try { VS.rec && VS.rec.stop(); } catch (e) {}
-    clearTimeout(VS.timer); VS.timer = setTimeout(function () { micFinish(''); }, 2500); // in case the phone never says it's done
+  function micStop() { // released: a short grace so trailing words arrive, then stop and wait (bounded) for the last result
+    if (!VS.active || VS.stopping) return; VS.stopping = true; VS.tap = false; bubble('Got it…', micText());
+    clearTimeout(VS.grace); VS.grace = setTimeout(function () {
+      VS.active = false; var r = VS.rec;
+      if (!r) return micFinish('');
+      try { r.stop(); } catch (e) {}
+      clearTimeout(VS.timer); VS.timer = setTimeout(function () { micFinish(''); }, 1500); // in case the phone never says it's done
+    }, 400);
   }
-  function micReset() { clearTimeout(VS.timer); VS.active = false; VS.holding = false; VS.tap = false; var r = VS.rec; VS.rec = null; try { r && r.abort(); } catch (e) {} bubble(null); }
-  function micAbort() { if (VS.rec || VS.active) micReset(); }
+  function micReset() {
+    clearTimeout(VS.timer); clearTimeout(VS.rtimer); clearTimeout(VS.grace); clearTimeout(VS.wdog);
+    VS.active = false; VS.holding = false; VS.tap = false; VS.stopping = false;
+    var r = VS.rec; VS.rec = null; if (r) { micKill(r); VS.ending = r; } bubble(null);
+  }
+  // Card closed with Retry / Use mic: drop every recognizer and flag, then (this tap is a user gesture) start a fresh hands-off listen right away
+  function micFresh(listen) {
+    micAbort(); micRelease(); VS.needTap = false; VS.misses = 0; VS.stuck = 0; VS.committed = ''; VS.cur = ''; VS.ending = null;
+    if (VS.everWorked) sessionStorage.removeItem('golfsg.voiceOff');
+    view.voice = null; render();
+    if (listen && !voiceBlocked()) { micBegin(true); VS.fromDown = false; bubble('Listening…', 'Say the shot, then tap the mic'); micStartRec(); }
+  }
+  function micRelease() { var e = VS.ending; VS.ending = null; if (e) micKill(e); } // drop any old instance still tearing down
+  function micAbort() { if (VS.rec || VS.active || VS.stopping) micReset(); }
   function micFinish(err) {
-    if (!VS.rec && !VS.active) return;
-    var text = (VS.finals + ' ' + VS.interim).replace(/\s+/g, ' ').trim(); micReset();
-    if (!text) { toast(err === 'network' ? 'Voice needs a signal – try again or type it' : 'Didn’t catch that – hold the mic and try again'); return; }
-    voiceHeard(text);
+    if (!VS.rec && !VS.active && !VS.stopping) return;
+    var text = micText(); micReset(); VS.committed = ''; VS.cur = '';
+    if (!text) { VS.misses = (VS.misses || 0) + 1; if (VS.wdogUsed && !VS.sawSpeech) return micStuck(true); openTyped(err === 'network' ? 'Voice needs a signal right now.' : 'I didn’t hear anything that time.', 'retry'); return; }
+    VS.misses = 0; voiceHeard(text);
   }
+  function micStuck(already) { if (!already) micReset(); VS.stuck = (VS.stuck || 0) + 1; openTyped('Mic got stuck – tap to type or dictate.', 'stuck'); }
   function micFail(err) {
     micReset();
     if (err === 'not-allowed' || err === 'service-not-allowed') sessionStorage.setItem('golfsg.voiceOff', '1');
     openTyped(err === 'audio-capture' ? 'No microphone found.' : err === 'unavailable' ? null : 'Pin High isn’t allowed to use the microphone.');
   }
-  function openTyped(why) {
-    view.voice = { hole: view.hole, stage: 'type', why: why || 'Voice isn’t available in this app on this phone.' }; render();
+  function openTyped(why, kind) {
+    view.voice = { hole: view.hole, stage: 'type', kind: kind || '', why: why || 'Voice isn’t available in this app on this phone.' }; render();
   }
   function voiceHeard(text) { view.voice = { hole: view.hole, stage: 'confirm', p: VOICE.parse(text) }; render(); }
   function vSel(f, opts, cur) { return '<select data-vf="' + f + '">' + opts.map(function (o) { return '<option value="' + o[0] + '"' + (String(cur == null ? '' : cur) === String(o[0]) ? ' selected' : '') + '>' + o[1] + '</option>'; }).join('') + '</select>'; }
   function voiceCardHTML(h) {
     var V = view.voice, out = '<div class="sheet-bg" data-act="vcancel"></div><div class="sheet frostsheet voicecard" role="dialog" aria-label="Voice entry">';
     if (V.stage === 'type') {
-      return out + '<h3>' + MIC_SVG + ' Say the shot</h3><p class="vwhy">' + esc(V.why) + ' Tap the box, then the 🎤 on the keyboard and speak – or just type.</p>' +
+      return out + '<h3>' + MIC_SVG + ' ' + (V.kind === 'retry' ? 'Try again' : V.kind === 'stuck' ? 'Mic got stuck' : 'Say the shot') + '</h3><p class="vwhy">' + (V.kind === 'stuck' ? 'Tap the box to type – or tap the 🎤 on the keyboard to dictate. (iPhone sometimes stops sending sound to web apps; “Use mic” starts fresh, and if it keeps happening, close and reopen Pin High.)' : esc(V.why) + (V.kind === 'retry' ? ' Tap “Use mic” and speak (tap the mic when done), hold the mic until you’ve finished – or type it here (tap the 🎤 on the keyboard to dictate).' : ' Tap the box, then the 🎤 on the keyboard and speak – or just type.')) + '</p>' +
         '<input type="text" id="vtext" autocomplete="off" autocapitalize="off" placeholder="third shot green 25 feet short">' +
-        '<div class="vbtns"><button class="frostmain big" data-act="vtype">Check it</button><button class="frostbtn big" data-act="vcancel">Cancel</button></div></div>';
+        '<div class="vbtns"><button class="frostmain big" data-act="vtype">Check it</button>' + (V.kind === 'retry' || V.kind === 'stuck' ? '<button class="frostbtn big" data-act="vmic">🎤 Use mic</button>' : '<button class="frostbtn big" data-act="vcancel">Cancel</button>') + '</div></div>';
     }
     var p = V.p, res = VOICE.apply(h, p), fields = VOICE.describe(h, res, p);
     out += '<h3>' + MIC_SVG + ' I heard</h3><p class="vraw">“' + esc(p.raw) + '”</p>';
@@ -994,7 +1055,7 @@
   function voiceSave() {
     var h = round().holes[view.hole], p = view.voice.p, res = VOICE.apply(h, p);
     if (res.done || res.k < 0) { toast(res.warn[0] || 'Nothing to save'); return; }
-    h.rows = res.rows; save(); view.voice = null; view.menu = null; view.vflash = res.touched.slice(); render(); view.vflash = null;
+    micAbort(); micRelease(); h.rows = res.rows; save(); view.voice = null; view.menu = null; view.vflash = res.touched.slice(); render(); view.vflash = null;
     toast('Shot ' + (res.k + 1) + ' saved');
   }
   function dirSheetHTML(h, k) {
@@ -2435,8 +2496,8 @@
         saveCourses(courses().filter(function (x) { return x.id !== cd.id; })); odDirty(3000); toast('Course deleted'); render(); return; }
       case 'vsave': voiceSave(); return;
       case 'vedit': view.voice.stage = 'edit'; render(); return;
-      case 'vretry': view.voice = null; render(); toast('Hold the mic and say the shot again'); return;
-      case 'vcancel': view.voice = null; render(); return;
+      case 'vretry': case 'vmic': micFresh(true); return;
+      case 'vcancel': micAbort(); micRelease(); view.voice = null; render(); return;
       case 'vtype': { var tv = (document.getElementById('vtext') || {}).value || ''; if (!tv.trim()) { toast('Type or dictate the shot first'); return; } voiceHeard(tv.trim()); return; }
       case 'dirpick': view.dirk = k; view.menu = null; break;
       case 'dirclose': view.dirk = null; break;
