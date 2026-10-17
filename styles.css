@@ -494,9 +494,9 @@ html body .roundpage .holecard.fin button.sel:disabled, html body .roundpage .ho
 .roundpage { --rp-sel: #3b6e9f; --rp-sel-ink: #fff; --rp-sel-shadow: rgba(40, 90, 140, .35);
   --rp-main: linear-gradient(180deg, #a9cdf0, #7fb2e5); --rp-main-line: #79a9da; --rp-main-ink: #0e2a44; --rp-main-shadow: rgba(60, 120, 180, .3);
   --rp-fin: rgba(59, 110, 159, .35); --rp-done: rgba(226, 238, 250, .88); }
-.roundpage.theme-sky { --rp-sel: #1c1c1e; --rp-sel-ink: #fff; --rp-sel-shadow: rgba(0, 0, 0, .28); --rp-fin: rgba(28, 28, 30, .18); --rp-done: rgba(240, 245, 250, .8);
+.frostpage.theme-sky { --rp-sel: #1c1c1e; --rp-sel-ink: #fff; --rp-sel-shadow: rgba(0, 0, 0, .28); --rp-fin: rgba(28, 28, 30, .18); --rp-done: rgba(240, 245, 250, .8);
   --frost-ink: #1a2230; --frost-ink-soft: #445064; --frost-line: rgba(255, 255, 255, .6); --frost-shadow: 0 6px 22px rgba(30, 50, 80, .12); }
-.roundpage.theme-sky::before { background: linear-gradient(180deg, #7491b0 0%, #8ba5bf 22%, #9db5c4 48%, #d7d5bd 74%, #e6dcb8 88%, #c9b98e 100%); filter: blur(0); inset: 0; }
+.frostpage.theme-sky::before { background: linear-gradient(180deg, #7491b0 0%, #8ba5bf 22%, #9db5c4 48%, #d7d5bd 74%, #e6dcb8 88%, #c9b98e 100%); filter: blur(0); inset: 0; }
 .roundpage.theme-sky .holecard.frostcard, .roundpage.theme-sky table, .roundpage.theme-sky .stat { background: rgba(244, 248, 252, .58); }
 .roundpage.theme-sky .topbar.frost { background: rgba(236, 243, 250, .45); border-radius: 999px; }
 .roundpage.theme-sky .holecard button, .roundpage.theme-sky .topbar button, .roundpage.theme-sky .sheet button, .roundpage.theme-sky > button, .roundpage.theme-sky > .row button,
@@ -507,3 +507,24 @@ html body .roundpage .holecard.fin button.sel:disabled, html body .roundpage .ho
 .roundpage.theme-sky, .roundpage.theme-sky .hc-head h2 { font-family: -apple-system, "SF Pro Text", "Helvetica Neue", "Inter", system-ui, sans-serif; letter-spacing: .005em; }
 .roundpage.theme-sky .hc-head h2, .roundpage.theme-sky .topbar .title b { font-weight: 600; }
 .roundpage.theme-sky > .help { background: rgba(244, 248, 252, .5); }
+
+/* Sky theme on non-round pages (History, Archive): .frostpage.theme-sky + the shared frost classes */
+.frostpage.theme-sky { font-family: -apple-system, "SF Pro Text", "Helvetica Neue", "Inter", system-ui, sans-serif; color: var(--frost-ink); }
+.frostpage.theme-sky .topbar.frost { background: rgba(236, 243, 250, .45); border-radius: 999px; }
+.frostpage.theme-sky .topbar .title b { font-weight: 600; }
+.frostpage.theme-sky .frostbtn, .frostpage.theme-sky .frostchip, .frostpage.theme-sky .frostcard, .frostpage.theme-sky .frostnote { background-color: rgba(240, 246, 252, .62); border-color: rgba(255, 255, 255, .7); color: var(--frost-ink); }
+.frostpage.theme-sky .frostchip.sel { background: #1c1c1e; border-color: #1c1c1e; color: #fff; }
+.frostpage .frostmain { background: linear-gradient(180deg, #a9cdf0, #7fb2e5); border: 1px solid #79a9da; color: #0e2a44; border-radius: 22px; font-weight: 700;
+  box-shadow: 0 6px 18px rgba(60, 120, 180, .3); }
+.frostpage .frostmain small { color: #1f3d5c; }
+html body .frostpage .frostdanger, html body .frostpage.theme-sky .frostdanger { background: rgba(255, 228, 230, .78); border: 1px solid rgba(196, 72, 82, .45); color: #9e2a35; }
+.archivepage .playerbox, .archivepage .odcard, .archivepage .notice, .archivepage > .help { background: rgba(244, 248, 252, .62); border: 1px solid rgba(255, 255, 255, .7); border-radius: 20px;
+  -webkit-backdrop-filter: var(--frost-blur); backdrop-filter: var(--frost-blur); box-shadow: var(--frost-shadow); color: var(--frost-ink); }
+.archivepage > .help { padding: 10px 12px; }
+.archivepage .notice.good { background: rgba(225, 245, 230, .85); color: #1d4d2b; }
+.archivepage .notice.bad { background: rgba(255, 228, 230, .85); color: #8e1f2b; }
+.archivepage .notice.remind { background: rgba(255, 246, 214, .85); color: #5c4700; }
+.archivepage .playerbox button, .archivepage .odcard button { border-radius: 999px; }
+.archivepage button.primary, .archivepage .odcard button.primary { background: linear-gradient(180deg, #a9cdf0, #7fb2e5); border-color: #79a9da; color: #0e2a44; }
+.archivepage h2 { font-weight: 600; color: var(--frost-ink); }
+.frostpage .frostbtn.big, .frostpage label.frostbtn { border-radius: 22px; }

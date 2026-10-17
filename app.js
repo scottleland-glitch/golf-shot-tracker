@@ -457,12 +457,12 @@
     var P = playersIn(), names = Object.keys(P).sort(), multi = names.length + (savedRounds().some(function (r) { return !r.player; }) && names.length ? 1 : 0) > 1;
     if (!multi || (view.histPlayer && view.histPlayer !== '~none' && !P[view.histPlayer])) view.histPlayer = null;
     var list = savedRounds().filter(function (r) { return !view.histPlayer || (view.histPlayer === '~none' ? !r.player : r.player === view.histPlayer); }).sort(function (a, b) { return String(b.date || '').localeCompare(String(a.date || '')); });
-    var h = '<div class="frostpage"><div class="topbar frost"><button class="txt frostbtn" data-act="home">‹ Home</button><div class="title"><b>History</b><span>' + list.length + ' round' + (list.length === 1 ? '' : 's') + ', newest first</span></div><span class="tbspace"></span></div>';
+    var h = '<div class="frostpage theme-sky"><div class="topbar frost"><button class="txt frostbtn" data-act="home">‹ Home</button><div class="title"><b>History</b><span>' + list.length + ' round' + (list.length === 1 ? '' : 's') + ', newest first</span></div><span class="tbspace"></span></div>';
     if (multi) h += '<div class="liechips" id="playerchips" role="group" aria-label="Filter by player">' + [''].concat(names).map(function (n) {
         var sel = (view.histPlayer || '') === n; return '<button class="frostchip' + (sel ? ' sel' : '') + '" data-act="histplayer" data-v="' + esc(n) + '" aria-pressed="' + sel + '">' + (n ? esc(n) + ' (' + P[n] + ')' : 'All players') + '</button>'; }).join('') +
       (savedRounds().some(function (r) { return !r.player; }) ? '<button class="frostchip' + (view.histPlayer === '~none' ? ' sel' : '') + '" data-act="histplayer" data-v="~none">No name</button>' : '') + '</div>';
     if (!list.length) h += '<p class="muted frostnote">No rounds yet. Start one from Home.</p>';
-    if (list.length >= 2) h += '<button class="big cmpbtn frostbtn" data-act="compare" id="cmpopen">⚖ Best vs worst rounds</button>';
+    if (list.length >= 2) h += '<button class="big cmpbtn frostmain" data-act="compare" id="cmpopen">⚖ Best vs worst rounds</button>';
     h += '<div id="histlist">';
     list.forEach(function (r) {
       var S = SG.summarize(r);
@@ -708,19 +708,19 @@
   }
   function archiveHTML() {
     var cur = rounds.filter(function (r) { return r.id === localStorage.getItem(CUR); })[0], nSaved = savedRounds().length;
-    var h = '<div class="topbar"><button class="txt" data-act="home">‹ Home</button><div class="title"><b>Archive</b><span>' + nSaved + ' saved round' + (nSaved === 1 ? '' : 's') + '</span></div><span></span></div>';
-    h += '<button class="big histbtn" data-act="history">📋 History<br><small>' + nSaved + ' saved round' + (nSaved === 1 ? '' : 's') + ' – review stats &amp; maps</small></button>';
-    if (cur) h += '<button class="danger discard" data-act="discard" data-id="' + esc(cur.id) + '">🗑 Discard round in progress' + (cur.course ? ' – ' + esc(cur.course) : '') + '</button>';
+    var h = '<div class="frostpage theme-sky archivepage"><div class="topbar frost"><button class="txt frostbtn" data-act="home">‹ Home</button><div class="title"><b>Archive</b><span>' + nSaved + ' saved round' + (nSaved === 1 ? '' : 's') + '</span></div><span></span></div>';
+    h += '<button class="big histbtn frostmain" data-act="history">📋 History<br><small>' + nSaved + ' saved round' + (nSaved === 1 ? '' : 's') + ' – review stats &amp; maps</small></button>';
+    if (cur) h += '<button class="danger discard frostdanger" data-act="discard" data-id="' + esc(cur.id) + '">🗑 Discard round in progress' + (cur.course ? ' – ' + esc(cur.course) : '') + '</button>';
     h += '<h2>Your data</h2>' + playerHTML();
     if (view.notice) h += '<p class="notice ' + (view.notice.bad ? 'bad' : 'good') + '" id="notice" role="status">' + esc(view.notice.text) + '</p>';
     h += odCardHTML();
     var rem = (odOn && odAcct) ? '' : backupReminder(); if (rem) h += '<p class="notice remind" id="bkremind">' + esc(rem) + '</p>';
-    h += '<button class="big" data-act="backup"' + (rounds.length ? '' : ' disabled') + '>💾 Back up rounds</button>' +
-      '<label class="big filebtn" for="restorefile">📂 Restore from backup</label><input type="file" id="restorefile" accept=".json,application/json" hidden>' +
+    h += '<button class="big frostbtn" data-act="backup"' + (rounds.length ? '' : ' disabled') + '>💾 Back up rounds</button>' +
+      '<label class="big filebtn frostbtn" for="restorefile">📂 Restore from backup</label><input type="file" id="restorefile" accept=".json,application/json" hidden>' +
       '<p class="help muted">Back up saves all rounds as one file (golf-rounds-backup-date.json) – choose Save to Files or OneDrive in the share sheet. Restore adds the rounds from a backup file; rounds already on this phone are not duplicated.</p>';
-    if (rounds.length) h += '<button class="big" data-act="csvall">Export all rounds (CSV)</button>';
-    h += '<button class="big" data-act="about">ⓘ About the numbers</button>';
-    return h;
+    if (rounds.length) h += '<button class="big frostbtn" data-act="csvall">Export all rounds (CSV)</button>';
+    h += '<button class="big frostbtn" data-act="about">ⓘ About the numbers</button>';
+    return h + '</div>';
   }
 
   function holeHTML() {

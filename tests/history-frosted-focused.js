@@ -13,17 +13,18 @@ const BASE = 'http://127.0.0.1:8796/', OUT = '/workspace/golf-app/screenshots/',
     localStorage.clear(); localStorage.setItem('golfsg.player.v1', 'Scott');
     localStorage.setItem('golfsg.rounds.v1', JSON.stringify([rd('a', '2026-10-01T17:00:00Z', 'Lakeridge', 'Scott', 2), rd('b', '2026-10-08T17:00:00Z', 'Washoe County GC', 'Scott', 5), rd('c', '2026-10-11T17:00:00Z', 'Wolf Run', 'Emma', 3), rd('d', '2026-10-14T17:00:00Z', 'Lakeridge', 'Scott', 9)])); });
   await page.reload(); await page.click('#plusbtn'); await page.click('#plusmenu [data-act="history"]'); await page.waitForSelector('#histlist');
-  await page.waitForTimeout(400); await page.screenshot({ path: OUT + 'history-frosted-' + TAG + '.png' });
+  await page.waitForTimeout(400); await page.screenshot({ path: OUT + (TAG === 'after' ? 'sky-history.png' : 'history-frosted-' + TAG + '.png') });
   if (TAG === 'before') { await b.close(); srv.kill(); return; }
   // frosted: page backdrop + shared classes on header, buttons, chips, cards, trash
   const F = await page.evaluate(() => { const cs = s => getComputedStyle(document.querySelector(s)); const q = s => document.querySelector(s);
     return { page: !!q('#app .frostpage'), bg: getComputedStyle(q('.frostpage'), '::before').backgroundImage, top: q('.topbar').classList.contains('frost'), topBlur: cs('.topbar').backdropFilter,
-      home: q('.topbar [data-act="home"]').classList.contains('frostbtn'), cmp: q('#cmpopen').classList.contains('frostbtn'), chips: [...document.querySelectorAll('#playerchips button')].every(x => x.classList.contains('frostchip')),
+      home: q('.topbar [data-act="home"]').classList.contains('frostbtn'), cmp: q('#cmpopen').classList.contains('frostmain'), sky: q('.frostpage').classList.contains('theme-sky'), selBg: getComputedStyle(q('#playerchips .sel')).backgroundColor, chips: [...document.querySelectorAll('#playerchips button')].every(x => x.classList.contains('frostchip')),
       cards: [...document.querySelectorAll('#histlist .hrow .hist')].every(x => x.classList.contains('frostcard')), del: [...document.querySelectorAll('.hdel')].every(x => x.classList.contains('frostdanger')),
       cardBg: cs('.hrow .hist').backgroundColor, cardR: cs('.hrow .hist').borderRadius, cardSh: cs('.hrow .hist').boxShadow, delCol: cs('.hdel').borderColor, txt: cs('.hrow .hist b').color }; });
-  assert.ok(F.page && /home-bg\.webp/.test(F.bg), 'blurred home photo backdrop ' + F.bg);
+  assert.ok(F.page && F.sky && /linear-gradient/.test(F.bg) && !/home-bg/.test(F.bg), 'sky gradient backdrop, no photo ' + F.bg);
+  assert.strictEqual(F.selBg, 'rgb(28, 28, 30)', 'near-black selected chip');
   assert.ok(F.top && /blur/.test(F.topBlur) && F.home && F.cmp && F.chips && F.cards && F.del, 'frost classes ' + JSON.stringify(F));
-  assert.ok(/rgba\(255, 255, 255, 0\.[3-8]/.test(F.cardBg) && parseFloat(F.cardR) >= 16 && F.cardSh !== 'none', 'soft translucent card ' + JSON.stringify(F));
+  assert.ok(/rgba\(2[3-5]\d, 2[3-5]\d, 2[3-5]\d, 0\.[3-8]/.test(F.cardBg) && parseFloat(F.cardR) >= 16 && F.cardSh !== 'none', 'soft translucent card ' + JSON.stringify(F));
   assert.ok(/rgba\(\d+, \d+, \d+, 0\.\d+\)/.test(F.delCol), 'muted red trash ' + F.delCol);
   const [r, g, bl] = F.txt.match(/\d+/g).map(Number); assert.ok(r + g + bl < 200, 'dark readable text ' + F.txt);
   // features: filter chips, Best vs worst, open a round, ‹ History back, delete (cancel + confirm), Home
@@ -35,6 +36,16 @@ const BASE = 'http://127.0.0.1:8796/', OUT = '/workspace/golf-app/screenshots/',
   await page.click('.topbar [data-act="history"]'); await page.waitForSelector('#histlist');
   ans = false; await page.click('.hdel[data-id="a"]'); assert.strictEqual(await page.locator('#histlist .hrow').count(), 4);
   ans = true; await page.click('.hdel[data-id="a"]'); assert.strictEqual(await page.locator('#histlist .hrow').count(), 3);
+  await page.click('.topbar [data-act="home"]'); await page.waitForSelector('#home');
+  // Archive in the same sky look; home keeps its photo
+  assert.ok(/home-bg\.webp/.test(await page.evaluate(() => getComputedStyle(document.querySelector('.home-bg')).backgroundImage)), 'home keeps the photo');
+  await page.click('#archivepill'); await page.waitForSelector('#playerbox');
+  const A = await page.evaluate(() => { const q = s => document.querySelector(s);
+    return { sky: !!q('.frostpage.theme-sky.archivepage'), bg: getComputedStyle(q('.frostpage'), '::before').backgroundImage, top: q('.topbar').classList.contains('frost'),
+      hist: getComputedStyle(q('.histbtn')).backgroundImage, btns: [...document.querySelectorAll('.archivepage [data-act="backup"], .archivepage [data-act="about"], .archivepage label.filebtn')].every(x => x.classList.contains('frostbtn')),
+      box: getComputedStyle(q('#playerbox')).backgroundColor }; });
+  assert.ok(A.sky && /linear-gradient/.test(A.bg) && !/home-bg/.test(A.bg) && A.top && /linear-gradient/.test(A.hist) && A.btns && /rgba\(2[3-5]\d, 2[3-5]\d, 2[3-5]\d, 0\./.test(A.box), 'archive sky ' + JSON.stringify(A));
+  await page.evaluate(() => { const t = document.getElementById('toast'); if (t) t.className = ''; }); await page.waitForTimeout(400); await page.screenshot({ path: OUT + 'sky-archive.png' });
   await page.click('.topbar [data-act="home"]'); await page.waitForSelector('#home');
   assert.deepStrictEqual(errors, []); console.log('HISTORY FROSTED OK'); await b.close(); srv.kill();
 })().catch(e => { console.error(e); process.exit(1); });
