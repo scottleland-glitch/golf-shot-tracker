@@ -81,7 +81,7 @@
     goHole(0, true);
   }
   function goHole(i, focus) {
-    view.screen = 'hole'; view.hole = Math.max(0, Math.min(17, i)); view.menu = null; view.dirk = null; view.pinOpen = false;
+    view.screen = 'hole'; view.hole = Math.max(0, Math.min(17, i)); view.menu = null; view.dirk = null; view.pinOpen = false; view.voice = null; micAbort();
     render(); window.scrollTo(0, 0);
     var h = round().holes[view.hole];
     if (focus && h.rows.length === 1 && h.rows[0].dist === '') focusDist(0);
@@ -96,7 +96,7 @@
     var el = document.getElementById('app');
     if (view.screen !== 'summary') view.map = null;
     if (view.screen !== 'summary' && view.screen !== 'hole') view.replay = null;
-    if (view.screen !== 'hole') view.pinOpen = false;
+    if (view.screen !== 'hole') { view.pinOpen = false; view.voice = null; micAbort(); }
     document.body.classList.toggle('noscroll', !!(view.pinOpen && view.screen === 'hole'));
     if (view.screen === 'about') el.innerHTML = aboutHTML();
     else if (view.screen === 'history') el.innerHTML = historyHTML();
@@ -765,7 +765,120 @@
       'Last row: pick "In the hole" and enter the distance of the putt (or chip) that went in. Dir = where the shot before ended vs its target (8 ways: Short = toward you, Long = past it, Left, Right, and the corners). For an approach that missed the green, pick where it missed the green; if it found the green, pick where it stopped vs the hole. ' +
       'P = penalty stroke (+1), e.g. a drop. "OB re-hit" = +1 and you hit again from the same spot. Score = rows + penalties.</p>';
     if (view.dirk != null && h.rows[view.dirk] && !fin) out += dirSheetHTML(h, view.dirk);
+    var lastRow = h.rows[h.rows.length - 1], canTalk = !fin && !(lastRow.loc === 'holed' || lastRow.loc === 'holedx');
+    if (canTalk) out += micHTML();
+    if (view.voice && view.voice.hole === view.hole && !fin) out += voiceCardHTML(h);
     return out;
+  }
+
+  // ---------- Voice entry: hold the mic, say the shot, confirm ----------
+  var SpeechRec = window.SpeechRecognition || window.webkitSpeechRecognition;
+  var MIC_SVG = '<svg class="micico" viewBox="0 0 24 24" width="26" height="26" aria-hidden="true"><rect x="8.5" y="2.5" width="7" height="12" rx="3.5" fill="currentColor"/><path d="M5.5 11a6.5 6.5 0 0 0 13 0M12 17.5V21M8.5 21h7" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>';
+  var VS = { active: false, holding: false, tap: false, finals: '', interim: '', rec: null, err: '', restarts: 0, timer: null, needTap: false, fromDown: false };
+  function voiceBlocked() { return !SpeechRec || sessionStorage.getItem('golfsg.voiceOff') === '1'; }
+  function micHTML() {
+    var off = voiceBlocked();
+    return '<button type="button" id="micbtn" class="micbtn' + (off ? ' off' : '') + '" aria-label="' + (off ? 'Voice entry (type instead)' : 'Hold to talk: say the shot') + '">' + MIC_SVG +
+      '<span class="miclbl">' + (off ? 'Say it' : 'Hold to talk') + '</span></button><div id="micbubble" class="micbubble" hidden aria-live="polite"><b>Listening…</b><span class="mictext"></span></div>';
+  }
+  function bubble(title, text) {
+    var b = document.getElementById('micbubble'), btn = document.getElementById('micbtn'); if (!b) return;
+    if (title == null) { b.hidden = true; if (btn) { btn.classList.remove('on'); btn.querySelector('.miclbl').textContent = voiceBlocked() ? 'Say it' : 'Hold to talk'; } return; }
+    b.hidden = false; b.querySelector('b').textContent = title; b.querySelector('.mictext').textContent = text || '';
+    if (btn) { btn.classList.add('on'); btn.querySelector('.miclbl').textContent = VS.tap ? 'Tap to stop' : 'Listening…'; }
+  }
+  function micStartRec() {
+    var rec; try { rec = new SpeechRec(); } catch (e) { return micFail('unavailable'); }
+    VS.rec = rec; rec.lang = 'en-US'; rec.continuous = false; rec.interimResults = true; rec.maxAlternatives = 1;
+    var base = VS.finals;
+    rec.onresult = function (e) {
+      var fin = '', mid = '';
+      for (var i = 0; i < e.results.length; i++) { var t = e.results[i][0].transcript; if (e.results[i].isFinal) fin += t + ' '; else mid += t + ' '; }
+      VS.finals = (base + ' ' + fin).replace(/\s+/g, ' ').trim(); VS.interim = mid.trim();
+      bubble('Listening…', (VS.finals + ' ' + VS.interim).trim() || '…');
+    };
+    rec.onerror = function (e) { VS.err = e.error || 'error'; };
+    rec.onend = function () {
+      if (VS.rec !== rec) return;
+      var err = VS.err; VS.err = '';
+      if (err === 'not-allowed' || err === 'service-not-allowed' || err === 'audio-capture') {
+        if (err === 'not-allowed' && VS.fromDown && !VS.needTap) { VS.needTap = true; micReset(); toast('Tap the mic once to start, then tap again when you’re done'); return; }
+        return micFail(err);
+      }
+      if (VS.active && VS.restarts < 6 && (!err || err === 'no-speech')) { VS.restarts++; VS.finals = (VS.finals + ' ' + VS.interim).trim(); VS.interim = ''; return micStartRec(); } // still holding: keep listening through pauses
+      micFinish(err);
+    };
+    try { rec.start(); } catch (e) { micFail('unavailable'); }
+  }
+  function micDown(btn) {
+    if (voiceBlocked()) { openTyped(SpeechRec ? 'The microphone is turned off for Pin High.' : null); return; }
+    if (VS.active && VS.tap) { micStop(); return; }
+    if (VS.active || VS.needTap) return;
+    VS.active = true; VS.holding = true; VS.tap = false; VS.finals = ''; VS.interim = ''; VS.err = ''; VS.restarts = 0; VS.downAt = Date.now(); VS.fromDown = true;
+    bubble('Listening…', 'Say the shot, e.g. “7 iron 150, green, 20 feet left”'); micStartRec();
+  }
+  function micUp() {
+    if (VS.needTap && !VS.active) { VS.active = true; VS.tap = true; VS.finals = ''; VS.interim = ''; VS.err = ''; VS.restarts = 0; VS.fromDown = false; bubble('Listening…', 'Say the shot, then tap the mic'); micStartRec(); return; }
+    if (!VS.active || !VS.holding) return;
+    VS.holding = false;
+    if (Date.now() - VS.downAt < 350 && !VS.finals && !VS.interim) { VS.tap = true; bubble('Listening…', 'Say the shot, then tap the mic'); return; } // quick tap = hands-off mode
+    micStop();
+  }
+  function micStop() {
+    if (!VS.active) return; VS.active = false; VS.tap = false; bubble('Got it…', (VS.finals + ' ' + VS.interim).trim());
+    try { VS.rec && VS.rec.stop(); } catch (e) {}
+    clearTimeout(VS.timer); VS.timer = setTimeout(function () { micFinish(''); }, 2500); // in case the phone never says it's done
+  }
+  function micReset() { clearTimeout(VS.timer); VS.active = false; VS.holding = false; VS.tap = false; var r = VS.rec; VS.rec = null; try { r && r.abort(); } catch (e) {} bubble(null); }
+  function micAbort() { if (VS.rec || VS.active) micReset(); }
+  function micFinish(err) {
+    if (!VS.rec && !VS.active) return;
+    var text = (VS.finals + ' ' + VS.interim).replace(/\s+/g, ' ').trim(); micReset();
+    if (!text) { toast(err === 'network' ? 'Voice needs a signal – try again or type it' : 'Didn’t catch that – hold the mic and try again'); return; }
+    voiceHeard(text);
+  }
+  function micFail(err) {
+    micReset();
+    if (err === 'not-allowed' || err === 'service-not-allowed') sessionStorage.setItem('golfsg.voiceOff', '1');
+    openTyped(err === 'audio-capture' ? 'No microphone found.' : err === 'unavailable' ? null : 'Pin High isn’t allowed to use the microphone.');
+  }
+  function openTyped(why) {
+    view.voice = { hole: view.hole, stage: 'type', why: why || 'Voice isn’t available in this app on this phone.' }; render();
+  }
+  function voiceHeard(text) { view.voice = { hole: view.hole, stage: 'confirm', p: VOICE.parse(text) }; render(); }
+  function vSel(f, opts, cur) { return '<select data-vf="' + f + '">' + opts.map(function (o) { return '<option value="' + o[0] + '"' + (String(cur == null ? '' : cur) === String(o[0]) ? ' selected' : '') + '>' + o[1] + '</option>'; }).join('') + '</select>'; }
+  function voiceCardHTML(h) {
+    var V = view.voice, out = '<div class="sheet-bg" data-act="vcancel"></div><div class="sheet frostsheet voicecard" role="dialog" aria-label="Voice entry">';
+    if (V.stage === 'type') {
+      return out + '<h3>' + MIC_SVG + ' Say the shot</h3><p class="vwhy">' + esc(V.why) + ' Tap the box, then the 🎤 on the keyboard and speak – or just type.</p>' +
+        '<input type="text" id="vtext" autocomplete="off" autocapitalize="off" placeholder="7 iron 150 green 20 feet left">' +
+        '<div class="vbtns"><button class="frostmain big" data-act="vtype">Check it</button><button class="frostbtn big" data-act="vcancel">Cancel</button></div></div>';
+    }
+    var p = V.p, res = VOICE.apply(h, p), fields = VOICE.describe(h, res, p);
+    out += '<h3>' + MIC_SVG + ' I heard</h3><p class="vraw">“' + esc(p.raw) + '”</p>';
+    if (V.stage === 'edit') {
+      var k = res.k, R = res.rows[k] || {}, green = R.loc === 'green' || R.loc === 'holed' || !!p.putt;
+      out += '<div class="vedit">' +
+        (green ? '' : '<label><span>Club</span>' + vSel('club', [['', '–']].concat(SG.CLUBS.map(function (c) { return [c, c]; })), p.club) + '</label>') +
+        '<label><span>From (' + (green ? 'ft' : 'yd') + ')</span><input type="text" inputmode="numeric" maxlength="3" data-vf="from" value="' + (p.from == null ? '' : p.from) + '"></label>' +
+        '<label><span>Ended</span>' + vSel('result', [['', '–'], ['fairway', 'Fairway'], ['rough', 'Rough'], ['deep', 'Deep rough'], ['bunker', 'Bunker'], ['green', 'Green'], ['hazard', 'Hazard'], ['trees', 'Trees'], ['ob', 'OB'], ['holed', 'In the hole']], p.result) + '</label>' +
+        '<label><span>Then (' + (p.result === 'green' ? 'ft' : 'yd') + ' to pin)</span><input type="text" inputmode="numeric" maxlength="3" data-vf="to" value="' + (p.to == null ? '' : p.to) + '"></label>' +
+        '<label><span>Miss</span>' + vSel('dir', [['', '–']].concat(SG.DIR8.map(function (d) { return [d, SG.DIR_NAME[d]]; })), p.dir) + '</label>' +
+        '<label class="vchk"><input type="checkbox" data-vf="pen"' + (p.pen ? ' checked' : '') + '> Penalty +1</label>' +
+        (k === 0 && Number(h.par) !== 3 ? '<label class="vchk"><input type="checkbox" data-vf="layup"' + (p.layup ? ' checked' : '') + '> Layup</label>' : '') + '</div>';
+    } else if (p.empty) out += '<p class="vwarn">I couldn’t find a club, distance or result in that. Try again, or tap Edit.</p>';
+    else out += '<div class="vfields">' + fields.map(function (f) { return '<div class="vf"><span>' + esc(f[0]) + '</span><b>' + esc(f[1]) + '</b></div>'; }).join('') + '</div>';
+    if (p.unknown && V.stage !== 'edit') out += '<p class="vnote">Not sure about: “' + esc(p.unknown) + '”</p>';
+    res.warn.forEach(function (w) { out += '<p class="vwarn">' + esc(w) + '</p>'; });
+    var can = !res.done && !(p.empty && V.stage !== 'edit');
+    return out + '<div class="vbtns"><button class="frostmain big vsave" data-act="vsave"' + (can ? '' : ' disabled') + '>✓ Save</button>' +
+      (V.stage === 'edit' ? '' : '<button class="frostbtn big" data-act="vedit">✎ Edit</button>') + '<button class="frostbtn big" data-act="vretry">↺ Retry</button></div></div>';
+  }
+  function voiceSave() {
+    var h = round().holes[view.hole], p = view.voice.p, res = VOICE.apply(h, p);
+    if (res.done || res.k < 0) { toast(res.warn[0] || 'Nothing to save'); return; }
+    h.rows = res.rows; save(); view.voice = null; view.menu = null; view.vflash = [res.k, res.rk]; render(); view.vflash = null;
+    toast('Shot ' + (res.k + 1) + ' saved');
   }
   function dirSheetHTML(h, k) {
     var cur = SG.normDir(h.rows[k].dir), prevLie = SG.lieOf(h.rows, k - 1), prevGreen = prevLie === 'green';
@@ -784,7 +897,7 @@
 
   function rowHTML(h, a, row, k, fin) {
     var ob = row.loc === 'ob', bad = !fin && a.bad === k, shotNo = k + 1, dis = fin ? ' disabled' : '';
-    var out = '<div class="srow' + (bad ? ' bad' : '') + '" data-k="' + k + '">';
+    var out = '<div class="srow' + (bad ? ' bad' : '') + (view.vflash && view.vflash.indexOf(k) >= 0 ? ' vflash' : '') + '" data-k="' + k + '">';
     out += '<button class="c-n" data-act="menu" data-k="' + k + '" aria-label="Row options"' + dis + '>' + shotNo + '</button>';
     if (ob) out += '<span class="c-d obtxt">' + prevDist(h, k) + '</span>';
     else out += '<span class="c-d"><input type="text" inputmode="numeric" pattern="[0-9]*" maxlength="3" data-row="' + k + '" value="' + esc(row.dist) + '" aria-label="Distance row ' + shotNo + '"' + dis + '>' +
@@ -2186,6 +2299,11 @@
       case 'pmg': { var mvq = document.getElementById('mapview'), stq = mvq ? mvq.scrollTop : 0; view.pmG = v; render(); var mvq2 = document.getElementById('mapview'); if (mvq2) mvq2.scrollTop = stq; return; }
       case 'puttn': { var mvp = document.getElementById('mapview'), stp = mvp ? mvp.scrollTop : 0; view.puttN = v; render(); var mvp2 = document.getElementById('mapview'); if (mvp2) mvp2.scrollTop = stp; return; }
       case 'mapscope': view.mapScope = v; view.heat = null; render(); var mv = document.getElementById('mapview'); if (mv) mv.scrollTop = 0; return;
+      case 'vsave': voiceSave(); return;
+      case 'vedit': view.voice.stage = 'edit'; render(); return;
+      case 'vretry': view.voice = null; render(); toast('Hold the mic and say the shot again'); return;
+      case 'vcancel': view.voice = null; render(); return;
+      case 'vtype': { var tv = (document.getElementById('vtext') || {}).value || ''; if (!tv.trim()) { toast('Type or dictate the shot first'); return; } voiceHeard(tv.trim()); return; }
       case 'dirpick': view.dirk = k; view.menu = null; break;
       case 'dirclose': view.dirk = null; break;
       case 'setdir': h.rows[view.dirk].dir = v || ''; view.dirk = null; save(); break;
@@ -2265,6 +2383,24 @@
     var mv = document.getElementById('mapview'), st = mv ? mv.scrollTop : 0; render();
     var mv2 = document.getElementById('mapview'); if (mv2) mv2.scrollTop = st; var r2 = document.getElementById('clusr'); if (r2) r2.focus();
   });
+  // Voice card edit fields: update the parsed shot in place
+  function vField(t) {
+    var f = t.getAttribute && t.getAttribute('data-vf'); if (!f || !view.voice || !view.voice.p) return false;
+    var p = view.voice.p;
+    if (f === 'from' || f === 'to') { t.value = t.value.replace(/[^0-9]/g, '').slice(0, 3); p[f] = t.value === '' ? null : +t.value; p[f + 'Unit'] = ''; }
+    else if (f === 'pen' || f === 'layup') p[f] = t.checked;
+    else p[f] = t.value || undefined;
+    if (f === 'result' && p.result !== 'holed') p.holedx = false;
+    p.empty = false; return f;
+  }
+  document.addEventListener('input', function (ev) { vField(ev.target); });
+  document.addEventListener('change', function (ev) { var f = vField(ev.target); if (f === 'result' || f === 'club') render(); });
+  document.addEventListener('keydown', function (ev) { if (ev.key === 'Enter' && ev.target && ev.target.id === 'vtext') { ev.preventDefault(); var b = document.querySelector('[data-act="vtype"]'); if (b) b.click(); } });
+  // Mic button: press and hold to talk (pointer events cover touch and mouse)
+  document.addEventListener('pointerdown', function (ev) { var b = ev.target.closest && ev.target.closest('#micbtn'); if (!b) return; ev.preventDefault(); try { b.setPointerCapture(ev.pointerId); } catch (e) {} micDown(b); });
+  document.addEventListener('pointerup', function (ev) { if (ev.target.closest && ev.target.closest('#micbtn')) micUp(); else if (VS.holding) micUp(); });
+  document.addEventListener('pointercancel', function () { if (VS.holding) micUp(); });
+  document.addEventListener('contextmenu', function (ev) { if (ev.target.closest && ev.target.closest('#micbtn')) ev.preventDefault(); });
   // Distance typing: update data without re-rendering (keeps the keyboard up)
   document.addEventListener('input', function (ev) {
     var t = ev.target; if (!t.hasAttribute || !t.hasAttribute('data-row')) return;
@@ -2299,5 +2435,5 @@
     });
     window.addEventListener('load', function () { navigator.serviceWorker.register('./sw.js').catch(function () {}); });
   }
-  window.__golf = { d1Bench: d1Bench, proxSVG: proxSVG, pinSVG: function () { return pinReportSVG(SG.pinSegments(pinDataRound())); }, odState: function () { return odState; }, csvFor: csvFor, rounds: function () { return rounds; } };
+  window.__golf = { voiceState: function () { return VS; }, d1Bench: d1Bench, proxSVG: proxSVG, pinSVG: function () { return pinReportSVG(SG.pinSegments(pinDataRound())); }, odState: function () { return odState; }, csvFor: csvFor, rounds: function () { return rounds; } };
 })();

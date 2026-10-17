@@ -543,3 +543,42 @@ html body .frostpage .frostdanger, html body .frostpage.theme-sky .frostdanger {
 button.tiplbl { background: none; border: 0; box-shadow: none; padding: 0 6px; min-height: 44px; font: inherit; font-size: 15px; font-weight: 600; color: var(--frost-ink-soft, #445064); text-align: left; }
 .tiphead button.tiplbl { font-size: inherit; font-weight: inherit; color: inherit; padding: 0; }
 button.tiplbl:active { transform: none; opacity: .7; }
+
+/* Voice entry (v79): hold-to-talk mic + listening bubble + confirm card, in the sky look */
+.micbtn { position: fixed; right: max(14px, env(safe-area-inset-right)); bottom: calc(18px + env(safe-area-inset-bottom)); z-index: 30;
+  display: flex; align-items: center; gap: 8px; min-height: 64px; padding: 0 20px 0 16px; border-radius: 999px;
+  background: linear-gradient(180deg, #a9cdf0, #7fb2e5); border: 1px solid rgba(255, 255, 255, .8); color: #0e2a44; font-size: 17px; font-weight: 700;
+  box-shadow: 0 8px 24px rgba(30, 60, 100, .28), inset 0 1px 0 rgba(255, 255, 255, .6);
+  -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; touch-action: none; -webkit-tap-highlight-color: transparent; }
+html body .roundpage .micbtn { background: linear-gradient(180deg, #a9cdf0, #7fb2e5); border: 1px solid rgba(255, 255, 255, .8); color: #0e2a44; border-radius: 999px; }
+.micbtn .micico { flex: 0 0 auto; }
+.micbtn.off { opacity: .92; }
+html body .roundpage .micbtn.on { background: #1c1c1e; color: #fff; border-color: #1c1c1e; animation: micpulse 1.2s ease-out infinite; }
+@keyframes micpulse { 0% { box-shadow: 0 0 0 0 rgba(127, 178, 229, .75), 0 8px 24px rgba(0, 0, 0, .3); } 100% { box-shadow: 0 0 0 22px rgba(127, 178, 229, 0), 0 8px 24px rgba(0, 0, 0, .3); } }
+.roundpage:has(.micbtn) { padding-bottom: 96px; }
+.micbubble { position: fixed; left: 14px; right: 14px; bottom: calc(96px + env(safe-area-inset-bottom)); z-index: 31; padding: 14px 16px; border-radius: 22px;
+  background: rgba(236, 243, 250, .86); -webkit-backdrop-filter: blur(20px) saturate(140%); backdrop-filter: blur(20px) saturate(140%);
+  border: 1px solid rgba(255, 255, 255, .8); box-shadow: 0 10px 30px rgba(30, 50, 80, .22); color: #1a2230; animation: sheetin .16s ease-out; }
+.micbubble[hidden] { display: none; }
+.micbubble b { display: block; font-size: 14px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; color: #445064; }
+.micbubble .mictext { display: block; margin-top: 4px; font-size: 22px; font-weight: 600; line-height: 1.25; }
+.voicecard h3 { display: flex; align-items: center; gap: 8px; }
+.voicecard .vraw { font-size: 20px; font-weight: 600; margin: 4px 0 10px; color: #1a2230; }
+.voicecard .vfields { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 6px 0 8px; }
+.voicecard .vf { background: rgba(255, 255, 255, .7); border: 1px solid rgba(255, 255, 255, .8); border-radius: 16px; padding: 8px 12px; }
+.voicecard .vf span { display: block; font-size: 13px; font-weight: 600; color: #445064; text-transform: uppercase; letter-spacing: .03em; }
+.voicecard .vf b { font-size: 20px; font-weight: 700; color: #1a2230; }
+.voicecard .vnote, .voicecard .vwhy { font-size: 15px; color: #445064; margin: 4px 0 8px; }
+.voicecard .vwarn { font-size: 15px; font-weight: 600; color: #9e2a35; margin: 4px 0 8px; }
+.voicecard .vbtns { display: flex; gap: 8px; margin-top: 8px; }
+.voicecard .vbtns button { flex: 1 1 0; } .voicecard .vbtns button:first-child { flex-grow: 1.4; }
+.voicecard .vbtns button { min-height: 56px; margin: 0; font-size: 18px; font-weight: 700; }
+html body .roundpage .voicecard .vbtns .frostmain { background: linear-gradient(180deg, #a9cdf0, #7fb2e5); border: 1px solid #79a9da; color: #0e2a44; }
+.voicecard input[type=text] { font-size: 20px; border-radius: 16px; border: 1px solid rgba(150, 170, 190, .6); background: rgba(255, 255, 255, .9); box-sizing: border-box; }
+.voicecard .vedit { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.voicecard .vedit label { display: flex; flex-direction: column; gap: 2px; font-size: 13px; font-weight: 600; color: #445064; text-transform: uppercase; }
+.voicecard .vedit select, .voicecard .vedit input[type=text] { min-height: 48px; font-size: 18px; font-weight: 700; padding: 6px 10px; border-radius: 14px; border: 1px solid rgba(150, 170, 190, .6); background: rgba(255, 255, 255, .9); color: #1a2230; }
+.voicecard .vedit .vchk { flex-direction: row; align-items: center; gap: 8px; min-height: 48px; font-size: 16px; text-transform: none; color: #1a2230; }
+.voicecard .vedit .vchk input { width: 24px; height: 24px; accent-color: #1c1c1e; }
+.srow.vflash { animation: vflash 1.6s ease-out; border-radius: 14px; }
+@keyframes vflash { 0% { background: rgba(127, 178, 229, .7); } 100% { background: transparent; } }
