@@ -42,8 +42,9 @@ const newer = Object.assign({}, course, { name: 'Pebble Creek GC', updated: '299
 const old = Object.assign({}, course, { name: 'Old', updated: '2000-01-01T00:00:00Z' }); M = C.mergeCourses([course], [old]); eq(M.courses[0].name, course.name, 'older copy does not overwrite');
 const bk = SG.makeBackup([], null, 'Quincy', [course]); eq(bk.courses.length, 1); const pb = SG.parseBackup(JSON.stringify(bk)); eq([pb.rounds.length, pb.courses.length, !!pb.error], [0, 1, false]);
 eq(SG.makeBackup([], null, 'Q').courses, undefined, 'no courses key when none saved');
-// voice: a prefilled tee distance doesn't turn the tee-shot phrase into a second shot
-let a = V.apply({ par: 4, rows: [{ loc: 'tee', dist: 386, dir: '', pen: false }] }, V.parse('driver 380 fairway')); eq([a.k, a.rows[0].dist, a.rows[0].club, a.rows[1].loc], [0, 380, 'Driver', 'fairway']);
+// voice (v81 model): with a prefilled tee distance, "driver 140 fairway" keeps the tee yardage, puts Driver on shot 1 and fills shot 2 (fairway, 140 to the pin)
+let a = V.apply({ par: 4, rows: [{ loc: 'tee', dist: 386, dir: '', pen: false }] }, V.parse('driver 140 fairway')); eq([a.rows.length, a.rows[0].dist, a.rows[0].club, a.rows[1].loc, a.rows[1].dist], [2, 386, 'Driver', 'fairway', 140]);
+a = V.apply({ par: 4, rows: [{ loc: 'tee', dist: 386, dir: '', pen: false }] }, V.parse('tee shot driver')); eq([a.rows.length, a.rows[0].dist, a.rows[0].club], [1, 386, 'Driver']);
 console.log('SCORECARD PARSER OK – ' + n + ' checks');
 if (process.env.UNIT_ONLY) process.exit(0);
 
@@ -111,7 +112,8 @@ const make = require('./fixtures/make-card.js'); const PORT = 8813, BASE = `http
   await page.waitForSelector('.teebtn, .revgrid', { timeout: 120000 }); const pCard = await page.evaluate(() => JSON.parse(JSON.stringify(window.__golf.card().course)));
   const sPhoto = score({ pars: pCard.pars, hcp: pCard.hcp, tees: pCard.tees }); if (process.env.DUMP) require('fs').writeFileSync(__dirname + '/fixtures/ocr-app-photo.json', JSON.stringify(await page.evaluate(() => window.__golf.card().ocr))); console.log('  offline photo scan: ' + ((Date.now() - t1) / 1000).toFixed(1) + ' s, accuracy ' + (sPhoto * 100).toFixed(1) + '%, tees ' + pCard.tees.map(t => t.name).join(', '));
   assert.ok(sPhoto >= 0.6, 'photo accuracy ' + sPhoto);
-  assert.ok(await page.evaluate(() => caches.keys().then(k => k.includes('pinhigh-ocr-v1') && k.includes('golf-sg-v80'))), 'scanner kept in its own cache');
+  const SWV = require('fs').readFileSync(__dirname + '/../sw.js', 'utf8').match(/golf-sg-v\d+/)[0];
+  assert.ok(await page.evaluate(v => caches.keys().then(k => k.includes('pinhigh-ocr-v1') && k.includes(v)), SWV), 'scanner kept in its own cache');
   assert.deepStrictEqual(outside, [], 'no outside network requests'); assert.deepStrictEqual(errors, []);
   console.log('SCORECARD UI OK'); await b.close(); srv.kill();
 })().catch(e => { console.error(e); process.exit(1); });

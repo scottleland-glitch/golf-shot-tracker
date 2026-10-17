@@ -858,7 +858,8 @@
     h.rows.forEach(function (row, k) { out += rowHTML(h, a, row, k, fin); });
 
     var pens = h.rows.reduce(function (n, rw, k) { return n + (SG.isPenalty(rw, k) ? 1 : 0); }, 0);
-    out += '<div class="count" id="count">' + countText(h, pens) + '</div>';
+    var lastR = h.rows[h.rows.length - 1], talk = !fin && !(lastR.loc === 'holed' || lastR.loc === 'holedx');
+    out += '<div class="countrow"><div class="count" id="count">' + countText(h, pens) + '</div>' + (talk ? micHTML() : '') + '</div>';
     if (fin) {
       out += '<div class="hole-done">Score <b>' + a.strokes + '</b> (' + toPar(a.strokes - h.par) + ') · SG <span class="' + sgCls(a.sg) + '">' + fmtSG(a.sg) + '</span></div>';
       out += '<button class="big frostbtn" data-act="reopen">✎ Edit this hole</button>';
@@ -879,8 +880,7 @@
       'Last row: pick "In the hole" and enter the distance of the putt (or chip) that went in. Dir = where the shot before ended vs its target (8 ways: Short = toward you, Long = past it, Left, Right, and the corners). For an approach that missed the green, pick where it missed the green; if it found the green, pick where it stopped vs the hole. ' +
       'P = penalty stroke (+1), e.g. a drop. "OB re-hit" = +1 and you hit again from the same spot. Score = rows + penalties.</p>';
     if (view.dirk != null && h.rows[view.dirk] && !fin) out += dirSheetHTML(h, view.dirk);
-    var lastRow = h.rows[h.rows.length - 1], canTalk = !fin && !(lastRow.loc === 'holed' || lastRow.loc === 'holedx');
-    if (canTalk) out += micHTML();
+    if (talk) out += '<div id="micbubble" class="micbubble" hidden aria-live="polite"><b>Listening…</b><span class="mictext"></span></div>';
     if (view.voice && view.voice.hole === view.hole && !fin) out += voiceCardHTML(h);
     return out;
   }
@@ -892,8 +892,8 @@
   function voiceBlocked() { return !SpeechRec || sessionStorage.getItem('golfsg.voiceOff') === '1'; }
   function micHTML() {
     var off = voiceBlocked();
-    return '<button type="button" id="micbtn" class="micbtn' + (off ? ' off' : '') + '" aria-label="' + (off ? 'Voice entry (type instead)' : 'Hold to talk: say the shot') + '">' + MIC_SVG +
-      '<span class="miclbl">' + (off ? 'Say it' : 'Hold to talk') + '</span></button><div id="micbubble" class="micbubble" hidden aria-live="polite"><b>Listening…</b><span class="mictext"></span></div>';
+    return '<button type="button" id="micbtn" class="micbtn' + (off ? ' off' : '') + '" aria-label="' + (off ? 'Voice entry (type instead)' : 'Hold to talk: say the shot') + '" title="' + (off ? 'Say it' : 'Hold to talk') + '">' + MIC_SVG +
+      '<span class="miclbl">' + (off ? 'Say it' : 'Hold to talk') + '</span></button>';
   }
   function bubble(title, text) {
     var b = document.getElementById('micbubble'), btn = document.getElementById('micbtn'); if (!b) return;
@@ -965,33 +965,36 @@
     var V = view.voice, out = '<div class="sheet-bg" data-act="vcancel"></div><div class="sheet frostsheet voicecard" role="dialog" aria-label="Voice entry">';
     if (V.stage === 'type') {
       return out + '<h3>' + MIC_SVG + ' Say the shot</h3><p class="vwhy">' + esc(V.why) + ' Tap the box, then the 🎤 on the keyboard and speak – or just type.</p>' +
-        '<input type="text" id="vtext" autocomplete="off" autocapitalize="off" placeholder="7 iron 150 green 20 feet left">' +
+        '<input type="text" id="vtext" autocomplete="off" autocapitalize="off" placeholder="third shot green 25 feet short">' +
         '<div class="vbtns"><button class="frostmain big" data-act="vtype">Check it</button><button class="frostbtn big" data-act="vcancel">Cancel</button></div></div>';
     }
     var p = V.p, res = VOICE.apply(h, p), fields = VOICE.describe(h, res, p);
     out += '<h3>' + MIC_SVG + ' I heard</h3><p class="vraw">“' + esc(p.raw) + '”</p>';
     if (V.stage === 'edit') {
-      var k = res.k, R = res.rows[k] || {}, green = R.loc === 'green' || R.loc === 'holed' || !!p.putt;
+      var k = res.k < 0 ? (p.shot ? p.shot - 1 : h.rows.length) : res.k, R = res.rows[k] || {}, n = h.rows.length, sel = p.shot || k + 1;
+      var loc = p.loc || R.loc || '', green = loc === 'green' || loc === 'holed' || !!p.putt, opts = [];
+      for (var si = 1; si <= n + 1; si++) opts.push([si, 'Shot ' + si + (si === n + 1 ? ' (new)' : '')]);
       out += '<div class="vedit">' +
+        '<label><span>Shot</span>' + vSel('shot', opts, sel) + '</label>' +
         (green ? '' : '<label><span>Club</span>' + vSel('club', [['', '–']].concat(SG.CLUBS.map(function (c) { return [c, c]; })), p.club) + '</label>') +
-        '<label><span>From (' + (green ? 'ft' : 'yd') + ')</span><input type="text" inputmode="numeric" maxlength="3" data-vf="from" value="' + (p.from == null ? '' : p.from) + '"></label>' +
-        '<label><span>Ended</span>' + vSel('result', [['', '–'], ['fairway', 'Fairway'], ['rough', 'Rough'], ['deep', 'Deep rough'], ['bunker', 'Bunker'], ['green', 'Green'], ['hazard', 'Hazard'], ['trees', 'Trees'], ['ob', 'OB'], ['holed', 'In the hole']], p.result) + '</label>' +
-        '<label><span>Then (' + (p.result === 'green' ? 'ft' : 'yd') + ' to pin)</span><input type="text" inputmode="numeric" maxlength="3" data-vf="to" value="' + (p.to == null ? '' : p.to) + '"></label>' +
-        '<label><span>Miss</span>' + vSel('dir', [['', '–']].concat(SG.DIR8.map(function (d) { return [d, SG.DIR_NAME[d]]; })), p.dir) + '</label>' +
-        '<label class="vchk"><input type="checkbox" data-vf="pen"' + (p.pen ? ' checked' : '') + '> Penalty +1</label>' +
-        (k === 0 && Number(h.par) !== 3 ? '<label class="vchk"><input type="checkbox" data-vf="layup"' + (p.layup ? ' checked' : '') + '> Layup</label>' : '') + '</div>';
+        '<label><span>To pin (' + (sel === 1 ? 'yd' : green ? 'ft' : 'yd') + ')</span><input type="text" inputmode="numeric" maxlength="3" data-vf="dist" value="' + (p.dist == null ? '' : p.dist) + '"></label>' +
+        (sel === 1 ? '' : '<label><span>Hitting from</span>' + vSel('loc', [['', '–'], ['fairway', 'Fairway'], ['rough', 'Rough'], ['deep', 'Deep rough'], ['bunker', 'Bunker'], ['green', 'Green'], ['hazard', 'Hazard'], ['trees', 'Trees'], ['ob', 'OB re-hit'], ['holed', 'In the hole']], p.loc) + '</label>' +
+          '<label><span>Shot ' + (sel - 1) + ' missed</span>' + vSel('dir', [['', '–']].concat(SG.DIR8.map(function (d) { return [d, SG.DIR_NAME[d]]; })), p.dir) + '</label>' +
+          '<label class="vchk"><input type="checkbox" data-vf="pen"' + (p.pen ? ' checked' : '') + '> Shot ' + (sel - 1) + ' penalty +1</label>') +
+        (sel === 1 && Number(h.par) !== 3 ? '<label class="vchk"><input type="checkbox" data-vf="layup"' + (p.layup ? ' checked' : '') + '> Layup</label>' : '') + '</div>';
     } else if (p.empty) out += '<p class="vwarn">I couldn’t find a club, distance or result in that. Try again, or tap Edit.</p>';
     else out += '<div class="vfields">' + fields.map(function (f) { return '<div class="vf"><span>' + esc(f[0]) + '</span><b>' + esc(f[1]) + '</b></div>'; }).join('') + '</div>';
     if (p.unknown && V.stage !== 'edit') out += '<p class="vnote">Not sure about: “' + esc(p.unknown) + '”</p>';
+    (res.notes || []).forEach(function (w) { out += '<p class="vnote">' + esc(w) + '</p>'; });
     res.warn.forEach(function (w) { out += '<p class="vwarn">' + esc(w) + '</p>'; });
-    var can = !res.done && !(p.empty && V.stage !== 'edit');
+    var can = !res.done && res.k >= 0 && !(p.empty && V.stage !== 'edit');
     return out + '<div class="vbtns"><button class="frostmain big vsave" data-act="vsave"' + (can ? '' : ' disabled') + '>✓ Save</button>' +
       (V.stage === 'edit' ? '' : '<button class="frostbtn big" data-act="vedit">✎ Edit</button>') + '<button class="frostbtn big" data-act="vretry">↺ Retry</button></div></div>';
   }
   function voiceSave() {
     var h = round().holes[view.hole], p = view.voice.p, res = VOICE.apply(h, p);
     if (res.done || res.k < 0) { toast(res.warn[0] || 'Nothing to save'); return; }
-    h.rows = res.rows; save(); view.voice = null; view.menu = null; view.vflash = [res.k, res.rk]; render(); view.vflash = null;
+    h.rows = res.rows; save(); view.voice = null; view.menu = null; view.vflash = res.touched.slice(); render(); view.vflash = null;
     toast('Shot ' + (res.k + 1) + ' saved');
   }
   function dirSheetHTML(h, k) {
@@ -2519,10 +2522,11 @@
   function vField(t) {
     var f = t.getAttribute && t.getAttribute('data-vf'); if (!f || !view.voice || !view.voice.p) return false;
     var p = view.voice.p;
-    if (f === 'from' || f === 'to') { t.value = t.value.replace(/[^0-9]/g, '').slice(0, 3); p[f] = t.value === '' ? null : +t.value; p[f + 'Unit'] = ''; }
+    if (f === 'dist') { t.value = t.value.replace(/[^0-9]/g, '').slice(0, 3); p.dist = t.value === '' ? null : +t.value; p.distUnit = ''; p.extra = null; }
+    else if (f === 'shot') p.shot = +t.value || undefined;
     else if (f === 'pen' || f === 'layup') p[f] = t.checked;
     else p[f] = t.value || undefined;
-    if (f === 'result' && p.result !== 'holed') p.holedx = false;
+    if (f === 'loc') { p.holedx = false; if (p.loc !== 'green' && p.loc !== 'holed') p.putt = false; }
     p.empty = false; return f;
   }
   document.addEventListener('input', function (ev) { vField(ev.target); cField(ev.target); });
@@ -2537,7 +2541,7 @@
     cardRefresh();
     if (f === 'par' && t.value) { var nx = document.querySelector('[data-cf="par"][data-i="' + (i + 1) + '"]'); if (nx) nx.focus(); } // one digit: hop to the next hole
   }
-  document.addEventListener('change', function (ev) { var f = vField(ev.target); if (f === 'result' || f === 'club') render(); });
+  document.addEventListener('change', function (ev) { var f = vField(ev.target); if (f === 'loc' || f === 'club' || f === 'shot') render(); });
   document.addEventListener('keydown', function (ev) { if (ev.key === 'Enter' && ev.target && ev.target.id === 'vtext') { ev.preventDefault(); var b = document.querySelector('[data-act="vtype"]'); if (b) b.click(); } });
   // Mic button: press and hold to talk (pointer events cover touch and mouse)
   document.addEventListener('pointerdown', function (ev) { var b = ev.target.closest && ev.target.closest('#micbtn'); if (!b) return; ev.preventDefault(); try { b.setPointerCapture(ev.pointerId); } catch (e) {} micDown(b); });

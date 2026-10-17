@@ -545,18 +545,19 @@ button.tiplbl { background: none; border: 0; box-shadow: none; padding: 0 6px; m
 button.tiplbl:active { transform: none; opacity: .7; }
 
 /* Voice entry (v79): hold-to-talk mic + listening bubble + confirm card, in the sky look */
-.micbtn { position: fixed; right: max(14px, env(safe-area-inset-right)); bottom: calc(18px + env(safe-area-inset-bottom)); z-index: 30;
-  display: flex; align-items: center; gap: 8px; min-height: 64px; padding: 0 20px 0 16px; border-radius: 999px;
-  background: linear-gradient(180deg, #a9cdf0, #7fb2e5); border: 1px solid rgba(255, 255, 255, .8); color: #0e2a44; font-size: 17px; font-weight: 700;
-  box-shadow: 0 8px 24px rgba(30, 60, 100, .28), inset 0 1px 0 rgba(255, 255, 255, .6);
+.countrow { display: flex; align-items: center; justify-content: space-between; gap: 10px; min-height: 64px; margin-top: 6px; }
+.countrow .count { margin: 0; padding: 0 4px; }
+/* v81: the 'Hold to talk' pill sits inline beside the stroke count, above Add Shot (never floats over Finish) */
+.micbtn { position: relative; flex: 0 0 auto; display: inline-flex; align-items: center; gap: 8px; min-height: 60px; padding: 0 20px 0 16px; margin: 0; border-radius: 999px;
+  background: linear-gradient(180deg, #a9cdf0, #7fb2e5); border: 1px solid rgba(255, 255, 255, .8); color: #0e2a44; font-size: 17px; font-weight: 700; width: auto;
+  box-shadow: 0 6px 18px rgba(30, 60, 100, .24), inset 0 1px 0 rgba(255, 255, 255, .6);
   -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; touch-action: none; -webkit-tap-highlight-color: transparent; }
-html body .roundpage .micbtn { background: linear-gradient(180deg, #a9cdf0, #7fb2e5); border: 1px solid rgba(255, 255, 255, .8); color: #0e2a44; border-radius: 999px; }
+html body .roundpage .holecard .micbtn { background: linear-gradient(180deg, #a9cdf0, #7fb2e5); border: 1px solid rgba(255, 255, 255, .8); color: #0e2a44; border-radius: 999px; width: auto; min-height: 60px; padding: 0 20px 0 16px; margin: 0; }
 .micbtn .micico { flex: 0 0 auto; }
 .micbtn.off { opacity: .92; }
-html body .roundpage .micbtn.on { background: #1c1c1e; color: #fff; border-color: #1c1c1e; animation: micpulse 1.2s ease-out infinite; }
+html body .roundpage .holecard .micbtn.on { background: #1c1c1e; color: #fff; border-color: #1c1c1e; animation: micpulse 1.2s ease-out infinite; }
 @keyframes micpulse { 0% { box-shadow: 0 0 0 0 rgba(127, 178, 229, .75), 0 8px 24px rgba(0, 0, 0, .3); } 100% { box-shadow: 0 0 0 22px rgba(127, 178, 229, 0), 0 8px 24px rgba(0, 0, 0, .3); } }
-.roundpage:has(.micbtn) { padding-bottom: 96px; }
-.micbubble { position: fixed; left: 14px; right: 14px; bottom: calc(96px + env(safe-area-inset-bottom)); z-index: 31; padding: 14px 16px; border-radius: 22px;
+.micbubble { position: fixed; left: 14px; right: 14px; top: calc(14px + env(safe-area-inset-top)); z-index: 31; padding: 14px 16px; border-radius: 22px;
   background: rgba(236, 243, 250, .86); -webkit-backdrop-filter: blur(20px) saturate(140%); backdrop-filter: blur(20px) saturate(140%);
   border: 1px solid rgba(255, 255, 255, .8); box-shadow: 0 10px 30px rgba(30, 50, 80, .22); color: #1a2230; animation: sheetin .16s ease-out; }
 .micbubble[hidden] { display: none; }
