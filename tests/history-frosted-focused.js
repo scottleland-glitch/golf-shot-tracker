@@ -46,6 +46,19 @@ const BASE = 'http://127.0.0.1:8796/', OUT = '/workspace/golf-app/screenshots/',
       box: getComputedStyle(q('#playerbox')).backgroundColor }; });
   assert.ok(A.sky && /linear-gradient/.test(A.bg) && !/home-bg/.test(A.bg) && A.top && /linear-gradient/.test(A.hist) && A.btns && /rgba\(2[3-5]\d, 2[3-5]\d, 2[3-5]\d, 0\./.test(A.box), 'archive sky ' + JSON.stringify(A));
   await page.evaluate(() => { const t = document.getElementById('toast'); if (t) t.className = ''; }); await page.waitForTimeout(400); await page.screenshot({ path: OUT + 'sky-archive.png' });
+  // Archive clean-up: long text sits behind (i) / 💡 buttons, hidden until tapped
+  const vis = await page.evaluate(() => [...document.querySelectorAll('.archivepage p, .archivepage .tippop, .archivepage .notice')].filter(e => e.offsetParent && e.textContent.trim().length > 60).map(e => e.textContent.trim().slice(0, 40)));
+  assert.deepStrictEqual(vis, [], 'no long text visible');
+  for (const k of ['odinfo', 'bktip', 'bkinfo']) assert.ok(await page.$('[data-act="info"][data-v="' + k + '"]') && await page.isHidden('#tip-' + k), k + ' collapsed');
+  assert.strictEqual(await page.textContent('[data-v="bktip"] span'), '💡'); assert.strictEqual(await page.textContent('[data-v="odinfo"] span'), 'i');
+  await page.evaluate(() => { const t = document.getElementById('toast'); if (t) t.className = ''; }); await page.waitForTimeout(300); await page.screenshot({ path: OUT + 'archive-clean.png' });
+  await page.click('[data-v="odinfo"]'); assert.ok(await page.isVisible('#tip-odinfo')); assert.match(await page.textContent('#tip-odinfo'), /Works offline/);
+  assert.strictEqual(await page.getAttribute('[data-v="odinfo"]', 'aria-expanded'), 'true'); await page.waitForTimeout(300); await page.screenshot({ path: OUT + 'archive-clean-open.png' });
+  await page.click('[data-v="odinfo"]'); assert.ok(await page.isHidden('#tip-odinfo'), 'tap again closes');
+  // the label next to each icon toggles too (whole row tappable)
+  for (const k of ['odinfo', 'bktip', 'bkinfo']) { await page.click('button.tiplbl[data-v="' + k + '"]'); assert.ok(await page.isVisible('#tip-' + k), k + ' label opens');
+    assert.strictEqual(await page.getAttribute('.tipbtn[data-v="' + k + '"]', 'aria-expanded'), 'true', k + ' icon state follows'); await page.click('button.tiplbl[data-v="' + k + '"]'); assert.ok(await page.isHidden('#tip-' + k), k + ' label closes'); }
+  await page.click('[data-v="bktip"]'); assert.match(await page.textContent('#tip-bktip'), /backed up/); await page.click('[data-v="bkinfo"]'); assert.match(await page.textContent('#tip-bkinfo'), /golf-rounds-backup/);
   await page.click('.topbar [data-act="home"]'); await page.waitForSelector('#home');
   assert.deepStrictEqual(errors, []); console.log('HISTORY FROSTED OK'); await b.close(); srv.kill();
 })().catch(e => { console.error(e); process.exit(1); });

@@ -528,3 +528,18 @@ html body .frostpage .frostdanger, html body .frostpage.theme-sky .frostdanger {
 .archivepage button.primary, .archivepage .odcard button.primary { background: linear-gradient(180deg, #a9cdf0, #7fb2e5); border-color: #79a9da; color: #0e2a44; }
 .archivepage h2 { font-weight: 600; color: var(--frost-ink); }
 .frostpage .frostbtn.big, .frostpage label.frostbtn { border-radius: 22px; }
+
+/* Tap-to-reveal tips (Archive): small (i) / 💡 button + soft glass panel */
+.tiphead { display: flex; align-items: center; gap: 2px; }
+.tiprow { display: flex; flex-wrap: wrap; align-items: center; gap: 2px; margin: 6px 0; }
+.tiprow .tiplbl { font-size: 15px; font-weight: 600; color: var(--frost-ink-soft, #445064); }
+.tipbtn span { font-style: normal; }
+.tiprow .tippop, .tiphead + .tippop { flex-basis: 100%; }
+.frostpage .tipbtn span { background: rgba(240, 246, 252, .8); border-color: rgba(120, 140, 165, .5); color: #1a2230; }
+.frostpage .tipbtn[aria-expanded="true"] span { background: #1c1c1e; color: #fff; border-color: #1c1c1e; }
+.frostpage .tippop { background: rgba(244, 248, 252, .82); -webkit-backdrop-filter: var(--frost-blur); backdrop-filter: var(--frost-blur); border: 1px solid rgba(255, 255, 255, .75);
+  border-radius: 16px; padding: 10px 12px; margin: 4px 0 6px; font-size: 15px; font-weight: 500; line-height: 1.4; color: var(--frost-ink); box-shadow: var(--frost-shadow); animation: sheetin .16s ease-out; }
+.archivepage .odcard { padding-bottom: 10px; }
+button.tiplbl { background: none; border: 0; box-shadow: none; padding: 0 6px; min-height: 44px; font: inherit; font-size: 15px; font-weight: 600; color: var(--frost-ink-soft, #445064); text-align: left; }
+.tiphead button.tiplbl { font-size: inherit; font-weight: inherit; color: inherit; padding: 0; }
+button.tiplbl:active { transform: none; opacity: .7; }

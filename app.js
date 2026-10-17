@@ -113,6 +113,10 @@
     if (view.replay != null) document.body.classList.add('noscroll');
     if (view.screen !== 'about') infoize(el);
   }
+  // Small tap-to-reveal tips (Archive): an (i) or 💡 button + a hidden soft panel, toggled by the shared 'info' action
+  function tipBtn(key, icon, label) { return '<button type="button" class="infobtn tipbtn" data-act="info" data-v="' + key + '" aria-controls="tip-' + key + '" aria-expanded="' + !!infoOpen[key] + '" aria-label="' + (label || 'More info') + '"><span>' + icon + '</span></button>'; }
+  function tipLbl(key, text) { return '<button type="button" class="tiplbl" data-act="info" data-v="' + key + '" aria-controls="tip-' + key + '" aria-expanded="' + !!infoOpen[key] + '">' + text + '</button>'; }
+  function tipText(key, html) { return '<div class="infotext tippop" id="tip-' + key + '"' + (infoOpen[key] ? '' : ' hidden') + '>' + html + '</div>'; }
   // Long explanations collapse behind a small (i) button; the first sentence stays as a short caption.
   var infoOpen = {};
   function infoize(root) {
@@ -583,9 +587,9 @@
   }
   function odCardHTML() {
     if (!odOn) return '';
-    var h = '<div class="odcard" id="odcard"><h3>☁️ OneDrive backup</h3>';
+    var h = '<div class="odcard" id="odcard"><h3 class="tiphead">' + (odAcct ? '☁️ OneDrive backup' : tipLbl('odinfo', '☁️ OneDrive backup') + tipBtn('odinfo', 'i', 'About OneDrive backup')) + '</h3>';
     if (!odReady && !odAcct) return h + '<p class="help muted">Loading…</p></div>';
-    if (!odAcct) return h + '<p class="help muted">Connect once and every finished hole and round is copied to OneDrive automatically (Apps › Golf Shot Tracker folder). Works offline – uploads wait until you have signal.</p>' +
+    if (!odAcct) return h + tipText('odinfo', 'Connect once and every finished hole and round is copied to OneDrive automatically (Apps › Golf Shot Tracker folder). Works offline – uploads wait until you have signal.') +
       '<button class="big primary" data-act="odconnect">Connect OneDrive</button></div>';
     return h + '<p class="odacct" id="odacct">Connected as <b>' + esc(odAcct.username || odAcct.name || 'Microsoft account') + '</b></p>' +
       '<p class="odstat" id="odstat" role="status">' + odStatus() + '</p>' +
@@ -685,7 +689,7 @@
     return '<div class="playerbox edit" id="playerbox">' + (view.needName ? '<p class="notice bad" id="needname">' + esc(view.needName) + '</p>' : '') +
       '<label class="lbl" for="pname">Player name</label><div class="pnrow2"><input type="text" id="pname" value="' + esc(n) + '" placeholder="e.g. Scott" autocomplete="name" maxlength="40">' +
       '<button class="primary" data-act="setname">Save</button>' + (n ? '<button data-act="cancelname">Cancel</button>' : '') + '</div>' +
-      '<p class="help muted">Saved on this phone. It labels your rounds and names your backups (golf-rounds-<i>name</i>.json), so several phones can share one OneDrive.</p></div>';
+      '<div class="tiprow">' + tipBtn('nameinfo', 'i', 'About the player name') + tipLbl('nameinfo', 'About the player name') + '</div>' + tipText('nameinfo', 'Saved on this phone. It labels your rounds and names your backups (golf-rounds-<i>name</i>.json), so several phones can share one OneDrive.') + '</div>';
   }
   function homeHTML() {
     var cur = rounds.filter(function (r) { return r.id === localStorage.getItem(CUR); })[0];
@@ -714,10 +718,10 @@
     h += '<h2>Your data</h2>' + playerHTML();
     if (view.notice) h += '<p class="notice ' + (view.notice.bad ? 'bad' : 'good') + '" id="notice" role="status">' + esc(view.notice.text) + '</p>';
     h += odCardHTML();
-    var rem = (odOn && odAcct) ? '' : backupReminder(); if (rem) h += '<p class="notice remind" id="bkremind">' + esc(rem) + '</p>';
+    var rem = (odOn && odAcct) ? '' : backupReminder(); if (rem) h += '<div class="tiprow" id="bkremind">' + tipBtn('bktip', '💡', 'Backup tip') + tipLbl('bktip', 'Backup tip') + tipText('bktip', esc(rem)) + '</div>';
     h += '<button class="big frostbtn" data-act="backup"' + (rounds.length ? '' : ' disabled') + '>💾 Back up rounds</button>' +
       '<label class="big filebtn frostbtn" for="restorefile">📂 Restore from backup</label><input type="file" id="restorefile" accept=".json,application/json" hidden>' +
-      '<p class="help muted">Back up saves all rounds as one file (golf-rounds-backup-date.json) – choose Save to Files or OneDrive in the share sheet. Restore adds the rounds from a backup file; rounds already on this phone are not duplicated.</p>';
+      '<div class="tiprow" id="bkinfo">' + tipBtn('bkinfo', 'i', 'About backup and restore') + tipLbl('bkinfo', 'About backup &amp; restore') + tipText('bkinfo', 'Back up saves all rounds as one file (golf-rounds-backup-date.json) – choose Save to Files or OneDrive in the share sheet. Restore adds the rounds from a backup file; rounds already on this phone are not duplicated.') + '</div>';
     if (rounds.length) h += '<button class="big frostbtn" data-act="csvall">Export all rounds (CSV)</button>';
     h += '<button class="big frostbtn" data-act="about">ⓘ About the numbers</button>';
     return h + '</div>';
@@ -2123,7 +2127,9 @@
       case 'history': view.hmenu = null; view.screen = 'history'; view.notice = null; render(); window.scrollTo(0, 0); return;
       case 'backup': backupRounds(); return;
       case 'pdf': case 'pdfshare': case 'pdfod': pdfAct(act); return;
-      case 'info': { infoOpen[v] = !infoOpen[v]; var t = b && document.getElementById(b.getAttribute('aria-controls')); if (b) b.setAttribute('aria-expanded', !!infoOpen[v]); if (t) t.hidden = !infoOpen[v]; return; }
+      case 'info': { infoOpen[v] = !infoOpen[v]; var t = b && document.getElementById(b.getAttribute('aria-controls'));
+        [].slice.call(document.querySelectorAll('[data-act="info"]')).forEach(function (x) { if (x.getAttribute('data-v') === v) x.setAttribute('aria-expanded', !!infoOpen[v]); }); // icon + its label
+        if (t) t.hidden = !infoOpen[v]; return; }
       case 'discard': { // remove the round for good: rounds list (History), current-round key, and from the next backup upload
         var did = b.getAttribute('data-id'), dr2 = rounds.filter(function (x) { return x.id === did; })[0];
         if (!confirm('Discard this round? Shots will be deleted.')) return;
