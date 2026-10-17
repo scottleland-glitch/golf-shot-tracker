@@ -629,3 +629,13 @@ html body .roundpage .voicecard .vbtns .frostmain { background: linear-gradient(
 .coursespage .crsopen { flex: 1; text-align: left; background: none; border: 0; box-shadow: none; padding: 8px 10px; min-height: 56px; display: flex; flex-direction: column; color: var(--frost-ink); }
 .coursespage .crsopen b { font-size: 19px; font-weight: 700; } .coursespage .crsopen small { font-size: 14px; color: var(--frost-ink-soft); margin-top: 2px; }
 .coursespage .crsdel { flex: 0 0 48px; min-height: 48px; padding: 0; border-radius: 14px; }
+
+/* v83: keyboard-dictation box – compact, frosted, pinned to the top so the keyboard never covers it */
+html body .roundpage .sheet.voicedict { top: calc(10px + env(safe-area-inset-top)); bottom: auto; left: 10px; right: 10px; border-radius: 24px; padding: 12px 12px 10px;
+  border: 1px solid rgba(255, 255, 255, .8); box-shadow: 0 12px 34px rgba(30, 50, 80, .25); }
+.voicedict .vdrow { display: flex; gap: 8px; align-items: center; }
+.voicedict #vtext { flex: 1 1 auto; min-width: 0; height: 56px; font-size: 20px; font-weight: 600; padding: 0 14px; border-radius: 16px;
+  border: 1px solid rgba(150, 175, 200, .6); background: rgba(255, 255, 255, .92); color: #1a2230; }
+html body .roundpage .voicedict .vdrow button { flex: 0 0 auto; width: 56px; height: 56px; min-height: 56px; margin: 0; padding: 0; border-radius: 16px; font-size: 22px; font-weight: 800; }
+html body .roundpage .voicedict .vdrow button.frostmain { background: linear-gradient(180deg, #a9cdf0, #7fb2e5); color: #0e2a44; border: 1px solid rgba(255, 255, 255, .8); }
+.voicedict .vhint { margin: 8px 4px 0; font-size: 15px; font-weight: 600; color: #445064; }
