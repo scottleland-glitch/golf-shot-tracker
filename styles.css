@@ -582,3 +582,49 @@ html body .roundpage .voicecard .vbtns .frostmain { background: linear-gradient(
 .voicecard .vedit .vchk input { width: 24px; height: 24px; accent-color: #1c1c1e; }
 .srow.vflash { animation: vflash 1.6s ease-out; border-radius: 14px; }
 @keyframes vflash { 0% { background: rgba(127, 178, 229, .7); } 100% { background: transparent; } }
+
+/* Saved courses + scorecard scan (v80) – sky look */
+.home .ncrs { display: flex; flex-wrap: wrap; gap: 6px; padding: 2px 2px 4px; }
+.home .ncchip, .home .ntee { border: 1px solid rgba(23, 48, 31, .15); background: rgba(255, 255, 255, .7); color: #17301f; border-radius: 999px; padding: 9px 14px; font-size: 15px; font-weight: 600; min-height: 40px; }
+.home .ncchip.sel, .home .ntee.sel { background: #1c1c1e; border-color: #1c1c1e; color: #fff; }
+.home .ntees { display: flex; flex-wrap: wrap; gap: 6px; padding: 2px; }
+.home .ntee { display: flex; flex-direction: column; align-items: center; line-height: 1.1; padding: 7px 12px; }
+.home .ntee small { font-size: 11px; font-weight: 500; opacity: .75; }
+.home .nscan { display: flex; gap: 6px; }
+.home .nscan .sheet-item { border-top: 0 !important; border-radius: 14px !important; background: rgba(169, 205, 240, .55); color: #0e2a44; font-weight: 600; text-align: center; }
+.home .nscan .scanbtn { flex: 1; }
+.home .nscan .sheet-item:last-child { flex: 0 0 52px; }
+.cardpage .cardstart { display: flex; flex-direction: column; gap: 10px; align-items: stretch; text-align: center; padding: 18px 14px; margin-top: 12px; }
+.cardpage .cardicon { font-size: 54px; line-height: 1; margin: 6px 0 4px; }
+.cardpage label.frostmain.filebtn { min-height: 64px; font-size: 21px; border: 1px solid #79a9da; }
+.cardpage .cardread { text-align: center; margin-top: 12px; }
+.cardpage .cardthumb { width: 100%; max-height: 220px; object-fit: cover; border-radius: 16px; display: block; margin-bottom: 12px; }
+.cardpage .progbar { height: 10px; border-radius: 999px; background: rgba(255, 255, 255, .6); overflow: hidden; }
+.cardpage .progbar i { display: block; height: 100%; background: linear-gradient(90deg, #7fb2e5, #3b6e9f); border-radius: 999px; transition: width .3s; }
+.cardpage .cardstat { margin: 10px 0 2px; font-size: 16px; font-weight: 600; color: var(--frost-ink-soft); }
+.cardpage .teepick { display: flex; flex-direction: column; gap: 8px; margin-top: 12px; }
+.cardpage .teebtn { display: flex; justify-content: space-between; align-items: center; min-height: 62px; padding: 0 18px; margin: 0; border-radius: 20px; }
+.cardpage .teebtn b { font-size: 21px; font-weight: 700; } .cardpage .teebtn span { font-size: 16px; font-weight: 600; color: var(--frost-ink-soft); }
+.cardnote { font-size: 15px; color: var(--frost-ink-soft, #445064); margin: 8px 4px; }
+.cardpage .cardrev { margin-top: 12px; padding: 12px 10px; }
+.cardpage .crsname { font-size: 20px; font-weight: 700; border-radius: 14px; border: 1px solid rgba(150, 170, 190, .55); background: rgba(255, 255, 255, .9); box-sizing: border-box; }
+.cardpage .revtees { display: flex; flex-wrap: wrap; gap: 6px; margin: 10px 0 6px; }
+.cardpage .revtees .frostchip { min-height: 40px; padding: 6px 14px; font-size: 15px; font-weight: 600; border: 1px solid rgba(255, 255, 255, .7); }
+.cardpage .teename { display: flex; gap: 6px; margin-bottom: 8px; }
+.cardpage .teename input { flex: 1; font-size: 16px; padding: 8px 12px; border-radius: 12px; border: 1px solid rgba(150, 170, 190, .55); background: rgba(255, 255, 255, .85); }
+.cardpage .teename button { flex: 0 0 48px; min-height: 44px; padding: 0; border-radius: 12px; }
+.cardpage .revgrid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.cardpage .rg-h, .cardpage .rg-r, .cardpage .rg-t { display: grid; grid-template-columns: 24px 1fr 1.5fr; gap: 4px; align-items: center; }
+.cardpage .rg-h span { font-size: 12px; font-weight: 600; text-transform: uppercase; color: var(--frost-ink-soft); text-align: center; }
+.cardpage .rg-r { margin: 3px 0; } .cardpage .rg-r > span { font-size: 15px; font-weight: 700; text-align: center; color: var(--frost-ink-soft); }
+.cardpage .rg-r input { width: 100%; min-width: 0; box-sizing: border-box; height: 40px; padding: 0 4px; text-align: center; font-size: 18px; font-weight: 700; border-radius: 10px; border: 1px solid rgba(150, 170, 190, .5); background: rgba(255, 255, 255, .88); color: #1a2230; }
+.cardpage .rg-r input:placeholder-shown { background: rgba(255, 240, 200, .95); border-color: rgba(200, 150, 40, .6); }
+.cardpage .rg-t { border-top: 1px solid rgba(26, 34, 48, .15); margin-top: 4px; padding-top: 4px; font-size: 14px; }
+.cardpage .rg-t span { font-weight: 600; color: var(--frost-ink-soft); font-size: 12px; text-transform: uppercase; } .cardpage .rg-t b { text-align: center; }
+.cardpage .revtot { text-align: center; font-weight: 700; margin: 10px 0 0; } .cardpage .revmiss { text-align: center; color: #8a5a00; font-weight: 600; margin: 4px 0 0; font-size: 14px; }
+.archivepage .crsbtn { display: flex; flex-direction: column; align-items: center; }
+.archivepage .crsbtn small { font-size: 13px; font-weight: 500; color: var(--frost-ink-soft); }
+.coursespage .crsrow { display: flex; align-items: center; gap: 8px; margin: 10px 0; padding: 6px 6px 6px 4px; }
+.coursespage .crsopen { flex: 1; text-align: left; background: none; border: 0; box-shadow: none; padding: 8px 10px; min-height: 56px; display: flex; flex-direction: column; color: var(--frost-ink); }
+.coursespage .crsopen b { font-size: 19px; font-weight: 700; } .coursespage .crsopen small { font-size: 14px; color: var(--frost-ink-soft); margin-top: 2px; }
+.coursespage .crsdel { flex: 0 0 48px; min-height: 48px; padding: 0; border-radius: 14px; }

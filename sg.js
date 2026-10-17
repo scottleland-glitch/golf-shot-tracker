@@ -684,18 +684,19 @@
 
   /* ===================== BACKUP / RESTORE ===================== */
   // Backup file: { app: 'golf-shot-tracker', kind: 'rounds-backup', version: 1, exported: ISO, rounds: [...] }
-  function makeBackup(rounds, now, player) {
+  function makeBackup(rounds, now, player, courses) {
     var o = { app: 'golf-shot-tracker', kind: 'rounds-backup', version: 1, exported: (now || new Date()).toISOString(), count: rounds.length, rounds: rounds };
-    if (player) o.player = player; return o;
+    if (player) o.player = player; if (courses && courses.length) o.courses = courses; return o;
   }
   // Accepts a backup object (or a bare array of rounds). Returns {rounds} or {error}.
   function parseBackup(data) {
     if (typeof data === 'string') { try { data = JSON.parse(data); } catch (e) { return { error: 'That file is not a golf backup (could not read it as JSON).' }; } }
-    var list = Array.isArray(data) ? data : data && Array.isArray(data.rounds) ? data.rounds : null;
+    var crs = data && !Array.isArray(data) && Array.isArray(data.courses) ? data.courses.filter(function (c) { return c && typeof c.id === 'string' && Array.isArray(c.tees); }) : [];
+    var list = Array.isArray(data) ? data : data && Array.isArray(data.rounds) ? data.rounds : crs.length ? [] : null;
     if (!list) return { error: 'That file is not a golf backup (no rounds in it).' };
     var ok = list.filter(function (r) { return r && typeof r.id === 'string' && r.id && Array.isArray(r.holes); });
     if (list.length && !ok.length) return { error: 'That file is not a golf backup (the rounds in it are not readable).' };
-    return { rounds: ok, skipped: list.length - ok.length };
+    return { rounds: ok, skipped: list.length - ok.length, courses: crs };
   }
   /**
    * Merge backup rounds into the phone's rounds by id. New ids are added, identical rounds are left

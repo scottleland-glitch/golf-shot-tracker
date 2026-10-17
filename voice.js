@@ -135,7 +135,8 @@
     }
     var R = rows[k];
     // The bottom row already has a different distance: the phrase is the NEXT shot (its lie may still need picking)
-    if (reuse < 0 && p.from != null && !blank(R.dist) && R.loc !== 'ob') {
+    var teeUnplayed = k === 0 && rows.length === 1 && !R.club; // course prefilled the tee distance: the phrase is still the tee shot
+    if (reuse < 0 && !teeUnplayed && p.from != null && !blank(R.dist) && R.loc !== 'ob') {
       var nu = (p.putt || R.loc === 'green') && p.fromUnit !== 'yd' ? 'ft' : 'yd', ru = R.loc === 'green' ? 'ft' : 'yd';
       if (!(nu === ru && +R.dist === conv(p.from, p.fromUnit || nu, nu))) { R = { loc: p.putt ? 'green' : '', dist: '', dir: '', pen: false }; rows.push(R); k = rows.length - 1; }
     }

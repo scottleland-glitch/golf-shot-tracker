@@ -1,7 +1,10 @@
 /* Pin High (formerly Golf Shot Tracker) - UI (v4: shot rows + selectable SG baselines). Data lives in localStorage on the phone. */
 (function () {
   'use strict';
-  var KEY = 'golfsg.rounds.v1', CUR = 'golfsg.current.v1', PN = 'golfsg.player.v1';
+  var KEY = 'golfsg.rounds.v1', CUR = 'golfsg.current.v1', PN = 'golfsg.player.v1', CRS = 'golfsg.courses.v1';
+  function courses() { try { var a = JSON.parse(localStorage.getItem(CRS) || '[]'); return Array.isArray(a) ? a : []; } catch (e) { return []; } }
+  function saveCourses(a) { localStorage.setItem(CRS, JSON.stringify(a)); }
+  function courseById(id) { return courses().filter(function (c) { return c.id === id; })[0]; }
   function playerName() { return (localStorage.getItem(PN) || '').trim(); }
   // Rounds that belong to this phone's player (unnamed rounds count as theirs). Backups contain only these,
   // so another player's rounds loaded from OneDrive are never written into this player's file.
@@ -76,6 +79,9 @@
     var sel = document.getElementById('newbl');
     var r = { v: 3, dv: 2, id: 'r' + Date.now(), date: new Date().toISOString(), course: course || '', player: playerName(), baseline: sel ? sel.value : 'pga', holes: [] };
     for (var i = 0; i < 18; i++) r.holes.push(emptyHole());
+    var nc = view.newC && courseById(view.newC.id);
+    if (nc && (!course || course.toLowerCase() === nc.name.toLowerCase())) { r.course = nc.name; r.courseId = nc.id; r.tee = view.newC.tee || (nc.tees[0] || {}).name || ''; COURSES.prefill(r.holes, nc, r.tee); }
+    view.newC = null;
     rounds.unshift(r); save();
     view.roundId = r.id; localStorage.setItem(CUR, r.id);
     goHole(0, true);
@@ -97,6 +103,8 @@
     if (view.screen !== 'summary') view.map = null;
     if (view.screen !== 'summary' && view.screen !== 'hole') view.replay = null;
     if (view.screen !== 'hole') { view.pinOpen = false; view.voice = null; micAbort(); }
+    if (view.screen !== 'card') view.card = null;
+    if (view.screen !== 'home') { if (view.hmenu !== 'new') view.newC = null; }
     document.body.classList.toggle('noscroll', !!(view.pinOpen && view.screen === 'hole'));
     if (view.screen === 'about') el.innerHTML = aboutHTML();
     else if (view.screen === 'history') el.innerHTML = historyHTML();
@@ -104,6 +112,8 @@
     else if (view.screen === 'odrestore') el.innerHTML = odRestoreHTML();
     else if (view.screen === 'restorepick') el.innerHTML = restorePickHTML();
     else if (view.screen === 'archive') el.innerHTML = archiveHTML();
+    else if (view.screen === 'card') el.innerHTML = cardHTML();
+    else if (view.screen === 'courses') el.innerHTML = coursesHTML();
     else if (view.screen === 'home' || !round()) el.innerHTML = homeHTML();
     else if (view.screen === 'hole') el.innerHTML = '<div class="frostpage roundpage' + roundTheme() + '">' + holeHTML() + (view.pinOpen ? pinHTML() : '') + (view.replay != null ? replayHTML() : '') + '</div>';
     else if (view.screen === 'about') el.innerHTML = aboutHTML();
@@ -489,7 +499,7 @@
   function backupDone() { localStorage.setItem(BK, new Date().toISOString()); var nO = ownRounds().filter(function (x) { return !SG.roundEmpty(x); }).length; view.notice = { text: 'Backup ready: ' + nO + ' round' + (nO === 1 ? '' : 's') + ' for ' + playerName() + ' saved.' }; if (view.screen === 'home' || view.screen === 'archive') render(); }
   function backupRounds() {
     if (!playerName()) { askName('Enter your player name first – it goes in the backup file name.'); return; }
-    var name = 'golf-rounds-' + window.OD.slug(playerName()) + '-' + localDay(new Date()) + '.json', json = JSON.stringify(SG.makeBackup(rounds.filter(function (x) { return !SG.roundEmpty(x); }), null, playerName()), null, 1), file;
+    var name = 'golf-rounds-' + window.OD.slug(playerName()) + '-' + localDay(new Date()) + '.json', json = JSON.stringify(SG.makeBackup(rounds.filter(function (x) { return !SG.roundEmpty(x); }), null, playerName(), courses()), null, 1), file;
     try { file = new File([json], name, { type: 'application/json' }); } catch (e) { file = null; }
     if (file && navigator.canShare && navigator.canShare({ files: [file] })) {
       navigator.share({ files: [file] }).then(backupDone).catch(function (e) {
@@ -507,7 +517,7 @@
     var bp = ''; try { bp = (JSON.parse(text) || {}).player || ''; } catch (e) {}
     if (bp) P.rounds.forEach(function (r) { if (!r.player) r.player = bp; }); // label rounds with the backup's player
     P.rounds.sort(function (a, b) { return new Date(b.date) - new Date(a.date); });
-    view.restore = { rounds: P.rounds, sel: {}, player: bp }; view.preview = null; view.screen = 'restorepick'; render(); window.scrollTo(0, 0);
+    view.restore = { rounds: P.rounds, sel: {}, player: bp, courses: P.courses || [] }; view.preview = null; view.screen = 'restorepick'; render(); window.scrollTo(0, 0);
   }
   function restoreState(r) { var cur = rounds.filter(function (x) { return x.id === r.id; })[0]; return !cur ? 'new' : JSON.stringify(cur) === JSON.stringify(r) ? 'same' : 'diff'; }
   function restorePickHTML() {
@@ -522,7 +532,9 @@
         '<span>' + (S.holesDone ? S.strokes + ' (' + toPar(S.toPar) + ')' : '–') + ' · ' + S.holesDone + '/' + r.holes.length + ' holes · <span class="' + sgCls(S.sgTotal) + '">SG ' + fmtSG(S.sgTotal) + '</span>' + (r.player ? ' · ' + esc(r.player) : '') + '</span>' +
         '<small class="rpst rp-' + st + '">' + (st === 'new' ? 'Not on this phone' : st === 'same' ? '✓ Already on this phone' : 'On this phone – different version') + '</small></button></div>';
     });
-    return o + '</div><button class="primary big" data-act="rpgo" id="rpgo"' + (nSel ? '' : ' disabled') + '>Restore ' + nSel + ' selected</button>';
+    var nc = (R.courses || []).length;
+    if (nc) o += '<p class="help muted" id="rpcourses">⛳ ' + nc + ' saved course' + (nc === 1 ? '' : 's') + ' come along (new or newer ones only).</p>';
+    return o + '</div><button class="primary big" data-act="rpgo" id="rpgo"' + (nSel || nc ? '' : ' disabled') + '>' + (nSel || !nc ? 'Restore ' + nSel + ' selected' : 'Restore courses') + '</button>';
   }
   function previewOnly(el) { // read-only round preview: no editing, deleting or exporting
     var tb = el.querySelector('.topbar'); if (tb) tb.innerHTML = '<button class="txt" data-act="rpback">‹ Backup list</button><div class="title"><b>Preview (read-only)</b><span>' + new Date(view.preview.date).toLocaleDateString() + (view.preview.course ? ' · ' + esc(view.preview.course) : '') + '</span></div><span style="width:70px"></span>';
@@ -542,6 +554,7 @@
     var M = SG.mergeRounds(rounds, P.rounds, replace);
     localStorage.setItem(KEY, JSON.stringify(M.rounds)); rounds = load(); if (M.added || M.replaced) odDirty(3000); // uploads only this player's rounds
     var parts = [M.added + ' added'];
+    if (R.courses && R.courses.length) { var CM = COURSES.mergeCourses(courses(), R.courses); saveCourses(CM.courses); if (CM.added || CM.updated) parts.push((CM.added + CM.updated) + ' course' + (CM.added + CM.updated === 1 ? '' : 's')); }
     if (M.replaced) parts.push(M.replaced + ' replaced');
     if (M.kept) parts.push(M.kept + ' kept as on this phone');
     if (M.same) parts.push(M.same + ' already here');
@@ -567,7 +580,7 @@
       var x = new Error('Reconnect needed'); x.kind = (e && /interaction_required|login_required|consent_required|no_tokens_found|InteractionRequired/i.test((e.errorCode || '') + ' ' + (e.name || ''))) ? 'interaction' : 'offline'; throw x;
     });
   }
-  function odBackupJson() { return JSON.stringify(SG.makeBackup(ownRounds().filter(function (x) { return !SG.roundEmpty(x); }), null, playerName()), null, 1); }
+  function odBackupJson() { return JSON.stringify(SG.makeBackup(ownRounds().filter(function (x) { return !SG.roundEmpty(x); }), null, playerName(), courses()), null, 1); }
   function odSync() {
     if (!odOn || !odAcct || odBusy || !odState.pending) return Promise.resolve();
     odBusy = true;
@@ -702,7 +715,7 @@
     h += '<div class="home-bottom">' + bot + '</div>';
     if (view.hmenu) {
       h += '<div class="sheet-back" data-act="menuclose"></div><div class="hsheet glass" id="plusmenu" role="menu">';
-      if (view.hmenu === 'new') h += '<div class="sheet-h">New round</div><input type="text" id="course" placeholder="Course name (optional)" autocomplete="off">' +
+      if (view.hmenu === 'new') h += '<div class="sheet-h">New round</div>' + newCourseHTML() + '<input type="text" id="course" placeholder="Course name (optional)" autocomplete="off" value="' + esc(view.newC ? (courseById(view.newC.id) || {}).name || '' : '') + '">' +
         '<label class="lbl" for="newbl">Compare my shots against</label>' + blSelect('newbl', 'pga') +
         '<button class="sheet-go" data-act="new">Start round</button><button class="sheet-item muted" data-act="plus">Back</button>';
       else h += '<button class="sheet-item" role="menuitem" data-act="newform">New round</button><button class="sheet-item" role="menuitem" data-act="history">History</button>';
@@ -714,19 +727,120 @@
     var cur = rounds.filter(function (r) { return r.id === localStorage.getItem(CUR); })[0], nSaved = savedRounds().length;
     var h = '<div class="frostpage theme-sky archivepage"><div class="topbar frost"><button class="txt frostbtn" data-act="home">‹ Home</button><div class="title"><b>Archive</b><span>' + nSaved + ' saved round' + (nSaved === 1 ? '' : 's') + '</span></div><span></span></div>';
     h += '<button class="big histbtn frostmain" data-act="history">📋 History<br><small>' + nSaved + ' saved round' + (nSaved === 1 ? '' : 's') + ' – review stats &amp; maps</small></button>';
+    var nC = courses().length;
+    h += '<button class="big frostbtn crsbtn" data-act="courses">⛳ Courses<small>' + (nC ? nC + ' saved' : 'scan a scorecard') + '</small></button>';
     if (cur) h += '<button class="danger discard frostdanger" data-act="discard" data-id="' + esc(cur.id) + '">🗑 Discard round in progress' + (cur.course ? ' – ' + esc(cur.course) : '') + '</button>';
     h += '<h2>Your data</h2>' + playerHTML();
     if (view.notice) h += '<p class="notice ' + (view.notice.bad ? 'bad' : 'good') + '" id="notice" role="status">' + esc(view.notice.text) + '</p>';
     h += odCardHTML();
     var rem = (odOn && odAcct) ? '' : backupReminder(); if (rem) h += '<div class="tiprow" id="bkremind">' + tipBtn('bktip', '💡', 'Backup tip') + tipLbl('bktip', 'Backup tip') + tipText('bktip', esc(rem)) + '</div>';
-    h += '<button class="big frostbtn" data-act="backup"' + (rounds.length ? '' : ' disabled') + '>💾 Back up rounds</button>' +
+    h += '<button class="big frostbtn" data-act="backup"' + (rounds.length || nC ? '' : ' disabled') + '>💾 Back up rounds</button>' +
       '<label class="big filebtn frostbtn" for="restorefile">📂 Restore from backup</label><input type="file" id="restorefile" accept=".json,application/json" hidden>' +
-      '<div class="tiprow" id="bkinfo">' + tipBtn('bkinfo', 'i', 'About backup and restore') + tipLbl('bkinfo', 'About backup &amp; restore') + tipText('bkinfo', 'Back up saves all rounds as one file (golf-rounds-backup-date.json) – choose Save to Files or OneDrive in the share sheet. Restore adds the rounds from a backup file; rounds already on this phone are not duplicated.') + '</div>';
+      '<div class="tiprow" id="bkinfo">' + tipBtn('bkinfo', 'i', 'About backup and restore') + tipLbl('bkinfo', 'About backup &amp; restore') + tipText('bkinfo', 'Back up saves all rounds and saved courses as one file (golf-rounds-backup-date.json) – choose Save to Files or OneDrive in the share sheet. Restore adds the rounds from a backup file; rounds already on this phone are not duplicated.') + '</div>';
     if (rounds.length) h += '<button class="big frostbtn" data-act="csvall">Export all rounds (CSV)</button>';
     h += '<button class="big frostbtn" data-act="about">ⓘ About the numbers</button>';
     return h + '</div>';
   }
 
+  // ---------- Saved courses + scorecard scan ----------
+  function teeTot(t) { var n = COURSES.teeTotal(t); return n ? n.toLocaleString('en-US') : ''; }
+  function newCourseHTML() {
+    var list = courses(), h = '';
+    if (list.length) {
+      h += '<div class="ncrs" id="ncourses">' + list.map(function (c) { var on = view.newC && view.newC.id === c.id;
+        return '<button class="ncchip' + (on ? ' sel' : '') + '" data-act="ncourse" data-id="' + esc(c.id) + '">' + esc(c.name) + '</button>'; }).join('') + '</div>';
+      var nc = view.newC && courseById(view.newC.id);
+      if (nc && nc.tees.length) h += '<div class="ntees" id="ntees">' + nc.tees.map(function (t) {
+        return '<button class="ntee' + (view.newC.tee === t.name ? ' sel' : '') + '" data-act="ntee" data-v="' + esc(t.name) + '">' + esc(t.name) + (teeTot(t) ? '<small>' + teeTot(t) + '</small>' : '') + '</button>'; }).join('') + '</div>';
+    }
+    return h + '<div class="nscan"><button class="sheet-item scanbtn" data-act="scan">📷 Scan scorecard</button><button class="sheet-item" data-act="cardmanual" aria-label="Enter a scorecard by hand">✎</button></div>';
+  }
+  function cardOpen(from, c, stage) {
+    view.card = { from: from, stage: stage || 'photo', course: c || COURSES.blankCourse(''), sel: 0 }; view.screen = 'card'; view.hmenu = null; render(); window.scrollTo(0, 0);
+    if (view.card.stage === 'photo' && navigator.onLine && window.SCAN && !SCAN.ready()) SCAN.warm(); // load the scanner now so it's ready (and saved for offline)
+  }
+  function cardBack() {
+    var C = view.card; view.card = null;
+    if (C && C.from === 'new') { view.screen = 'home'; view.hmenu = 'new'; } else { view.screen = C && C.from === 'archive' ? 'courses' : 'home'; }
+    render(); window.scrollTo(0, 0);
+  }
+  function cardTop(title) { return '<div class="topbar frost"><button class="txt frostbtn" data-act="cardback">‹ Back</button><div class="title"><b>' + title + '</b></div><span></span></div>'; }
+  function cardHTML() {
+    var C = view.card, c = C.course, h = '<div class="frostpage theme-sky cardpage">';
+    if (C.stage === 'photo') {
+      h += cardTop('Scorecard') + '<div class="frostcard cardstart"><div class="cardicon" aria-hidden="true">📷</div>' +
+        '<label class="big frostmain filebtn" for="cardfile">Scan scorecard</label><input type="file" id="cardfile" accept="image/*" hidden>' +
+        '<button class="big frostbtn" data-act="cardmanual">✎ Type it in</button></div>' +
+        '<div class="tiprow">' + tipBtn('cardtip', '💡', 'Photo tips') + tipLbl('cardtip', 'Photo tips') + tipText('cardtip', 'Card flat, good light, no shadow. Fill the frame with the yardage rows – tee names on the left.') + '</div>' +
+        '<div class="tiprow">' + tipBtn('cardinfo', 'i', 'How scanning works') + tipLbl('cardinfo', 'How it works') + tipText('cardinfo', 'The card is read on this phone – nothing is uploaded and it\'s free. After the first scan it also works with no signal. You always check the numbers before saving.') + '</div>';
+    } else if (C.stage === 'reading') {
+      h += cardTop('Reading…') + '<div class="frostcard cardread">' + (C.thumb ? '<img class="cardthumb" src="' + C.thumb + '" alt="">' : '') +
+        '<div class="progbar"><i id="cardprog" style="width:' + Math.round((C.prog || 0) * 100) + '%"></i></div><p class="cardstat" id="cardstat">' + esc(C.status || 'Getting the scanner ready') + '</p></div>';
+    } else if (C.stage === 'tees') {
+      h += cardTop('Pick your tee') + '<div class="frostcard teepick">' + c.tees.map(function (t, i) { var n = t.yards.filter(function (v) { return v != null; }).length;
+        return '<button class="big teebtn frostbtn" data-act="cardtee" data-i="' + i + '"><b>' + esc(t.name) + '</b><span>' + (teeTot(t) ? teeTot(t) + ' yd' : '') + (n < 18 ? ' · ' + n + '/18' : '') + '</span></button>'; }).join('') +
+        '</div><p class="cardnote">' + (c.pars.some(function (v) { return v != null; }) ? '✓ Par row found' : 'Par row not found – you can add it next') + (C.ms ? ' · read in ' + Math.round(C.ms / 100) / 10 + ' s' : '') + '</p>' +
+        '<button class="big frostbtn" data-act="cardretry">↺ Scan again</button>';
+    } else { // review
+      var t = c.tees[C.sel] || c.tees[0], P = c.pars, Y = t.yards;
+      var miss = 0; for (var i = 0; i < 18; i++) if (P[i] == null || Y[i] == null) miss++;
+      h += cardTop('Check the card') + '<div class="frostcard cardrev"><input type="text" class="crsname" data-cf="name" placeholder="Course name" value="' + esc(c.name) + '" autocomplete="off">' +
+        '<div class="revtees">' + c.tees.map(function (x, k) { return '<button class="frostchip' + (k === C.sel ? ' sel' : '') + '" data-act="cardsel" data-i="' + k + '">' + esc(x.name || 'Tee') + '</button>'; }).join('') +
+        '<button class="frostchip addtee" data-act="cardaddtee" aria-label="Add a tee">＋</button></div>' +
+        '<div class="teename"><input type="text" data-cf="tee" value="' + esc(t.name) + '" placeholder="Tee name" aria-label="Tee name" autocomplete="off">' + (c.tees.length > 1 ? '<button class="frostdanger" data-act="carddeltee" aria-label="Remove this tee">🗑</button>' : '') + '</div>' +
+        '<div class="revgrid">' + [0, 9].map(function (f) {
+          var rows = '<div class="rg-h"><span>#</span><span>Par</span><span>Yds</span></div>';
+          for (var j = f; j < f + 9; j++) rows += '<div class="rg-r' + (P[j] == null || Y[j] == null ? ' miss' : '') + '" data-h="' + j + '"><span>' + (j + 1) + '</span><input type="text" inputmode="numeric" maxlength="1" data-cf="par" placeholder="–" data-i="' + j + '" value="' + (P[j] == null ? '' : P[j]) + '" aria-label="Par hole ' + (j + 1) + '">' +
+            '<input type="text" inputmode="numeric" maxlength="3" data-cf="yd" placeholder="–" data-i="' + j + '" value="' + (Y[j] == null ? '' : Y[j]) + '" aria-label="Yards hole ' + (j + 1) + '"></div>';
+          return '<div class="rg-col">' + rows + '<div class="rg-t"><span>' + (f ? 'In' : 'Out') + '</span><b id="rgp' + f + '">' + (COURSES.sum(P.slice(f, f + 9)) || '') + '</b><b id="rgy' + f + '">' + (COURSES.teeTotal(t, f, f + 9) || '') + '</b></div></div>';
+        }).join('') + '</div><p class="revtot" id="revtot">Par ' + (COURSES.sum(P) || '–') + ' · ' + (teeTot(t) || '–') + ' yd</p>' +
+        (miss ? '<p class="revmiss" id="revmiss">' + miss + ' hole' + (miss === 1 ? '' : 's') + ' to fill</p>' : '') + '</div>' +
+        '<div class="tiprow">' + tipBtn('revinfo', 'i', 'About this check') + tipLbl('revinfo', 'Check against the card') + tipText('revinfo', 'Scans can misread a number. Tap any box to fix it. Every tee is saved; the round uses the one you pick.') + '</div>' +
+        '<button class="big frostmain" data-act="cardsave">✓ Save course</button>' + (C.from !== 'archive' && C.from !== 'edit' ? '<button class="big frostbtn" data-act="cardretry">↺ Scan again</button>' : '');
+    }
+    return h + '</div>';
+  }
+  function cardScan(file) {
+    var C = view.card; if (!C || !file) return;
+    C.stage = 'reading'; C.prog = 0; C.status = 'Getting the scanner ready'; try { C.thumb = URL.createObjectURL(file); } catch (e) {} render();
+    var names = { 'loading tesseract core': 'Getting the scanner ready', 'initializing tesseract': 'Getting the scanner ready', 'loading language traineddata': 'Getting the scanner ready', 'initializing api': 'Getting the scanner ready', 'recognizing text': 'Reading the card' };
+    SCAN.read(file, function (st, pr) { var bar = document.getElementById('cardprog'), tx = document.getElementById('cardstat'); var reading = st === 'recognizing text';
+      C.prog = reading ? 0.3 + 0.7 * pr : 0.3 * pr; if (bar) bar.style.width = Math.round(C.prog * 100) + '%'; if (tx) tx.textContent = names[st] || 'Reading the card'; })
+      .then(function (r) {
+        if (view.card !== C) return;
+        var nm = COURSES.guessName(r.text), keep = C.course && C.course.id && courseById(C.course.id) ? C.course : null;
+        C.course = COURSES.fromScan(r.card, nm || (keep && keep.name) || ''); if (keep) C.course.id = keep.id;
+        C.ms = r.ms; C.sel = 0; C.ocr = { text: r.text, lines: r.lines };
+        C.stage = r.card.tees.length > 1 ? 'tees' : 'review';
+        if (!r.card.tees.length) toast('Couldn’t find the yardage rows – type them in or try another photo');
+        render(); window.scrollTo(0, 0);
+      }, function (e) { if (view.card !== C) return; C.stage = 'photo'; render(); toast((e && e.message) || 'Could not read that photo'); });
+  }
+  function cardRefresh() { // totals + "to fill" in place while typing (keeps the keyboard up)
+    var C = view.card, c = C.course, t = c.tees[C.sel], P = c.pars, Y = t.yards, miss = 0;
+    [0, 9].forEach(function (f) { var a = document.getElementById('rgp' + f), b = document.getElementById('rgy' + f); if (a) a.textContent = COURSES.sum(P.slice(f, f + 9)) || ''; if (b) b.textContent = COURSES.teeTotal(t, f, f + 9) || ''; });
+    for (var i = 0; i < 18; i++) { var m = P[i] == null || Y[i] == null; if (m) miss++; var rw = document.querySelector('.rg-r[data-h="' + i + '"]'); if (rw) rw.classList.toggle('miss', m); }
+    var tt = document.getElementById('revtot'); if (tt) tt.textContent = 'Par ' + (COURSES.sum(P) || '–') + ' · ' + (teeTot(t) || '–') + ' yd';
+    var mm = document.getElementById('revmiss'); if (mm) mm.textContent = miss ? miss + ' hole' + (miss === 1 ? '' : 's') + ' to fill' : '';
+  }
+  function cardSave() {
+    var C = view.card, c = COURSES.clean(C.course);
+    if (!String(C.course.name || '').trim()) { toast('Add the course name'); var ni = document.querySelector('[data-cf="name"]'); if (ni) ni.focus(); return; }
+    var list = courses().filter(function (x) { return x.id !== c.id; }); list.unshift(c); saveCourses(list); odDirty(3000);
+    var tee = (c.tees[C.sel] || c.tees[0] || {}).name || '';
+    toast('Saved ' + c.name); view.card = null;
+    if (C.from === 'new') { view.newC = { id: c.id, tee: tee }; view.screen = 'home'; view.hmenu = 'new'; } else view.screen = 'courses';
+    render(); window.scrollTo(0, 0);
+  }
+  function coursesHTML() {
+    var list = courses(), h = '<div class="frostpage theme-sky coursespage"><div class="topbar frost"><button class="txt frostbtn" data-act="archive">‹ Archive</button><div class="title"><b>Courses</b><span>' + list.length + ' saved</span></div><span></span></div>';
+    h += list.map(function (c) { return '<div class="frostcard crsrow"><button class="crsopen" data-act="cardedit" data-id="' + esc(c.id) + '"><b>' + esc(c.name) + '</b><small>' + c.tees.map(function (t) { return esc(t.name); }).join(' · ') + ' · par ' + (COURSES.sum(c.pars) || '–') + '</small></button>' +
+      '<button class="frostdanger crsdel" data-act="coursedel" data-id="' + esc(c.id) + '" aria-label="Delete ' + esc(c.name) + '">🗑</button></div>'; }).join('');
+    if (!list.length) h += '<p class="frostnote cardnote">No saved courses yet.</p>';
+    h += '<button class="big frostmain" data-act="scanarch">📷 Add a course</button>';
+    h += '<div class="tiprow">' + tipBtn('crsinfo', 'i', 'About saved courses') + tipLbl('crsinfo', 'About saved courses') + tipText('crsinfo', 'Pick a course and tee when you start a round – each hole\'s par and tee distance are filled in. Tap a course to rename it or fix numbers. Courses are in your backups.') + '</div>';
+    return h + '</div>';
+  }
   function holeHTML() {
     var r = round(), h = r.holes[view.hole], a = AH(h), S = SG.summarize(r, blOf(r)), fin = !!h.finished && a.complete;
     var out = '<div class="topbar frost"><button class="frostbtn" data-act="prev" aria-label="Previous hole"' + (view.hole === 0 ? ' disabled' : '') + '>‹</button>' +
@@ -2236,7 +2350,7 @@
       case 'archive': view.screen = 'archive'; view.hmenu = null; render(); window.scrollTo(0, 0); return;
       case 'plus': view.hmenu = view.hmenu ? (view.hmenu === 'new' ? 'menu' : null) : 'menu'; render(); return;
       case 'newform': view.hmenu = 'new'; render(); var ci = document.getElementById('course'); if (ci) ci.focus(); return;
-      case 'menuclose': view.hmenu = null; render(); return;
+      case 'menuclose': view.hmenu = null; view.newC = null; render(); return;
       case 'history': view.hmenu = null; view.screen = 'history'; view.notice = null; render(); window.scrollTo(0, 0); return;
       case 'backup': backupRounds(); return;
       case 'pdf': case 'pdfshare': case 'pdfod': pdfAct(act); return;
@@ -2299,6 +2413,23 @@
       case 'pmg': { var mvq = document.getElementById('mapview'), stq = mvq ? mvq.scrollTop : 0; view.pmG = v; render(); var mvq2 = document.getElementById('mapview'); if (mvq2) mvq2.scrollTop = stq; return; }
       case 'puttn': { var mvp = document.getElementById('mapview'), stp = mvp ? mvp.scrollTop : 0; view.puttN = v; render(); var mvp2 = document.getElementById('mapview'); if (mvp2) mvp2.scrollTop = stp; return; }
       case 'mapscope': view.mapScope = v; view.heat = null; render(); var mv = document.getElementById('mapview'); if (mv) mv.scrollTop = 0; return;
+      case 'courses': view.screen = 'courses'; render(); window.scrollTo(0, 0); return;
+      case 'ncourse': { var same = view.newC && view.newC.id === b.getAttribute('data-id'); var cc = courseById(b.getAttribute('data-id'));
+        view.newC = same || !cc ? null : { id: cc.id, tee: (cc.tees[0] || {}).name || '' }; render(); return; }
+      case 'ntee': if (view.newC) view.newC.tee = v; render(); return;
+      case 'scan': cardOpen('new'); return;
+      case 'scanarch': cardOpen('archive'); return;
+      case 'cardmanual': if (view.card) { view.card.stage = 'review'; view.card.sel = 0; render(); window.scrollTo(0, 0); } else cardOpen(view.screen === 'courses' ? 'archive' : 'new', null, 'review'); return;
+      case 'cardback': cardBack(); return;
+      case 'cardretry': view.card.stage = 'photo'; render(); return;
+      case 'cardtee': view.card.sel = +b.getAttribute('data-i'); view.card.stage = 'review'; render(); window.scrollTo(0, 0); return;
+      case 'cardsel': view.card.sel = +b.getAttribute('data-i'); render(); return;
+      case 'cardaddtee': { var cc2 = view.card.course; cc2.tees.push({ name: 'Tee ' + (cc2.tees.length + 1), yards: COURSES.pad([]) }); view.card.sel = cc2.tees.length - 1; render(); var tn = document.querySelector('[data-cf="tee"]'); if (tn) tn.select(); return; }
+      case 'carddeltee': { var cc3 = view.card.course; if (cc3.tees.length > 1 && confirm('Remove the ' + (cc3.tees[view.card.sel].name || 'tee') + ' tee?')) { cc3.tees.splice(view.card.sel, 1); view.card.sel = 0; render(); } return; }
+      case 'cardsave': cardSave(); return;
+      case 'cardedit': { var ce = courseById(b.getAttribute('data-id')); if (ce) cardOpen('archive', JSON.parse(JSON.stringify(ce)), 'review'); return; }
+      case 'coursedel': { var cd = courseById(b.getAttribute('data-id')); if (!cd || !confirm('Delete ' + cd.name + '? Rounds already played keep their numbers.')) return;
+        saveCourses(courses().filter(function (x) { return x.id !== cd.id; })); odDirty(3000); toast('Course deleted'); render(); return; }
       case 'vsave': voiceSave(); return;
       case 'vedit': view.voice.stage = 'edit'; render(); return;
       case 'vretry': view.voice = null; render(); toast('Hold the mic and say the shot again'); return;
@@ -2357,6 +2488,7 @@
     toast('Now comparing with ' + blLabel(id));
   }
   document.addEventListener('change', function (ev) {
+    if (ev.target && ev.target.id === 'cardfile') { var cf = ev.target.files && ev.target.files[0]; ev.target.value = ''; if (cf) cardScan(cf); return; }
     if (ev.target && ev.target.id === 'restorefile') {
       var f = ev.target.files && ev.target.files[0]; if (!f) return;
       var rd = new FileReader(); rd.onload = function () { restoreFrom(String(rd.result)); }; rd.onerror = function () { view.notice = { text: 'Could not read that file.', bad: true }; render(); };
@@ -2393,7 +2525,18 @@
     if (f === 'result' && p.result !== 'holed') p.holedx = false;
     p.empty = false; return f;
   }
-  document.addEventListener('input', function (ev) { vField(ev.target); });
+  document.addEventListener('input', function (ev) { vField(ev.target); cField(ev.target); });
+  function cField(t) {
+    var f = t.getAttribute && t.getAttribute('data-cf'); if (!f || !view.card) return;
+    var c = view.card.course, i = +t.getAttribute('data-i');
+    if (f === 'name') { c.name = t.value; return; }
+    if (f === 'tee') { c.tees[view.card.sel].name = t.value; var chip = document.querySelector('.revtees [data-i="' + view.card.sel + '"]'); if (chip) chip.textContent = t.value || 'Tee'; return; }
+    t.value = t.value.replace(/[^0-9]/g, '').slice(0, f === 'par' ? 1 : 3);
+    var v = t.value === '' ? null : +t.value;
+    if (f === 'par') c.pars[i] = v; else c.tees[view.card.sel].yards[i] = v;
+    cardRefresh();
+    if (f === 'par' && t.value) { var nx = document.querySelector('[data-cf="par"][data-i="' + (i + 1) + '"]'); if (nx) nx.focus(); } // one digit: hop to the next hole
+  }
   document.addEventListener('change', function (ev) { var f = vField(ev.target); if (f === 'result' || f === 'club') render(); });
   document.addEventListener('keydown', function (ev) { if (ev.key === 'Enter' && ev.target && ev.target.id === 'vtext') { ev.preventDefault(); var b = document.querySelector('[data-act="vtype"]'); if (b) b.click(); } });
   // Mic button: press and hold to talk (pointer events cover touch and mouse)
@@ -2435,5 +2578,5 @@
     });
     window.addEventListener('load', function () { navigator.serviceWorker.register('./sw.js').catch(function () {}); });
   }
-  window.__golf = { voiceState: function () { return VS; }, d1Bench: d1Bench, proxSVG: proxSVG, pinSVG: function () { return pinReportSVG(SG.pinSegments(pinDataRound())); }, odState: function () { return odState; }, csvFor: csvFor, rounds: function () { return rounds; } };
+  window.__golf = { card: function () { return view.card; }, voiceState: function () { return VS; }, d1Bench: d1Bench, proxSVG: proxSVG, pinSVG: function () { return pinReportSVG(SG.pinSegments(pinDataRound())); }, odState: function () { return odState; }, csvFor: csvFor, rounds: function () { return rounds; } };
 })();
