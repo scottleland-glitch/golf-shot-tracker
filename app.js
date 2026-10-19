@@ -114,6 +114,7 @@
     else if (view.screen === 'archive') el.innerHTML = archiveHTML();
     else if (view.screen === 'card') el.innerHTML = cardHTML();
     else if (view.screen === 'courses') el.innerHTML = coursesHTML();
+    else if (view.screen === 'birdie') { view.bzD = null; el.innerHTML = birdieHTML(); }
     else if (view.screen === 'home' || !round()) el.innerHTML = homeHTML();
     else if (view.screen === 'hole') el.innerHTML = '<div class="frostpage roundpage' + roundTheme() + '">' + holeHTML() + (view.pinOpen ? pinHTML() : '') + (view.replay != null ? replayHTML() : '') + '</div>';
     else if (view.screen === 'about') el.innerHTML = aboutHTML();
@@ -477,6 +478,7 @@
       (savedRounds().some(function (r) { return !r.player; }) ? '<button class="frostchip' + (view.histPlayer === '~none' ? ' sel' : '') + '" data-act="histplayer" data-v="~none">No name</button>' : '') + '</div>';
     if (!list.length) h += '<p class="muted frostnote">No rounds yet. Start one from Home.</p>';
     if (list.length >= 2) h += '<button class="big cmpbtn frostmain" data-act="compare" id="cmpopen">⚖ Best vs worst rounds</button>';
+    if (list.length) h += '<button class="big cmpbtn frostmain bzbtn" data-act="bzopen" data-v="all" data-id="' + list[0].id + '" id="histbz">🎯 Birdie zone</button>';
     h += '<div id="histlist">';
     list.forEach(function (r) {
       var S = SG.summarize(r);
@@ -1058,7 +1060,8 @@
       new Date(r.date).toLocaleDateString() + (r.course ? ' · ' + esc(r.course) : '') + '</span></div><button class="txt frostbtn" data-act="home">Home</button></div>';
     out += '<div class="big-score"><div class="s">' + (S.holesDone ? S.strokes : '–') + '</div>' +
       (S.holesDone ? toPar(S.toPar) + ' vs par · ' + S.holesDone + ' hole' + (S.holesDone === 1 ? '' : 's') + ' done' : 'No holes finished yet') + '</div>';
-    out += scorecardHTML(r, S) + '<button class="big rpbtn" data-act="replay" data-v="0" id="sumreplay">▶ Hole replay (hole by hole)</button>';
+    out += scorecardHTML(r, S) + '<button class="big rpbtn" data-act="replay" data-v="0" id="sumreplay">▶ Hole replay (hole by hole)</button>' +
+      (S.holesDone ? '<button class="big rpbtn bzbtn" data-act="bzopen" data-v="round" id="sumbz">🎯 Birdie zone</button>' : '');
     var B = SG.baseline(bl), main = out; out = '';
     out += '<h2>Strokes gained: <span class="' + sgCls(S.sgTotal) + '" id="sgtotal">' + fmtSG(S.sgTotal) + '</span></h2>' +
       '<div class="blbox"><label class="lbl" for="sumbl">Baseline – compared with</label>' + blSelect('sumbl', bl) +
@@ -1238,6 +1241,71 @@
       '<text x="180" y="394" text-anchor="middle" font-size="14" font-weight="800">SHORT ↓ (toward you)</text>' +
       '<text x="4" y="192" font-size="14" font-weight="800">◀ L</text><text x="356" y="192" text-anchor="end" font-size="14" font-weight="800">R ▶</text>';
     return out + '</svg>';
+  }
+  // ---------- Birdie zone: GIR balls on a green + the 1-putt ring + "what if" slider ----------
+  function bzBase() { var r = rounds.filter(function (x) { return view.bz && x.id === view.bz.rid; })[0]; return r && !SG.roundEmpty(r) ? r : null; }
+  function bzAllRounds(r) { return savedRounds().filter(function (x) { return !r || !r.player || x.player === r.player; }); }
+  function bzData() {
+    var r = bzBase(), all = BZ.scope(bzAllRounds(r), blOf), allRing = BZ.onePutt(all.putts), scope = r && view.bz.scope === 'round' ? 'round' : 'all';
+    var sc = scope === 'round' ? BZ.scope([r], blOf) : all, ring = scope === 'round' ? BZ.onePutt(sc.putts) : allRing, note = '', src = scope;
+    if (!ring && scope === 'round') { ring = allRing; src = 'all'; note = 'Only ' + sc.putts.length + ' putts this round – ring uses all rounds (' + all.putts.length + ' putts).'; }
+    if (!ring) { src = 'none'; note = 'Not enough putts yet (' + all.putts.length + ' of ' + BZ.MIN_PUTTS + ') – ring set to ' + BZ.DEFAULT_FT + '’.'; }
+    return { r: r, scope: scope, sc: sc, all: all, ring: ring ? ring.ft : BZ.DEFAULT_FT, ringInfo: ring, src: src, note: note, bands: BZ.bands(sc.putts) };
+  }
+  function bzSVG(list, ring, R) {
+    var C = 180, CY = 180, K = 5, out = '<svg id="bzmap" viewBox="0 0 360 360" role="img" aria-label="Birdie chances on the green">' +
+      '<circle cx="180" cy="180" r="176" fill="#3da33d" stroke="#145214" stroke-width="3"/>';
+    [10, 20, 30].forEach(function (ft) { out += '<circle cx="180" cy="180" r="' + ft * K + '" fill="none" stroke="#fff" stroke-width="1.2" stroke-opacity=".55"/>' +
+      '<text x="' + f1(182 + ft * K * 0.707) + '" y="' + f1(193 + ft * K * 0.707) + '" font-size="12" font-weight="600" fill="#fff" fill-opacity=".85">' + ft + '’</text>'; });
+    out += '<circle id="bzzone" cx="180" cy="180" r="' + R * K + '" fill="#fff" fill-opacity=".14" stroke="#e0303f" stroke-width="2" stroke-dasharray="6 5"' + (R > ring ? '' : ' visibility="hidden"') + '/>' +
+      '<circle id="bzring" cx="180" cy="180" r="' + ring * K + '" fill="none" stroke="#e0303f" stroke-width="3.5"/>' +
+      '<circle cx="180" cy="180" r="5" fill="#000"/><line x1="180" y1="180" x2="180" y2="152" stroke="#000" stroke-width="2.5"/><path d="M180 152 l17 5 l-17 5z" fill="#d0213a"/>';
+    var seen = {};
+    list.forEach(function (m) { // same placement as the GIR map (girSVG): direction angle, dupes fanned 6°, no direction = straight up
+      var ft = m.holed ? 0 : m.ft, far = ft > 30, rr = far ? 33 * K : ft * K, nodir = !m.holed && !m.dir;
+      var key = (m.holed ? 'h' : m.dir || 'none') + Math.round(rr / 6), j = seen[key] = (seen[key] || 0) + 1;
+      var p = m.holed ? [C - 14 + (j - 1) * 14, CY + 16] : pt(C, CY, rr, (nodir ? 90 : SG.DIR_ANGLE[m.dir]) + (j - 1) * (nodir ? 8 : 6));
+      var x = f1(p[0]), y = f1(p[1]), a = ' data-ft="' + ft + '" data-hole="' + m.hole + '" data-birdie="' + (m.birdie ? 1 : 0) + '"';
+      if (m.holed) out += '<path class="bzball bzholed"' + a + ' d="M' + x + ' ' + (y - 10) + ' l3 6.5 7 .8 -5.3 4.8 1.5 7 -6.2 -3.6 -6.2 3.6 1.5 -7 -5.3 -4.8 7 -.8z" fill="#ffd23f" stroke="#000" stroke-width="1.5"/>';
+      else {
+        var inR = ft <= R; out += '<g class="bzball ' + (inR ? 'in' : 'out') + (nodir ? ' nodir' : '') + '"' + a + '><circle cx="' + x + '" cy="' + y + '" r="7.5" fill="' + (inR ? '#fff' : '#1c1c1e') + '" stroke="' + (inR ? '#1c1c1e' : '#fff') + '" stroke-width="1.5"/>' +
+          (m.birdie ? '<circle cx="' + x + '" cy="' + y + '" r="2.6" fill="#e0303f"/>' : '') + (nodir ? '<text x="' + x + '" y="' + f1(p[1] - 10) + '" text-anchor="middle" font-size="11" font-weight="700" fill="#fff">?</text>' : '') + '</g>';
+      }
+      if (far) { var lx = p[0] > C ? p[0] - 11 : p[0] + 11; out += '<text class="bzfar" x="' + f1(lx) + '" y="' + f1(p[1] + (p[1] > CY + 120 ? -9 : 4)) + '"' + (p[0] > C ? ' text-anchor="end"' : '') + ' font-size="12" font-weight="700" fill="#fff">' + Math.round(ft) + '’</text>'; }
+    });
+    return out + '</svg>';
+  }
+  function bzCount(D, R) { return BZ.label(BZ.zone(D.sc, R)); }
+  function birdieHTML() {
+    var D = bzData(), r = D.r, ring = D.ring, R = Math.max(ring, Math.min(BZ.MAX_FT, view.bz.R || ring)); view.bz.R = R; view.bz.ring = ring; view.bz.shown = R;
+    var back = view.bz.from === 'summary' && r ? '<button class="txt frostbtn" data-act="bzback">‹ Stats</button>' : '<button class="txt frostbtn" data-act="history">‹ History</button>';
+    var sub = D.scope === 'round' ? new Date(r.date).toLocaleDateString() + (r.course ? ' · ' + esc(r.course) : '') : D.all.rounds + ' round' + (D.all.rounds === 1 ? '' : 's') + (r && r.player ? ' · ' + esc(r.player) : '');
+    var h = '<div class="frostpage theme-sky bzpage" id="birdie"><div class="topbar frost">' + back + '<div class="title"><b>Birdie zone</b><span>' + sub + '</span></div><span class="tbspace"></span></div>';
+    if (r) h += '<div class="liechips bzscope" role="group" aria-label="Scope"><button class="frostchip' + (D.scope === 'round' ? ' sel' : '') + '" data-act="bzscope" data-v="round" aria-pressed="' + (D.scope === 'round') + '">This round</button>' +
+      '<button class="frostchip' + (D.scope === 'all' ? ' sel' : '') + '" data-act="bzscope" data-v="all" aria-pressed="' + (D.scope === 'all') + '">All rounds</button></div>';
+    var n = D.sc.chances.length;
+    h += '<div class="frostcard bzcard"><p class="bzcount"><img class="bzbird" id="bzbird" src="img/oriole.webp" alt="" width="44" height="44"><span id="bzcount">' + bzCount(D, R) + '</span></p>' +
+      '<div class="bzwrap"><div class="bzslcol"><span class="bzsltop">30’</span><input type="range" id="bzslider" class="bzslider" min="' + ring + '" max="' + BZ.MAX_FT + '" step="1" value="' + R + '" aria-label="Make every putt inside this distance"' + (ring >= BZ.MAX_FT ? ' disabled' : '') + '><span class="bzslbot" id="bzslval">' + R + '’</span></div>' +
+      bzSVG(D.sc.chances, ring, R) + '</div>' +
+      '<p class="bzlegend"><span class="bzk ring"></span>1-putt ' + ring + '’' + (D.src === 'all' && D.scope === 'round' ? ' (all rounds)' : '') + ' ' + tipBtn('bzring', 'i', 'How the 1-putt distance works') +
+      '<span class="bzk w"></span>inside <span class="bzk b"></span>outside</p>' +
+      tipText('bzring', '<b>Red ring = 1-putt distance:</b> the furthest whole foot where you make at least half your putts. For each distance d we look at putts from d − w to d + w (w = 1’ or 25% of d, whichever is bigger) and need at least ' + BZ.MIN_WIN + ' putts there. Starting at 1’ and moving out, it stops at the first distance under 50% or with too few putts, so one lucky long make can’t stretch it. Needs ' + BZ.MIN_PUTTS + '+ putts; a round with fewer uses all rounds' + (r && r.player ? ' (' + esc(r.player) + ')' : '') + '.<br><b>Balls</b> = greens hit in regulation (par 3 tee shot, par 4 2nd, par 5 3rd), placed like the GIR map (top = long, bottom = short, toward you; past 30’ sits on the edge with its distance). Red dot = made birdie, ★ = holed out.<br><b>Slider</b>: grow the ring – white balls would be birdies if you holed them (birdie or better counts).') +
+      (D.note ? '<p class="bznote" id="bznote">' + D.note + '</p>' : '') +
+      '<p class="muted bzmeta" id="bzmeta">' + n + ' green' + (n === 1 ? '' : 's') + ' hit · ' + D.sc.missed + ' missed (not shown)</p></div>';
+    h += '<div class="frostcard bzcard"><h3 class="bzh">Putts made ' + tipBtn('bzbands', '💡', 'About putt make rates') + '</h3>' + tipText('bzbands', 'Every putt' + (D.scope === 'round' ? ' this round' : ' in all rounds') + ', grouped by how far it started from the hole.') +
+      '<table class="bztab" id="bztab">' + D.bands.map(function (b) {
+        return '<tr data-band="' + b.label + '"><td>' + b.label + '</td><td class="bzbar"><span style="width:' + (b.pct || 0) + '%"></span></td><td class="num">' + (b.n ? b.pct + '%' : '–') + '</td><td class="num muted">' + b.made + '/' + b.n + '</td></tr>'; }).join('') + '</table></div>';
+    return h + '</div>';
+  }
+  function bzUpdate(R) {
+    var D = view.bzD || (view.bzD = bzData()); view.bz.R = R; var z = document.getElementById('bzzone');
+    if (z) { z.setAttribute('r', R * 5); if (R > view.bz.ring) z.removeAttribute('visibility'); else z.setAttribute('visibility', 'hidden'); }
+    [].slice.call(document.querySelectorAll('#bzmap g.bzball')).forEach(function (g) {
+      var inR = +g.getAttribute('data-ft') <= R, c = g.querySelector('circle'); g.classList.toggle('in', inR); g.classList.toggle('out', !inR);
+      c.setAttribute('fill', inR ? '#fff' : '#1c1c1e'); c.setAttribute('stroke', inR ? '#1c1c1e' : '#fff'); });
+    var t0 = BZ.zone(D.sc, view.bz.shown || R).total, t1 = BZ.zone(D.sc, R).total; view.bz.shown = R;
+    document.getElementById('bzcount').textContent = bzCount(D, R); document.getElementById('bzslval').textContent = R + '’';
+    var bird = document.getElementById('bzbird'); if (bird && t1 > t0) { bird.classList.remove('hop'); void bird.offsetWidth; bird.classList.add('hop'); } // oriole hops when the count goes up
   }
   function dirTable(list) {
     var c = countDirs(list), out = '<table class="dirtab" id="dirtab"><tr><th>Direction</th><th class="num">Count</th></tr>';
@@ -2349,6 +2417,10 @@
       case 'sgtoggle': view.sgOpen = !view.sgOpen; render(); if (view.sgOpen) { var sh = document.getElementById('sgsec'); if (sh) window.scrollTo(0, sh.getBoundingClientRect().top + window.scrollY - 90); } return;
       case 'clubsel': view.club = v; view.heat = null; render(); return;
       case 'compare': view.screen = 'compare'; render(); window.scrollTo(0, 0); return;
+      case 'bzopen': view.bz = { scope: b.getAttribute('data-v'), rid: b.getAttribute('data-id') || view.roundId, from: view.screen === 'summary' ? 'summary' : 'history', R: 0 };
+        view.screen = 'birdie'; render(); window.scrollTo(0, 0); return;
+      case 'bzscope': view.bz.scope = b.getAttribute('data-v'); view.bz.R = 0; render(); return;
+      case 'bzback': view.roundId = view.bz.rid; view.screen = 'summary'; render(); window.scrollTo(0, 0); return;
       case 'cmpn': view.cmpN = Math.max(1, cmpRounds().n + (+v)); render(); return;
       case 'cmpkind': view.cmpKind = v; render(); return;
       case 'cmpgrp': view.cmpGrp = v; render(); return;
@@ -2458,6 +2530,7 @@
     else if (f === 'layup') { if (t.checked) row.layup = true; else delete row.layup; save(); refreshInfo(h); }
   });
 
+  document.addEventListener('input', function (ev) { if (ev.target && ev.target.id === 'bzslider') bzUpdate(+ev.target.value); });
   document.addEventListener('input', function (ev) {
     if (!ev.target || ev.target.id !== 'clusr') return;
     view.clus = +ev.target.value; try { localStorage.setItem('golfsg.heatclus.v1', String(view.clus)); } catch (e) {}
