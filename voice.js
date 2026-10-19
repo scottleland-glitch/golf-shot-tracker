@@ -131,7 +131,7 @@
     var t;
     if (p.shot) {
       t = p.shot - 1;
-      if (t > rows.length) return fail('There’s no shot ' + (t) + ' yet – the next shot is ' + (rows.length + 1) + '.');
+      if (t > rows.length) return fail('There’s no shot ' + p.shot + ' yet – the next shot is ' + (rows.length + 1) + '.');
       if (t === rows.length && lastHoled) return fail('This hole is already in the hole – tap Edit this hole or go to the next hole.');
     } else {
       t = -1;

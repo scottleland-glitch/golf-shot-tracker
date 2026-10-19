@@ -47,7 +47,7 @@ const BASE = 'http://127.0.0.1:8797/', OUT = '/workspace/golf-app/screenshots/',
         disc: q('[data-act="discard"]').classList.contains('frostdanger'), discBg: cs('[data-act="discard"]').backgroundColor, ink: cs('.hc-head h2').color }; });
     assert.ok(F && H.wrap && /linear-gradient/.test(H.bg) && !/home-bg/.test(H.bg), 'frosted page + blurred photo ' + JSON.stringify(H));
     assert.ok(H.card && /rgba\(2[3-5]\d, 2[3-5]\d, 2[3-5]\d, 0\.\d+\)/.test(H.cardBg), 'glassy hole card ' + H.cardBg);
-    assert.strictEqual(H.par, 'rgb(28, 28, 30)|rgb(255, 255, 255)', 'selected = near-black pill + white (sky theme)'); assert.ok(H.parH >= 44, 'tap target ' + H.parH);
+    assert.strictEqual(H.par, 'rgb(58, 70, 84)|rgb(255, 255, 255)', 'selected = dark slate pill + white (sky theme, v84 softer)'); assert.ok(H.parH >= 44, 'tap target ' + H.parH);
     assert.ok(H.disc && /rgba\(255, 2\d\d, 2\d\d/.test(H.discBg), 'discard soft pink ' + JSON.stringify(H));
     const [r, g, bb] = H.ink.match(/\d+/g).map(Number); assert.ok(r + g + bb < 200, 'strong text ' + H.ink);
   }

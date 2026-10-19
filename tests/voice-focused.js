@@ -123,15 +123,19 @@ const SPY = () => { window.__recs = 0; class Spy { constructor() { window.__recs
   // one tap: box opens and the field is focused inside the same tap (so iOS raises the keyboard)
   const open = () => page.evaluate(sel => { document.querySelector(sel).click(); const a = document.activeElement; return { id: a && a.id, val: a && a.value }; }, '#micbtn');
   assert.deepStrictEqual(await open(), { id: 'vtext', val: '' }, 'focused synchronously in the tap');
-  assert.strictEqual((await page.textContent('.voicedict .vhint')).trim(), 'Tap the 🎤 on your keyboard and talk');
+  assert.strictEqual((await page.textContent('.voicedict .vhint')).trim(), 'Tap 🎤 on your keyboard, talk, then tap ✓');
+  const go = await box('.voicedict [data-act="vgo"]'), x = await box('.voicedict [data-act="vcancel"]');
+  assert.ok(go.h >= 60 && go.r - go.l > 3 * (x.r - x.l), '✓ is big and clearly the main button ' + JSON.stringify({ go, x }));
   assert.strictEqual(await page.$eval('#vtext', e => e.getAttribute('enterkeyhint')), 'done');
   const dbox = await box('.voicedict'); assert.ok(dbox.t < 80, 'pinned to the top, clear of the keyboard ' + JSON.stringify(dbox));
-  await shot('voice-dictate-open');
-  // dictation: text arrives in bursts; the card waits until it has been still ~1.5 s
+  await shot('voice-dictate-open'); await shot('voice-dictate-open-v84');
+  // dictation with long pauses mid-phrase (v84): never auto-submits, the text is kept; the card comes only on ✓
   const dictate = t => page.evaluate(t => { const e = document.getElementById('vtext'); e.value = t; e.dispatchEvent(new Event('input', { bubbles: true })); }, t);
-  await dictate('third shot'); await page.waitForTimeout(700); await dictate('third shot green 25'); await page.waitForTimeout(700); await dictate('third shot green 25 feet short');
-  await page.waitForTimeout(1000); assert.strictEqual(await page.$('.voicecard .vraw'), null, 'no card while words may still be coming');
-  await page.waitForSelector('.voicecard .vraw', { timeout: 2000 });
+  await dictate('third shot'); await page.waitForTimeout(2500); await dictate('third shot green 25'); await page.waitForTimeout(3000);
+  assert.strictEqual(await page.$('.voicecard .vraw'), null, 'no card after a long pause'); assert.ok(await page.$('.voicedict'));
+  await dictate('third shot green 25 feet short'); await page.waitForTimeout(3000); assert.strictEqual(await page.$('.voicecard .vraw'), null, 'still no card');
+  assert.strictEqual(await page.$eval('#vtext', e => e.value), 'third shot green 25 feet short');
+  await page.click('.voicedict [data-act="vgo"]'); await page.waitForSelector('.voicecard .vraw', { timeout: 1000 });
   assert.strictEqual(await page.textContent('.voicecard .vraw'), '“third shot green 25 feet short”');
   const vf = () => page.$$eval('.voicecard .vf', es => es.map(e => [e.querySelector('span').textContent, e.querySelector('b').textContent]));
   assert.deepStrictEqual(await vf(), [['Shot 3', 'Green · 25’'], ['Shot 2 missed', 'Short']]); assert.match(await page.textContent('.voicecard'), /Replaces shot 3’s 8 yd/);
@@ -162,10 +166,13 @@ const SPY = () => { window.__recs = 0; class Spy { constructor() { window.__recs
   await open(); await page.fill('#vtext', 'driver 380 fairway'); await page.click('.voicedict [data-act="vcancel"]'); await page.waitForTimeout(2200);
   assert.strictEqual(await page.$('.voicecard'), null); assert.deepStrictEqual(await rowsOf(7), [{ dist: '', loc: 'tee', dir: '', pen: false }]);
   // empty box: nothing happens after the pause, Enter does nothing
-  await open(); await page.press('#vtext', 'Enter'); await page.waitForTimeout(1800); assert.ok(await page.$('.voicedict'), 'still open, waiting for words');
-  // iPhone keyboard "Done" bar just blurs the field → treated like Enter
-  await page.fill('#vtext', 'tee shot driver 380'); await page.evaluate(() => document.getElementById('vtext').blur()); await page.waitForSelector('.voicecard .vraw', { timeout: 1500 });
-  assert.match(await page.textContent('.voicecard'), /Driver/); await page.click('[data-act="vsave"]'); await page.waitForSelector('.voicecard', { state: 'detached' });
+  await open(); await page.press('#vtext', 'Enter'); await page.click('.voicedict [data-act="vgo"]'); await page.waitForTimeout(500); assert.ok(await page.$('.voicedict'), 'still open, waiting for words');
+  assert.strictEqual(await page.$('.voicecard .vraw'), null);
+  // blur (iOS can drop focus when dictation pauses or ends, or via the keyboard's Done bar) never submits: text kept, box stays open
+  await page.fill('#vtext', 'tee shot'); await page.evaluate(() => document.getElementById('vtext').blur()); await page.waitForTimeout(2500);
+  assert.strictEqual(await page.$('.voicecard .vraw'), null, 'blur does not submit'); assert.strictEqual(await page.$eval('#vtext', e => e.value), 'tee shot');
+  await page.click('#vtext'); await page.type('#vtext', ' driver 380'); await page.press('#vtext', 'Enter'); await page.waitForSelector('.voicecard .vraw', { timeout: 1000 });
+  assert.match(await page.textContent('.voicecard .vraw'), /tee shot driver 380/); assert.match(await page.textContent('.voicecard'), /Driver/); await page.click('[data-act="vsave"]'); await page.waitForSelector('.voicecard', { state: 'detached' });
   assert.deepStrictEqual((await rowsOf(7))[0], { dist: 380, loc: 'tee', dir: '', pen: false, club: 'Driver' });
   // leaving the hole with the box open cancels it cleanly
   await open(); await page.fill('#vtext', 'rough 150'); await page.click('[data-act="vcancel"]'); await page.click('[data-act="next"]'); await page.waitForTimeout(1800);

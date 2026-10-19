@@ -886,10 +886,11 @@
 
   // ---------- Voice entry: hold the mic, say the shot, confirm ----------
   var MIC_SVG = '<svg class="micico" viewBox="0 0 24 24" width="26" height="26" aria-hidden="true"><rect x="8.5" y="2.5" width="7" height="12" rx="3.5" fill="currentColor"/><path d="M5.5 11a6.5 6.5 0 0 0 13 0M12 17.5V21M8.5 21h7" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>';
-  // v83: voice entry = the iPhone keyboard's own dictation. No Web Speech API (press-and-hold was unreliable in the home-screen app).
+  // v83/v84: voice entry = the iPhone keyboard's own dictation. No Web Speech API (press-and-hold was unreliable in the home-screen app).
   // Tap "Say it" → a small box opens with the field focused in the same tap (so the keyboard comes up) → tap the keyboard 🎤 and talk →
-  // Done/Enter, or ~1.5 s after the text stops changing → same parser + confirmation card.
-  var DICT_PAUSE = 1500, dictTimer = null;
+  // tap ✓ (or Enter/Done) → same parser + confirmation card. v84: no idle auto-submit and no submit on blur – iOS pauses mid-phrase
+  // (and can blur the field when dictation pauses/ends), so the text is kept until he taps ✓.
+  var dictTimer = null; // kept for voiceState(); nothing schedules it any more
   function micHTML() { return '<button type="button" id="micbtn" class="micbtn" data-act="vdict" aria-label="Say it: dictate the shot">' + MIC_SVG + '<span class="miclbl">Say it</span></button>'; }
   function dictStop() { clearTimeout(dictTimer); dictTimer = null; }
   function dictOpen() { // runs inside the tap handler: render, then focus synchronously so iOS opens the keyboard
@@ -898,12 +899,9 @@
   }
   function dictSubmit() {
     dictStop(); var t = document.getElementById('vtext'), text = t ? t.value.replace(/\s+/g, ' ').trim() : '';
-    if (!view.voice || view.voice.stage !== 'dict' || !text) return;
+    if (!view.voice || view.voice.stage !== 'dict') return;
+    if (!text) { if (t) t.focus(); return; }
     if (t) t.blur(); voiceHeard(text);
-  }
-  function dictInput(t) { // text changed (typing or dictation): submit once it has been still for a moment
-    if (!t || t.id !== 'vtext' || !view.voice || view.voice.stage !== 'dict') return;
-    dictStop(); if (t.value.trim()) dictTimer = setTimeout(dictSubmit, DICT_PAUSE);
   }
   function micAbort() { dictStop(); }
   function voiceHeard(text) { view.voice = { hole: view.hole, stage: 'confirm', p: VOICE.parse(text) }; render(); }
@@ -912,9 +910,9 @@
     var V = view.voice, out = '<div class="sheet-bg" data-act="vcancel"></div><div class="sheet frostsheet voicecard" role="dialog" aria-label="Voice entry">';
     if (V.stage === 'dict') {
       return '<div class="sheet-bg" data-act="vcancel"></div><div class="sheet frostsheet voicecard voicedict" role="dialog" aria-label="Say the shot">' +
-        '<div class="vdrow"><input type="text" id="vtext" enterkeyhint="done" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" placeholder="3rd shot green 25 ft" aria-label="Shot">' +
-        '<button class="frostmain" data-act="vgo" aria-label="Check">✓</button><button class="frostbtn" data-act="vcancel" aria-label="Close">✕</button></div>' +
-        '<p class="vhint">Tap the 🎤 on your keyboard and talk</p></div>';
+        '<input type="text" id="vtext" enterkeyhint="done" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" placeholder="3rd shot green 25 ft" aria-label="Shot">' +
+        '<p class="vhint">Tap 🎤 on your keyboard, talk, then tap ✓</p>' +
+        '<div class="vdrow"><button class="frostmain vgo" data-act="vgo" aria-label="Done – check the shot">✓</button><button class="frostbtn vx" data-act="vcancel" aria-label="Close">✕</button></div></div>';
     }
     var p = V.p, res = VOICE.apply(h, p), fields = VOICE.describe(h, res, p);
     out += '<h3>' + MIC_SVG + ' I heard</h3><p class="vraw">“' + esc(p.raw) + '”</p>';
@@ -2491,9 +2489,6 @@
   }
   document.addEventListener('change', function (ev) { var f = vField(ev.target); if (f === 'loc' || f === 'club' || f === 'shot') render(); });
   document.addEventListener('keydown', function (ev) { if (ev.key === 'Enter' && ev.target && ev.target.id === 'vtext' && !ev.isComposing) { ev.preventDefault(); dictSubmit(); } });
-  document.addEventListener('input', function (ev) { dictInput(ev.target); });
-  document.addEventListener('focusout', function (ev) { // iOS keyboard "Done" bar just blurs the field: treat it like Enter (✕ / ✓ taps land first)
-    if (!ev.target || ev.target.id !== 'vtext') return; setTimeout(function () { if (view.voice && view.voice.stage === 'dict' && document.activeElement && document.activeElement.id !== 'vtext') dictSubmit(); }, 250); });
   // Distance typing: update data without re-rendering (keeps the keyboard up)
   document.addEventListener('input', function (ev) {
     var t = ev.target; if (!t.hasAttribute || !t.hasAttribute('data-row')) return;

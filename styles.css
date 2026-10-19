@@ -633,9 +633,50 @@ html body .roundpage .voicecard .vbtns .frostmain { background: linear-gradient(
 /* v83: keyboard-dictation box – compact, frosted, pinned to the top so the keyboard never covers it */
 html body .roundpage .sheet.voicedict { top: calc(10px + env(safe-area-inset-top)); bottom: auto; left: 10px; right: 10px; border-radius: 24px; padding: 12px 12px 10px;
   border: 1px solid rgba(255, 255, 255, .8); box-shadow: 0 12px 34px rgba(30, 50, 80, .25); }
-.voicedict .vdrow { display: flex; gap: 8px; align-items: center; }
-.voicedict #vtext { flex: 1 1 auto; min-width: 0; height: 56px; font-size: 20px; font-weight: 600; padding: 0 14px; border-radius: 16px;
+.voicedict .vdrow { display: flex; gap: 8px; align-items: stretch; margin-top: 10px; }
+.voicedict #vtext { display: block; width: 100%; box-sizing: border-box; height: 56px; font-size: 20px; font-weight: 600; padding: 0 14px; border-radius: 16px;
   border: 1px solid rgba(150, 175, 200, .6); background: rgba(255, 255, 255, .92); color: #1a2230; }
-html body .roundpage .voicedict .vdrow button { flex: 0 0 auto; width: 56px; height: 56px; min-height: 56px; margin: 0; padding: 0; border-radius: 16px; font-size: 22px; font-weight: 800; }
-html body .roundpage .voicedict .vdrow button.frostmain { background: linear-gradient(180deg, #a9cdf0, #7fb2e5); color: #0e2a44; border: 1px solid rgba(255, 255, 255, .8); }
+/* v84: ✓ is the one way to submit – big, wide, primary; ✕ small beside it */
+html body .roundpage .voicedict .vdrow button { margin: 0; padding: 0; min-height: 64px; height: 64px; border-radius: 18px; font-weight: 800; }
+html body .roundpage .voicedict .vdrow button.vgo { flex: 1 1 auto; font-size: 32px; background: linear-gradient(180deg, #8fc0ee, #5d9ddf); color: #0b2440; border: 1px solid rgba(255, 255, 255, .85);
+  box-shadow: 0 8px 20px rgba(40, 90, 150, .32), inset 0 1px 0 rgba(255, 255, 255, .6); }
+html body .roundpage .voicedict .vdrow button.vx { flex: 0 0 64px; width: 64px; font-size: 20px; }
 .voicedict .vhint { margin: 8px 4px 0; font-size: 15px; font-weight: 600; color: #445064; }
+
+/* v84: softer in-round screens (sky look). Lighter weights, softer ink, thin translucent borders, rounder corners, quieter shadows.
+   Tap targets stay 44px+, text stays dark on light for sun. */
+.roundpage.theme-sky { --soft-ink: #2b3440; --soft-ink2: #4a5563; --soft-line: rgba(255, 255, 255, .78); --soft-slate: #3a4654;
+  --soft-shadow: 0 1px 4px rgba(30, 50, 80, .07); }
+html body .roundpage.theme-sky .holecard, html body .roundpage.theme-sky .hc-head h2 { color: var(--soft-ink); }
+html body .roundpage.theme-sky .srow.shead { font-weight: 500; font-size: 13px; letter-spacing: .06em; color: var(--soft-ink2); }
+html body .roundpage.theme-sky .holecard button, html body .roundpage.theme-sky .holecard select, html body .roundpage.theme-sky .c-d input,
+html body .roundpage.theme-sky .topbar button, html body .roundpage.theme-sky > button, html body .roundpage.theme-sky > .row button {
+  border: 1px solid var(--soft-line); border-radius: 18px; box-shadow: var(--soft-shadow); }
+/* distance numbers: medium weight, a touch smaller, soft near-black */
+html body .roundpage.theme-sky .c-d input { font-weight: 500; font-size: 20px; color: var(--soft-ink); -webkit-text-fill-color: var(--soft-ink); background-color: rgba(255, 255, 255, .9); }
+html body .roundpage.theme-sky .c-d .u { font-weight: 400; color: var(--soft-ink2); }
+html body .roundpage.theme-sky .srow .c-n { font-weight: 500; color: var(--soft-ink2); }
+html body .roundpage.theme-sky .holecard select { font-weight: 500; color: var(--soft-ink); }
+html body .roundpage.theme-sky .clubrow select { font-weight: 400; }
+html body .roundpage.theme-sky .clublbl span, html body .roundpage.theme-sky .layup, html body .roundpage.theme-sky .clubrow.putter { font-weight: 400; color: var(--soft-ink2); }
+html body .roundpage.theme-sky .sinfo { font-weight: 400; color: var(--soft-ink2); }
+html body .roundpage.theme-sky .sinfo b { font-weight: 600; }
+/* selected / direction pills: dark slate instead of near-black, thinner arrows */
+html body .roundpage.theme-sky button.sel, html body .roundpage.theme-sky .par button.sel, html body .roundpage.theme-sky .srow .dirbtn.on,
+html body .roundpage.theme-sky .pinbtn.set, html body .roundpage.theme-sky .dirgrid button.sel {
+  background: var(--soft-slate); border-color: var(--soft-slate); color: #fff; box-shadow: 0 2px 6px rgba(40, 55, 75, .18); }
+html body .roundpage.theme-sky .srow .dirbtn { font-weight: 300; font-size: 22px; color: #8593a3; }
+html body .roundpage.theme-sky .srow .dirbtn.on { font-weight: 300; }
+html body .roundpage.theme-sky .par button { font-weight: 500; }
+html body .roundpage.theme-sky .c-p .pen { font-weight: 600; }
+html body .roundpage.theme-sky .c-p .pen.on { background: #b8505a; border-color: #b8505a; }
+/* delete: smaller, lighter icon, still a 44px target */
+html body .roundpage.theme-sky .srow .del { min-width: 44px; min-height: 44px; font-size: 17px; font-weight: 400; color: #b0606a;
+  background: rgba(255, 238, 240, .55); border: 1px solid rgba(220, 150, 158, .35); box-shadow: none; }
+/* main actions: 600 weight, softer depth */
+html body .roundpage.theme-sky .addshot, html body .roundpage.theme-sky .finish, html body .roundpage.theme-sky > button.big, html body .roundpage.theme-sky .holecard button.big { font-weight: 600; border-radius: 22px; }
+html body .roundpage.theme-sky .addshot { box-shadow: 0 4px 12px rgba(60, 110, 170, .2); }
+html body .roundpage.theme-sky .count { font-weight: 500; color: var(--soft-ink); }
+html body .roundpage.theme-sky .hint { font-weight: 500; color: var(--soft-ink2); }
+html body .roundpage.theme-sky .holecard .micbtn { border-radius: 999px; font-weight: 600; box-shadow: 0 4px 12px rgba(30, 60, 100, .16), inset 0 1px 0 rgba(255, 255, 255, .6); }
+html body .roundpage.theme-sky .topbar .title span { font-weight: 500; color: var(--soft-ink2); }
