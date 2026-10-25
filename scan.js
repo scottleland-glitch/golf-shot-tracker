@@ -24,8 +24,8 @@
   }
   // Make every kind of print dark-on-white: ink = how far a pixel is from its local background (works for white print on coloured tee rows too).
   // Then erase the table's grid lines (very long straight runs of ink), which otherwise get read as 1s and |s.
-  function prepare(img) {
-    var W = img.naturalWidth || img.width, H = img.naturalHeight || img.height, long = Math.max(W, H), sc = Math.min(2.5, 2600 / long);
+  function prepare(img, opt) {
+    opt = opt || {}; var W = img.naturalWidth || img.width, H = img.naturalHeight || img.height, long = Math.max(W, H), sc = opt.scale || Math.min(2.5, (opt.long || 2600) / long);
     var w = Math.round(W * sc), h = Math.round(H * sc), c = document.createElement('canvas'); c.width = w; c.height = h;
     var x = c.getContext('2d'); x.imageSmoothingQuality = 'high'; x.drawImage(img, 0, 0, w, h);
     var d = x.getImageData(0, 0, w, h), p = d.data, n = w * h, g = new Float32Array(n), I = new Float64Array((w + 1) * (h + 1)), i, j, xx, yy;
@@ -69,7 +69,7 @@
     for (j = 0; j < n; j++) { if (!lab[j]) continue; var r = find(lab[j]); lab[j] = r; var B = box[r]; x = j % w; y = (j / w) | 0;
       if (!B) box[r] = B = { x0: x, x1: x, y0: y, y1: y, a: 0 }; if (x < B.x0) B.x0 = x; if (x > B.x1) B.x1 = x; if (y < B.y0) B.y0 = y; if (y > B.y1) B.y1 = y; B.a++; }
     var hs = []; Object.keys(box).forEach(function (k) { var B = box[k], bh = B.y1 - B.y0 + 1, bw = B.x1 - B.x0 + 1; if (B.a > 20 && bh < h / 6 && bw < bh * 3) hs.push(bh); });
-    hs.sort(function (a, b) { return a - b; }); var mh = hs.length ? hs[Math.floor(hs.length / 2)] : 20;
+    hs.sort(function (a, b) { return a - b; }); var mh = hs.length ? hs[Math.floor(hs.length / 2)] : 20; cleanComponents.mh = mh;
     var kill = {};
     Object.keys(box).forEach(function (k) { var B = box[k], bh = B.y1 - B.y0 + 1, bw = B.x1 - B.x0 + 1, dens = B.a / (bh * bw);
       if (B.a < mh * mh * 0.03) kill[k] = 1; // speck
@@ -77,17 +77,34 @@
     });
     for (j = 0; j < n; j++) if (lab[j] && kill[lab[j]]) bin[j] = 0;
   }
-  function read(src, onProgress) {
-    var t0 = Date.now(); progressCb = onProgress || null;
+  function ocr(w, canvas) {
+    return w.recognize(canvas, {}, { text: true, blocks: true }).then(function (r) {
+      var lines = [];
+      (r.data.blocks || []).forEach(function (b) { (b.paragraphs || []).forEach(function (pg) { (pg.lines || []).forEach(function (l) {
+        lines.push({ words: (l.words || []).map(function (w) { return { text: w.text, x0: w.bbox.x0, x1: w.bbox.x1 }; }) }); }); }); });
+      return { text: r.data.text || '', lines: lines, conf: r.data.confidence };
+    });
+  }
+  // opt.half ('f' | 'b'): a close-up of one nine. The reader is touchy about print size, so when a row's numbers don't add up to its
+  // printed total the photo is read again at other sizes (up to 3 passes) and the passes vote (COURSES.readHalf).
+  var SIZES = [2600, 1700, 2100];
+  function read(src, onProgress, opt) {
+    var t0 = Date.now(), half = opt && opt.half; progressCb = onProgress || null;
     return Promise.all([loadImage(src), getWorker()]).then(function (a) {
-      if (onProgress) onProgress('reading the card', 0);
-      var canvas = prepare(a[0]);
-      return a[1].recognize(canvas, {}, { text: true, blocks: true }).then(function (r) {
-        var text = r.data.text || '', lines = [];
-        (r.data.blocks || []).forEach(function (b) { (b.paragraphs || []).forEach(function (pg) { (pg.lines || []).forEach(function (l) {
-          lines.push({ words: (l.words || []).map(function (w) { return { text: w.text, x0: w.bbox.x0, x1: w.bbox.x1 }; }) }); }); }); });
-        var card = window.COURSES.readCard(text, lines);
-        return { text: text, lines: lines, card: card, ms: Date.now() - t0, conf: r.data.confidence };
+      var img = a[0], w = a[1], passes = [];
+      var step = function (k) {
+        if (onProgress) onProgress('reading the card', 0);
+        if (half) progressCb = onProgress ? function (st, pr) { if (st !== 'recognizing text') return onProgress(st, pr);
+          onProgress(k ? 'double-checking' : st, k ? 0.7 + 0.3 * (k - 1 + pr) / (SIZES.length - 1) : 0.7 * pr); } : null;
+        return ocr(w, prepare(img, { long: SIZES[k] })).then(function (r) {
+          passes.push(r); if (!half) return null;
+          var h = window.COURSES.readHalf(passes, half);
+          return h.whole || h.ok || k + 1 >= SIZES.length ? h : step(k + 1);
+        });
+      };
+      return step(0).then(function (h) {
+        var r = passes[0];
+        return { text: r.text, lines: r.lines, card: window.COURSES.readCard(r.text, r.lines), half: h, passes: passes.length, ms: Date.now() - t0, conf: r.conf };
       });
     });
   }

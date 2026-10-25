@@ -97,7 +97,7 @@ const lastR = RS[RS.length - 1], L = BZ.scope([lastR]);
   assert.ok((await page.textContent('.bzlegend')).includes('(all rounds)')); assert.strictEqual(s.count, BZ.label(BZ.zone(SS, ringAll2)));
   // Brand new player, no data at all → default ring
   await load([short]); await goHist(); await page.click('#histbz'); s = await state(); assert.strictEqual(s.ring, BZ.DEFAULT_FT * 5); assert.ok(s.note.includes('Not enough putts yet'), s.note);
-  const sw = fs.readFileSync('/workspace/golf-app/sw.js', 'utf8'); assert.ok(sw.includes("'golf-sg-v85'") && sw.includes("'./birdie.js'") && sw.includes("'./img/oriole.webp'"), 'sw v85 + birdie.js cached');
+  const sw = fs.readFileSync('/workspace/golf-app/sw.js', 'utf8'); assert.ok(/'golf-sg-v(8[5-9]|9\d|\d{3,})'/.test(sw) && sw.includes("'./birdie.js'") && sw.includes("'./img/oriole.webp'"), 'sw v85+ + birdie.js cached');
   assert.deepStrictEqual(errors, []); await b.close(); srv.kill();
   console.log('birdie zone focused OK · all-rounds ring ' + ringAll + '’ · round rings ' + rings.map(x => x + '’').join(' ') + ' · ' + BZ.label(BZ.zone(ALL, ringAll)) + ' · at 14’: ' + BZ.label(BZ.zone(ALL, 14)));
 })().catch(e => { console.error(e); process.exit(1); });

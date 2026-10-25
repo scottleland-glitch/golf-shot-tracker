@@ -712,3 +712,31 @@ html body .roundpage.theme-sky .topbar .title span { font-weight: 500; color: va
   .bzpage .bzbird.hop { animation: bzhop .42s cubic-bezier(.3, 1.6, .5, 1); }
   @keyframes bzhop { 0% { transform: translateY(0) scale(1); } 40% { transform: translateY(-7px) scale(1.08) rotate(-4deg); } 100% { transform: translateY(0) scale(1); } }
 }
+/* ---------- Scorecard: front 9 + back 9 photos (v86) – soft, thin lines ---------- */
+.cardpage .halfsteps { display: flex; align-items: center; justify-content: center; gap: 8px; margin: 12px 0 0; }
+.cardpage .halfsteps > i { flex: 0 0 34px; height: 1px; background: rgba(26, 34, 48, .2); }
+.cardpage .hstep { display: inline-flex; align-items: center; gap: 7px; font-size: 15px; font-weight: 500; color: var(--frost-ink-soft); }
+.cardpage .hstep em { font-style: normal; }
+.cardpage .hstep b { width: 24px; height: 24px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 600; color: var(--frost-ink-soft); background: rgba(255, 255, 255, .6); border: 1px solid rgba(120, 140, 160, .45); }
+.cardpage .hstep.on { color: var(--frost-ink); } .cardpage .hstep.on b { color: #fff; background: #3b6e9f; border-color: #3b6e9f; }
+.cardpage .hstep.done b { color: #2f6b3f; background: rgba(220, 240, 222, .9); border-color: rgba(47, 107, 63, .45); }
+.cardpage .hstep.done { border: 0; padding: 0; margin: 0; border-radius: 0; text-align: left; } .cardpage .hstep.done b { font-size: 13px; }
+.cardpage .halfstart { gap: 12px; }
+.cardpage .halfpic { display: flex; gap: 4px; justify-content: center; margin: 4px auto 0; padding: 8px; border-radius: 14px; background: rgba(255, 255, 255, .5); border: 1px solid rgba(150, 170, 190, .4); width: 220px; }
+.cardpage .halfpic i { flex: 1; height: 54px; display: flex; align-items: center; justify-content: center; font-style: normal; font-size: 14px; font-weight: 500; color: rgba(26, 34, 48, .35);
+  border-radius: 9px; border: 1px dashed rgba(120, 140, 160, .45); background: repeating-linear-gradient(180deg, transparent 0 10px, rgba(120, 140, 160, .12) 10px 11px); }
+.cardpage .halfpic i.on { color: #1d4f7c; border: 1.5px solid #79a9da; background-color: rgba(190, 220, 248, .55); }
+.cardpage .halfhint { margin: 2px 4px; font-size: 16px; font-weight: 400; color: var(--frost-ink-soft); line-height: 1.35; }
+.cardpage .halfhint b { display: block; font-size: 19px; font-weight: 600; color: var(--frost-ink); margin-bottom: 2px; }
+.cardpage .halfwarn { margin: 0; padding: 8px 10px; border-radius: 12px; background: rgba(255, 240, 210, .85); border: 1px solid rgba(200, 150, 40, .35); color: #7a5200; font-size: 14px; font-weight: 500; }
+.cardpage .halfskip { min-height: 50px; font-size: 16px; font-weight: 500; }
+.cardpage .txtlink { background: none !important; border: 0 !important; box-shadow: none !important; color: #2c5d8c; font-size: 15px; font-weight: 500; min-height: 36px; padding: 4px; }
+.cardpage .matchcard { margin-top: 12px; padding: 14px 12px; }
+.cardpage .matchintro { margin: 0 0 10px; font-size: 15px; color: var(--frost-ink-soft); }
+.cardpage .matchrow { padding: 10px 0; border-top: 1px solid rgba(26, 34, 48, .1); }
+.cardpage .matchrow p { margin: 0 0 8px; display: flex; flex-direction: column; gap: 2px; } .cardpage .matchrow p b { font-weight: 600; font-size: 17px; } .cardpage .matchrow p span { font-size: 13px; color: var(--frost-ink-soft); }
+.cardpage .matchchips { display: flex; flex-wrap: wrap; gap: 6px; } .cardpage .matchchips .frostchip { min-height: 40px; padding: 6px 14px; font-size: 15px; font-weight: 500; }
+.cardpage .halfbar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 12px 2px 4px; }
+.cardpage .halfbar > span { flex: 1 0 100%; font-size: 13px; color: var(--frost-ink-soft); text-transform: uppercase; letter-spacing: .04em; font-weight: 500; }
+.cardpage .halfbar .frostchip { flex: 1; min-height: 46px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px; font-size: 15px; font-weight: 500; }
+.cardpage .halfbar .frostchip small { font-size: 12px; font-weight: 400; opacity: .75; }
