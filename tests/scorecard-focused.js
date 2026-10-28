@@ -65,7 +65,7 @@ const make = require('./fixtures/make-card.js'); const PORT = 8813, BASE = `http
   const imgs = {}; for (const photo of [false, true]) { const url = await page.evaluate(`(${make})(${JSON.stringify({ photo, card: CARD })})`); imgs[photo ? 'photo' : 'clean'] = Buffer.from(url.split(',')[1], 'base64'); }
   // New round sheet: scan or type a card
   await page.click('#plusbtn'); await page.click('[data-act="newform"]'); await page.waitForSelector('[data-act="scan"]');
-  assert.strictEqual(await page.$('#ncourses'), null, 'no saved courses yet'); await shot('scorecard-start');
+  assert.strictEqual(await page.$('#crspick'), null, 'no saved courses yet: no dropdown, just the name box'); assert.ok(await page.$('#course')); await shot('scorecard-start');
   await page.click('[data-act="scan"]'); await page.waitForSelector('label[for="cardfile"]'); await shot('scorecard-scan');
   const t0 = Date.now(); await page.setInputFiles('#cardfile', { name: 'card.png', mimeType: 'image/png', buffer: imgs.clean });
   await page.waitForSelector('.teebtn', { timeout: 120000 }); const secs = (Date.now() - t0) / 1000;
@@ -82,9 +82,8 @@ const make = require('./fixtures/make-card.js'); const PORT = 8813, BASE = `http
   // fix a misread in the grid and rename the course
   await page.fill('[data-cf="yd"][data-i="0"]', '36'); await page.fill('[data-cf="yd"][data-i="0"]', '361');
   await page.fill('[data-cf="name"]', 'Pebble Creek'); await page.evaluate(() => window.scrollTo(0, 0)); await shot('scorecard-review');
-  await page.click('[data-act="cardsave"]'); await page.waitForSelector('#ncourses');
-  assert.match(await page.textContent('#ncourses .sel'), /Pebble Creek/); assert.match(await page.textContent('#ntees .sel'), /Sage/);
-  assert.strictEqual(await page.$eval('#course', e => e.value), 'Pebble Creek'); await shot('course-picker');
+  await page.click('[data-act="cardsave"]'); await page.waitForSelector('#ntees');
+  assert.match(await page.textContent('#crspicked'), /Pebble Creek/); assert.match(await page.textContent('#ntees .sel'), /Sage/); await shot('course-picker');
   await page.click('#ntees [data-v="White"]'); await page.click('[data-act="new"]'); await page.waitForSelector('.holecard');
   assert.strictEqual(await page.$eval('input[data-row="0"]', e => e.value), String(appCard.tees.find(t => t.name === 'White').yards[0]));
   assert.strictEqual(await page.textContent('.par button.sel'), '4');
@@ -107,7 +106,7 @@ const make = require('./fixtures/make-card.js'); const PORT = 8813, BASE = `http
   assert.match(await page.textContent('.crsbtn'), /2 saved/);
   // offline: reload with no network at all, scan the phone-photo version (scanner comes from the app's offline cache)
   await ctx.setOffline(true); await page.reload(); await page.waitForSelector('#plusbtn');
-  await page.click('#plusbtn'); await page.click('[data-act="newform"]'); assert.strictEqual(await page.locator('#ncourses .ncchip').count(), 2);
+  await page.click('#plusbtn'); await page.click('[data-act="newform"]'); await page.click('#crspick'); assert.strictEqual(await page.locator('#crslist [data-act="ncourse"]').count(), 2); await page.click('[data-act="crsnew"]');
   await page.click('[data-act="scan"]'); const t1 = Date.now(); await page.setInputFiles('#cardfile', { name: 'photo.jpg', mimeType: 'image/jpeg', buffer: imgs.photo });
   await page.waitForSelector('.teebtn, .revgrid', { timeout: 120000 }); const pCard = await page.evaluate(() => JSON.parse(JSON.stringify(window.__golf.card().course)));
   const sPhoto = score({ pars: pCard.pars, hcp: pCard.hcp, tees: pCard.tees }); if (process.env.DUMP) require('fs').writeFileSync(__dirname + '/fixtures/ocr-app-photo.json', JSON.stringify(await page.evaluate(() => window.__golf.card().ocr))); console.log('  offline photo scan: ' + ((Date.now() - t1) / 1000).toFixed(1) + ' s, accuracy ' + (sPhoto * 100).toFixed(1) + '%, tees ' + pCard.tees.map(t => t.name).join(', '));

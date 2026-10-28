@@ -330,7 +330,42 @@
   function pad(a) { var o = (a || []).slice(0, 18); while (o.length < 18) o.push(null); return o; }
 
   // ---- saved courses ----
-  function blankCourse(name) { return { id: 'c' + Date.now() + Math.floor(Math.random() * 1000), name: name || '', pars: pad([]), tees: [{ name: 'Tee', yards: pad([]) }], updated: new Date().toISOString() }; }
+  // A tee box with no real name (manual entry left blank, or an old 'Tee' / 'Tee 1' placeholder) is called this; it can be renamed
+  var MAIN = 'Main tees', TEE_CHIPS = ['Black', 'Blue', 'White', 'Gold', 'Red', 'Green'];
+  function blankCourse(name) { return { id: 'c' + Date.now() + Math.floor(Math.random() * 1000), name: name || '', pars: pad([]), tees: [{ name: '', yards: pad([]) }], updated: new Date().toISOString() }; }
+  function noName(n) { return !String(n || '').trim() || /^tee$/i.test(String(n).trim()); }
+  // Unique tee names within a course ('White', 'White 2'); blanks become 'Main tees'
+  function nameTees(tees) {
+    var seen = {};
+    return tees.map(function (t) { var b = noName(t.name) ? MAIN : String(t.name).trim(), n = b, k = 1;
+      while (seen[n.toLowerCase()]) { k++; n = b + ' ' + k; } seen[n.toLowerCase()] = 1; return n; });
+  }
+  // Saved courses from older versions: unnamed tee sets get a name (no numbers change). Returns { courses, changed }.
+  function migrate(list) {
+    var changed = false;
+    var out = (Array.isArray(list) ? list : []).filter(function (c) { return c && typeof c === 'object'; }).map(function (c) {
+      var tees = Array.isArray(c.tees) && c.tees.length ? c.tees : [{ name: '', yards: pad([]) }];
+      var single = tees.length === 1 && /^tee \d+$/i.test(String(tees[0].name || '').trim()); // a lone scanned row with no printed name
+      var names = single ? [MAIN] : nameTees(tees);
+      var same = tees === c.tees && tees.every(function (t, i) { return t && t.name === names[i] && Array.isArray(t.yards); });
+      if (same) return c;
+      changed = true;
+      var o = {}; Object.keys(c).forEach(function (k) { o[k] = c[k]; });
+      o.tees = tees.map(function (t, i) { return { name: names[i], yards: pad(t && t.yards) }; }); if (!Array.isArray(o.pars)) o.pars = pad([]);
+      return o;
+    });
+    return { courses: out, changed: changed };
+  }
+  // Most recently used first: the latest round played there (by course id, or same name for rounds before saved courses), or when the course was saved/edited
+  function lastUsed(c, rounds) {
+    var t = String(c.updated || ''), nm = String(c.name || '').trim().toLowerCase();
+    (rounds || []).forEach(function (r) { if (!r || !r.date) return; if (r.courseId ? r.courseId === c.id : nm && String(r.course || '').trim().toLowerCase() === nm) { if (String(r.date) > t) t = String(r.date); } });
+    return t;
+  }
+  function byRecent(list, rounds) {
+    return (list || []).map(function (c, i) { return { c: c, t: lastUsed(c, rounds), i: i }; })
+      .sort(function (a, b) { return a.t < b.t ? 1 : a.t > b.t ? -1 : a.i - b.i; }).map(function (x) { return x.c; });
+  }
   function fromScan(scan, name) {
     var c = blankCourse(name);
     c.pars = pad(scan.pars || []); if (scan.hcp && scan.hcp.some(function (v) { return v != null; })) c.hcp = pad(scan.hcp);
@@ -340,11 +375,14 @@
   function holesPlayed(c) { var n = 0; for (var i = 0; i < 18; i++) if (c.pars[i] != null || c.tees.some(function (t) { return t.yards[i] != null; })) n = i + 1; return n; }
   function teeTotal(t, from, to) { return sum((t.yards || []).slice(from || 0, to == null ? 18 : to)); }
   function clean(c) { // what gets stored
-    var o = { id: c.id, name: String(c.name || '').trim() || 'Course', pars: pad(c.pars).map(num), tees: (c.tees || []).filter(function (t) { return t && (t.name || t.yards.some(function (v) { return v != null; })); })
-      .map(function (t) { return { name: String(t.name || '').trim() || 'Tee', yards: pad(t.yards).map(num) }; }), updated: new Date().toISOString() };
+    var kept = keptTees(c.tees), names = nameTees(kept);
+    if (!kept.length) { kept = [{ name: '', yards: pad([]) }]; names = [MAIN]; }
+    var o = { id: c.id, name: String(c.name || '').trim() || 'Course', pars: pad(c.pars).map(num), tees: kept.map(function (t, i) { return { name: names[i], yards: pad(t.yards).map(num) }; }), updated: new Date().toISOString() };
     if (c.hcp && c.hcp.some(function (v) { return v != null && v !== ''; })) o.hcp = pad(c.hcp).map(num);
     return o;
   }
+  // tee boxes worth saving: a name or at least one distance (a blank one added by mistake is dropped)
+  function keptTees(tees) { return (tees || []).filter(function (t) { return t && (!noName(t.name) || pad(t.yards).some(function (v) { return v != null && v !== ''; })); }); }
   function num(v) { return v === '' || v == null || isNaN(+v) ? null : +v; }
   // Prefill a round's holes from a course + tee: par and the tee-shot distance (row 1)
   function prefill(holes, c, teeName) {
@@ -372,6 +410,7 @@
     return '';
   }
   var api = { readHalf: readHalf, parseHalf: parseHalf, halfCard: halfCard, halfFromCourse: halfFromCourse, mergeHalves: mergeHalves, autoLinks: autoLinks, sameName: sameName, guessName: guessName, parseCard: parseCard, parseWords: parseWords, readCard: readCard, snapName: snapName, tokens: tokens, holesOf: holesOf, cleanName: cleanName, blankCourse: blankCourse, fromScan: fromScan, clean: clean, prefill: prefill,
+    migrate: migrate, byRecent: byRecent, lastUsed: lastUsed, keptTees: keptTees, nameTees: nameTees, noName: noName, MAIN: MAIN, TEE_CHIPS: TEE_CHIPS,
     mergeCourses: mergeCourses, holesPlayed: holesPlayed, teeTotal: teeTotal, pad: pad, sum: sum };
   if (typeof module !== 'undefined' && module.exports) module.exports = api; else root.COURSES = api;
 })(this);

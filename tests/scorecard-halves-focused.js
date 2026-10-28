@@ -93,7 +93,7 @@ const make = require('./fixtures/make-half.js'); const PORT = 8814, BASE = `http
   await up(front, 'front2.jpg'); await page.waitForSelector('.teebtn', { timeout: 60000 }); await page.click('.teebtn:has-text("Sage")'); await page.waitForSelector('.revgrid');
   g = await grid(); eq([g.yd[12], g.name], [346, 'Pebble Creek'], 'back-9 fix and typed name kept'); ok(cells(g.yd.slice(0, 9), TRUE.sage.slice(0, 9)) >= 8);
   // 4) save → prefill for every hole
-  await page.click('[data-act="cardsave"]'); await page.waitForSelector('#ncourses'); assert.match(await page.textContent('#ntees .sel'), /Sage/);
+  await page.click('[data-act="cardsave"]'); await page.waitForSelector('#ntees'); assert.match(await page.textContent('#ntees .sel'), /Sage/);
   await page.click('[data-act="new"]'); await page.waitForSelector('.holecard');
   const rd2 = await page.evaluate(() => JSON.parse(localStorage.getItem('golfsg.rounds.v1'))[0]); eq(rd2.holes.map(x => x.par), TRUE.par); eq(rd2.holes[12].rows[0].dist, 346); eq(rd2.tee, 'Sage');
   // 5) unreadable front photo → message, skip it, back photo alone (names cut off) → typed-in front

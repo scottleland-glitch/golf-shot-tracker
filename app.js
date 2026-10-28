@@ -9,8 +9,10 @@
     LIVE.startViewer(document.getElementById('app'), LIVE.watchId(location.search), { base: LIVE_DB, oriole: 'img/oriole.webp' });
     return;
   }
-  var KEY = 'golfsg.rounds.v1', CUR = 'golfsg.current.v1', PN = 'golfsg.player.v1', CRS = 'golfsg.courses.v1';
-  function courses() { try { var a = JSON.parse(localStorage.getItem(CRS) || '[]'); return Array.isArray(a) ? a : []; } catch (e) { return []; } }
+  var KEY = 'golfsg.rounds.v1', CUR = 'golfsg.current.v1', PN = 'golfsg.player.v1', CRS = 'golfsg.courses.v1', NA = 'golfsg.nameasked.v1';
+  function coursesRaw() { try { var a = JSON.parse(localStorage.getItem(CRS) || '[]'); return Array.isArray(a) ? a : []; } catch (e) { return []; } }
+  function courses() { return COURSES.migrate(coursesRaw()).courses; } // older saves: unnamed tee sets read as 'Main tees'
+  (function () { var M = COURSES.migrate(coursesRaw()); if (M.changed) try { localStorage.setItem(CRS, JSON.stringify(M.courses)); } catch (e) {} })();
   function saveCourses(a) { localStorage.setItem(CRS, JSON.stringify(a)); }
   function courseById(id) { return courses().filter(function (c) { return c.id === id; })[0]; }
   function playerName() { return (localStorage.getItem(PN) || '').trim(); }
@@ -96,9 +98,10 @@
     var sel = document.getElementById('newbl');
     var r = { v: 3, dv: 2, id: 'r' + Date.now(), date: new Date().toISOString(), course: course || '', player: playerName(), baseline: sel ? sel.value : 'pga', holes: [] };
     for (var i = 0; i < 18; i++) r.holes.push(emptyHole());
-    var nc = view.newC && courseById(view.newC.id);
-    if (nc && (!course || course.toLowerCase() === nc.name.toLowerCase())) { r.course = nc.name; r.courseId = nc.id; r.tee = view.newC.tee || (nc.tees[0] || {}).name || ''; COURSES.prefill(r.holes, nc, r.tee); }
-    view.newC = null;
+    var nc = view.newC && courseById(view.newC.id), tee = view.newC && view.newC.tee;
+    if (!nc && course) { nc = courses().filter(function (c) { return c.name.trim().toLowerCase() === course.toLowerCase(); })[0]; tee = null; } // typed a saved course's name
+    if (nc && (!course || course.toLowerCase() === nc.name.toLowerCase())) { r.course = nc.name; r.courseId = nc.id; r.tee = tee || (nc.tees[0] || {}).name || ''; COURSES.prefill(r.holes, nc, r.tee); }
+    view.newC = null; view.newAdd = false; view.crsOpen = false;
     rounds.unshift(r); save();
     view.roundId = r.id; localStorage.setItem(CUR, r.id);
     goHole(0, true);
@@ -121,7 +124,7 @@
     if (view.screen !== 'summary' && view.screen !== 'hole') view.replay = null;
     if (view.screen !== 'hole') { view.pinOpen = false; view.voice = null; view.liveCard = false; micAbort(); }
     if (view.screen !== 'card') view.card = null;
-    if (view.screen !== 'home') { if (view.hmenu !== 'new') view.newC = null; }
+    if (view.screen !== 'home') { if (view.hmenu !== 'new') { view.newC = null; view.newAdd = false; } view.crsOpen = false; view.nameSheet = null; }
     document.body.classList.toggle('noscroll', !!(view.pinOpen && view.screen === 'hole'));
     if (view.screen === 'about') el.innerHTML = aboutHTML();
     else if (view.screen === 'history') el.innerHTML = historyHTML();
@@ -710,7 +713,7 @@
     if (!window.OD.slug(n)) { toast('Please enter a name (letters or numbers)'); return; }
     var old = playerName();
     if (old && old !== n && !confirm('Change player name from "' + old + '" to "' + n + '"?\n\nYour rounds are relabelled and new OneDrive backups go to ' + window.OD.fileFor(n) + '. Older backup files are kept.')) return;
-    localStorage.setItem(PN, n); view.editName = false; view.needName = null;
+    localStorage.setItem(PN, n); localStorage.setItem(NA, '1'); view.editName = false; view.needName = null; view.nameSheet = null;
     rounds.forEach(function (r) { if (!r.player || r.player === old) r.player = n; });
     save(); if (odOn) { odState.attempts = 0; odSoon(800); }
     toast('Player name: ' + n); render();
@@ -723,19 +726,34 @@
       '<button class="primary" data-act="setname">Save</button>' + (n ? '<button data-act="cancelname">Cancel</button>' : '') + '</div>' +
       '<div class="tiprow">' + tipBtn('nameinfo', 'i', 'About the player name') + tipLbl('nameinfo', 'About the player name') + '</div>' + tipText('nameinfo', 'Saved on this phone. It labels your rounds and names your backups (golf-rounds-<i>name</i>.json), so several phones can share one OneDrive.') + '</div>';
   }
+  // First open on a new phone (no name, no rounds yet): ask who's playing once. 'Not now' doesn't ask again – the Player row on Home does it any time.
+  function needFirstName() { return !playerName() && !localStorage.getItem(NA) && !rounds.length; }
+  function nameSheetHTML() {
+    var n = playerName(), first = view.nameSheet !== 'change';
+    return '<div class="sheet-back"' + (first ? '' : ' data-act="namecancel"') + '></div><div class="hsheet glass namesheet" id="namesheet" role="dialog" aria-modal="true" aria-labelledby="namesh">' +
+      '<div class="sheet-h" id="namesh">' + (first ? 'Who’s playing?' : 'Player') + '</div>' +
+      '<p class="namehelp" id="namehelp">' + (first ? 'Enter the golfer’s name. It goes on each round, the reports and the live scorecard.' : 'The golfer using this phone. It goes on each round, the reports and the live scorecard.') + '</p>' +
+      '<input type="text" id="pname" value="' + esc(n) + '" placeholder="Golfer’s name" autocomplete="name" maxlength="40" aria-label="Golfer’s name">' +
+      '<button class="sheet-go" data-act="setname">Save</button>' +
+      '<button class="sheet-item muted" data-act="' + (first ? 'nameskip' : 'namecancel') + '">' + (first ? 'Not now' : 'Cancel') + '</button></div>';
+  }
   function homeHTML() {
-    var cur = rounds.filter(function (r) { return r.id === localStorage.getItem(CUR); })[0];
+    var cur = rounds.filter(function (r) { return r.id === localStorage.getItem(CUR); })[0], pn = playerName();
+    if (!view.nameSheet && needFirstName()) { view.nameSheet = 'first'; view.hmenu = null; }
     var h = '<div class="home" id="home"><div class="home-bg" aria-hidden="true"></div><div class="home-fade" aria-hidden="true"></div>' +
       '<h1 class="home-title">Pin High</h1>' +
-      '<button class="glass plusbtn" id="plusbtn" data-act="plus" aria-label="New round or history" aria-expanded="' + !!view.hmenu + '">+</button>';
+      '<button class="glass plusbtn" id="plusbtn" data-act="plus" aria-label="New round or history" aria-expanded="' + !!view.hmenu + '">+</button>' +
+      (view.nameSheet ? '' : '<button class="glass playerrow" id="playerrow" data-act="namechange" aria-label="' + (pn ? 'Player: ' + esc(pn) + '. Change' : 'Add the golfer’s name') + '">' +
+        (pn ? '<span class="pr-l">Player</span><b id="homepname">' + esc(pn) + '</b><span class="pr-c">Change</span>' : '<b>Add golfer’s name</b>') + '</button>');
     var bot = '';
     if (cur) { var S = SG.summarize(cur); bot += '<button class="glass pill" id="resumepill" data-act="resume">Resume round<small>' + (cur.course ? esc(cur.course) + ' · ' : '') + S.holesDone + ' holes done</small></button>'; }
     bot += '<button class="glass pill" id="archivepill" data-act="archive">Archive</button>';
     h += '<div class="home-bottom">' + bot + '</div>';
-    if (view.hmenu) {
+    if (view.nameSheet) h += nameSheetHTML();
+    else if (view.hmenu) {
       h += '<div class="sheet-back" data-act="menuclose"></div><div class="hsheet glass" id="plusmenu" role="menu">';
-      if (view.hmenu === 'new') h += '<div class="sheet-h">New round</div>' + newCourseHTML() + '<input type="text" id="course" placeholder="Course name (optional)" autocomplete="off" value="' + esc(view.newC ? (courseById(view.newC.id) || {}).name || '' : '') + '">' +
-        '<label class="lbl" for="newbl">Compare my shots against</label>' + blSelect('newbl', 'pga') +
+      if (view.hmenu === 'new') h += '<div class="sheet-h">New round</div>' + newCourseHTML() +
+        '<label class="lbl" for="newbl">Compare my shots against</label>' + blSelect('newbl', view.newBl || 'pga') +
         '<button class="sheet-go" data-act="new">Start round</button><button class="sheet-item muted" data-act="plus">Back</button>';
       else h += '<button class="sheet-item" role="menuitem" data-act="newform">New round</button><button class="sheet-item" role="menuitem" data-act="history">History</button>';
       h += '</div>';
@@ -762,20 +780,42 @@
   }
 
   // ---------- Saved courses + scorecard scan ----------
+  function teeLabel(t, k) { return String(t.name || '').trim() || 'Tee box ' + (k + 1); }
   function teeTot(t) { var n = COURSES.teeTotal(t); return n ? n.toLocaleString('en-US') : ''; }
+  // New round: Course dropdown (+ Add new course first, then saved courses, most recently used first) → tee box chips
   function newCourseHTML() {
-    var list = courses(), h = '';
+    var list = COURSES.byRecent(courses(), rounds), nc = view.newC && courseById(view.newC.id), adding = !nc && (view.newAdd || !list.length), h = '';
     if (list.length) {
-      h += '<div class="ncrs" id="ncourses">' + list.map(function (c) { var on = view.newC && view.newC.id === c.id;
-        return '<button class="ncchip' + (on ? ' sel' : '') + '" data-act="ncourse" data-id="' + esc(c.id) + '">' + esc(c.name) + '</button>'; }).join('') + '</div>';
-      var nc = view.newC && courseById(view.newC.id);
-      if (nc && nc.tees.length) h += '<div class="ntees" id="ntees">' + nc.tees.map(function (t) {
-        return '<button class="ntee' + (view.newC.tee === t.name ? ' sel' : '') + '" data-act="ntee" data-v="' + esc(t.name) + '">' + esc(t.name) + (teeTot(t) ? '<small>' + teeTot(t) + '</small>' : '') + '</button>'; }).join('') + '</div>';
+      h += '<span class="lbl" id="crslbl">Course</span><button type="button" class="crspick' + (view.crsOpen ? ' open' : '') + (nc ? ' chosen' : '') + '" id="crspick" data-act="crsopen" aria-haspopup="listbox" aria-expanded="' + !!view.crsOpen + '" aria-labelledby="crslbl crspick">' +
+        '<span id="crspicked">' + (nc ? esc(nc.name) : adding ? '+ Add new course' : 'Choose a course') + '</span><i aria-hidden="true">' + (view.crsOpen ? '▴' : '▾') + '</i></button>';
+      if (view.crsOpen) h += '<div class="crslist" id="crslist" role="listbox" aria-label="Courses"><button type="button" class="crsopt crsadd" role="option" data-act="crsnew" aria-selected="' + !!adding + '">+ Add new course</button>' +
+        list.map(function (c) { var on = !!nc && nc.id === c.id, par = COURSES.sum(c.pars);
+          return '<button type="button" class="crsopt' + (on ? ' sel' : '') + '" role="option" aria-selected="' + on + '" data-act="ncourse" data-id="' + esc(c.id) + '"><b>' + esc(c.name) + '</b><small>' +
+            (c.tees.length === 1 ? esc(c.tees[0].name) : c.tees.length + ' tee boxes') + (par ? ' · par ' + par : '') + '</small></button>'; }).join('') + '</div>';
     }
-    return h + '<div class="nscan"><button class="sheet-item scanbtn" data-act="scan">📷 Scan scorecard</button><button class="sheet-item" data-act="cardmanual" aria-label="Enter a scorecard by hand">✎</button></div>';
+    if (nc) {
+      var tees = nc.tees || [];
+      h += '<span class="lbl" id="teelbl">' + (tees.length > 1 ? 'Tee box' : 'Playing from') + '</span><div class="ntees" id="ntees" role="group" aria-labelledby="teelbl">' + tees.map(function (t) {
+        var on = view.newC.tee === t.name || (tees.length === 1);
+        return '<button type="button" class="ntee' + (on ? ' sel' : '') + '" aria-pressed="' + on + '" data-act="ntee" data-v="' + esc(t.name) + '">' + esc(t.name) + (teeTot(t) ? '<small>' + teeTot(t) + ' yd</small>' : '') + '</button>'; }).join('') +
+        '<button type="button" class="ntee naddtee" data-act="naddtee">＋ Add tee box</button></div>' +
+        '<button type="button" class="txtlink nedit" data-act="nedit">✎ Rename tees or fix numbers</button>';
+    }
+    if (adding) h += (list.length ? '' : '<span class="lbl" id="crslbl">Course</span>') + '<input type="text" id="course" placeholder="Course name' + (list.length ? '' : ' (optional)') + '" autocomplete="off" value="' + esc(view.newName || '') + '" aria-label="Course name">' +
+      '<div class="nscan"><button class="sheet-item scanbtn" data-act="scan">📷 Scan scorecard</button><button class="sheet-item" data-act="cardmanual" aria-label="Type in par and yardages">✎ Type in</button></div>';
+    return h;
+  }
+  // Open a saved course in the card editor from the New round sheet (rename tees, fix numbers, or add a tee box)
+  function newEdit(addTee) {
+    var nc = view.newC && courseById(view.newC.id); if (!nc) return;
+    var c = JSON.parse(JSON.stringify(nc)), sel = Math.max(0, c.tees.map(function (t) { return t.name; }).indexOf(view.newC.tee));
+    if (addTee) { c.tees.push({ name: '', yards: COURSES.pad([]) }); sel = c.tees.length - 1; }
+    cardOpen('new', c, 'review'); view.card.sel = sel; view.card.addTee = !!addTee; render();
+    if (addTee) { var ti = document.querySelector('[data-cf="tee"]'); if (ti) ti.focus(); }
   }
   function cardOpen(from, c, stage) {
-    view.card = { from: from, stage: stage || 'photo', course: c || COURSES.blankCourse(''), sel: 0, half: 'f', halves: { f: { st: 'none' }, b: { st: 'none' } } }; view.screen = 'card'; view.hmenu = null; render(); window.scrollTo(0, 0);
+    var keep = from === 'new' ? { newC: view.newC, newAdd: view.newAdd, newName: view.newName, newBl: view.newBl } : null;
+    view.card = { from: from, stage: stage || 'photo', course: c || COURSES.blankCourse(''), sel: 0, half: 'f', halves: { f: { st: 'none' }, b: { st: 'none' } }, keep: keep }; view.screen = 'card'; view.hmenu = null; render(); window.scrollTo(0, 0);
     if (view.card.stage === 'photo' && navigator.onLine && window.SCAN && !SCAN.ready()) SCAN.warm(); // load the scanner now so it's ready (and saved for offline)
   }
   function cardBack() {
@@ -783,7 +823,7 @@
     if (C && C.ret && (C.stage === 'photo' || C.stage === 'match')) { C.stage = C.ret; C.ret = null; render(); window.scrollTo(0, 0); return; } // backing out of a re-scan: back to the card as it was
     if (C && C.stage === 'photo' && C.half === 'b' && !C.ret) { C.half = 'f'; render(); window.scrollTo(0, 0); return; } // back 9 step → front 9 step
     view.card = null;
-    if (C && C.from === 'new') { view.screen = 'home'; view.hmenu = 'new'; } else { view.screen = C && C.from === 'archive' ? 'courses' : 'home'; }
+    if (C && C.from === 'new') { view.screen = 'home'; view.hmenu = 'new'; if (C.keep) { view.newC = C.keep.newC; view.newAdd = C.keep.newAdd; view.newName = C.keep.newName; view.newBl = C.keep.newBl; } } else { view.screen = C && C.from === 'archive' ? 'courses' : 'home'; }
     render(); window.scrollTo(0, 0);
   }
   function cardTop(title) { return '<div class="topbar frost"><button class="txt frostbtn" data-act="cardback">‹ Back</button><div class="title"><b>' + title + '</b></div><span></span></div>'; }
@@ -822,9 +862,11 @@
       var t = c.tees[C.sel] || c.tees[0], P = c.pars, Y = t.yards;
       var miss = 0; for (var i = 0; i < 18; i++) if (P[i] == null || Y[i] == null) miss++;
       h += cardTop('Check the card') + '<div class="frostcard cardrev"><input type="text" class="crsname" data-cf="name" placeholder="Course name" value="' + esc(c.name) + '" autocomplete="off">' +
-        '<div class="revtees">' + c.tees.map(function (x, k) { return '<button class="frostchip' + (k === C.sel ? ' sel' : '') + '" data-act="cardsel" data-i="' + k + '">' + esc(x.name || 'Tee') + '</button>'; }).join('') +
-        '<button class="frostchip addtee" data-act="cardaddtee" aria-label="Add a tee">＋</button></div>' +
-        '<div class="teename"><input type="text" data-cf="tee" value="' + esc(t.name) + '" placeholder="Tee name" aria-label="Tee name" autocomplete="off">' + (c.tees.length > 1 ? '<button class="frostdanger" data-act="carddeltee" aria-label="Remove this tee">🗑</button>' : '') + '</div>' +
+        '<p class="teelbl" id="revteelbl">Tee boxes</p><div class="revtees">' + c.tees.map(function (x, k) { return '<button class="frostchip' + (k === C.sel ? ' sel' : '') + '" data-act="cardsel" data-i="' + k + '">' + esc(teeLabel(x, k)) + '</button>'; }).join('') +
+        '<button class="frostchip addtee" data-act="cardaddtee" aria-label="Add a tee box">＋ Tee box</button></div>' +
+        '<label class="teelbl" for="teenamein">Name these tees</label><div class="teename"><input type="text" id="teenamein" data-cf="tee" value="' + esc(t.name) + '" placeholder="e.g. White, Red, Truckee" autocomplete="off">' + (c.tees.length > 1 ? '<button class="frostdanger" data-act="carddeltee" aria-label="Remove this tee box">🗑</button>' : '') + '</div>' +
+        '<div class="teequick" id="teequick" role="group" aria-label="Common tee names">' + COURSES.TEE_CHIPS.map(function (n) { var on = String(t.name || '').trim().toLowerCase() === n.toLowerCase();
+          return '<button type="button" class="frostchip tq tq-' + n.toLowerCase() + (on ? ' sel' : '') + '" aria-pressed="' + on + '" data-act="cardteeq" data-v="' + n + '"><i aria-hidden="true"></i>' + n + '</button>'; }).join('') + '</div>' +
         '<div class="revgrid">' + [0, 9].map(function (f) {
           var rows = '<div class="rg-h"><span>#</span><span>Par</span><span>Yds</span></div>';
           for (var j = f; j < f + 9; j++) rows += '<div class="rg-r' + (P[j] == null || Y[j] == null ? ' miss' : '') + '" data-h="' + j + '"><span>' + (j + 1) + '</span><input type="text" inputmode="numeric" maxlength="1" data-cf="par" placeholder="–" data-i="' + j + '" value="' + (P[j] == null ? '' : P[j]) + '" aria-label="Par hole ' + (j + 1) + '">' +
@@ -900,12 +942,15 @@
     var mm = document.getElementById('revmiss'); if (mm) mm.textContent = miss ? miss + ' hole' + (miss === 1 ? '' : 's') + ' to fill' : '';
   }
   function cardSave() {
-    var C = view.card, c = COURSES.clean(C.course);
+    var C = view.card, kept = COURSES.keptTees(C.course.tees);
     if (!String(C.course.name || '').trim()) { toast('Add the course name'); var ni = document.querySelector('[data-cf="name"]'); if (ni) ni.focus(); return; }
+    var unnamed = kept.length > 1 ? C.course.tees.indexOf(kept.filter(function (x) { return COURSES.noName(x.name); })[0]) : -1;
+    if (unnamed >= 0) { C.sel = unnamed; render(); toast('Name each tee box – e.g. White or Red'); var tn0 = document.querySelector('[data-cf="tee"]'); if (tn0) tn0.focus(); return; }
+    var c = COURSES.clean(C.course), selK = kept.indexOf(C.course.tees[C.sel]);
     var list = courses().filter(function (x) { return x.id !== c.id; }); list.unshift(c); saveCourses(list); odDirty(3000);
-    var tee = (c.tees[C.sel] || c.tees[0] || {}).name || '';
+    var tee = (c.tees[selK] || c.tees[0] || {}).name || '';
     toast('Saved ' + c.name); view.card = null;
-    if (C.from === 'new') { view.newC = { id: c.id, tee: tee }; view.screen = 'home'; view.hmenu = 'new'; } else view.screen = 'courses';
+    if (C.from === 'new') { if (C.keep) view.newBl = C.keep.newBl; view.newC = { id: c.id, tee: tee }; view.newAdd = false; view.newName = ''; view.screen = 'home'; view.hmenu = 'new'; } else view.screen = 'courses';
     render(); window.scrollTo(0, 0);
   }
   function coursesHTML() {
@@ -2478,14 +2523,21 @@
       case 'livesend': if (live && r) liveSend(r); return;
       case 'livecopy': if (live && r) liveCopy(live.info(r.id).link); return;
       case 'livestop': if (!live || !r || !confirm('Stop sharing? The link will stop showing this round.')) return; live.stop(r.id); view.liveCard = false; toast('Sharing stopped'); render(); return;
-      case 'new': view.from = null; view.hmenu = null; newRound(document.getElementById('course').value.trim()); return;
+      case 'new': view.from = null; view.hmenu = null; view.newBl = null; newRound(((document.getElementById('course') || {}).value || '').trim()); return;
       case 'resume': view.from = null; view.roundId = localStorage.getItem(CUR); goHole(firstOpenHole(round()), true); return;
       case 'open': view.pdf = null; view.roundId = b.getAttribute('data-id'); view.from = view.screen === 'history' ? 'history' : null; view.screen = 'summary'; view.map = null; render(); window.scrollTo(0, 0); return;
       case 'home': view.screen = 'home'; view.from = null; view.hmenu = null; break;
       case 'archive': view.screen = 'archive'; view.hmenu = null; render(); window.scrollTo(0, 0); return;
       case 'plus': view.hmenu = view.hmenu ? (view.hmenu === 'new' ? 'menu' : null) : 'menu'; render(); return;
       case 'newform': view.hmenu = 'new'; render(); var ci = document.getElementById('course'); if (ci) ci.focus(); return;
-      case 'menuclose': view.hmenu = null; view.newC = null; render(); return;
+      case 'menuclose': view.hmenu = null; view.newC = null; view.newAdd = false; view.newName = ''; view.newBl = null; view.crsOpen = false; render(); return;
+      case 'crsopen': view.crsOpen = !view.crsOpen; render(); return;
+      case 'crsnew': view.newC = null; view.newAdd = true; view.crsOpen = false; render(); var cn = document.getElementById('course'); if (cn) cn.focus(); return;
+      case 'naddtee': newEdit(true); return;
+      case 'nedit': newEdit(false); return;
+      case 'namechange': view.nameSheet = playerName() ? 'change' : 'first'; view.hmenu = null; render(); var pn2 = document.getElementById('pname'); if (pn2) pn2.focus(); return;
+      case 'nameskip': localStorage.setItem(NA, '1'); view.nameSheet = null; render(); return;
+      case 'namecancel': view.nameSheet = null; render(); return;
       case 'history': view.hmenu = null; view.screen = 'history'; view.notice = null; render(); window.scrollTo(0, 0); return;
       case 'backup': backupRounds(); return;
       case 'pdf': case 'pdfshare': case 'pdfod': pdfAct(act); return;
@@ -2553,12 +2605,12 @@
       case 'puttn': { var mvp = document.getElementById('mapview'), stp = mvp ? mvp.scrollTop : 0; view.puttN = v; render(); var mvp2 = document.getElementById('mapview'); if (mvp2) mvp2.scrollTop = stp; return; }
       case 'mapscope': view.mapScope = v; view.heat = null; render(); var mv = document.getElementById('mapview'); if (mv) mv.scrollTop = 0; return;
       case 'courses': view.screen = 'courses'; render(); window.scrollTo(0, 0); return;
-      case 'ncourse': { var same = view.newC && view.newC.id === b.getAttribute('data-id'); var cc = courseById(b.getAttribute('data-id'));
-        view.newC = same || !cc ? null : { id: cc.id, tee: (cc.tees[0] || {}).name || '' }; render(); return; }
+      case 'ncourse': { var cc = courseById(b.getAttribute('data-id')); view.crsOpen = false;
+        if (cc && !(view.newC && view.newC.id === cc.id)) { view.newC = { id: cc.id, tee: (cc.tees[0] || {}).name || '' }; view.newAdd = false; } render(); return; }
       case 'ntee': if (view.newC) view.newC.tee = v; render(); return;
-      case 'scan': cardOpen('new'); return;
+      case 'scan': cardOpen('new', COURSES.blankCourse(String(view.newName || '').trim())); return;
       case 'scanarch': cardOpen('archive'); return;
-      case 'cardmanual': if (view.card) { view.card.stage = 'review'; view.card.sel = 0; render(); window.scrollTo(0, 0); } else cardOpen(view.screen === 'courses' ? 'archive' : 'new', null, 'review'); return;
+      case 'cardmanual': if (view.card) { view.card.stage = 'review'; view.card.sel = 0; render(); window.scrollTo(0, 0); } else cardOpen(view.screen === 'courses' ? 'archive' : 'new', view.screen === 'courses' ? null : COURSES.blankCourse(String(view.newName || '').trim()), 'review'); return;
       case 'cardback': cardBack(); return;
       case 'cardretry': { var cr = view.card; cr.halves = { f: { st: 'none' }, b: { st: 'none' } }; cr.half = 'f'; cr.ret = null; cr.links = null; cr.names = null; var kc = courseById(cr.course.id); cr.course = COURSES.blankCourse(kc ? kc.name : ''); if (kc) cr.course.id = kc.id; cr.stage = 'photo'; render(); window.scrollTo(0, 0); return; }
       case 'cardskip': cardSkip(); return;
@@ -2568,7 +2620,8 @@
       case 'cardlinked': cardBuild(true); return;
       case 'cardtee': view.card.sel = +b.getAttribute('data-i'); view.card.stage = 'review'; render(); window.scrollTo(0, 0); return;
       case 'cardsel': view.card.sel = +b.getAttribute('data-i'); render(); return;
-      case 'cardaddtee': { var cc2 = view.card.course; cc2.tees.push({ name: 'Tee ' + (cc2.tees.length + 1), yards: COURSES.pad([]) }); view.card.sel = cc2.tees.length - 1; render(); var tn = document.querySelector('[data-cf="tee"]'); if (tn) tn.select(); return; }
+      case 'cardaddtee': { var cc2 = view.card.course; cc2.tees.push({ name: '', yards: COURSES.pad([]) }); view.card.sel = cc2.tees.length - 1; render(); var tn = document.querySelector('[data-cf="tee"]'); if (tn) tn.focus(); return; }
+      case 'cardteeq': { var ct = view.card.course.tees[view.card.sel]; if (ct) ct.name = v; render(); return; }
       case 'carddeltee': { var cc3 = view.card.course; if (cc3.tees.length > 1 && confirm('Remove the ' + (cc3.tees[view.card.sel].name || 'tee') + ' tee?')) { cc3.tees.splice(view.card.sel, 1); view.card.sel = 0; render(); } return; }
       case 'cardsave': cardSave(); return;
       case 'cardedit': { var ce = courseById(b.getAttribute('data-id')); if (ce) cardOpen('archive', JSON.parse(JSON.stringify(ce)), 'review'); return; }
@@ -2654,7 +2707,9 @@
     else if (f === 'layup') { if (t.checked) row.layup = true; else delete row.layup; save(); refreshInfo(h); }
   });
 
-  document.addEventListener('input', function (ev) { if (ev.target && ev.target.id === 'bzslider') bzUpdate(+ev.target.value); });
+  document.addEventListener('input', function (ev) { if (ev.target && ev.target.id === 'bzslider') bzUpdate(+ev.target.value); if (ev.target && ev.target.id === 'course') view.newName = ev.target.value; });
+  document.addEventListener('change', function (ev) { if (ev.target && ev.target.id === 'newbl') view.newBl = ev.target.value; });
+  document.addEventListener('keydown', function (ev) { if (ev.key === 'Enter' && ev.target && ev.target.id === 'pname' && !ev.isComposing) { ev.preventDefault(); setName(ev.target.value); } });
   document.addEventListener('input', function (ev) {
     if (!ev.target || ev.target.id !== 'clusr') return;
     view.clus = +ev.target.value; try { localStorage.setItem('golfsg.heatclus.v1', String(view.clus)); } catch (e) {}
@@ -2677,7 +2732,8 @@
     var f = t.getAttribute && t.getAttribute('data-cf'); if (!f || !view.card) return;
     var c = view.card.course, i = +t.getAttribute('data-i');
     if (f === 'name') { c.name = t.value; return; }
-    if (f === 'tee') { c.tees[view.card.sel].name = t.value; var chip = document.querySelector('.revtees [data-i="' + view.card.sel + '"]'); if (chip) chip.textContent = t.value || 'Tee'; return; }
+    if (f === 'tee') { c.tees[view.card.sel].name = t.value; var chip = document.querySelector('.revtees [data-i="' + view.card.sel + '"]'); if (chip) chip.textContent = teeLabel(c.tees[view.card.sel], view.card.sel);
+      [].slice.call(document.querySelectorAll('#teequick .tq')).forEach(function (q) { var on = q.getAttribute('data-v').toLowerCase() === t.value.trim().toLowerCase(); q.classList.toggle('sel', on); q.setAttribute('aria-pressed', on); }); return; }
     t.value = t.value.replace(/[^0-9]/g, '').slice(0, f === 'par' ? 1 : 3);
     var v = t.value === '' ? null : +t.value;
     if (f === 'par') c.pars[i] = v; else c.tees[view.card.sel].yards[i] = v;

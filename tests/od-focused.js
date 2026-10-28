@@ -1,5 +1,5 @@
 // Focused OneDrive test: config.js with a client ID, MSAL stubbed (redirect sign-in simulated), Graph mocked.
-const arc = async p => { await p.waitForSelector('#app > *'); if (await p.$('#archivepill')) await p.click('#archivepill'); }; // data tools live on Archive
+const arc = async p => { await p.waitForSelector('#app > *'); if (await p.$('[data-act="nameskip"]')) await p.click('[data-act="nameskip"]'); /* first-open name prompt */ if (await p.$('#archivepill')) await p.click('#archivepill'); }; // data tools live on Archive
 const goHist = async p => { if (await p.$('#plusbtn')) await p.click('#plusbtn'); await p.click('[data-act="history"]'); };
 const { chromium } = require('playwright-core'); const assert = require('assert'); const { spawn } = require('child_process');
 const BASE = process.env.BASE_URL || 'http://127.0.0.1:8766/', SHOTS = process.env.SHOTS || '/tmp/shots-od';
