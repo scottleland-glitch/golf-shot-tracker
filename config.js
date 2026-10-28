@@ -5,5 +5,8 @@ window.GOLF_CONFIG = {
   onedriveClientId: '0b7c8ac9-31bc-4701-8e7a-a03861700bd4',
   // 'consumers' = personal Microsoft accounts only. Use 'common' if the app registration allows
   // work/school accounts too.
-  onedriveAuthority: 'https://login.microsoftonline.com/common'
+  onedriveAuthority: 'https://login.microsoftonline.com/common',
+  // Live sharing: Firebase Realtime Database (free plan). Rounds are written only under /live/<secret token>.
+  // Leave empty to hide "Share live".
+  liveDb: 'https://pin-high-live-default-rtdb.firebaseio.com'
 };

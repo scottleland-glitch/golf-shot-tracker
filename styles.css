@@ -740,3 +740,84 @@ html body .roundpage.theme-sky .topbar .title span { font-weight: 500; color: va
 .cardpage .halfbar > span { flex: 1 0 100%; font-size: 13px; color: var(--frost-ink-soft); text-transform: uppercase; letter-spacing: .04em; font-weight: 500; }
 .cardpage .halfbar .frostchip { flex: 1; min-height: 46px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px; font-size: 15px; font-weight: 500; }
 .cardpage .halfbar .frostchip small { font-size: 12px; font-weight: 400; opacity: .75; }
+
+/* ---------- Live sharing (v87): "Share live" pill on the hole screen + link sheet ---------- */
+.livebar { display: flex; flex-direction: column; align-items: center; margin: -2px 0 8px; }
+html body .roundpage .livebtn { display: inline-flex; align-items: center; gap: 8px; min-height: 40px; padding: 6px 16px; border-radius: 999px; font-size: 16px; font-weight: 500;
+  box-shadow: 0 2px 10px rgba(30, 50, 80, .08); }
+.livebtn .liveico { opacity: .8; }
+html body .roundpage .livebtn.on { background: rgba(255, 255, 255, .82); }
+.livebtn small { font-size: 13px; font-weight: 500; color: var(--frost-ink-soft); text-decoration: underline; text-underline-offset: 2px; }
+.livedot { width: 9px; height: 9px; border-radius: 50%; background: #e0565e; box-shadow: 0 0 0 0 rgba(224, 86, 94, .5); animation: livepulse 2s infinite; }
+.livedot.wait { background: #c9a245; animation: none; }
+@keyframes livepulse { 0% { box-shadow: 0 0 0 0 rgba(224, 86, 94, .45); } 70% { box-shadow: 0 0 0 8px rgba(224, 86, 94, 0); } 100% { box-shadow: 0 0 0 0 rgba(224, 86, 94, 0); } }
+.livenote { margin: 6px 0 0; font-size: 14px; font-weight: 500; color: #8a6a1f; background: rgba(255, 246, 222, .75); border: 1px solid rgba(201, 162, 69, .35); border-radius: 999px; padding: 4px 12px; }
+.livenote.ok { color: #2f5f43; background: rgba(230, 245, 236, .7); border-color: rgba(80, 150, 110, .25); }
+.livesheet h3 { font-weight: 600; }
+.livesheet .livehelp { font-weight: 400; font-size: 16px; color: var(--frost-ink-soft); margin: 4px 0 10px; }
+.livesheet .livelink { width: 100%; font: 400 15px/1.3 -apple-system, system-ui, sans-serif; padding: 12px 14px; border-radius: 14px; border: 1px solid rgba(150, 170, 190, .45);
+  background: rgba(255, 255, 255, .85); color: var(--frost-ink); }
+.livesheet .livenote { display: inline-block; margin: 8px 0 4px; }
+html body .roundpage .livesheet button.big { min-height: 54px; font-size: 18px; font-weight: 600; }
+
+/* ---------- Live viewer (?watch=…): read-only scorecard for family ---------- */
+body.lvbody { background: transparent; }
+.lvpage { font-weight: 400; padding-bottom: 20px; }
+.lvpage .frostcard { margin: 10px 0; border-radius: 22px; padding: 14px 16px; }
+.lvbanner { margin: 6px 0 8px; padding: 10px 14px; border-radius: 16px; font-size: 15px; font-weight: 500; text-align: center;
+  background: rgba(255, 244, 228, .8); border: 1px solid rgba(201, 150, 69, .35); color: #7a5418; }
+.lvbanner.fin { background: rgba(236, 244, 252, .8); border-color: rgba(120, 150, 190, .35); color: #2c4766; }
+.lvkick { margin: 0; font-size: 13px; letter-spacing: .06em; text-transform: uppercase; color: var(--frost-ink-soft); display: flex; align-items: center; gap: 7px; font-weight: 500; }
+.lvkick .lvdot { width: 8px; height: 8px; border-radius: 50%; background: #9aa6b4; }
+.lvkick .lvdot.on { background: #e0565e; animation: livepulse 2s infinite; }
+.lvhead h1 { margin: 6px 0 2px; font-size: 30px; font-weight: 600; }
+.lvsub { margin: 0; color: var(--frost-ink-soft); font-size: 15px; }
+.lvbig { display: flex; align-items: center; gap: 16px; margin: 12px 0 4px; }
+.lvbig b { font-size: 64px; line-height: 1; font-weight: 300; letter-spacing: -.02em; min-width: 84px; }
+.lvbig b.under { color: #b23a48; } .lvbig b.even { color: #1a2230; } .lvbig b.over { color: #2c4766; }
+.lvbig > span { display: flex; flex-direction: column; font-size: 20px; font-weight: 500; }
+.lvbig small { font-size: 14px; font-weight: 400; color: var(--frost-ink-soft); }
+.lvupd { margin: 6px 0 0; font-size: 13px; color: var(--frost-ink-soft); }
+.lvmsg { color: var(--frost-ink-soft); }
+.lvnine { display: grid; grid-template-columns: 50px repeat(9, 1fr) 40px; margin: 4px 0 10px; }
+.lvrow { display: grid; grid-template-rows: 26px 26px 38px; align-items: center; font-size: 12px; color: var(--frost-ink-soft); }
+.lvrow span { display: flex; align-items: center; }
+.lvtot span { justify-content: center; font-weight: 500; color: var(--frost-ink); font-size: 14px; }
+.lvtot span:first-child { font-size: 12px; color: var(--frost-ink-soft); font-weight: 400; }
+.lvpage button.lvcol { display: grid; grid-template-rows: 26px 26px 38px; align-items: center; justify-items: center; min-height: 0; padding: 0; margin: 0;
+  border: 0; border-radius: 12px; background: transparent; font-weight: 400; box-shadow: none; }
+.lvpage button.lvcol:active { transform: none; background: rgba(255, 255, 255, .5); }
+.lvcol.now { background: rgba(255, 255, 255, .45); }
+.lvcol.open { background: rgba(255, 255, 255, .75); box-shadow: inset 0 0 0 1px rgba(28, 28, 30, .25); }
+.lvh { font-size: 13px; color: var(--frost-ink-soft); } .lvp { font-size: 14px; color: var(--frost-ink-soft); }
+.lvs i, .lvkey i { font-style: normal; display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px; font-size: 16px; font-weight: 500; color: var(--frost-ink); }
+i.birdie { border-radius: 50%; border: 1.5px solid #c9505c; color: #b23a48; background: rgba(255, 232, 234, .7); }
+i.eagle { border-radius: 50%; border: 1.5px solid #c9505c; color: #fff; background: #d0606b; box-shadow: 0 0 0 2px rgba(255, 255, 255, .9), 0 0 0 3.5px #c9505c; }
+i.par { color: var(--frost-ink); }
+i.bogey { border-radius: 6px; border: 1.5px solid #7f9bbd; background: rgba(232, 240, 250, .7); color: #2c4766; }
+i.dbl { border-radius: 6px; border: 1.5px solid #4f6d93; background: #6b88ad; color: #fff; }
+i.prog { color: #e0565e; font-size: 22px; }
+.lvkey { margin: 2px 0 0; font-size: 12px; color: var(--frost-ink-soft); display: flex; flex-wrap: wrap; align-items: center; gap: 4px 6px; }
+.lvtap { margin: 4px 0 0; font-size: 12px; color: var(--frost-ink-soft); }
+.lvkey i { width: 20px; height: 20px; font-size: 11px; }
+.lvshots h2 { margin: 0 0 6px; font-size: 20px; font-weight: 600; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.lvshots h2 small { font-weight: 400; font-size: 15px; color: var(--frost-ink-soft); }
+.lvres { margin-left: auto; font-size: 14px; font-weight: 500; padding: 3px 10px; border-radius: 999px; background: rgba(255, 255, 255, .7); }
+.lvres.birdie, .lvres.eagle { color: #b23a48; background: rgba(255, 232, 234, .8); } .lvres.bogey, .lvres.dbl { color: #2c4766; background: rgba(232, 240, 250, .8); } .lvres.prog { color: #b23a48; }
+.lvfacts { margin: 0 0 8px; font-size: 14px; color: var(--frost-ink-soft); }
+.lvlist { list-style: none; margin: 0; padding: 0; }
+.lvlist li { display: flex; gap: 10px; padding: 8px 0; border-top: 1px solid rgba(255, 255, 255, .6); font-size: 16px; }
+.lvlist li:first-child { border-top: 0; }
+.lvn { flex: 0 0 24px; height: 24px; border-radius: 50%; background: rgba(28, 28, 30, .08); display: inline-flex; align-items: center; justify-content: center; font-size: 13px; color: var(--frost-ink-soft); }
+.lvt small { color: var(--frost-ink-soft); font-size: 14px; }
+.lvt em { display: block; font-style: normal; font-size: 13px; color: var(--frost-ink-soft); }
+.lvfoot { text-align: center; font-size: 13px; color: rgba(26, 34, 48, .6); margin: 14px 0 0; }
+.lvcele { position: fixed; left: 0; right: 0; bottom: calc(env(safe-area-inset-bottom) + 22px); display: flex; justify-content: center; z-index: 60; pointer-events: auto; animation: lvin .5s ease-out; transition: opacity .5s, transform .5s; }
+.lvcele.out { opacity: 0; transform: translateY(16px); }
+.lvcele-in { display: flex; align-items: center; gap: 14px; padding: 10px 20px 10px 10px; border-radius: 999px; background: rgba(255, 250, 240, .88);
+  -webkit-backdrop-filter: blur(18px) saturate(140%); backdrop-filter: blur(18px) saturate(140%); border: 1px solid rgba(255, 255, 255, .8); box-shadow: 0 10px 30px rgba(30, 50, 80, .22); }
+.lvcele img { width: 72px; height: 72px; border-radius: 50%; object-fit: cover; background: #fff; }
+.lvcele p { margin: 0; display: flex; flex-direction: column; }
+.lvcele b { font-size: 20px; font-weight: 600; color: #b5562a; }
+.lvcele span { font-size: 13px; color: var(--frost-ink-soft); }
+@keyframes lvin { from { opacity: 0; transform: translateY(24px) scale(.96); } to { opacity: 1; transform: none; } }

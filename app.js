@@ -1,6 +1,14 @@
 /* Pin High (formerly Golf Shot Tracker) - UI (v4: shot rows + selectable SG baselines). Data lives in localStorage on the phone. */
 (function () {
   'use strict';
+  // Family watching a shared round (?watch=<token>): a read-only live scorecard. Nothing below runs, so this phone's own rounds,
+  // backups and settings are never read or changed by the viewer.
+  var LIVE_DB = (window.GOLF_CONFIG || {}).liveDb || '';
+  if (window.LIVE && LIVE.watchId(location.search)) {
+    document.title = 'Pin High · Live'; document.body.classList.add('lvbody');
+    LIVE.startViewer(document.getElementById('app'), LIVE.watchId(location.search), { base: LIVE_DB, oriole: 'img/oriole.webp' });
+    return;
+  }
   var KEY = 'golfsg.rounds.v1', CUR = 'golfsg.current.v1', PN = 'golfsg.player.v1', CRS = 'golfsg.courses.v1';
   function courses() { try { var a = JSON.parse(localStorage.getItem(CRS) || '[]'); return Array.isArray(a) ? a : []; } catch (e) { return []; } }
   function saveCourses(a) { localStorage.setItem(CRS, JSON.stringify(a)); }
@@ -27,6 +35,15 @@
   var rounds = load();
   (function () { var n = playerName(), ch = false; if (n) rounds.forEach(function (r) { if (!r.player) { r.player = n; ch = true; } }); if (ch) localStorage.setItem(KEY, JSON.stringify(rounds)); })(); // rounds belong to this phone's player
   var view = { screen: 'home', roundId: localStorage.getItem(CUR), hole: 0, menu: null };
+  // Live sharing (v87): one secret link per round; every save() pushes a fresh snapshot (debounced, queued while offline).
+  var live = window.LIVE && LIVE_DB ? LIVE.publisher({ base: LIVE_DB, fetch: function (u, o) { return window.fetch(u, o); }, storage: localStorage, key: 'golfsg.live.v1',
+    online: function () { return navigator.onLine !== false; }, onStatus: function () { liveRefresh(); },
+    build: function (rid) { var r = rounds.filter(function (x) { return x.id === rid; })[0]; return r ? LIVE.snapshot(r, SG, { name: r.player || playerName() }) : null; } }) : null;
+  if (live) {
+    window.addEventListener('online', function () { live.flush(); });
+    document.addEventListener('visibilitychange', function () { if (document.visibilityState === 'visible') { live.collect(); live.flush(); } });
+    live.collect(); live.flush(); // catch up on anything queued before the app was closed
+  }
   try { if (sessionStorage.getItem('golfsg.afterRedirect')) { view.screen = sessionStorage.getItem('golfsg.afterRedirect'); sessionStorage.removeItem('golfsg.afterRedirect'); } } catch (e) {}
 
   function load() {
@@ -63,7 +80,7 @@
     return '<select id="' + id + '" class="blsel" data-f="baseline" aria-label="Compare against">' + SG.BASELINES.map(function (b) {
       return '<option value="' + b.id + '"' + (b.id === sel ? ' selected' : '') + '>' + blLabel(b.id) + '</option>'; }).join('') + '</select>';
   }
-  function save() { localStorage.setItem(KEY, JSON.stringify(rounds)); odDirty(60000); }
+  function save() { localStorage.setItem(KEY, JSON.stringify(rounds)); odDirty(60000); if (live) live.touch(); }
   function round() { if (view.preview) return view.preview; return rounds.filter(function (r) { return r.id === view.roundId; })[0]; }
   function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return '&#' + c.charCodeAt(0) + ';'; }); }
   function fmtSG(v) { var s = (Math.round(v * 100) / 100).toFixed(2); return (v > 0.004 ? '+' : '') + (s === '-0.00' ? '0.00' : s); }
@@ -87,7 +104,7 @@
     goHole(0, true);
   }
   function goHole(i, focus) {
-    view.screen = 'hole'; view.hole = Math.max(0, Math.min(17, i)); view.menu = null; view.dirk = null; view.pinOpen = false; view.voice = null; micAbort();
+    view.screen = 'hole'; view.hole = Math.max(0, Math.min(17, i)); view.menu = null; view.liveCard = false; view.dirk = null; view.pinOpen = false; view.voice = null; micAbort();
     render(); window.scrollTo(0, 0);
     var h = round().holes[view.hole];
     if (focus && h.rows.length === 1 && h.rows[0].dist === '') focusDist(0);
@@ -102,7 +119,7 @@
     var el = document.getElementById('app');
     if (view.screen !== 'summary') view.map = null;
     if (view.screen !== 'summary' && view.screen !== 'hole') view.replay = null;
-    if (view.screen !== 'hole') { view.pinOpen = false; view.voice = null; micAbort(); }
+    if (view.screen !== 'hole') { view.pinOpen = false; view.voice = null; view.liveCard = false; micAbort(); }
     if (view.screen !== 'card') view.card = null;
     if (view.screen !== 'home') { if (view.hmenu !== 'new') view.newC = null; }
     document.body.classList.toggle('noscroll', !!(view.pinOpen && view.screen === 'hole'));
@@ -906,6 +923,7 @@
       '<div class="title"><b>' + (r.course ? esc(r.course) : 'Round') + '</b><span>' +
       (S.holesDone ? 'Total ' + S.strokes + ' (' + toPar(S.toPar) + ') thru ' + S.holesDone : 'No holes finished yet') + '<br>SG vs ' + esc(blName(blOf(r))) + '</span></div>' +
       '<button class="frostbtn" data-act="next" aria-label="Next hole"' + (view.hole === 17 ? ' disabled' : '') + '>›</button></div>';
+    out += liveBarHTML(r);
 
     out += '<div class="holecard frostcard' + (fin ? ' fin' : '') + '"><div class="hc-head"><h2>Hole ' + (view.hole + 1) + '</h2>' +
       '<div class="par"><span>Par</span>' + [3, 4, 5].map(function (p) {
@@ -940,7 +958,44 @@
       'P = penalty stroke (+1), e.g. a drop. "OB re-hit" = +1 and you hit again from the same spot. Score = rows + penalties.</p>';
     if (view.dirk != null && h.rows[view.dirk] && !fin) out += dirSheetHTML(h, view.dirk);
     if (view.voice && view.voice.hole === view.hole && !fin) out += voiceCardHTML(h);
+    if (view.liveCard && live) out += liveCardHTML(r);
     return out;
+  }
+
+  // ---------- Live sharing: "Share live" pill on the hole screen + a link card ----------
+  var LIVE_SVG = '<svg class="liveico" viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><circle cx="12" cy="12" r="2.6" fill="currentColor"/><path d="M7.8 7.8a6 6 0 0 0 0 8.4M16.2 7.8a6 6 0 0 1 0 8.4M5 5a10 10 0 0 0 0 14M19 5a10 10 0 0 1 0 14" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>';
+  function liveBarHTML(r) {
+    if (!live || !r || view.preview) return '';
+    var I = live.info(r.id);
+    if (!I.on) return '<div id="livebar" class="livebar"><button class="livebtn frostbtn" data-act="liveshare">' + LIVE_SVG + '<span>Share live</span></button></div>';
+    return '<div id="livebar" class="livebar"><button class="livebtn frostbtn on" data-act="livecard"><span class="livedot' + (I.waiting ? ' wait' : '') + '"></span><span>Sharing live</span><small>link</small></button>' +
+      (I.waiting ? '<p class="livenote" id="livenote">Waiting for signal – will catch up</p>' : '') + '</div>';
+  }
+  function liveCardHTML(r) {
+    var I = live.info(r.id); if (!I.on) return '';
+    return '<div class="sheet-bg" data-act="liveclose"></div><div class="sheet frostsheet livesheet" role="dialog" aria-label="Live link">' +
+      '<h3>Watch live</h3><p class="livehelp">Anyone with this link can watch this round update after every hole – no app or sign-in needed. It only works while you share.</p>' +
+      '<input id="livelink" class="livelink" readonly value="' + esc(I.link) + '" aria-label="Live link">' +
+      (I.waiting ? '<p class="livenote">Waiting for signal – will catch up</p>' : '<p class="livenote ok">' + (I.lastOk ? 'Up to date' : 'Sending…') + '</p>') +
+      '<button class="big primary" data-act="livesend">Send link</button>' +
+      '<div class="row"><button class="big frostbtn" data-act="livecopy">Copy link</button><button class="big frostbtn" data-act="liveclose">Done</button></div>' +
+      '<button class="big danger" data-act="livestop">Stop sharing</button></div>';
+  }
+  function liveRefresh() {
+    var b = document.getElementById('livebar'), r = round(); if (b && r && view.screen === 'hole') b.outerHTML = liveBarHTML(r);
+    var c = document.querySelector('.livesheet .livenote'); if (c && r && live) { var I = live.info(r.id); c.className = 'livenote' + (I.waiting ? '' : ' ok'); c.textContent = I.waiting ? 'Waiting for signal – will catch up' : (I.lastOk ? 'Up to date' : 'Sending…'); }
+  }
+  function liveMsg(r) { var who = r.player || playerName() || 'the'; return 'Watch ' + (who === 'the' ? 'the round' : who + '’s round') + ' live' + (r.course ? ' at ' + r.course : '') + ' – the scorecard updates hole by hole.'; }
+  function liveCopy(url) {
+    var done = function () { toast('Link copied'); };
+    if (navigator.clipboard && navigator.clipboard.writeText) return navigator.clipboard.writeText(url).then(done, function () { liveSelect(); });
+    liveSelect();
+  }
+  function liveSelect() { var i = document.getElementById('livelink'); if (i) { i.focus(); i.select(); try { if (document.execCommand('copy')) toast('Link copied'); } catch (e) {} } }
+  function liveSend(r) { // must run inside the tap (iOS share sheet needs it)
+    var url = live.info(r.id).link;
+    if (navigator.share) navigator.share({ title: 'Pin High · Live', text: liveMsg(r), url: url }).catch(function (e) { if (!e || e.name !== 'AbortError') liveCopy(url); });
+    else liveCopy(url);
   }
 
   // ---------- Voice entry: hold the mic, say the shot, confirm ----------
@@ -2417,6 +2472,12 @@
     var act = b.getAttribute('data-act'), v = b.getAttribute('data-v'), k = +b.getAttribute('data-k');
     var r = round(), h = r && r.holes[view.hole];
     switch (act) {
+      case 'liveshare': if (!live || !r) return; live.start(r.id); view.liveCard = true; render(); liveSend(r); return;
+      case 'livecard': view.liveCard = true; render(); return;
+      case 'liveclose': view.liveCard = false; render(); return;
+      case 'livesend': if (live && r) liveSend(r); return;
+      case 'livecopy': if (live && r) liveCopy(live.info(r.id).link); return;
+      case 'livestop': if (!live || !r || !confirm('Stop sharing? The link will stop showing this round.')) return; live.stop(r.id); view.liveCard = false; toast('Sharing stopped'); render(); return;
       case 'new': view.from = null; view.hmenu = null; newRound(document.getElementById('course').value.trim()); return;
       case 'resume': view.from = null; view.roundId = localStorage.getItem(CUR); goHole(firstOpenHole(round()), true); return;
       case 'open': view.pdf = null; view.roundId = b.getAttribute('data-id'); view.from = view.screen === 'history' ? 'history' : null; view.screen = 'summary'; view.map = null; render(); window.scrollTo(0, 0); return;
@@ -2434,7 +2495,7 @@
       case 'discard': { // remove the round for good: rounds list (History), current-round key, and from the next backup upload
         var did = b.getAttribute('data-id'), dr2 = rounds.filter(function (x) { return x.id === did; })[0];
         if (!confirm('Discard this round? Shots will be deleted.')) return;
-        rounds = rounds.filter(function (x) { return x.id !== did; }); save();
+        rounds = rounds.filter(function (x) { return x.id !== did; }); if (live) live.stop(did); save();
         if (localStorage.getItem(CUR) === did) localStorage.removeItem(CUR);
         if (view.roundId === did) view.roundId = null;
         view.screen = 'home'; view.map = null; toast(dr2 ? 'Round discarded' : 'Nothing to discard'); render(); window.scrollTo(0, 0); return;
@@ -2531,6 +2592,7 @@
       case 'summary':
         if (b.getAttribute('data-end') === '1') { // Finish round: mark every holed-out hole finished, keep the round in History, clear 'Continue round'
           var rr = round(); rr.holes.forEach(function (hh) { if (!hh.finished && hh.par && SG.analyzeHole(hh).complete) hh.finished = true; });
+          if (live) live.finish(rr.id);
           var F2 = SG.foldStubs(rounds); rounds = F2.rounds; if (localStorage.getItem(CUR) === rr.id) localStorage.removeItem(CUR);
           save(); odSoon(1500); toast('Round saved to History');
         }
