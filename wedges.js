@@ -59,19 +59,29 @@
     return { wedges: h, changed: false };
   }
   // v94 Wedge ladder for the scoring page: the shown yardages that have a club set.
-  var MIN = 40, MAX = 110;
-  function inRange(d) { d = Number(d); return d !== 0 && isFinite(d) && d >= MIN && d <= MAX; } // 40–110 yd, both ends included
+  // v95: the yardages are CARRY distances, so the ladder is offered for any shot 100 yd or less (and more than 0).
+  var MIN = 0, MAX = 100;
+  function inRange(d) { if (d === '' || d == null) return false; d = Number(d); return isFinite(d) && d > MIN && d <= MAX; }
   function ladder(w) { // both flights, by yardage, High before Low
     w = norm(w); var L = [];
     YARDS.forEach(function (y) { FLIGHTS.forEach(function (f) { var r = rowsOf(w, f[0])[y]; if (r && r.club) L.push({ y: y, f: f[0], row: r }); }); });
     return L;
   }
+  function fullLadder(w) { // v95: every shown yardage in both flights (High 40…110, then Low 40…110); set = has a club
+    w = norm(w); var L = [];
+    FLIGHTS.forEach(function (f) { YARDS.forEach(function (y) { var r = rowsOf(w, f[0])[y] || {}; L.push({ y: y, f: f[0], row: r, set: !!r.club }); }); });
+    return L;
+  }
+  // v95b: only three carries around the pin distance: rounded to the nearest 10 (halves up: 75 → 80), then −10 / +10,
+  // slid to stay inside 40–110 (15 or 40 → 40/50/60; 105 → 90/100/110).
+  function carries(d) { d = Number(d); if (!isFinite(d)) return []; var c = Math.round(d / 10) * 10; c = Math.max(YARDS[1], Math.min(YARDS[YARDS.length - 2], c)); return [c - 10, c, c + 10]; }
+  function nearLadder(w, d) { var C = carries(d); return fullLadder(w).filter(function (e) { return C.indexOf(e.y) >= 0; }); }
   function nearest(L, d, club) { // same yardage in both flights → the first (High) // closest yardage (a tie goes to the longer one); optionally only rows with that club
     var best = null; L.forEach(function (e) { if (club && e.row.club !== club) return; if (!best || Math.abs(e.y - d) < Math.abs(best.y - d) || (Math.abs(e.y - d) === Math.abs(best.y - d) && e.y > best.y)) best = e; });
     return best;
   }
   function clubLabel(c) { return /^\d{2}$/.test(String(c)) ? c + '°' : String(c || ''); }
-  function ladderLabel(e) { var r = e.row; return [e.y + ' yd', e.f ? name(FLIGHTS, e.f) : '', clubLabel(r.club), name(BALL, r.ball), name(POS, r.pos)].filter(Boolean).join(' · '); }
-  var api = { FLIGHTS: FLIGHTS, rowsOf: rowsOf, count: count, inRange: inRange, ladder: ladder, nearest: nearest, clubLabel: clubLabel, ladderLabel: ladderLabel, MIN: MIN, MAX: MAX, YARDS: YARDS, KEEP: KEEP, hidden: hidden, BALL: BALL, LEAN: LEAN, POS: POS, HINGE: HINGE, STD_CLUBS: STD_CLUBS, FIELDS: FIELDS, name: name, blank: blank, cleanRow: cleanRow, norm: norm, filled: filled, summary: summary, mergeWedges: mergeWedges };
+  function ladderLabel(e) { var r = e.row; if (!r.club) return e.y + ' yd · ' + (e.f ? name(FLIGHTS, e.f) + ' · ' : '') + 'not set'; return [e.y + ' yd', e.f ? name(FLIGHTS, e.f) : '', clubLabel(r.club), name(BALL, r.ball), name(POS, r.pos)].filter(Boolean).join(' · '); }
+  var api = { carries: carries, nearLadder: nearLadder, fullLadder: fullLadder, FLIGHTS: FLIGHTS, rowsOf: rowsOf, count: count, inRange: inRange, ladder: ladder, nearest: nearest, clubLabel: clubLabel, ladderLabel: ladderLabel, MIN: MIN, MAX: MAX, YARDS: YARDS, KEEP: KEEP, hidden: hidden, BALL: BALL, LEAN: LEAN, POS: POS, HINGE: HINGE, STD_CLUBS: STD_CLUBS, FIELDS: FIELDS, name: name, blank: blank, cleanRow: cleanRow, norm: norm, filled: filled, summary: summary, mergeWedges: mergeWedges };
   if (typeof module !== 'undefined' && module.exports) module.exports = api; else root.WEDGES = api;
 })(this);

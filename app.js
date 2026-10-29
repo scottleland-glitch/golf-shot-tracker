@@ -1269,7 +1269,7 @@
   function voiceSave() {
     var h = round().holes[view.hole], p = view.voice.p, res = VOICE.apply(h, p);
     if (res.done || res.k < 0) { toast(res.warn[0] || 'Nothing to save'); return; }
-    dictStop(); h.rows = res.rows; h.rows.forEach(function (r0) { if (!r0.club) wAutoPick(r0); }); save(); view.voice = null; view.menu = null; view.vflash = res.touched.slice(); render(); view.vflash = null;
+    dictStop(); h.rows = res.rows; save(); view.voice = null; view.menu = null; view.vflash = res.touched.slice(); render(); view.vflash = null;
     toast('Shot ' + (res.k + 1) + ' saved');
   }
   function dirSheetHTML(h, k) {
@@ -2882,7 +2882,7 @@
     else if (f === 'club') { if (t.value) row.club = t.value; else delete row.club; delete row.wedgeY; delete row.wedgeF; delete row.wedgeAuto; delete row.wedgeOff; save(); }
     else if (f === 'wladder') {
       var we = /^w([hl])(\d+)$/.exec(t.value), wf = we && (we[1] === 'l' ? 'low' : 'high'), wr = we && WEDGES.rowsOf(wedges(), wf)[we[2]];
-      delete row.wedgeAuto; delete row.wedgeOff; if (wr && wr.club) { row.club = wr.club; row.wedgeY = +we[2]; row.wedgeF = wf; } else if (!t.value) { delete row.club; delete row.wedgeY; delete row.wedgeF; row.wedgeOff = true; } // "–" = no club (don't re-pick)
+      delete row.wedgeAuto; delete row.wedgeOff; if (wr && wr.club) { row.club = wr.club; row.wedgeY = +we[2]; row.wedgeF = wf; } else if (!t.value) { delete row.club; delete row.wedgeY; delete row.wedgeF; } // "Choose carry…" = no club
       save(); render();
     }
     else if (f === 'layup') { if (t.checked) row.layup = true; else delete row.layup; save(); refreshInfo(h); }
@@ -2936,35 +2936,31 @@
   }
   document.addEventListener('change', function (ev) { var f = vField(ev.target); if (f === 'loc' || f === 'club' || f === 'shot') render(); });
   document.addEventListener('keydown', function (ev) { if (ev.key === 'Enter' && ev.target && ev.target.id === 'vtext' && !ev.isComposing) { ev.preventDefault(); dictSubmit(); } });
-  // ---------- v94 Wedge ladder on the scoring page ----------
-  // A shot 40–110 yd from the pin (row distance, both ends included) gets a dropdown of the Wedges chart rows that have a club,
-  // instead of the club picker. Picking one sets row.club (so SG / club stats work as before) plus row.wedgeY (which row).
-  // Typing a distance into range picks the nearest row for you (row.wedgeAuto) until you choose one yourself.
-  function wLadderFor(row) { if (row.loc === 'ob' || !WEDGES.inRange(row.dist)) return null; var L = WEDGES.ladder(wedges()); return L.length ? L : null; }
-  function wLadderPick(row, L) { // the ladder entry this row shows
-    if (!row.club) return null;
-    var e = row.wedgeY && L.filter(function (x) { return x.y === +row.wedgeY && x.f === (row.wedgeF || 'high') && x.row.club === row.club; })[0];
-    return e || WEDGES.nearest(L, +row.dist, row.club);
+  // ---------- v95 Wedge ladder on the scoring page ----------
+  // Wedge yardages are CARRY distances, not distances to the pin (a 50 yd pin downhill may want a 40 yd carry that runs out).
+  // So any shot 100 yd or less (not on the green, not OB) gets a dropdown of the ladder instead of the club picker: three carries
+  // around the pin distance (WEDGES.carries) in both flights, grouped High / Low (v95b; v95 listed all 16). Nothing is preselected; yardages with no club yet are shown greyed.
+  // Picking one sets row.club (so SG / club stats work as before) plus row.wedgeY + row.wedgeF (which carry, which flight).
+  // If no yardage has a club yet, the normal club picker shows.
+  function wLadderFor(row) { if (row.loc === 'ob' || !WEDGES.inRange(row.dist)) return null; var w = wedges(); return WEDGES.ladder(w).length ? WEDGES.fullLadder(w) : null; }
+  function wLadderPick(row, L) { // the ladder entry this shot was given (a v94 automatic pick just keeps its club)
+    if (!row.club || !row.wedgeY || row.wedgeAuto) return null;
+    return L.filter(function (x) { return x.set && x.y === +row.wedgeY && x.f === (row.wedgeF || 'high') && x.row.club === row.club; })[0] || null;
   }
   function wDetailHTML(e) {
     var r = e.row, x = [r.lean ? 'Lean ' + WEDGES.name(WEDGES.LEAN, r.lean) : '', r.hinge ? 'Hinge ' + WEDGES.name(WEDGES.HINGE, r.hinge) : ''].filter(Boolean).join(' · ');
     var it = function (l, v) { return '<span><i>' + l + '</i>' + esc(v || '–') + '</span>'; };
-    return '<div class="wladet" id="wladet-' + e.y + '">' + it('Flight', WEDGES.name(WEDGES.FLIGHTS, e.f)) + it('Club', WEDGES.clubLabel(r.club)) + it('Ball', WEDGES.name(WEDGES.BALL, r.ball) || r.ballNote) + it('Position', WEDGES.name(WEDGES.POS, r.pos) || r.posNote) + (x ? '<small>' + esc(x) + '</small>' : '') + '</div>';
+    return '<div class="wladet" id="wladet-' + e.f + e.y + '">' + it('Flight', WEDGES.name(WEDGES.FLIGHTS, e.f)) + it('Carry', e.y + ' yd') + it('Club', WEDGES.clubLabel(r.club)) + it('Ball', WEDGES.name(WEDGES.BALL, r.ball) || r.ballNote) + it('Position', WEDGES.name(WEDGES.POS, r.pos) || r.posNote) + (x ? '<small>' + esc(x) + '</small>' : '') + '</div>';
   }
   function ladderRowHTML(h, k, row, shotNo, dis, hoBox) {
-    if (!row.club && !row.wedgeOff && !dis && wAutoPick(row)) save(); // preselect the nearest yardage
-    var L = wLadderFor(row), cur = wLadderPick(row, L), wv = function (e) { return 'w' + e.f.charAt(0) + e.y; }, val = cur ? wv(cur) : row.club ? 'c:' + row.club : '';
-    var o = '<div class="clubrow wladder" data-club="' + k + '"><label class="clublbl"><span>Wedge</span><select data-f="wladder" data-k="' + k + '" aria-label="Wedge ladder row ' + shotNo + '"' + dis + '><option value=""' + (val ? '' : ' selected') + '>–</option>' +
-      L.map(function (e) { return '<option value="' + wv(e) + '"' + (val === wv(e) ? ' selected' : '') + '>' + esc(WEDGES.ladderLabel(e)) + '</option>'; }).join('') +
+    // v95b: list only 3 carries around the pin distance (both flights); a chosen carry outside them still shows
+    var F = wLadderFor(row), cur = wLadderPick(row, F), C = WEDGES.carries(row.dist), L = F.filter(function (e) { return C.indexOf(e.y) >= 0 || (cur && e === cur); }), wv = function (e) { return 'w' + e.f.charAt(0) + e.y; }, val = cur ? wv(cur) : row.club ? 'c:' + row.club : '';
+    var o = '<div class="clubrow wladder" data-club="' + k + '"><label class="clublbl"><span>Wedge</span><select data-f="wladder" data-k="' + k + '" aria-label="Wedge carry row ' + shotNo + '"' + dis + '><option value=""' + (val ? '' : ' selected') + '>Choose carry…</option>' +
+      WEDGES.FLIGHTS.map(function (f) { /* grouped by flight, sorted by yardage */ return '<optgroup label="' + f[1] + ' flight">' + L.filter(function (e) { return e.f === f[0]; }).map(function (e) {
+        return '<option value="' + wv(e) + '"' + (val === wv(e) ? ' selected' : '') + (e.set ? '' : ' disabled') + '>' + esc(WEDGES.ladderLabel(e)) + '</option>'; }).join('') + '</optgroup>'; }).join('') +
       (row.club && !cur ? '<option value="c:' + esc(row.club) + '" selected>' + esc(row.club) + '</option>' : '') + '</select></label>' +
       (k === 0 && Number(h.par) !== 3 ? '<label class="layup"><input type="checkbox" data-f="layup" data-k="0"' + (row.layup ? ' checked' : '') + dis + '> Layup <small>(not in SG)</small></label>' : '') + hoBox;
     return o + (cur ? wDetailHTML(cur) : '') + '</div>';
-  }
-  function wAutoPick(row) { // returns true when the row's club changed
-    var L = WEDGES.inRange(row.dist) && row.loc !== 'green' && row.loc !== 'holed' && row.loc !== 'ob' ? WEDGES.ladder(wedges()) : [];
-    if (L.length && (!row.club || row.wedgeAuto)) { var e = WEDGES.nearest(L, +row.dist); if (row.club === e.row.club && +row.wedgeY === e.y && row.wedgeF === e.f && row.wedgeAuto) return false; row.club = e.row.club; row.wedgeY = e.y; row.wedgeF = e.f; row.wedgeAuto = true; return true; }
-    if (!L.length && row.wedgeAuto) { delete row.club; delete row.wedgeY; delete row.wedgeF; delete row.wedgeAuto; return true; }
-    return false;
   }
   function clubRowRefresh(h, k) { // swap just that shot's club line (keeps the keyboard up in the distance box)
     var el = document.querySelector('.clubrow[data-club="' + k + '"]'); if (!el) return;
@@ -2976,9 +2972,9 @@
     var t = ev.target; if (!t.hasAttribute || !t.hasAttribute('data-row')) return;
     t.value = t.value.replace(/[^0-9]/g, '').slice(0, 3);
     var h = round().holes[view.hole], k = +t.getAttribute('data-row');
-    var wasL = !!wLadderFor(h.rows[k]);
-    h.rows[k].dist = t.value === '' ? '' : +t.value; delete h.rows[k].wedgeOff; var ch = wAutoPick(h.rows[k]); save();
-    if (ch || wasL !== !!wLadderFor(h.rows[k])) clubRowRefresh(h, k);
+    var wasL = !!wLadderFor(h.rows[k]), wasC = WEDGES.carries(h.rows[k].dist).join();
+    h.rows[k].dist = t.value === '' ? '' : +t.value; save();
+    if ((wasL && wasC !== WEDGES.carries(h.rows[k].dist).join()) || wasL !== !!wLadderFor(h.rows[k])) clubRowRefresh(h, k);
     refreshInfo(h);
   });
   // Update the per-shot info lines in place (no re-render, so taps and the keyboard aren't disturbed)
