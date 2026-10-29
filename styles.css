@@ -357,6 +357,9 @@ button.discard { display: block; width: 100%; min-height: 48px; margin: 4px 0 10
 .clubrow .layup input { width: 26px; height: 26px; }
 .clubrow .layup small { font-weight: 500; color: #666; }
 .clubrow.putter { color: #777; padding-top: 0; }
+.clubrow .holeout { margin-left: auto; padding: 0 12px 0 8px; border-radius: 22px; background: rgba(255,255,255,.55); border: 1px solid rgba(30,111,217,.18); }
+.clubrow .holeout.on { background: #e3f6e8; border-color: #4caf6e; color: #1f6b3a; }
+.clubrow .holeout input { accent-color: #2e9d57; }
 .heattog { margin: 6px 0; }
 svg.heat .fwdot, svg.heat .xdot, svg.heat .gdot, svg.heat .mdot, svg.heat .pdot, svg.heat .pdot2, svg.heat .pmend, svg.heat .xlbl, svg.heat .plbl, svg.heat .pmlbl, svg.heat .mlbl, svg.heat .farlbl, svg.heat .xstart, svg.heat .mcount { display: none; }
 svg.heat path[fill="none"] { opacity: .12; }
@@ -824,3 +827,6 @@ i.prog { color: #e0565e; font-size: 22px; }
 .tq-black i { background: #222; } .tq-blue i { background: #3d6fc4; } .tq-white i { background: #fff; } .tq-gold i { background: #d9b23c; } .tq-red i { background: #d0443a; } .tq-green i { background: #3f8f4f; }
 .home .crsopt { min-height: 52px; justify-content: center; }
 .home .namehelp { font-weight: 400; }
+/* v90 "Hole out" box: soft pill, green when ticked */
+html body .roundpage.theme-sky .clubrow .holeout { color: var(--soft-ink); font-weight: 500; }
+html body .roundpage.theme-sky .clubrow .holeout.on { color: #1f6b3a; background: #e3f6e8; border-color: #8fd0a6; }

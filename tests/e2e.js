@@ -114,7 +114,7 @@ let passed = 0; const ok = (m) => { passed++; console.log('  ✓', m); };
   await act('addShot');
   assert.strictEqual(await page.$eval('select[data-f="loc"][data-k="3"]', e => e.value), 'green'); ok('row after green defaults to Green');
   await dist(3, 3);
-  assert.ok(await finishDisabled()); assert.match(await hint(), /last row "In the hole"/); ok('Finish disabled until last row is In the hole');
+  assert.ok(await finishDisabled()); assert.match(await hint(), /Not finished: tap Add Shot for the next shot, or tick “Hole out”/); ok('Finish disabled until last row is In the hole');
   await loc(3, 'holed');
   assert.strictEqual(await page.locator('.hole-done').count(), 0); assert.ok(!(await finishDisabled()));
   ok('choosing In the hole does NOT auto-finish; Finish becomes active');

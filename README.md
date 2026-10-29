@@ -12,6 +12,9 @@ OB re-hit, In the hole, In the hole (chip/shot), Deep rough, Trees. The LAST row
 distance of the putt/shot that went in. LRSO = how the previous shot missed. P = +1 penalty to get here.
 Score = rows + penalties. "Finish hole" is enabled only when every row is complete; "Edit this hole" reopens it.
 Older saves are migrated automatically (a v2 "In the hole" row without a distance reopens the hole until filled).
+Holed from off the green (v90): tick "Hole out" on the row of the shot that went in (any row but the first). Its Loc
+(e.g. Rough, 25 yd) is kept, so strokes gained counts that shot from where it was really hit. Only one row per hole
+can be ticked; rows after it are removed (with a confirm). Old "In the hole (chip/shot)" rows still work as before.
 
 ## Baselines (v4)
 Pick a baseline per round (PGA Tour, LPGA Tour, D1 college men, D1 college women, scratch men, scratch women).

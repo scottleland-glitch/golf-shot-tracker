@@ -118,6 +118,10 @@
    * 'holed'  = "In the hole - putt": this stroke (a putt, distance in feet) went in.
    * 'holedx' = "In the hole - off green": this stroke (distance in yards) went in.
    *            Its lie is unknown, so the Fairway baseline is used (approximation).
+   *            (Older entries only - since v90 the "Hole out" box below is used instead.)
+   * holeOut  - v90: true = THIS stroke went in, hit from the row's own Loc (any row but row 1).
+   *            The Loc is kept (e.g. Deep rough 25 yd), so strokes gained values the
+   *            hole-out from its real lie. Missing/false on older saves = no change.
    * Hazard + P = dropped (rough baseline); Hazard, no P = played from inside it.
    * Score = number of rows + penalty strokes. Complete = every row has a
    * distance and a location and the LAST row is In the hole (with a distance).
@@ -139,7 +143,15 @@
   var LOC_LIE = { tee: 'tee', fairway: 'fairway', rough: 'rough', deep: 'deep', bunker: 'sand',
     trees: 'recovery', green: 'green', hazard: 'hazard', holed: 'green', holedx: 'fairway' };
   function blank(v) { return v === '' || v == null || isNaN(parseFloat(v)); }
-  function isHoled(r) { return r.loc === 'holed' || r.loc === 'holedx'; }
+  // k = row index: the "Hole out" box counts on every row but the first (row 1 uses "In the hole (ace!)")
+  function isHoled(r, k) { return !!r && (r.loc === 'holed' || r.loc === 'holedx' || (k !== 0 && !!r.holeOut && !!r.loc)); }
+  // How the stroke from this row went in: 'holed' = a putt (from the green), 'holedx' = from off the green, '' = not holed
+  function holedKind(rows, k) {
+    var r = rows[k]; if (!r) return '';
+    if (r.loc === 'holed' || r.loc === 'holedx') return r.loc;
+    if (!isHoled(r, k)) return '';
+    return lieOf(rows, k) === 'green' ? 'holed' : 'holedx';
+  }
   function lieOf(rows, k) {
     var r = rows[k];
     if (k === 0) return r.loc === 'holed' ? 'green' : 'tee';
@@ -167,7 +179,7 @@
       if (k > 0 && !r.loc) { bad = k; problem = 'loc'; break; }
       var d = distOf(rows, k);
       if (d == null || d <= 0) { bad = k; problem = 'dist'; break; }
-      if (isHoled(r) || (k === 0 && r.loc === 'holedx')) {
+      if (isHoled(r, k) || (k === 0 && r.loc === 'holedx')) {
         shots.push({ lie: 'holed', dist: 0, side: '', dir: '', pen: 'none' });
         if (k < rows.length - 1) { bad = k + 1; problem = 'after'; } else complete = true;
         break;
@@ -179,7 +191,7 @@
       if (dn == null || dn <= 0) { bad = k + 1; problem = 'dist'; break; }
       var nd = normDir(nx.dir);
       shots.push({ lie: lieOf(rows, k + 1), dist: dn, side: dirSide(nd),
-        dir: nd, pen: isPenalty(nx, k + 1) ? 'drop' : 'none', ob: nx.loc === 'ob', loc: nx.loc });
+        dir: nd, pen: isPenalty(nx, k + 1) ? 'drop' : 'none', ob: nx.loc === 'ob', loc: nx.loc, hk: holedKind(rows, k + 1) });
     }
     return { shots: shots, bad: bad, problem: problem, complete: complete };
   }
@@ -272,8 +284,11 @@
    * that reached the green - the shot before it finished out on the course.
    * Strokes gained is not affected (a chip-in is still valued from its real lie).
    */
+  // How the NEXT stroke went in ('holed' putt / 'holedx' off the green / ''): rows carry it as hk (v90 "Hole out" box keeps the lie in loc)
+  function nextHoled(r) { return r.hk != null ? r.hk : (r.loc === 'holed' || r.loc === 'holedx') ? r.loc : ''; }
   function reachedGreen(r) {
-    return !r.ob && (r.end.lie === 'green' || r.end.lie === 'holed' || r.loc === 'holed' || (r.loc === 'holedx' && r.end.dist <= 30));
+    var hk = nextHoled(r);
+    return !r.ob && (r.end.lie === 'green' || r.end.lie === 'holed' || hk === 'holed' || (hk === 'holedx' && r.end.dist <= 30));
   }
   /**
    * Scott's REGULATION rule (used everywhere: GIR, approach misses, pin map, proximity, stats, CSV).
@@ -302,7 +317,7 @@
    */
   function regApproach(out, par) {
     var R = regulation(out, par); if (!R) return null;
-    var r = out[R.k], hit = R.gir, inHole = hit && r.end.lie === 'holed', chipIn = hit && !inHole && r.loc === 'holedx';
+    var r = out[R.k], hit = R.gir, inHole = hit && r.end.lie === 'holed', chipIn = hit && !inHole && nextHoled(r) === 'holedx';
     var onG = r.end.lie === 'green', ob = r.ob;
     return { shot: r.n, hit: hit, gir: hit, holed: inHole || chipIn, chipIn: chipIn, dir: (inHole || chipIn) ? '' : r.dir,
       ft: hit ? ((inHole || chipIn) ? 0 : r.end.dist) : 0,
@@ -346,7 +361,7 @@
         : Math.round(toYards(start.lie, start.dist) - toYards(end.lie, end.dist));
       out.push({
         n: i + 1, start: start, end: end, pen: pen, penStrokes: penStrokes,
-        side: s.side || dirSide(normDir(s.dir)), dir: normDir(s.dir || s.side), ob: !!s.ob, loc: s.loc || (pen === 'ob' ? 'ob' : s.lie), eStart: eStart, eEnd: eEnd, sg: sg,
+        side: s.side || dirSide(normDir(s.dir)), dir: normDir(s.dir || s.side), ob: !!s.ob, loc: s.loc || (pen === 'ob' ? 'ob' : s.lie), hk: s.hk, eStart: eStart, eEnd: eEnd, sg: sg,
         cat: cat, bucket: bucket, hit: hit, club: CLUBS.indexOf((raw[i] || {}).club) >= 0 ? raw[i].club : ''
       });
       // Layup tee shot: its strokes gained is left out entirely (0 toward Off the tee and the total; not counted as a tee shot).
@@ -780,7 +795,7 @@
   var api = { PMISS_GROUPS: PMISS_GROUPS, pmissGroup: pmissGroup, pmissClass: pmissClass, pmissStats: pmissStats, pmissScale: pmissScale, CLUBS: CLUBS, arrivalDepth: arrivalDepth, roundEmpty: roundEmpty, foldStubs: foldStubs, pdfSafe: pdfSafe, reportFileName: reportFileName, pinSegments: pinSegments, REPORT_GROUPS: REPORT_GROUPS, reportGroup: reportGroup, SHORT_MAX_YD: SHORT_MAX_YD, APPR_BUCKETS: APPR_BUCKETS, apprBucket: apprBucket, proxAfterFt: proxAfterFt, puttKind: puttKind, threePutts: threePutts, puttScale: puttScale, puttRadius: puttRadius, puttPlace: puttPlace, PUTT_BANDS: PUTT_BANDS, puttGroup: puttGroup, puttStats: puttStats, makeBackup: makeBackup, parseBackup: parseBackup, mergeRounds: mergeRounds, conflictsOf: conflictsOf, PROX_LIES: PROX_LIES, lieGroup: lieGroup, proxByLie: proxByLie, proxWarnings: proxWarnings, PROX_BUCKETS: PROX_BUCKETS, inBucket: inBucket, roundYd: roundYd, proxStats: proxStats, reachedGreen: reachedGreen, PIN_GRID: PIN_GRID, PIN_NAME: PIN_NAME, normPin: normPin, DIR8: DIR8, DIR_NAME: DIR_NAME, DIR_ANGLE: DIR_ANGLE, normDir: normDir, expected: expected, expectedPGA: expectedPGA, BASELINES: BASELINES, baseline: function (id) { return BL[id] || BL.pga; },
     CALIB_ROUND: CALIB_ROUND, catLoss: catLoss, analyzeHole: analyzeHole, summarize: summarize,
     rowsToShots: rowsToShots, shotsToRows: shotsToRows, migrateV2Rows: migrateV2Rows, v1ToRows: v1ToRows, holeYards: holeYards,
-    rowUnit: rowUnit, lieOf: lieOf, distOf: distOf, rowStrokes: rowStrokes, isPenalty: isPenalty,
+    rowUnit: rowUnit, isHoled: isHoled, holedKind: holedKind, lieOf: lieOf, distOf: distOf, rowStrokes: rowStrokes, isPenalty: isPenalty,
     YARDS: YARDS, OFF_GREEN: OFF_GREEN, FEET: FEET, PUTTS: PUTTS };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else root.SG = api;

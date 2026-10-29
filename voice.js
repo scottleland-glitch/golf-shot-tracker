@@ -96,6 +96,8 @@
     s = s.replace(/\b(over|past|through|long of|short of|left of|right of|missed the green|missed|off) (?:the )?green\b/g, function (m, w) { p.offGreen = true; return ' ' + (w in MISSW ? MISSW[w] : w) + ' '; });
     if (/\b(?:on the )?tee box\b|\bfrom the tee\b/.test(s)) { take(/\b(?:on the )?tee box\b|\bfrom the tee\b/); p.loc = 'tee'; if (!p.shot) p.shot = 1; }
     for (var j = 0; j < LOC_RX.length && !p.loc; j++) { if (take(LOC_RX[j][1])) p.loc = LOC_RX[j][0]; }
+    // v90: "deep rough 25 holed it" = the shot from the deep rough went in – keep the surface and mark it holed out
+    if (p.loc === 'holed') for (var j2 = 1; j2 < LOC_RX.length; j2++) { if (LOC_RX[j2][0] !== 'ob' && take(LOC_RX[j2][1])) { p.loc = LOC_RX[j2][0]; p.holeOut = true; break; } }
     if (p.loc === 'ob' && p.pen) p.pen = false; // OB re-hit already counts its stroke
     if (p.loc === 'holed' && p.club && !p.putt) p.holedx = true;
     // a bare loft before a number: "56 40 bunker" = 56 degree from 40
@@ -105,6 +107,7 @@
     var pick = nums.filter(function (x) { return x.u; })[0] || nums[0];
     if (pick) { p.dist = pick.v; p.distUnit = pick.u; if (nums.length > 1) p.extra = nums.filter(function (x) { return x !== pick; }).map(function (x) { return x.v; }); }
     var dir = findDir(s); if (dir && p.loc !== 'holed') p.dir = dir;
+    if (p.holeOut && p.loc === 'green') { p.loc = 'holed'; delete p.holeOut; } // a putt that went in: same as before
     if (p.putt && !p.loc) p.loc = 'green';
     var left = s.replace(/[#@]/g, ' ').replace(/\b(?:\d{1,3}|yards|feet|left|lift|right|write|short|long|over|past|through|beyond|the|a|an|on|in|it|to|of|and|from|out|i|hit|my|with|was|is|just|then|uh|um|ended|ending|up|go|shot|ball|went|landed|about|around|off|pin|flag|hole|yard|degree|wedge|iron|wood|hybrid|so|im|i'm|am|number|missed|miss|stroke|next|now|this|one)\b/g, ' ').replace(/\s+/g, ' ').trim();
     if (left) p.unknown = left;
@@ -117,6 +120,7 @@
   function conv(v, from, to) { if (v == null || v === '') return v; v = +v; if (from === 'yd' && to === 'ft') return Math.round(v * 3); if (from === 'ft' && to === 'yd') return Math.max(1, Math.round(v / 3)); return v; }
   function unitOf(loc) { return loc === 'green' || loc === 'holed' ? 'ft' : 'yd'; }
   function isHoledLoc(l) { return l === 'holed' || l === 'holedx'; }
+  function isHoledRow(r, k) { return !!r && (isHoledLoc(r.loc) || (k > 0 && !!r.holeOut && !!r.loc)); } // v90: "Hole out" box
   function incomplete(r, k) { return k === 0 ? blank(r.dist) : blank(r.loc) || (r.loc !== 'ob' && blank(r.dist)); }
   function newRow() { return { loc: '', dist: '', dir: '', pen: false }; }
 
@@ -126,7 +130,7 @@
   function apply(hole, p) {
     var rows = copyRows(hole.rows || []), warn = [], notes = [], par = Number(hole.par);
     if (!rows.length) rows.push({ loc: 'tee', dist: '', dir: '', pen: false });
-    var last = rows.length - 1, lastHoled = isHoledLoc(rows[last].loc);
+    var last = rows.length - 1, lastHoled = isHoledRow(rows[last], last);
     var fail = function (w) { return { rows: copyRows(hole.rows || []), k: -1, touched: [], warn: [w], notes: [], done: true }; };
     var t;
     if (p.shot) {
@@ -137,7 +141,7 @@
       t = -1;
       for (var i = 0; i < rows.length; i++) if (incomplete(rows[i], i)) { t = i; break; }
       if (rows.length === 1 && t < 0) t = 0; // only the tee row so far: the phrase is still about the tee shot / where it went
-      if (t < 0 && p.loc === 'holed' && last > 0 && !lastHoled) { // "made it": the last putt/chip went in, unless a new distance says otherwise
+      if (t < 0 && (p.loc === 'holed' || p.holeOut) && last > 0 && !lastHoled) { // "made it": the last putt/chip went in, unless a new distance says otherwise
         var lu = unitOf(rows[last].loc), said = p.dist == null ? null : conv(p.dist, p.distUnit || lu, lu);
         if (said == null || said === +rows[last].dist) t = last;
       }
@@ -168,8 +172,11 @@
       var oldU = unitOf(R.loc);
       if (loc === 'holed') {
         var green = p.putt || R.loc === 'green' || R.loc === 'holed' || (!p.holedx && unit === 'ft');
-        R.loc = green ? 'holed' : 'holedx';
-      } else if (loc && loc !== 'tee') R.loc = loc;
+        // v90: a row that already has its surface (Rough, Bunker...) keeps it and is marked "Hole out", so its lie isn't lost
+        if (!green && R.loc && !isHoledLoc(R.loc)) R.holeOut = true;
+        else { R.loc = green ? 'holed' : 'holedx'; delete R.holeOut; }
+      } else if (p.holeOut && loc && loc !== 'tee') { R.loc = loc; R.holeOut = true; }
+      else if (loc && loc !== 'tee') { R.loc = loc; if (isHoledLoc(loc)) delete R.holeOut; }
       else if (loc === 'tee') warn.push('Only shot 1 is from the tee.');
       if (p.putt && blank(R.loc)) R.loc = 'green';
       var u = unitOf(R.loc);
@@ -181,7 +188,8 @@
       if (p.pen && R.loc !== 'ob') R.pen = true;
       if (p.layup) warn.push('Layup only applies to the tee shot.');
     }
-    if (isHoledLoc(R.loc) && blank(R.dist)) warn.push('Say or type the distance of the shot that went in.');
+    if (t > 0 && p.holeOut === false && R.holeOut) delete R.holeOut; // unticked on the edit card
+    if (isHoledRow(R, t) && blank(R.dist)) warn.push('Say or type the distance of the shot that went in.');
     if (!created && !blank(before.dist) && String(before.dist) !== String(R.dist) && dist != null) notes.push('Replaces shot ' + (t + 1) + '’s ' + before.dist + ' ' + unitOf(before.loc) + '.');
     if (p.extra && p.extra.length) notes.push('Also heard ' + p.extra.join(', ') + ' – used ' + p.dist + '.');
     touched.sort(function (a, b) { return a - b; });
@@ -198,7 +206,8 @@
     var out = []; if (res.k < 0) return out;
     res.touched.forEach(function (j) {
       var R = res.rows[j], parts = [];
-      if (isHoledLoc(R.loc)) parts.push((R.loc === 'holed' ? 'Putt' : j === 0 ? 'Ace' : 'Chip-in') + (blank(R.dist) ? '' : ' from ' + fmtD(R.dist, R.loc === 'holed' ? 'green' : 'fairway')) + ' – in the hole!');
+      if (j > 0 && R.holeOut && !isHoledLoc(R.loc)) { parts.push(R.loc ? LOC_NAME[R.loc] : 'Surface ?'); parts.push((blank(R.dist) ? '' : fmtD(R.dist, R.loc) + ' ') + '– in the hole!'); }
+      else if (isHoledLoc(R.loc)) parts.push((R.loc === 'holed' ? 'Putt' : j === 0 ? 'Ace' : 'Chip-in') + (blank(R.dist) ? '' : ' from ' + fmtD(R.dist, R.loc === 'holed' ? 'green' : 'fairway')) + ' – in the hole!');
       else { parts.push(j === 0 ? 'Tee' : R.loc ? LOC_NAME[R.loc] : 'Surface ?'); if (!blank(R.dist)) parts.push(fmtD(R.dist, R.loc)); }
       out.push(['Shot ' + (j + 1) + (j === res.k && res.created ? ' (new)' : ''), parts.join(' · ')]);
       if (R.club && R.loc !== 'green' && R.loc !== 'holed') out.push(['Shot ' + (j + 1) + ' club', clubName(R.club)]);

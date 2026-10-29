@@ -25,7 +25,8 @@
 
   // ---------- snapshot: a compact, Firebase-safe copy of one round (no nulls inside arrays, no empty arrays) ----------
   // h[i] = { par, sc (score, finished holes only), putts, fw (1/0, par 4-5), gir (1/0), live (strokes so far on an unfinished hole),
-  //          shots: ["dist|loc|dir|club|pen|layup", ...] } – one string per row, as typed (dist in yards, feet on the green).
+  //          shots: ["dist|loc|dir|club|pen|layup|holeOut", ...] }
+  //          holeOut (v90) = 1 when this stroke went in from its own loc (the "Hole out" box), e.g. "25|deep|right|56|||1". – one string per row, as typed (dist in yards, feet on the green).
   function snapshot(r, SGx, o) {
     o = o || {}; SGx = SGx || root.SG;
     var holes = [], st = 0, pr = 0, thru = 0, cur = 0, lastDone = -1, firstLive = -1;
@@ -33,7 +34,7 @@
       var a = SGx.analyzeHole(h), e = { par: Number(h.par) || 0 }, rows = h.rows || [];
       var started = rows.length > 1 || (rows[0] && rows[0].dist !== '' && rows[0].dist != null) || !!h.finished;
       var shots = started ? rows.map(function (w) {
-        return [w.dist === '' || w.dist == null ? '' : w.dist, w.loc || '', w.dir || '', w.club || '', w.pen ? 1 : '', w.layup ? 1 : ''].join('|').replace(/\|+$/, '');
+        return [w.dist === '' || w.dist == null ? '' : w.dist, w.loc || '', w.dir || '', w.club || '', w.pen ? 1 : '', w.layup ? 1 : '', w.holeOut && w.loc && rows[0] !== w ? 1 : ''].join('|').replace(/\|+$/, '');
       }) : [];
       if (shots.length) e.shots = shots;
       if (a.done) {
@@ -137,13 +138,15 @@
   function cls(d) { return d <= -2 ? 'eagle' : d === -1 ? 'birdie' : d === 0 ? 'par' : d === 1 ? 'bogey' : 'dbl'; }
   function ago(ms, nowMs) { var s = Math.max(0, Math.round((nowMs - ms) / 1000)); return s < 45 ? 'just now' : s < 90 ? '1 min ago' : s < 3600 ? Math.round(s / 60) + ' min ago' : s < 7200 ? '1 hour ago' : Math.round(s / 3600) + ' hours ago'; }
   function clock(ms) { try { return new Date(ms).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }); } catch (e) { return ''; } }
-  function parseShot(s) { var p = String(s).split('|'); return { dist: p[0] === '' ? null : +p[0], loc: p[1] || '', dir: p[2] || '', club: p[3] || '', pen: p[4] === '1', layup: p[5] === '1' }; }
+  function parseShot(s) { var p = String(s).split('|'); return { dist: p[0] === '' ? null : +p[0], loc: p[1] || '', dir: p[2] || '', club: p[3] || '', pen: p[4] === '1', layup: p[5] === '1', holeOut: p[6] === '1' }; }
   function shotLines(h) {
     var rows = (h.shots || []).map(parseShot), out = [];
     rows.forEach(function (w, k) {
-      var holed = w.loc === 'holed' || w.loc === 'holedx', green = w.loc === 'green' || w.loc === 'holed', u = green ? ' ft' : ' yd';
+      var holed = w.loc === 'holed' || w.loc === 'holedx', hOut = !holed && k > 0 && w.holeOut, green = w.loc === 'green' || w.loc === 'holed', u = green ? ' ft' : ' yd';
       var d = w.dist != null ? w.dist + u : '';
-      var t = holed ? (k === 0 ? 'Hole in one!' : 'In the hole' + (d ? ' from ' + d : '')) : (LIE[w.loc] || w.loc) + (d ? ' · ' + d + ' to the pin' : '');
+      var t = holed ? (k === 0 ? 'Hole in one!' : 'In the hole' + (d ? ' from ' + d : ''))
+        : hOut ? (LIE[w.loc] || w.loc) + (d ? ' · ' + d : '') + ' – in the hole!' // v90 "Hole out": keeps where it was hit from
+        : (LIE[w.loc] || w.loc) + (d ? ' · ' + d + ' to the pin' : '');
       var extra = [w.club, w.layup ? 'layup' : '', w.pen ? 'penalty +1' : ''].filter(Boolean).join(' · ');
       var nx = rows[k + 1], end = nx && nx.dir ? 'ended ' + DIRN[nx.dir] : '';
       out.push('<li><span class="lvn">' + (k + 1) + '</span><span class="lvt">' + esc(t) + (extra ? ' <small>' + esc(extra) + '</small>' : '') + (end ? '<em>' + esc(end) + '</em>' : '') + '</span></li>');

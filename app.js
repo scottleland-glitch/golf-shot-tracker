@@ -902,14 +902,14 @@
     h.rows.forEach(function (row, k) { out += rowHTML(h, a, row, k, fin); });
 
     var pens = h.rows.reduce(function (n, rw, k) { return n + (SG.isPenalty(rw, k) ? 1 : 0); }, 0);
-    var lastR = h.rows[h.rows.length - 1], talk = !fin && !(lastR.loc === 'holed' || lastR.loc === 'holedx');
+    var lastR = h.rows[h.rows.length - 1], talk = !fin && !SG.isHoled(lastR, h.rows.length - 1);
     out += '<div class="countrow"><div class="count" id="count">' + countText(h, pens) + '</div>' + (talk ? micHTML() : '') + '</div>';
     if (fin) {
       out += '<div class="hole-done">Score <b>' + a.strokes + '</b> (' + toPar(a.strokes - h.par) + ') · SG <span class="' + sgCls(a.sg) + '">' + fmtSG(a.sg) + '</span></div>';
       out += '<button class="big frostbtn" data-act="reopen">✎ Edit this hole</button>';
     } else {
       var last = h.rows[h.rows.length - 1];
-      if (!(last.loc === 'holed' || last.loc === 'holedx')) out += '<button class="addshot big" data-act="addShot">Add Shot ⊕</button>';
+      if (!SG.isHoled(last, h.rows.length - 1)) out += '<button class="addshot big" data-act="addShot">Add Shot ⊕</button>';
       out += '<button class="finish big" data-act="finish"' + (a.complete && h.par ? '' : ' disabled') + '>✓ Finish hole</button>';
       out += '<div id="hint" class="hint">' + hintText(h, a) + '</div>';
     }
@@ -921,7 +921,7 @@
     out += '<div class="row sub"><button class="txt frostbtn" data-act="home">Home</button><button class="txt frostbtn" data-act="summary">Scorecard &amp; stats</button></div>' +
       '<button class="danger discard frostdanger" data-act="discard" data-id="' + esc(r.id) + '">🗑 Discard round</button>';
     out += '<p class="help muted">Each row is ONE stroke. Dist = how far from the pin you hit it (yards; feet on the green). Loc = where the ball was. ' +
-      'Last row: pick "In the hole" and enter the distance of the putt (or chip) that went in. Dir = where the shot before ended vs its target (8 ways: Short = toward you, Long = past it, Left, Right, and the corners). For an approach that missed the green, pick where it missed the green; if it found the green, pick where it stopped vs the hole. ' +
+      'The shot that went in: tick "Hole out" on its row – its Loc (e.g. Rough) stays, so strokes gained counts it from there. Dir = where the shot before ended vs its target (8 ways: Short = toward you, Long = past it, Left, Right, and the corners). For an approach that missed the green, pick where it missed the green; if it found the green, pick where it stopped vs the hole. ' +
       'P = penalty stroke (+1), e.g. a drop. "OB re-hit" = +1 and you hit again from the same spot. Score = rows + penalties.</p>';
     if (view.dirk != null && h.rows[view.dirk] && !fin) out += dirSheetHTML(h, view.dirk);
     if (view.voice && view.voice.hole === view.hole && !fin) out += voiceCardHTML(h);
@@ -1007,7 +1007,8 @@
         '<label><span>To pin (' + (sel === 1 ? 'yd' : green ? 'ft' : 'yd') + ')</span><input type="text" inputmode="numeric" maxlength="3" data-vf="dist" value="' + (p.dist == null ? '' : p.dist) + '"></label>' +
         (sel === 1 ? '' : '<label><span>Hitting from</span>' + vSel('loc', [['', '–'], ['fairway', 'Fairway'], ['rough', 'Rough'], ['deep', 'Deep rough'], ['bunker', 'Bunker'], ['green', 'Green'], ['hazard', 'Hazard'], ['trees', 'Trees'], ['ob', 'OB re-hit'], ['holed', 'In the hole']], p.loc) + '</label>' +
           '<label><span>Shot ' + (sel - 1) + ' missed</span>' + vSel('dir', [['', '–']].concat(SG.DIR8.map(function (d) { return [d, SG.DIR_NAME[d]]; })), p.dir) + '</label>' +
-          '<label class="vchk"><input type="checkbox" data-vf="pen"' + (p.pen ? ' checked' : '') + '> Shot ' + (sel - 1) + ' penalty +1</label>') +
+          '<label class="vchk"><input type="checkbox" data-vf="pen"' + (p.pen ? ' checked' : '') + '> Shot ' + (sel - 1) + ' penalty +1</label>' +
+          (p.loc === 'holed' ? '' : '<label class="vchk"><input type="checkbox" data-vf="holeOut"' + ((p.holeOut || (p.holeOut !== false && R.holeOut)) ? ' checked' : '') + '> Hole out (shot ' + sel + ' went in)</label>')) +
         (sel === 1 && Number(h.par) !== 3 ? '<label class="vchk"><input type="checkbox" data-vf="layup"' + (p.layup ? ' checked' : '') + '> Layup</label>' : '') + '</div>';
     } else if (p.empty) out += '<p class="vwarn">I couldn’t find a club, distance or result in that. Try again, or tap Edit.</p>';
     else out += '<div class="vfields">' + fields.map(function (f) { return '<div class="vf"><span>' + esc(f[0]) + '</span><b>' + esc(f[1]) + '</b></div>'; }).join('') + '</div>';
@@ -1046,7 +1047,8 @@
     if (ob) out += '<span class="c-d obtxt">' + prevDist(h, k) + '</span>';
     else out += '<span class="c-d"><input type="text" inputmode="numeric" pattern="[0-9]*" maxlength="3" data-row="' + k + '" value="' + esc(row.dist) + '" aria-label="Distance row ' + shotNo + '"' + dis + '>' +
       '<i class="u" data-unit="' + k + '">' + SG.rowUnit(h.rows, k) + '</i></span>';
-    var opts = k === 0 ? LOCS0 : LOCS;
+    // v90: "In the hole (chip/shot)" is replaced by the "Hole out" box (keeps the lie); still shown on older rows that use it
+    var opts = k === 0 ? LOCS0 : LOCS.filter(function (l) { return l[0] !== 'holedx' || row.loc === 'holedx'; });
     out += '<span class="c-l"><select data-f="loc" data-k="' + k + '" aria-label="Location row ' + shotNo + '"' + dis + '>' +
       (row.loc ? '' : '<option value="" selected>–</option>') +
       opts.map(function (l) { return '<option value="' + l[0] + '"' + (row.loc === l[0] ? ' selected' : '') + '>' + l[1] + '</option>'; }).join('') + '</select></span>';
@@ -1058,11 +1060,13 @@
     }
     out += '<span class="c-del">' + (k === 0 ? '' : '<button class="del" data-act="del" data-k="' + k + '" aria-label="Delete row ' + shotNo + '"' + dis + '>⌫</button>') + '</span>';
     out += '</div>';
+    // v90: "Hole out" box on every row but the first – this stroke went in, and the row keeps its Loc (lie)
+    var hoBox = k > 0 && row.loc !== 'holedx' ? '<label class="layup holeout' + (row.holeOut ? ' on' : '') + '"><input type="checkbox" data-f="holeout" data-k="' + k + '"' + (row.holeOut ? ' checked' : '') + dis + ' aria-label="Hole out: shot ' + shotNo + ' went in"> Hole out</label>' : '';
     if (row.loc !== 'green' && row.loc !== 'holed') {
       out += '<div class="clubrow" data-club="' + k + '"><label class="clublbl"><span>Club</span><select data-f="club" data-k="' + k + '" aria-label="Club row ' + shotNo + '"' + dis + '><option value=""' + (row.club ? '' : ' selected') + '>–</option>' +
         SG.CLUBS.map(function (c) { return '<option' + (row.club === c ? ' selected' : '') + '>' + c + '</option>'; }).join('') + '</select></label>' +
-        (k === 0 && Number(h.par) !== 3 ? '<label class="layup"><input type="checkbox" data-f="layup" data-k="0"' + (row.layup ? ' checked' : '') + dis + '> Layup <small>(not in SG)</small></label>' : '') + '</div>';
-    } else if (row.loc === 'green') out += '<div class="clubrow putter" data-club="' + k + '"><small>Putter</small></div>';
+        (k === 0 && Number(h.par) !== 3 ? '<label class="layup"><input type="checkbox" data-f="layup" data-k="0"' + (row.layup ? ' checked' : '') + dis + '> Layup <small>(not in SG)</small></label>' : '') + hoBox + '</div>';
+    } else if (row.loc === 'green') out += '<div class="clubrow putter" data-club="' + k + '"><small>Putter</small>' + hoBox + '</div>';
     out += '<div class="sinfo" data-info="' + k + '">' + infoHTML(a.shots[k]) + '</div>';
     if (view.menu === k && !fin) {
       out += '<div class="rowmenu">' + (k > 0 ? '<button data-act="insBefore" data-k="' + k + '">Insert shot above</button>' : '') +
@@ -1085,12 +1089,12 @@
     if (!h.par) return 'Pick the par.';
     if (a.complete) return 'All set – tap Finish hole.';
     var n = a.bad != null ? a.bad + 1 : h.rows.length, row = h.rows[n - 1] || {};
-    var holed = row.loc === 'holed' || row.loc === 'holedx';
+    var holed = SG.isHoled(row, n - 1);
     switch (a.problem) {
       case 'dist': return n === 1 ? 'Missing: hole length in row 1.' : 'Missing: distance in row ' + n + (holed ? ' (how far was the putt/shot that went in?)' : '') + '.';
       case 'loc': return 'Missing: location in row ' + n + '.';
-      case 'after': return 'Row ' + (n - 1) + ' is In the hole – delete the rows after it.';
-      case 'last': return 'Not finished: tap Add Shot, and make the last row "In the hole".';
+      case 'after': return 'Shot ' + (n - 1) + ' went in – delete the rows after it.';
+      case 'last': return 'Not finished: tap Add Shot for the next shot, or tick “Hole out” on the shot that went in.';
     }
     return '';
   }
@@ -2591,7 +2595,8 @@
         h.rows.splice(k, 1); view.menu = null; save(); break;
       case 'menu': view.menu = view.menu === k ? null : k; break;
       case 'insBefore': h.rows.splice(k, 0, newRow(h, k - 1)); view.menu = null; save(); render(); focusDist(k); return;
-      case 'insAfter': h.rows.splice(k + 1, 0, newRow(h, k)); view.menu = null; save(); render(); focusDist(k + 1); return;
+      case 'insAfter': { var nr = newRow(h, k); if (h.rows[k].holeOut) { delete h.rows[k].holeOut; nr.holeOut = true; } // the new shot is now the one that went in
+        h.rows.splice(k + 1, 0, nr); view.menu = null; save(); render(); focusDist(k + 1); return; }
     }
     render();
   });
@@ -2615,12 +2620,26 @@
       row.loc = v;
       if (v === 'ob') { row.dist = ''; row.pen = false; }
       if (was === 'ob' && v !== 'ob') row.dist = '';
+      if (v === 'holed' || v === 'holedx') delete row.holeOut; // already "in the hole"
       save(); render();
       if (v !== 'ob' && row.dist === '') focusDist(k);
     } else if (f === 'dir') { row.dir = t.value; save(); render(); }
     else if (f === 'club') { if (t.value) row.club = t.value; else delete row.club; save(); }
     else if (f === 'layup') { if (t.checked) row.layup = true; else delete row.layup; save(); refreshInfo(h); }
+    else if (f === 'holeout') setHoleOut(h, k, t.checked);
   });
+  // v90 "Hole out" box: only one row per hole can be the hole-out. Ticking it clears any other tick, and shots
+  // after it are removed (after a confirm). The row's Loc is left alone, so the lie of the shot that went in is kept.
+  function setHoleOut(h, k, on) {
+    var row = h.rows[k]; if (!row || k === 0) return;
+    if (!on) { delete row.holeOut; save(); render(); return; }
+    var after = h.rows.length - 1 - k;
+    if (after > 0 && !confirm('Shot ' + (k + 1) + ' went in? ' + (after === 1 ? 'Shot ' + (k + 2) + ' comes after it and will be deleted.' : 'Shots ' + (k + 2) + '–' + h.rows.length + ' come after it and will be deleted.'))) { render(); return; }
+    h.rows.splice(k + 1); h.rows.forEach(function (r2, j) { if (j !== k) delete r2.holeOut; });
+    row.holeOut = true; view.menu = null; save(); render();
+    if (blank0(row.dist)) focusDist(k);
+  }
+  function blank0(v) { return v === '' || v == null; }
 
   document.addEventListener('input', function (ev) { if (ev.target && ev.target.id === 'bzslider') bzUpdate(+ev.target.value); if (ev.target && ev.target.id === 'course') view.newName = ev.target.value; });
   document.addEventListener('change', function (ev) { if (ev.target && ev.target.id === 'newbl') view.newBl = ev.target.value; });
@@ -2637,9 +2656,9 @@
     var p = view.voice.p;
     if (f === 'dist') { t.value = t.value.replace(/[^0-9]/g, '').slice(0, 3); p.dist = t.value === '' ? null : +t.value; p.distUnit = ''; p.extra = null; }
     else if (f === 'shot') p.shot = +t.value || undefined;
-    else if (f === 'pen' || f === 'layup') p[f] = t.checked;
+    else if (f === 'pen' || f === 'layup' || f === 'holeOut') p[f] = t.checked;
     else p[f] = t.value || undefined;
-    if (f === 'loc') { p.holedx = false; if (p.loc !== 'green' && p.loc !== 'holed') p.putt = false; }
+    if (f === 'loc') { p.holedx = false; if (p.loc === 'holed') delete p.holeOut; if (p.loc !== 'green' && p.loc !== 'holed') p.putt = false; }
     p.empty = false; return f;
   }
   document.addEventListener('input', function (ev) { vField(ev.target); cField(ev.target); });

@@ -80,7 +80,8 @@ a = A([R(400, 'tee'), R(150, 'fairway'), R(8, 'green')], 'made it'); assert.stri
 a = A([R(400, 'tee'), R(150, 'fairway'), R(8, 'green')], 'putt 8 feet in the hole'); assert.strictEqual(a.rows.length, 3); assert.strictEqual(a.rows[2].loc, 'holed'); n++;
 a = A([R(400, 'tee'), R(150, 'fairway'), R('', 'green')], 'putt 12 feet in the hole'); assert.deepStrictEqual(a.rows[2], R(12, 'holed')); n++;
 assert.deepStrictEqual(D([R(400, 'tee'), R(150, 'fairway'), R('', 'green')], 'putt 12 feet in the hole'), [['Shot 3', 'Putt from 12’ – in the hole!']]); n++;
-a = A([R(400, 'tee'), R(40, 'rough')], 'lob wedge 40 chip in'); assert.deepStrictEqual(a.rows[1], R(40, 'holedx', { club: '60' })); n++;
+a = A([R(400, 'tee'), R(40, 'rough')], 'lob wedge 40 chip in'); assert.deepStrictEqual(a.rows[1], R(40, 'rough', { holeOut: true, club: '60' })); n++; // v90: the rough lie is kept ("Hole out")
+a = A([R(400, 'tee'), R(150, 'fairway')], 'lob wedge 40 chip in'); assert.deepStrictEqual(a.rows[2], R(40, 'holedx', { club: '60' })); n++; // no surface known: as before
 a = A([R(400, 'tee'), R(150, 'fairway'), R(5, 'holed')], 'putt'); assert.ok(a.done); n++;
 // input never mutated
 const orig = LIVE(); A(orig, 'third shot green 25 feet short'); assert.deepStrictEqual(orig, LIVE()); n++;
