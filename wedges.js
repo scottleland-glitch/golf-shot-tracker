@@ -15,7 +15,11 @@
   var OLD_LEAN = { neutral: '0', slight: '1-2', strong: '3-4' }, OLD_LEAN_TXT = { back: 'leaning back' };
   var OLD_HANDS = { '730': '7:30', '8': '8:00', '9': '9:00', '10': '10:00', '1030': '10:30', full: 'full swing' };
   function name(list, k) { for (var i = 0; i < list.length; i++) if (list[i][0] === k) return list[i][1]; return ''; }
-  function blank() { return { v: 2, rows: {} }; }
+  // v94 two setups per yardage: High flight (stored in rows – v93 charts and old backups land here) and Low flight (stored in low).
+  var FLIGHTS = [['high', 'High'], ['low', 'Low']];
+  function blank() { return { v: 3, rows: {}, low: {} }; }
+  function rowsOf(w, f) { if (f === 'low') { if (!w.low || typeof w.low !== 'object') w.low = {}; return w.low; } return w.rows; }
+  function count(w) { w = norm(w); return Object.keys(w.rows).length + Object.keys(w.low).length; } // every stored entry, both flights, incl. hidden
   function txt(v) { return v != null && String(v).trim() ? String(v).slice(0, 80) : ''; }
   function cleanRow(r) {
     var o = {}; if (!r || typeof r !== 'object') return o;
@@ -32,28 +36,42 @@
   function norm(w) {
     var o = blank(); if (!w || typeof w !== 'object') return o;
     if (w.updated) o.updated = String(w.updated);
-    var rows = w.rows && typeof w.rows === 'object' ? w.rows : {};
-    KEEP.forEach(function (y) { var r = cleanRow(rows[y]); if (Object.keys(r).length) o.rows[y] = r; });
+    [['rows', w.rows], ['low', w.low]].forEach(function (p) { var rows = p[1] && typeof p[1] === 'object' ? p[1] : {};
+      KEEP.forEach(function (y) { var r = cleanRow(rows[y]); if (Object.keys(r).length) o[p[0]][y] = r; }); });
     return o;
   }
-  function filled(w) { var r = norm(w).rows; return YARDS.filter(function (y) { return r[y]; }).length; } // shown yardages only
+  function filled(w, f) { var r = rowsOf(norm(w), f); return YARDS.filter(function (y) { return r[y]; }).length; } // shown yardages only
   function hidden(w) { var r = norm(w).rows; return KEEP.filter(function (y) { return r[y] && YARDS.indexOf(y) < 0; }); }
-  function summary(r) {
+  function summary(r, short) { // short (v94 simple view): club · ball · position only
     r = cleanRow(r); var p = [];
     if (r.club) p.push(/^\d{2}$/.test(r.club) ? r.club + '°' : r.club);
     if (r.ball) p.push(name(BALL, r.ball).toLowerCase()); else if (r.ballNote) p.push('ball: ' + r.ballNote);
-    if (r.lean) p.push(name(LEAN, r.lean)); else if (r.leanNote) p.push('lean: ' + r.leanNote);
+    if (short) {} else if (r.lean) p.push(name(LEAN, r.lean)); else if (r.leanNote) p.push('lean: ' + r.leanNote);
     if (r.pos) p.push(name(POS, r.pos)); else if (r.posNote) p.push('position: ' + r.posNote);
-    if (r.hinge) p.push('hinge ' + (r.hinge === 'full' ? 'full' : name(HINGE, r.hinge)));
+    if (r.hinge && !short) p.push('hinge ' + (r.hinge === 'full' ? 'full' : name(HINGE, r.hinge)));
     return p.join(' · ');
   }
   // Same rule as My Bag: take the backup's chart when the phone's is empty, or the backup is newer.
   function mergeWedges(have, incoming) {
     var i = norm(incoming), h = norm(have);
-    if (!Object.keys(i.rows).length) return { wedges: h, changed: false };
-    if (!Object.keys(h.rows).length || (JSON.stringify(h) !== JSON.stringify(i) && String(i.updated || '') > String(h.updated || ''))) return { wedges: i, changed: true };
+    if (!count(i)) return { wedges: h, changed: false };
+    if (!count(h) || (JSON.stringify(h) !== JSON.stringify(i) && String(i.updated || '') > String(h.updated || ''))) return { wedges: i, changed: true };
     return { wedges: h, changed: false };
   }
-  var api = { YARDS: YARDS, KEEP: KEEP, hidden: hidden, BALL: BALL, LEAN: LEAN, POS: POS, HINGE: HINGE, STD_CLUBS: STD_CLUBS, FIELDS: FIELDS, name: name, blank: blank, cleanRow: cleanRow, norm: norm, filled: filled, summary: summary, mergeWedges: mergeWedges };
+  // v94 Wedge ladder for the scoring page: the shown yardages that have a club set.
+  var MIN = 40, MAX = 110;
+  function inRange(d) { d = Number(d); return d !== 0 && isFinite(d) && d >= MIN && d <= MAX; } // 40–110 yd, both ends included
+  function ladder(w) { // both flights, by yardage, High before Low
+    w = norm(w); var L = [];
+    YARDS.forEach(function (y) { FLIGHTS.forEach(function (f) { var r = rowsOf(w, f[0])[y]; if (r && r.club) L.push({ y: y, f: f[0], row: r }); }); });
+    return L;
+  }
+  function nearest(L, d, club) { // same yardage in both flights → the first (High) // closest yardage (a tie goes to the longer one); optionally only rows with that club
+    var best = null; L.forEach(function (e) { if (club && e.row.club !== club) return; if (!best || Math.abs(e.y - d) < Math.abs(best.y - d) || (Math.abs(e.y - d) === Math.abs(best.y - d) && e.y > best.y)) best = e; });
+    return best;
+  }
+  function clubLabel(c) { return /^\d{2}$/.test(String(c)) ? c + '°' : String(c || ''); }
+  function ladderLabel(e) { var r = e.row; return [e.y + ' yd', e.f ? name(FLIGHTS, e.f) : '', clubLabel(r.club), name(BALL, r.ball), name(POS, r.pos)].filter(Boolean).join(' · '); }
+  var api = { FLIGHTS: FLIGHTS, rowsOf: rowsOf, count: count, inRange: inRange, ladder: ladder, nearest: nearest, clubLabel: clubLabel, ladderLabel: ladderLabel, MIN: MIN, MAX: MAX, YARDS: YARDS, KEEP: KEEP, hidden: hidden, BALL: BALL, LEAN: LEAN, POS: POS, HINGE: HINGE, STD_CLUBS: STD_CLUBS, FIELDS: FIELDS, name: name, blank: blank, cleanRow: cleanRow, norm: norm, filled: filled, summary: summary, mergeWedges: mergeWedges };
   if (typeof module !== 'undefined' && module.exports) module.exports = api; else root.WEDGES = api;
 })(this);

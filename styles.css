@@ -914,3 +914,21 @@ html body .roundpage.theme-sky .clubrow .holeout.on { color: #1f6b3a; background
 .profpage .playerbox button { border-radius: 999px; font-weight: 500; box-shadow: none; } .profpage .playerbox .txt { color: var(--frost-accent); background: none; border: 0; }
 .profpage .playerbox input { border-radius: 12px; border: 1px solid rgba(23, 48, 31, .14); background: rgba(255, 255, 255, .85); }
 .wedgepage .whead, .wedgepage .whead:active { box-shadow: none; border-radius: 12px; background: none; transform: none; }
+/* ---------- v94 Wedges simple view + Edit, and the wedge ladder on the scoring page ---------- */
+.wedgepage .wsimple { padding: 2px 4px 12px; display: flex; flex-direction: column; gap: 2px; }
+.wedgepage .wsline { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; padding: 7px 2px; border-top: 1px solid rgba(23, 48, 31, .06); }
+.wedgepage .wsline:first-child { border-top: 0; }
+.wedgepage .wsline span { font-size: 14px; font-weight: 400; color: var(--frost-ink-soft); }
+.wedgepage .wsline b { font-size: 17px; font-weight: 500; text-align: right; }
+.wedgepage .wedit { width: 100%; min-height: 52px; font-size: 17px; font-weight: 500; margin: 2px 0 10px; border-radius: 18px; box-shadow: none; }
+.wedgepage .wedit.on { background: #1c1c1e; color: #fff; border-color: #1c1c1e; }
+.clubrow.wladder { flex-wrap: wrap; row-gap: 6px; }
+.clubrow.wladder .clublbl { flex: 1; min-width: 0; }
+.clubrow.wladder select { flex: 1; min-width: 0; width: 100%; max-width: none; font-size: 14px; }
+.clubrow .wladet { flex-basis: 100%; display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 14px; padding: 7px 12px; border-radius: 14px; background: rgba(255, 255, 255, .55); border: 1px solid rgba(23, 48, 31, .08); font-size: 15px; font-weight: 500; color: var(--frost-ink, #17301f); }
+.clubrow .wladet i { font-style: normal; font-size: 11px; font-weight: 400; text-transform: uppercase; letter-spacing: .04em; color: var(--frost-ink-soft, #3f5a48); margin-right: 5px; }
+.clubrow .wladet small { flex-basis: 100%; font-size: 12px; font-weight: 400; color: var(--frost-ink-soft, #3f5a48); }
+/* v94 High / Low flight segmented control */
+.wedgepage .wflight { display: flex; gap: 4px; padding: 4px; margin: 0 0 12px; border-radius: 16px; background: rgba(255, 255, 255, .45); border: 1px solid rgba(23, 48, 31, .08); }
+.wedgepage .wflight button { flex: 1; min-height: 40px; border: 0; border-radius: 12px; background: none; box-shadow: none; font-size: 15px; font-weight: 400; color: var(--frost-ink-soft, #3f5a48); transform: none; }
+.wedgepage .wflight button.on { background: rgba(255, 255, 255, .92); color: var(--frost-ink, #17301f); font-weight: 600; box-shadow: 0 1px 4px rgba(23, 48, 31, .10); }

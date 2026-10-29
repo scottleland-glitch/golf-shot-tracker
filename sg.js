@@ -701,7 +701,7 @@
 
   /* ===================== BACKUP / RESTORE ===================== */
   // Backup file: { app: 'golf-shot-tracker', kind: 'rounds-backup', version: 1, exported: ISO, rounds: [...] }
-  function hasWedges(w) { return !!(w && w.rows && typeof w.rows === 'object' && !Array.isArray(w.rows) && Object.keys(w.rows).length); }
+  function hasWedges(w) { var ok = function (o) { return !!(o && typeof o === 'object' && !Array.isArray(o) && Object.keys(o).length); }; return !!(w && (ok(w.rows) || ok(w.low))); } // v94: High (rows) or Low (low) flight
   function makeBackup(rounds, now, player, courses, bag, wedges) {
     var o = { app: 'golf-shot-tracker', kind: 'rounds-backup', version: 1, exported: (now || new Date()).toISOString(), count: rounds.length, rounds: rounds };
     if (player) o.player = player; if (courses && courses.length) o.courses = courses; if (bag && Array.isArray(bag.clubs) && bag.clubs.length) o.bag = bag;
