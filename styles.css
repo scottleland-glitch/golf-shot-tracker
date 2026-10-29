@@ -591,21 +591,7 @@ html body .roundpage .voicecard .vbtns .frostmain { background: linear-gradient(
 .home .ntees { display: flex; flex-wrap: wrap; gap: 6px; padding: 2px; }
 .home .ntee { display: flex; flex-direction: column; align-items: center; line-height: 1.1; padding: 7px 12px; }
 .home .ntee small { font-size: 11px; font-weight: 500; opacity: .75; }
-.home .nscan { display: flex; gap: 6px; }
-.home .nscan .sheet-item { border-top: 0 !important; border-radius: 14px !important; background: rgba(169, 205, 240, .55); color: #0e2a44; font-weight: 600; text-align: center; }
-.home .nscan .scanbtn { flex: 1; }
-.home .nscan .sheet-item:last-child { flex: 0 0 52px; }
-.cardpage .cardstart { display: flex; flex-direction: column; gap: 10px; align-items: stretch; text-align: center; padding: 18px 14px; margin-top: 12px; }
-.cardpage .cardicon { font-size: 54px; line-height: 1; margin: 6px 0 4px; }
-.cardpage label.frostmain.filebtn { min-height: 64px; font-size: 21px; border: 1px solid #79a9da; }
-.cardpage .cardread { text-align: center; margin-top: 12px; }
-.cardpage .cardthumb { width: 100%; max-height: 220px; object-fit: cover; border-radius: 16px; display: block; margin-bottom: 12px; }
-.cardpage .progbar { height: 10px; border-radius: 999px; background: rgba(255, 255, 255, .6); overflow: hidden; }
-.cardpage .progbar i { display: block; height: 100%; background: linear-gradient(90deg, #7fb2e5, #3b6e9f); border-radius: 999px; transition: width .3s; }
-.cardpage .cardstat { margin: 10px 0 2px; font-size: 16px; font-weight: 600; color: var(--frost-ink-soft); }
-.cardpage .teepick { display: flex; flex-direction: column; gap: 8px; margin-top: 12px; }
-.cardpage .teebtn { display: flex; justify-content: space-between; align-items: center; min-height: 62px; padding: 0 18px; margin: 0; border-radius: 20px; }
-.cardpage .teebtn b { font-size: 21px; font-weight: 700; } .cardpage .teebtn span { font-size: 16px; font-weight: 600; color: var(--frost-ink-soft); }
+.home .ntype { margin-top: 6px; border-top: 0 !important; border-radius: 14px !important; background: rgba(169, 205, 240, .55); color: #0e2a44; font-weight: 600; text-align: center; }
 .cardnote { font-size: 15px; color: var(--frost-ink-soft, #445064); margin: 8px 4px; }
 .cardpage .cardrev { margin-top: 12px; padding: 12px 10px; }
 .cardpage .crsname { font-size: 20px; font-weight: 700; border-radius: 14px; border: 1px solid rgba(150, 170, 190, .55); background: rgba(255, 255, 255, .9); box-sizing: border-box; }
@@ -713,33 +699,7 @@ html body .roundpage.theme-sky .topbar .title span { font-weight: 500; color: va
   @keyframes bzhop { 0% { transform: translateY(0) scale(1); } 40% { transform: translateY(-7px) scale(1.08) rotate(-4deg); } 100% { transform: translateY(0) scale(1); } }
 }
 /* ---------- Scorecard: front 9 + back 9 photos (v86) – soft, thin lines ---------- */
-.cardpage .halfsteps { display: flex; align-items: center; justify-content: center; gap: 8px; margin: 12px 0 0; }
-.cardpage .halfsteps > i { flex: 0 0 34px; height: 1px; background: rgba(26, 34, 48, .2); }
-.cardpage .hstep { display: inline-flex; align-items: center; gap: 7px; font-size: 15px; font-weight: 500; color: var(--frost-ink-soft); }
-.cardpage .hstep em { font-style: normal; }
-.cardpage .hstep b { width: 24px; height: 24px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 600; color: var(--frost-ink-soft); background: rgba(255, 255, 255, .6); border: 1px solid rgba(120, 140, 160, .45); }
-.cardpage .hstep.on { color: var(--frost-ink); } .cardpage .hstep.on b { color: #fff; background: #3b6e9f; border-color: #3b6e9f; }
-.cardpage .hstep.done b { color: #2f6b3f; background: rgba(220, 240, 222, .9); border-color: rgba(47, 107, 63, .45); }
-.cardpage .hstep.done { border: 0; padding: 0; margin: 0; border-radius: 0; text-align: left; } .cardpage .hstep.done b { font-size: 13px; }
-.cardpage .halfstart { gap: 12px; }
-.cardpage .halfpic { display: flex; gap: 4px; justify-content: center; margin: 4px auto 0; padding: 8px; border-radius: 14px; background: rgba(255, 255, 255, .5); border: 1px solid rgba(150, 170, 190, .4); width: 220px; }
-.cardpage .halfpic i { flex: 1; height: 54px; display: flex; align-items: center; justify-content: center; font-style: normal; font-size: 14px; font-weight: 500; color: rgba(26, 34, 48, .35);
-  border-radius: 9px; border: 1px dashed rgba(120, 140, 160, .45); background: repeating-linear-gradient(180deg, transparent 0 10px, rgba(120, 140, 160, .12) 10px 11px); }
-.cardpage .halfpic i.on { color: #1d4f7c; border: 1.5px solid #79a9da; background-color: rgba(190, 220, 248, .55); }
-.cardpage .halfhint { margin: 2px 4px; font-size: 16px; font-weight: 400; color: var(--frost-ink-soft); line-height: 1.35; }
-.cardpage .halfhint b { display: block; font-size: 19px; font-weight: 600; color: var(--frost-ink); margin-bottom: 2px; }
-.cardpage .halfwarn { margin: 0; padding: 8px 10px; border-radius: 12px; background: rgba(255, 240, 210, .85); border: 1px solid rgba(200, 150, 40, .35); color: #7a5200; font-size: 14px; font-weight: 500; }
-.cardpage .halfskip { min-height: 50px; font-size: 16px; font-weight: 500; }
 .cardpage .txtlink { background: none !important; border: 0 !important; box-shadow: none !important; color: #2c5d8c; font-size: 15px; font-weight: 500; min-height: 36px; padding: 4px; }
-.cardpage .matchcard { margin-top: 12px; padding: 14px 12px; }
-.cardpage .matchintro { margin: 0 0 10px; font-size: 15px; color: var(--frost-ink-soft); }
-.cardpage .matchrow { padding: 10px 0; border-top: 1px solid rgba(26, 34, 48, .1); }
-.cardpage .matchrow p { margin: 0 0 8px; display: flex; flex-direction: column; gap: 2px; } .cardpage .matchrow p b { font-weight: 600; font-size: 17px; } .cardpage .matchrow p span { font-size: 13px; color: var(--frost-ink-soft); }
-.cardpage .matchchips { display: flex; flex-wrap: wrap; gap: 6px; } .cardpage .matchchips .frostchip { min-height: 40px; padding: 6px 14px; font-size: 15px; font-weight: 500; }
-.cardpage .halfbar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 12px 2px 4px; }
-.cardpage .halfbar > span { flex: 1 0 100%; font-size: 13px; color: var(--frost-ink-soft); text-transform: uppercase; letter-spacing: .04em; font-weight: 500; }
-.cardpage .halfbar .frostchip { flex: 1; min-height: 46px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px; font-size: 15px; font-weight: 500; }
-.cardpage .halfbar .frostchip small { font-size: 12px; font-weight: 400; opacity: .75; }
 
 /* ---------- Live sharing (v87): "Share live" pill on the hole screen + link sheet ---------- */
 .livebar { display: flex; flex-direction: column; align-items: center; margin: -2px 0 8px; }
@@ -844,13 +804,13 @@ i.prog { color: #e0565e; font-size: 22px; }
 .home .ncchip, .home .ntee { font-weight: 500; box-shadow: none; }
 .home .ntee.naddtee { flex-direction: row; background: rgba(169, 205, 240, .4); border: 1px dashed rgba(59, 110, 159, .45); color: #0e2a44; font-weight: 500; }
 .home .nedit { background: none; border: 0; box-shadow: none; color: #3b6e9f; font-size: 14px; font-weight: 400; text-align: left; padding: 4px 6px; min-height: 32px; }
-.home .nscan .sheet-item:last-child { flex: 0 0 auto; padding: 13px 12px; font-size: 15px; }
-.home .playerrow { position: absolute; z-index: 2; left: 50%; transform: translateX(-50%); top: calc(env(safe-area-inset-top) + 82px);
-  display: flex; align-items: baseline; gap: 8px; padding: 7px 16px; border-radius: 999px; font-size: 15px; font-weight: 400; white-space: nowrap; max-width: calc(100vw - 40px);
-  background: rgba(25, 45, 30, .22); border-color: rgba(255, 255, 255, .5); text-shadow: 0 1px 6px rgba(0, 0, 0, .3); }
-.home .playerrow b { font-weight: 500; overflow: hidden; text-overflow: ellipsis; }
-.home .playerrow .pr-l { font-size: 12px; letter-spacing: .06em; text-transform: uppercase; opacity: .85; }
-.home .playerrow .pr-c { font-size: 13px; opacity: .85; text-decoration: underline; text-underline-offset: 3px; }
+.home .nplayer { display: flex; align-items: center; justify-content: space-between; gap: 8px; width: 100%; min-height: 48px; padding: 6px 6px 6px 14px; margin: 2px 0; box-sizing: border-box;
+  border: 1px solid rgba(23, 48, 31, .14); border-radius: 12px; background: rgba(255, 255, 255, .85); color: #17301f; font-size: 17px; }
+.home .nplayer b { font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.home .nplayer.npadd { justify-content: flex-start; color: #2f6b3f; font-weight: 500; padding: 10px 14px; box-shadow: none; }
+.home .npedit { display: flex; align-items: center; gap: 6px; }
+.home .npedit input[type=text] { flex: 1; min-width: 0; }
+.home .npsave { border: 0; border-radius: 12px; background: #3b6e9f; color: #fff; font-size: 15px; font-weight: 500; padding: 11px 14px; min-height: 44px; box-shadow: none; }
 .home .namesheet { left: 50%; right: auto; transform: translateX(-50%); top: calc(env(safe-area-inset-top) + 130px); width: min(330px, calc(100vw - 36px)); padding: 14px; gap: 6px; animation: none; }
 .home .namesheet .sheet-h { font-size: 22px; font-weight: 300; letter-spacing: .02em; text-transform: none; color: #17301f; padding: 2px 4px 0;
   font-family: "Didot", "Bodoni 72", "Playfair Display", Georgia, serif; }

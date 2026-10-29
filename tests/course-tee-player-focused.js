@@ -1,5 +1,5 @@
 // v88: Course dropdown (+ Add new course first, then saved courses, most recently used first), tee boxes per course (chips, manual naming,
-// add a tee box later), migration of older saved courses, and the first-open "Who's playing?" prompt + Player row on Home. iPhone viewport.
+// add a tee box later), migration of older saved courses, and the first-open "Who's playing?" prompt; v89: Player row moved from Home into the New round sheet. iPhone viewport.
 const { chromium } = require('playwright-core'); const assert = require('assert'); const { spawn } = require('child_process');
 const C = require('../courses.js');
 const BASE = 'http://127.0.0.1:8810/', OUT = '/workspace/golf-app/screenshots/';
@@ -101,7 +101,7 @@ const Y = (b) => Array.from({ length: 18 }, (_, i) => b + i * 7), P = [4, 4, 3, 
   assert.strictEqual((await store()).find(c => c.id === 'a').tees.length, 3, 'backing out saves nothing');
   // Add new course: name box, then type the card in by hand with no tee name → Main tees
   await page.click('#crspick'); await page.click('[data-act="crsnew"]'); await page.waitForSelector('#course'); assert.strictEqual(await page.$('#ntees'), null);
-  assert.strictEqual((await page.textContent('#crspicked')).trim(), '+ Add new course'); assert.ok(await page.$('[data-act="scan"]') && await page.$('[data-act="cardmanual"]'));
+  assert.strictEqual((await page.textContent('#crspicked')).trim(), '+ Add new course'); assert.strictEqual(await page.$('[data-act="scan"]'), null, 'no scan (v89)'); assert.ok(await page.$('[data-act="cardmanual"]'));
   await page.fill('#course', 'Wolf Run'); await page.click('[data-act="cardmanual"]'); await page.waitForSelector('.revgrid');
   assert.strictEqual(await page.$eval('[data-cf="name"]', e => e.value), 'Wolf Run'); assert.strictEqual(await page.$eval('[data-cf="tee"]', e => e.getAttribute('placeholder')), 'e.g. White, Red, Truckee');
   for (let i = 0; i < 18; i++) { await page.fill(`[data-cf="par"][data-i="${i}"]`, String(P[i])); await page.fill(`[data-cf="yd"][data-i="${i}"]`, String(300 + i)); }
@@ -116,32 +116,57 @@ const Y = (b) => Array.from({ length: 18 }, (_, i) => b + i * 7), P = [4, 4, 3, 
   assert.strictEqual((await page.textContent('#namesh')).trim(), 'Who’s playing?'); assert.match(await page.textContent('#namehelp'), /Enter the golfer’s name/);
   await shot('player-prompt');
   await page.fill('#pname', 'Quincy'); await page.click('#namesheet [data-act="setname"]'); await page.waitForSelector('#namesheet', { state: 'detached' });
-  assert.strictEqual(await page.evaluate(() => localStorage.getItem('golfsg.player.v1')), 'Quincy'); assert.strictEqual(await page.textContent('#homepname'), 'Quincy');
-  await shot('home-player-row');
+  assert.strictEqual(await page.evaluate(() => localStorage.getItem('golfsg.player.v1')), 'Quincy');
+  // v89: Home stays clean – no Player row; the player lives in the New round sheet
+  const homeBtns = () => page.$$eval('#home button', e => e.map(x => x.id));
+  assert.strictEqual(await page.$('#playerrow'), null, 'no Player row on Home'); assert.deepStrictEqual(await homeBtns(), ['plusbtn', 'archivepill']);
+  assert.doesNotMatch(await page.innerText('#home'), /Quincy|Player|golfer/i);
+  await shot('home-clean');
   await page.reload(); await page.waitForSelector('#home'); assert.strictEqual(await page.$('#namesheet'), null, 'asked once');
+  // New round sheet: Course, Compare my shots against, then Player with the current name
+  const openNew = async () => { await page.click('#plusbtn'); await page.click('[data-act="newform"]'); await page.waitForSelector('#nplayer'); };
+  await openNew();
+  const order = await page.$$eval('#plusmenu .lbl', e => e.map(x => x.textContent.trim())); assert.deepStrictEqual(order, ['Course', 'Compare my shots against', 'Player']);
+  assert.strictEqual(await page.textContent('#npname'), 'Quincy'); assert.match(await page.textContent('#nplayer'), /Quincy\s*Change/);
+  const nb = await page.$eval('#nplayer', e => e.getBoundingClientRect().toJSON()), bl = await page.$eval('#newbl', e => e.getBoundingClientRect().toJSON());
+  assert.ok(nb.top >= bl.bottom - 1 && nb.right <= 393, 'Player row under the benchmark ' + JSON.stringify([nb, bl]));
+  await page.fill('#course', 'Test'); await page.waitForTimeout(100); await page.evaluate(() => document.activeElement && document.activeElement.blur());
+  await shot('new-round-player');
   // the name goes on new rounds (and so the reports + live viewer)
-  await page.click('#plusbtn'); await page.click('[data-act="newform"]'); await page.fill('#course', 'Test'); await page.click('[data-act="new"]'); await page.waitForSelector('.holecard');
+  await page.click('[data-act="new"]'); await page.waitForSelector('.holecard');
   assert.strictEqual(await page.evaluate(() => JSON.parse(localStorage.getItem('golfsg.rounds.v1'))[0].player), 'Quincy');
-  // Change from Home: prefilled, Cancel keeps it, Save asks before relabelling
-  await page.click('[data-act="home"]'); await page.click('#playerrow'); await page.waitForSelector('#namesheet');
-  assert.strictEqual((await page.textContent('#namesh')).trim(), 'Player'); assert.strictEqual(await page.$eval('#pname', e => e.value), 'Quincy');
-  await page.click('#namesheet [data-act="namecancel"]'); assert.strictEqual(await page.$('#namesheet'), null); assert.strictEqual(await page.textContent('#homepname'), 'Quincy');
-  await page.click('#playerrow'); await page.fill('#pname', 'Quincy L'); await page.press('#pname', 'Enter'); await page.waitForSelector('#namesheet', { state: 'detached' });
-  assert.match(dialogs[dialogs.length - 1], /Change player name from "Quincy" to "Quincy L"/); assert.strictEqual(await page.textContent('#homepname'), 'Quincy L');
+  // Change inline: prefilled, Cancel keeps it, Save asks before relabelling; the sheet stays open on New round
+  await page.click('[data-act="home"]'); await openNew(); await page.click('#nplayer [data-act="npedit"]'); await page.waitForSelector('#npeditrow');
+  assert.strictEqual(await page.$eval('#pname', e => e.value), 'Quincy'); assert.ok(await page.evaluate(() => document.activeElement.id === 'pname'), 'name box focused');
+  await page.click('[data-act="npcancel"]'); assert.strictEqual(await page.$('#npeditrow'), null); assert.strictEqual(await page.textContent('#npname'), 'Quincy');
+  await page.click('#nplayer [data-act="npedit"]'); await page.fill('#pname', 'Quincy L'); await page.press('#pname', 'Enter'); await page.waitForSelector('#npeditrow', { state: 'detached' });
+  assert.match(dialogs[dialogs.length - 1], /Change player name from "Quincy" to "Quincy L"/); assert.strictEqual(await page.textContent('#npname'), 'Quincy L');
+  assert.ok(await page.$('#plusmenu #crspick, #plusmenu #course'), 'still on the New round sheet');
   assert.strictEqual(await page.evaluate(() => JSON.parse(localStorage.getItem('golfsg.rounds.v1'))[0].player), 'Quincy L');
-  // Not now: no nagging, Home offers to add the name
+  // declining the confirm keeps the old name (never overwritten silently)
+  page.removeAllListeners('dialog'); page.once('dialog', d => { dialogs.push(d.message()); d.dismiss(); });
+  await page.click('#nplayer [data-act="npedit"]'); await page.fill('#pname', 'Someone'); await page.click('#npeditrow [data-act="setname"]');
+  assert.match(dialogs[dialogs.length - 1], /Change player name from "Quincy L" to "Someone"/); assert.strictEqual(await page.evaluate(() => localStorage.getItem('golfsg.player.v1')), 'Quincy L');
+  page.removeAllListeners('dialog'); page.on('dialog', d => { dialogs.push(d.message()); d.accept(); });
+  await page.click('[data-act="npcancel"]');
+  // closing the sheet drops an unfinished edit
+  await page.click('#nplayer [data-act="npedit"]'); await page.click('.sheet-back', { position: { x: 30, y: 40 } }); await openNew(); assert.strictEqual(await page.$('#npeditrow'), null);
+  await page.click('.sheet-back', { position: { x: 30, y: 40 } });
+  // Not now: no nagging, Home stays clean, New round offers to add the name
   await seed({}); await page.reload(); await page.waitForSelector('#namesheet'); await page.click('[data-act="nameskip"]');
-  assert.strictEqual(await page.$('#namesheet'), null); assert.match(await page.textContent('#playerrow'), /Add golfer’s name/);
+  assert.strictEqual(await page.$('#namesheet'), null); assert.deepStrictEqual(await homeBtns(), ['plusbtn', 'archivepill']);
   await page.reload(); await page.waitForSelector('#home'); assert.strictEqual(await page.$('#namesheet'), null, 'Not now is remembered');
-  await page.click('#playerrow'); await page.waitForSelector('#namesheet'); await page.fill('#pname', 'Quincy'); await page.click('#namesheet [data-act="setname"]'); assert.strictEqual(await page.textContent('#homepname'), 'Quincy');
+  await openNew(); assert.match(await page.textContent('#nplayer'), /Add golfer’s name/);
+  await page.click('#nplayer'); await page.fill('#pname', 'Quincy'); await page.click('#npeditrow [data-act="setname"]'); assert.strictEqual(await page.textContent('#npname'), 'Quincy');
+  assert.strictEqual(await page.evaluate(() => localStorage.getItem('golfsg.player.v1')), 'Quincy');
   // a phone that already has a name is never asked / overwritten
   await seed({ 'golfsg.player.v1': 'Scott Leland' }); await page.reload(); await page.waitForSelector('#home');
-  assert.strictEqual(await page.$('#namesheet'), null); assert.strictEqual(await page.textContent('#homepname'), 'Scott Leland');
+  assert.strictEqual(await page.$('#namesheet'), null); await openNew(); assert.strictEqual(await page.textContent('#npname'), 'Scott Leland');
   assert.strictEqual(await page.evaluate(() => localStorage.getItem('golfsg.player.v1')), 'Scott Leland');
-  // phone with rounds but no name (older install): no pop-up, just the Player row
+  // phone with rounds but no name (older install): no pop-up, New round offers to add it
   await seed({ 'golfsg.rounds.v1': [Object.assign({}, R1, { player: undefined })] }); await page.reload(); await page.waitForSelector('#home');
-  assert.strictEqual(await page.$('#namesheet'), null); assert.match(await page.textContent('#playerrow'), /Add golfer’s name/);
+  assert.strictEqual(await page.$('#namesheet'), null); assert.strictEqual(await page.$('#playerrow'), null); await openNew(); assert.match(await page.textContent('#nplayer'), /Add golfer’s name/);
   const w = await page.evaluate(() => document.documentElement.scrollWidth); assert.ok(w <= 393, 'no sideways scroll ' + w);
-  const SWV = require('fs').readFileSync(__dirname + '/../sw.js', 'utf8').match(/golf-sg-v\d+/)[0]; assert.strictEqual(SWV, 'golf-sg-v88');
+  const SWV = require('fs').readFileSync(__dirname + '/../sw.js', 'utf8').match(/golf-sg-v\d+/)[0]; assert.strictEqual(SWV, 'golf-sg-v89');
   assert.deepStrictEqual(errors, []); console.log('COURSE / TEE / PLAYER OK'); await b.close(); srv.kill();
 })().catch(e => { console.error(e); process.exit(1); });
