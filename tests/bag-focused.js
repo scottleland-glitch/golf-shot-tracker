@@ -1,5 +1,5 @@
 // v92 My Bag: catalog → clubs, carries, the air-density carry model (elevation / temperature sliders), the in-round
-// club picker (bag clubs only), voice matching, and backup/restore. Plus menu entry next to New round. iPhone 390x844 @3x.
+// club picker (bag clubs only), voice matching, and backup/restore. Opened from Profile in the + menu (v93). iPhone 390x844 @3x.
 const assert = require('assert'); const { spawn } = require('child_process'); const fs = require('fs');
 const BAG = require('../bag.js'); const SG = require('../sg.js'); const V = require('../voice.js');
 const OUT = '/workspace/golf-app/screenshots/', PORT = 8823, BASE = 'http://127.0.0.1:' + PORT + '/';
@@ -62,8 +62,8 @@ const pct = (a, b) => (a / b - 1) * 100;
     await page.reload(); await page.waitForSelector('#home');
     assert.strictEqual(await page.$('[data-act="bag"]'), null, 'nothing new on the clean home screen');
     await page.click('#plusbtn'); await page.waitForSelector('#plusmenu');
-    assert.deepStrictEqual(await page.$$eval('#plusmenu .sheet-item', e => e.map(x => x.textContent)), ['New round', 'My Bag', 'History'], 'My Bag sits next to New round in the + menu');
-    await page.click('#plusmenu [data-act="bag"]'); await page.waitForSelector('#bagempty');
+    assert.deepStrictEqual(await page.$$eval('#plusmenu .sheet-item', e => e.map(x => x.textContent)), ['New round', 'Profile', 'History'], 'Profile (with My Bag) sits next to New round in the + menu');
+    await page.click('#plusmenu [data-act="profile"]'); await page.waitForSelector('#profbag'); await page.click('#profbag'); await page.waitForSelector('#bagempty');
     await shot('bag-empty');
     const add = async (make, model, cat, pick) => {
       await page.click('#bagaddbtn'); await page.waitForSelector('#bagmakes');
@@ -118,7 +118,7 @@ const pct = (a, b) => (a / b - 1) * 100;
     const p60 = (await store()).clubs.find(c => c.code === '60'); await page.click('.bname[data-id="' + p60.id + '"]'); await page.click('#bagedit [data-v="remove"]');
     assert.strictEqual((await store()).clubs.length, 13); assert.match(dialogs.pop(), /Remove 60/);
     // in-round picker: bag clubs only (no putter), with the San Diego carries since "show in picker" is on
-    await page.click('[data-act="home"]'); await page.click('#plusbtn'); await page.click('[data-act="newform"]'); await page.waitForSelector('[data-act="new"]');
+    await page.click('[data-act="profile"]'); await page.waitForSelector('#profbag'); await page.click('[data-act="home"]'); await page.click('#plusbtn'); await page.click('[data-act="newform"]'); await page.waitForSelector('[data-act="new"]');
     const cIn = await page.$('#course'); if (cIn) await page.fill('#course', 'Torrey Pines');
     await page.click('[data-act="new"]'); await page.waitForSelector('.holecard');
     const opts = await page.$$eval('select[data-f="club"][data-k="0"] option', e => e.map(o => [o.value, o.textContent]));

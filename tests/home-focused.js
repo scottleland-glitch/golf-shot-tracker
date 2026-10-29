@@ -20,8 +20,8 @@ const BASE = 'http://127.0.0.1:8795/', OUT = '/workspace/golf-app/screenshots/';
   assert.strictEqual(H.title, 'rgb(255, 255, 255)');
   assert.ok(await page.evaluate(() => fetch('img/home-bg.webp').then(r => r.blob()).then(x => x.size < 250000)), 'photo under 250 KB');
   await shot('main');
-  // + menu: New round + My Bag (v92) + History
-  await page.click('#plusbtn'); assert.deepStrictEqual(await page.$$eval('#plusmenu button', x => x.map(e => e.textContent)), ['New round', 'My Bag', 'History']);
+  // + menu: New round + Profile (v93, My Bag + Wedges inside) + History
+  await page.click('#plusbtn'); assert.deepStrictEqual(await page.$$eval('#plusmenu button', x => x.map(e => e.textContent)), ['New round', 'Profile', 'History']);
   await shot('plus');
   await page.click('.sheet-back', { position: { x: 60, y: 600 } }); assert.strictEqual(await page.$('#plusmenu'), null, 'tap outside closes');
   await page.click('#plusbtn'); await page.click('#plusmenu [data-act="history"]'); await page.waitForSelector('#histlist, .topbar'); assert.match(await page.textContent('.topbar'), /History/);

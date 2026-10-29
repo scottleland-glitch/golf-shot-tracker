@@ -19,6 +19,11 @@
   function bag() { try { return BAG.norm(JSON.parse(localStorage.getItem(BGK) || 'null')); } catch (e) { return BAG.blank(); } }
   function saveBag(b, quiet) { b.updated = new Date().toISOString(); localStorage.setItem(BGK, JSON.stringify(BAG.norm(b))); if (!quiet) odDirty(3000); else odDirty(20000); }
   function bagForBackup() { var b = bag(); return b.clubs.length ? b : null; }
+  // v93 Wedges: chart of 40–110 yd (wedges.js), stored on the phone and in backups
+  var WGK = 'golfsg.wedges.v1';
+  function wedges() { try { return WEDGES.norm(JSON.parse(localStorage.getItem(WGK) || 'null')); } catch (e) { return WEDGES.blank(); } }
+  function saveWedges(w) { w.updated = new Date().toISOString(); localStorage.setItem(WGK, JSON.stringify(WEDGES.norm(w))); odDirty(20000); }
+  function wedgesForBackup() { var w = wedges(); return Object.keys(w.rows).length ? w : null; } // incl. entries kept from the 5-yard draft
   function courseById(id) { return courses().filter(function (c) { return c.id === id; })[0]; }
   function playerName() { return (localStorage.getItem(PN) || '').trim(); }
   // Rounds that belong to this phone's player (unnamed rounds count as theirs). Backups contain only these,
@@ -141,6 +146,8 @@
     else if (view.screen === 'card') el.innerHTML = cardHTML();
     else if (view.screen === 'courses') el.innerHTML = coursesHTML();
     else if (view.screen === 'bag') el.innerHTML = bagHTML();
+    else if (view.screen === 'profile') el.innerHTML = profileHTML();
+    else if (view.screen === 'wedges') el.innerHTML = wedgesHTML();
     else if (view.screen === 'birdie') { view.bzD = null; el.innerHTML = birdieHTML(); }
     else if (view.screen === 'home' || !round()) el.innerHTML = homeHTML();
     else if (view.screen === 'hole') el.innerHTML = '<div class="frostpage roundpage' + roundTheme() + '">' + holeHTML() + (view.pinOpen ? pinHTML() : '') + (view.replay != null ? replayHTML() : '') + '</div>';
@@ -528,7 +535,7 @@
   function backupDone() { localStorage.setItem(BK, new Date().toISOString()); var nO = ownRounds().filter(function (x) { return !SG.roundEmpty(x); }).length; view.notice = { text: 'Backup ready: ' + nO + ' round' + (nO === 1 ? '' : 's') + ' for ' + playerName() + ' saved.' }; if (view.screen === 'home' || view.screen === 'archive') render(); }
   function backupRounds() {
     if (!playerName()) { askName('Enter your player name first – it goes in the backup file name.'); return; }
-    var name = 'golf-rounds-' + window.OD.slug(playerName()) + '-' + localDay(new Date()) + '.json', json = JSON.stringify(SG.makeBackup(rounds.filter(function (x) { return !SG.roundEmpty(x); }), null, playerName(), courses(), bagForBackup()), null, 1), file;
+    var name = 'golf-rounds-' + window.OD.slug(playerName()) + '-' + localDay(new Date()) + '.json', json = JSON.stringify(SG.makeBackup(rounds.filter(function (x) { return !SG.roundEmpty(x); }), null, playerName(), courses(), bagForBackup(), wedgesForBackup()), null, 1), file;
     try { file = new File([json], name, { type: 'application/json' }); } catch (e) { file = null; }
     if (file && navigator.canShare && navigator.canShare({ files: [file] })) {
       navigator.share({ files: [file] }).then(backupDone).catch(function (e) {
@@ -546,7 +553,7 @@
     var bp = ''; try { bp = (JSON.parse(text) || {}).player || ''; } catch (e) {}
     if (bp) P.rounds.forEach(function (r) { if (!r.player) r.player = bp; }); // label rounds with the backup's player
     P.rounds.sort(function (a, b) { return new Date(b.date) - new Date(a.date); });
-    view.restore = { rounds: P.rounds, sel: {}, player: bp, courses: P.courses || [], bag: P.bag || null }; view.preview = null; view.screen = 'restorepick'; render(); window.scrollTo(0, 0);
+    view.restore = { rounds: P.rounds, sel: {}, player: bp, courses: P.courses || [], bag: P.bag || null, wedges: P.wedges || null }; view.preview = null; view.screen = 'restorepick'; render(); window.scrollTo(0, 0);
   }
   function restoreState(r) { var cur = rounds.filter(function (x) { return x.id === r.id; })[0]; return !cur ? 'new' : JSON.stringify(cur) === JSON.stringify(r) ? 'same' : 'diff'; }
   function restorePickHTML() {
@@ -565,7 +572,11 @@
     if (nc) o += '<p class="help muted" id="rpcourses">⛳ ' + nc + ' saved course' + (nc === 1 ? '' : 's') + ' come along (new or newer ones only).</p>';
     var nb = R.bag && R.bag.clubs ? R.bag.clubs.length : 0;
     if (nb) o += '<p class="help muted" id="rpbag">🏌️ My Bag (' + nb + ' club' + (nb === 1 ? '' : 's') + ') comes along if this phone’s bag is empty or older.</p>';
-    return o + '</div><button class="primary big" data-act="rpgo" id="rpgo"' + (nSel || nc || nb ? '' : ' disabled') + '>' + (nSel || !(nc || nb) ? 'Restore ' + nSel + ' selected' : nc ? 'Restore courses' + (nb ? ' &amp; bag' : '') : 'Restore my bag') + '</button>';
+    var nw = R.wedges ? Object.keys(WEDGES.norm(R.wedges).rows).length : 0;
+    var nws = R.wedges ? WEDGES.filled(R.wedges) : 0;
+    if (nw) o += '<p class="help muted" id="rpwedges">🎯 Wedges chart (' + nws + ' yardage' + (nws === 1 ? '' : 's') + ') comes along if this phone’s chart is empty or older.</p>';
+    var extra = [nc ? 'courses' : '', nb ? 'bag' : '', nw ? 'wedges' : ''].filter(Boolean);
+    return o + '</div><button class="primary big" data-act="rpgo" id="rpgo"' + (nSel || extra.length ? '' : ' disabled') + '>' + (nSel || !extra.length ? 'Restore ' + nSel + ' selected' : extra.length === 1 && nb ? 'Restore my bag' : 'Restore ' + extra.join(' &amp; ')) + '</button>';
   }
   function previewOnly(el) { // read-only round preview: no editing, deleting or exporting
     var tb = el.querySelector('.topbar'); if (tb) tb.innerHTML = '<button class="txt" data-act="rpback">‹ Backup list</button><div class="title"><b>Preview (read-only)</b><span>' + new Date(view.preview.date).toLocaleDateString() + (view.preview.course ? ' · ' + esc(view.preview.course) : '') + '</span></div><span style="width:70px"></span>';
@@ -587,6 +598,7 @@
     var parts = [M.added + ' added'];
     if (R.courses && R.courses.length) { var CM = COURSES.mergeCourses(courses(), R.courses); saveCourses(CM.courses); if (CM.added || CM.updated) parts.push((CM.added + CM.updated) + ' course' + (CM.added + CM.updated === 1 ? '' : 's')); }
     if (R.bag) { var BM = BAG.mergeBag(bag(), R.bag); if (BM.changed) { localStorage.setItem(BGK, JSON.stringify(BM.bag)); parts.push('My Bag (' + BM.bag.clubs.length + ' clubs)'); } }
+    if (R.wedges) { var WM = WEDGES.mergeWedges(wedges(), R.wedges); if (WM.changed) { localStorage.setItem(WGK, JSON.stringify(WM.wedges)); parts.push('Wedges (' + WEDGES.filled(WM.wedges) + ' yardages)'); } }
     if (M.replaced) parts.push(M.replaced + ' replaced');
     if (M.kept) parts.push(M.kept + ' kept as on this phone');
     if (M.same) parts.push(M.same + ' already here');
@@ -612,7 +624,7 @@
       var x = new Error('Reconnect needed'); x.kind = (e && /interaction_required|login_required|consent_required|no_tokens_found|InteractionRequired/i.test((e.errorCode || '') + ' ' + (e.name || ''))) ? 'interaction' : 'offline'; throw x;
     });
   }
-  function odBackupJson() { return JSON.stringify(SG.makeBackup(ownRounds().filter(function (x) { return !SG.roundEmpty(x); }), null, playerName(), courses(), bagForBackup()), null, 1); }
+  function odBackupJson() { return JSON.stringify(SG.makeBackup(ownRounds().filter(function (x) { return !SG.roundEmpty(x); }), null, playerName(), courses(), bagForBackup(), wedgesForBackup()), null, 1); }
   function odSync() {
     if (!odOn || !odAcct || odBusy || !odState.pending) return Promise.resolve();
     odBusy = true;
@@ -761,7 +773,7 @@
     if (!view.nameSheet && needFirstName()) { view.nameSheet = 'first'; view.hmenu = null; }
     var h = '<div class="home" id="home"><div class="home-bg" aria-hidden="true"></div><div class="home-fade" aria-hidden="true"></div>' +
       '<h1 class="home-title">Pin High</h1>' +
-      '<button class="glass plusbtn" id="plusbtn" data-act="plus" aria-label="New round or history" aria-expanded="' + !!view.hmenu + '">+</button>' +
+      '<button class="glass plusbtn" id="plusbtn" data-act="plus" aria-label="New round, profile or history" aria-expanded="' + !!view.hmenu + '">+</button>' +
 ''; // v89: no Player row on Home (kept clean) – it lives in the New round sheet
     var bot = '';
     if (cur) { var S = SG.summarize(cur); bot += '<button class="glass pill" id="resumepill" data-act="resume">Resume round<small>' + (cur.course ? esc(cur.course) + ' · ' : '') + S.holesDone + ' holes done</small></button>'; }
@@ -773,7 +785,7 @@
       if (view.hmenu === 'new') h += '<div class="sheet-h">New round</div>' + newCourseHTML() +
         '<label class="lbl" for="newbl">Compare my shots against</label>' + blSelect('newbl', view.newBl || 'pga') + newPlayerHTML() +
         '<button class="sheet-go" data-act="new">Start round</button><button class="sheet-item muted" data-act="plus">Back</button>';
-      else h += '<button class="sheet-item" role="menuitem" data-act="newform">New round</button><button class="sheet-item" role="menuitem" data-act="bag">My Bag</button><button class="sheet-item" role="menuitem" data-act="history">History</button>';
+      else h += '<button class="sheet-item" role="menuitem" data-act="newform">New round</button><button class="sheet-item" role="menuitem" data-act="profile">Profile</button><button class="sheet-item" role="menuitem" data-act="history">History</button>';
       h += '</div>';
     }
     return h + '</div>';
@@ -789,9 +801,9 @@
     if (view.notice) h += '<p class="notice ' + (view.notice.bad ? 'bad' : 'good') + '" id="notice" role="status">' + esc(view.notice.text) + '</p>';
     h += odCardHTML();
     var rem = (odOn && odAcct) ? '' : backupReminder(); if (rem) h += '<div class="tiprow" id="bkremind">' + tipBtn('bktip', '💡', 'Backup tip') + tipLbl('bktip', 'Backup tip') + tipText('bktip', esc(rem)) + '</div>';
-    h += '<button class="big frostbtn" data-act="backup"' + (rounds.length || nC || bag().clubs.length ? '' : ' disabled') + '>💾 Back up rounds</button>' +
+    h += '<button class="big frostbtn" data-act="backup"' + (rounds.length || nC || bag().clubs.length || Object.keys(wedges().rows).length ? '' : ' disabled') + '>💾 Back up rounds</button>' +
       '<label class="big filebtn frostbtn" for="restorefile">📂 Restore from backup</label><input type="file" id="restorefile" accept=".json,application/json" hidden>' +
-      '<div class="tiprow" id="bkinfo">' + tipBtn('bkinfo', 'i', 'About backup and restore') + tipLbl('bkinfo', 'About backup &amp; restore') + tipText('bkinfo', 'Back up saves all rounds, saved courses and My Bag as one file (golf-rounds-backup-date.json) – choose Save to Files or OneDrive in the share sheet. Restore adds the rounds from a backup file; rounds already on this phone are not duplicated.') + '</div>';
+      '<div class="tiprow" id="bkinfo">' + tipBtn('bkinfo', 'i', 'About backup and restore') + tipLbl('bkinfo', 'About backup &amp; restore') + tipText('bkinfo', 'Back up saves all rounds, saved courses, My Bag and your Wedges chart as one file (golf-rounds-backup-date.json) – choose Save to Files or OneDrive in the share sheet. Restore adds the rounds from a backup file; rounds already on this phone are not duplicated.') + '</div>';
     if (rounds.length) h += '<button class="big frostbtn" data-act="csvall">Export all rounds (CSV)</button>';
     h += '<button class="big frostbtn" data-act="about">ⓘ About the numbers</button>';
     return h + '</div>';
@@ -912,7 +924,7 @@
   }
   function bagHTML() {
     var b = bag(), A = view.bagAdd, n = b.clubs.length;
-    var h = '<div class="frostpage theme-sky bagpage"><div class="topbar frost">' + (A ? '<button class="txt frostbtn" data-act="bagact" data-v="addback">‹ Back</button>' : '<button class="txt frostbtn" data-act="home">‹ Home</button>') +
+    var h = '<div class="frostpage theme-sky bagpage"><div class="topbar frost">' + (A ? '<button class="txt frostbtn" data-act="bagact" data-v="addback">‹ Back</button>' : '<button class="txt frostbtn" data-act="profile">‹ Profile</button>') +
       '<div class="title"><b>' + (A ? 'Add clubs' : 'My Bag') + '</b><span>' + n + ' club' + (n === 1 ? '' : 's') + '</span></div><span></span></div>';
     if (A) return h + bagAddHTML(A) + '</div>';
     if (!n) return h + '<div class="frostcard bagempty" id="bagempty"><b>Your bag is empty</b><p>Add your clubs and how far each one carries. They show up in the club picker during a round, and you can see your carries for any elevation and temperature.</p></div>' +
@@ -945,6 +957,65 @@
     h += '<div class="tiprow">' + tipBtn('baginfo', 'i', 'About My Bag') + tipLbl('baginfo', 'About My Bag') + tipText('baginfo', 'Type how far each club carries (in the air, yards) at your usual course. Tap a club to change its name or loft, or remove it. Your bag is saved on this phone and in your backups. Carry estimates come from a small ball-flight model using air density – a guide, not a guarantee.') + '</div>';
     return h + '</div>';
   }
+  // ---------- v93 Profile (player name, My Bag, Wedges) ----------
+  function profileHTML() {
+    var n = playerName(), b = bag(), nb = b.clubs.length, nw = WEDGES.filled(wedges()), tot = WEDGES.YARDS.length;
+    var h = '<div class="frostpage theme-sky bagpage profpage"><div class="topbar frost"><button class="txt frostbtn" data-act="home">‹ Home</button>' +
+      '<div class="title"><b>Profile</b><span>' + (n ? esc(n) : 'No name yet') + '</span></div><span></span></div>';
+    h += '<div class="frostcard profname">' + playerHTML() + '</div>';
+    h += '<button class="frostcard profcard" data-act="bag" id="profbag"><span class="pcic" aria-hidden="true">🏌️</span><span class="pctx"><b>My Bag</b><small>' + (nb ? nb + ' club' + (nb === 1 ? '' : 's') + ' · carries for any elevation &amp; temperature' : 'Add your clubs and how far each one carries') + '</small></span><span class="pcgo" aria-hidden="true">›</span></button>';
+    h += '<button class="frostcard profcard" data-act="wedges" id="profwedges"><span class="pcic" aria-hidden="true">🎯</span><span class="pctx"><b>Wedges</b><small>' + (nw ? nw + ' of ' + tot + ' yardages set · 40–110 yd' : 'Your setup for every yardage from 40 to 110') + '</small></span><span class="pcgo" aria-hidden="true">›</span></button>';
+    return h + '</div>';
+  }
+  function wedgeClubs() { // short clubs from the bag (wedges + PW/9i-ish lofts), else a standard wedge list
+    var L = BAG.sorted(bag(), 'club').filter(function (c) { return c.cat === 'we' || (c.cat === 'ir' && ((c.loft != null && c.loft >= 40) || /^(9i|pw|gw|aw|sw|lw|uw)$/i.test(c.code))) || (c.cat === 'ot' && c.loft >= 40); });
+    return L.length ? L.map(function (c) { return { code: c.code, carry: c.carry || null }; }) : WEDGES.STD_CLUBS.map(function (c) { return { code: c, carry: null }; });
+  }
+  function wClubLbl(c) { return /^\d{2}$/.test(c) ? c + '°' : c; }
+  function wChips(y, f, list, cur) {
+    return '<div class="bagchips wchips" data-f="' + f + '">' + list.map(function (o) { return '<button class="frostchip' + (cur === o[0] ? ' sel' : '') + '" data-act="wact" data-v="set" data-y="' + y + '" data-f="' + f + '" data-k="' + esc(o[0]) + '" aria-pressed="' + (cur === o[0]) + '">' + esc(o[1]) + '</button>'; }).join('') + '</div>';
+  }
+  function wNote(y, f, val, ph) { return '<input type="text" class="wnote" data-wn="' + f + '" data-y="' + y + '" maxlength="80" value="' + esc(val || '') + '" placeholder="' + esc(ph) + '">'; }
+  function wedgesHTML() {
+    var w = wedges(), nw = WEDGES.filled(w), clubs = wedgeClubs(), fromBag = clubs.map(function (c) { return c.code; }).join() !== WEDGES.STD_CLUBS.join();
+    var h = '<div class="frostpage theme-sky bagpage wedgepage"><div class="topbar frost"><button class="txt frostbtn" data-act="profile">‹ Profile</button>' +
+      '<div class="title"><b>Wedges</b><span>' + nw + ' of ' + WEDGES.YARDS.length + ' yardages set</span></div><span></span></div>';
+    h += '<div class="frostcard wlist" id="wlist">';
+    WEDGES.YARDS.forEach(function (y) {
+      var r = w.rows[y] || {}, open = view.wOpen === y, sum = WEDGES.summary(r);
+      h += '<div class="wrow' + (open ? ' open' : '') + '" data-y="' + y + '"><button class="whead" data-act="wact" data-v="toggle" data-y="' + y + '" aria-expanded="' + open + '"><b>' + y + '<i>yd</i></b><span class="wsum' + (sum ? '' : ' none') + '" data-wsum="' + y + '">' + (sum ? esc(sum) : 'Not set') + '</span><span class="wchev" aria-hidden="true">' + (open ? '⌃' : '⌄') + '</span></button>';
+      if (open) {
+        var known = clubs.some(function (c) { return c.code === r.club; }), other = view.wOther === y || (r.club && !known);
+        h += '<div class="wbody" id="wbody">';
+        h += '<h3 class="bagcat">Club</h3><div class="bagchips wchips" data-f="club">' + clubs.map(function (c) { var sel = r.club === c.code; return '<button class="frostchip' + (sel ? ' sel' : '') + '" data-act="wact" data-v="set" data-y="' + y + '" data-f="club" data-k="' + esc(c.code) + '" aria-pressed="' + sel + '">' + esc(wClubLbl(c.code)) + '</button>'; }).join('') +
+          '<button class="frostchip bother' + (other ? ' sel' : '') + '" data-act="wact" data-v="other" data-y="' + y + '">Other</button></div>';
+        if (other) h += wNote(y, 'club', known ? '' : r.club, 'Club, e.g. 54 or Gap wedge');
+        if (!fromBag) h += '<p class="bchint">Add your wedges in My Bag to see them here.</p>';
+        h += '<h3 class="bagcat">Ball position</h3>' + wChips(y, 'ball', WEDGES.BALL, r.ball) + wNote(y, 'ballNote', r.ballNote, 'Note (optional)');
+        h += '<h3 class="bagcat">Shaft lean</h3>' + wChips(y, 'lean', WEDGES.LEAN, r.lean) + wNote(y, 'leanNote', r.leanNote, 'Note (optional)');
+        h += '<h3 class="bagcat">Club position</h3>' + wChips(y, 'pos', WEDGES.POS, r.pos) + wNote(y, 'posNote', r.posNote, 'Note, e.g. choke down 1"');
+        h += '<h3 class="bagcat">Hinge</h3>' + wChips(y, 'hinge', WEDGES.HINGE, r.hinge);
+        h += '<div class="bebtns"><button class="frostdanger" data-act="wact" data-v="clear" data-y="' + y + '"' + (sum ? '' : ' disabled') + '>Clear</button><button class="frostbtn" data-act="wact" data-v="toggle" data-y="' + y + '">Done</button></div></div>';
+      }
+      h += '</div>';
+    });
+    h += '</div><div class="tiprow">' + tipBtn('wedgeinfo', 'i', 'About Wedges') + tipLbl('wedgeinfo', 'About Wedges') + tipText('wedgeinfo', 'Every 10 yards from 40 to 110. Tap a yardage to set the club, ball position, shaft lean (degrees forward), club position (P1–P3) and wrist hinge. Everything saves on this phone as you tap and goes into your backups.') + '</div>';
+    return h + '</div>';
+  }
+  function wAct(v, btn) {
+    var y = +btn.getAttribute('data-y'), w = wedges(), r = w.rows[y] || {};
+    if (v === 'toggle') { view.wOpen = view.wOpen === y ? null : y; view.wOther = null; render(); var row = document.querySelector('.wrow[data-y="' + y + '"]'); if (view.wOpen && row && row.scrollIntoView) row.scrollIntoView({ block: 'nearest' }); return; }
+    if (v === 'other') { view.wOther = y; render(); var i = document.querySelector('[data-wn="club"]'); if (i) i.focus(); return; }
+    if (v === 'set') { var f = btn.getAttribute('data-f'), k = btn.getAttribute('data-k'); if (r[f] === k) delete r[f]; else r[f] = k; if (f === 'club') view.wOther = null; w.rows[y] = r; saveWedges(w); render(); return; }
+    if (v === 'clear') { if (!confirm('Clear everything for ' + y + ' yards?')) return; delete w.rows[y]; saveWedges(w); view.wOther = null; toast(y + ' yards cleared'); render(); return; }
+  }
+  document.addEventListener('input', function (ev) {
+    var t = ev.target, f = t && t.getAttribute && t.getAttribute('data-wn'); if (!f) return;
+    var y = +t.getAttribute('data-y'), w = wedges(), r = w.rows[y] || {};
+    if (t.value.trim()) r[f] = t.value; else delete r[f]; w.rows[y] = r; saveWedges(w);
+    var s = document.querySelector('[data-wsum="' + y + '"]'), sum = WEDGES.summary(r); if (s) { s.textContent = sum || 'Not set'; s.classList.toggle('none', !sum); }
+    var c = document.querySelector('.wrow[data-y="' + y + '"] [data-v="clear"]'); if (c) c.disabled = !sum;
+  });
   function bagAddHTML(A) {
     var h = '';
     if (A.step === 'make') {
@@ -2702,6 +2773,9 @@
       case 'puttn': { var mvp = document.getElementById('mapview'), stp = mvp ? mvp.scrollTop : 0; view.puttN = v; render(); var mvp2 = document.getElementById('mapview'); if (mvp2) mvp2.scrollTop = stp; return; }
       case 'mapscope': view.mapScope = v; view.heat = null; render(); var mv = document.getElementById('mapview'); if (mv) mv.scrollTop = 0; return;
       case 'courses': view.screen = 'courses'; render(); window.scrollTo(0, 0); return;
+      case 'profile': view.hmenu = null; view.screen = 'profile'; view.bagAdd = null; view.bagEdit = null; view.editName = false; render(); window.scrollTo(0, 0); return;
+      case 'wedges': view.hmenu = null; view.screen = 'wedges'; view.wOpen = null; view.wOther = null; render(); window.scrollTo(0, 0); return;
+      case 'wact': wAct(v, b); return;
       case 'bag': view.hmenu = null; view.screen = 'bag'; view.bagAdd = null; view.bagEdit = null; render(); window.scrollTo(0, 0); return;
       case 'bagact': bagAct(v, b); return;
       case 'ncourse': { var cc = courseById(b.getAttribute('data-id')); view.crsOpen = false;

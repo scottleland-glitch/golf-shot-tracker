@@ -49,11 +49,13 @@ excluded and counted. This round / All rounds toggle.
 
 ## Files
 - `index.html`, `styles.css`, `app.js` – the app
+- `wedges.js` – Wedges chart (40–110 yd, every 10): options, summary line, tidy/merge helpers
 - `bag.js` – My Bag: club catalog (manufacturers → models → lofts), bag helpers and the air-density carry model
 - `sg.js` – strokes-gained engine + Broadie baseline tables (sources/approximations documented at top)
 - `sw.js`, `manifest.webmanifest`, `icons/` – offline + "Add to Home Screen"
 - `tests/sg.test.js` – unit tests: `node --test tests/sg.test.js`
 - `tests/bag-focused.js` – My Bag: physics checks + phone flow (`node tests/bag-focused.js`)
+- `tests/profile-wedges-focused.js` – Profile + Wedges chart: menu, navigation, accordion, persistence, backup (`node tests/profile-wedges-focused.js`)
 - `tests/e2e.js` – Playwright (playwright-core) flow test at iPhone 390x844
 
 ## Hosting
@@ -117,8 +119,13 @@ Save with the share sheet (`Golf-Round-<date>-<course>-<player>.pdf`, letters/di
 Each shot row (except putts on the green) has an optional club picker: Driver, 3W, 5W, 7W, 4H, 5H, 5i–9i, PW, 52, 54, 56, 58, 60. The tee row on par 4/5s has a **Layup** checkbox.
 A layup tee shot is excluded from strokes gained entirely: its SG is set to 0, it is not counted in Off the tee (shots or SG) nor the SG total. The score is unchanged. Stored as `row.club` / `row.layup` (optional fields; older rounds load unchanged); included in backups and the CSV (`club`, `layup` columns).
 
+## Profile (v93)
+The **+** menu is New round · **Profile** · History. Profile shows the player name (Change works as in Archive) and two cards: **My Bag** and **Wedges**. Their ‹ Profile button goes back to Profile; Profile's ‹ Home goes home.
+
+**Wedges**: one row per yardage, 40–110 yd in 10-yard steps (40, 50 … 110 – 8 rows). Collapsed, a row shows a one-line summary (e.g. `54° · middle · 1–2° · P2 · hinge 90°`) or "Not set". Tap a row to open it (one open at a time): **Club** (short clubs from My Bag – wedges, PW, 9i, anything 40°+ – shown without carries, since distance depends on the setup; the standard PW/48–60° list if the bag has none; "Other" for free text), **Ball position** (Front, Middle, Back), **Shaft lean** (0°, 1–2°, 3–4°), **Club position** (swing positions P1, P2, P3), each with an optional note, and **Hinge** (wrist hinge: 45°, 90°, Full). Tap a selected chip again to unselect. Saves as you tap/type to `golfsg.wedges.v1`; "Clear" empties a yardage. Included in backups (`wedges` key) and restored when the phone's chart is empty or the backup's is newer; older backups without it restore as before. Entries saved at 45, 55 … 105 yd by the first (5-yard) v93 draft are kept in the stored data and backups, just not shown. Charts saved with the first v93 draft options are converted when read (ball Back/Back of center → Back, Center → Middle, Forward/Forward of center → Front; lean Neutral → 0°, Slight → 1–2°, Strong → 3–4°, Leaning back → a note; old clock hand positions → a Club position note).
+
 ## My Bag (v92)
-Open from the **+** menu → **My Bag** (next to New round). Add clubs by manufacturer → model → club/loft (Titleist, TaylorMade, Callaway, Ping, Srixon, Cleveland, Mizuno, Cobra, PXG, Wilson, Bridgestone, Honma, Tour Edge, XXIO, Vokey, Scotty Cameron, Odyssey, Ben Hogan, Sub 70, Lynx; "Other brand" / "Model not listed" for anything else, plus a custom club name and loft). Lofts are typical stock lofts and editable. One club per name (adding a second 7i replaces the first). Enter each club's **carry** in yards; sort by club or by carry; tap a club to edit or remove it.
+Open from the **+** menu → **Profile** → **My Bag**. Add clubs by manufacturer → model → club/loft (Titleist, TaylorMade, Callaway, Ping, Srixon, Cleveland, Mizuno, Cobra, PXG, Wilson, Bridgestone, Honma, Tour Edge, XXIO, Vokey, Scotty Cameron, Odyssey, Ben Hogan, Sub 70, Lynx; "Other brand" / "Model not listed" for anything else, plus a custom club name and loft). Lofts are typical stock lofts and editable. One club per name (adding a second 7i replaces the first). Enter each club's **carry** in yards; sort by club or by carry; tap a club to edit or remove it.
 
 **Baseline** = the conditions the carries were hit in (default Reno: 5,000 ft, 70°F; "Change" to edit). The **elevation** (0–9,000 ft) and **temperature** (30–110°F) sliders show every club's carry for other conditions, with the difference; "Back to my baseline" resets them. "Show these carries in the club picker" labels the round's club picker (e.g. `7i · 144`).
 

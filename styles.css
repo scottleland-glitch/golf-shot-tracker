@@ -890,3 +890,27 @@ html body .roundpage.theme-sky .clubrow .holeout.on { color: #1f6b3a; background
 .bagpage .bagtype.two input + input { flex: 0 0 90px; }
 .bagpage .bagtype button { padding: 0 16px; font-size: 15px; font-weight: 500; }
 .bagpage .frostmain { margin-top: 14px; }
+/* ---------- v93 Profile + Wedges (soft, light, rounded) ---------- */
+.profpage .profname { margin: 6px 0 12px; padding: 10px 14px; }
+.profpage .profname .playerbox { margin: 0; background: none; border: 0; padding: 0; box-shadow: none; font-size: 16px; font-weight: 400; }
+.profpage .profcard { display: flex; align-items: center; gap: 14px; width: 100%; text-align: left; margin: 0 0 12px; padding: 18px 16px; min-height: 84px; font: inherit; box-shadow: 0 4px 16px rgba(20, 45, 30, .08); }
+.profpage .pcic { font-size: 26px; width: 46px; height: 46px; border-radius: 50%; background: rgba(255, 255, 255, .7); border: 1px solid rgba(23, 48, 31, .08); display: flex; align-items: center; justify-content: center; flex: 0 0 auto; }
+.profpage .pctx { display: flex; flex-direction: column; gap: 3px; flex: 1; min-width: 0; }
+.profpage .pctx b { font-size: 19px; font-weight: 600; } .profpage .pctx small { font-size: 13px; font-weight: 400; color: var(--frost-ink-soft); line-height: 1.35; }
+.profpage .pcgo { font-size: 26px; font-weight: 300; color: var(--frost-ink-soft); }
+.wedgepage .wlist { padding: 4px 12px; margin: 6px 0 12px; }
+.wedgepage .wrow { border-top: 1px solid rgba(23, 48, 31, .07); } .wedgepage .wrow:first-child { border-top: 0; }
+.wedgepage .whead { display: flex; align-items: center; gap: 12px; width: 100%; background: none; border: 0; padding: 10px 2px; min-height: 54px; text-align: left; color: var(--frost-ink); font: inherit; }
+.wedgepage .whead b { font-size: 20px; font-weight: 600; min-width: 62px; } .wedgepage .whead b i { font-style: normal; font-size: 12px; font-weight: 400; color: var(--frost-ink-soft); margin-left: 2px; }
+.wedgepage .wsum { flex: 1; min-width: 0; font-size: 14px; font-weight: 400; color: var(--frost-ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.wedgepage .wsum.none { color: var(--frost-ink-soft); opacity: .7; }
+.wedgepage .wchev { font-size: 16px; color: var(--frost-ink-soft); width: 18px; text-align: center; }
+.wedgepage .wrow.open { background: rgba(255, 255, 255, .35); margin: 0 -12px; padding: 0 12px 4px; border-radius: 16px; }
+.wedgepage .wbody { padding: 0 0 10px; } .wedgepage .wbody .bagcat { margin: 12px 2px 6px; }
+.wedgepage .wchips .frostchip { padding: 8px 13px; font-size: 15px; min-height: 42px; }
+.wedgepage .wchips .frostchip small { font-size: 12px; opacity: .75; }
+.wedgepage .wnote { width: 100%; box-sizing: border-box; height: 40px; margin: 6px 0 2px; border-radius: 12px; border: 1px solid rgba(23, 48, 31, .12); background: rgba(255, 255, 255, .7); font-size: 15px; padding: 0 12px; color: var(--frost-ink); }
+.wedgepage .bebtns { margin-top: 14px; } .wedgepage .bebtns button:disabled { opacity: .45; }
+.profpage .playerbox button { border-radius: 999px; font-weight: 500; box-shadow: none; } .profpage .playerbox .txt { color: var(--frost-accent); background: none; border: 0; }
+.profpage .playerbox input { border-radius: 12px; border: 1px solid rgba(23, 48, 31, .14); background: rgba(255, 255, 255, .85); }
+.wedgepage .whead, .wedgepage .whead:active { box-shadow: none; border-radius: 12px; background: none; transform: none; }
