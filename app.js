@@ -14,6 +14,11 @@
   function courses() { return COURSES.migrate(coursesRaw()).courses; } // older saves: unnamed tee sets read as 'Main tees'
   (function () { var M = COURSES.migrate(coursesRaw()); if (M.changed) try { localStorage.setItem(CRS, JSON.stringify(M.courses)); } catch (e) {} })();
   function saveCourses(a) { localStorage.setItem(CRS, JSON.stringify(a)); }
+  // v92 My Bag: clubs + carries + playing conditions (bag.js), stored on the phone and in backups
+  var BGK = 'golfsg.bag.v1';
+  function bag() { try { return BAG.norm(JSON.parse(localStorage.getItem(BGK) || 'null')); } catch (e) { return BAG.blank(); } }
+  function saveBag(b, quiet) { b.updated = new Date().toISOString(); localStorage.setItem(BGK, JSON.stringify(BAG.norm(b))); if (!quiet) odDirty(3000); else odDirty(20000); }
+  function bagForBackup() { var b = bag(); return b.clubs.length ? b : null; }
   function courseById(id) { return courses().filter(function (c) { return c.id === id; })[0]; }
   function playerName() { return (localStorage.getItem(PN) || '').trim(); }
   // Rounds that belong to this phone's player (unnamed rounds count as theirs). Backups contain only these,
@@ -135,6 +140,7 @@
     else if (view.screen === 'archive') el.innerHTML = archiveHTML();
     else if (view.screen === 'card') el.innerHTML = cardHTML();
     else if (view.screen === 'courses') el.innerHTML = coursesHTML();
+    else if (view.screen === 'bag') el.innerHTML = bagHTML();
     else if (view.screen === 'birdie') { view.bzD = null; el.innerHTML = birdieHTML(); }
     else if (view.screen === 'home' || !round()) el.innerHTML = homeHTML();
     else if (view.screen === 'hole') el.innerHTML = '<div class="frostpage roundpage' + roundTheme() + '">' + holeHTML() + (view.pinOpen ? pinHTML() : '') + (view.replay != null ? replayHTML() : '') + '</div>';
@@ -522,7 +528,7 @@
   function backupDone() { localStorage.setItem(BK, new Date().toISOString()); var nO = ownRounds().filter(function (x) { return !SG.roundEmpty(x); }).length; view.notice = { text: 'Backup ready: ' + nO + ' round' + (nO === 1 ? '' : 's') + ' for ' + playerName() + ' saved.' }; if (view.screen === 'home' || view.screen === 'archive') render(); }
   function backupRounds() {
     if (!playerName()) { askName('Enter your player name first – it goes in the backup file name.'); return; }
-    var name = 'golf-rounds-' + window.OD.slug(playerName()) + '-' + localDay(new Date()) + '.json', json = JSON.stringify(SG.makeBackup(rounds.filter(function (x) { return !SG.roundEmpty(x); }), null, playerName(), courses()), null, 1), file;
+    var name = 'golf-rounds-' + window.OD.slug(playerName()) + '-' + localDay(new Date()) + '.json', json = JSON.stringify(SG.makeBackup(rounds.filter(function (x) { return !SG.roundEmpty(x); }), null, playerName(), courses(), bagForBackup()), null, 1), file;
     try { file = new File([json], name, { type: 'application/json' }); } catch (e) { file = null; }
     if (file && navigator.canShare && navigator.canShare({ files: [file] })) {
       navigator.share({ files: [file] }).then(backupDone).catch(function (e) {
@@ -540,7 +546,7 @@
     var bp = ''; try { bp = (JSON.parse(text) || {}).player || ''; } catch (e) {}
     if (bp) P.rounds.forEach(function (r) { if (!r.player) r.player = bp; }); // label rounds with the backup's player
     P.rounds.sort(function (a, b) { return new Date(b.date) - new Date(a.date); });
-    view.restore = { rounds: P.rounds, sel: {}, player: bp, courses: P.courses || [] }; view.preview = null; view.screen = 'restorepick'; render(); window.scrollTo(0, 0);
+    view.restore = { rounds: P.rounds, sel: {}, player: bp, courses: P.courses || [], bag: P.bag || null }; view.preview = null; view.screen = 'restorepick'; render(); window.scrollTo(0, 0);
   }
   function restoreState(r) { var cur = rounds.filter(function (x) { return x.id === r.id; })[0]; return !cur ? 'new' : JSON.stringify(cur) === JSON.stringify(r) ? 'same' : 'diff'; }
   function restorePickHTML() {
@@ -557,7 +563,9 @@
     });
     var nc = (R.courses || []).length;
     if (nc) o += '<p class="help muted" id="rpcourses">⛳ ' + nc + ' saved course' + (nc === 1 ? '' : 's') + ' come along (new or newer ones only).</p>';
-    return o + '</div><button class="primary big" data-act="rpgo" id="rpgo"' + (nSel || nc ? '' : ' disabled') + '>' + (nSel || !nc ? 'Restore ' + nSel + ' selected' : 'Restore courses') + '</button>';
+    var nb = R.bag && R.bag.clubs ? R.bag.clubs.length : 0;
+    if (nb) o += '<p class="help muted" id="rpbag">🏌️ My Bag (' + nb + ' club' + (nb === 1 ? '' : 's') + ') comes along if this phone’s bag is empty or older.</p>';
+    return o + '</div><button class="primary big" data-act="rpgo" id="rpgo"' + (nSel || nc || nb ? '' : ' disabled') + '>' + (nSel || !(nc || nb) ? 'Restore ' + nSel + ' selected' : nc ? 'Restore courses' + (nb ? ' &amp; bag' : '') : 'Restore my bag') + '</button>';
   }
   function previewOnly(el) { // read-only round preview: no editing, deleting or exporting
     var tb = el.querySelector('.topbar'); if (tb) tb.innerHTML = '<button class="txt" data-act="rpback">‹ Backup list</button><div class="title"><b>Preview (read-only)</b><span>' + new Date(view.preview.date).toLocaleDateString() + (view.preview.course ? ' · ' + esc(view.preview.course) : '') + '</span></div><span style="width:70px"></span>';
@@ -578,6 +586,7 @@
     localStorage.setItem(KEY, JSON.stringify(M.rounds)); rounds = load(); if (M.added || M.replaced) odDirty(3000); // uploads only this player's rounds
     var parts = [M.added + ' added'];
     if (R.courses && R.courses.length) { var CM = COURSES.mergeCourses(courses(), R.courses); saveCourses(CM.courses); if (CM.added || CM.updated) parts.push((CM.added + CM.updated) + ' course' + (CM.added + CM.updated === 1 ? '' : 's')); }
+    if (R.bag) { var BM = BAG.mergeBag(bag(), R.bag); if (BM.changed) { localStorage.setItem(BGK, JSON.stringify(BM.bag)); parts.push('My Bag (' + BM.bag.clubs.length + ' clubs)'); } }
     if (M.replaced) parts.push(M.replaced + ' replaced');
     if (M.kept) parts.push(M.kept + ' kept as on this phone');
     if (M.same) parts.push(M.same + ' already here');
@@ -603,7 +612,7 @@
       var x = new Error('Reconnect needed'); x.kind = (e && /interaction_required|login_required|consent_required|no_tokens_found|InteractionRequired/i.test((e.errorCode || '') + ' ' + (e.name || ''))) ? 'interaction' : 'offline'; throw x;
     });
   }
-  function odBackupJson() { return JSON.stringify(SG.makeBackup(ownRounds().filter(function (x) { return !SG.roundEmpty(x); }), null, playerName(), courses()), null, 1); }
+  function odBackupJson() { return JSON.stringify(SG.makeBackup(ownRounds().filter(function (x) { return !SG.roundEmpty(x); }), null, playerName(), courses(), bagForBackup()), null, 1); }
   function odSync() {
     if (!odOn || !odAcct || odBusy || !odState.pending) return Promise.resolve();
     odBusy = true;
@@ -764,7 +773,7 @@
       if (view.hmenu === 'new') h += '<div class="sheet-h">New round</div>' + newCourseHTML() +
         '<label class="lbl" for="newbl">Compare my shots against</label>' + blSelect('newbl', view.newBl || 'pga') + newPlayerHTML() +
         '<button class="sheet-go" data-act="new">Start round</button><button class="sheet-item muted" data-act="plus">Back</button>';
-      else h += '<button class="sheet-item" role="menuitem" data-act="newform">New round</button><button class="sheet-item" role="menuitem" data-act="history">History</button>';
+      else h += '<button class="sheet-item" role="menuitem" data-act="newform">New round</button><button class="sheet-item" role="menuitem" data-act="bag">My Bag</button><button class="sheet-item" role="menuitem" data-act="history">History</button>';
       h += '</div>';
     }
     return h + '</div>';
@@ -780,9 +789,9 @@
     if (view.notice) h += '<p class="notice ' + (view.notice.bad ? 'bad' : 'good') + '" id="notice" role="status">' + esc(view.notice.text) + '</p>';
     h += odCardHTML();
     var rem = (odOn && odAcct) ? '' : backupReminder(); if (rem) h += '<div class="tiprow" id="bkremind">' + tipBtn('bktip', '💡', 'Backup tip') + tipLbl('bktip', 'Backup tip') + tipText('bktip', esc(rem)) + '</div>';
-    h += '<button class="big frostbtn" data-act="backup"' + (rounds.length || nC ? '' : ' disabled') + '>💾 Back up rounds</button>' +
+    h += '<button class="big frostbtn" data-act="backup"' + (rounds.length || nC || bag().clubs.length ? '' : ' disabled') + '>💾 Back up rounds</button>' +
       '<label class="big filebtn frostbtn" for="restorefile">📂 Restore from backup</label><input type="file" id="restorefile" accept=".json,application/json" hidden>' +
-      '<div class="tiprow" id="bkinfo">' + tipBtn('bkinfo', 'i', 'About backup and restore') + tipLbl('bkinfo', 'About backup &amp; restore') + tipText('bkinfo', 'Back up saves all rounds and saved courses as one file (golf-rounds-backup-date.json) – choose Save to Files or OneDrive in the share sheet. Restore adds the rounds from a backup file; rounds already on this phone are not duplicated.') + '</div>';
+      '<div class="tiprow" id="bkinfo">' + tipBtn('bkinfo', 'i', 'About backup and restore') + tipLbl('bkinfo', 'About backup &amp; restore') + tipText('bkinfo', 'Back up saves all rounds, saved courses and My Bag as one file (golf-rounds-backup-date.json) – choose Save to Files or OneDrive in the share sheet. Restore adds the rounds from a backup file; rounds already on this phone are not duplicated.') + '</div>';
     if (rounds.length) h += '<button class="big frostbtn" data-act="csvall">Export all rounds (CSV)</button>';
     h += '<button class="big frostbtn" data-act="about">ⓘ About the numbers</button>';
     return h + '</div>';
@@ -884,6 +893,164 @@
     h += '<div class="tiprow">' + tipBtn('crsinfo', 'i', 'About saved courses') + tipLbl('crsinfo', 'About saved courses') + tipText('crsinfo', 'Pick a course and tee when you start a round – each hole\'s par and tee distance are filled in. Tap a course to rename it or fix numbers. Courses are in your backups.') + '</div>';
     return h + '</div>';
   }
+  // ---------- My Bag (v92): clubs + carries, and carries for other elevations / temperatures (physics in bag.js) ----------
+  // Club picker on the shot rows / voice card: the bag's clubs when it has any (else the standard list). A club already on a
+  // shot that isn't in the bag is still listed, so older rounds show what was picked.
+  function clubChoices(cur) {
+    var b = bag(), L = BAG.pickerClubs(b), out = L.length ? L.map(function (c) { var a = b.useCond && c.carry ? BAG.clubCarry(c, b) : null;
+      return { code: c.code, label: c.code + (a ? ' · ' + Math.round(a) : '') }; }) : SG.CLUBS.map(function (c) { return { code: c, label: c }; });
+    if (cur && !out.some(function (x) { return x.code === cur; })) out.push({ code: cur, label: cur });
+    return out;
+  }
+  function fmtFt(v) { return Math.round(v).toLocaleString('en-US') + ' ft'; }
+  function condText(c) { return fmtFt(c.elev) + ' · ' + Math.round(c.temp) + '°F'; }
+  function bagSub(c) { var t = BAG.title(c), l = c.loft != null && c.cat !== 'pt' ? (Math.round(c.loft * 10) / 10) + '°' : ''; return [t, l].filter(Boolean).join(' · ') || BAG.CAT_NAME[c.cat] || 'Club'; }
+  function adjHTML(c, b) {
+    if (!c.carry || c.cat === 'pt' || BAG.sameCond(b)) return '';
+    var a = Math.round(BAG.clubCarry(c, b)), d = a - c.carry;
+    return '<b>' + a + '</b><small class="' + (d > 0 ? 'up' : d < 0 ? 'down' : '') + '">' + (d > 0 ? '+' + d : d < 0 ? '−' + Math.abs(d) : '±0') + '</small>';
+  }
+  function bagHTML() {
+    var b = bag(), A = view.bagAdd, n = b.clubs.length;
+    var h = '<div class="frostpage theme-sky bagpage"><div class="topbar frost">' + (A ? '<button class="txt frostbtn" data-act="bagact" data-v="addback">‹ Back</button>' : '<button class="txt frostbtn" data-act="home">‹ Home</button>') +
+      '<div class="title"><b>' + (A ? 'Add clubs' : 'My Bag') + '</b><span>' + n + ' club' + (n === 1 ? '' : 's') + '</span></div><span></span></div>';
+    if (A) return h + bagAddHTML(A) + '</div>';
+    if (!n) return h + '<div class="frostcard bagempty" id="bagempty"><b>Your bag is empty</b><p>Add your clubs and how far each one carries. They show up in the club picker during a round, and you can see your carries for any elevation and temperature.</p></div>' +
+      '<button class="big frostmain" data-act="bagact" data-v="add" id="bagaddbtn">＋ Add clubs</button></div>';
+    var same = BAG.sameCond(b), list = BAG.sorted(b);
+    h += '<div class="frostcard bagcond" id="bagcond">';
+    h += '<div class="bcbase"><span>Carries entered at</span><b id="bagbase">' + condText(b.base) + '</b><button class="bclink" data-act="bagact" data-v="baseedit" aria-expanded="' + !!view.bagBaseEdit + '">' + (view.bagBaseEdit ? 'Close' : 'Change') + '</button></div>';
+    if (view.bagBaseEdit) h += '<div class="bcbedit" id="bagbedit"><label>Elevation<span><input type="text" inputmode="numeric" id="bagbelev" maxlength="5" value="' + b.base.elev + '"> ft</span></label>' +
+      '<label>Temperature<span><input type="text" inputmode="numeric" id="bagbtemp" maxlength="3" value="' + b.base.temp + '"> °F</span></label><button class="bcsave" data-act="bagact" data-v="basesave">Save</button></div>' +
+      '<p class="bchint">Where and when you measured your carries – e.g. Reno is about 4,500–5,000 ft, San Diego is near sea level.</p>';
+    h += '<p class="bchead">Playing somewhere else?</p>' +
+      '<div class="bcslide"><div class="bclbl"><span>Elevation</span><b id="bagelevv">' + fmtFt(b.cond.elev) + '</b></div><input type="range" id="bagelev" min="0" max="9000" step="100" value="' + b.cond.elev + '" aria-label="Elevation in feet"><div class="bcends"><span>Sea level</span><span>9,000 ft</span></div></div>' +
+      '<div class="bcslide"><div class="bclbl"><span>Temperature</span><b id="bagtempv">' + Math.round(b.cond.temp) + '°F</b></div><input type="range" id="bagtemp" min="30" max="110" step="1" value="' + b.cond.temp + '" aria-label="Temperature in °F"><div class="bcends"><span>30°F</span><span>110°F</span></div></div>' +
+      '<div class="bcrow"><button class="frostchip bcreset" id="bagreset" data-act="bagact" data-v="reset"' + (same ? ' disabled' : '') + '>↺ Back to my baseline</button></div>' +
+      '<label class="bcuse"><input type="checkbox" id="baguse"' + (b.useCond ? ' checked' : '') + '> Show these carries in the club picker during a round</label>' +
+      '<p class="bcnote">Estimates from air density: thinner (higher) or warmer air means less drag and lift, so the ball carries a bit farther. Wind, humidity, ball temperature and firm or soft ground are not included.</p></div>';
+    h += '<div class="bagsort" role="group" aria-label="Sort clubs"><button class="frostchip' + (b.sort === 'club' ? ' sel' : '') + '" data-act="bagact" data-v="sortclub">By club</button><button class="frostchip' + (b.sort === 'carry' ? ' sel' : '') + '" data-act="bagact" data-v="sortcarry">By carry</button></div>';
+    h += '<div class="frostcard baglist' + (same ? ' same' : '') + '" id="baglist"><div class="bagrow bhead"><span>Club</span><span>Carry</span><span class="badj" id="bagadjh">' + (same ? '' : esc(condText(b.cond))) + '</span></div>';
+    list.forEach(function (c) {
+      var ed = view.bagEdit === c.id;
+      h += '<div class="bagrow" data-id="' + esc(c.id) + '"><button class="bname" data-act="bagact" data-v="edit" data-id="' + esc(c.id) + '" aria-expanded="' + ed + '"><b>' + esc(c.code) + '</b><small>' + esc(bagSub(c)) + '</small></button>' +
+        (c.cat === 'pt' ? '<span class="bcarry none">–</span>' : '<span class="bcarry"><input type="text" inputmode="numeric" pattern="[0-9]*" maxlength="3" data-bc="carry" data-id="' + esc(c.id) + '" value="' + (c.carry || '') + '" placeholder="–" aria-label="' + esc(c.code) + ' carry in yards"><i>yd</i></span>') +
+        '<span class="badj" data-adj="' + esc(c.id) + '">' + adjHTML(c, b) + '</span></div>';
+      if (ed) h += '<div class="bagedit" id="bagedit"><label>Name<input type="text" data-bc="code" data-id="' + esc(c.id) + '" maxlength="14" value="' + esc(c.code) + '"></label>' +
+        (c.cat === 'pt' ? '' : '<label>Loft °<input type="text" inputmode="decimal" data-bc="loft" data-id="' + esc(c.id) + '" maxlength="4" value="' + (c.loft == null ? '' : c.loft) + '"></label>') +
+        '<label class="wide">Brand &amp; model<input type="text" data-bc="model" data-id="' + esc(c.id) + '" maxlength="60" value="' + esc(BAG.title(c)) + '"></label>' +
+        '<div class="bebtns"><button class="frostdanger" data-act="bagact" data-v="remove" data-id="' + esc(c.id) + '">Remove</button><button class="frostbtn" data-act="bagact" data-v="edit" data-id="' + esc(c.id) + '">Done</button></div></div>';
+    });
+    h += '</div><button class="big frostmain" data-act="bagact" data-v="add" id="bagaddbtn">＋ Add clubs</button>';
+    h += '<div class="tiprow">' + tipBtn('baginfo', 'i', 'About My Bag') + tipLbl('baginfo', 'About My Bag') + tipText('baginfo', 'Type how far each club carries (in the air, yards) at your usual course. Tap a club to change its name or loft, or remove it. Your bag is saved on this phone and in your backups. Carry estimates come from a small ball-flight model using air density – a guide, not a guarantee.') + '</div>';
+    return h + '</div>';
+  }
+  function bagAddHTML(A) {
+    var h = '';
+    if (A.step === 'make') {
+      h += '<h2 class="bagh">Choose a brand</h2><div class="bagchips" id="bagmakes">' + BAG.makers().map(function (m) { return '<button class="frostchip" data-act="bagact" data-v="make" data-m="' + esc(m) + '">' + esc(m) + '</button>'; }).join('') +
+        '<button class="frostchip bother" data-act="bagact" data-v="makeother">Other brand</button></div>';
+      if (A.otherMake) h += '<div class="bagtype"><input type="text" id="bagmake" maxlength="40" placeholder="Brand" value="' + esc(A.makeTxt || '') + '"><button class="frostbtn" data-act="bagact" data-v="makego">Next ›</button></div>';
+      return h;
+    }
+    if (A.step === 'model') {
+      var cats = BAG.catsFor(A.make);
+      h += '<h2 class="bagh">' + esc(A.make) + '</h2>';
+      cats.forEach(function (k) { h += '<h3 class="bagcat">' + BAG.CAT_NAME[k] + '</h3><div class="bagchips">' + BAG.models(A.make, k).map(function (m) {
+        return '<button class="frostchip" data-act="bagact" data-v="model" data-cat="' + k + '" data-m="' + esc(m) + '">' + esc(m) + '</button>'; }).join('') + '</div>'; });
+      h += '<h3 class="bagcat">' + (cats.length ? 'Model not listed?' : 'Model') + '</h3><div class="bagtype"><input type="text" id="bagmodel" maxlength="40" placeholder="Model name (optional)" value="' + esc(A.modelTxt || '') + '"></div>' +
+        '<p class="bchint">Then pick the kind of club:</p><div class="bagchips" id="bagothercats">' + BAG.CATS.map(function (c) { return '<button class="frostchip" data-act="bagact" data-v="modelother" data-cat="' + c[0] + '">' + c[1] + '</button>'; }).join('') + '</div>';
+      return h;
+    }
+    // step 'clubs'
+    var slots = BAG.SLOTS[A.cat] || [], nSel = Object.keys(A.sel).filter(function (k) { return A.sel[k]; }).length + (String(A.cname || '').trim() ? 1 : 0);
+    h += '<h2 class="bagh">' + esc([A.make, A.model].filter(Boolean).join(' ')) + '</h2><p class="bchint">' + BAG.CAT_NAME[A.cat] + ' – ' + (A.cat === 'd' ? 'pick the loft' : A.cat === 'pt' ? 'add your putter' : 'tap each club you carry') + '. Lofts are typical and can be changed later.</p>';
+    if (A.cat === 'd') h += '<div class="bagchips" id="bagslots">' + BAG.DRIVER_LOFTS.map(function (l) { return '<button class="frostchip' + (A.loft === l ? ' sel' : '') + '" data-act="bagact" data-v="loft" data-l="' + l + '">' + l + '°</button>'; }).join('') + '</div>';
+    else if (A.cat !== 'pt') {
+      h += '<div class="bagchips bagslots" id="bagslots">' + slots.map(function (s) { return '<button class="frostchip' + (A.sel[s[0]] ? ' sel' : '') + '" data-act="bagact" data-v="slot" data-c="' + esc(s[0]) + '" aria-pressed="' + !!A.sel[s[0]] + '"><b>' + esc(s[0]) + '</b><small>' + s[2] + '°</small></button>'; }).join('') + '</div>';
+      if (A.cat === 'ir') h += '<div class="bagchips"><button class="frostchip bquick" data-act="bagact" data-v="irons" data-from="4">4i – PW</button><button class="frostchip bquick" data-act="bagact" data-v="irons" data-from="5">5i – PW</button><button class="frostchip bquick" data-act="bagact" data-v="irons" data-from="6">6i – PW</button></div>';
+    }
+    if (A.cat !== 'd' && A.cat !== 'pt') h += '<h3 class="bagcat">Something else?</h3><div class="bagtype two"><input type="text" id="bagcname" maxlength="14" placeholder="Club name (e.g. 2i)" value="' + esc(A.cname || '') + '"><input type="text" inputmode="decimal" id="bagcloft" maxlength="4" placeholder="Loft °" value="' + esc(A.cloft || '') + '"></div>';
+    h += '<button class="big frostmain" data-act="bagact" data-v="addgo" id="bagaddgo"' + (nSel || A.cat === 'd' || A.cat === 'pt' ? '' : ' disabled') + '>' + (A.cat === 'd' ? 'Add driver' : A.cat === 'pt' ? 'Add putter' : 'Add ' + nSel + ' club' + (nSel === 1 ? '' : 's')) + '</button>';
+    return h;
+  }
+  function bagRefresh() { // sliders: update the numbers in place (no re-render, so the drag isn't interrupted)
+    var b = bag(), same = BAG.sameCond(b), el;
+    if ((el = document.getElementById('bagelevv'))) el.textContent = fmtFt(b.cond.elev);
+    if ((el = document.getElementById('bagtempv'))) el.textContent = Math.round(b.cond.temp) + '°F';
+    if ((el = document.getElementById('baglist'))) el.classList.toggle('same', same);
+    if ((el = document.getElementById('bagadjh'))) el.textContent = same ? '' : condText(b.cond);
+    if ((el = document.getElementById('bagreset'))) el.disabled = same;
+    b.clubs.forEach(function (c) { var s = document.querySelector('.badj[data-adj="' + c.id + '"]'); if (s) s.innerHTML = adjHTML(c, b); });
+  }
+  function bagAct(v, btn) {
+    var b = bag(), A = view.bagAdd, id = btn.getAttribute('data-id'), c = id && b.clubs.filter(function (x) { return x.id === id; })[0];
+    var focus = function (i) { var e = document.getElementById(i); if (e) e.focus(); };
+    switch (v) {
+      case 'add': view.bagAdd = { step: 'make', sel: {} }; view.bagEdit = null; break;
+      case 'addback': if (!A) break; if (A.step === 'clubs') A.step = 'model'; else if (A.step === 'model') A.step = 'make'; else view.bagAdd = null; break;
+      case 'make': A.make = btn.getAttribute('data-m'); A.otherMake = false; A.step = 'model'; A.modelTxt = ''; break;
+      case 'makeother': A.otherMake = true; render(); focus('bagmake'); return;
+      case 'makego': A.make = String(A.makeTxt || '').trim() || 'Other'; A.step = 'model'; A.modelTxt = ''; break;
+      case 'model': case 'modelother':
+        A.model = v === 'model' ? btn.getAttribute('data-m') : String(A.modelTxt || '').trim(); A.cat = btn.getAttribute('data-cat'); A.sel = {}; A.cname = ''; A.cloft = ''; A.step = 'clubs';
+        if (A.cat === 'd') A.loft = 10.5; break;
+      case 'slot': { var k = btn.getAttribute('data-c'); A.sel[k] = !A.sel[k]; break; }
+      case 'irons': { var from = +btn.getAttribute('data-from'); A.sel = {}; BAG.SLOTS.ir.forEach(function (s) { var m = /^(\d)i$/.exec(s[0]); if ((m && +m[1] >= from) || s[0] === 'PW') A.sel[s[0]] = true; }); break; }
+      case 'loft': A.loft = +btn.getAttribute('data-l'); break;
+      case 'addgo': {
+        var make = A.make === 'Other' ? '' : A.make, add = [];
+        if (A.cat === 'd') add.push({ cat: 'd', code: 'Driver', make: make, model: A.model, loft: A.loft || 10.5 });
+        else if (A.cat === 'pt') add.push({ cat: 'pt', code: 'Putter', make: make, model: A.model });
+        else BAG.SLOTS[A.cat].forEach(function (s) { if (A.sel[s[0]]) add.push({ cat: A.cat, code: s[0], make: make, model: A.model, loft: s[2] }); });
+        var cn = String(A.cname || '').trim(); if (cn && A.cat !== 'd' && A.cat !== 'pt') add.push({ cat: A.cat, code: cn, make: make, model: A.model, loft: A.cloft === '' || A.cloft == null || isNaN(+A.cloft) ? undefined : +A.cloft });
+        if (!add.length) { toast('Pick at least one club'); return; }
+        add.forEach(function (x) { x.id = BAG.newId(); var old = b.clubs[BAG.indexOfCode(b, x.code)]; if (old && old.carry) x.carry = old.carry; }); // re-adding a 7i keeps its carry
+        var R = BAG.addClubs(b, add); saveBag(R.bag); view.bagAdd = null;
+        toast((R.added ? 'Added ' + R.added : '') + (R.added && R.replaced ? ', ' : '') + (R.replaced ? 'replaced ' + R.replaced : '') + ' – now type each carry');
+        render(); window.scrollTo(0, 0);
+        var first = [].slice.call(document.querySelectorAll('[data-bc="carry"]')).filter(function (e) { return !e.value; })[0]; if (first) first.focus();
+        return;
+      }
+      case 'sortclub': case 'sortcarry': b.sort = v === 'sortcarry' ? 'carry' : 'club'; saveBag(b, true); break;
+      case 'edit': view.bagEdit = view.bagEdit === id ? null : id; break;
+      case 'remove': if (!c || !confirm('Remove ' + c.code + (BAG.title(c) ? ' (' + BAG.title(c) + ')' : '') + ' from your bag?')) return;
+        b.clubs = b.clubs.filter(function (x) { return x.id !== id; }); saveBag(b); view.bagEdit = null; toast(c.code + ' removed'); break;
+      case 'baseedit': view.bagBaseEdit = !view.bagBaseEdit; render(); if (view.bagBaseEdit) focus('bagbelev'); return;
+      case 'basesave': {
+        var e = +(document.getElementById('bagbelev') || {}).value, t = +(document.getElementById('bagbtemp') || {}).value;
+        if (!isFinite(e) || e < -1000 || e > 12000 || String((document.getElementById('bagbelev') || {}).value).trim() === '') { toast('Elevation: 0 to 12,000 ft'); focus('bagbelev'); return; }
+        if (!isFinite(t) || t < 20 || t > 120 || String((document.getElementById('bagbtemp') || {}).value).trim() === '') { toast('Temperature: 20 to 120 °F'); focus('bagbtemp'); return; }
+        var wasSame = BAG.sameCond(b); b.base = { elev: Math.round(e), temp: Math.round(t) }; if (wasSame) b.cond = { elev: Math.max(0, Math.min(9000, Math.round(e / 100) * 100)), temp: Math.max(30, Math.min(110, Math.round(t))) };
+        saveBag(b); view.bagBaseEdit = false; toast('Baseline: ' + condText(b.base)); break;
+      }
+      case 'reset': b.cond = { elev: b.base.elev, temp: b.base.temp }; saveBag(b, true); break;
+    }
+    render();
+  }
+  document.addEventListener('input', function (ev) {
+    var t = ev.target; if (!t || !t.getAttribute) return;
+    if (t.id === 'bagelev' || t.id === 'bagtemp') { var b = bag(); b.cond[t.id === 'bagelev' ? 'elev' : 'temp'] = +t.value; saveBag(b, true); bagRefresh(); return; }
+    if (view.bagAdd) { if (t.id === 'bagmake') view.bagAdd.makeTxt = t.value; else if (t.id === 'bagmodel') view.bagAdd.modelTxt = t.value; else if (t.id === 'bagcloft') view.bagAdd.cloft = t.value.replace(/[^0-9.]/g, '');
+      else if (t.id === 'bagcname') { view.bagAdd.cname = t.value; var n = Object.keys(view.bagAdd.sel).filter(function (k) { return view.bagAdd.sel[k]; }).length + (t.value.trim() ? 1 : 0), g = document.getElementById('bagaddgo'); if (g && view.bagAdd.cat !== 'd' && view.bagAdd.cat !== 'pt') { g.disabled = !n; g.textContent = 'Add ' + n + ' club' + (n === 1 ? '' : 's'); } } return; }
+    if (t.getAttribute('data-bc') === 'carry') {
+      t.value = t.value.replace(/[^0-9]/g, '').slice(0, 3);
+      var b2 = bag(), c = b2.clubs.filter(function (x) { return x.id === t.getAttribute('data-id'); })[0]; if (!c) return;
+      if (+t.value > 0) c.carry = +t.value; else delete c.carry; saveBag(b2, true);
+      var s = document.querySelector('.badj[data-adj="' + c.id + '"]'); if (s) s.innerHTML = adjHTML(BAG.norm(b2).clubs.filter(function (x) { return x.id === c.id; })[0] || c, BAG.norm(b2));
+    }
+  });
+  document.addEventListener('change', function (ev) {
+    var t = ev.target; if (!t || !t.getAttribute) return;
+    if (t.id === 'baguse') { var b = bag(); b.useCond = t.checked; saveBag(b, true); toast(t.checked ? 'Club picker shows carries for ' + condText(b.cond) : 'Club picker shows club names only'); return; }
+    var f = t.getAttribute('data-bc'); if (!f || f === 'carry') { if (f === 'carry') odDirty(3000); return; }
+    var b2 = bag(), c = b2.clubs.filter(function (x) { return x.id === t.getAttribute('data-id'); })[0]; if (!c) return;
+    if (f === 'code') { var v = t.value.trim(), i = BAG.indexOfCode(b2, v); if (!v || (i >= 0 && b2.clubs[i] !== c)) { toast(v ? v + ' is already in your bag' : 'The club needs a name'); t.value = c.code; return; } c.code = v; }
+    else if (f === 'loft') { var l = t.value.trim(); if (l === '') delete c.loft; else if (isFinite(+l) && +l >= 0 && +l <= 80) c.loft = +l; else { toast('Loft: a number like 33'); t.value = c.loft == null ? '' : c.loft; return; } }
+    else if (f === 'model') { var mk = t.value.trim(), known = BAG.makers().filter(function (m) { return mk.toLowerCase().indexOf(m.toLowerCase() + ' ') === 0 || mk.toLowerCase() === m.toLowerCase(); }).sort(function (a, z) { return z.length - a.length; })[0];
+      if (known) { c.make = known; c.model = mk.slice(known.length).trim(); } else { c.make = ''; c.model = mk; } }
+    saveBag(b2); var keep = view.bagEdit; render(); view.bagEdit = keep;
+  });
   function holeHTML() {
     var r = round(), h = r.holes[view.hole], a = AH(h), S = SG.summarize(r, blOf(r)), fin = !!h.finished && a.complete;
     var out = '<div class="topbar frost"><button class="frostbtn" data-act="prev" aria-label="Previous hole"' + (view.hole === 0 ? ' disabled' : '') + '>‹</button>' +
@@ -985,7 +1152,7 @@
     if (t) t.blur(); voiceHeard(text);
   }
   function micAbort() { dictStop(); }
-  function voiceHeard(text) { view.voice = { hole: view.hole, stage: 'confirm', p: VOICE.parse(text) }; render(); }
+  function voiceHeard(text) { var p = VOICE.parse(text); if (p && p.club) p.club = BAG.matchClub(p.club, bag()); view.voice = { hole: view.hole, stage: 'confirm', p: p }; render(); }
   function vSel(f, opts, cur) { return '<select data-vf="' + f + '">' + opts.map(function (o) { return '<option value="' + o[0] + '"' + (String(cur == null ? '' : cur) === String(o[0]) ? ' selected' : '') + '>' + o[1] + '</option>'; }).join('') + '</select>'; }
   function voiceCardHTML(h) {
     var V = view.voice, out = '<div class="sheet-bg" data-act="vcancel"></div><div class="sheet frostsheet voicecard" role="dialog" aria-label="Voice entry">';
@@ -1003,7 +1170,7 @@
       for (var si = 1; si <= n + 1; si++) opts.push([si, 'Shot ' + si + (si === n + 1 ? ' (new)' : '')]);
       out += '<div class="vedit">' +
         '<label><span>Shot</span>' + vSel('shot', opts, sel) + '</label>' +
-        (green ? '' : '<label><span>Club</span>' + vSel('club', [['', '–']].concat(SG.CLUBS.map(function (c) { return [c, c]; })), p.club) + '</label>') +
+        (green ? '' : '<label><span>Club</span>' + vSel('club', [['', '–']].concat(clubChoices(p.club).map(function (c) { return [c.code, c.label]; })), p.club) + '</label>') +
         '<label><span>To pin (' + (sel === 1 ? 'yd' : green ? 'ft' : 'yd') + ')</span><input type="text" inputmode="numeric" maxlength="3" data-vf="dist" value="' + (p.dist == null ? '' : p.dist) + '"></label>' +
         (sel === 1 ? '' : '<label><span>Hitting from</span>' + vSel('loc', [['', '–'], ['fairway', 'Fairway'], ['rough', 'Rough'], ['deep', 'Deep rough'], ['bunker', 'Bunker'], ['green', 'Green'], ['hazard', 'Hazard'], ['trees', 'Trees'], ['ob', 'OB re-hit'], ['holed', 'In the hole']], p.loc) + '</label>' +
           '<label><span>Shot ' + (sel - 1) + ' missed</span>' + vSel('dir', [['', '–']].concat(SG.DIR8.map(function (d) { return [d, SG.DIR_NAME[d]]; })), p.dir) + '</label>' +
@@ -1065,7 +1232,7 @@
     var hoBox = k > 0 && row.loc !== 'holedx' && (k === h.rows.length - 1 || row.holeOut) ? '<label class="layup holeout' + (row.holeOut ? ' on' : '') + '"><input type="checkbox" data-f="holeout" data-k="' + k + '"' + (row.holeOut ? ' checked' : '') + dis + ' aria-label="Hole out: shot ' + shotNo + ' went in"> Hole out</label>' : '';
     if (row.loc !== 'green' && row.loc !== 'holed') {
       out += '<div class="clubrow" data-club="' + k + '"><label class="clublbl"><span>Club</span><select data-f="club" data-k="' + k + '" aria-label="Club row ' + shotNo + '"' + dis + '><option value=""' + (row.club ? '' : ' selected') + '>–</option>' +
-        SG.CLUBS.map(function (c) { return '<option' + (row.club === c ? ' selected' : '') + '>' + c + '</option>'; }).join('') + '</select></label>' +
+        clubChoices(row.club).map(function (c) { return '<option value="' + esc(c.code) + '"' + (row.club === c.code ? ' selected' : '') + '>' + esc(c.label) + '</option>'; }).join('') + '</select></label>' +
         (k === 0 && Number(h.par) !== 3 ? '<label class="layup"><input type="checkbox" data-f="layup" data-k="0"' + (row.layup ? ' checked' : '') + dis + '> Layup <small>(not in SG)</small></label>' : '') + hoBox + '</div>';
     } else if (row.loc === 'green') out += '<div class="clubrow putter" data-club="' + k + '"><small>Putter</small>' + hoBox + '</div>';
     out += '<div class="sinfo" data-info="' + k + '">' + infoHTML(a.shots[k]) + '</div>';
@@ -1763,13 +1930,14 @@
   }
   function clubHTML(all) {
     var L = clubShots(all), by = {}; L.forEach(function (x) { (by[x.club] = by[x.club] || []).push(x); });
-    var used = SG.CLUBS.filter(function (c) { return by[c]; });
+    var B0 = BAG.pickerClubs(bag()).map(function (c) { return c.code; }), base = B0.length ? B0 : SG.CLUBS, order = base.concat(Object.keys(by).filter(function (c) { return base.indexOf(c) < 0; }).sort(function (a, b) { return BAG.rank(a) - BAG.rank(b); }));
+    var used = order.filter(function (c) { return by[c]; });
     if (!used.length) return '<p class="notice" id="clubnone">No clubs entered yet' + (all ? '' : ' this round') + '. Pick a club under each shot when entering a hole, then come back here.</p>';
     var cur = view.club && by[view.club] ? view.club : used.slice().sort(function (a, b) { return by[b].length - by[a].length; })[0], list = by[cur], st = clubStats(list);
     var fmtD = function (v, a, b) { return v == null ? '–' : Math.abs(v) < 0.5 ? 'on line' : Math.round(Math.abs(v)) + ' yd ' + (v > 0 ? a : b); };
-    var o = '<div class="seg clubbtns" id="clubbtns">' + SG.CLUBS.map(function (c) { var n = by[c] ? by[c].length : 0;
-      return '<button data-act="clubsel" data-v="' + c + '" class="' + (c === cur ? 'sel' : '') + '"' + (n ? '' : ' disabled') + ' aria-pressed="' + (c === cur) + '">' + c + (n ? '<small> ' + n + '</small>' : '') + '</button>'; }).join('') + '</div>';
-    o += '<p class="mapsum" id="mapsum"><b id="clubcur">' + cur + '</b> · <b>' + st.n + '</b> shot' + (st.n === 1 ? '' : 's') + (all ? ' in all rounds' : ' this round') + '</p>';
+    var o = '<div class="seg clubbtns" id="clubbtns">' + order.map(function (c) { var n = by[c] ? by[c].length : 0;
+      return '<button data-act="clubsel" data-v="' + esc(c) + '" class="' + (c === cur ? 'sel' : '') + '"' + (n ? '' : ' disabled') + ' aria-pressed="' + (c === cur) + '">' + esc(c) + (n ? '<small> ' + n + '</small>' : '') + '</button>'; }).join('') + '</div>';
+    o += '<p class="mapsum" id="mapsum"><b id="clubcur">' + esc(cur) + '</b> · <b>' + st.n + '</b> shot' + (st.n === 1 ? '' : 's') + (all ? ' in all rounds' : ' this round') + '</p>';
     if (st.bias) o += '<p class="warnmsg" id="clubbias">⚠ ' + cur + ' finishes <b>' + Math.round(Math.abs(st.lg)) + ' yd ' + st.bias + '</b> on average – ' + (st.bias === 'short' ? 'consider clubbing up or checking your yardage for it.' : 'consider clubbing down for it.') + '</p>';
     var tees = list.filter(function (x) { return x.tee; });
     if (tees.length) o += '<p class="help" id="clubtee"><b>' + tees.length + ' tee shot' + (tees.length === 1 ? '' : 's') + ' on par 4/5</b> (judged by the fairway, not the pin – not on the map or in the short/long numbers): ' +
@@ -1779,12 +1947,12 @@
       stat('Finished on green', st.n ? st.green + ' / ' + st.n + ' (' + Math.round(st.green / st.n * 100) + '%)' : '–') + stat('Strokes gained', '<span class="' + sgCls(st.sg) + '">' + fmtSG(st.sg) + '</span>' + (st.sgN ? ' <small>(' + fmtSG(st.sg / st.sgN) + '/shot)</small>' : '')) + '</div>' +
       '<div class="legend"><span><i class="dot" style="background:#fff"></i>Finished on the green</span><span><i class="dot" style="background:#d0213a"></i>Finished off the green</span><span><i class="dot" style="background:#ffd23f"></i>Holed</span>' +
       '<span>Rings = yards from the hole; points use the distance left and direction you entered on the next shot. ' + (st.ob ? st.ob + ' OB shot(s) and ' : '') + (st.n - st.nDir - st.ob - tees.length > 0 ? (st.n - st.nDir - st.ob - tees.length) + ' shot(s) with no direction are not drawn / not in the averages.' : '') + '</span></div>';
-    o += '<h3>Shots with ' + cur + '</h3><table id="clubshots"><tr><th>Hole</th><th>From</th><th>Finished</th><th class="num">SG</th></tr>' + list.map(function (x) {
+    o += '<h3>Shots with ' + esc(cur) + '</h3><table id="clubshots"><tr><th>Hole</th><th>From</th><th>Finished</th><th class="num">SG</th></tr>' + list.map(function (x) {
       var fin = x.holed ? 'holed' : x.ob ? 'OB' : (x.s.end.lie === 'green' ? Math.round(x.s.end.dist) + ' ft' : Math.round(x.s.end.dist) + ' yd') + (x.dir ? ' ' + SG.DIR_NAME[x.dir].toLowerCase() : '') + (x.s.end.lie !== 'green' ? ' · ' + (LIE_NAME[x.s.end.lie] || x.s.end.lie) : ' · green');
       return '<tr><td>' + (all ? localDate(x.r.date).slice(5) + ' #' : '#') + x.hole + '</td><td>' + Math.round(x.s.start.dist) + ' yd ' + (LIE_NAME[x.s.start.lie] || (x.s.start.lie === 'tee' ? 'tee' : x.s.start.lie)) + '</td><td>' + esc(fin) + '</td><td class="num ' + sgCls(x.sg) + '">' + (x.layup ? 'layup' : fmtSG(x.sg)) + '</td></tr>'; }).join('') + '</table>';
     var rank = used.map(function (c) { var s2 = clubStats(by[c]); return { c: c, s: s2 }; }).filter(function (x) { return x.s.sgN; }).sort(function (a, b) { return b.s.sg / b.s.sgN - a.s.sg / a.s.sgN; });
     o += '<h3>Strokes gained by club</h3><table id="clubrank"><tr><th>#</th><th>Club</th><th class="num">Shots</th><th class="num">SG/shot</th><th class="num">Total</th><th>Bias</th></tr>' + rank.map(function (x, i) {
-      return '<tr data-act="clubsel" data-v="' + x.c + '" class="' + (x.c === cur ? 'cur' : '') + '"><td>' + (i + 1) + '</td><td><b>' + x.c + '</b></td><td class="num">' + x.s.sgN + '</td><td class="num ' + sgCls(x.s.sg) + '">' + fmtSG(x.s.sg / x.s.sgN) + '</td><td class="num ' + sgCls(x.s.sg) + '">' + fmtSG(x.s.sg) + '</td><td>' + (x.s.bias ? '⚠ ' + Math.round(Math.abs(x.s.lg)) + ' yd ' + x.s.bias : '') + '</td></tr>'; }).join('') + '</table>' +
+      return '<tr data-act="clubsel" data-v="' + esc(x.c) + '" class="' + (x.c === cur ? 'cur' : '') + '"><td>' + (i + 1) + '</td><td><b>' + esc(x.c) + '</b></td><td class="num">' + x.s.sgN + '</td><td class="num ' + sgCls(x.s.sg) + '">' + fmtSG(x.s.sg / x.s.sgN) + '</td><td class="num ' + sgCls(x.s.sg) + '">' + fmtSG(x.s.sg) + '</td><td>' + (x.s.bias ? '⚠ ' + Math.round(Math.abs(x.s.lg)) + ' yd ' + x.s.bias : '') + '</td></tr>'; }).join('') + '</table>' +
       '<p class="help muted">Best club per shot at the top (vs PGA Tour baseline). Layup tee shots are not in SG. Bias ⚠ = finishes more than 5 yd short or long on average (from the distance + direction of the next shot; straight left/right counts as pin high). Tap a row to see that club.</p>';
     return o;
   }
@@ -2534,6 +2702,8 @@
       case 'puttn': { var mvp = document.getElementById('mapview'), stp = mvp ? mvp.scrollTop : 0; view.puttN = v; render(); var mvp2 = document.getElementById('mapview'); if (mvp2) mvp2.scrollTop = stp; return; }
       case 'mapscope': view.mapScope = v; view.heat = null; render(); var mv = document.getElementById('mapview'); if (mv) mv.scrollTop = 0; return;
       case 'courses': view.screen = 'courses'; render(); window.scrollTo(0, 0); return;
+      case 'bag': view.hmenu = null; view.screen = 'bag'; view.bagAdd = null; view.bagEdit = null; render(); window.scrollTo(0, 0); return;
+      case 'bagact': bagAct(v, b); return;
       case 'ncourse': { var cc = courseById(b.getAttribute('data-id')); view.crsOpen = false;
         if (cc && !(view.newC && view.newC.id === cc.id)) { view.newC = { id: cc.id, tee: (cc.tees[0] || {}).name || '' }; view.newAdd = false; } render(); return; }
       case 'ntee': if (view.newC) view.newC.tee = v; render(); return;

@@ -50,14 +50,14 @@
 
   var CLUB_RX = [
     [/\b(?:driver|1 wood|one wood|big dog)\b/, function () { return 'Driver'; }],
-    [/\b(3|5|7) (?:wood|w|metal)\b/, function (m) { return m[1] + 'W'; }],
-    [/\b(4|5) (?:hybrid|rescue|h)\b/, function (m) { return m[1] + 'H'; }],
-    [/\b([5-9]) (?:iron|irons|i)\b/, function (m) { return m[1] + 'i'; }],
+    [/\b(3|4|5|7|9) (?:wood|w|metal)\b/, function (m) { return m[1] + 'W'; }],
+    [/\b([2-7]) (?:hybrid|rescue|h)\b/, function (m) { return m[1] + 'H'; }],
+    [/\b([2-9]) (?:iron|irons|i)\b/, function (m) { return m[1] + 'i'; }],
     [/\bpitching wedge\b|\bpitching\b|\bp wedge\b|\bpitch wedge\b/, function () { return 'PW'; }],
     [/\bgap wedge\b|\bapproach wedge\b/, function () { return '52'; }],
     [/\bsand wedge\b|\bsand iron\b/, function () { return '56'; }],
     [/\blob wedge\b/, function () { return '60'; }],
-    [/\b(52|54|56|58|60) (?:degree|wedge)(?: wedge)?\b/, function (m) { return m[1]; }]
+    [/\b(4[6-9]|5\d|6[0-4]) (?:degree|wedge)(?: wedge)?\b/, function (m) { return m[1]; }]
   ];
   var LOC_RX = [ // order matters: "deep rough" before "rough", holed phrases before everything
     ['holed', /\b(?:in the hole|in the cup|in hole|into the hole|holed(?: out)?|hold out|made it|made|make|drained(?: it)?|sank(?: it)?|sunk(?: it)?|went in|chip in|chipped in|holed it|that's in|its in|it's in|in the jar|ace|hole in one)\b/],
@@ -199,7 +199,7 @@
   var LOC_NAME = { tee: 'Tee', fairway: 'Fairway', rough: 'Rough', deep: 'Deep rough', trees: 'Trees', bunker: 'Bunker', green: 'Green', hazard: 'Hazard',
     ob: 'OB re-hit', holed: 'In the hole', holedx: 'In the hole' };
   var DIR_NAME = { short: 'Short', long: 'Long', left: 'Left', right: 'Right', shortleft: 'Short left', shortright: 'Short right', longleft: 'Long left', longright: 'Long right' };
-  function clubName(c) { var m = /^(\d)(W|H|i)$/.exec(c); if (m) return m[1] + ' ' + { W: 'wood', H: 'hybrid', i: 'iron' }[m[2]]; return c === 'PW' ? 'Pitching wedge' : /^\d\d$/.test(c) ? c + '°' : c; }
+  function clubName(c) { var m = /^(\d)(W|H|i)$/.exec(c); if (m) return m[1] + ' ' + { W: 'wood', H: 'hybrid', i: 'iron' }[m[2]]; return c === 'PW' ? 'Pitching wedge' : c === 'GW' ? 'Gap wedge' : /^\d\d$/.test(c) ? c + '°' : c; }
   function fmtD(v, loc) { return blank(v) ? '' : v + (unitOf(loc) === 'ft' ? '’' : ' yd'); }
   // Confirmation card lines: [[label, value], ...] e.g. ['Shot 3', 'Green · 25’'], ['Shot 2 missed', 'Short']
   function describe(hole, res, p) {

@@ -830,3 +830,63 @@ i.prog { color: #e0565e; font-size: 22px; }
 /* v90 "Hole out" box: soft pill, green when ticked */
 html body .roundpage.theme-sky .clubrow .holeout { color: var(--soft-ink); font-weight: 500; }
 html body .roundpage.theme-sky .clubrow .holeout.on { color: #1f6b3a; background: #e3f6e8; border-color: #8fd0a6; }
+
+/* ---------- My Bag (v92) – soft, light, rounded ---------- */
+.bagpage { padding-bottom: 40px; }
+.bagpage .bagempty { margin: 14px 0; text-align: center; padding: 22px 18px; }
+.bagpage .bagempty b { font-size: 19px; font-weight: 600; } .bagpage .bagempty p { font-size: 15px; font-weight: 400; color: var(--frost-ink-soft); line-height: 1.45; margin: 8px 0 0; }
+.bagpage .frostcard { box-shadow: 0 4px 16px rgba(20, 45, 30, .08); }
+.bagpage .bagcond { margin: 6px 0 12px; padding: 14px 16px; }
+.bagpage .bcbase { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; font-size: 14px; color: var(--frost-ink-soft); }
+.bagpage .bcbase b { font-size: 16px; font-weight: 600; color: var(--frost-ink); }
+.bagpage .bclink { margin-left: auto; background: none; border: 0; color: var(--frost-accent); font-size: 15px; font-weight: 500; padding: 6px 2px; min-height: 36px; }
+.bagpage .bcbedit { display: flex; gap: 8px; align-items: flex-end; margin: 8px 0 2px; flex-wrap: wrap; }
+.bagpage .bcbedit label { display: flex; flex-direction: column; gap: 3px; font-size: 12px; color: var(--frost-ink-soft); }
+.bagpage .bcbedit label span { display: flex; align-items: center; gap: 4px; font-size: 14px; }
+.bagpage .bcbedit input { width: 72px; height: 40px; border-radius: 12px; border: 1px solid rgba(23, 48, 31, .14); background: rgba(255, 255, 255, .85); font-size: 17px; text-align: center; }
+.bagpage .bcsave { height: 40px; padding: 0 16px; border-radius: 12px; border: 1px solid rgba(47, 107, 63, .3); background: var(--frost-accent); color: #fff; font-weight: 500; font-size: 15px; }
+.bagpage .bchint { font-size: 13px; color: var(--frost-ink-soft); margin: 6px 2px; font-weight: 400; }
+.bagpage .bchead { font-size: 13px; text-transform: uppercase; letter-spacing: .05em; color: var(--frost-ink-soft); font-weight: 500; margin: 14px 0 2px; border-top: 1px solid rgba(23, 48, 31, .08); padding-top: 12px; }
+.bagpage .bcslide { margin: 8px 0 4px; }
+.bagpage .bclbl { display: flex; justify-content: space-between; align-items: baseline; font-size: 15px; font-weight: 400; }
+.bagpage .bclbl b { font-size: 18px; font-weight: 600; color: var(--frost-accent); }
+.bagpage input[type=range] { width: 100%; margin: 8px 0 0; accent-color: var(--frost-accent); height: 30px; }
+.bagpage .bcends { display: flex; justify-content: space-between; font-size: 11px; color: var(--frost-ink-soft); opacity: .8; }
+.bagpage .bcrow { margin: 8px 0 4px; }
+.bagpage .bcreset { padding: 8px 14px; font-size: 14px; min-height: 38px; } .bagpage .bcreset:disabled { opacity: .45; }
+.bagpage .bcuse { display: flex; gap: 10px; align-items: center; font-size: 15px; font-weight: 400; margin: 8px 0 4px; min-height: 40px; }
+.bagpage .bcuse input { width: 22px; height: 22px; accent-color: var(--frost-accent); flex: 0 0 auto; }
+.bagpage .bcnote { font-size: 12px; color: var(--frost-ink-soft); line-height: 1.4; margin: 6px 0 0; font-weight: 400; }
+.bagpage .bagsort { display: flex; gap: 6px; margin: 4px 0 8px; }
+.bagpage .bagsort .frostchip { padding: 7px 14px; font-size: 14px; min-height: 36px; box-shadow: none; }
+.bagpage .baglist { padding: 6px 10px; margin-bottom: 12px; }
+.bagpage .bagrow { display: grid; grid-template-columns: 1fr 92px 72px; align-items: center; gap: 6px; padding: 6px 0; border-top: 1px solid rgba(23, 48, 31, .07); }
+.bagpage .baglist.same .bagrow { grid-template-columns: 1fr 92px; } .bagpage .baglist.same .badj { display: none; }
+.bagpage .bagrow.bhead { border-top: 0; font-size: 11px; text-transform: uppercase; letter-spacing: .04em; color: var(--frost-ink-soft); font-weight: 500; padding: 2px 0 4px; }
+.bagpage .bagrow.bhead .badj { text-transform: none; letter-spacing: 0; font-size: 11px; line-height: 1.2; }
+.bagpage .bname { background: none; border: 0; text-align: left; padding: 4px 2px; min-height: 44px; display: flex; flex-direction: column; justify-content: center; color: var(--frost-ink); min-width: 0; }
+.bagpage .bname b { font-size: 17px; font-weight: 600; } .bagpage .bname small { font-size: 12px; color: var(--frost-ink-soft); font-weight: 400; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.bagpage .bcarry { display: flex; align-items: center; gap: 4px; } .bagpage .bcarry.none { color: var(--frost-ink-soft); padding-left: 22px; }
+.bagpage .bcarry input { width: 62px; padding: 0 4px; box-sizing: border-box; height: 40px; border-radius: 12px; border: 1px solid rgba(23, 48, 31, .14); background: rgba(255, 255, 255, .85); font-size: 18px; font-weight: 500; text-align: center; color: #1a2230; }
+.bagpage .bcarry input:placeholder-shown { background: rgba(255, 248, 225, .9); border-color: rgba(200, 150, 40, .35); }
+.bagpage .bcarry i { font-style: normal; font-size: 12px; color: var(--frost-ink-soft); }
+.bagpage .badj { display: flex; align-items: baseline; gap: 4px; justify-content: flex-end; }
+.bagpage .badj b { font-size: 18px; font-weight: 600; color: var(--frost-accent); } .bagpage .badj small { font-size: 12px; font-weight: 500; }
+.bagpage .badj small.up { color: #2e7d46; } .bagpage .badj small.down { color: #b0473f; }
+.bagpage .bagedit { display: flex; flex-wrap: wrap; gap: 8px; padding: 4px 0 10px; }
+.bagpage .bagedit label { display: flex; flex-direction: column; gap: 3px; font-size: 12px; color: var(--frost-ink-soft); flex: 1 1 90px; }
+.bagpage .bagedit label.wide { flex-basis: 100%; }
+.bagpage .bagedit input { height: 40px; border-radius: 12px; border: 1px solid rgba(23, 48, 31, .14); background: rgba(255, 255, 255, .85); font-size: 16px; padding: 0 10px; }
+.bagpage .bebtns { display: flex; gap: 8px; width: 100%; } .bagpage .bebtns button { flex: 1; min-height: 42px; font-size: 15px; font-weight: 500; box-shadow: none; }
+.bagpage .bagh { font-size: 21px; font-weight: 600; margin: 10px 4px 6px; }
+.bagpage .bagcat { font-size: 13px; text-transform: uppercase; letter-spacing: .05em; color: var(--frost-ink-soft); font-weight: 500; margin: 14px 4px 6px; }
+.bagpage .bagchips { display: flex; flex-wrap: wrap; gap: 7px; margin: 4px 0; }
+.bagpage .bagchips .frostchip { padding: 9px 14px; font-size: 15px; min-height: 42px; box-shadow: none; font-weight: 400; }
+.bagpage .bagchips .frostchip.bother, .bagpage .bagchips .frostchip.bquick { border-style: dashed; border-color: rgba(23, 48, 31, .25); }
+.bagpage .bagslots .frostchip { display: flex; flex-direction: column; align-items: center; min-width: 58px; padding: 6px 10px; line-height: 1.15; }
+.bagpage .bagslots .frostchip b { font-size: 16px; font-weight: 600; color: inherit; } .bagpage .bagslots .frostchip small { font-size: 11px; opacity: .75; }
+.bagpage .bagtype { display: flex; gap: 8px; margin: 8px 0; }
+.bagpage .bagtype input { flex: 1; min-width: 0; height: 44px; border-radius: 14px; border: 1px solid rgba(23, 48, 31, .14); background: rgba(255, 255, 255, .85); font-size: 16px; padding: 0 12px; }
+.bagpage .bagtype.two input + input { flex: 0 0 90px; }
+.bagpage .bagtype button { padding: 0 16px; font-size: 15px; font-weight: 500; }
+.bagpage .frostmain { margin-top: 14px; }

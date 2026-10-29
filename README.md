@@ -49,9 +49,11 @@ excluded and counted. This round / All rounds toggle.
 
 ## Files
 - `index.html`, `styles.css`, `app.js` – the app
+- `bag.js` – My Bag: club catalog (manufacturers → models → lofts), bag helpers and the air-density carry model
 - `sg.js` – strokes-gained engine + Broadie baseline tables (sources/approximations documented at top)
 - `sw.js`, `manifest.webmanifest`, `icons/` – offline + "Add to Home Screen"
 - `tests/sg.test.js` – unit tests: `node --test tests/sg.test.js`
+- `tests/bag-focused.js` – My Bag: physics checks + phone flow (`node tests/bag-focused.js`)
 - `tests/e2e.js` – Playwright (playwright-core) flow test at iPhone 390x844
 
 ## Hosting
@@ -114,3 +116,12 @@ Save with the share sheet (`Golf-Round-<date>-<course>-<player>.pdf`, letters/di
 ## Clubs and layups (v49)
 Each shot row (except putts on the green) has an optional club picker: Driver, 3W, 5W, 7W, 4H, 5H, 5i–9i, PW, 52, 54, 56, 58, 60. The tee row on par 4/5s has a **Layup** checkbox.
 A layup tee shot is excluded from strokes gained entirely: its SG is set to 0, it is not counted in Off the tee (shots or SG) nor the SG total. The score is unchanged. Stored as `row.club` / `row.layup` (optional fields; older rounds load unchanged); included in backups and the CSV (`club`, `layup` columns).
+
+## My Bag (v92)
+Open from the **+** menu → **My Bag** (next to New round). Add clubs by manufacturer → model → club/loft (Titleist, TaylorMade, Callaway, Ping, Srixon, Cleveland, Mizuno, Cobra, PXG, Wilson, Bridgestone, Honma, Tour Edge, XXIO, Vokey, Scotty Cameron, Odyssey, Ben Hogan, Sub 70, Lynx; "Other brand" / "Model not listed" for anything else, plus a custom club name and loft). Lofts are typical stock lofts and editable. One club per name (adding a second 7i replaces the first). Enter each club's **carry** in yards; sort by club or by carry; tap a club to edit or remove it.
+
+**Baseline** = the conditions the carries were hit in (default Reno: 5,000 ft, 70°F; "Change" to edit). The **elevation** (0–9,000 ft) and **temperature** (30–110°F) sliders show every club's carry for other conditions, with the difference; "Back to my baseline" resets them. "Show these carries in the club picker" labels the round's club picker (e.g. `7i · 144`).
+
+Physics: a point-mass ball flight (drag + lift, spin decay) is solved per club at its loft with typical launch/spin, with ball speed calibrated so the baseline conditions give exactly the entered carry; the new carry = entered carry × (simulated carry in the new air ÷ simulated carry in the baseline air). Air density from the ISA pressure at that altitude and the temperature (dry air). Roughly +1.2% per 1,000 ft for a driver and ~1.5 yd per 10°F, in line with published rules of thumb (Titleist ~1.16%/1,000 ft). Example: 250 yd driver / 150 yd 7i at Reno 5,000 ft/70°F → about 239 / 144 yd in San Diego (0 ft, 75°F). Not included: wind, humidity, ball temperature, firm/soft ground (roll).
+
+In a round, when the bag has clubs, the club picker lists only bag clubs (no putter); a shot that already has a club not in the bag still shows it. Voice clubs map to the bag (e.g. "gap wedge" → your GW or the nearest wedge loft). Strokes gained is unaffected. Stored in `golfsg.bag.v1`; included in backups (`bag` key) and restored when the phone's bag is empty or the backup's bag is newer.

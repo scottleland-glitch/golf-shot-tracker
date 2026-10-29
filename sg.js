@@ -327,6 +327,8 @@
       from: r.start.dist, fromLie: r.start.lie, fromGroup: lieGroup(r.start.lie), fromDir: R.k > 0 ? out[R.k - 1].dir : '', pen: r.penStrokes > 0, ob: ob };
   }
   var CLUBS = ['Driver', '3W', '5W', '7W', '4H', '5H', '5i', '6i', '7i', '8i', '9i', 'PW', '52', '54', '56', '58', '60'];
+  // v92: any club name is kept (My Bag adds clubs like 4i, GW or 50); it only labels the shot – strokes gained never uses it
+  function clubOf(s) { var c = s && typeof s.club === 'string' ? s.club.trim() : ''; return c && c.length <= 20 ? c : ''; }
   function analyzeHole(hole, baseline) {
     var bad = null, problem = '', complete = null, finished = true, rowsFmt = !!hole.rows, nRows = 0, liveStrokes = 0, raw = hole.rows || hole.shots || [];
     if (rowsFmt) {
@@ -362,7 +364,7 @@
       out.push({
         n: i + 1, start: start, end: end, pen: pen, penStrokes: penStrokes,
         side: s.side || dirSide(normDir(s.dir)), dir: normDir(s.dir || s.side), ob: !!s.ob, loc: s.loc || (pen === 'ob' ? 'ob' : s.lie), hk: s.hk, eStart: eStart, eEnd: eEnd, sg: sg,
-        cat: cat, bucket: bucket, hit: hit, club: CLUBS.indexOf((raw[i] || {}).club) >= 0 ? raw[i].club : ''
+        cat: cat, bucket: bucket, hit: hit, club: clubOf(raw[i])
       });
       // Layup tee shot: its strokes gained is left out entirely (0 toward Off the tee and the total; not counted as a tee shot).
       if (i === 0 && cat === 'tee' && raw[0] && raw[0].layup) { var L0 = out[out.length - 1]; L0.layup = true; L0.sgRaw = sg; L0.sg = 0; }
@@ -699,19 +701,20 @@
 
   /* ===================== BACKUP / RESTORE ===================== */
   // Backup file: { app: 'golf-shot-tracker', kind: 'rounds-backup', version: 1, exported: ISO, rounds: [...] }
-  function makeBackup(rounds, now, player, courses) {
+  function makeBackup(rounds, now, player, courses, bag) {
     var o = { app: 'golf-shot-tracker', kind: 'rounds-backup', version: 1, exported: (now || new Date()).toISOString(), count: rounds.length, rounds: rounds };
-    if (player) o.player = player; if (courses && courses.length) o.courses = courses; return o;
+    if (player) o.player = player; if (courses && courses.length) o.courses = courses; if (bag && Array.isArray(bag.clubs) && bag.clubs.length) o.bag = bag; return o;
   }
   // Accepts a backup object (or a bare array of rounds). Returns {rounds} or {error}.
   function parseBackup(data) {
     if (typeof data === 'string') { try { data = JSON.parse(data); } catch (e) { return { error: 'That file is not a golf backup (could not read it as JSON).' }; } }
     var crs = data && !Array.isArray(data) && Array.isArray(data.courses) ? data.courses.filter(function (c) { return c && typeof c.id === 'string' && Array.isArray(c.tees); }) : [];
-    var list = Array.isArray(data) ? data : data && Array.isArray(data.rounds) ? data.rounds : crs.length ? [] : null;
+    var bag = data && !Array.isArray(data) && data.bag && Array.isArray(data.bag.clubs) && data.bag.clubs.length ? data.bag : null; // v92 My Bag
+    var list = Array.isArray(data) ? data : data && Array.isArray(data.rounds) ? data.rounds : crs.length || bag ? [] : null;
     if (!list) return { error: 'That file is not a golf backup (no rounds in it).' };
     var ok = list.filter(function (r) { return r && typeof r.id === 'string' && r.id && Array.isArray(r.holes); });
     if (list.length && !ok.length) return { error: 'That file is not a golf backup (the rounds in it are not readable).' };
-    return { rounds: ok, skipped: list.length - ok.length, courses: crs };
+    var res = { rounds: ok, skipped: list.length - ok.length, courses: crs }; if (bag) res.bag = bag; return res;
   }
   /**
    * Merge backup rounds into the phone's rounds by id. New ids are added, identical rounds are left
