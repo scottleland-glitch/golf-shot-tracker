@@ -1060,8 +1060,9 @@
     }
     out += '<span class="c-del">' + (k === 0 ? '' : '<button class="del" data-act="del" data-k="' + k + '" aria-label="Delete row ' + shotNo + '"' + dis + '>⌫</button>') + '</span>';
     out += '</div>';
-    // v90: "Hole out" box on every row but the first – this stroke went in, and the row keeps its Loc (lie)
-    var hoBox = k > 0 && row.loc !== 'holedx' ? '<label class="layup holeout' + (row.holeOut ? ' on' : '') + '"><input type="checkbox" data-f="holeout" data-k="' + k + '"' + (row.holeOut ? ' checked' : '') + dis + ' aria-label="Hole out: shot ' + shotNo + ' went in"> Hole out</label>' : '';
+    // v90: "Hole out" box – this stroke went in, and the row keeps its Loc (lie). v91: only offered on the LAST row
+    // (never shot 1) so earlier rows stay clean; a row that is already ticked keeps its (ticked) box so it isn't hidden.
+    var hoBox = k > 0 && row.loc !== 'holedx' && (k === h.rows.length - 1 || row.holeOut) ? '<label class="layup holeout' + (row.holeOut ? ' on' : '') + '"><input type="checkbox" data-f="holeout" data-k="' + k + '"' + (row.holeOut ? ' checked' : '') + dis + ' aria-label="Hole out: shot ' + shotNo + ' went in"> Hole out</label>' : '';
     if (row.loc !== 'green' && row.loc !== 'holed') {
       out += '<div class="clubrow" data-club="' + k + '"><label class="clublbl"><span>Club</span><select data-f="club" data-k="' + k + '" aria-label="Club row ' + shotNo + '"' + dis + '><option value=""' + (row.club ? '' : ' selected') + '>–</option>' +
         SG.CLUBS.map(function (c) { return '<option' + (row.club === c ? ' selected' : '') + '>' + c + '</option>'; }).join('') + '</select></label>' +

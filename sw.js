@@ -1,5 +1,5 @@
 // Offline support: cache the whole app on install, serve cache-first.
-const CACHE = 'golf-sg-v90';
+const CACHE = 'golf-sg-v91';
 const ASSETS = ['./', './img/home-bg.webp', './img/oriole.webp', './index.html', './styles.css', './sg.js', './birdie.js', './voice.js', './courses.js', './live.js', './app.js', './config.js', './onedrive.js', './vendor/msal-browser.min.js', './vendor/jspdf.umd.min.js',
   './manifest.webmanifest', './icons/apple-touch-icon.png', './icons/icon-192.png',
   './icons/icon-512.png', './icons/icon-512-maskable.png'];
