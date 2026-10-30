@@ -1,4 +1,5 @@
 const { chromium } = require('playwright-core'); const assert = require('assert'); const { spawn } = require('child_process');
+const xt = async (p, id) => { if (!(await p.$('[data-stx="' + id + '"].open')) && await p.$('[data-act="stx"][data-v="' + id + '"]')) await p.click('[data-act="stx"][data-v="' + id + '"]'); return p; }; // v96: stat tiles are collapsed – open one first
 const goHist = async p => { if (await p.$('#plusbtn')) await p.click('#plusbtn'); await p.click('[data-act="history"]'); };
 const BASE = 'http://127.0.0.1:8783/', OUT = '/workspace/golf-app/screenshots/';
 (async () => {
@@ -17,7 +18,7 @@ const BASE = 'http://127.0.0.1:8783/', OUT = '/workspace/golf-app/screenshots/';
         return { par, pin: 'center', finished: true, rows }; }) });
     localStorage.clear(); localStorage.setItem('golfsg.player.v1', 'Scott'); localStorage.setItem('golfsg.rounds.v1', JSON.stringify([mk('a', 12, 0), mk('b', 13, 4)])); });
   await page.reload(); await goHist(page); await page.click('#histlist [data-act="open"] >> nth=0');
-  await page.click('[data-act="map"][data-v="fw"]'); await page.waitForSelector('#fwmap');
+  await (await xt(page, 'fw')).click('[data-act="map"][data-v="fw"]'); await page.waitForSelector('#fwmap');
   // this round: Dots + Gradient toggle exists; no Islands
   assert.ok(await page.$('#heattog [data-v="dots"]') && await page.$('#heattog [data-v="grad"]') && !(await page.$('#heattog [data-v="isl"]')));
   const chk = async label => { const r = await page.evaluate(() => { const pct = {}; document.querySelectorAll('#fwmap .fwpct').forEach(t => pct[t.dataset.k] = [t.textContent, +t.dataset.n]);
@@ -46,7 +47,7 @@ const BASE = 'http://127.0.0.1:8783/', OUT = '/workspace/golf-app/screenshots/';
   await page.locator('#fwdrive').scrollIntoViewIfNeeded(); await page.screenshot({ path: OUT + 'tee-drive-dist.png' });
   // most tee shots have a club -> Driver only
   await page.evaluate(() => { const rs = JSON.parse(localStorage.getItem('golfsg.rounds.v1')); rs.forEach(r => r.holes.forEach((h, i) => { h.rows[0].club = i % 4 === 3 ? '3W' : 'Driver'; })); localStorage.setItem('golfsg.rounds.v1', JSON.stringify(rs)); });
-  await page.reload(); await goHist(page); await page.click('#histlist [data-act="open"] >> nth=0'); await page.click('[data-act="map"][data-v="fw"]'); await page.click('[data-act="mapscope"][data-v="all"]'); await page.waitForSelector('#fwdrive');
+  await page.reload(); await goHist(page); await page.click('#histlist [data-act="open"] >> nth=0'); await (await xt(page, 'fw')).click('[data-act="map"][data-v="fw"]'); await page.click('[data-act="mapscope"][data-v="all"]'); await page.waitForSelector('#fwdrive');
   e1 = await exp(); g1 = await got(); console.log('driver-rule', JSON.stringify(g1)); assert.strictEqual(e1.rule, 'driver'); assert.deepStrictEqual({ avg: g1.avg, max: g1.max, n: g1.n, rule: g1.rule }, e1); assert.match(g1.t, /^Driver – avg/);
   assert.deepStrictEqual(errors, []); console.log('TEE OK'); await b.close(); srv.kill();
 })().catch(e => { console.error(e); process.exit(1); });

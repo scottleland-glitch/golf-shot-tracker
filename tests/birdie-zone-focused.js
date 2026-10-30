@@ -1,4 +1,5 @@
 // Birdie zone (v85): putt bands, 1-putt ring method, birdie counts, page UI (toggle, fallback, slider, same ball positions as the GIR map), screenshots.
+const xt = async (p, id) => { if (!(await p.$('[data-stx="' + id + '"].open')) && await p.$('[data-act="stx"][data-v="' + id + '"]')) await p.click('[data-act="stx"][data-v="' + id + '"]'); return p; }; // v96: stat tiles are collapsed – open one first
 const { chromium } = require('playwright-core'); const assert = require('assert'); const { spawn } = require('child_process'); const fs = require('fs');
 const SG = require('../sg.js'); global.SG = SG; const BZ = require('../birdie.js'); const makeRounds = require('./fixtures/birdie-data.js');
 const BASE = 'http://127.0.0.1:8803/', OUT = '/workspace/golf-app/screenshots/';
@@ -81,7 +82,7 @@ const lastR = RS[RS.length - 1], L = BZ.scope([lastR]);
   await page.click('[data-act="bzscope"][data-v="all"]'); assert.strictEqual((await state()).sl.v, ringAll, 'toggle resets the slider to the ring');
   // From a round's stats: this round, same ball positions as the GIR map
   await goHist(); await page.click('#histlist [data-act="open"][data-id="bz4"]');
-  await page.click('[data-act="map"][data-v="gir"]'); await page.waitForSelector('#girmap');
+  await (await xt(page, 'gir')).click('[data-act="map"][data-v="gir"]'); await page.waitForSelector('#girmap');
   const gir = await page.$$eval('#girmap .gdot', a => a.map(e => { const bb = e.getBBox(); return { h: e.dataset.hole, x: Math.round(bb.x + bb.width / 2 - 180), y: Math.round(bb.y + bb.height / 2 - 200) }; }).sort((p, q) => p.h - q.h));
   await page.goto(BASE + '?y=' + Date.now()); await goHist(); await page.click('#histlist [data-act="open"][data-id="bz4"]');
   await page.click('#sumbz'); await page.waitForSelector('#birdie'); s = await state(); assert.strictEqual(s.sel, 'round'); assert.ok(/Bayview/.test(s.title));

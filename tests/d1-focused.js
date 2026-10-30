@@ -1,4 +1,5 @@
 const { chromium } = require('playwright-core'); const assert = require('assert'); const { spawn } = require('child_process');
+const xt = async (p, id) => { if (!(await p.$('[data-stx="' + id + '"].open')) && await p.$('[data-act="stx"][data-v="' + id + '"]')) await p.click('[data-act="stx"][data-v="' + id + '"]'); return p; }; // v96: stat tiles are collapsed – open one first
 const goHist = async p => { if (await p.$('#plusbtn')) await p.click('#plusbtn'); await p.click('[data-act="history"]'); };
 const BASE = 'http://127.0.0.1:8786/', OUT = '/workspace/golf-app/screenshots/';
 (async () => {
@@ -14,7 +15,7 @@ const BASE = 'http://127.0.0.1:8786/', OUT = '/workspace/golf-app/screenshots/';
       holes: Array.from({ length: 18 }, (_, i) => { const a = AP[i % AP.length]; return { par: 4, pin: 'center', finished: true, rows: i % 4 === 0 ? [R(400, 'tee'), R(a, 'fairway'), R(8 + i, 'rough', D[(i + 1) % 6]), R(12, 'green', 'left'), R(1, 'holed')] : [R(400, 'tee'), R(a, 'fairway'), R(6 + (i * 7) % 40, 'green', D[i % 6]), R(1, 'holed')] }; }) });
     localStorage.clear(); localStorage.setItem('golfsg.player.v1', 'Scott'); localStorage.setItem('golfsg.rounds.v1', JSON.stringify([mk('a', 12), mk('b', 13)])); });
   await page.reload(); await goHist(page); await page.click('#histlist [data-act="open"] >> nth=0');
-  await page.click('[data-act="map"][data-v="prox"]'); await page.click('[data-act="mapscope"][data-v="all"]'); await page.waitForSelector('#proxrail');
+  await (await xt(page, 'prox')).click('[data-act="map"][data-v="prox"]'); await page.click('[data-act="mapscope"][data-v="all"]'); await page.waitForSelector('#proxrail');
   const ring = () => page.evaluate(() => { const g = document.getElementById('d1ring'); if (!g) return null; const svg = g.ownerSVGElement;
     return { r: +g.querySelector('circle').getAttribute('r'), t: g.querySelector('text').textContent, last: svg.lastElementChild === g, legend: !!document.querySelector('.legend .ln.dash') && /D1 women avg/.test(document.querySelector('#mapview').textContent), note: (document.getElementById('d1note') || {}).textContent || '' }; });
   for (const [yd, ft, est] of [['80', 22, false], ['150', 44, false], ['40', 15, false], ['190', 60, true], ['200', 64, true]]) {

@@ -1,4 +1,5 @@
 const { chromium } = require('playwright-core'); const assert = require('assert'); const { spawn } = require('child_process');
+const xt = async (p, id) => { if (!(await p.$('[data-stx="' + id + '"].open')) && await p.$('[data-act="stx"][data-v="' + id + '"]')) await p.click('[data-act="stx"][data-v="' + id + '"]'); return p; }; // v96: stat tiles are collapsed – open one first
 const goHist = async p => { if (await p.$('#plusbtn')) await p.click('#plusbtn'); await p.click('[data-act="history"]'); };
 const errors = [];
 const BASE = process.env.BASE_URL || 'http://127.0.0.1:8765/', SHOTS = process.env.SHOTS || '/tmp/shots-v15f';
@@ -35,9 +36,9 @@ const BASE = process.env.BASE_URL || 'http://127.0.0.1:8765/', SHOTS = process.e
   assert.deepStrictEqual(marks, ['par:4', 'birdie:3', 'par:3', 'eagle:3', 'double:6', 'double:5', 'par:4', 'bogey:6', 'double:7', 'eagle:2', 'par:4', 'par:3', 'par:5', 'par:4', 'bogey:5', 'par:3', 'par:5', 'blank']);
   const t = async (id, row) => page.textContent(`#${id} tr.${row} td.tot`);
   assert.deepStrictEqual([await t('card-front', 'shole'), await t('card-front', 'spar'), await t('card-front', 'sscore'), await t('card-back', 'shole'), await t('card-back', 'spar'), await t('card-back', 'sscore')], ['OUT', '36', '41', 'IN', '36', '31']);
-  const trow = await page.$$eval('#card-total tr:nth-child(2) td', ts => ts.map(x => x.textContent));
-  assert.deepStrictEqual(trow.slice(0, 5), ['17/18 holes', '6885', '72', '72', '+4']);
-  const fit = await page.evaluate(() => ({ docW: document.documentElement.scrollWidth, r: ['card-front', 'card-back', 'card-total'].map(id => document.getElementById(id).getBoundingClientRect().right), h: Math.min(...[...document.querySelectorAll('#card-front tr.sscore .hc')].map(b => b.getBoundingClientRect().height)) }));
+  const trow = await page.$$eval('#rs-top tr:nth-child(2) td', ts => ts.map(x => x.textContent)); // v96: Score · To par · Yards · Putts box on top
+  assert.deepStrictEqual(trow.slice(0, 3), ['72thru 17', '+4', '6885']); assert.deepStrictEqual(await page.$$eval('#rs-top th', t => t.map(x => x.textContent)), ['Score', 'To par', 'Yards', 'Putts']);
+  const fit = await page.evaluate(() => ({ docW: document.documentElement.scrollWidth, r: ['card-front', 'card-back', 'rs-top'].map(id => document.getElementById(id).getBoundingClientRect().right), h: Math.min(...[...document.querySelectorAll('#card-front tr.sscore .hc')].map(b => b.getBoundingClientRect().height)) }));
   assert.ok(fit.docW <= 390 && fit.r.every(x => x <= 390), JSON.stringify(fit)); assert.ok(fit.h >= 44, 'cell h ' + fit.h);
   assert.match(await page.textContent('.topbar'), /‹ History/);
   const lg = await page.$$eval('#card-legend .mk', ms => ms.map(m => m.className.replace('mk ', '') + ':' + m.textContent));
@@ -68,7 +69,7 @@ const BASE = process.env.BASE_URL || 'http://127.0.0.1:8765/', SHOTS = process.e
   assert.match(await page.textContent('.topbar'), /Preview \(read-only\)/); assert.strictEqual(await page.locator('[data-act="goHole"], [data-act="delRound"], [data-act="pdf"]').count(), 0);
   const nBefore = await page.evaluate(() => window.__golf.rounds().length);
   await page.screenshot({ path: '/workspace/golf-app/screenshots/restore-preview.png' });
-  await page.click('[data-act="map"][data-v="gir"]').catch(() => {}); await page.waitForTimeout(200);
+  await (await xt(page, 'gir')).click('[data-act="map"][data-v="gir"]').catch(() => {}); await page.waitForTimeout(200);
   await page.screenshot({ path: '/workspace/golf-app/screenshots/restore-preview-map.png' });
   await page.click('.maphead .close').catch(() => {});
   await page.click('[data-act="rpback"] >> nth=0'); await page.waitForSelector('#rplist');
@@ -94,7 +95,7 @@ const BASE = process.env.BASE_URL || 'http://127.0.0.1:8765/', SHOTS = process.e
   await page.locator('#bydist').scrollIntoViewIfNeeded(); await page.evaluate(() => window.scrollBy(0, -60)); await page.waitForFunction(() => document.getElementById('toast').className !== 'show'); await page.screenshot({ path: SHOTS + '/38-sg-by-distance.png' });
   console.log('✓ SG by distance: approach buckets 20-60/60-100/100-130/130-160/160-200/200+, short game 0-20 yd, avg to pin after; rows add up to category');
   // Proximity (v22 rail): opens on the busiest yardage; All / single yardages; blue hit, red miss
-  await page.click('[data-act="map"][data-v="prox"]'); await page.waitForSelector('#proxmap');
+  await (await xt(page, 'prox')).click('[data-act="map"][data-v="prox"]'); await page.waitForSelector('#proxmap');
   assert.strictEqual(await page.locator('#proxrail .ybtn').count(), 17);
   assert.deepStrictEqual(await page.$$eval('#proxrail .ybtn:not([disabled])', bs => bs.map(b => [b.getAttribute('data-v'), +b.getAttribute('data-n')])), [['170', 2], ['150', 2], ['140', 1], ['90', 1]]);
   assert.match(await page.getAttribute('#proxrail [data-v="150"]', 'class'), /sel/); assert.ok(await page.isVisible('#proxauto'));
@@ -103,11 +104,11 @@ const BASE = process.env.BASE_URL || 'http://127.0.0.1:8765/', SHOTS = process.e
   await page.locator('#proxmap').scrollIntoViewIfNeeded(); await page.screenshot({ path: SHOTS + '/47-proximity-default-busiest.png' });
   await page.click('[data-act="proxb"][data-v="all"]'); assert.strictEqual(await page.locator('#proxmap .tracer').count(), 6); assert.strictEqual(await page.locator('#proxauto').count(), 0);
   await page.click('#proxrail [data-v="170"]'); assert.strictEqual(await page.locator('#proxmap .tracer').count(), 2);
-  await page.click('[data-act="mapclose"]'); await page.click('[data-act="map"][data-v="prox"]'); assert.match(await page.getAttribute('#proxrail [data-v="150"]', 'class'), /sel/);
+  await page.click('[data-act="mapclose"]'); await (await xt(page, 'prox')).click('[data-act="map"][data-v="prox"]'); assert.match(await page.getAttribute('#proxrail [data-v="150"]', 'class'), /sel/);
   await page.click('[data-act="mapclose"]');
   console.log('✓ proximity (v22 rail 40-200): opens on busiest yardage (150, tie -> shorter), All shows all 6, single yardage filters, blue tracers');
-  assert.match(await page.textContent('[data-act="map"][data-v="putt"]'), /^10\s*Putts – tap for map\s*1st putts made 2\/6/);
-  await page.click('[data-act="map"][data-v="putt"]'); await page.waitForSelector('#puttmap');
+  assert.match(await (await xt(page, 'putt')).textContent('[data-act="map"][data-v="putt"]'), /^10\s*Putts – tap for map\s*1st putts made 2\/6/);
+  await (await xt(page, 'putt')).click('[data-act="map"][data-v="putt"]'); await page.waitForSelector('#puttmap');
   const pb = await page.$$eval('#puttbtns .pnbtn', bs => bs.map(b => [b.getAttribute('data-v'), +b.getAttribute('data-n'), b.disabled, b.classList.contains('sel')]));
   assert.deepStrictEqual(pb, [['1', 6, false, true], ['2', 4, false, false], ['3', 0, true, false]]);
   const dots1 = await page.$$eval('#puttmap .pdot2', ds => ds.map(d => [+d.getAttribute('data-ft'), d.getAttribute('data-made'), d.getAttribute('data-dir'), d.getAttribute('data-kind')]));
@@ -162,8 +163,9 @@ const BASE = process.env.BASE_URL || 'http://127.0.0.1:8765/', SHOTS = process.e
   await page.click('[data-act="mapclose"]'); await page.waitForSelector('#puttmap', { state: 'detached' });
   console.log('✓ All rounds: 1st/2nd/3rd+ = ' + [allExp[1], allExp[2], allExp[3]].join('/') + '; Close');
 
+  for (const v of await page.$$eval('[data-act="stx"]', x => x.map(e => e.dataset.v))) await xt(page, v); // open every collapsed tile
   const kinds = await page.$$eval('[data-act="map"]', bs => bs.map(b => b.getAttribute('data-v')));
-  for (const k of kinds) { await page.click(`[data-act="map"][data-v="${k}"]`); await page.waitForSelector('#mapview'); await page.click('[data-act="mapclose"]'); await page.waitForSelector('#mapview', { state: 'detached' }); }
+  for (const k of kinds) { await (await xt(page, k)).click(`[data-act="map"][data-v="${k}"]`); await page.waitForSelector('#mapview'); await page.click('[data-act="mapclose"]'); await page.waitForSelector('#mapview', { state: 'detached' }); }
   assert.ok(kinds.length >= 5); console.log('✓ every map opens/closes without errors: ' + kinds.join(', '));
   assert.deepStrictEqual(errors, []); console.log('FOCUSED OK');
   await browser.close(); if (srv) srv.kill();

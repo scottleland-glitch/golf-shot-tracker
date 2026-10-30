@@ -1,4 +1,5 @@
 const { chromium } = require('playwright-core'); const assert = require('assert'); const { spawn } = require('child_process');
+const xt = async (p, id) => { if (!(await p.$('[data-stx="' + id + '"].open')) && await p.$('[data-act="stx"][data-v="' + id + '"]')) await p.click('[data-act="stx"][data-v="' + id + '"]'); return p; }; // v96: stat tiles are collapsed – open one first
 const goHist = async p => { if (await p.$('#plusbtn')) await p.click('#plusbtn'); await p.click('[data-act="history"]'); };
 const BASE = process.env.BASE_URL || 'http://127.0.0.1:8775/', OUT = '/workspace/golf-app/screenshots/';
 (async () => {
@@ -22,9 +23,9 @@ const BASE = process.env.BASE_URL || 'http://127.0.0.1:8775/', OUT = '/workspace
     localStorage.setItem('golfsg.rounds.v1', JSON.stringify([mk('c1', 7, 0), mk('c2', 8, 3)]));
   });
   await page.reload(); await goHist(page); await page.click('#histlist [data-act="open"][data-id="c2"]');
-  assert.match(await page.textContent('[data-act="map"][data-v="club"]'), /3 clubs|4 clubs/);
-  await page.locator('[data-act="map"][data-v="club"]').scrollIntoViewIfNeeded(); await page.screenshot({ path: OUT + 'club-tile.png' });
-  await page.click('[data-act="map"][data-v="club"]'); await page.waitForSelector('#clubbtns');
+  assert.match(await (await xt(page, 'club')).textContent('[data-act="map"][data-v="club"]'), /3 clubs|4 clubs/);
+  await (await xt(page, 'club')).locator('[data-act="map"][data-v="club"]').scrollIntoViewIfNeeded(); await page.screenshot({ path: OUT + 'club-tile.png' });
+  await (await xt(page, 'club')).click('[data-act="map"][data-v="club"]'); await page.waitForSelector('#clubbtns');
   assert.strictEqual(await page.locator('#clubbtns button').count(), 17);
   const en = await page.$$eval('#clubbtns button:not([disabled])', e => e.map(x => x.dataset.v)); assert.deepStrictEqual(en, ['Driver', '7i', '9i', '56']);
   // 7i: bias short flagged

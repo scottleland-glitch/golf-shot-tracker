@@ -164,7 +164,7 @@ const hole1 = () => ({ par: 4, finished: true, rows: [R(467, 'tee', { club: 'Dri
     // old hole 2 untouched and still finished, summary/CSV fine
     await page.click('[data-act="next"]'); assert.match(await page.textContent('.hole-done'), /Score 4/);
     const csv = await page.evaluate(() => window.__golf.csvFor ? window.__golf.csvFor([window.__golf.rounds()[0]]) : ''); if (csv) assert.ok(/deep|Deep/i.test(csv), 'CSV has the deep rough start');
-    await page.click('[data-act="summary"]:not([data-end])'); await page.waitForSelector('.big-score'); assert.match(await page.textContent('.big-score'), /7/);
+    await page.click('[data-act="summary"]:not([data-end])'); await page.waitForSelector('#rs-score'); assert.match(await page.textContent('#rs-score'), /^7/);
     // live viewer renders the hole-out (mocked database)
     const S = await page.evaluate(() => LIVE.snapshot(window.__golf.rounds()[0], SG, { name: 'Quincy', now: Date.now() }));
     const VID = 'Hole' + 'x'.repeat(28);

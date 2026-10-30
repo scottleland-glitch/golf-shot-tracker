@@ -1375,23 +1375,62 @@
         done.length ? sum(done.map(function (i) { return S.holes[i].putts; })) : '');
       return t + '</table>';
     };
-    var all = r.holes.map(function (h, i) { return i; }), done = all.filter(function (i) { return S.holes[i].done; });
-    var tYds = sum(r.holes.map(function (h) { return SG.holeYards(h) || 0; })), tPar = sum(r.holes.map(function (h) { return Number(h.par) || 0; }));
-    var tScore = sum(done.map(function (i) { return S.holes[i].strokes; })), tPutts = sum(done.map(function (i) { return S.holes[i].putts; }));
-    var parDone = sum(done.map(function (i) { return Number(r.holes[i].par) || 0; }));
     return '<div class="label">Scorecard – tap a hole to edit</div>' + nine(0, 9, 'OUT', 'card-front') + nine(9, 18, 'IN', 'card-back') +
-      '<table class="scard stotal" id="card-total"><tr><th>TOTAL</th><th>Yds</th><th>Par</th><th>Score</th><th>To par</th><th>Putts</th></tr>' +
-      '<tr><td>' + done.length + '/' + r.holes.length + ' holes</td><td>' + (tYds || '') + '</td><td>' + tPar + '</td><td class="big">' + (done.length ? tScore : '–') + '</td><td class="big" id="card-topar">' +
-      (done.length ? toPar(tScore - parDone) : '–') + '</td><td>' + (done.length ? tPutts : '–') + '</td></tr></table>' +
       '<div class="legend sclegend" id="card-legend"><span><span class="mk mk-eagle"></span>Eagle or better</span><span><span class="mk mk-birdie"></span>Birdie</span><span><span class="mk mk-par lgpar">–</span>Par (no mark)</span>' +
-      '<span><span class="mk mk-bogey"></span>Bogey</span><span><span class="mk mk-double"></span>Double bogey or worse</span><span>Blank = hole not finished. To par counts finished holes only.</span></div>';
+      '<span><span class="mk mk-bogey"></span>Bogey</span><span><span class="mk mk-double"></span>Double bogey or worse</span></div>';
+  }
+  // v96 Round stats top box: Score · To par · Yards · Putts (was the big score + the TOTAL row under the scorecard)
+  function rsTopHTML(r, S) {
+    var sum = function (a) { return a.reduce(function (x, y) { return x + y; }, 0); };
+    var done = r.holes.map(function (h, i) { return i; }).filter(function (i) { return S.holes[i].done; });
+    var tYds = sum(r.holes.map(function (h) { return SG.holeYards(h) || 0; }));
+    var tScore = sum(done.map(function (i) { return S.holes[i].strokes; })), tPutts = sum(done.map(function (i) { return S.holes[i].putts; }));
+    var parDone = sum(done.map(function (i) { return Number(r.holes[i].par) || 0; })), n = done.length, all = n && n === r.holes.length;
+    return '<table class="rstop" id="rs-top"><tr><th>Score</th><th>To par</th><th>Yards</th><th>Putts</th></tr>' +
+      '<tr><td class="big" id="rs-score">' + (n ? tScore : '–') + (n && !all ? '<small id="rs-thru">thru ' + n + '</small>' : '') + '</td><td class="big" id="rs-topar">' + (n ? toPar(tScore - parDone) : '–') +
+      '</td><td id="rs-yds">' + (tYds || '–') + '</td><td id="rs-putts">' + (n ? tPutts : '–') + '</td></tr></table>';
+  }
+  // v96 Quick view: Fairways / GIR / Putts with the strokes gained of their category (Off the tee / Approach / Putting)
+  function quickViewHTML(S) {
+    var pct = function (a, b) { return b ? Math.round(a / b * 100) + '%' : '–'; };
+    var q = function (id, lbl, val, sub, cat) { var c = S.cats[cat];
+      return '<div class="qv" data-q="' + id + '"><span class="qvl">' + lbl + '</span><b>' + val + '</b><small>' + sub + '</small>' +
+        '<em class="qvsg ' + (c.n ? sgCls(c.sg) : '') + '" title="Strokes gained – ' + CAT_NAME[cat] + '">' + (c.n ? fmtSG(c.sg) : '–') + ' <i>SG</i></em></div>'; };
+    return '<div class="label qvhead">Quick view</div><div class="quickview" id="quickview">' +
+      q('fw', 'Fairways', pct(S.fwHit, S.fwTotal), S.fwHit + ' / ' + S.fwTotal + ' hit', 'tee') +
+      q('gir', 'GIR', pct(S.gir, S.girHoles), S.gir + ' / ' + S.girHoles + ' greens', 'approach') +
+      q('putts', 'Putts', S.holesDone ? S.putts : '–', S.holesDone ? (S.putts / S.holesDone).toFixed(1) + ' per hole' : 'no holes yet', 'putting') + '</div>';
+  }
+  // v96 detailed stat tiles: one collapsible row each (collapsed by default; the headline number stays in the header)
+  function stx(id, label, val, body) {
+    var open = !!(view.stx && view.stx[id]);
+    return '<div class="stx' + (open ? ' open' : '') + '" data-stx="' + id + '"><button class="stxh" data-act="stx" data-v="' + id + '" aria-expanded="' + open + '"><span>' + label + '</span><b>' + val + '</b><i class="stxc" aria-hidden="true"></i></button>' +
+      (open ? '<div class="stxb">' + body + '</div>' : '') + '</div>';
+  }
+  function statTilesHTML(S) {
+    var PM = S.puttList.filter(function (p) { return SG.pmissGroup(p.ft); });
+    var PX = SG.proxStats(S.proxList.filter(function (m) { return SG.inBucket('all', m.from); })), nc = {}; clubShots(false).forEach(function (x) { nc[x.club] = 1; }); nc = Object.keys(nc).length;
+    var note = function (t) { return '<p class="stxn">' + t + '</p>'; };
+    return '<div class="stat-grid stxlist" id="stattiles">' +
+      stx('fw', 'Fairways hit', S.fwHit + ' / ' + S.fwTotal, tile('fw', 'Fairways hit – tap for map', S.fwHit + ' / ' + S.fwTotal)) +
+      stx('gir', 'Greens in regulation', S.gir + ' / ' + S.girHoles, tile('gir', 'Greens in reg. – tap for map', S.gir + ' / ' + S.girHoles)) +
+      stx('miss', 'Approach misses', S.apprMiss.length, tile('miss', 'Approach misses (missed green) – tap for map', S.apprMiss.length, missMini(S.apprMiss))) +
+      stx('prox', 'Proximity', PX.n ? fmtFt(PX.avgAllFt) : '–', proxTile(S)) +
+      stx('pin', 'Pin location', S.pinHoles.length + ' / ' + S.holesDone, tile('pin', 'Pin location – tap for map', S.pinHoles.length + ' / ' + S.holesDone, '<small class="mini">holes with a pin set</small>')) +
+      stx('putt', 'Putts', S.putts, puttTile(S)) +
+      stx('pmiss', 'Putt misses', PM.filter(function (p) { return !p.made; }).length, pmissTile(S)) +
+      stx('club', 'Club performance', nc ? nc + (nc === 1 ? ' club' : ' clubs') : '–', clubTile()) +
+      stx('pen', 'Penalty strokes', S.penalties, stat('Penalty strokes', S.penalties) + note('Penalty strokes added this round (OB, water, unplayable…).')) +
+      stx('teelr', 'Tee misses L / R', S.teeLeft + ' / ' + S.teeRight, stat('Tee misses L / R', S.teeLeft + ' / ' + S.teeRight) + note('Par-4 and par-5 tee shots that missed the fairway left / right.')) +
+      stx('glr', 'Missed greens L / R', S.apprLeft + ' / ' + S.apprRight, stat('Missed greens left / right', S.apprLeft + ' / ' + S.apprRight) + note('Approach shots that missed the green to the left / right.')) +
+      stx('gsl', 'Missed greens short / long', S.apprShort + ' / ' + S.apprOver, stat('Missed greens short / long', S.apprShort + ' / ' + S.apprOver) + note('Approach shots that missed the green short / long.')) + '</div>';
   }
   function summaryHTML() {
     var r = round(), bl = blOf(r), S = SG.summarize(r, bl);
     var out = '<div class="topbar frost">' + (view.from === 'history' ? '<button class="txt frostbtn" data-act="history">‹ History</button>' : '<button class="txt frostbtn" data-act="backHole">‹ Round</button>') + '<div class="title"><b>Round stats</b><span>' +
       new Date(r.date).toLocaleDateString() + (r.course ? ' · ' + esc(r.course) : '') + '</span></div><button class="txt frostbtn" data-act="home">Home</button></div>';
-    out += '<div class="big-score"><div class="s">' + (S.holesDone ? S.strokes : '–') + '</div>' +
-      (S.holesDone ? toPar(S.toPar) + ' vs par · ' + S.holesDone + ' hole' + (S.holesDone === 1 ? '' : 's') + ' done' : 'No holes finished yet') + '</div>';
+    if (view.stxRound !== r.id) { view.stx = {}; view.stxRound = r.id; } // tiles start collapsed for each round
+    out += rsTopHTML(r, S) + quickViewHTML(S);
     out += scorecardHTML(r, S) + '<button class="big rpbtn" data-act="replay" data-v="0" id="sumreplay">▶ Hole replay (hole by hole)</button>' +
       (S.holesDone ? '<button class="big rpbtn bzbtn" data-act="bzopen" data-v="round" id="sumbz">🎯 Birdie zone</button>' : '');
     var B = SG.baseline(bl), main = out; out = '';
@@ -1419,16 +1458,7 @@
       'Short game = off the green from 20 yd and in. Ranges include the lower number (60–100 = 60 to under 100 yd); 20–60 = over 20 up to under 60 yd (it also takes the 20–30 yd shots). ' +
       'Avg to pin after = how far from the hole the ball finished: feet on the green, yards × 3 off it, 0 if holed' +
       (pex ? '; <b>' + pex + '</b> approach shot' + (pex === 1 ? '' : 's') + ' with a penalty or OB left out of that average' : '; shots with a penalty or OB are left out of it') + '.</p>';
-    var sgPart = out; out = main + '<h2>Stats</h2><div class="stat-grid">' +
-      tile('fw', 'Fairways hit – tap for map', S.fwHit + ' / ' + S.fwTotal) +
-      tile('gir', 'Greens in reg. – tap for map', S.gir + ' / ' + S.girHoles) +
-      tile('miss', 'Approach misses (missed green) – tap for map', S.apprMiss.length, missMini(S.apprMiss)) +
-      proxTile(S) +
-      tile('pin', 'Pin location – tap for map', S.pinHoles.length + ' / ' + S.holesDone, '<small class="mini">holes with a pin set</small>') +
-      puttTile(S) + pmissTile(S) + clubTile() + stat('Penalty strokes', S.penalties) +
-      stat('Tee misses L / R', S.teeLeft + ' / ' + S.teeRight) +
-      stat('Missed greens left / right', S.apprLeft + ' / ' + S.apprRight) +
-      stat('Missed greens short / long', S.apprShort + ' / ' + S.apprOver) + '</div>';
+    var sgPart = out; out = main + '<h2>Stats</h2>' + statTilesHTML(S);
     out += '<button class="primary big" data-act="pdf" style="margin-top:16px">📄 Make PDF report</button>' + pdfHTML();
     out += '<button class="big" data-act="csv">Export this round (CSV)</button>';
     out += '<button class="big" data-act="backHole">Back to the round</button>';
@@ -2762,6 +2792,7 @@
       case 'pinclear': h.pin = ''; save(); render(); return;
       case 'proxb': { var mv0 = document.getElementById('mapview'), st0 = mv0 ? mv0.scrollTop : 0; view.proxB = v; render(); var mv1 = document.getElementById('mapview'); if (mv1) mv1.scrollTop = st0; return; }
       case 'proxlie': { var mvl = document.getElementById('mapview'), stl = mvl ? mvl.scrollTop : 0; view.proxLie = v; render(); var mvl2 = document.getElementById('mapview'); if (mvl2) mvl2.scrollTop = stl; return; }
+      case 'stx': view.stx = view.stx || {}; view.stx[b.getAttribute('data-v')] = !view.stx[b.getAttribute('data-v')]; render(); return;
       case 'sgtoggle': view.sgOpen = !view.sgOpen; render(); if (view.sgOpen) { var sh = document.getElementById('sgsec'); if (sh) window.scrollTo(0, sh.getBoundingClientRect().top + window.scrollY - 90); } return;
       case 'clubsel': view.club = v; view.heat = null; render(); return;
       case 'compare': view.screen = 'compare'; render(); window.scrollTo(0, 0); return;

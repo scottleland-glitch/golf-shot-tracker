@@ -932,3 +932,35 @@ html body .roundpage.theme-sky .clubrow .holeout.on { color: #1f6b3a; background
 .wedgepage .wflight { display: flex; gap: 4px; padding: 4px; margin: 0 0 12px; border-radius: 16px; background: rgba(255, 255, 255, .45); border: 1px solid rgba(23, 48, 31, .08); }
 .wedgepage .wflight button { flex: 1; min-height: 40px; border: 0; border-radius: 12px; background: none; box-shadow: none; font-size: 15px; font-weight: 400; color: var(--frost-ink-soft, #3f5a48); transform: none; }
 .wedgepage .wflight button.on { background: rgba(255, 255, 255, .92); color: var(--frost-ink, #17301f); font-weight: 600; box-shadow: 0 1px 4px rgba(23, 48, 31, .10); }
+/* ---------- v96 Round stats: top box, Quick view, collapsible stat tiles, small legend ---------- */
+.rstop { width: 100%; border-collapse: separate; border-spacing: 0; table-layout: fixed; margin: 6px 0 12px; background: rgba(255, 255, 255, .62);
+  border: 1px solid var(--frost-line, rgba(23, 48, 31, .1)); border-radius: 20px; overflow: hidden; box-shadow: 0 4px 16px rgba(20, 45, 30, .08); }
+.rstop th { background: none; color: var(--frost-ink-soft, #3f5a48); font-size: 12px; font-weight: 500; letter-spacing: .04em; text-transform: uppercase; padding: 10px 2px 0; text-align: center; border: 0; }
+.rstop td { text-align: center; font-size: 20px; font-weight: 400; padding: 2px 2px 12px; border: 0; color: var(--frost-ink, #17301f); vertical-align: top; }
+.rstop td.big { font-size: 34px; font-weight: 600; line-height: 1.15; }
+.rstop td small { display: block; font-size: 12px; font-weight: 400; color: var(--frost-ink-soft, #3f5a48); line-height: 1.2; }
+.rstop td#rs-yds, .rstop td#rs-putts { padding-top: 10px; }
+.qvhead { margin-top: 2px; }
+.quickview { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin: 0 0 16px; }
+.quickview .qv { display: flex; flex-direction: column; align-items: center; gap: 1px; padding: 10px 4px 9px; border-radius: 18px; background: rgba(255, 255, 255, .62); border: 1px solid var(--frost-line, rgba(23, 48, 31, .1)); text-align: center; }
+.quickview .qvl { font-size: 12px; font-weight: 500; color: var(--frost-ink-soft, #3f5a48); letter-spacing: .03em; }
+.quickview b { font-size: 28px; font-weight: 300; line-height: 1.15; color: var(--frost-ink, #17301f); }
+.quickview small { font-size: 11px; font-weight: 400; color: var(--frost-ink-soft, #3f5a48); }
+.quickview .qvsg { font-style: normal; font-size: 14px; font-weight: 500; margin-top: 3px; color: var(--frost-ink-soft, #3f5a48); }
+.quickview .qvsg.pos { color: #2f7d4a; } .quickview .qvsg.neg { color: #b8504a; }
+.quickview .qvsg i { font-style: normal; font-size: 10px; font-weight: 400; letter-spacing: .04em; opacity: .8; }
+.stat-grid.stxlist { display: flex; flex-direction: column; gap: 0; background: rgba(255, 255, 255, .6); border: 1px solid var(--frost-line, rgba(23, 48, 31, .1)); border-radius: 20px; padding: 2px 12px; }
+.stxlist .stx { border-top: 1px solid rgba(23, 48, 31, .07); }
+.stxlist .stx:first-child { border-top: 0; }
+.stxlist .stxh, .roundpage .stxlist .stxh { display: flex; align-items: center; gap: 10px; width: 100%; min-height: 50px; padding: 8px 2px; background: none !important; border: 0 !important; box-shadow: none !important; border-radius: 12px; text-align: left; color: var(--frost-ink, #17301f); font-size: 16px; font-weight: 400; transform: none; }
+.stxlist .stxh span { flex: 1; }
+.stxlist .stxh b { font-weight: 500; font-size: 16px; }
+.stxlist .stxc { width: 8px; height: 8px; border-right: 1.5px solid currentColor; border-bottom: 1.5px solid currentColor; transform: rotate(45deg) translate(-2px, -2px); opacity: .45; flex: none; margin: 0 4px 0 2px; }
+.stxlist .stx.open .stxc { transform: rotate(-135deg) translate(-2px, -2px); }
+.stxlist .stxb { padding: 0 0 12px; }
+.stxlist .stxb .stat { width: 100%; }
+.stxlist .stxn { margin: 6px 2px 0; font-size: 13px; font-weight: 400; color: var(--frost-ink-soft, #3f5a48); }
+.sclegend { font-size: 12px; font-weight: 400; gap: 4px 12px; color: var(--frost-ink-soft, #3f5a48); }
+.sclegend .mk { transform: scale(.75); transform-origin: center; }
+.sclegend > span { gap: 3px; }
+.sclegend .lgpar { font-weight: 500; }

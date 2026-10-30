@@ -1,4 +1,5 @@
 const { chromium } = require('playwright-core'); const assert = require('assert'); const { spawn } = require('child_process');
+const xt = async (p, id) => { if (!(await p.$('[data-stx="' + id + '"].open')) && await p.$('[data-act="stx"][data-v="' + id + '"]')) await p.click('[data-act="stx"][data-v="' + id + '"]'); return p; }; // v96: stat tiles are collapsed – open one first
 const goHist = async p => { if (await p.$('#plusbtn')) await p.click('#plusbtn'); await p.click('[data-act="history"]'); };
 const BASE = 'http://127.0.0.1:8781/', OUT = '/workspace/golf-app/screenshots/';
 (async () => {
@@ -17,7 +18,7 @@ const BASE = 'http://127.0.0.1:8781/', OUT = '/workspace/golf-app/screenshots/';
     localStorage.clear(); localStorage.setItem('golfsg.player.v1', 'Scott'); localStorage.setItem('golfsg.rounds.v1', JSON.stringify([mk('a', 12), mk('b', 13)])); });
   await page.reload(); await goHist(page); await page.click('#histlist [data-act="open"] >> nth=0');
   for (const m of ['prox', 'gir', 'miss', 'pin', 'putt', 'pmiss']) {
-    await page.click('[data-act="map"][data-v="' + m + '"]'); await page.waitForSelector('#mapview'); await page.click('[data-act="mapscope"][data-v="all"]');
+    await (await xt(page, m)).click('[data-act="map"][data-v="' + m + '"]'); await page.waitForSelector('#mapview'); await page.click('[data-act="mapscope"][data-v="all"]');
     if (m === 'pin') await page.click('[data-act="pinseg"][data-v="center"]');
     const tog = await page.$('#heattog'); if (!tog) { await page.click('[data-act="mapclose"]'); continue; }
     if (m === 'prox') { const all = await page.$('[data-act="proxb"][data-v="all"]'); if (all) await all.click(); await page.waitForSelector('#heattog'); }

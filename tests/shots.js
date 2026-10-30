@@ -1,4 +1,5 @@
 const { chromium } = require('playwright-core'); const { spawn } = require('child_process');
+const xt = async (p, id) => { if (!(await p.$('[data-stx="' + id + '"].open')) && await p.$('[data-act="stx"][data-v="' + id + '"]')) await p.click('[data-act="stx"][data-v="' + id + '"]'); return p; }; // v96: stat tiles are collapsed – open one first
 const goHist = async p => { if (await p.$('#plusbtn')) await p.click('#plusbtn'); await p.click('[data-act="history"]'); };
 const PFX = process.argv[2] || 'before', OUT = '/workspace/golf-app/screenshots/', BASE = process.env.BASE_URL || 'http://127.0.0.1:8767/';
 (async () => {
@@ -19,7 +20,7 @@ const PFX = process.argv[2] || 'before', OUT = '/workspace/golf-app/screenshots/
   await page.screenshot({ path: OUT + PFX + '-home.png' });
   await goHist(page); await page.click('#histlist [data-act="open"][data-id="rs"]'); await page.waitForTimeout(300);
   await page.screenshot({ path: OUT + PFX + '-stats.png' }); await page.screenshot({ path: OUT + PFX + '-stats-full.png', fullPage: true });
-  await page.click('[data-act="map"][data-v="gir"]'); await page.waitForTimeout(300); await page.screenshot({ path: OUT + PFX + '-map.png' });
+  await (await xt(page, 'gir')).click('[data-act="map"][data-v="gir"]'); await page.waitForTimeout(300); await page.screenshot({ path: OUT + PFX + '-map.png' });
   await page.goto(BASE + '?y=' + Date.now()); await page.waitForTimeout(500);
   if (!(await page.$('[data-act="history"]'))) await page.click('[data-act="home"] >> nth=0').catch(() => {});
   await goHist(page); await page.click('#histlist [data-act="open"][data-id="rs"]');
