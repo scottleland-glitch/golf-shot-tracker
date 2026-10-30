@@ -51,7 +51,7 @@ const OUT = '/workspace/golf-app/screenshots/', PORT = 8833, BASE = 'http://127.
   console.log('  legend ' + lg.fs + 'px / weight ' + lg.fw + ', no "Blank =" note');
   // ---- detailed tiles collapsed by default, header keeps the headline number
   const heads = await page.$$eval('#stattiles .stxh', h => h.map(x => ({ v: x.dataset.v, l: x.querySelector('span').textContent, n: x.querySelector('b').textContent, ex: x.getAttribute('aria-expanded') })));
-  assert.deepStrictEqual(heads.map(h => h.v), ['fw', 'gir', 'miss', 'prox', 'pin', 'putt', 'pmiss', 'club', 'pen', 'teelr', 'glr', 'gsl']);
+  assert.deepStrictEqual(heads.map(h => h.v), ['fw', 'gir', 'miss', 'prox', 'pin', 'putt', 'pmiss', 'lag', 'club', 'pen', 'teelr', 'glr', 'gsl']);
   assert.ok(heads.every(h => h.ex === 'false'), 'all collapsed'); assert.strictEqual(await page.$$eval('#stattiles .stxb, #stattiles [data-act="map"]', x => x.length), 0, 'no bodies yet');
   const H = Object.fromEntries(heads.map(h => [h.v, h]));
   assert.strictEqual(H.fw.n, exp.fw.join(' / ')); assert.strictEqual(H.gir.n, exp.gir.join(' / ')); assert.strictEqual(H.putt.n, '31'); assert.strictEqual(H.fw.l, 'Fairways hit');

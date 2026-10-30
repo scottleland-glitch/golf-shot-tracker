@@ -1165,3 +1165,8 @@ table.gapt tbody tr:last-child td { border-bottom: 0; }
 .sclegend .mk-birdie, .sclegend .mk-eagle { border-color: #3a8a57; } .sclegend .mk-bogey { border-color: #c79a3a; border-radius: 4px; }
 .sclegend .mk-eagle { box-shadow: inset 0 0 0 1.5px #fff, inset 0 0 0 2.5px #3a8a57; }
 .sclegend .mk-double { border-color: #c4655c; border-radius: 4px; box-shadow: inset 0 0 0 1.5px #fff, inset 0 0 0 2.5px #c4655c; }
+/* ---------- v104 Lag putts box under the putt-misses map ---------- */
+.lagbox { margin: 12px 0 6px; padding: 10px 12px 4px; border-radius: 16px; background: rgba(255, 255, 255, .7); border: 1px solid rgba(23, 48, 31, .08); }
+.lagbox .lagh { font-size: 14px; font-weight: 600; margin: 0 0 6px; }
+.lagbox .lagcells { margin: 0; }
+.lagbox .help { margin: 6px 0 4px; font-size: 12.5px; }

@@ -762,10 +762,21 @@
     return { rounds: list.filter(function (r) { return drop.indexOf(r.id) < 0; }), folded: drop };
   }
   // ---- Putt misses ----
-  // Groups by start distance (no overlap, lower bound included): under 6 ft; 6 to under 10; 10 to under 20; 20 to under 30; 30 to 50. Over 50 ft not shown.
-  var PMISS_GROUPS = [{ id: '30-50', name: '30–50 ft', min: 30, max: 50 }, { id: '20-30', name: '20–30 ft', min: 20, max: 30 }, { id: '10-20', name: '10–20 ft', min: 10, max: 20 },
-    { id: '6-10', name: '6–10 ft', min: 6, max: 10 }, { id: '0-6', name: 'Under 6 ft', min: 0, max: 6 }];
-  function pmissGroup(ft) { ft = Number(ft); if (!(ft > 0) || ft > 50) return null; for (var i = PMISS_GROUPS.length - 1; i >= 0; i--) { var g = PMISS_GROUPS[i]; if (ft < g.max || (g.max === 50 && ft <= 50)) return g.id; } return null; }
+  // v104: only putts that START 10 ft or closer count as misses (Scott: "only include putts inside 10 feet").
+  // Groups by start distance: under 6 ft; 6 to 10 ft (10 ft itself included). Longer putts are lag putts (see lagStats).
+  var PMISS_MAX_FT = 10, LAG_INSIDE_FT = 3;
+  var PMISS_GROUPS = [{ id: '6-10', name: '6–10 ft', min: 6, max: 10 }, { id: '0-6', name: 'Under 6 ft', min: 0, max: 6 }];
+  function pmissGroup(ft) { ft = Number(ft); if (!(ft > 0) || ft > PMISS_MAX_FT) return null; return ft < 6 ? '0-6' : '6-10'; }
+  // v104 lag putts: any putt that starts MORE than 10 ft away. Success = it finished within 3 ft of the hole (3 ft itself counts), holed counts too.
+  // endFt = where it finished = the distance of the next putt (feet on the green, yards x 3 off it; 0 when holed) – same as the putt-miss map.
+  function lagPutt(ft) { return Number(ft) > PMISS_MAX_FT; }
+  function lagGood(p) { return !!p.made || (p.endFt != null && Number(p.endFt) <= LAG_INSIDE_FT); }
+  function lagStats(list) { // list = putts of any kind; only those over 10 ft are used
+    var L = (list || []).filter(function (p) { return lagPutt(p.ft); }), ok = L.filter(lagGood).length;
+    return { attempts: L.length, inside: ok, outside: L.length - ok, pct: L.length ? 100 * ok / L.length : null,
+      made: L.filter(function (p) { return p.made; }).length,
+      avgLeaveFt: L.length ? L.reduce(function (t, p) { return t + (p.made ? 0 : Number(p.endFt) || 0); }, 0) / L.length : null };
+  }
   // Where a missed putt finished: Short = any short (incl. short left/right); Long = finished long AND more than 3 ft past;
   // otherwise left/right by the entered side (long left/right within 3 ft = Left/Right); straight long within 3 ft = 'nearlong'
   // (a good-speed miss, shown separately, not counted as Long); no direction = 'nodir'.
@@ -784,9 +795,9 @@
     return /^long/.test(dir) ? 'long' : /^short/.test(dir) ? 'short' : '';
   }
   // Linear ring scale per putt-miss group: ring step and outer ring (ft); shrinks to the data, leftovers beyond the edge get '›'.
-  var PMISS_SCALE = { 6: [1, 5], 10: [1, 6], 20: [2, 10], 30: [3, 15], 50: [5, 20] };
+  var PMISS_SCALE = { 6: [1, 5], 10: [1, 6] };
   function pmissScale(g, ends) {
-    var d = PMISS_SCALE[g.max] || [5, 20], step = d[0], cap = d[1], m = 0;
+    var d = PMISS_SCALE[g.max] || [1, 6], step = d[0], cap = d[1], m = 0;
     (ends || []).forEach(function (f) { if (Number(f) > m) m = Number(f); });
     var max = m ? Math.min(cap, Math.max(step * 3, Math.ceil(m / step) * step)) : cap;
     return { step: step, max: max };
@@ -798,7 +809,7 @@
     return { attempts: list.length, made: list.length - miss.length, misses: miss.length, counts: c, pct: { left: pct('left'), right: pct('right'), short: pct('short'), long: pct('long'), nearlong: pct('nearlong'), nodir: pct('nodir') },
       avgLeftFt: miss.length ? miss.reduce(function (t, p) { return t + (p.endFt || 0); }, 0) / miss.length : null };
   }
-  var api = { PMISS_GROUPS: PMISS_GROUPS, pmissGroup: pmissGroup, pmissClass: pmissClass, pmissStats: pmissStats, pmissScale: pmissScale, CLUBS: CLUBS, arrivalDepth: arrivalDepth, roundEmpty: roundEmpty, foldStubs: foldStubs, pdfSafe: pdfSafe, reportFileName: reportFileName, pinSegments: pinSegments, REPORT_GROUPS: REPORT_GROUPS, reportGroup: reportGroup, SHORT_MAX_YD: SHORT_MAX_YD, APPR_BUCKETS: APPR_BUCKETS, apprBucket: apprBucket, proxAfterFt: proxAfterFt, puttKind: puttKind, threePutts: threePutts, puttScale: puttScale, puttRadius: puttRadius, puttPlace: puttPlace, PUTT_BANDS: PUTT_BANDS, puttGroup: puttGroup, puttStats: puttStats, makeBackup: makeBackup, parseBackup: parseBackup, mergeRounds: mergeRounds, conflictsOf: conflictsOf, PROX_LIES: PROX_LIES, lieGroup: lieGroup, proxByLie: proxByLie, proxWarnings: proxWarnings, PROX_BUCKETS: PROX_BUCKETS, inBucket: inBucket, roundYd: roundYd, proxStats: proxStats, reachedGreen: reachedGreen, PIN_GRID: PIN_GRID, PIN_NAME: PIN_NAME, normPin: normPin, DIR8: DIR8, DIR_NAME: DIR_NAME, DIR_ANGLE: DIR_ANGLE, normDir: normDir, expected: expected, expectedPGA: expectedPGA, BASELINES: BASELINES, baseline: function (id) { return BL[id] || BL.pga; },
+  var api = { PMISS_GROUPS: PMISS_GROUPS, PMISS_MAX_FT: PMISS_MAX_FT, LAG_INSIDE_FT: LAG_INSIDE_FT, lagPutt: lagPutt, lagGood: lagGood, lagStats: lagStats, pmissGroup: pmissGroup, pmissClass: pmissClass, pmissStats: pmissStats, pmissScale: pmissScale, CLUBS: CLUBS, arrivalDepth: arrivalDepth, roundEmpty: roundEmpty, foldStubs: foldStubs, pdfSafe: pdfSafe, reportFileName: reportFileName, pinSegments: pinSegments, REPORT_GROUPS: REPORT_GROUPS, reportGroup: reportGroup, SHORT_MAX_YD: SHORT_MAX_YD, APPR_BUCKETS: APPR_BUCKETS, apprBucket: apprBucket, proxAfterFt: proxAfterFt, puttKind: puttKind, threePutts: threePutts, puttScale: puttScale, puttRadius: puttRadius, puttPlace: puttPlace, PUTT_BANDS: PUTT_BANDS, puttGroup: puttGroup, puttStats: puttStats, makeBackup: makeBackup, parseBackup: parseBackup, mergeRounds: mergeRounds, conflictsOf: conflictsOf, PROX_LIES: PROX_LIES, lieGroup: lieGroup, proxByLie: proxByLie, proxWarnings: proxWarnings, PROX_BUCKETS: PROX_BUCKETS, inBucket: inBucket, roundYd: roundYd, proxStats: proxStats, reachedGreen: reachedGreen, PIN_GRID: PIN_GRID, PIN_NAME: PIN_NAME, normPin: normPin, DIR8: DIR8, DIR_NAME: DIR_NAME, DIR_ANGLE: DIR_ANGLE, normDir: normDir, expected: expected, expectedPGA: expectedPGA, BASELINES: BASELINES, baseline: function (id) { return BL[id] || BL.pga; },
     CALIB_ROUND: CALIB_ROUND, catLoss: catLoss, analyzeHole: analyzeHole, summarize: summarize,
     rowsToShots: rowsToShots, shotsToRows: shotsToRows, migrateV2Rows: migrateV2Rows, v1ToRows: v1ToRows, holeYards: holeYards,
     rowUnit: rowUnit, isHoled: isHoled, holedKind: holedKind, lieOf: lieOf, distOf: distOf, rowStrokes: rowStrokes, isPenalty: isPenalty,

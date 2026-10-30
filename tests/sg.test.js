@@ -719,7 +719,12 @@ test('PDF-report helper (not used by the map): SG distance groups + distinct col
   console.log('stub fold ok');
 })();
 (function () { const assert = require('assert'); const SGm = require('../sg.js');
-  assert.deepStrictEqual([0.5, 5.9, 6, 9.9, 10, 19.9, 20, 29.9, 30, 50, 50.1].map(SGm.pmissGroup), ['0-6', '0-6', '6-10', '6-10', '10-20', '10-20', '20-30', '20-30', '30-50', '30-50', null]);
+  // v104: only putts of 10 ft and in are putt misses; longer ones are lag putts
+  assert.deepStrictEqual([0.5, 5.9, 6, 9.9, 10, 10.1, 19.9, 30, 50, 50.1].map(SGm.pmissGroup), ['0-6', '0-6', '6-10', '6-10', '6-10', null, null, null, null, null]);
+  assert.deepStrictEqual(SGm.PMISS_GROUPS.map(g => g.id), ['6-10', '0-6']);
+  assert.deepStrictEqual([10, 10.1, 40].map(SGm.lagPutt), [false, true, true]);
+  const lg = SGm.lagStats([{ ft: 8, made: false, endFt: 5 }, { ft: 12, made: false, endFt: 3 }, { ft: 25, made: false, endFt: 3.5 }, { ft: 40, made: true, endFt: 0 }, { ft: 10, made: false, endFt: 6 }]);
+  assert.deepStrictEqual([lg.attempts, lg.inside, lg.outside, lg.made, Math.round(lg.pct), lg.avgLeaveFt], [3, 2, 1, 1, 67, 6.5 / 3]);
   const c = (d, ft) => SGm.pmissClass({ endDir: d, endFt: ft });
   assert.deepStrictEqual([c('short', 1), c('shortleft', 5), c('long', 4), c('long', 3), c('longleft', 2), c('longright', 5), c('left', 1), c('', 2)], ['short', 'short', 'long', 'nearlong', 'left', 'long', 'left', 'nodir']);
   const st = SGm.pmissStats([{ made: true }, { made: false, endDir: 'short', endFt: 2 }, { made: false, endDir: 'right', endFt: 1 }]);
@@ -729,9 +734,7 @@ test('pmissScale: linear rings per putt-miss group, shrink to data, capped', () 
   const g = id => SG.PMISS_GROUPS.find(x => x.max === id);
   assert.deepStrictEqual(SG.pmissScale(g(6), []), { step: 1, max: 5 });
   assert.deepStrictEqual(SG.pmissScale(g(10), [2, 4.5]), { step: 1, max: 5 });
-  assert.deepStrictEqual(SG.pmissScale(g(20), [3]), { step: 2, max: 6 });
-  assert.deepStrictEqual(SG.pmissScale(g(30), [40]), { step: 3, max: 15 });
-  assert.deepStrictEqual(SG.pmissScale(g(50), [7]), { step: 5, max: 15 });
+  assert.deepStrictEqual(SG.pmissScale(g(10), [9]), { step: 1, max: 6 }); // capped at 6 ft (› beyond)
 });
 
 test('arrivalDepth: pin high / long / short for the shot that reached the green', () => {

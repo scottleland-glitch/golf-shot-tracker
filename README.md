@@ -135,7 +135,7 @@ The **+** menu is New round · **My Bag** · Rounds · Settings. My Bag has a **
 ## Round stats page (v96)
 - **Top box** (right under the title bar): **Score · To par · Yards · Putts**. The big "78 / +6 vs par · 18 holes done" header, the old TOTAL row under the scorecard and its Par / "18/18 holes" columns are gone. To par counts finished holes only; a round that isn't finished shows a small "thru N" under the score.
 - **Quick view** (under the box): three tiles – **Fairways** % (hit / par-4 and par-5 tee shots), **GIR** % (greens / finished holes) and **Putts** (total, per hole). Each shows the strokes gained of its category, green when positive and red when negative: Fairways → *Off the tee* SG, GIR → *Approach* SG, Putts → *Putting* SG (the same numbers as in the Strokes gained section, against the round's baseline).
-- **Stats:** every detailed tile (Fairways hit, Greens in regulation, Approach misses, Proximity, Pin location, Putts, Putt misses, Club performance, Penalty strokes, Tee misses L / R, Missed greens L / R, Missed greens short / long) is a row that starts **collapsed** with its headline number on the right. Tap the row to open it (the full tile – tap it again for the map) and tap again to close it. Open rows stay open while you go in and out of maps; another round starts collapsed.
+- **Stats:** every detailed tile (Fairways hit, Greens in regulation, Approach misses, Proximity, Pin location, Putts, Putt misses (10 ft and in), Lag putts (over 10 ft), Club performance, Penalty strokes, Tee misses L / R, Missed greens L / R, Missed greens short / long) is a row that starts **collapsed** with its headline number on the right. Tap the row to open it (the full tile – tap it again for the map) and tap again to close it. Open rows stay open while you go in and out of maps; another round starts collapsed.
 - The scorecard legend is smaller and lighter, and the "Blank = hole not finished…" note is gone. The scorecards (tap a hole to edit) are unchanged. The live-share viewer is unchanged.
 
 ## OneDrive removed (v101)
@@ -255,3 +255,11 @@ Rows, in three groups split by a thin line (there is no player-name row):
   - **Recovery** – a shot (not the last one) finished in trouble: in the trees, in a hazard / penalty area, OB or with a penalty. ✓ if you still made par or better, ⊘ if not. Blank when nothing went into trouble.
 - **OUT / IN / TOT columns**: par, length, score, putts and strokes gained are added up (finished holes only). GIR, FIR, Up & down, Sandies and Recovery show "made / chances", e.g. GIR 7/18, FIR 8/14. Drive dist, 1st putt and Last putt show the average. Club is left blank.
 - Cache `golf-sg-v103`.
+
+## Putt misses and lag putts (v104)
+Putts are now judged in two ways, depending on how far away they start (the first-putt distance of each putt, any putt on the hole):
+- **Putt misses (10 ft and in)** – only putts that start **10 ft or closer** count. Two groups: **Under 6 ft** and **6–10 ft** (a putt from exactly 10 ft is in the 6–10 ft group). The old 10–20, 20–30 and 30–50 ft groups are gone from the tile, the map buttons, the help text and the PDF. The tile shows how many of these putts you missed and "made X/Y (putts of 10 ft and in)".
+- **Lag putts (over 10 ft)** – every putt that starts **more than 10 ft** away. It doesn't need to go in, it just needs to finish **inside 3 ft**: a putt that finishes 3 ft or closer (exactly 3 ft counts) or goes in is good. The new tile, right under Putt misses, shows e.g. "4 / 6" and "4 of 6 finished inside 3 ft (67%) · avg leave 3.4 ft". Avg leave = the average distance left after the lag putt (holed = 0 ft). Where a putt finished uses the same finish distance as the putt-misses map (the next putt's distance).
+- Tap either tile to open the putt-misses map. Under the map a **Lag putts** box shows the same lag numbers for the scope you pick – **This round** or **All rounds** – and the PDF's putt-miss pages show them too.
+- Not changed: strokes gained (including putting), the 1st putt stats and the putting map.
+- Cache `golf-sg-v104`.

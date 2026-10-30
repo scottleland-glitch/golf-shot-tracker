@@ -3,11 +3,12 @@
 // v102: History is now "Rounds" (tight list); Archive is "Settings" in the + menu; My Bag has a Bag | Wedge ladder toggle (Profile gone).
 // v100: Best vs worst rounds – "Where the strokes go" table split into Best / Worst column groups (Avg ft, GIR, SG) + Gap.
 // v103: the round scorecard is one soft card that scrolls sideways (holes 1-18, OUT / IN / TOT) with strokes gained and stats rows.
+// v104: putt misses only count putts of 10 ft and in; longer putts are lag putts (good = finished inside 3 ft).
 // v99: Change player – move saved rounds to another player (History select mode + round page), Drive files follow.
 // v98: Google Drive automatic backup + restore (gdrive.js), one folder per player, multi-phone merge.
 // v97: Send round (file or PINHIGH1: code) + Add a round in History (share.js).
 // v96: Round stats – Score/To par/Yards/Putts box on top, Quick view, collapsible stat tiles, smaller legend.
-const CACHE = 'golf-sg-v103';
+const CACHE = 'golf-sg-v104';
 const ASSETS = ['./', './img/home-bg.webp', './img/oriole.webp', './index.html', './styles.css', './sg.js', './birdie.js', './voice.js', './courses.js', './bag.js', './wedges.js', './live.js', './share.js', './gdrive.js', './app.js', './config.js', './vendor/jspdf.umd.min.js',
   './manifest.webmanifest', './icons/apple-touch-icon.png', './icons/icon-192.png',
   './icons/icon-512.png', './icons/icon-512-maskable.png'];
