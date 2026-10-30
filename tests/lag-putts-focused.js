@@ -1,7 +1,8 @@
-// v104 Putt misses = putts of 10 ft and in only; putts from more than 10 ft are lag putts (good = finished inside 3 ft, 3 ft counts, holed counts).
-// Fixture: first putts of 4, 8, 10, 12, 25, 40, 40 and 12 ft with different leaves. Checks: the misses tile / map only count putts of 10 ft or less
-// (exactly 10 ft is in, two groups: under 6 ft and 6–10 ft, no 10–20 / 20–30 / 30–50 groups); the Lag putts tile counts putts over 10 ft with the 3 ft
-// line (exactly 3 ft is inside, 3.5 ft is not); the lag box in the map follows This round / All rounds; putting totals still include every putt.
+// v105 (was v104) Putt misses = FIRST putt of each hole when it starts 10 ft or closer; Lag putts = FIRST putt of each hole when it starts over 10 ft
+// (good = finished inside 3 ft, exactly 3 ft counts, holed counts). Second / third putts never count in either (a tap-in after a lag putt doesn't pad them).
+// Fixture: first putts of 4, 8, 10, 12, 25, 40, 40 and 12 ft with different leaves. Checks: exactly 10 ft is a putt-miss 1st putt (6–10 ft group);
+// exactly 3 ft left is inside, 3.5 ft is not; the 2 ft tap-in after the 40 ft lag and the 11 ft 2nd putt don't count anywhere; the two groups only;
+// the lag box in the map follows This round / All rounds; putting totals still include every putt.
 const { chromium } = require('playwright-core'); const assert = require('assert'); const { spawn } = require('child_process');
 const OUT = '/workspace/golf-app/screenshots/', PORT = 8842, BASE = 'http://127.0.0.1:' + PORT + '/';
 const ok = m => console.log('ok - ' + m);
@@ -40,46 +41,46 @@ R2.holes = [{ par: 4, finished: true, rows: [R(400, 'tee'), R(150, 'fairway'), R
 
     // ---------- 1. the engine ----------
     const E = await P.evaluate(() => { const S = SG.summarize(window.__golf.rounds().find(r => r.id === 'lag1'), 'pga');
-      return { putts: S.putts, list: S.puttList.map(p => [p.ft, p.made, p.endFt, SG.pmissGroup(p.ft), SG.lagPutt(p.ft), SG.lagPutt(p.ft) ? SG.lagGood(p) : null]), lag: SG.lagStats(S.puttList),
+      return { putts: S.putts, pm: SG.pmissList(S.puttList).map(p => p.ft), lg: SG.lagList(S.puttList).map(p => p.ft), lgGood: SG.lagList(S.puttList).map(p => [p.ft, p.endFt, SG.lagGood(p)]), list: S.puttList.map(p => [p.ft, p.made, p.endFt, SG.pmissGroup(p.ft), SG.lagPutt(p.ft), SG.lagPutt(p.ft) ? SG.lagGood(p) : null]), lag: SG.lagStats(S.puttList),
         groups: SG.PMISS_GROUPS.map(g => g.id) }; });
     assert.strictEqual(E.putts, 15); assert.strictEqual(E.list.length, 15); ok('putting totals still count all 15 putts');
     assert.deepStrictEqual(E.groups, ['6-10', '0-6']);
-    const misses = E.list.filter(p => p[3]), lags = E.list.filter(p => p[4]);
-    assert.deepStrictEqual(misses.map(p => p[0]), [4, 8, 2, 10, 4, 3, 3.5, 2, 1]); assert.ok(misses.every(p => p[0] <= 10) && lags.every(p => p[0] > 10));
-    assert.deepStrictEqual(E.list.find(p => p[0] === 10).slice(3, 5), ['6-10', false]); ok('exactly 10 ft is a putt-miss putt (6–10 ft group), not a lag putt');
-    assert.deepStrictEqual(lags.map(p => [p[0], p[2], p[5]]), [[12, 3, true], [25, 3.5, false], [40, 2, true], [40, 0, true], [12, 11, false], [11, 1, true]]);
-    ok('lag putts: 12→3 ft inside (exactly 3 ft counts), 25→3.5 ft outside, 40→2 ft inside, 40 holed inside, 12→11 ft outside, 11→1 ft inside');
-    assert.deepStrictEqual([E.lag.attempts, E.lag.inside, E.lag.outside, Math.round(E.lag.pct), Math.round(E.lag.avgLeaveFt * 10) / 10], [6, 4, 2, 67, 3.4]);
+    assert.deepStrictEqual(E.pm, [4, 8, 10]); assert.deepStrictEqual(E.lg, [12, 25, 40, 40, 12]);
+    ok('putt misses use only 1st putts of 10 ft and in (4, 8, 10); lag putts only 1st putts over 10 ft (12, 25, 40, 40, 12) – the 2 ft tap-in after the 40 ft lag and the 11 ft 2nd putt are not counted');
+    assert.deepStrictEqual(E.list.find(p => p[0] === 10).slice(3, 5), ['6-10', false]); ok('a 1st putt from exactly 10 ft is a putt-miss putt (6–10 ft group), not a lag putt');
+    assert.deepStrictEqual(E.lgGood, [[12, 3, true], [25, 3.5, false], [40, 2, true], [40, 0, true], [12, 11, false]]);
+    ok('lag 1st putts: 12→3 ft inside (exactly 3 ft counts), 25→3.5 ft outside, 40→2 ft inside, 40 holed inside, 12→11 ft outside');
+    assert.deepStrictEqual([E.lag.attempts, E.lag.inside, E.lag.outside, Math.round(E.lag.pct), Math.round(E.lag.avgLeaveFt * 10) / 10], [5, 3, 2, 60, 3.9]);
 
     // ---------- 2. tiles ----------
     await open('pmiss'); await open('lag');
     const T = await P.evaluate(() => { const h = id => document.querySelector(`[data-stx="${id}"] .stxh`); return {
       pmH: h('pmiss').textContent, pmTile: document.querySelector('[data-stx="pmiss"] .stat.tile').textContent, lagH: h('lag').textContent, lagTile: document.querySelector('[data-stx="lag"] .stat.tile').textContent,
       order: [...document.querySelectorAll('#stattiles [data-act="stx"]')].map(x => x.getAttribute('data-v')) }; });
-    assert.strictEqual(T.pmH, 'Putt misses (10 ft and in)2'); assert.match(T.pmTile, /made 7\/9 \(putts of 10 ft and in\)/); assert.ok(!/50 ft/.test(T.pmTile));
-    assert.strictEqual(T.lagH, 'Lag putts (over 10 ft)4 / 6'); assert.match(T.lagTile, /4 of 6 finished inside 3 ft \(67%\) · avg leave 3\.4 ft/);
+    assert.strictEqual(T.pmH, 'Putt misses (1st putt, 10 ft and in)2 of 3 missed'); assert.match(T.pmTile, /^2\s*Putt misses \(1st putt, 10 ft and in\) – tap for map\s*Missed 2 of 3 first putts from 10 ft and in \(made 1\)$/); assert.ok(!/50 ft/.test(T.pmTile));
+    assert.strictEqual(T.lagH, 'Lag putts (1st putt, over 10 ft)3 of 5 inside 3 ft'); assert.match(T.lagTile, /^3 of 5\s*Lag putts \(1st putt, over 10 ft\) – tap for map\s*3 of 5 first putts from over 10 ft finished inside 3 ft \(60%\) · avg leave 3\.9 ft$/);
     assert.strictEqual(T.order.indexOf('lag'), T.order.indexOf('pmiss') + 1);
-    ok('tiles: Putt misses (10 ft and in) 2 – made 7/9; Lag putts (over 10 ft) 4 / 6 – "4 of 6 finished inside 3 ft (67%) · avg leave 3.4 ft", right under Putt misses');
+    ok('rows: "Putt misses (1st putt, 10 ft and in) – 2 of 3 missed", "Lag putts (1st putt, over 10 ft) – 3 of 5 inside 3 ft"; tiles: 2 / "Missed 2 of 3 first putts from 10 ft and in (made 1)", 3 of 5 / "3 of 5 first putts from over 10 ft finished inside 3 ft (60%) · avg leave 3.9 ft"');
     await P.evaluate(() => window.scrollTo(0, document.querySelector('[data-stx="pmiss"]').getBoundingClientRect().top + window.scrollY - 140));
-    await shot('lag-putts-tile.png');
+    await shot('putt-misses-first-putt.png');
 
     // ---------- 3. putt-misses map: two groups only, lag box follows the scope ----------
     await P.click('[data-stx="lag"] [data-act="map"][data-v="pmiss"]'); await P.waitForSelector('#pmissmap');
     const g = await P.$$eval('#pmgroups button', bs => bs.map(x => [x.getAttribute('data-v'), +x.getAttribute('data-n'), x.textContent]));
-    assert.deepStrictEqual(g.map(x => x.slice(0, 2)), [['6-10', 2], ['0-6', 7]]); ok('map groups: 6–10 ft (2 putts) and Under 6 ft (7) – no 10–20, 20–30 or 30–50 ft groups');
+    assert.deepStrictEqual(g.map(x => x.slice(0, 2)), [['6-10', 2], ['0-6', 1]]); ok('map groups: 6–10 ft (2 first putts) and Under 6 ft (1) – no 10–20, 20–30 or 30–50 ft groups, no 2nd putts');
     await P.click('#pmgroups [data-v="6-10"]'); await P.waitForTimeout(150);
-    assert.strictEqual(await P.textContent('#mapsum'), '2 missed of 2 putts from 6–10 ft this round'); assert.strictEqual(await P.locator('#pmissmap .pmend').count(), 2);
+    assert.strictEqual(await P.textContent('#mapsum'), '2 missed of 2 first putts from 6–10 ft this round'); assert.strictEqual(await P.locator('#pmissmap .pmend').count(), 2);
     const lb = async () => P.$$eval('#lagbox .stat', s => s.map(x => x.querySelector('span').textContent + ': ' + x.querySelector('b').textContent));
-    assert.deepStrictEqual(await lb(), ['Lag putts inside 3 ft: 4 / 6 (67%)', 'Avg leave (lag putts): 3.4 ft']); assert.match(await P.textContent('#lagbox .lagh'), /this round/);
-    assert.match(await P.textContent('#mapview'), /Only putts that start 10 ft or closer count here/);
-    ok('6–10 ft: 2 missed of 2 (8 ft and exactly 10 ft); lag box this round: 4 / 6 (67%), avg leave 3.4 ft; help text explains the 10 ft / 3 ft rule');
-    await P.locator('#mapview').evaluate(e => e.scrollTop = 0); await shot('putt-misses-10ft.png');
+    assert.deepStrictEqual(await lb(), ['Finished inside 3 ft: 3 of 5 (60%)', 'Avg leave: 3.9 ft']); assert.match(await P.textContent('#lagbox .lagh'), /^Lag putts \(1st putt, over 10 ft\) – this round$/);
+    { const pc = await P.$$eval('#pmcells .stat', s => s.map(x => x.textContent)); assert.ok(pc.some(t => /1st putts made/.test(t) && /0 of 2/.test(t)), JSON.stringify(pc)); }
+    assert.match(await P.textContent('#mapview'), /Only the first putt on each hole counts here/);
+    ok('6–10 ft: 2 missed of 2 first putts (8 ft and exactly 10 ft), 1st putts made 0 of 2; lag box this round: 3 of 5 (60%), avg leave 3.9 ft; help text says first putts only');
     await P.click('[data-act="mapscope"][data-v="all"]'); await P.waitForSelector('#lagbox');
     const ga = await P.$$eval('#pmgroups button', bs => bs.map(x => [x.getAttribute('data-v'), +x.getAttribute('data-n')]));
-    assert.deepStrictEqual(ga, [['6-10', 3], ['0-6', 8]]);
-    assert.deepStrictEqual(await lb(), ['Lag putts inside 3 ft: 4 / 7 (57%)', 'Avg leave (lag putts): 3.6 ft']); assert.match(await P.textContent('#lagbox .lagh'), /2 rounds/);
-    ok('All rounds (2): misses groups 6–10 ft 3 · under 6 ft 8; lag 4 / 7 (57%) – the 15 ft putt left at 5 ft is outside; avg leave 3.6 ft');
-    await P.click('[data-act="mapscope"][data-v="round"]'); await P.waitForSelector('#lagbox'); assert.deepStrictEqual((await lb())[0], 'Lag putts inside 3 ft: 4 / 6 (67%)');
+    assert.deepStrictEqual(ga, [['6-10', 3], ['0-6', 1]]);
+    assert.deepStrictEqual(await lb(), ['Finished inside 3 ft: 3 of 6 (50%)', 'Avg leave: 4.1 ft']); assert.match(await P.textContent('#lagbox .lagh'), /2 rounds/);
+    ok('All rounds (2): first-putt misses 6–10 ft 3 · under 6 ft 1 (the 5 ft 2nd putt in round 2 not counted); lag 3 of 6 (50%) – the 15 ft putt left at 5 ft is outside; avg leave 4.1 ft');
+    await P.click('[data-act="mapscope"][data-v="round"]'); await P.waitForSelector('#lagbox'); assert.deepStrictEqual((await lb())[0], 'Finished inside 3 ft: 3 of 5 (60%)');
 
     assert.deepStrictEqual(errors, []); ok('no page errors, no outside calls');
     console.log('ALL OK lag-putts-focused');

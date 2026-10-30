@@ -26,14 +26,14 @@ const BASE = process.env.BASE_URL || 'http://127.0.0.1:8770/', OUT = '/workspace
   await (await xt(page, 'pmiss')).click('[data-act="map"][data-v="pmiss"]'); await page.waitForSelector('#pmissmap');
   const counts = await page.$$eval('#pmgroups button', bs => bs.map(x => [x.getAttribute('data-v'), +x.getAttribute('data-n'), x.disabled]));
   console.log(counts);
-  const total = await page.evaluate(() => SG.summarize(window.__golf.rounds()[0], 'pga').puttList.filter(p => SG.pmissGroup(p.ft)).length);
+  const total = await page.evaluate(() => SG.summarize(window.__golf.rounds()[0], 'pga').puttList.filter(p => p.n === 1 && SG.pmissGroup(p.ft)).length); // v105: 1st putts only
   assert.strictEqual(counts.reduce((t, c) => t + c[1], 0), total, 'group counts add up'); counts.forEach(c => assert.strictEqual(c[2], c[1] === 0));
   const shots = [];
   for (const c of counts.filter(c => c[1])) {
     await page.click(`#pmgroups [data-v="${c[0]}"]`); await page.waitForTimeout(150);
     const nMiss = await page.locator('#pmissmap .pmend').count(), cells = await page.$$eval('#pmcells .stat', s => s.map(x => x.textContent));
-    const exp = await page.evaluate(g => { const L = SG.summarize(window.__golf.rounds()[0], 'pga').puttList.filter(p => SG.pmissGroup(p.ft) === g); return SG.pmissStats(L); }, c[0]);
-    assert.strictEqual(nMiss, exp.misses); assert.ok(cells.some(t => t.includes(exp.made + ' / ' + exp.attempts)));
+    const exp = await page.evaluate(g => { const L = SG.summarize(window.__golf.rounds()[0], 'pga').puttList.filter(p => p.n === 1 && SG.pmissGroup(p.ft) === g); return SG.pmissStats(L); }, c[0]);
+    assert.strictEqual(nMiss, exp.misses); assert.ok(cells.some(t => t.includes('1st putts made') && t.includes(exp.made + ' of ' + exp.attempts)));
     const starts = await page.$$eval('#pmissmap path.pmtr', ps => [...new Set(ps.map(p => p.getAttribute('d').split(' Q')[0]))]); assert.ok(starts.length <= 1, 'one common start ' + starts);
     if (exp.counts.short) { const sh = await page.$$eval('#pmissmap .pmend[data-class="short"]', e => e.map(x => +x.getAttribute('cy'))); assert.ok(sh.every(y => y > 200), 'short ends below the hole'); }
     const rings = await page.$$eval('#pmissmap circle[fill="none"]', cs => cs.map(c => +c.getAttribute('r')));

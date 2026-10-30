@@ -723,8 +723,13 @@ test('PDF-report helper (not used by the map): SG distance groups + distinct col
   assert.deepStrictEqual([0.5, 5.9, 6, 9.9, 10, 10.1, 19.9, 30, 50, 50.1].map(SGm.pmissGroup), ['0-6', '0-6', '6-10', '6-10', '6-10', null, null, null, null, null]);
   assert.deepStrictEqual(SGm.PMISS_GROUPS.map(g => g.id), ['6-10', '0-6']);
   assert.deepStrictEqual([10, 10.1, 40].map(SGm.lagPutt), [false, true, true]);
-  const lg = SGm.lagStats([{ ft: 8, made: false, endFt: 5 }, { ft: 12, made: false, endFt: 3 }, { ft: 25, made: false, endFt: 3.5 }, { ft: 40, made: true, endFt: 0 }, { ft: 10, made: false, endFt: 6 }]);
+  // v105: only each hole's FIRST putt (n = 1) counts – the 2nd putt from 11 ft and the 2 ft tap-in below are ignored
+  const PL = [{ n: 1, ft: 8, made: false, endFt: 5 }, { n: 1, ft: 12, made: false, endFt: 3 }, { n: 1, ft: 25, made: false, endFt: 3.5 }, { n: 1, ft: 40, made: true, endFt: 0 },
+    { n: 1, ft: 10, made: false, endFt: 6 }, { n: 2, ft: 11, made: false, endFt: 1 }, { n: 2, ft: 2, made: true, endFt: 0 }];
+  const lg = SGm.lagStats(PL);
   assert.deepStrictEqual([lg.attempts, lg.inside, lg.outside, lg.made, Math.round(lg.pct), lg.avgLeaveFt], [3, 2, 1, 1, 67, 6.5 / 3]);
+  assert.deepStrictEqual(SGm.pmissList(PL).map(p => p.ft), [8, 10]); assert.deepStrictEqual(SGm.lagList(PL).map(p => p.ft), [12, 25, 40]);
+  assert.deepStrictEqual(PL.map(SGm.firstPutt), [true, true, true, true, true, false, false]);
   const c = (d, ft) => SGm.pmissClass({ endDir: d, endFt: ft });
   assert.deepStrictEqual([c('short', 1), c('shortleft', 5), c('long', 4), c('long', 3), c('longleft', 2), c('longright', 5), c('left', 1), c('', 2)], ['short', 'short', 'long', 'nearlong', 'left', 'long', 'left', 'nodir']);
   const st = SGm.pmissStats([{ made: true }, { made: false, endDir: 'short', endFt: 2 }, { made: false, endDir: 'right', endFt: 1 }]);
