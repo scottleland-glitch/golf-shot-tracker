@@ -67,6 +67,7 @@ excluded and counted. This round / All rounds toggle.
 - `tests/round-stats-quick-focused.js` – Round stats page (v96): Score / To par / Yards / Putts box on top, Quick view with SG, collapsed stat tiles, smaller legend; uses the 78 at Arcade Creek in `tests/fixtures/arcade-78.js` (`node tests/round-stats-quick-focused.js`)
 - `tests/profile-wedges-focused.js` – My Bag + Wedge ladder: menu, Bag | Wedge ladder toggle, accordion, persistence, backup (`node tests/profile-wedges-focused.js`)
 - `tests/rounds-tight-focused.js` – Rounds page (v102): tight list, 8+ rows at 390x844, tints, unfinished flag, tap, delete confirm, filter, select mode (`node tests/rounds-tight-focused.js`)
+- `tests/version-focused.js` – the version line ("Pin High v107") on Settings and Home is small and light, and config.js `appVersion` equals the sw.js cache version (`node tests/version-focused.js`)
 - `tests/lag-putts-focused.js` – 1st putt misses (<10 ft) and Lag putts (>10 ft) use only the 1st putt of each hole (v105, wording v106): 10 ft boundary, 3 ft boundary, tap-ins after a lag putt not counted, This round / All rounds (`node tests/lag-putts-focused.js`)
 - `tests/menu-bag-settings-focused.js` – v102 navigation: Home only +, menu New round · My Bag · Rounds · Settings, Bag | Wedge ladder toggle, Settings page (`node tests/menu-bag-settings-focused.js`)
 - `tests/e2e.js` – Playwright (playwright-core) flow test at iPhone 390x844
@@ -295,3 +296,10 @@ No more large bold text anywhere in the app. Only sizes and weights changed (an 
 - **The PDF report is unchanged.**
 - Screenshots: `light-fonts-home.png`, `light-fonts-rounds.png`, `light-fonts-stats.png`, `light-fonts-bag.png`.
 - Cache stays `golf-sg-v106`.
+
+## App version line (v107)
+- **Settings:** the last line of the page is a small, light grey **Pin High v107** (12px, light weight).
+- **Home:** the same text, smaller (11px) and light, at the very bottom of the photo; the Resume round pill stays above it.
+- The version lives in ONE place: `appVersion: 'v107'` in `config.js`. The service worker cache name in `sw.js` must be `golf-sg-` + that version; `tests/version-focused.js` fails if they ever differ. Each new version: change both (the cache name has to change in sw.js itself so phones pick up the update).
+- Screenshots: `version-settings.png`, `version-home.png`.
+- Cache `golf-sg-v107`.

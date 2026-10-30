@@ -4,6 +4,7 @@
   // Family watching a shared round (?watch=<token>): a read-only live scorecard. Nothing below runs, so this phone's own rounds,
   // backups and settings are never read or changed by the viewer.
   var LIVE_DB = (window.GOLF_CONFIG || {}).liveDb || '';
+  var APP_VER = 'Pin High ' + ((window.GOLF_CONFIG || {}).appVersion || ''); // v107: shown small at the bottom of Settings and Home
   if (window.LIVE && LIVE.watchId(location.search)) {
     document.title = 'Pin High · Live'; document.body.classList.add('lvbody');
     LIVE.startViewer(document.getElementById('app'), LIVE.watchId(location.search), { base: LIVE_DB, oriole: 'img/oriole.webp' });
@@ -1028,7 +1029,7 @@
     var bot = '';
     if (cur) { var S = SG.summarize(cur); bot += '<button class="glass pill" id="resumepill" data-act="resume">Resume round<small>' + (cur.course ? esc(cur.course) + ' · ' : '') + S.holesDone + ' holes done</small></button>'; }
     // v102: no Archive pill – that page is Settings in the + menu
-    h += '<div class="home-bottom">' + bot + '</div>';
+    h += '<div class="home-bottom">' + bot + '</div><div class="appver homever" id="homever" aria-label="App version">' + esc(APP_VER) + '</div>';
     if (view.nameSheet) h += nameSheetHTML();
     else if (view.hmenu) {
       h += '<div class="sheet-back" data-act="menuclose"></div><div class="hsheet glass" id="plusmenu" role="menu">';
@@ -1056,6 +1057,7 @@
       '<div class="tiprow" id="bkinfo">' + tipBtn('bkinfo', 'i', 'About backup and restore') + tipLbl('bkinfo', 'About backup &amp; restore') + tipText('bkinfo', 'Back up saves all rounds, saved courses, My Bag and your Wedges chart as one file (golf-rounds-backup-date.json) – choose Save to Files in the share sheet. Restore adds the rounds from a backup file; rounds already on this phone are not duplicated.') + '</div>';
     if (rounds.length) h += '<button class="big frostbtn" data-act="csvall">Export all rounds (CSV)</button>';
     h += '<button class="big frostbtn" data-act="about">ⓘ About the numbers</button>';
+    h += '<p class="appver setver" id="setver" aria-label="App version">' + esc(APP_VER) + '</p>';
     if (view.gdr) h += gdRestoreHTML();
     return h + '</div>';
   }

@@ -166,7 +166,7 @@ const OUT = '/workspace/golf-app/screenshots/', PORT = 8831, BASE = 'http://127.
     // empty bag → standard wedge list
     await page.evaluate(() => localStorage.removeItem('golfsg.bag.v1')); await page.reload(); await page.click('#plusbtn'); await page.click('#plusmenu [data-act="bag"]'); await page.click('#segwedges'); await page.click('.whead[data-y="40"]');
     assert.deepStrictEqual(await page.$$eval('#wbody [data-f="club"][data-v="set"]', e => e.map(x => x.getAttribute('data-k'))), W.STD_CLUBS);
-    const sw = fs.readFileSync('/workspace/golf-app/sw.js', 'utf8'); assert.ok(sw.includes("'golf-sg-v106'") && sw.includes("'./wedges.js'"));
+    const sw = fs.readFileSync('/workspace/golf-app/sw.js', 'utf8'); assert.ok(sw.includes("'golf-sg-v107'") && sw.includes("'./wedges.js'"));
     assert.deepStrictEqual(errors, []);
     console.log('MY BAG/WEDGES OK');
   } finally { await br.close(); srv.kill(); }

@@ -15,7 +15,7 @@ const BASE = 'http://127.0.0.1:8795/', OUT = '/workspace/golf-app/screenshots/';
   const H = await page.evaluate(() => { const h = document.getElementById('home'), bg = getComputedStyle(h.querySelector('.home-bg'));
     return { btns: [...h.querySelectorAll('button')].map(x => x.id), text: h.innerText.replace(/\s+/g, ' ').trim(), bg: bg.backgroundImage, size: bg.backgroundSize, r: h.getBoundingClientRect().toJSON(),
       title: getComputedStyle(h.querySelector('.home-title')).color, inputs: h.querySelectorAll('input,select').length }; });
-  assert.deepStrictEqual(H.btns, ['plusbtn'], 'home buttons'); assert.strictEqual(H.text, 'Pin High +'); assert.strictEqual(H.inputs, 0);
+  assert.deepStrictEqual(H.btns, ['plusbtn'], 'home buttons'); assert.strictEqual(H.text, 'Pin High + Pin High ' + require('fs').readFileSync(__dirname + '/../sw.js', 'utf8').match(/golf-sg-(v\d+)/)[1], 'title, + and the small version line (v107)'); assert.strictEqual(H.inputs, 0);
   assert.ok(/home-bg\.webp/.test(H.bg) && H.size === 'cover' && H.r.width === 393 && H.r.height === 852, 'full-bleed photo ' + JSON.stringify(H));
   assert.strictEqual(H.title, 'rgb(255, 255, 255)');
   assert.ok(await page.evaluate(() => fetch('img/home-bg.webp').then(r => r.blob()).then(x => x.size < 250000)), 'photo under 250 KB');
