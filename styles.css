@@ -1170,3 +1170,55 @@ table.gapt tbody tr:last-child td { border-bottom: 0; }
 .lagbox .lagh { font-size: 14px; font-weight: 600; margin: 0 0 6px; }
 .lagbox .lagcells { margin: 0; }
 .lagbox .help { margin: 6px 0 4px; font-size: 12.5px; }
+
+/* v106: My Bag – "Adjust for playing conditions" is a collapsible section (collapsed by default), same soft chevron as the stat rows */
+.bagpage .bagcond { padding: 4px 16px; }
+.bagpage .bagcond.open { padding-bottom: 14px; }
+.bagpage .bcfold { display: flex; align-items: center; gap: 10px; width: 100%; min-height: 56px; padding: 8px 0; background: none !important; border: 0 !important; box-shadow: none !important; text-align: left; color: var(--frost-ink, #17301f); transform: none; cursor: pointer; }
+.bagpage .bcfold .bcft { flex: 1; display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.bagpage .bcfold .bcft b { font-size: 16px; font-weight: 500; }
+.bagpage .bcfold .bcft small { font-size: 13px; font-weight: 400; color: var(--frost-ink-soft); }
+.bagpage .bcchev { width: 8px; height: 8px; border-right: 1.5px solid currentColor; border-bottom: 1.5px solid currentColor; transform: rotate(45deg) translate(-2px, -2px); opacity: .45; flex: none; margin: 0 4px 0 2px; }
+.bagpage .bagcond.open .bcchev { transform: rotate(-135deg) translate(-2px, -2px); }
+.bagpage .bcbody { border-top: 1px solid rgba(23, 48, 31, .08); padding-top: 10px; }
+
+/* ---------- v106: light type everywhere (Scott: "get rid of the large bold font") ----------
+   Big text is lighter (300–400) and smaller (numbers <= 24px, headings ~18–20px); small labels at most 500.
+   Only font size / weight change here – padding, heights and tap targets stay as they were. The PDF report is drawn separately and is unchanged. */
+button.big, label.big, a.big, .big.frostbtn, .big.frostmain, .big.primary, .big.danger, .big.sendbtn, .big.rpbtn { font-size: 18px !important; font-weight: 400 !important; }
+.big small, .big .sub { font-weight: 400 !important; }
+h1 { font-weight: 300 !important; }
+.home .home-title { font-size: 32px !important; font-weight: 300 !important; }
+h2, .roundpage h2, .archivepage h2, .bagpage h2.bagh { font-size: 19px !important; font-weight: 500 !important; }
+h3, .mapview h3, .tiphead .tiplbl { font-size: 17px !important; font-weight: 500 !important; }
+.holecard .hc-head h2 { font-size: 22px !important; font-weight: 400 !important; }
+.hc-head .par span { font-size: 15px !important; font-weight: 500 !important; }
+.topbar .title b { font-size: 19px !important; font-weight: 500 !important; }
+.topbar .frostbtn, .topbar button.txt { font-weight: 400 !important; }
+.stat b, .stat.tile b, .stat-grid .stat b { font-size: 22px !important; font-weight: 400 !important; }
+.quickview .qv b { font-size: 22px !important; font-weight: 300 !important; }
+td#rs-score.big, td#rs-topar.big, .rsbox td.big { font-size: 24px !important; font-weight: 400 !important; }
+.mapview .maphead b { font-size: 18px !important; font-weight: 500 !important; }
+.mapview .maphead .close { font-size: 16px !important; font-weight: 400 !important; }
+.sghead, .sghead span, #sghtotal { font-size: 17px !important; font-weight: 500 !important; }
+.sghead .chev { font-weight: 400 !important; }
+.cmpn button { font-size: 22px !important; font-weight: 300 !important; }
+.pnrow .pnbtn, .mapview button.yall { font-size: 16px !important; font-weight: 500 !important; }
+.bzcard .bzcount, #bzcount { font-size: 18px !important; font-weight: 400 !important; }
+.pdfsheet > b { font-size: 17px !important; font-weight: 500 !important; }
+.pdfsheet button.txt { font-size: 16px !important; font-weight: 400 !important; }
+.holecard .pinbtn { font-size: 16px !important; font-weight: 400 !important; }
+.legend b.star, .legend b.x { font-weight: 400 !important; }
+.wrow .whead b { font-size: 18px !important; font-weight: 500 !important; }
+.bagpage .bclbl b { font-size: 17px !important; font-weight: 500 !important; }
+.bagpage .bcarry.none { font-weight: 400 !important; }
+/* v106 light type – medium text: no more 700–900 weights on buttons, chips, labels and summary numbers */
+.seg button, .seg button.sel, .mapsum b, .label, .qvhead, .sclabel, .liebtn, .ybtn b, .pinstats button, .pinstats .badge, .pinlbl, th, .fwcounts span, .fwcounts b,
+.cl-s b, .playerbox button.txt, .playerbox b, .cmpn b, .pmgroups button { font-weight: 500 !important; }
+.stat.tile .mini, small.mini, .notice, .discard, .legend > span { font-weight: 400 !important; }
+.mapview svg text.fwpct { font-weight: 500; } /* on-screen fairway % only; the PDF keeps its own drawing */
+/* v106 light type – smaller text: semi-bold 600–900 eased to 500 (labels) or 400 (body text) */
+.hist b, .hist .hcirc, .topbar .title span, .stat > span, .stat.tile > span, td.gap b, .cmpmaps figcaption, .tiplbl, #wflight button,
+td.gb, td.gw, td.from, .bcbase b, .bagseg button, .cmpn span, .sheet-item, .sheet-go, .sheet-h, .bname b, .miclbl, .row.sub button.txt,
+.playerbox span, .lagh, .cl-c, .cl-s, .liebtn small, .pmgroups button small, .sghead small, .legend .dot.num, .bzslcol span { font-weight: 500 !important; }
+tbody td, .mapsum, .mapsum small, .infocap, .bzlegend, .odstat, .bcbase > span, .hist .hholes, .cl-d, .bcarry i { font-weight: 400 !important; }

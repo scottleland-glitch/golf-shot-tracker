@@ -53,7 +53,7 @@ const BASE = process.env.BASE_URL || 'http://127.0.0.1:8766/', OUT = process.env
   const txt = execSync('pdftotext -layout ' + f + ' -').toString();
   ['Round report', 'Scott', 'Lakeridge', 'Front 9', 'Back 9', 'Key stats', 'Greens in regulation', 'By category', 'By distance', 'Avg to pin after', 'vs every baseline',
     'Tee shots - fairways', 'Approach misses', 'Pin location', 'Back left', 'Misses by direction', 'All approach groups this round', 'Misses by direction', 'Lie', 'Putting - 1st putts', 'Putting - 2nd putts', ].forEach(s => assert.ok(txt.includes(s), 'missing ' + s));
-  pmg.forEach(g => assert.ok(txt.includes('Putt misses (1st putt) - ' + g), 'missing putt-miss page ' + g)); assert.ok(txt.includes('1st putts made') || txt.includes('1ST PUTTS MADE')); assert.ok(txt.includes('Finished inside 3 ft') || txt.includes('FINISHED INSIDE 3 FT'));
+  pmg.forEach(g => assert.ok(txt.includes('1st putt misses (<10 ft) - ' + g), 'missing putt-miss page ' + g)); assert.ok(txt.includes('1st putts made') || txt.includes('1ST PUTTS MADE')); assert.ok(txt.includes('Inside 3 ft') || txt.includes('INSIDE 3 FT'));
   groups.forEach(g => assert.ok(txt.includes('Proximity - ' + g), 'missing page ' + g)); assert.ok(txt.includes('Page ' + pages + ' of ' + pages));
   const absent = ['20-60 yd', '60-100 yd', '100-130 yd', '130-160 yd', '160-200 yd', '200+ yd'].filter(g => !groups.includes(g)); absent.forEach(g => assert.ok(!txt.includes('Proximity - ' + g), 'empty group page ' + g));
   console.log('groups', groups, 'skipped', absent);

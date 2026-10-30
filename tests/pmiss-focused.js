@@ -33,7 +33,7 @@ const BASE = process.env.BASE_URL || 'http://127.0.0.1:8770/', OUT = '/workspace
     await page.click(`#pmgroups [data-v="${c[0]}"]`); await page.waitForTimeout(150);
     const nMiss = await page.locator('#pmissmap .pmend').count(), cells = await page.$$eval('#pmcells .stat', s => s.map(x => x.textContent));
     const exp = await page.evaluate(g => { const L = SG.summarize(window.__golf.rounds()[0], 'pga').puttList.filter(p => p.n === 1 && SG.pmissGroup(p.ft) === g); return SG.pmissStats(L); }, c[0]);
-    assert.strictEqual(nMiss, exp.misses); assert.ok(cells.some(t => t.includes('1st putts made') && t.includes(exp.made + ' of ' + exp.attempts)));
+    assert.strictEqual(nMiss, exp.misses); assert.ok(cells.some(t => t.includes('1st putts made') && t.includes(exp.made + '/' + exp.attempts)));
     const starts = await page.$$eval('#pmissmap path.pmtr', ps => [...new Set(ps.map(p => p.getAttribute('d').split(' Q')[0]))]); assert.ok(starts.length <= 1, 'one common start ' + starts);
     if (exp.counts.short) { const sh = await page.$$eval('#pmissmap .pmend[data-class="short"]', e => e.map(x => +x.getAttribute('cy'))); assert.ok(sh.every(y => y > 200), 'short ends below the hole'); }
     const rings = await page.$$eval('#pmissmap circle[fill="none"]', cs => cs.map(c => +c.getAttribute('r')));

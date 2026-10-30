@@ -97,12 +97,19 @@ const pct = (a, b) => (a / b - 1) * 100;
     await page.waitForTimeout(100); assert.strictEqual((await store()).clubs.find(c => c.code === '7i').loft, 31); await page.click('#bagedit [data-v="edit"]');
     assert.ok(await page.$eval('#baglist', e => e.classList.contains('same')), 'no adjusted column at baseline');
     await page.evaluate(() => window.scrollTo(0, 0)); await shot('bag-with-clubs-baseline');
+    // v106: "Adjust for playing conditions" starts collapsed – title + summary line + chevron, no sliders
+    assert.strictEqual(await page.getAttribute('#bagcondh', 'aria-expanded'), 'false'); assert.strictEqual(await page.$('#bagelev'), null); assert.strictEqual(await page.$('#baguse'), null);
+    assert.strictEqual(await page.textContent('#bagcondh .bcft b'), 'Adjust for playing conditions'); assert.strictEqual(await page.textContent('#bagcondsum'), 'Carries entered at 5000 ft · 70°F');
+    await shot('bag-altitude-collapsed'); console.log('  ✓ conditions section collapsed by default: "Adjust for playing conditions" / "Carries entered at 5000 ft · 70°F"');
     // sort by carry
     await page.click('[data-v="sortcarry"]'); assert.deepStrictEqual((await page.$$eval('#baglist .bname b', e => e.map(x => x.textContent))).slice(0, 4), ['Driver', '3W', '2i', '4H']);
     await page.click('[data-v="sortclub"]');
     // sliders → San Diego (0 ft, 75°F)
     const slide = (id, v) => page.$eval('#' + id, (e, v) => { e.value = v; e.dispatchEvent(new Event('input', { bubbles: true })); }, v);
+    await page.click('#bagcondh'); assert.strictEqual(await page.getAttribute('#bagcondh', 'aria-expanded'), 'true'); await page.waitForSelector('#bagelev');
+    assert.match(await page.textContent('#bagcond'), /Carries entered at\s*5000 ft · 70°F\s*Change/);
     await slide('bagelev', 0); await slide('bagtemp', 75);
+    assert.strictEqual(await page.textContent('#bagcondsum'), 'Carries entered at 5000 ft · 70°F · now 0 ft · 75°F', 'summary follows the sliders live');
     assert.strictEqual(await page.textContent('#bagelevv'), '0 ft'); assert.strictEqual(await page.textContent('#bagtempv'), '75°F');
     const adj = async code => { const id = (await store()).clubs.find(c => c.code === code).id; return page.$eval('.badj[data-adj="' + id + '"]', e => e.textContent); };
     const dA = await adj('Driver'), sA = await adj('7i'); console.log('  UI San Diego: Driver 250 → ' + dA + ', 7i 150 → ' + sA);
@@ -112,6 +119,11 @@ const pct = (a, b) => (a / b - 1) * 100;
     await page.click('#baguse'); await page.waitForTimeout(100); assert.strictEqual((await store()).useCond, true);
     await page.evaluate(() => { const l = document.querySelector('.bchead'); l.scrollIntoView({ block: 'start' }); let p = l.parentElement; while (p && p.scrollHeight <= p.clientHeight + 1) p = p.parentElement; (p && p !== document.body && p !== document.documentElement ? p : document.scrollingElement).scrollBy(0, -112); });
     await shot('bag-sliders-sandiego');
+    await page.evaluate(() => window.scrollTo(0, 0)); await shot('bag-altitude-open');
+    // collapse keeps the adjusted values in the summary (and in the list); reopen to carry on
+    await page.click('#bagcondh'); assert.strictEqual(await page.$('#bagelev'), null); assert.strictEqual(await page.textContent('#bagcondsum'), 'Carries entered at 5000 ft · 70°F · now 0 ft · 75°F');
+    assert.match(await page.textContent('#bagadjh'), /0 ft · 75°F/); await page.click('#bagcondh'); await page.waitForSelector('#bagreset');
+    console.log('  ✓ opened: sliders, Back to my baseline, club-picker checkbox work as before; summary shows "now 0 ft · 75°F"');
     // baseline edit keeps the sliders where they are when they differ; reset brings them back
     await page.click('[data-v="reset"]'); assert.deepStrictEqual((await store()).cond, { elev: 5000, temp: 70 }); assert.ok(await page.$eval('#bagreset', e => e.disabled));
     await slide('bagelev', 0); await slide('bagtemp', 75);

@@ -408,7 +408,7 @@
       // ---- map pages ----
       var segs = SG.pinSegments(pinDataRound());
       var pages = [['Tee shots – fairways', 'fw'], ['Greens in regulation', 'gir'], ['Approach misses', 'miss'], ['Pin location', 'pin'],         'PROX', ['Putting – 1st putts', 'putt', { puttN: '1' }], ['Putting – 2nd putts', 'putt', { puttN: '2' }]].concat(
-        (function () { var D = pmissData(false); return SG.PMISS_GROUPS.filter(function (g) { return D.counts[g.id]; }).reverse().map(function (g) { return ['Putt misses (1st putt) – ' + g.name, 'pmiss', { pmG: g.id }]; }); })());
+        (function () { var D = pmissData(false); return SG.PMISS_GROUPS.filter(function (g) { return D.counts[g.id]; }).reverse().map(function (g) { return ['1st putt misses (<10 ft) – ' + g.name, 'pmiss', { pmG: g.id }]; }); })());
       var plist = S.proxList.filter(function (m) { return SG.reportGroup(m.from); }), gsum = SG.REPORT_GROUPS.map(function (g) {
         var L = plist.filter(function (m) { return SG.reportGroup(m.from) === g.id; }); return { g: g, L: L, P: SG.proxStats(L) }; }).filter(function (x) { return x.L.length; });
       var pi = pages.indexOf('PROX');
@@ -1167,6 +1167,8 @@
   }
   function fmtFt(v) { return Math.round(v).toLocaleString('en-US') + ' ft'; }
   function condText(c) { return fmtFt(c.elev) + ' · ' + Math.round(c.temp) + '°F'; }
+  // v106: summary under "Adjust for playing conditions" – the baseline, plus the slider values when they differ from it
+  function condSum(b) { return 'Carries entered at ' + condText(b.base) + (BAG.sameCond(b) ? '' : ' · now ' + condText(b.cond)); }
   function bagSub(c) { var t = BAG.title(c), l = c.loft != null && c.cat !== 'pt' ? (Math.round(c.loft * 10) / 10) + '°' : ''; return [t, l].filter(Boolean).join(' · ') || BAG.CAT_NAME[c.cat] || 'Club'; }
   function adjHTML(c, b) {
     if (!c.carry || c.cat === 'pt' || BAG.sameCond(b)) return '';
@@ -1182,17 +1184,22 @@
     if (!n) return h + '<div class="frostcard bagempty" id="bagempty"><b>Your bag is empty</b><p>Add your clubs and how far each one carries. They show up in the club picker during a round, and you can see your carries for any elevation and temperature.</p></div>' +
       '<button class="big frostmain" data-act="bagact" data-v="add" id="bagaddbtn">＋ Add clubs</button></div>';
     var same = BAG.sameCond(b), list = BAG.sorted(b);
-    h += '<div class="frostcard bagcond" id="bagcond">';
-    h += '<div class="bcbase"><span>Carries entered at</span><b id="bagbase">' + condText(b.base) + '</b><button class="bclink" data-act="bagact" data-v="baseedit" aria-expanded="' + !!view.bagBaseEdit + '">' + (view.bagBaseEdit ? 'Close' : 'Change') + '</button></div>';
-    if (view.bagBaseEdit) h += '<div class="bcbedit" id="bagbedit"><label>Elevation<span><input type="text" inputmode="numeric" id="bagbelev" maxlength="5" value="' + b.base.elev + '"> ft</span></label>' +
+    // v106: the conditions card is a collapsible section, collapsed every time the page opens (view.bagCondOpen is not saved)
+    var co = !!view.bagCondOpen;
+    h += '<div class="frostcard bagcond' + (co ? ' open' : '') + '" id="bagcond"><button class="bcfold" id="bagcondh" data-act="bagact" data-v="condfold" aria-expanded="' + co + '" aria-controls="bagcondb">' +
+      '<span class="bcft"><b>Adjust for playing conditions</b><small id="bagcondsum">' + condSum(b) + '</small></span><i class="bcchev" aria-hidden="true"></i></button>';
+    if (!co) h += '</div>';
+    else h += '<div class="bcbody" id="bagcondb">';
+    if (co) h += '<div class="bcbase"><span>Carries entered at</span><b id="bagbase">' + condText(b.base) + '</b><button class="bclink" data-act="bagact" data-v="baseedit" aria-expanded="' + !!view.bagBaseEdit + '">' + (view.bagBaseEdit ? 'Close' : 'Change') + '</button></div>';
+    if (co && view.bagBaseEdit) h += '<div class="bcbedit" id="bagbedit"><label>Elevation<span><input type="text" inputmode="numeric" id="bagbelev" maxlength="5" value="' + b.base.elev + '"> ft</span></label>' +
       '<label>Temperature<span><input type="text" inputmode="numeric" id="bagbtemp" maxlength="3" value="' + b.base.temp + '"> °F</span></label><button class="bcsave" data-act="bagact" data-v="basesave">Save</button></div>' +
       '<p class="bchint">Where and when you measured your carries – e.g. Reno is about 4,500–5,000 ft, San Diego is near sea level.</p>';
-    h += '<p class="bchead">Playing somewhere else?</p>' +
+    if (co) h += '<p class="bchead">Playing somewhere else?</p>' +
       '<div class="bcslide"><div class="bclbl"><span>Elevation</span><b id="bagelevv">' + fmtFt(b.cond.elev) + '</b></div><input type="range" id="bagelev" min="0" max="9000" step="100" value="' + b.cond.elev + '" aria-label="Elevation in feet"><div class="bcends"><span>Sea level</span><span>9,000 ft</span></div></div>' +
       '<div class="bcslide"><div class="bclbl"><span>Temperature</span><b id="bagtempv">' + Math.round(b.cond.temp) + '°F</b></div><input type="range" id="bagtemp" min="30" max="110" step="1" value="' + b.cond.temp + '" aria-label="Temperature in °F"><div class="bcends"><span>30°F</span><span>110°F</span></div></div>' +
       '<div class="bcrow"><button class="frostchip bcreset" id="bagreset" data-act="bagact" data-v="reset"' + (same ? ' disabled' : '') + '>↺ Back to my baseline</button></div>' +
       '<label class="bcuse"><input type="checkbox" id="baguse"' + (b.useCond ? ' checked' : '') + '> Show these carries in the club picker during a round</label>' +
-      '<p class="bcnote">Estimates from air density: thinner (higher) or warmer air means less drag and lift, so the ball carries a bit farther. Wind, humidity, ball temperature and firm or soft ground are not included.</p></div>';
+      '<p class="bcnote">Estimates from air density: thinner (higher) or warmer air means less drag and lift, so the ball carries a bit farther. Wind, humidity, ball temperature and firm or soft ground are not included.</p></div></div>';
     h += '<div class="bagsort" role="group" aria-label="Sort clubs"><button class="frostchip' + (b.sort === 'club' ? ' sel' : '') + '" data-act="bagact" data-v="sortclub">By club</button><button class="frostchip' + (b.sort === 'carry' ? ' sel' : '') + '" data-act="bagact" data-v="sortcarry">By carry</button></div>';
     h += '<div class="frostcard baglist' + (same ? ' same' : '') + '" id="baglist"><div class="bagrow bhead"><span>Club</span><span>Carry</span><span class="badj" id="bagadjh">' + (same ? '' : esc(condText(b.cond))) + '</span></div>';
     list.forEach(function (c) {
@@ -1308,6 +1315,7 @@
     if ((el = document.getElementById('baglist'))) el.classList.toggle('same', same);
     if ((el = document.getElementById('bagadjh'))) el.textContent = same ? '' : condText(b.cond);
     if ((el = document.getElementById('bagreset'))) el.disabled = same;
+    if ((el = document.getElementById('bagcondsum'))) el.textContent = condSum(b);
     b.clubs.forEach(function (c) { var s = document.querySelector('.badj[data-adj="' + c.id + '"]'); if (s) s.innerHTML = adjHTML(c, b); });
   }
   function bagAct(v, btn) {
@@ -1343,6 +1351,7 @@
       case 'edit': view.bagEdit = view.bagEdit === id ? null : id; break;
       case 'remove': if (!c || !confirm('Remove ' + c.code + (BAG.title(c) ? ' (' + BAG.title(c) + ')' : '') + ' from your bag?')) return;
         b.clubs = b.clubs.filter(function (x) { return x.id !== id; }); saveBag(b); view.bagEdit = null; toast(c.code + ' removed'); break;
+      case 'condfold': view.bagCondOpen = !view.bagCondOpen; if (!view.bagCondOpen) view.bagBaseEdit = false; render(); return;
       case 'baseedit': view.bagBaseEdit = !view.bagBaseEdit; render(); if (view.bagBaseEdit) focus('bagbelev'); return;
       case 'basesave': {
         var e = +(document.getElementById('bagbelev') || {}).value, t = +(document.getElementById('bagbtemp') || {}).value;
@@ -1728,13 +1737,11 @@
       stx('prox', 'Proximity', PX.n ? fmtFt(PX.avgAllFt) : '–', proxTile(S)) +
       stx('pin', 'Pin location', S.pinHoles.length + ' / ' + S.holesDone, tile('pin', 'Pin location – tap for map', S.pinHoles.length + ' / ' + S.holesDone, '<small class="mini">holes with a pin set</small>')) +
       stx('putt', 'Putts', S.putts, puttTile(S)) +
-      stx('pmiss', 'Putt misses (1st putt, 10 ft and in)', PM.length ? PMm + ' of ' + PM.length + ' missed' : '–', pmissTile(S)) +
-      stx('lag', 'Lag putts (1st putt, over 10 ft)', LG.attempts ? LG.inside + ' of ' + LG.attempts + ' inside 3 ft' : '–', lagTile(LG)) +
+      stx('pmiss', '1st putt misses (&lt;10 ft)', PM.length ? PMm + '/' + PM.length + ' missed' : '–', pmissTile(S)) +
+      stx('lag', 'Lag putts (&gt;10 ft)', LG.attempts ? LG.inside + '/' + LG.attempts + ' inside 3 ft' : '–', lagTile(LG)) +
       stx('club', 'Club performance', nc ? nc + (nc === 1 ? ' club' : ' clubs') : '–', clubTile()) +
       stx('pen', 'Penalty strokes', S.penalties, stat('Penalty strokes', S.penalties) + note('Penalty strokes added this round (OB, water, unplayable…).')) +
-      stx('teelr', 'Tee misses L / R', S.teeLeft + ' / ' + S.teeRight, stat('Tee misses L / R', S.teeLeft + ' / ' + S.teeRight) + note('Par-4 and par-5 tee shots that missed the fairway left / right.')) +
-      stx('glr', 'Missed greens L / R', S.apprLeft + ' / ' + S.apprRight, stat('Missed greens left / right', S.apprLeft + ' / ' + S.apprRight) + note('Approach shots that missed the green to the left / right.')) +
-      stx('gsl', 'Missed greens short / long', S.apprShort + ' / ' + S.apprOver, stat('Missed greens short / long', S.apprShort + ' / ' + S.apprOver) + note('Approach shots that missed the green short / long.')) + '</div>';
+      stx('teelr', 'Tee misses L / R', S.teeLeft + ' / ' + S.teeRight, stat('Tee misses L / R', S.teeLeft + ' / ' + S.teeRight) + note('Par-4 and par-5 tee shots that missed the fairway left / right.')) + '</div>'; // v106: Missed greens L / R and short / long rows removed (data still kept: S.apprLeft/Right/Short/Over)
   }
   function summaryHTML() {
     var r = round(), bl = blOf(r), S = SG.summarize(r, bl);
@@ -1992,8 +1999,8 @@
   var DIR_ORDER = ['short', 'shortleft', 'shortright', 'left', 'right', 'long', 'longleft', 'longright'];
   function mapHTML() {
     var kind = view.map, D = mapData(kind), list = D.list, all = view.mapScope === 'all';
-    var out = '<div class="mapview" id="mapview" role="dialog" aria-label="' + (kind === 'gir' ? 'GIR map' : kind === 'fw' ? 'Fairway map' : kind === 'pin' ? 'Pin location map' : kind === 'prox' ? 'Proximity map' : kind === 'putt' ? 'Putting map' : kind === 'club' ? 'Club performance' : kind === 'pmiss' ? 'Putt misses map' : 'Approach miss map') + '">' +
-      '<div class="maphead"><b>' + (kind === 'gir' ? 'Greens in regulation' : kind === 'fw' ? 'Tee shots – fairways' : kind === 'pin' ? 'Pin location' : kind === 'prox' ? 'Proximity by distance' : kind === 'putt' ? 'Putting' : kind === 'club' ? 'Club performance' : kind === 'pmiss' ? 'Putt misses – 1st putts' : 'Approach misses') + '</b><button class="close" data-act="mapclose" aria-label="Close map">✕ Close</button></div>' +
+    var out = '<div class="mapview" id="mapview" role="dialog" aria-label="' + (kind === 'gir' ? 'GIR map' : kind === 'fw' ? 'Fairway map' : kind === 'pin' ? 'Pin location map' : kind === 'prox' ? 'Proximity map' : kind === 'putt' ? 'Putting map' : kind === 'club' ? 'Club performance' : kind === 'pmiss' ? '1st putt misses map' : 'Approach miss map') + '">' +
+      '<div class="maphead"><b>' + (kind === 'gir' ? 'Greens in regulation' : kind === 'fw' ? 'Tee shots – fairways' : kind === 'pin' ? 'Pin location' : kind === 'prox' ? 'Proximity by distance' : kind === 'putt' ? 'Putting' : kind === 'club' ? 'Club performance' : kind === 'pmiss' ? '1st putt misses (&lt;10 ft)' : 'Approach misses') + '</b><button class="close" data-act="mapclose" aria-label="Close map">✕ Close</button></div>' +
       '<div class="seg"><button data-act="mapscope" data-v="round" class="' + (all ? '' : 'sel') + '">This round</button>' +
       '<button data-act="mapscope" data-v="all" class="' + (all ? 'sel' : '') + '">All rounds (' + savedRounds().length + ')</button></div>';
     if (kind === 'pin') out += pinMapHTML(all);
@@ -2580,18 +2587,18 @@
   var PMN = { short: 'Short', long: 'Long (over 3 ft past)', left: 'Left', right: 'Right', nearlong: 'Just long (within 3 ft)', nodir: 'No direction entered' };
   function pmissTile(S) {
     var L = SG.pmissList(S.puttList), m = L.filter(function (p) { return !p.made; }).length;
-    return tile('pmiss', 'Putt misses (1st putt, 10 ft and in) – tap for map', L.length ? m : '–', '<small class="mini" id="pmmini">' + pmissLine(m, L.length) + '</small>');
+    return tile('pmiss', '1st putt misses (&lt;10 ft) – tap for map', L.length ? m + '/' + L.length + ' missed' : '–', '<small class="mini" id="pmmini">' + pmissLine(m, L.length) + '</small>');
   }
   // v105: one plain sentence, used by the tile and the map box
   function pmissLine(m, n) {
-    return n ? 'Missed ' + m + ' of ' + n + ' first putts from 10 ft and in (made ' + (n - m) + ')' : 'no first putts from 10 ft or less yet';
+    return n ? '1st putts from 10 ft and in · ' + (n - m) + ' made' : 'no 1st putts from 10 ft and in yet';
   }
   // v104 lag putts (start more than 10 ft away; v105: 1st putt of the hole only): success = finished within 3 ft (or holed). Opens the putt-misses map, which shows the same box for the round / all rounds.
   function lagLine(LG) {
-    return LG.attempts ? LG.inside + ' of ' + LG.attempts + ' first putts from over 10 ft finished inside 3 ft (' + Math.round(LG.pct) + '%)' : 'no first putts from over 10 ft yet';
+    return LG.attempts ? Math.round(LG.pct) + '% inside 3 ft' : 'no 1st putts from over 10 ft yet';
   }
   function lagTile(LG) {
-    return tile('pmiss', 'Lag putts (1st putt, over 10 ft) – tap for map', LG.attempts ? LG.inside + ' of ' + LG.attempts : '–', '<small class="mini" id="lagmini">' + lagLine(LG) +
+    return tile('pmiss', 'Lag putts (&gt;10 ft) – tap for map', LG.attempts ? LG.inside + '/' + LG.attempts + ' inside 3 ft' : '–', '<small class="mini" id="lagmini">' + lagLine(LG) +
       (LG.attempts ? ' · avg leave ' + fmtLeave(LG.avgLeaveFt) : '') + '</small>');
   }
   function fmtLeave(ft) { return ft == null ? '–' : (Math.round(ft * 10) / 10) + ' ft'; }
@@ -2635,7 +2642,7 @@
   function pmissCells(st) {
     var pc = function (k) { return st.misses ? Math.round(st.pct[k]) + '%' : '–'; };
     return '<div class="stat-grid pmcells" id="pmcells">' + stat('Left', pc('left')) + stat('Right', pc('right')) + stat('Short', pc('short')) + stat('Long (> 3 ft past)', pc('long')) +
-      stat('1st putts made', st.made + ' of ' + st.attempts) + stat('Just long ≤ 3 ft / no dir.', st.counts.nearlong + ' / ' + st.counts.nodir) + '</div>';
+      stat('1st putts made', st.made + '/' + st.attempts) + stat('Just long ≤ 3 ft / no dir.', st.counts.nearlong + ' / ' + st.counts.nodir) + '</div>';
   }
   function pmissLegend() {
     return '<div class="legend" id="pmlegend">' + ['left', 'right', 'short', 'long', 'nearlong'].map(function (k) { return '<span><i class="ln" style="background:' + PMC[k] + '"></i><i class="dot" style="background:' + PMC[k] + '"></i>' + PMN[k] + '</span>'; }).join('') +
@@ -2644,17 +2651,17 @@
       '<span>Label = feet left to the hole (› = further than the picture, drawn at the edge). Rings = feet from the hole, evenly spaced (linear scale, set per distance group so misses spread out).</span></div>';
   }
   function lagBox(LG, all, n) {
-    return '<div class="lagbox" id="lagbox"><div class="lagh">Lag putts (1st putt, over 10 ft)' + (all ? ' – ' + n + ' round' + (n === 1 ? '' : 's') : ' – this round') + '</div>' +
-      '<div class="stat-grid lagcells">' + stat('Finished inside 3 ft', LG.attempts ? LG.inside + ' of ' + LG.attempts + ' (' + Math.round(LG.pct) + '%)' : '–') + stat('Avg leave', fmtLeave(LG.avgLeaveFt)) + '</div>' +
-      '<p class="help muted">Only the first putt on each hole counts. A first putt from more than 10 ft counts as good if it finished within 3 ft of the hole (3 ft counts) or went in. Avg leave = average distance left after the putt (holed = 0).</p></div>';
+    return '<div class="lagbox" id="lagbox"><div class="lagh">Lag putts (&gt;10 ft)' + (all ? ' – ' + n + ' round' + (n === 1 ? '' : 's') : ' – this round') + '</div>' +
+      '<div class="stat-grid lagcells">' + stat('Inside 3 ft', LG.attempts ? LG.inside + '/' + LG.attempts + ' (' + Math.round(LG.pct) + '%)' : '–') + stat('Avg leave', fmtLeave(LG.avgLeaveFt)) + '</div>' +
+      '<p class="help muted">1st putt on each hole only, from more than 10 ft. Good = holed or finished within 3 ft (3 ft counts). Avg leave = distance left after the putt (holed = 0).</p></div>';
   }
   function pmissHTML(all) {
     var D = pmissData(all), G = SG.PMISS_GROUPS.filter(function (x) { return x.id === D.group; })[0];
     var btns = '<div class="seg pmgroups" id="pmgroups">' + SG.PMISS_GROUPS.map(function (g) { var c = D.counts[g.id];
       return '<button data-act="pmg" data-v="' + g.id + '" data-n="' + c + '" class="' + (g.id === D.group ? 'sel' : '') + '"' + (c ? '' : ' disabled') + ' aria-pressed="' + (g.id === D.group) + '">' + g.name + (c ? '<small> ' + c + '</small>' : '') + '</button>'; }).join('') + '</div>';
-    return btns + '<p class="mapsum" id="mapsum"><b>' + D.stats.misses + '</b> missed of <b>' + D.stats.attempts + '</b> first putts from <b id="pmsel">' + G.name + '</b>' + (all ? ' in ' + D.rounds + ' round' + (D.rounds === 1 ? '' : 's') : ' this round') + '</p>' +
+    return btns + '<p class="mapsum" id="mapsum"><b>' + D.stats.misses + '/' + D.stats.attempts + '</b> missed – 1st putts from <b id="pmsel">' + G.name + '</b>' + (all ? ' in ' + D.rounds + ' round' + (D.rounds === 1 ? '' : 's') : ' this round') + '</p>' +
       pmissSVG(D.list, D.group) + pmissCells(D.stats) + pmissLegend() + lagBox(D.lag, all, D.rounds) +
-      '<p class="help muted">Each line runs from one common start (below the hole) to where the putt finished, placed around the hole by the direction and distance of the next putt: short = below the hole, long = above, left/right to the sides. Short = finished short (incl. short left/right). Long = finished long and more than 3 ft past the hole. Long left/right within 3 ft count as Left/Right; straight long within 3 ft = "just long" (good speed, not counted as Long). Percentages are of misses. Only the first putt on each hole counts here (a second or third putt never does), and only when it starts 10 ft or closer – groups: under 6 ft, and 6 to 10 ft (10 ft included). A first putt from more than 10 ft is a lag putt: it only needs to finish inside 3 ft (see Lag putts above).</p>';
+      '<p class="help muted">Each line runs from one common start (below the hole) to where the putt finished, placed around the hole by the direction and distance of the next putt: short = below the hole, long = above, left/right to the sides. Short = finished short (incl. short left/right). Long = finished long and more than 3 ft past the hole. Long left/right within 3 ft count as Left/Right; straight long within 3 ft = "just long" (good speed, not counted as Long). Percentages are of misses. Only the 1st putt on each hole counts, from 10 ft and in (10 ft included) – groups: under 6 ft and 6–10 ft. 1st putts from over 10 ft are in Lag putts (&gt;10 ft) above: they only need to finish inside 3 ft.</p>';
   }
   function clubTile() {
     var n = clubShots(false).length, c = {}; clubShots(false).forEach(function (x) { c[x.club] = 1; });
@@ -3174,7 +3181,7 @@
       case 'profile': view.hmenu = null; view.screen = 'archive'; view.bagAdd = null; view.bagEdit = null; view.editName = false; render(); window.scrollTo(0, 0); return;
       case 'wedges': view.hmenu = null; view.screen = 'wedges'; view.wOpen = null; view.wOther = null; view.wEdit = false; view.wFull = null; view.wFlight = 'high'; render(); window.scrollTo(0, 0); return;
       case 'wact': wAct(v, b); return;
-      case 'bag': view.hmenu = null; view.screen = 'bag'; view.bagAdd = null; view.bagEdit = null; render(); window.scrollTo(0, 0); return;
+      case 'bag': view.hmenu = null; view.screen = 'bag'; view.bagAdd = null; view.bagEdit = null; view.bagCondOpen = false; render(); window.scrollTo(0, 0); return;
       case 'bagact': bagAct(v, b); return;
       case 'ncourse': { var cc = courseById(b.getAttribute('data-id')); view.crsOpen = false;
         if (cc && !(view.newC && view.newC.id === cc.id)) { view.newC = { id: cc.id, tee: (cc.tees[0] || {}).name || '' }; view.newAdd = false; } render(); return; }

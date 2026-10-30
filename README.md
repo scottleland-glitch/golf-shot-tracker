@@ -67,7 +67,7 @@ excluded and counted. This round / All rounds toggle.
 - `tests/round-stats-quick-focused.js` – Round stats page (v96): Score / To par / Yards / Putts box on top, Quick view with SG, collapsed stat tiles, smaller legend; uses the 78 at Arcade Creek in `tests/fixtures/arcade-78.js` (`node tests/round-stats-quick-focused.js`)
 - `tests/profile-wedges-focused.js` – My Bag + Wedge ladder: menu, Bag | Wedge ladder toggle, accordion, persistence, backup (`node tests/profile-wedges-focused.js`)
 - `tests/rounds-tight-focused.js` – Rounds page (v102): tight list, 8+ rows at 390x844, tints, unfinished flag, tap, delete confirm, filter, select mode (`node tests/rounds-tight-focused.js`)
-- `tests/lag-putts-focused.js` – Putt misses and Lag putts use only the 1st putt of each hole (v105): 10 ft boundary, 3 ft boundary, tap-ins after a lag putt not counted, This round / All rounds (`node tests/lag-putts-focused.js`)
+- `tests/lag-putts-focused.js` – 1st putt misses (<10 ft) and Lag putts (>10 ft) use only the 1st putt of each hole (v105, wording v106): 10 ft boundary, 3 ft boundary, tap-ins after a lag putt not counted, This round / All rounds (`node tests/lag-putts-focused.js`)
 - `tests/menu-bag-settings-focused.js` – v102 navigation: Home only +, menu New round · My Bag · Rounds · Settings, Bag | Wedge ladder toggle, Settings page (`node tests/menu-bag-settings-focused.js`)
 - `tests/e2e.js` – Playwright (playwright-core) flow test at iPhone 390x844
 
@@ -136,7 +136,7 @@ The **+** menu is New round · **My Bag** · Rounds · Settings. My Bag has a **
 ## Round stats page (v96)
 - **Top box** (right under the title bar): **Score · To par · Yards · Putts**. The big "78 / +6 vs par · 18 holes done" header, the old TOTAL row under the scorecard and its Par / "18/18 holes" columns are gone. To par counts finished holes only; a round that isn't finished shows a small "thru N" under the score.
 - **Quick view** (under the box): three tiles – **Fairways** % (hit / par-4 and par-5 tee shots), **GIR** % (greens / finished holes) and **Putts** (total, per hole). Each shows the strokes gained of its category, green when positive and red when negative: Fairways → *Off the tee* SG, GIR → *Approach* SG, Putts → *Putting* SG (the same numbers as in the Strokes gained section, against the round's baseline).
-- **Stats:** every detailed tile (Fairways hit, Greens in regulation, Approach misses, Proximity, Pin location, Putts, Putt misses (1st putt, 10 ft and in), Lag putts (1st putt, over 10 ft), Club performance, Penalty strokes, Tee misses L / R, Missed greens L / R, Missed greens short / long) is a row that starts **collapsed** with its headline number on the right. Tap the row to open it (the full tile – tap it again for the map) and tap again to close it. Open rows stay open while you go in and out of maps; another round starts collapsed.
+- **Stats:** every detailed tile (Fairways hit, Greens in regulation, Approach misses, Proximity, Pin location, Putts, 1st putt misses (<10 ft), Lag putts (>10 ft), Club performance, Penalty strokes, Tee misses L / R) is a row that starts **collapsed** with its headline number on the right. Tap the row to open it (the full tile – tap it again for the map) and tap again to close it. Open rows stay open while you go in and out of maps; another round starts collapsed.
 - The scorecard legend is smaller and lighter, and the "Blank = hole not finished…" note is gone. The scorecards (tap a hole to edit) are unchanged. The live-share viewer is unchanged.
 
 ## OneDrive removed (v101)
@@ -267,9 +267,31 @@ Putts are now judged in two ways, depending on how far away they start (the firs
 - Cache `golf-sg-v104`.
 
 ## Putt misses and lag putts – first putt only (v105)
+_(v106 renamed these and shortened the wording – see below; the counting is the same.)_
 Both stats now look at **only the first putt on each hole**. A second or third putt never counts, so a tap-in after a lag putt no longer pads the numbers.
 - **Putt misses (1st putt, 10 ft and in)** – the hole's first putt, when it starts **10 ft or closer**. Groups: **Under 6 ft** and **6–10 ft** (a first putt from exactly 10 ft is in 6–10 ft). The row reads e.g. "2 of 3 missed"; opened, the big number is the misses and the line under it reads "Missed 2 of 3 first putts from 10 ft and in (made 1)".
 - **Lag putts (1st putt, over 10 ft)** – the hole's first putt, when it starts **more than 10 ft** away. Good = it went in or finished **within 3 ft** (exactly 3 ft counts). The row reads e.g. "3 of 5 inside 3 ft"; opened: "3 of 5 first putts from over 10 ft finished inside 3 ft (60%) · avg leave 3.9 ft" (avg leave = average distance left after that first putt, holed = 0).
 - The putt-misses map (This round and All rounds) uses the same first putts: title "Putt misses – 1st putts", "N missed of M first putts from 6–10 ft", a **1st putts made** "X of Y" box, and a **Lag putts (1st putt, over 10 ft)** box with **Finished inside 3 ft** and **Avg leave**. The PDF pages are called "Putt misses (1st putt) – 6–10 ft" / "– Under 6 ft" and carry the same numbers.
 - Not changed: strokes gained (including putting), the Putts tile and 1st putt stats, and the putting map – they still use every putt.
 - Cache `golf-sg-v105`.
+
+## 1st putt misses and Lag putts – wording (v106)
+Wording only; what is counted is the same as v105 (first putt of each hole only).
+- **1st putt misses (<10 ft)** – row value e.g. **2/3 missed** (misses / first putts from 10 ft and in; a first putt from exactly 10 ft is included). Opened: big **2/3 missed**, small line "1st putts from 10 ft and in · 1 made".
+- **Lag putts (>10 ft)** – row value e.g. **12/12 inside 3 ft** (first putts from over 10 ft that went in or finished within 3 ft / all of them). Opened: big **12/12 inside 3 ft**, small line "100% inside 3 ft · avg leave 1.2 ft".
+- Map: title **1st putt misses (<10 ft)**, line "2/2 missed – 1st putts from 6–10 ft this round", box **1st putts made 0/2**; lag box **Lag putts (>10 ft) – this round** with **Inside 3 ft 3/5 (60%)** and **Avg leave**. PDF pages: "1st putt misses (<10 ft) – 6–10 ft" / "– Under 6 ft".
+- Cache `golf-sg-v106`.
+- The **Missed greens L / R** and **Missed greens short / long** rows are gone from Round stats (Tee misses L / R is now the last row above Make PDF report). The app still records where approaches missed – the Approach misses tile and map, the PDF and the CSV are unchanged.
+- **My Bag – Adjust for playing conditions:** the card with the elevation and temperature sliders is now a section you open and close, **closed** each time you open My Bag. Closed, it shows the title **Adjust for playing conditions**, the line **Carries entered at 5000 ft · 70°F** (plus e.g. **· now 0 ft · 75°F** when the sliders are moved away from your baseline – it updates live while you drag) and a chevron. Tap it to open: Carries entered at … Change, Playing somewhere else?, the two sliders, Back to my baseline, the club-picker checkbox and the note all work exactly as before. The adjusted column in the club list still shows while it's closed.
+- Cache `golf-sg-v106`.
+
+## Lighter type everywhere (v106)
+No more large bold text anywhere in the app. Only sizes and weights changed (an override block at the end of `styles.css`); layout, tap targets and logic are the same.
+- Big buttons (Make PDF report, Export, Send round, Start round, Save, Close …): 18px regular instead of 22px bold.
+- Page titles and headings: 17–20px medium instead of 21–24px bold/black; the hole title 22px regular (was 30px bold). The Pin High title on Home is 32px light (was 40px).
+- Big numbers: stat tiles (including the big number in an opened Round stats tile), proximity / putting / 1st putt / lag cells 22px regular (was 26px black); score and to-par 24px regular (was 34px); Quick view 22px light.
+- Strokes gained header, map titles and summaries, Best vs worst, Birdie zone count, Rounds list, My Bag, Wedge ladder, Settings, scorecard labels, chips and toggles: 500 at most for small labels, 400 for normal text (was 600–900).
+- On-screen fairway % on the tee map is medium. The small labels drawn on the maps stay bold so they read on the green and fairway.
+- **The PDF report is unchanged.**
+- Screenshots: `light-fonts-home.png`, `light-fonts-rounds.png`, `light-fonts-stats.png`, `light-fonts-bag.png`.
+- Cache stays `golf-sg-v106`.

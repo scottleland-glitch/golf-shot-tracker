@@ -554,9 +554,10 @@ let passed = 0; const ok = (m) => { passed++; console.log('  ✓', m); };
   assert.match(await (await xt(page, 'gir')).textContent('[data-act="map"][data-v="gir"]'), /^5 \/ 7/);
   assert.match(await (await xt(page, 'miss')).textContent('[data-act="map"][data-v="miss"]'), /^2\s*Approach misses/);
   assert.match(await (await xt(page, 'prox')).textContent('[data-act="map"][data-v="prox"]'), /greens hit 5\/7/);
-  await xt(page, 'glr'); await xt(page, 'gsl');
-  const st7 = await page.$$eval('.stat', ss => Object.fromEntries(ss.map(x => [x.querySelector('span').textContent, x.querySelector('b').textContent])));
-  assert.strictEqual(st7['Missed greens left / right'], '1 / 1'); assert.strictEqual(st7['Missed greens short / long'], '0 / 0');
+  // v106: the Missed greens rows are gone from the list; the numbers are still worked out
+  assert.strictEqual(await page.locator('[data-stx="glr"], [data-stx="gsl"]').count(), 0);
+  const st7 = await page.evaluate(() => { const S = SG.summarize(window.__golf.rounds().find(r => r.id === 'rscott7'), 'pga'); return [S.apprLeft, S.apprRight, S.apprShort, S.apprOver]; });
+  assert.deepStrictEqual(st7, [1, 1, 0, 0]);
   assert.match(await (await xt(page, 'fw')).textContent('[data-act="map"][data-v="fw"]'), /^\d+ \/ 6/, 'fairways: 6 par-4/5 tee shots (par 3 excluded)');
   ok("Scott's 7-hole case: GIR 5/7 + Approach misses 2 = 7; proximity greens hit 5/7; missed greens L/R 1/1; fairways out of 6 (par 4/5 only)");
   await hideToast(); await (await xt(page, 'fw')).locator('[data-act="map"][data-v="fw"]').scrollIntoViewIfNeeded(); await page.evaluate(() => window.scrollBy(0, -60));
