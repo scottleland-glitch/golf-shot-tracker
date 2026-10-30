@@ -40,7 +40,7 @@ const BASE = process.env.BASE_URL || 'http://127.0.0.1:8765/', SHOTS = process.e
   assert.deepStrictEqual(trow.slice(0, 3), ['72thru 17', '+4', '6885']); assert.deepStrictEqual(await page.$$eval('#rs-top th', t => t.map(x => x.textContent)), ['Score', 'To par', 'Yards', 'Putts']);
   const fit = await page.evaluate(() => ({ docW: document.documentElement.scrollWidth, r: ['card-front', 'card-back', 'rs-top'].map(id => document.getElementById(id).getBoundingClientRect().right), h: Math.min(...[...document.querySelectorAll('#card-front tr.sscore .hc')].map(b => b.getBoundingClientRect().height)) }));
   assert.ok(fit.docW <= 390 && fit.r.every(x => x <= 390), JSON.stringify(fit)); assert.ok(fit.h >= 44, 'cell h ' + fit.h);
-  assert.match(await page.textContent('.topbar'), /‹ History/);
+  assert.match(await page.textContent('.topbar'), /‹ Rounds/);
   const lg = await page.$$eval('#card-legend .mk', ms => ms.map(m => m.className.replace('mk ', '') + ':' + m.textContent));
   assert.deepStrictEqual(lg, ['mk-eagle:', 'mk-birdie:', 'mk-par lgpar:–', 'mk-bogey:', 'mk-double:']);
   await page.locator('#card-legend').scrollIntoViewIfNeeded(); await page.screenshot({ path: SHOTS + '/33b-scorecard-legend.png' });
@@ -50,7 +50,7 @@ const BASE = process.env.BASE_URL || 'http://127.0.0.1:8765/', SHOTS = process.e
   await page.locator('[data-act="summary"]').first().click(); await page.click('.topbar [data-act="history"]'); await page.waitForSelector('#histlist');
   console.log('✓ scorecard: marks, OUT/IN/TOTAL, fits 390 (cells ' + fit.h.toFixed(0) + 'px), tap opens hole; History newest first, ‹ History back');
   // backup (download fallback) + restore
-  await page.click('[data-act="home"]'); await page.click('#archivepill');
+  await page.click('[data-act="home"]'); await page.click('#plusbtn'); await page.click('#plusmenu [data-act="archive"]');
   assert.match(await page.textContent('#bkremind'), /haven't backed up/);
   const [dl] = await Promise.all([page.waitForEvent('download'), page.click('[data-act="backup"]')]);
   assert.match(dl.suggestedFilename(), /^golf-rounds-scott-\d{4}-\d\d-\d\d\.json$/);

@@ -21,8 +21,8 @@ let passed = 0; const ok = (m) => { passed++; console.log('  ✓', m); };
   const page = await ctx.newPage();
   const errors = []; page.on('pageerror', e => errors.push(e.message)); page.on('console', m => { if (m.type() === 'error') errors.push(m.text()); });
   page.on('dialog', d => d.accept());
-  const act = async (a, v) => { if (a === 'history' && await page.$('#plusbtn') && !await page.$('#plusmenu')) await page.click('#plusbtn'); // History lives in the + menu on Home
-    else if (['backup', 'csvall', 'about', 'discard', 'editname'].includes(a) && await page.$('#archivepill')) await page.click('#archivepill'); // data tools live on Archive
+  const act = async (a, v) => { if ((a === 'history' || a === 'archive') && await page.$('#plusbtn') && !await page.$('#plusmenu')) await page.click('#plusbtn'); // Rounds + Settings live in the + menu on Home
+    else if (['backup', 'csvall', 'about', 'discard', 'editname'].includes(a) && await page.$('#plusbtn')) { await page.click('#plusbtn'); await page.click('#plusmenu [data-act="archive"]'); } // data tools live on Settings (v102)
     return page.locator(v == null ? `[data-act="${a}"]` : `[data-act="${a}"][data-v="${v}"]`).first().click(); };
   const actK = (a, k) => page.locator(`[data-act="${a}"][data-k="${k}"]`).first().click();
   const dist = (k, v) => page.fill(`input[data-row="${k}"]`, String(v));
@@ -700,25 +700,25 @@ let passed = 0; const ok = (m) => { passed++; console.log('  ✓', m); };
   assert.match(await page.textContent('.hc-head'), /Hole 13/); ok('tapping a back-9 score cell opens that hole for editing');
   await page.locator('[data-act="summary"]').first().click();
   await page.locator('#card-back tr.shole [data-act="goHole"][data-i="17"]').click(); assert.match(await page.textContent('.hc-head'), /Hole 18/); ok('tapping the hole number opens it too (unfinished 18)');
-  // History: big button on Home, list newest first, open a round's full stats, back to History, delete
+  // Rounds (was History): big button on Settings, list newest first, open a round's full stats, back to History, delete
   await act('home'); await act('archive');
-  assert.match(await page.textContent('[data-act="history"].histbtn'), /History\s*7 saved rounds/);
+  assert.match(await page.textContent('[data-act="history"].histbtn'), /Rounds\s*7 saved rounds/);
   const hb = await page.$eval('[data-act="history"].histbtn', b => { const r = b.getBoundingClientRect(); return [r.width, r.height]; }); assert.ok(hb[0] > 350 && hb[1] >= 66, 'big History button ' + hb);
   await act('history');
-  const hist = await page.$$eval('#histlist .hrow', rs => rs.map(r => [r.getAttribute('data-id'), r.querySelector('.hist').innerText.replace(/\s+/g, ' ')]));
+  const hist = await page.$$eval('#histlist .hrow', rs => rs.map(r => [r.getAttribute('data-id'), ...['.hholes', '.hcirc', '.hpar b', '.hpar small'].map(s => r.querySelector(s).textContent)])); // v102 tight Rounds list
   const expH = await page.evaluate(() => window.__golf.rounds().slice().sort((a, b) => String(b.date).localeCompare(String(a.date))).map(r => { const S = SG.summarize(r); return [r.id, S.holesDone, S.strokes, S.toPar, S.sgTotal]; }));
   assert.deepStrictEqual(hist.map(h => h[0]), expH.map(e => e[0]), 'newest first');
   const tp = n => n === 0 ? 'E' : n > 0 ? '+' + n : String(n), f2s = v => { const t = (Math.round(v * 100) / 100).toFixed(2); return (v > 0.004 ? '+' : '') + (t === '-0.00' ? '0.00' : t); };
-  hist.forEach((h, i) => { const e = expH[i]; assert.ok(h[1].includes(e[1] + ' of 18 holes played'), h[1]); if (e[1]) assert.ok(h[1].includes(e[2] + ' (' + tp(e[3]) + ')'), h[1]); assert.ok(h[1].includes('SG ' + f2s(e[4])), h[1]); });
+  hist.forEach((h, i) => { const e = expH[i]; assert.strictEqual(h[1], String(e[1]), 'holes ' + h); if (e[1]) assert.deepStrictEqual(h.slice(2, 5), [String(e[2]), tp(e[3]), f2s(e[4])], 'score, to par, SG ' + h); });
   ok(`History: ${hist.length} rounds newest first (${hist.map(h => h[0]).join(', ')}), each with date, course, score vs par, holes played, SG`);
   await page.screenshot({ path: `${SHOTS}/34-history.png` });
   await page.locator('#histlist [data-act="open"][data-id="rscott7"]').click();
-  assert.match(await page.textContent('.topbar'), /‹ History/); assert.match(await (await xt(page, 'gir')).textContent('[data-act="map"][data-v="gir"]'), /^5 \/ 7/);
+  assert.match(await page.textContent('.topbar'), /‹ Rounds/); assert.match(await (await xt(page, 'gir')).textContent('[data-act="map"][data-v="gir"]'), /^5 \/ 7/);
   assert.strictEqual(await page.locator('#card-front').count(), 1);
   await (await xt(page, 'prox')).locator('[data-act="map"][data-v="prox"]').click(); await page.waitForSelector('#proxmap'); await act('mapclose');
   await (await xt(page, 'pin')).locator('[data-act="map"][data-v="pin"]').click(); await page.waitForSelector('#pinstats'); await act('mapclose');
   await page.locator('#card-front tr.sscore [data-act="goHole"][data-i="2"]').click(); assert.match(await page.textContent('.hc-head'), /Hole 3/);
-  await page.locator('[data-act="summary"]').first().click(); assert.match(await page.textContent('.topbar'), /‹ History/);
+  await page.locator('[data-act="summary"]').first().click(); assert.match(await page.textContent('.topbar'), /‹ Rounds/);
   await page.locator('.topbar [data-act="history"]').click(); await page.waitForSelector('#histlist');
   ok('History › round: full stats (GIR 5/7, scorecard, proximity + pin maps), scorecard tap opens a hole, Scorecard & stats returns with ‹ History, ‹ History goes back');
   await page.locator('#histlist [data-act="delHist"][data-id="rcard"]').click();

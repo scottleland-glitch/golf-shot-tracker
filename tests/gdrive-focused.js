@@ -108,7 +108,7 @@ const ids = b => b.rounds.map(r => r.id).sort();
     await page.goto(BASE); await page.evaluate(([p, rs]) => { localStorage.clear(); localStorage.setItem('golfsg.player.v1', p); localStorage.setItem('golfsg.nameasked.v1', '1'); localStorage.setItem('golfsg.rounds.v1', JSON.stringify(rs)); }, [player, rounds]);
     await page.reload(); await page.waitForSelector('#app > *'); return page;
   };
-  const toArchive = async p => { await p.click('#archivepill'); await p.waitForSelector('.archivepage'); };
+  const toArchive = async p => { await p.click('#plusbtn'); await p.click('#plusmenu [data-act="archive"]'); await p.waitForSelector('.archivepage'); };
   const shot = async (p, name, sel) => { await p.waitForFunction(() => !document.querySelector('#toast.show')); await p.waitForTimeout(300); await p.evaluate(s => { const e = document.querySelector(s); if (e) e.scrollIntoView({ block: 'center' }); }, sel); await p.waitForTimeout(400); await p.screenshot({ path: OUT + name }); };
   const st = p => p.evaluate(() => JSON.parse(localStorage.getItem('golfsg.gdrive.v1') || 'null'));
   const waitOk = (p, since) => p.waitForFunction(s => { const x = JSON.parse(localStorage.getItem('golfsg.gdrive.v1') || 'null'); return x && !x.pending && x.lastOk && x.lastOk > s; }, since || '');

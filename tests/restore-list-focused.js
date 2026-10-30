@@ -68,7 +68,7 @@ const rnd = (id, player, day, extra, more) => { const r = Object.assign(ARC.roun
   await P.goto(BASE + '?r=1#code=M.C123&client_info=abc&state=xyz'); await P.waitForSelector('#home');
   assert.strictEqual(await P.evaluate(() => location.hash), '', 'old Microsoft sign-in return wiped from the address bar');
   assert.deepStrictEqual(await P.evaluate(() => Object.keys(localStorage).filter(k => /onedrive|msal|microsoftonline/i.test(k))), [], 'old OneDrive keys quietly removed (on this phone only)');
-  await P.click('#archivepill'); await P.waitForSelector('.archivepage #gdcard');
+  await P.click('#plusbtn'); await P.click('#plusmenu [data-act="archive"]'); await P.waitForSelector('.archivepage #gdcard');
   const arc = await P.textContent('.archivepage');
   assert.ok(!/OneDrive|Microsoft/i.test(arc), 'no OneDrive anywhere in Archive'); assert.strictEqual(await P.$('#odcard'), null);
   for (const s of ['[data-act="backup"]', 'label[for="restorefile"]', '[data-act="csvall"]', '#gdrestore']) assert.ok(await P.isVisible(s), s + ' still there');
@@ -117,7 +117,7 @@ const rnd = (id, player, day, extra, more) => { const r = Object.assign(ARC.roun
   await P.click('.topbar [data-act="rpback"]'); await P.waitForSelector('#gdlpage');
   // restore
   await P.click('#rpgo'); await P.waitForSelector('.archivepage #notice');
-  assert.match(await P.textContent('#notice'), /Restored 6 rounds and updated 1 from Quincy’s backup – they’re in History under Quincy/);
+  assert.match(await P.textContent('#notice'), /Restored 6 rounds and updated 1 from Quincy’s backup – they’re in Rounds under Quincy/);
   const after = await LR(), ids = after.map(r => r.id);
   assert.deepStrictEqual(ids.slice().sort(), ['q1', 'q10', 'q2', 'q3', 'q4', 'q5', 'q6', 'q7', 'q8', 's1'], 'q9 left out, nothing doubled');
   assert.strictEqual(new Set(ids).size, ids.length);
@@ -132,7 +132,7 @@ const rnd = (id, player, day, extra, more) => { const r = Object.assign(ARC.roun
   console.log('  restore list: 10/10 rounds shown, 7 missing ticked, greyed rounds locked, Clear / Select all missing / count, 7 restored under Quincy, newer phone copy kept');
 
   // ---------- 5. a weekly copy: everything from it is already here now ----------
-  await P.click('[data-act="home"]'); await P.click('#archivepill'); await P.click('#gdrestore'); await P.waitForSelector('#gdrsheet [data-act="gdrplayer"]');
+  await P.click('[data-act="home"]'); await P.click('#plusbtn'); await P.click('#plusmenu [data-act="archive"]'); await P.click('#gdrestore'); await P.waitForSelector('#gdrsheet [data-act="gdrplayer"]');
   await P.click('#gdrsheet [data-act="gdrplayer"][data-name="Quincy"]'); await P.waitForSelector('#gdrsheet [data-act="gdrfile"]');
   await P.click('#gdrsheet [data-act="gdrfile"] >> nth=1'); await P.waitForSelector('#gdlpage .gdlrow');
   assert.match(await P.textContent('#gdlpage .topbar .title'), /Weekly copy · Oct 12, 2026/);

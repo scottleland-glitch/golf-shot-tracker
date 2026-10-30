@@ -61,11 +61,13 @@ excluded and counted. This round / All rounds toggle.
 - `gdrive.js` – Google Drive backup (v98): sign-in redirect + state check, Drive REST calls (folders, upload, update in place, download), multi-phone merge, sync step
 - `tests/gdrive-focused.js` – Google Drive backup (v98) against a fake Drive: folders per player, upload / update in place, weekly copies, two phones on one account, expired sign-in, restore, disconnect (`node tests/gdrive-focused.js`)
 - `tests/compare-focused.js` – Best vs worst rounds, including the v100 Best / Worst column groups fitting 390 px (`node tests/compare-focused.js`)
-- `tests/change-player-focused.js` – Change player (v99): select mode, single round, new name, cancel, History filter, Google Drive files following the move (`node tests/change-player-focused.js`)
+- `tests/change-player-focused.js` – Change player (v99): select mode, single round, new name, cancel, Rounds filter, Google Drive files following the move (`node tests/change-player-focused.js`)
 - `tests/restore-list-focused.js` – Google Drive restore list (v101) and a phone that had OneDrive connected opening cleanly (`node tests/restore-list-focused.js`)
 - `tests/fixtures/fake-drive.js` – in-memory fake Google Drive shared by the Drive tests
 - `tests/round-stats-quick-focused.js` – Round stats page (v96): Score / To par / Yards / Putts box on top, Quick view with SG, collapsed stat tiles, smaller legend; uses the 78 at Arcade Creek in `tests/fixtures/arcade-78.js` (`node tests/round-stats-quick-focused.js`)
-- `tests/profile-wedges-focused.js` – Profile + Wedges chart: menu, navigation, accordion, persistence, backup (`node tests/profile-wedges-focused.js`)
+- `tests/profile-wedges-focused.js` – My Bag + Wedge ladder: menu, Bag | Wedge ladder toggle, accordion, persistence, backup (`node tests/profile-wedges-focused.js`)
+- `tests/rounds-tight-focused.js` – Rounds page (v102): tight list, 8+ rows at 390x844, tints, unfinished flag, tap, delete confirm, filter, select mode (`node tests/rounds-tight-focused.js`)
+- `tests/menu-bag-settings-focused.js` – v102 navigation: Home only +, menu New round · My Bag · Rounds · Settings, Bag | Wedge ladder toggle, Settings page (`node tests/menu-bag-settings-focused.js`)
 - `tests/e2e.js` – Playwright (playwright-core) flow test at iPhone 390x844
 
 ## Hosting
@@ -103,7 +105,7 @@ Applies to the GIR tile + map, Approach-miss tile + map, Pin location map, Proxi
 - Practice warning (red row + message): a lie with 3+ shots and no greens hit ("From the rough you've missed 4 of 4 greens — worth some practice."), or 30+ points below the fairway's % (fairway needs 2+ shots).
 
 ## Player names (several phones)
-Each phone sets a Player name (Profile, or the Player row when starting a round). Its rounds are stamped with that name. Backup files are named after the player (`golf-rounds-<name>.json`), and Google Drive keeps one folder per player. History can filter by player.
+Each phone sets a Player name (Settings, or the Player row when starting a round). Its rounds are stamped with that name. Backup files are named after the player (`golf-rounds-<name>.json`), and Google Drive keeps one folder per player. History can filter by player.
 
 ### Future PDF report: colour by distance group (not in the app)
 For the planned PDF report, approach tracers can be coloured by the strokes-gained distance group. The helper is in sg.js: `SG.REPORT_GROUPS` (id, name, color, colorName, halo) and `SG.reportGroup(yd)`. Groups are 20–60 (over 20 to under 60), 60–100, 100–130, 130–160, 160–200 and 200+ yd; 20 yd or closer = short game, returns null. Colours: 20–60 purple #6a1b9a, 60–100 blue #0d47a1, 100–130 teal #00838f, 130–160 amber orange #ffb300 (dark halo), 160–200 magenta #d81b60, 200+ brown #6d4c41. When colour means distance, show hit/miss with the end marker: filled dot = hit, white ring with ✕ = miss. The full map implementation is in commit b59bc90; screenshots are screenshots/46*.png. The in-app Proximity map stays as in v22 (40–200 yd 10-yd rail, blue hit / red miss).
@@ -119,13 +121,13 @@ Save with the share sheet (`Golf-Round-<date>-<course>-<player>.pdf`, letters/di
 Each shot row (except putts on the green) has an optional club picker: Driver, 3W, 5W, 7W, 4H, 5H, 5i–9i, PW, 52, 54, 56, 58, 60. The tee row on par 4/5s has a **Layup** checkbox.
 A layup tee shot is excluded from strokes gained entirely: its SG is set to 0, it is not counted in Off the tee (shots or SG) nor the SG total. The score is unchanged. Stored as `row.club` / `row.layup` (optional fields; older rounds load unchanged); included in backups and the CSV (`club`, `layup` columns).
 
-## Profile (v93)
-The **+** menu is New round · **Profile** · History. Profile shows the player name (Change works as in Archive) and two cards: **My Bag** and **Wedges**. Their ‹ Profile button goes back to Profile; Profile's ‹ Home goes home.
+## My Bag and Wedge ladder (v93; page layout changed in v102)
+The **+** menu is New round · **My Bag** · Rounds · Settings. My Bag has a **Bag | Wedge ladder** toggle at the top (see v102 below). The player name is in Settings.
 
 **Wedges**: one row per yardage, 40–110 yd in 10-yard steps (40, 50 … 110 – 8 rows). Collapsed, a row shows a one-line summary (e.g. `54° · middle · 1–2° · P2 · hinge 90°`) or "Not set". Tap a row to open it (one open at a time): **Club** (short clubs from My Bag – wedges, PW, 9i, anything 40°+ – shown without carries, since distance depends on the setup; the standard PW/48–60° list if the bag has none; "Other" for free text), **Ball position** (Front, Middle, Back), **Shaft lean** (0°, 1–2°, 3–4°), **Club position** (swing positions P1, P2, P3), each with an optional note, and **Hinge** (wrist hinge: 45°, 90°, Full). Tap a selected chip again to unselect. Saves as you tap/type to `golfsg.wedges.v1`; "Clear" empties a yardage. Included in backups (`wedges` key) and restored when the phone's chart is empty or the backup's is newer; older backups without it restore as before. Entries saved at 45, 55 … 105 yd by the first (5-yard) v93 draft are kept in the stored data and backups, just not shown. Charts saved with the first v93 draft options are converted when read (ball Back/Back of center → Back, Center → Middle, Forward/Forward of center → Front; lean Neutral → 0°, Slight → 1–2°, Strong → 3–4°, Leaning back → a note; old clock hand positions → a Club position note).
 
 ## Wedge ladder (v94, v95)
-- **High / Low flight:** every yardage has two setups. The **High flight · Low flight** toggle at the top of the Wedges page (opens on High) switches the whole list; the header count, row summaries, simple view, Edit and Clear all work on the selected flight. Stored in `golfsg.wedges.v1` as `rows` (High – v93 charts and old backups land here, Low starts empty) and `low` (Low); both go into backups and restore. The Profile card shows e.g. "3 of 8 yardages set · Low 1 of 8".
+- **High / Low flight:** every yardage has two setups. The **High flight · Low flight** toggle at the top of the Wedge ladder (opens on High) switches the whole list; the header count, row summaries, simple view, Edit and Clear all work on the selected flight. Stored in `golfsg.wedges.v1` as `rows` (High – v93 charts and old backups land here, Low starts empty) and `low` (Low); both go into backups and restore. The Profile card shows e.g. "3 of 8 yardages set · Low 1 of 8".
 - **Wedges page:** opens in a simple view. Tapping a yardage that's set shows just three lines – Club, Ball position, Club position (shaft lean and hinge are still saved, just not shown); the row headers show club · ball · position. Tapping an empty yardage opens the full editor. The **✎ Edit** button under the list turns on edit mode (it reads **✓ Done editing**): tapping any yardage opens the full editor (club, ball position, shaft lean, club position, hinge, notes, Clear/Done) and the headers show everything.
 - **Scoring page (v95):** the Wedges yardages are **carry** distances, not distances to the pin – a 50 yd pin on a downhill lie may want a 40 yd carry that bounces and runs out; a 60 yd pin on an uphill slope may want a 70 yd carry that lands and pulls back. So any shot **100 yd or less** (more than 0; not on the green, not OB) gets a **Wedge** dropdown instead of the club picker. It lists three carries around the pin distance: the distance rounded to the nearest 10 (halves round up – 73 → 70, 75 and 77 → 80), then 10 less and 10 more, slid to stay inside 40–110 (60 → 50/60/70, 73 → 60/70/80, 77 → 70/80/90, 40 or a 15 yd chip → 40/50/60, 100 → 90/100/110). Each carry appears under **High flight** and **Low flight** (e.g. "70 yd · High · 54° · Middle · P2"), so about 6 entries; carries with no club yet show greyed ("70 yd · Low · not set") and can't be picked. Nothing is preselected ("Choose carry…"). Typing a different distance redoes the three carries but never picks or changes anything; a carry you already chose stays selected (and stays in the list) even if it's outside the new three. Choosing one sets the shot's club (strokes gained and club stats work exactly as before), saves the carry and flight on the shot (`wedgeY`, `wedgeF`) so it shows again after a reload, and shows a small card under it: Flight, Carry, Club, Ball, Position, plus lean and hinge if set. "Choose carry…" clears it.
 - Over 100 yd → the normal club picker (a club chosen from the ladder stays). If no yardage has a club in either flight, shots use the normal club picker. A shot that already has a club that isn't a ladder pick (e.g. 7i at 100 yd, or an automatic pick from v94) keeps it and shows it in the dropdown. Voice entry is unchanged.
@@ -142,12 +144,12 @@ Google Drive is now the only automatic backup. The OneDrive card, sign-in (MSAL)
 A phone that had OneDrive connected just opens as normal. The old OneDrive settings and the Microsoft sign-in it kept on the phone are quietly cleared, and a leftover Microsoft sign-in return in the address bar is ignored. Nothing in OneDrive itself is touched: the backups already there stay where they are (OneDrive › Apps › Golf Shot Tracker).
 
 ## Restore from Google Drive (v101)
-Archive › Google Drive › **Restore** → pick a player (e.g. Quincy) → *Latest backup* or a weekly copy → **Quincy's rounds**:
+Settings › Google Drive › **Restore** → pick a player (e.g. Quincy) → *Latest backup* or a weekly copy → **Quincy's rounds**:
 
 - **Every round in that backup is listed**, newest first, with its date, course, score and to par. Nothing is filtered out. If the same round is in the file twice, it is listed once (the newer copy).
 - **Not on this phone:** ticked to start with. **On this phone:** greyed out and can't be ticked. If the backup has a newer copy of a round that's on the phone, it says *backup copy is newer* and you can tick it to update it. If the phone's copy is newer, it says so and that round is left alone.
 - **Select all missing**, **Clear**, a running **N selected**, and **Restore N rounds** at the bottom. Tap **›** on a round to look at it first (read-only).
-- Restored rounds go into History under that player's name (rounds in the file with no name get the folder's name) and keep their ids, so nothing is doubled up and later backups match them. A newer copy on this phone is never replaced.
+- Restored rounds go into Rounds under that player's name (rounds in the file with no name get the folder's name) and keep their ids, so nothing is doubled up and later backups match them. A newer copy on this phone is never replaced.
 - Restoring from a file (**Restore from backup**) still uses the earlier tick-the-rounds screen.
 
 ## Best vs worst rounds (v100)
@@ -164,23 +166,23 @@ The "Where the strokes go" table on the Best vs worst rounds page is laid out mo
 ## Change player (v99)
 For rounds saved under the wrong name (e.g. Quincy's rounds saved as *Scott Leland*).
 
-- **History → 👤 Change player**: tap the rounds to move (a tick shows), or use *Select all shown* – pick a player chip first to see only that player's rounds. The bar at the bottom says *Move 3 rounds to…*.
+- **Rounds → 👤 Change player**: tap the rounds to move (a tick shows), or use *Select all shown* – pick a player chip first to see only that player's rounds. The bar at the bottom says *Move 3 rounds to…*.
 - Choose a name: the names already on this phone (from rounds and the Player name; *Quincy* comes first as the suggestion), or *New name…* to type one. Typing an existing name in any upper/lower case uses that name.
-- A card asks first – *Move 3 rounds to Quincy?* – with *Move* / *Cancel*. Cancel changes nothing (in History your ticks stay).
+- A card asks first – *Move 3 rounds to Quincy?* – with *Move* / *Cancel*. Cancel changes nothing (in Rounds your ticks stay).
 - One round: open it and tap **👤 Change player** under *Send round*.
 - What changes: only the round's player name, plus an *updated* time (so it wins when phones' backups are merged) and a small note of the old name (`movedFrom`). Same round id, shots, stats.
 - **Backups:** Google Drive backs up straight after. In Google Drive the round goes into the new player's file and is taken out of the old player's file (the note tells the old file to drop that round unless it was changed somewhere else after the move). Weekly dated copies made before the move are left as they were.
 - A round sent with *Send round* doesn't carry the note.
 
 ## Google Drive backup (v98)
-The automatic backup in **Archive** (the only one since v101 – OneDrive was removed).
+The automatic backup in **Settings** (the only one since v101 – OneDrive was removed).
 
-- **Connect Google Drive** opens Google's own sign-in page (the whole screen, no pop-up – pop-ups don't work in an iPhone home-screen app) and comes back to Archive. The app can only see files it made itself (Google's `drive.file` permission) – nothing else in your Drive.
+- **Connect Google Drive** opens Google's own sign-in page (the whole screen, no pop-up – pop-ups don't work in an iPhone home-screen app) and comes back to Settings. The app can only see files it made itself (Google's `drive.file` permission) – nothing else in your Drive.
 - **Where it goes:** My Drive › **Pin High Backups** › one folder per player (*Scott*, *Quincy* …). In each: `golf-rounds-<name>.json` (always the latest) and a dated copy once a week (`golf-rounds-<name>-YYYY-MM-DD.json`).
 - **Which folder:** every round goes to the folder of *its own* player. A round Scott keeps for Quincy on his phone goes to Quincy's folder. Rounds with no player name go to this phone's player. My Bag and the Wedges chart go only in this phone's player's file; saved courses go in every file.
 - **Several phones, one Google account:** before each upload the app reads the file already in Drive and adds its rounds to the new one (matched by round id), so one phone never wipes out another phone's rounds. If both have the same round, the one changed most recently wins (each round now carries an `updated` time, set whenever it is saved). A round deleted on one phone stays in Drive if it is still in Drive.
 - **When it backs up:** by itself after a round is saved or finished, after changes to courses / bag / wedges / name, and when the app is opened – as long as you are signed in.
-- **Sign-in runs out after about an hour** (Google doesn't give this kind of app a long sign-in). Nothing is lost: changes wait, Archive shows a small *Sign in to Google to back up* button (never on Home, never a surprise jump to Google), and the waiting backup goes up straight after you sign in.
+- **Sign-in runs out after about an hour** (Google doesn't give this kind of app a long sign-in). Nothing is lost: changes wait, Settings shows a small *Sign in to Google to back up* button (never on Home, never a surprise jump to Google), and the waiting backup goes up straight after you sign in.
 - **Restore** → pick a player → *Latest backup* or a weekly copy → a list of every round in that backup (see *Restore from Google Drive (v101)*). Nothing on the phone is deleted. My Bag / Wedges only come along from your own folder.
 - **Disconnect Google Drive** signs this phone out (and tells Google to drop the sign-in). The backups stay in Drive.
 - Set up in `config.js` → `googleClientId` (public ID, no secret). Google Cloud: OAuth client type *Web application*, authorised JavaScript origin `https://scottleland-glitch.github.io`, redirect URI `https://scottleland-glitch.github.io/golf-shot-tracker/` (exact, with the slash).
@@ -192,22 +194,36 @@ For sending one saved round to another phone (e.g. Scott keeps score at Quincy's
   - **📄 Send as a file** – opens the iPhone share sheet (AirDrop, Messages, Mail, Save to Files) with `Pin-High-Round-<date>-<course>.json`. Phones without a share sheet download the file instead.
   - **💬 Send as a text code** – a code starting `PINHIGH1:` that holds the whole round. It is gzip-compressed (about 750 characters for an 18-hole round) when the phone can compress (iOS 16.4 and newer), otherwise plain, about 6,000 characters. It opens the share sheet with a short message plus the code; if there is no share sheet it copies the code ("✓ Copied") and shows it in a box.
   - The file and the code carry `{ pinhigh: 'round', v: 1, sent, round }`. The round is exactly as stored, the same as in the backup file: every hole and shot, pins, clubs, course, tee, date, baseline.
-- **Receive:** History → **📥 Add a round** (top of the list) opens a sheet with **📂 Choose file** and **Paste code** + **Add**. The pasted text can be the whole message – the app finds the `PINHIGH1:` code in it. Anything else gets a friendly message:
+- **Receive:** Rounds → **📥 Add a round** (tools row above the list) opens a sheet with **📂 Choose file** and **Paste code** + **Add**. The pasted text can be the whole message – the app finds the `PINHIGH1:` code in it. Anything else gets a friendly message:
   - not a code
   - not a Pin High round
   - damaged
   - from a newer version
-  - a full backup file, which points to Archive → Restore from backup
-- **Confirmation card:** shows course, date (and tee), score, to par and holes, with "Goes into <player>’s history". Then **Add** / **Cancel**.
+  - a full backup file, which points to Settings → Restore from backup
+- **Confirmation card:** shows course, date (and tee), score, to par and holes, with "Goes into <player>’s rounds". Then **Add** / **Cancel**.
 - **Add:** the round keeps its original id. It is stamped with *this* phone's player name (no name set → it simply counts as this phone's own). It is never the round in progress.
 - **No duplicates:** if the same id – or the same course, start time and identical shots – is already there, the app says "This round is already in your history" and adds nothing.
 - **After adding:** **View round** opens its stats. Strokes gained and every stat are worked out on the phone as for any round, and it goes into this phone's backups like any of the player's own rounds.
 
 ## My Bag (v92)
-Open from the **+** menu → **Profile** → **My Bag**. Add clubs by manufacturer → model → club/loft (Titleist, TaylorMade, Callaway, Ping, Srixon, Cleveland, Mizuno, Cobra, PXG, Wilson, Bridgestone, Honma, Tour Edge, XXIO, Vokey, Scotty Cameron, Odyssey, Ben Hogan, Sub 70, Lynx; "Other brand" / "Model not listed" for anything else, plus a custom club name and loft). Lofts are typical stock lofts and editable. One club per name (adding a second 7i replaces the first). Enter each club's **carry** in yards; sort by club or by carry; tap a club to edit or remove it.
+Open from the **+** menu → **My Bag** (Bag tab). Add clubs by manufacturer → model → club/loft (Titleist, TaylorMade, Callaway, Ping, Srixon, Cleveland, Mizuno, Cobra, PXG, Wilson, Bridgestone, Honma, Tour Edge, XXIO, Vokey, Scotty Cameron, Odyssey, Ben Hogan, Sub 70, Lynx; "Other brand" / "Model not listed" for anything else, plus a custom club name and loft). Lofts are typical stock lofts and editable. One club per name (adding a second 7i replaces the first). Enter each club's **carry** in yards; sort by club or by carry; tap a club to edit or remove it.
 
 **Baseline** = the conditions the carries were hit in (default Reno: 5,000 ft, 70°F; "Change" to edit). The **elevation** (0–9,000 ft) and **temperature** (30–110°F) sliders show every club's carry for other conditions, with the difference; "Back to my baseline" resets them. "Show these carries in the club picker" labels the round's club picker (e.g. `7i · 144`).
 
 Physics: a point-mass ball flight (drag + lift, spin decay) is solved per club at its loft with typical launch/spin, with ball speed calibrated so the baseline conditions give exactly the entered carry; the new carry = entered carry × (simulated carry in the new air ÷ simulated carry in the baseline air). Air density from the ISA pressure at that altitude and the temperature (dry air). Roughly +1.2% per 1,000 ft for a driver and ~1.5 yd per 10°F, in line with published rules of thumb (Titleist ~1.16%/1,000 ft). Example: 250 yd driver / 150 yd 7i at Reno 5,000 ft/70°F → about 239 / 144 yd in San Diego (0 ft, 75°F). Not included: wind, humidity, ball temperature, firm/soft ground (roll).
 
 In a round, when the bag has clubs, the club picker lists only bag clubs (no putter); a shot that already has a club not in the bag still shows it. Voice clubs map to the bag (e.g. "gap wedge" → your GW or the nearest wedge loft). Strokes gained is unaffected. Stored in `golfsg.bag.v1`; included in backups (`bag` key) and restored when the phone's bag is empty or the backup's bag is newer.
+
+## Rounds, Settings and My Bag (v102)
+- **Rounds** (was "History"): a tight list, like a scorecard app's Scores list, instead of big tiles. A small header row (Score · Holes · Date · To par/SG · Course), then one thin row (about 58 px) per round inside one soft rounded panel with thin lines between rows – 10 or more rounds fit on an iPhone screen without scrolling.
+  - **Score circle** tinted by to par, counted per 18 holes so a 9-hole round is judged fairly: under par = soft green; even to +18 (par to bogey golf) = soft blue-grey; worse than +18 = soft red.
+  - **Holes pill**: 18 (or 9); an unfinished round (fewer holes done, or the round in progress) shows the holes done in a dashed amber pill, and "Unfinished" in front of the tee/player line.
+  - **Date** as 07/13 with the year small underneath; **To par** with SG small and coloured underneath; **Course** with tee · player small underneath.
+  - Tap a row to open its round stats. A small grey 🗑 at the far right of each row deletes – it still asks "Delete the round from … for good?" first.
+  - Tools are one slim row of small buttons: 📥 Add a round · 👤 Change player · ⚖ Best vs worst · 🎯 Birdie zone. The player filter is a slim row of chips. Select mode (Change player) puts a tick circle in front of each row and hides the trash.
+  - Every "History" label now says "Rounds" (+ menu, page title, ‹ Rounds back buttons, Settings button, tips, messages). Internal names (`history` screen, `data-act="history"`) are unchanged.
+- **Settings** (was "Archive"): the Archive button on Home is gone; the same page now opens from the **+** menu as **Settings** (title, ‹ Settings back button from Courses, tips and messages renamed). Home shows only the **+** button (and Resume when a round is going).
+- **+ menu**: New round · My Bag · Rounds · Settings. **Profile is gone** – once My Bag and Wedges moved out it only held the player name, which Settings already shows, so the name lives in Settings only.
+- **My Bag** has a **Bag | Wedge ladder** toggle at the top. Bag = the clubs view (carries, elevation/temperature, sort, add/edit); Wedge ladder = the Wedges view (40–110 yd, High/Low flight, Edit). Both use ‹ Home; there is no separate Wedges button.
+- Cache `golf-sg-v102`.
+

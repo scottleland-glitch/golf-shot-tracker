@@ -146,7 +146,7 @@
     else if (view.screen === 'card') el.innerHTML = cardHTML();
     else if (view.screen === 'courses') el.innerHTML = coursesHTML();
     else if (view.screen === 'bag') el.innerHTML = bagHTML();
-    else if (view.screen === 'profile') el.innerHTML = profileHTML();
+    else if (view.screen === 'profile') { view.screen = 'archive'; el.innerHTML = archiveHTML(); } // v102: old Profile → Settings
     else if (view.screen === 'wedges') el.innerHTML = wedgesHTML();
     else if (view.screen === 'birdie') { view.bzD = null; el.innerHTML = birdieHTML(); }
     else if (view.screen === 'home' || !round()) el.innerHTML = homeHTML();
@@ -501,25 +501,37 @@
     var P = playersIn(), names = Object.keys(P).sort(), multi = names.length + (savedRounds().some(function (r) { return !r.player; }) && names.length ? 1 : 0) > 1;
     if (!multi || (view.histPlayer && view.histPlayer !== '~none' && !P[view.histPlayer])) view.histPlayer = null;
     var list = savedRounds().filter(function (r) { return !view.histPlayer || (view.histPlayer === '~none' ? !r.player : r.player === view.histPlayer); }).sort(function (a, b) { return String(b.date || '').localeCompare(String(a.date || '')); });
-    var h = '<div class="frostpage theme-sky"><div class="topbar frost"><button class="txt frostbtn" data-act="home">‹ Home</button><div class="title"><b>History</b><span>' + list.length + ' round' + (list.length === 1 ? '' : 's') + ', newest first</span></div><span class="tbspace"></span></div>';
-    if (multi) h += '<div class="liechips" id="playerchips" role="group" aria-label="Filter by player">' + [''].concat(names).map(function (n) {
+    var h = '<div class="frostpage theme-sky histpage"><div class="topbar frost"><button class="txt frostbtn" data-act="home">‹ Home</button><div class="title"><b>Rounds</b><span>' + list.length + ' round' + (list.length === 1 ? '' : 's') + ', newest first</span></div><span class="tbspace"></span></div>';
+    // v102: compact player filter + one slim row of small tools, then a tight table-like list (score circle, holes, date, to par/SG, course)
+    if (multi) h += '<div class="hchips" id="playerchips" role="group" aria-label="Filter by player">' + [''].concat(names).map(function (n) {
         var sel = (view.histPlayer || '') === n; return '<button class="frostchip' + (sel ? ' sel' : '') + '" data-act="histplayer" data-v="' + esc(n) + '" aria-pressed="' + sel + '">' + (n ? esc(n) + ' (' + P[n] + ')' : 'All players') + '</button>'; }).join('') +
       (savedRounds().some(function (r) { return !r.player; }) ? '<button class="frostchip' + (view.histPlayer === '~none' ? ' sel' : '') + '" data-act="histplayer" data-v="~none">No name</button>' : '') + '</div>';
     var M = view.mv && view.mv.sel ? view.mv : null;
     if (M) { var allOn = list.length && list.every(function (r) { return M.ids[r.id]; }); h += '<p class="mvhelp" id="mvhelp">Tap the rounds to move to another player.</p><button class="txt mvall" data-act="mvall" id="mvall">' + (allOn ? 'Clear all' : 'Select all ' + list.length + ' shown') + '</button>'; }
-    else h += '<div class="histtools"><button class="frostbtn addrbtn" data-act="addopen" id="addround">📥 Add a round<small>someone sent you one?</small></button>' +
-      (list.length ? '<button class="frostbtn addrbtn" data-act="mvstart" id="chgplayer">👤 Change player<small>rounds under the wrong name?</small></button>' : '') + '</div>';
+    else {
+      var tool = function (id, act, ic, lbl, extra) { return '<button class="htool" id="' + id + '" data-act="' + act + '"' + (extra || '') + '><span aria-hidden="true">' + ic + '</span>' + lbl + '</button>'; };
+      h += '<div class="histtools htools" id="histtools">' + tool('addround', 'addopen', '📥', 'Add a round') +
+        (list.length ? tool('chgplayer', 'mvstart', '👤', 'Change player') : '') +
+        (list.length >= 2 ? tool('cmpopen', 'compare', '⚖', 'Best vs worst') : '') +
+        (list.length ? tool('histbz', 'bzopen', '🎯', 'Birdie zone', ' data-v="all" data-id="' + list[0].id + '"') : '') + '</div>';
+    }
     if (!list.length) h += '<p class="muted frostnote">No rounds yet. Start one from Home.</p>';
-    if (!M && list.length >= 2) h += '<button class="big cmpbtn frostmain" data-act="compare" id="cmpopen">⚖ Best vs worst rounds</button>';
-    if (!M && list.length) h += '<button class="big cmpbtn frostmain bzbtn" data-act="bzopen" data-v="all" data-id="' + list[0].id + '" id="histbz">🎯 Birdie zone</button>';
-    h += '<div id="histlist">';
+    else h += '<div class="hhead" id="hhead" aria-hidden="true">' + (M ? '<span class="hcchk"></span>' : '') + '<span class="hc1">Score</span><span class="hc2">Holes</span><span class="hc3">Date</span><span class="hc4">To par<br>SG</span><span class="hc5">Course</span>' + (M ? '' : '<span class="hc6"></span>') + '</div>';
+    var curId = localStorage.getItem(CUR);
+    h += '<div id="histlist" class="hlist">';
     list.forEach(function (r) {
-      var S = SG.summarize(r);
-      var on = M && M.ids[r.id];
-      h += '<div class="hrow' + (M ? ' mvon' + (on ? ' mvsel' : '') : '') + '" data-id="' + r.id + '"><button class="hist frostcard" data-act="' + (M ? 'mvtoggle' : 'open') + '" data-id="' + r.id + '"' + (M ? ' role="checkbox" aria-checked="' + !!on + '"' : '') + '>' + (M ? '<span class="mvchk" aria-hidden="true">' + (on ? '✓' : '') + '</span>' : '') + '<span class="hmain"><b>' + new Date(r.date).toLocaleDateString() + '</b>' +
-        (r.course ? '<br>' + esc(r.course) : '') + (r.player ? '<br><span class="hplayer">👤 ' + esc(r.player) + '</span>' : '') + '<br><small class="muted">' + S.holesDone + ' of ' + r.holes.length + ' holes played</small></span><span class="hscore">' +
-        (S.holesDone ? '<b>' + S.strokes + '</b> (' + toPar(S.toPar) + ')' : '–') + '<br><small class="' + sgCls(S.sgTotal) + '">SG ' + fmtSG(S.sgTotal) + '</small><br><small class="muted">vs ' + esc(blName(blOf(r))) + '</small></span></button>' +
-        (M ? '' : '<button class="hdel frostdanger" data-act="delHist" data-id="' + r.id + '" aria-label="Delete round ' + esc(new Date(r.date).toLocaleDateString() + (r.course ? ' ' + r.course : '')) + '">🗑</button>') + '</div>';
+      var S = SG.summarize(r), on = M && M.ids[r.id], d = new Date(r.date), nH = r.holes.length, unf = S.holesDone < nH || r.id === curId;
+      var pp = S.holesDone ? S.toPar * 18 / S.holesDone : null, tint = pp == null ? 'none' : pp < -0.5 ? 'under' : pp <= 18.5 ? 'even' : 'over';
+      var sub = [r.tee, r.player].filter(Boolean).map(esc).join(' · ');
+      var lbl = d.toLocaleDateString() + (r.course ? ' ' + r.course : '');
+      h += '<div class="hrow' + (M ? ' mvon' + (on ? ' mvsel' : '') : '') + '" data-id="' + r.id + '"><button class="hist" data-act="' + (M ? 'mvtoggle' : 'open') + '" data-id="' + r.id + '"' + (M ? ' role="checkbox" aria-checked="' + !!on + '"' : '') + ' aria-label="' + esc(lbl + (S.holesDone ? ', ' + S.strokes + ' (' + toPar(S.toPar) + ')' : '') + (unf ? ', unfinished' : '')) + '">' +
+        (M ? '<span class="mvchk" aria-hidden="true">' + (on ? '✓' : '') + '</span>' : '') +
+        '<span class="hcirc tp-' + tint + '">' + (S.holesDone ? S.strokes : '–') + '</span>' +
+        '<span class="hholes' + (unf ? ' unf' : '') + '" title="' + (unf ? S.holesDone + ' of ' + nH + ' holes – unfinished' : nH + ' holes') + '">' + (unf ? S.holesDone : nH) + '</span>' +
+        '<span class="hdate"><b>' + ('0' + (d.getMonth() + 1)).slice(-2) + '/' + ('0' + d.getDate()).slice(-2) + '</b><small>' + d.getFullYear() + '</small></span>' +
+        '<span class="hpar"><b>' + (S.holesDone ? toPar(S.toPar) : '–') + '</b><small class="' + sgCls(S.sgTotal) + '">' + (S.holesDone ? fmtSG(S.sgTotal) : '') + '</small></span>' +
+        '<span class="hmain"><b>' + esc(r.course || 'Round') + '</b><small>' + (unf ? '<i class="hunf">Unfinished</i>' + (sub ? ' · ' : '') : '') + (sub || (unf ? '' : '&nbsp;')) + '</small></span></button>' +
+        (M ? '' : '<button class="hdel" data-act="delHist" data-id="' + r.id + '" aria-label="Delete round ' + esc(lbl) + '"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 7h14M10 7V5h4v2M7 7l1 12h8l1-12"/></svg></button>') + '</div>';
     });
     return h + '</div>' + (view.addr ? addSheetHTML() : '') + (M ? mvBarHTML() : '') + (view.mv && view.mv.from === 'history' && view.mv.sheet ? mvSheetHTML() : '') + '</div>';
   }
@@ -607,7 +619,7 @@
       '<button class="rsh-item" data-act="sendcode" id="sendcode">💬 Send as a text code<small>' + codeNote(V.code) + '</small></button>' +
       (V.copied ? '<p class="rsh-ok" id="sendcopied" role="status">✓ Copied – paste it into a message</p>' : '') +
       (V.showCode ? '<label class="rsh-lbl" for="sendcodebox">' + (V.copied ? 'The code' : 'Copy this code') + '</label><textarea id="sendcodebox" class="rsh-code" readonly rows="3">' + esc(V.code || '') + '</textarea>' : '') +
-      '<p class="rsh-help">On the other phone: Pin High → History → 📥 Add a round, then choose the file or paste the code.</p>' +
+      '<p class="rsh-help">On the other phone: Pin High → Rounds → 📥 Add a round, then choose the file or paste the code.</p>' +
       '<button class="rsh-item muted" data-act="sendclose">Close</button></div>';
   }
   function sendOpen() {
@@ -633,7 +645,7 @@
     var r = round(); if (!r || !view.send) return;
     var go = function (code) {
       view.send.code = code;
-      var text = 'Pin High round – ' + roundLine(r).day + (r.course ? ', ' + r.course : '') + '. In Pin High: History → Add a round, paste this:\n' + code;
+      var text = 'Pin High round – ' + roundLine(r).day + (r.course ? ', ' + r.course : '') + '. In Pin High: Rounds → Add a round, paste this:\n' + code;
       if (navigator.share) navigator.share({ text: text }).then(function () { toast('Code sent'); }).catch(function (e) { if (e && e.name === 'AbortError') return; copyCode(code); });
       else copyCode(code);
     };
@@ -643,17 +655,17 @@
     var A = view.addr, o = '<div class="rsheet-bg" data-act="addclose"></div><div class="rsheet" id="addsheet" role="dialog" aria-modal="true" aria-labelledby="addh">';
     if (A.step === 'confirm' || A.step === 'done') {
       var r = A.round, L = roundLine(r), S = L.S, pn = playerName();
-      o += '<div class="rsh-h" id="addh">' + (A.step === 'done' ? (A.dup ? 'Already in your history' : 'Round added') : 'Add this round to your history?') + '</div>' +
+      o += '<div class="rsh-h" id="addh">' + (A.step === 'done' ? (A.dup ? 'Already in your rounds' : 'Round added') : 'Add this round to your rounds?') + '</div>' +
         '<div class="arcard" id="addcard"><b class="arcourse">' + esc(r.course || 'Round') + '</b><span class="ardate">' + esc(L.day) + (r.tee ? ' · ' + esc(r.tee) : '') + '</span>' +
         '<div class="arnums"><div><small>Score</small><b id="arscore">' + (S.holesDone ? S.strokes : '–') + '</b></div><div><small>To par</small><b id="artopar">' + (S.holesDone ? toPar(S.toPar) : '–') + '</b></div>' +
         '<div><small>Holes</small><b id="arholes">' + (S.holesDone === r.holes.length ? r.holes.length : S.holesDone + '/' + r.holes.length) + '</b></div></div>' +
-        '<small class="arwho" id="arwho">' + (A.step === 'confirm' ? (pn ? 'Goes into ' + esc(pn) + '’s history' : 'Goes into your history') : (pn ? 'In ' + esc(pn) + '’s history' : 'In your history')) + '</small></div>';
+        '<small class="arwho" id="arwho">' + (A.step === 'confirm' ? (pn ? 'Goes into ' + esc(pn) + '’s rounds' : 'Goes into your rounds') : (pn ? 'In ' + esc(pn) + '’s rounds' : 'In your rounds')) + '</small></div>';
       if (A.step === 'confirm') o += '<button class="rsh-go" data-act="addyes" id="addyes">Add</button><button class="rsh-item muted" data-act="addclose" id="addno">Cancel</button>';
-      else o += '<p class="rsh-ok" id="adddone" role="status">' + (A.dup ? 'This round is already in your history.' : '✓ Added to your history.') + '</p>' +
+      else o += '<p class="rsh-ok" id="adddone" role="status">' + (A.dup ? 'This round is already in your rounds.' : '✓ Added to your rounds.') + '</p>' +
         '<button class="rsh-go" data-act="open" data-id="' + esc(A.viewId) + '" id="addview">View round</button><button class="rsh-item muted" data-act="addclose">Done</button>';
       return o + '</div>';
     }
-    return o + '<div class="rsh-h" id="addh">Add a round</div><p class="rsh-sub">Got a round from someone’s Pin High? Add it to your history.</p>' +
+    return o + '<div class="rsh-h" id="addh">Add a round</div><p class="rsh-sub">Got a round from someone’s Pin High? Add it to your rounds.</p>' +
       '<label class="rsh-go filebtn" for="addroundfile" id="addfilebtn">📂 Choose file</label><input type="file" id="addroundfile" accept=".json,application/json,text/plain" hidden>' +
       '<div class="rsh-or">or</div><label class="rsh-lbl" for="addcode">Paste code</label>' +
       '<textarea id="addcode" class="rsh-code" rows="3" placeholder="PINHIGH1:…" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false">' + esc(A.text || '') + '</textarea>' +
@@ -751,7 +763,7 @@
     if (!I.length) o += '<p class="help muted" id="gdlempty">No rounds in this backup.</p>';
     o += '</div>' + restoreExtrasNotes(R);
     var extra = [(R.courses || []).length ? 'courses' : '', R.bag && R.bag.clubs && R.bag.clubs.length ? 'bag' : '', R.wedges && WEDGES.count(R.wedges) ? 'wedges' : ''].filter(Boolean);
-    o += '<p class="muted gdlnote">Rounds go into History under ' + esc(G.player) + '. Nothing on this phone is deleted, and a newer copy on this phone is never replaced.</p>';
+    o += '<p class="muted gdlnote">They go into Rounds under ' + esc(G.player) + '. Nothing on this phone is deleted, and a newer copy on this phone is never replaced.</p>';
     return o + '<div class="gdlbar" id="gdlbar"><span class="gdlcount" id="gdlcount">' + nSel + ' selected</span><button class="gdlgo" data-act="rpgo" id="rpgo"' + (nSel || extra.length ? '' : ' disabled') + '>' +
       (nSel || !extra.length ? 'Restore ' + nRounds(nSel) : 'Restore ' + extra.join(' &amp; ')) + '</button></div></div>';
   }
@@ -764,7 +776,7 @@
     var R = view.restore, A = GDX.applyRestore(rounds, R.items, R.sel), who = R.gd.player;
     localStorage.setItem(KEY, JSON.stringify(A.rounds)); rounds = load(); if (A.added || A.updated) backupDirty(3000);
     var parts = []; restoreExtras(R, parts);
-    view.notice = { text: '✓ Restored ' + nRounds(A.added) + (A.updated ? ' and updated ' + A.updated : '') + ' from ' + who + '’s backup' + (A.added || A.updated ? ' – they’re in History under ' + who : '') + '.' + (parts.length ? ' Also: ' + parts.join(', ') + '.' : '') };
+    view.notice = { text: '✓ Restored ' + nRounds(A.added) + (A.updated ? ' and updated ' + A.updated : '') + ' from ' + who + '’s backup' + (A.added || A.updated ? ' – they’re in Rounds under ' + who : '') + '.' + (parts.length ? ' Also: ' + parts.join(', ') + '.' : '') };
     view.restore = null; view.preview = null; view.screen = 'archive'; render(); window.scrollTo(0, 0); toast(A.added + A.updated ? 'Restored ' + nRounds(A.added + A.updated) : 'Nothing new to restore');
   }
   function restoreState(r) { var cur = rounds.filter(function (x) { return x.id === r.id; })[0]; return !cur ? 'new' : JSON.stringify(cur) === JSON.stringify(r) ? 'same' : 'diff'; }
@@ -1011,11 +1023,11 @@
     if (!view.nameSheet && needFirstName()) { view.nameSheet = 'first'; view.hmenu = null; }
     var h = '<div class="home" id="home"><div class="home-bg" aria-hidden="true"></div><div class="home-fade" aria-hidden="true"></div>' +
       '<h1 class="home-title">Pin High</h1>' +
-      '<button class="glass plusbtn" id="plusbtn" data-act="plus" aria-label="New round, profile or history" aria-expanded="' + !!view.hmenu + '">+</button>' +
+      '<button class="glass plusbtn" id="plusbtn" data-act="plus" aria-label="Menu: new round, my bag, rounds or settings" aria-expanded="' + !!view.hmenu + '">+</button>' +
 ''; // v89: no Player row on Home (kept clean) – it lives in the New round sheet
     var bot = '';
     if (cur) { var S = SG.summarize(cur); bot += '<button class="glass pill" id="resumepill" data-act="resume">Resume round<small>' + (cur.course ? esc(cur.course) + ' · ' : '') + S.holesDone + ' holes done</small></button>'; }
-    bot += '<button class="glass pill" id="archivepill" data-act="archive">Archive</button>';
+    // v102: no Archive pill – that page is Settings in the + menu
     h += '<div class="home-bottom">' + bot + '</div>';
     if (view.nameSheet) h += nameSheetHTML();
     else if (view.hmenu) {
@@ -1023,15 +1035,15 @@
       if (view.hmenu === 'new') h += '<div class="sheet-h">New round</div>' + newCourseHTML() +
         '<label class="lbl" for="newbl">Compare my shots against</label>' + blSelect('newbl', view.newBl || 'pga') + newPlayerHTML() +
         '<button class="sheet-go" data-act="new">Start round</button><button class="sheet-item muted" data-act="plus">Back</button>';
-      else h += '<button class="sheet-item" role="menuitem" data-act="newform">New round</button><button class="sheet-item" role="menuitem" data-act="profile">Profile</button><button class="sheet-item" role="menuitem" data-act="history">History</button>';
+      else h += '<button class="sheet-item" role="menuitem" data-act="newform">New round</button><button class="sheet-item" role="menuitem" data-act="bag">My Bag</button><button class="sheet-item" role="menuitem" data-act="history">Rounds</button><button class="sheet-item" role="menuitem" data-act="archive">Settings</button>';
       h += '</div>';
     }
     return h + '</div>';
   }
   function archiveHTML() {
     var cur = rounds.filter(function (r) { return r.id === localStorage.getItem(CUR); })[0], nSaved = savedRounds().length;
-    var h = '<div class="frostpage theme-sky archivepage"><div class="topbar frost"><button class="txt frostbtn" data-act="home">‹ Home</button><div class="title"><b>Archive</b><span>' + nSaved + ' saved round' + (nSaved === 1 ? '' : 's') + '</span></div><span></span></div>';
-    h += '<button class="big histbtn frostmain" data-act="history">📋 History<br><small>' + nSaved + ' saved round' + (nSaved === 1 ? '' : 's') + ' – review stats &amp; maps</small></button>';
+    var h = '<div class="frostpage theme-sky archivepage"><div class="topbar frost"><button class="txt frostbtn" data-act="home">‹ Home</button><div class="title"><b>Settings</b><span>' + nSaved + ' saved round' + (nSaved === 1 ? '' : 's') + '</span></div><span></span></div>';
+    h += '<button class="big histbtn frostmain" data-act="history">📋 Rounds<br><small>' + nSaved + ' saved round' + (nSaved === 1 ? '' : 's') + ' – review stats &amp; maps</small></button>';
     var nC = courses().length;
     h += '<button class="big frostbtn crsbtn" data-act="courses">⛳ Courses<small>' + (nC ? nC + ' saved' : 'add par &amp; yardages') + '</small></button>';
     if (cur) h += '<button class="danger discard frostdanger" data-act="discard" data-id="' + esc(cur.id) + '">🗑 Discard round in progress' + (cur.course ? ' – ' + esc(cur.course) : '') + '</button>';
@@ -1136,7 +1148,7 @@
     render(); window.scrollTo(0, 0);
   }
   function coursesHTML() {
-    var list = courses(), h = '<div class="frostpage theme-sky coursespage"><div class="topbar frost"><button class="txt frostbtn" data-act="archive">‹ Archive</button><div class="title"><b>Courses</b><span>' + list.length + ' saved</span></div><span></span></div>';
+    var list = courses(), h = '<div class="frostpage theme-sky coursespage"><div class="topbar frost"><button class="txt frostbtn" data-act="archive">‹ Settings</button><div class="title"><b>Courses</b><span>' + list.length + ' saved</span></div><span></span></div>';
     h += list.map(function (c) { return '<div class="frostcard crsrow"><button class="crsopen" data-act="cardedit" data-id="' + esc(c.id) + '"><b>' + esc(c.name) + '</b><small>' + c.tees.map(function (t) { return esc(t.name); }).join(' · ') + ' · par ' + (COURSES.sum(c.pars) || '–') + '</small></button>' +
       '<button class="frostdanger crsdel" data-act="coursedel" data-id="' + esc(c.id) + '" aria-label="Delete ' + esc(c.name) + '">🗑</button></div>'; }).join('');
     if (!list.length) h += '<p class="frostnote cardnote">No saved courses yet.</p>';
@@ -1163,9 +1175,10 @@
   }
   function bagHTML() {
     var b = bag(), A = view.bagAdd, n = b.clubs.length;
-    var h = '<div class="frostpage theme-sky bagpage"><div class="topbar frost">' + (A ? '<button class="txt frostbtn" data-act="bagact" data-v="addback">‹ Back</button>' : '<button class="txt frostbtn" data-act="profile">‹ Profile</button>') +
+    var h = '<div class="frostpage theme-sky bagpage"><div class="topbar frost">' + (A ? '<button class="txt frostbtn" data-act="bagact" data-v="addback">‹ Back</button>' : '<button class="txt frostbtn" data-act="home">‹ Home</button>') +
       '<div class="title"><b>' + (A ? 'Add clubs' : 'My Bag') + '</b><span>' + n + ' club' + (n === 1 ? '' : 's') + '</span></div><span></span></div>';
     if (A) return h + bagAddHTML(A) + '</div>';
+    h += bagSegHTML('bag');
     if (!n) return h + '<div class="frostcard bagempty" id="bagempty"><b>Your bag is empty</b><p>Add your clubs and how far each one carries. They show up in the club picker during a round, and you can see your carries for any elevation and temperature.</p></div>' +
       '<button class="big frostmain" data-act="bagact" data-v="add" id="bagaddbtn">＋ Add clubs</button></div>';
     var same = BAG.sameCond(b), list = BAG.sorted(b);
@@ -1196,15 +1209,10 @@
     h += '<div class="tiprow">' + tipBtn('baginfo', 'i', 'About My Bag') + tipLbl('baginfo', 'About My Bag') + tipText('baginfo', 'Type how far each club carries (in the air, yards) at your usual course. Tap a club to change its name or loft, or remove it. Your bag is saved on this phone and in your backups. Carry estimates come from a small ball-flight model using air density – a guide, not a guarantee.') + '</div>';
     return h + '</div>';
   }
-  // ---------- v93 Profile (player name, My Bag, Wedges) ----------
-  function profileHTML() {
-    var n = playerName(), b = bag(), nb = b.clubs.length, nw = WEDGES.filled(wedges()), nlw = WEDGES.filled(wedges(), 'low'), tot = WEDGES.YARDS.length;
-    var h = '<div class="frostpage theme-sky bagpage profpage"><div class="topbar frost"><button class="txt frostbtn" data-act="home">‹ Home</button>' +
-      '<div class="title"><b>Profile</b><span>' + (n ? esc(n) : 'No name yet') + '</span></div><span></span></div>';
-    h += '<div class="frostcard profname">' + playerHTML() + '</div>';
-    h += '<button class="frostcard profcard" data-act="bag" id="profbag"><span class="pcic" aria-hidden="true">🏌️</span><span class="pctx"><b>My Bag</b><small>' + (nb ? nb + ' club' + (nb === 1 ? '' : 's') + ' · carries for any elevation &amp; temperature' : 'Add your clubs and how far each one carries') + '</small></span><span class="pcgo" aria-hidden="true">›</span></button>';
-    h += '<button class="frostcard profcard" data-act="wedges" id="profwedges"><span class="pcic" aria-hidden="true">🎯</span><span class="pctx"><b>Wedges</b><small>' + (nw || nlw ? (nw ? nw + ' of ' + tot + ' yardages set' : 'High not set') + (nlw ? ' · Low ' + nlw + ' of ' + tot : ' · 40–110 yd') : 'Your setup for every yardage from 40 to 110') + '</small></span><span class="pcgo" aria-hidden="true">›</span></button>';
-    return h + '</div>';
+  // ---------- v102 My Bag page: Bag | Wedge ladder toggle (Profile is gone; Player name lives in Settings) ----------
+  function bagSegHTML(on) {
+    return '<div class="bagseg" id="bagseg" role="tablist" aria-label="My Bag">' + [['bag', 'Bag'], ['wedges', 'Wedge ladder']].map(function (t) {
+      var sel = t[0] === on; return '<button role="tab" class="' + (sel ? 'on' : '') + '" data-act="' + t[0] + '" id="seg' + t[0] + '" aria-selected="' + sel + '">' + t[1] + '</button>'; }).join('') + '</div>';
   }
   function wedgeClubs() { // short clubs from the bag (wedges + PW/9i-ish lofts), else a standard wedge list
     var L = BAG.sorted(bag(), 'club').filter(function (c) { return c.cat === 'we' || (c.cat === 'ir' && ((c.loft != null && c.loft >= 40) || /^(9i|pw|gw|aw|sw|lw|uw)$/i.test(c.code))) || (c.cat === 'ot' && c.loft >= 40); });
@@ -1217,8 +1225,8 @@
   function wNote(y, f, val, ph) { return '<input type="text" class="wnote" data-wn="' + f + '" data-y="' + y + '" maxlength="80" value="' + esc(val || '') + '" placeholder="' + esc(ph) + '">'; }
   function wedgesHTML() {
     var fl = view.wFlight === 'low' ? 'low' : 'high', w = wedges(), R = WEDGES.rowsOf(w, fl), nw = WEDGES.filled(w, fl), clubs = wedgeClubs(), fromBag = clubs.map(function (c) { return c.code; }).join() !== WEDGES.STD_CLUBS.join();
-    var h = '<div class="frostpage theme-sky bagpage wedgepage"><div class="topbar frost"><button class="txt frostbtn" data-act="profile">‹ Profile</button>' +
-      '<div class="title"><b>Wedges</b><span>' + nw + ' of ' + WEDGES.YARDS.length + ' yardages set</span></div><span></span></div>';
+    var h = '<div class="frostpage theme-sky bagpage wedgepage"><div class="topbar frost"><button class="txt frostbtn" data-act="home">‹ Home</button>' +
+      '<div class="title"><b>My Bag</b><span>' + nw + ' of ' + WEDGES.YARDS.length + ' yardages set</span></div><span></span></div>' + bagSegHTML('wedges');
     h += '<div class="wflight" id="wflight" role="tablist" aria-label="Flight">' + WEDGES.FLIGHTS.map(function (f) { var on = f[0] === fl; return '<button role="tab" class="' + (on ? 'on' : '') + '" data-act="wact" data-v="flight" data-k="' + f[0] + '" aria-selected="' + on + '">' + f[1] + ' flight</button>'; }).join('') + '</div>';
     h += '<div class="frostcard wlist" id="wlist">';
     WEDGES.YARDS.forEach(function (y) {
@@ -1235,7 +1243,7 @@
         h += '<h3 class="bagcat">Club</h3><div class="bagchips wchips" data-f="club">' + clubs.map(function (c) { var sel = r.club === c.code; return '<button class="frostchip' + (sel ? ' sel' : '') + '" data-act="wact" data-v="set" data-y="' + y + '" data-f="club" data-k="' + esc(c.code) + '" aria-pressed="' + sel + '">' + esc(wClubLbl(c.code)) + '</button>'; }).join('') +
           '<button class="frostchip bother' + (other ? ' sel' : '') + '" data-act="wact" data-v="other" data-y="' + y + '">Other</button></div>';
         if (other) h += wNote(y, 'club', known ? '' : r.club, 'Club, e.g. 54 or Gap wedge');
-        if (!fromBag) h += '<p class="bchint">Add your wedges in My Bag to see them here.</p>';
+        if (!fromBag) h += '<p class="bchint">Add your wedges on the Bag tab to see them here.</p>';
         h += '<h3 class="bagcat">Ball position</h3>' + wChips(y, 'ball', WEDGES.BALL, r.ball) + wNote(y, 'ballNote', r.ballNote, 'Note (optional)');
         h += '<h3 class="bagcat">Shaft lean</h3>' + wChips(y, 'lean', WEDGES.LEAN, r.lean) + wNote(y, 'leanNote', r.leanNote, 'Note (optional)');
         h += '<h3 class="bagcat">Club position</h3>' + wChips(y, 'pos', WEDGES.POS, r.pos) + wNote(y, 'posNote', r.posNote, 'Note, e.g. choke down 1"');
@@ -1666,7 +1674,7 @@
   }
   function summaryHTML() {
     var r = round(), bl = blOf(r), S = SG.summarize(r, bl);
-    var out = '<div class="topbar frost">' + (view.from === 'history' ? '<button class="txt frostbtn" data-act="history">‹ History</button>' : '<button class="txt frostbtn" data-act="backHole">‹ Round</button>') + '<div class="title"><b>Round stats</b><span>' +
+    var out = '<div class="topbar frost">' + (view.from === 'history' ? '<button class="txt frostbtn" data-act="history">‹ Rounds</button>' : '<button class="txt frostbtn" data-act="backHole">‹ Round</button>') + '<div class="title"><b>Round stats</b><span>' +
       new Date(r.date).toLocaleDateString() + (r.course ? ' · ' + esc(r.course) : '') + '</span></div><button class="txt frostbtn" data-act="home">Home</button></div>';
     if (view.stxRound !== r.id) { view.stx = {}; view.stxRound = r.id; } // tiles start collapsed for each round
     out += rsTopHTML(r, S) + quickViewHTML(S);
@@ -1700,7 +1708,7 @@
     var sgPart = out; out = main + '<h2>Stats</h2>' + statTilesHTML(S);
     out += '<button class="primary big" data-act="pdf" style="margin-top:16px">📄 Make PDF report</button>' + pdfHTML();
     out += '<button class="big" data-act="csv">Export this round (CSV)</button>';
-    out += '<button class="big sendbtn" data-act="sendopen" id="sendround">📤 Send round<small>to another phone – it lands in their History</small></button>';
+    out += '<button class="big sendbtn" data-act="sendopen" id="sendround">📤 Send round<small>to another phone – it lands in their Rounds</small></button>';
     out += '<button class="big sendbtn" data-act="mvone" id="chgplayer1">👤 Change player<small>' + (r.player || playerName() ? 'now ' + esc(r.player || playerName()) : 'whose round is this?') + '</small></button>';
     out += '<button class="big" data-act="backHole">Back to the round</button>';
     out += '<button class="big danger" data-act="delRound">Delete this round</button>';
@@ -1881,7 +1889,7 @@
   function bzCount(D, R) { return BZ.label(BZ.zone(D.sc, R)); }
   function birdieHTML() {
     var D = bzData(), r = D.r, ring = D.ring, R = Math.max(ring, Math.min(BZ.MAX_FT, view.bz.R || ring)); view.bz.R = R; view.bz.ring = ring; view.bz.shown = R;
-    var back = view.bz.from === 'summary' && r ? '<button class="txt frostbtn" data-act="bzback">‹ Stats</button>' : '<button class="txt frostbtn" data-act="history">‹ History</button>';
+    var back = view.bz.from === 'summary' && r ? '<button class="txt frostbtn" data-act="bzback">‹ Stats</button>' : '<button class="txt frostbtn" data-act="history">‹ Rounds</button>';
     var sub = D.scope === 'round' ? new Date(r.date).toLocaleDateString() + (r.course ? ' · ' + esc(r.course) : '') : D.all.rounds + ' round' + (D.all.rounds === 1 ? '' : 's') + (r && r.player ? ' · ' + esc(r.player) : '');
     var h = '<div class="frostpage theme-sky bzpage" id="birdie"><div class="topbar frost">' + back + '<div class="title"><b>Birdie zone</b><span>' + sub + '</span></div><span class="tbspace"></span></div>';
     if (r) h += '<div class="liechips bzscope" role="group" aria-label="Scope"><button class="frostchip' + (D.scope === 'round' ? ' sel' : '') + '" data-act="bzscope" data-v="round" aria-pressed="' + (D.scope === 'round') + '">This round</button>' +
@@ -2360,7 +2368,7 @@
   }
   function compareHTML2() {
     var C = cmpRounds(), kind = view.cmpKind || 'prox', ov = !!view.cmpOverlay;
-    var h = '<div class="topbar"><button class="txt" data-act="history">‹ History</button><div class="title"><b>Best vs worst rounds</b><span>by score vs par</span></div><span></span></div>';
+    var h = '<div class="topbar"><button class="txt" data-act="history">‹ Rounds</button><div class="title"><b>Best vs worst rounds</b><span>by score vs par</span></div><span></span></div>';
     if (C.maxN < 1) return h + '<p class="notice" id="cmpnone">You need at least 2 rounds with finished holes to compare.</p>';
     h += '<div class="cmpn" id="cmpn"><button data-act="cmpn" data-v="-1"' + (C.n <= 1 ? ' disabled' : '') + ' aria-label="Fewer rounds">−</button><span>Best <b>' + C.n + '</b> vs worst <b>' + C.n + '</b> round' + (C.n === 1 ? '' : 's') + '</span><button data-act="cmpn" data-v="1"' + (C.n >= C.maxN ? ' disabled' : '') + ' aria-label="More rounds">+</button></div>';
     var line = function (x) { return '<li><span class="cl-d">' + esc(new Date(x.r.date).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })) + '</span><span class="cl-c">' + esc(x.r.course || 'Round') + (x.S.holesDone < 18 ? ' · ' + x.S.holesDone + ' holes' : '') + '</span><span class="cl-s"><b>' + x.S.strokes + '</b> ' + toPar(x.S.toPar) + '</span></li>'; };
@@ -3081,7 +3089,7 @@
       case 'puttn': { var mvp = document.getElementById('mapview'), stp = mvp ? mvp.scrollTop : 0; view.puttN = v; render(); var mvp2 = document.getElementById('mapview'); if (mvp2) mvp2.scrollTop = stp; return; }
       case 'mapscope': view.mapScope = v; view.heat = null; render(); var mv = document.getElementById('mapview'); if (mv) mv.scrollTop = 0; return;
       case 'courses': view.screen = 'courses'; render(); window.scrollTo(0, 0); return;
-      case 'profile': view.hmenu = null; view.screen = 'profile'; view.bagAdd = null; view.bagEdit = null; view.editName = false; render(); window.scrollTo(0, 0); return;
+      case 'profile': view.hmenu = null; view.screen = 'archive'; view.bagAdd = null; view.bagEdit = null; view.editName = false; render(); window.scrollTo(0, 0); return;
       case 'wedges': view.hmenu = null; view.screen = 'wedges'; view.wOpen = null; view.wOther = null; view.wEdit = false; view.wFull = null; view.wFlight = 'high'; render(); window.scrollTo(0, 0); return;
       case 'wact': wAct(v, b); return;
       case 'bag': view.hmenu = null; view.screen = 'bag'; view.bagAdd = null; view.bagEdit = null; render(); window.scrollTo(0, 0); return;
@@ -3120,7 +3128,7 @@
           var rr = round(); rr.holes.forEach(function (hh) { if (!hh.finished && hh.par && SG.analyzeHole(hh).complete) hh.finished = true; });
           if (live) live.finish(rr.id);
           var F2 = SG.foldStubs(rounds); rounds = F2.rounds; if (localStorage.getItem(CUR) === rr.id) localStorage.removeItem(CUR);
-          save(); gdSoon(1500); toast('Round saved to History');
+          save(); gdSoon(1500); toast('Round saved to Rounds');
         }
         view.screen = 'summary'; if (gdOn && gdState.pending) gdSoon(300); render(); window.scrollTo(0, 0); return;
       case 'backHole': goHole(view.hole); return;

@@ -35,7 +35,7 @@
   function check(data) {
     if (typeof data === 'string') { try { data = JSON.parse(data); } catch (e) { return { error: 'That isn’t a Pin High round (it could not be read).' }; } }
     if (data && !Array.isArray(data) && (data.kind === 'rounds-backup' || (Array.isArray(data.rounds) && !data.pinhigh)) || Array.isArray(data))
-      return { backup: true, error: 'That’s a full backup file, not a single round. To bring a whole backup onto this phone use Archive → 📂 Restore from backup.' };
+      return { backup: true, error: 'That’s a full backup file, not a single round. To bring a whole backup onto this phone use Settings → 📂 Restore from backup.' };
     if (!data || data.pinhigh !== TYPE) return { error: 'That isn’t a Pin High round.' };
     if (data.v !== V) return { error: 'That round was sent from a newer version of Pin High – update the app and try again.' };
     var r = data.round;

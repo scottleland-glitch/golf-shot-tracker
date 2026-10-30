@@ -27,6 +27,6 @@ const BASE = process.env.BASE_URL || 'http://127.0.0.1:8768/';
   const after = await page.evaluate(() => ({ cur: localStorage.getItem('golfsg.current.v1'), n: window.__golf.rounds().length, fin: window.__golf.rounds()[0].holes.filter(h => h.finished).length }));
   assert.deepStrictEqual(after, { cur: null, n: 1, fin: 18 });
   await page.click('[data-act="home"] >> nth=0'); assert.strictEqual(await page.$('[data-act="resume"]'), null, 'no Continue round after Finish round');
-  await goHist(page); assert.match(await page.textContent('#histlist'), /18 of 18/);
+  await goHist(page); assert.strictEqual(await page.textContent('#histlist .hholes'), '18'); assert.strictEqual(await page.$('#histlist .hholes.unf'), null, 'finished round not flagged'); // v102 tight Rounds list
   assert.deepStrictEqual(errors, []); console.log('FINISH OK'); await b.close(); if (srv) srv.kill();
 })().catch(e => { console.error(e); process.exit(1); });

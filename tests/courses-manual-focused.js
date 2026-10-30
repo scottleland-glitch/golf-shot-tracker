@@ -80,7 +80,7 @@ const PORT = 8813, BASE = `http://127.0.0.1:${PORT}/`, OUT = '/workspace/golf-ap
   await page.fill('[data-cf="tee"]', 'White Tees'); await page.click('[data-act="cardsave"]'); await page.waitForSelector('#ntees'); assert.match(await page.textContent('#ntees .sel'), /White Tees/);
   await page.click('.sheet-back', { position: { x: 30, y: 40 } });
   // Archive › Courses: Add a course (typed in), edit (rename) and delete
-  await page.click('#archivepill'); await noScan(); await page.click('[data-act="courses"]'); await page.waitForSelector('.crsrow'); await noScan();
+  await page.click('#plusbtn'); await page.click('#plusmenu [data-act="archive"]'); await noScan(); await page.click('[data-act="courses"]'); await page.waitForSelector('.crsrow'); await noScan();
   await page.click('[data-act="cardedit"]'); await page.fill('[data-cf="name"]', 'Pebble Creek GC'); await page.click('[data-act="cardsave"]'); await page.waitForSelector('.crsrow');
   assert.match(await page.textContent('.crsrow'), /Pebble Creek GC/);
   assert.match(await page.textContent('[data-act="crsadd"]'), /Add a course/); await page.click('[data-act="crsadd"]'); await page.waitForSelector('.revgrid'); await noScan();

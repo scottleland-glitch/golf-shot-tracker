@@ -22,7 +22,7 @@ const OUT = '/workspace/golf-app/screenshots/', PORT = 8834, BASE = 'http://127.
   assert.deepStrictEqual((await SHARE.read(plain)).round, R, 'plain code round-trip (no CompressionStream)');
   assert.deepStrictEqual((await SHARE.read(plain, { noGzip: true })).round, R, 'plain code reads without DecompressionStream');
   assert.match((await SHARE.read(gz, { noGzip: true })).error, /can’t unpack/);
-  assert.deepStrictEqual((await SHARE.read('Pin High round – Thu. In Pin High: History → Add a round, paste this:\n' + gz + '\n')).round, R, 'code inside the message text');
+  assert.deepStrictEqual((await SHARE.read('Pin High round – Thu. In Pin High: Rounds → Add a round, paste this:\n' + gz + '\n')).round, R, 'code inside the message text');
   const err = async t => (await SHARE.read(t)).error;
   assert.match(await err(''), /Choose a file or paste a code/);
   assert.match(await err('hello there'), /should start with PINHIGH1:/);
@@ -72,7 +72,7 @@ const OUT = '/workspace/golf-app/screenshots/', PORT = 8834, BASE = 'http://127.
   assert.ok(sentFile.name === SHARE.fileName(R) && sentFile.type === 'application/json');
   assert.deepStrictEqual(JSON.parse(sentFile.text).round, R, 'shared file = the whole round');
   await S.click('#sendcode'); await S.waitForFunction(() => window.__shared.length === 2);
-  const sentText = (await S.evaluate(() => window.__shared[1])).text; assert.match(sentText, /History → Add a round/);
+  const sentText = (await S.evaluate(() => window.__shared[1])).text; assert.match(sentText, /Rounds → Add a round/);
   assert.deepStrictEqual((await SHARE.read(sentText)).round, R, 'shared text code (made in the browser) reads back');
   // no share sheet → download the file / copy the code
   await S.evaluate(() => { window.__shareMode = 'fail'; });
@@ -100,16 +100,16 @@ const OUT = '/workspace/golf-app/screenshots/', PORT = 8834, BASE = 'http://127.
   assert.ok(await Q.$('#adderr.rsh-note'));
   // the file Scott sent → confirmation card
   await pick(sentFile.name, sentFile.text); await Q.waitForSelector('#addcard');
-  assert.strictEqual(await Q.textContent('#addh'), 'Add this round to your history?');
+  assert.strictEqual(await Q.textContent('#addh'), 'Add this round to your rounds?');
   const card = await Q.evaluate(() => ({ c: document.querySelector('.arcourse').textContent, d: document.querySelector('.ardate').textContent, s: document.getElementById('arscore').textContent, t: document.getElementById('artopar').textContent, h: document.getElementById('arholes').textContent, w: document.getElementById('arwho').textContent }));
-  assert.deepStrictEqual([card.c, card.s, card.t, card.h, card.w], ['Arcade Creek', '78', '+6', '18', 'Goes into Quincy’s history']);
+  assert.deepStrictEqual([card.c, card.s, card.t, card.h, card.w], ['Arcade Creek', '78', '+6', '18', 'Goes into Quincy’s rounds']);
   assert.match(card.d, /2026/); assert.match(card.d, /White/);
   await Q.screenshot({ path: OUT + 'add-round-confirm.png' });
   await Q.click('#addno'); assert.strictEqual(await Q.$('#addsheet'), null);
   assert.strictEqual(await Q.evaluate(() => window.__golf.rounds().length), 2, 'Cancel adds nothing');
   // the code → Add
   await Q.click('#addround'); await paste(sentText); await Q.waitForSelector('#addyes'); await Q.click('#addyes'); await Q.waitForSelector('#adddone');
-  assert.match(await Q.textContent('#adddone'), /Added to your history/);
+  assert.match(await Q.textContent('#adddone'), /Added to your rounds/);
   const st = await Q.evaluate(() => { const rs = JSON.parse(localStorage.getItem('golfsg.rounds.v1')); const r = rs.filter(x => x.id === 'arc78'); return { n: rs.length, k: r.length, r: r[0], cur: localStorage.getItem('golfsg.current.v1') }; });
   assert.deepStrictEqual([st.n, st.k, st.r.player, st.cur], [3, 1, 'Quincy', 'qcur'], 'added once, stamped Quincy, round in progress untouched');
   assert.deepStrictEqual(Object.assign({}, st.r, { player: 'Scott' }), R, 'everything else exactly as sent (id, holes, shots, tee, notes…)');
@@ -117,19 +117,19 @@ const OUT = '/workspace/golf-app/screenshots/', PORT = 8834, BASE = 'http://127.
   await Q.click('#addview'); await Q.waitForSelector('#rs-top');
   assert.deepStrictEqual(await Q.$$eval('#rs-top tr:nth-child(2) td', t => t.map(x => x.textContent)), ['78', '+6', '5531', '31']);
   const sg = SG.summarize(R); const fmt = v => { const s = (Math.round(v * 100) / 100).toFixed(2); return (v > 0.004 ? '+' : '') + (s === '-0.00' ? '0.00' : s); };
-  assert.strictEqual((await Q.textContent('.sghead')).match(/[+−-]?\d+\.\d\d/)[0], fmt(sg.sgTotal), 'strokes gained recomputed'); assert.match(await Q.textContent('.topbar'), /‹ History/);
-  await Q.click('.topbar [data-act="history"]'); assert.match(await Q.textContent('#histlist .hrow[data-id="arc78"]'), /Arcade Creek[\s\S]*Quincy[\s\S]*78/);
+  assert.strictEqual((await Q.textContent('.sghead')).match(/[+−-]?\d+\.\d\d/)[0], fmt(sg.sgTotal), 'strokes gained recomputed'); assert.match(await Q.textContent('.topbar'), /‹ Rounds/);
+  await Q.click('.topbar [data-act="history"]'); assert.match(await Q.textContent('#histlist .hrow[data-id="arc78"]'), /^78[\s\S]*Arcade Creek[\s\S]*Quincy/);
   // second add (gzip-less code) → no duplicate; same round with another id → also caught
   await Q.click('#addround'); await paste(plain); await Q.waitForSelector('#addyes'); await Q.click('#addyes'); await Q.waitForSelector('#adddone');
-  assert.match(await Q.textContent('#adddone'), /already in your history/); assert.strictEqual(await Q.getAttribute('#addview', 'data-id'), 'arc78');
+  assert.match(await Q.textContent('#adddone'), /already in your rounds/); assert.strictEqual(await Q.getAttribute('#addview', 'data-id'), 'arc78');
   await Q.click('#addsheet [data-act="addclose"]');
   const R3 = Object.assign(JSON.parse(JSON.stringify(R)), { id: 'arc78-again' });
   await Q.click('#addround'); await pick('again.json', SHARE.fileText(R3)); await Q.waitForSelector('#addyes'); await Q.click('#addyes'); await Q.waitForSelector('#adddone');
-  assert.match(await Q.textContent('#adddone'), /already in your history/);
+  assert.match(await Q.textContent('#adddone'), /already in your rounds/);
   assert.strictEqual(await Q.evaluate(() => JSON.parse(localStorage.getItem('golfsg.rounds.v1')).length), 3, 'still 3 rounds');
   await Q.click('#addsheet [data-act="addclose"]');
   // in Quincy's backup
-  await Q.click('[data-act="home"]'); await Q.click('#archivepill'); await Q.evaluate(() => { window.__shared.length = 0; window.__shareMode = 'ok'; });
+  await Q.click('[data-act="home"]'); await Q.click('#plusbtn'); await Q.click('#plusmenu [data-act="archive"]'); await Q.evaluate(() => { window.__shared.length = 0; window.__shareMode = 'ok'; });
   await Q.click('[data-act="backup"]'); await Q.waitForFunction(() => window.__shared.length === 1);
   const bfile = (await Q.evaluate(() => window.__shared[0])).files[0], B = JSON.parse(bfile.text);
   assert.match(bfile.name, /^golf-rounds-quincy-/i); const inB = B.rounds.filter(r => r.id === 'arc78');

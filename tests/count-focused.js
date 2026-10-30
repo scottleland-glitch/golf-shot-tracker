@@ -13,7 +13,7 @@ const BASE = 'http://127.0.0.1:8771/';
     localStorage.clear(); localStorage.setItem('golfsg.player.v1', 'Scott');
     localStorage.setItem('golfsg.rounds.v1', JSON.stringify([real('a', '2026-10-01T17:00:00Z', 'A'), real('b', '2026-10-08T17:00:00Z', 'B'), empty('e1', '2026-10-12T17:00:00Z', 'X'), empty('e2', '2026-10-13T17:00:00Z', 'Y')])); });
   await page.reload();
-  await page.click('#archivepill'); assert.match(await page.textContent('.histbtn'), /2 saved rounds/);
+  await page.click('#plusbtn'); await page.click('#plusmenu [data-act="archive"]'); assert.match(await page.textContent('.histbtn'), /2 saved rounds/);
   await goHist(page);
   const rows = await page.$$eval('#histlist .hrow', r => r.length);
   const hdr = await page.textContent('.topbar .title span');

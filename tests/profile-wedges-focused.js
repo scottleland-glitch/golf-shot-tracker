@@ -1,4 +1,5 @@
-// v93 Profile (+ menu) → My Bag and Wedges. Wedges chart 40–110 yd: club, ball position (Front/Middle/Back), shaft lean (0°/1–2°/3–4°),
+// v93 wedges; v102: + menu → My Bag with a Bag | Wedge ladder toggle (Profile gone, player name in Settings).
+// Wedges chart Wedges chart 40–110 yd: club, ball position (Front/Middle/Back), shaft lean (0°/1–2°/3–4°),
 // club position (P1–P3), hinge (45°/90°/Full).
 // Menu order, navigation, accordion, persistence, backup round trip. iPhone 390x844 @3x screenshots.
 const assert = require('assert'); const { spawn } = require('child_process'); const fs = require('fs');
@@ -58,24 +59,27 @@ const OUT = '/workspace/golf-app/screenshots/', PORT = 8831, BASE = 'http://127.
     bagB.clubs.forEach(c => { c.carry = { '9i': 128, PW: 115, '50': 102, '54': 88, '58': 74, '7i': 150 }[c.code]; });
     await page.evaluate(b => { localStorage.clear(); localStorage.setItem('golfsg.player.v1', 'Quincy'); localStorage.setItem('golfsg.nameasked.v1', '1'); localStorage.setItem('golfsg.bag.v1', JSON.stringify(b)); localStorage.setItem('golfsg.wedges.v1', JSON.stringify({ v: 1, rows: { 75: { club: '56', ball: 'center' } } })); }, bagB); // a 5-yard-draft entry
     await page.reload(); await page.waitForSelector('#home');
-    assert.strictEqual(await page.$('[data-act="profile"], [data-act="wedges"]'), null, 'home stays clean');
+    assert.strictEqual(await page.$('[data-act="profile"], [data-act="wedges"], [data-act="bag"]'), null, 'home stays clean');
     await page.click('#plusbtn'); await page.waitForSelector('#plusmenu');
-    assert.deepStrictEqual(await page.$$eval('#plusmenu .sheet-item', e => e.map(x => x.textContent)), ['New round', 'Profile', 'History']);
-    await shot('profile-menu');
-    await page.click('#plusmenu [data-act="profile"]'); await page.waitForSelector('#profbag');
-    assert.match(await page.textContent('.topbar'), /Profile/); assert.match(await page.textContent('#pnameshow'), /Quincy/);
-    assert.match(await page.textContent('#profbag'), /My Bag[\s\S]*6 clubs/); assert.match(await page.textContent('#profwedges'), /Wedges/);
+    assert.deepStrictEqual(await page.$$eval('#plusmenu .sheet-item', e => e.map(x => x.textContent)), ['New round', 'My Bag', 'Rounds', 'Settings']);
+    // My Bag opens on the Bag tab; the toggle switches to the Wedge ladder and back; ‹ Home
+    await page.click('#plusmenu [data-act="bag"]'); await page.waitForSelector('#baglist');
     assert.strictEqual(await page.$('#plusmenu'), null, 'menu closed');
-    await shot('profile-page');
-    // My Bag → back to Profile; Profile → Home
-    await page.click('#profbag'); await page.waitForSelector('#baglist'); assert.match(await page.textContent('.topbar .txt'), /Profile/);
-    await page.click('.topbar [data-act="profile"]'); await page.waitForSelector('#profwedges');
+    assert.deepStrictEqual(await page.$$eval('#bagseg button', e => e.map(x => x.textContent + (x.getAttribute('aria-selected') === 'true' ? '*' : ''))), ['Bag*', 'Wedge ladder']);
+    assert.match(await page.textContent('.topbar'), /My Bag\s*6 clubs/); assert.strictEqual(await page.textContent('.topbar .txt'), '‹ Home');
+    assert.strictEqual(await page.$('#profwedges, #profbag'), null, 'no separate Wedges button');
+    await page.click('#segwedges'); await page.waitForSelector('#wlist'); assert.strictEqual(await page.$('#baglist'), null);
+    assert.deepStrictEqual(await page.$$eval('#bagseg button', e => e.map(x => x.textContent + (x.getAttribute('aria-selected') === 'true' ? '*' : ''))), ['Bag', 'Wedge ladder*']);
+    assert.match(await page.textContent('.topbar'), /My Bag\s*0 of 8 yardages set/);
+    await page.click('#segbag'); await page.waitForSelector('#baglist');
     await page.click('.topbar [data-act="home"]'); await page.waitForSelector('#home');
-    // name change from Profile
-    await page.click('#plusbtn'); await page.click('#plusmenu [data-act="profile"]'); await page.click('[data-act="editname"]'); await page.fill('#pname', 'Quincy L'); await page.click('[data-act="setname"]');
-    await page.waitForSelector('#pnameshow'); assert.strictEqual(await page.textContent('#pnameshow'), 'Quincy L'); assert.ok(await page.$('#profwedges'), 'still on Profile');
-    // Wedges list
-    await page.click('#profwedges'); await page.waitForSelector('#wlist');
+    // name change now lives in Settings
+    await page.click('#plusbtn'); await page.click('#plusmenu [data-act="archive"]'); assert.match(await page.textContent('#pnameshow'), /Quincy/);
+    await page.click('[data-act="editname"]'); await page.fill('#pname', 'Quincy L'); await page.click('[data-act="setname"]');
+    await page.waitForSelector('#pnameshow'); assert.strictEqual(await page.textContent('#pnameshow'), 'Quincy L'); assert.ok(await page.$('.archivepage'), 'still on Settings');
+    await page.click('.topbar [data-act="home"]');
+    // Wedges list (Wedge ladder tab)
+    await page.click('#plusbtn'); await page.click('#plusmenu [data-act="bag"]'); await page.click('#segwedges'); await page.waitForSelector('#wlist');
     assert.deepStrictEqual(await page.$$eval('.whead b', e => e.map(x => parseInt(x.textContent))), W.YARDS, '40–110 by 10');
     assert.ok((await page.$$eval('.wsum', e => e.map(x => x.textContent))).every(t => t === 'Not set'));
     assert.strictEqual(await page.$('#wbody'), null, 'all collapsed');
@@ -104,8 +108,8 @@ const OUT = '/workspace/golf-app/screenshots/', PORT = 8831, BASE = 'http://127.
     assert.strictEqual((await store()).rows[60], undefined); assert.strictEqual(await page.textContent('[data-wsum="60"]'), 'Not set');
     await page.click('.whead[data-y="60"]'); assert.strictEqual(await page.$('#wbody'), null);
     // persists after reload
-    await page.reload(); await page.click('#plusbtn'); await page.click('#plusmenu [data-act="profile"]'); assert.match(await page.textContent('#profwedges'), /3 of 8 yardages/);
-    await page.click('#profwedges'); await page.waitForSelector('#wlist');
+    await page.reload(); await page.click('#plusbtn'); await page.click('#plusmenu [data-act="bag"]'); await page.click('#segwedges'); await page.waitForSelector('#wlist');
+    assert.match(await page.textContent('.topbar .title span'), /^3 of 8 yardages set$/);
     assert.match(await page.textContent('[data-wsum="50"]'), /^60 Lob · front · P1$/);
     await page.evaluate(() => window.scrollTo(0, 0)); await shot('wedges-list');
     // v94: a set yardage opens a simple read-only view – three lines; the Edit button at the bottom brings back the full editor
@@ -146,24 +150,24 @@ const OUT = '/workspace/golf-app/screenshots/', PORT = 8831, BASE = 'http://127.
     await page.click('#wedit');
     await page.click('#wflight [data-k="high"]'); assert.strictEqual(await page.textContent('[data-wsum="70"]'), '54° · middle · P2'); assert.match(await page.textContent('.topbar .title span'), /^3 of 8/);
     await page.click('#wflight [data-k="low"]');
-    await page.click('.topbar [data-act="profile"]'); assert.match(await page.textContent('#profwedges'), /3 of 8 yardages set · Low 1 of 8/);
-    await page.click('#profwedges'); assert.strictEqual(await page.textContent('#wedit'), '✎ Edit', 'opens in simple view');
-    assert.ok(await page.$('#wflight [data-k="high"].on'), 'opens on High');
-    await page.click('.topbar [data-act="profile"]'); await page.waitForSelector('#profbag');
+    await page.click('#segbag'); await page.waitForSelector('#baglist');
+    await page.click('#segwedges'); assert.strictEqual(await page.textContent('#wedit'), '✎ Edit', 'opens in simple view');
+    assert.ok(await page.$('#wflight [data-k="high"].on'), 'opens on High'); assert.match(await page.textContent('.topbar .title span'), /^3 of 8 yardages set$/);
+    await page.click('.topbar [data-act="home"]'); await page.waitForSelector('#home');
     // backup → restore into an empty phone
     const wj = await page.evaluate(() => localStorage.getItem('golfsg.wedges.v1'));
     const bk = await page.evaluate(j => JSON.stringify(SG.makeBackup([], null, 'Quincy', [], null, JSON.parse(j))), wj); fs.writeFileSync('/tmp/wedges-backup.json', bk);
     await page.evaluate(() => localStorage.removeItem('golfsg.wedges.v1')); await page.reload();
-    await page.click('#archivepill'); assert.ok(await page.$eval('[data-act="backup"]', e => !e.disabled));
+    await page.click('#plusbtn'); await page.click('#plusmenu [data-act="archive"]'); assert.ok(await page.$eval('[data-act="backup"]', e => !e.disabled));
     await page.setInputFiles('#restorefile', '/tmp/wedges-backup.json'); await page.waitForSelector('#rpwedges');
     assert.match(await page.textContent('#rpgo'), /Restore wedges/); await page.click('#rpgo'); await page.waitForSelector('#notice');
     assert.match(await page.textContent('#notice'), /Wedges \(3 yardages · 1 Low flight\)/); assert.deepStrictEqual((await store()).rows, JSON.parse(wj).rows); assert.deepStrictEqual((await store()).low, JSON.parse(wj).low);
     const back = await page.evaluate(() => SG.makeBackup([], null, 'Q', [], null, JSON.parse(localStorage.getItem('golfsg.wedges.v1')))); assert.strictEqual(back.wedges.rows[70].club, '54');
     // empty bag → standard wedge list
-    await page.evaluate(() => localStorage.removeItem('golfsg.bag.v1')); await page.reload(); await page.click('#plusbtn'); await page.click('#plusmenu [data-act="profile"]'); await page.click('#profwedges'); await page.click('.whead[data-y="40"]');
+    await page.evaluate(() => localStorage.removeItem('golfsg.bag.v1')); await page.reload(); await page.click('#plusbtn'); await page.click('#plusmenu [data-act="bag"]'); await page.click('#segwedges'); await page.click('.whead[data-y="40"]');
     assert.deepStrictEqual(await page.$$eval('#wbody [data-f="club"][data-v="set"]', e => e.map(x => x.getAttribute('data-k'))), W.STD_CLUBS);
-    const sw = fs.readFileSync('/workspace/golf-app/sw.js', 'utf8'); assert.ok(sw.includes("'golf-sg-v101'") && sw.includes("'./wedges.js'"));
+    const sw = fs.readFileSync('/workspace/golf-app/sw.js', 'utf8'); assert.ok(sw.includes("'golf-sg-v102'") && sw.includes("'./wedges.js'"));
     assert.deepStrictEqual(errors, []);
-    console.log('PROFILE/WEDGES OK');
+    console.log('MY BAG/WEDGES OK');
   } finally { await br.close(); srv.kill(); }
 })().catch(e => { console.error(e); process.exit(1); });
