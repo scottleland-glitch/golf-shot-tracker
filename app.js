@@ -153,7 +153,7 @@
     else if (view.screen === 'home' || !round()) el.innerHTML = homeHTML();
     else if (view.screen === 'hole') el.innerHTML = '<div class="frostpage roundpage' + roundTheme() + '">' + holeHTML() + (view.pinOpen ? pinHTML() : '') + (view.replay != null ? replayHTML() : '') + '</div>';
     else if (view.screen === 'about') el.innerHTML = aboutHTML();
-    else { el.innerHTML = '<div class="frostpage roundpage' + roundTheme() + '">' + summaryHTML() + (view.send && round() && view.send.id === round().id ? sendSheetHTML(round()) : '') + (view.map ? mapHTML() : '') + (view.replay != null ? replayHTML() : '') + '</div>'; if (view.map) applyHeat(); if (view.preview) previewOnly(el); }
+    else { el.innerHTML = '<div class="frostpage roundpage' + roundTheme() + '">' + summaryHTML() + (view.send && round() && view.send.id === round().id ? sendSheetHTML(round()) : '') + (view.mv && view.mv.from === 'summary' && view.mv.sheet ? mvSheetHTML() : '') + (view.map ? mapHTML() : '') + (view.replay != null ? replayHTML() : '') + '</div>'; if (view.map) applyHeat(); if (view.preview) previewOnly(el); }
     document.body.classList.toggle('onhome', !!el.querySelector('#home'));
     if (view.screen !== 'hole') document.body.classList.toggle('noscroll', !!(view.map && view.screen === 'summary'));
     if (view.replay != null) document.body.classList.add('noscroll');
@@ -511,19 +511,96 @@
     if (multi) h += '<div class="liechips" id="playerchips" role="group" aria-label="Filter by player">' + [''].concat(names).map(function (n) {
         var sel = (view.histPlayer || '') === n; return '<button class="frostchip' + (sel ? ' sel' : '') + '" data-act="histplayer" data-v="' + esc(n) + '" aria-pressed="' + sel + '">' + (n ? esc(n) + ' (' + P[n] + ')' : 'All players') + '</button>'; }).join('') +
       (savedRounds().some(function (r) { return !r.player; }) ? '<button class="frostchip' + (view.histPlayer === '~none' ? ' sel' : '') + '" data-act="histplayer" data-v="~none">No name</button>' : '') + '</div>';
-    h += '<button class="frostbtn addrbtn" data-act="addopen" id="addround">📥 Add a round<small>someone sent you a round? add it here</small></button>';
+    var M = view.mv && view.mv.sel ? view.mv : null;
+    if (M) { var allOn = list.length && list.every(function (r) { return M.ids[r.id]; }); h += '<p class="mvhelp" id="mvhelp">Tap the rounds to move to another player.</p><button class="txt mvall" data-act="mvall" id="mvall">' + (allOn ? 'Clear all' : 'Select all ' + list.length + ' shown') + '</button>'; }
+    else h += '<div class="histtools"><button class="frostbtn addrbtn" data-act="addopen" id="addround">📥 Add a round<small>someone sent you one?</small></button>' +
+      (list.length ? '<button class="frostbtn addrbtn" data-act="mvstart" id="chgplayer">👤 Change player<small>rounds under the wrong name?</small></button>' : '') + '</div>';
     if (!list.length) h += '<p class="muted frostnote">No rounds yet. Start one from Home.</p>';
-    if (list.length >= 2) h += '<button class="big cmpbtn frostmain" data-act="compare" id="cmpopen">⚖ Best vs worst rounds</button>';
-    if (list.length) h += '<button class="big cmpbtn frostmain bzbtn" data-act="bzopen" data-v="all" data-id="' + list[0].id + '" id="histbz">🎯 Birdie zone</button>';
+    if (!M && list.length >= 2) h += '<button class="big cmpbtn frostmain" data-act="compare" id="cmpopen">⚖ Best vs worst rounds</button>';
+    if (!M && list.length) h += '<button class="big cmpbtn frostmain bzbtn" data-act="bzopen" data-v="all" data-id="' + list[0].id + '" id="histbz">🎯 Birdie zone</button>';
     h += '<div id="histlist">';
     list.forEach(function (r) {
       var S = SG.summarize(r);
-      h += '<div class="hrow" data-id="' + r.id + '"><button class="hist frostcard" data-act="open" data-id="' + r.id + '"><span><b>' + new Date(r.date).toLocaleDateString() + '</b>' +
+      var on = M && M.ids[r.id];
+      h += '<div class="hrow' + (M ? ' mvon' + (on ? ' mvsel' : '') : '') + '" data-id="' + r.id + '"><button class="hist frostcard" data-act="' + (M ? 'mvtoggle' : 'open') + '" data-id="' + r.id + '"' + (M ? ' role="checkbox" aria-checked="' + !!on + '"' : '') + '>' + (M ? '<span class="mvchk" aria-hidden="true">' + (on ? '✓' : '') + '</span>' : '') + '<span class="hmain"><b>' + new Date(r.date).toLocaleDateString() + '</b>' +
         (r.course ? '<br>' + esc(r.course) : '') + (r.player ? '<br><span class="hplayer">👤 ' + esc(r.player) + '</span>' : '') + '<br><small class="muted">' + S.holesDone + ' of ' + r.holes.length + ' holes played</small></span><span class="hscore">' +
         (S.holesDone ? '<b>' + S.strokes + '</b> (' + toPar(S.toPar) + ')' : '–') + '<br><small class="' + sgCls(S.sgTotal) + '">SG ' + fmtSG(S.sgTotal) + '</small><br><small class="muted">vs ' + esc(blName(blOf(r))) + '</small></span></button>' +
-        '<button class="hdel frostdanger" data-act="delHist" data-id="' + r.id + '" aria-label="Delete round ' + esc(new Date(r.date).toLocaleDateString() + (r.course ? ' ' + r.course : '')) + '">🗑</button></div>';
+        (M ? '' : '<button class="hdel frostdanger" data-act="delHist" data-id="' + r.id + '" aria-label="Delete round ' + esc(new Date(r.date).toLocaleDateString() + (r.course ? ' ' + r.course : '')) + '">🗑</button>') + '</div>';
     });
-    return h + '</div>' + (view.addr ? addSheetHTML() : '') + '</div>';
+    return h + '</div>' + (view.addr ? addSheetHTML() : '') + (M ? mvBarHTML() : '') + (view.mv && view.mv.from === 'history' && view.mv.sheet ? mvSheetHTML() : '') + '</div>';
+  }
+
+  // ---------- v99 Change player: move saved rounds to another player's name ----------
+  // round.player = new name, round.updated = now (merges prefer it), round.movedFrom = old name(s) so the Google Drive
+  // backup takes the round out of the old player's file. Id, shots, stats: unchanged.
+  function mvNames() {
+    var L = [], seen = {}; function add(n) { n = String(n || '').trim().replace(/\s+/g, ' '); if (n && !seen[n.toLowerCase()]) { seen[n.toLowerCase()] = 1; L.push(n); } }
+    add(playerName()); savedRounds().forEach(function (r) { add(r.player); });
+    return L.sort(function (a, b) { var qa = /^quincy\b/i.test(a), qb = /^quincy\b/i.test(b); return qa !== qb ? (qa ? -1 : 1) : a.localeCompare(b); });
+  }
+  function mvOwner(r) { return String(r.player || playerName() || '').trim(); }
+  function mvSel() { var M = view.mv; return M ? rounds.filter(function (r) { return M.ids[r.id]; }) : []; }
+  function mvCount(to) { return mvSel().filter(function (r) { return !samePlayer(mvOwner(r), to); }).length; }
+  function nRounds(n) { return n + ' round' + (n === 1 ? '' : 's'); }
+  function mvBarHTML() {
+    var n = mvSel().length;
+    return '<div class="mvbar" id="mvbar"><button class="mvcancel" data-act="mvcancel">Cancel</button><button class="mvgo" data-act="mvsheet" id="mvgo"' + (n ? '' : ' disabled') + '>' + (n ? 'Move ' + nRounds(n) + ' to…' : 'Tap rounds to choose') + '</button></div>';
+  }
+  function mvSheetHTML() {
+    var M = view.mv, L = mvSel(), n = L.length, own = {}; L.forEach(function (r) { own[mvOwner(r).toLowerCase()] = 1; });
+    var o = '<div class="rsheet-bg" data-act="mvclose"></div><div class="rsheet" id="mvsheet" role="dialog" aria-modal="true" aria-labelledby="mvh">';
+    if (M.sheet === 'confirm') {
+      var k = mvCount(M.to), froms = Object.keys(L.reduce(function (a, r) { if (!samePlayer(mvOwner(r), M.to)) a[mvOwner(r) || 'no name'] = 1; return a; }, {}));
+      o += '<div class="rsh-h" id="mvh">Move ' + (n === 1 && M.from === 'summary' ? 'this round' : nRounds(k)) + ' to ' + esc(M.to) + '?</div>' +
+        '<p class="rsh-sub" id="mvfrom">From ' + esc(froms.join(', ')) + '</p><div class="mvlist" id="mvlist">';
+      L.filter(function (r) { return !samePlayer(mvOwner(r), M.to); }).slice(0, 4).forEach(function (r) { var S = SG.summarize(r, blOf(r)); o += '<div>' + esc(new Date(r.date).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })) + (r.course ? ' · ' + esc(r.course) : '') + (S.holesDone ? ' · ' + S.strokes : '') + '</div>'; });
+      if (k > 4) o += '<div class="muted">and ' + (k - 4) + ' more</div>';
+      o += '</div><p class="rsh-help">Every shot and stat stays the same – only the name changes. Backups move with ' + (k === 1 ? 'it' : 'them') + '.</p>' +
+        '<button class="rsh-go" data-act="mvyes" id="mvyes">Move</button><button class="rsh-item muted" data-act="mvclose" id="mvno">Cancel</button></div>';
+      return o;
+    }
+    o += '<div class="rsh-h" id="mvh">Move ' + (n === 1 && M.from === 'summary' ? 'this round' : nRounds(n)) + ' to…</div><p class="rsh-sub">Now: ' + esc(Object.keys(L.reduce(function (a, r) { a[mvOwner(r) || 'no name'] = 1; return a; }, {})).join(', ')) + '</p>';
+    var names = mvNames(), q = names.filter(function (x) { return /^quincy\b/i.test(x) && !own[x.toLowerCase()]; })[0];
+    names.forEach(function (x) {
+      var all = Object.keys(own).length === 1 && own[x.toLowerCase()];
+      o += '<button class="' + (x === q ? 'rsh-go' : 'rsh-item') + ' mvname" data-act="mvpick" data-v="' + esc(x) + '"' + (all ? ' disabled' : '') + '>👤 ' + esc(x) +
+        (all ? '<small>already theirs</small>' : x === q ? '<small>suggested</small>' : samePlayer(x, playerName()) ? '<small>this phone’s player</small>' : '') + '</button>';
+    });
+    if (M.custom) o += '<label class="rsh-lbl" for="mvname">New name</label><input id="mvname" class="rsh-code mvinput" maxlength="40" autocomplete="off" autocapitalize="words" placeholder="e.g. Amber" value="' + esc(M.typed || '') + '">' +
+      (M.err ? '<p class="rsh-err" role="alert">' + esc(M.err) + '</p>' : '') + '<button class="rsh-go" data-act="mvnew" id="mvnewgo">Use this name</button>';
+    else o += '<button class="rsh-item" data-act="mvcustom" id="mvcustom">✏️ New name…</button>';
+    return o + '<button class="rsh-item muted" data-act="mvclose">Cancel</button></div>';
+  }
+  function moveRounds(ids, to) {
+    var now = new Date().toISOString(), n = 0;
+    rounds.forEach(function (r) {
+      if (!ids[r.id]) return; var old = mvOwner(r); if (samePlayer(old, to)) return;
+      var mf = (r.movedFrom || []).filter(function (x) { return !samePlayer(x, to); }); if (old && !mf.some(function (x) { return samePlayer(x, old); })) mf.push(old);
+      r.player = to; if (mf.length) r.movedFrom = mf; else delete r.movedFrom; r.updated = now; n++;
+    });
+    if (n) { localStorage.setItem(KEY, JSON.stringify(rounds)); odDirty(1500); if (live) live.touch(); }
+    return n;
+  }
+  function mvAct(act, b) {
+    var M = view.mv, id = b.getAttribute('data-id'), v = b.getAttribute('data-v');
+    switch (act) {
+      case 'mvstart': view.mv = { sel: true, ids: {}, from: 'history' }; view.addr = null; break;
+      case 'mvone': view.send = null; view.mv = { ids: {}, from: 'summary', sheet: 'pick' }; view.mv.ids[view.roundId] = 1; break;
+      case 'mvall': if (M) { var hr = [].slice.call(document.querySelectorAll('#histlist .hrow')).map(function (e) { return e.getAttribute('data-id'); }), on = hr.every(function (x) { return M.ids[x]; }); hr.forEach(function (x) { if (on) delete M.ids[x]; else M.ids[x] = 1; }); } break;
+      case 'mvtoggle': if (M) { if (M.ids[id]) delete M.ids[id]; else M.ids[id] = 1; } break;
+      case 'mvcancel': view.mv = null; break;
+      case 'mvsheet': if (M && mvSel().length) { M.sheet = 'pick'; M.custom = false; M.err = null; } break;
+      case 'mvclose': if (M) { if (M.from === 'summary') view.mv = null; else M.sheet = null; } break;
+      case 'mvcustom': M.custom = true; render(); var i = document.getElementById('mvname'); if (i) i.focus(); return;
+      case 'mvpick': M.to = v; M.sheet = 'confirm'; break;
+      case 'mvnew': {
+        var t = String((document.getElementById('mvname') || {}).value || '').trim().replace(/\s+/g, ' ').slice(0, 40); M.typed = t;
+        if (!window.OD.slug(t)) { M.err = 'Please type a name (letters or numbers).'; break; }
+        var known = mvNames().filter(function (x) { return samePlayer(x, t); })[0]; M.to = known || t; M.sheet = 'confirm'; M.err = null; break;
+      }
+      case 'mvyes': { var n = moveRounds(M.ids, M.to); view.mv = null; render(); toast(n ? 'Moved ' + nRounds(n) + ' to ' + M.to + ' ✓' : 'Nothing to move'); return; }
+    }
+    render();
   }
   // ---------- v97 Send round / Add a round (share.js) ----------
   function roundLine(r) { var S = SG.summarize(r, blOf(r)); return { day: new Date(r.date).toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' }), S: S }; }
@@ -825,15 +902,16 @@
     function grp(p) { var n = GDX.folderName(p), k = n.toLowerCase(); if (!GDX.slug(n)) return null; if (!g[k]) { g[k] = { player: n, rounds: [] }; order.push(k); } return g[k]; }
     if (me && (bagForBackup() || wedgesForBackup() || ownRounds().length)) grp(me);
     rounds.forEach(function (r) { if (SG.roundEmpty(r)) return; var G = grp(r.player || me); if (G) G.rounds.push(r); });
+    GDX.movedFrom(rounds).forEach(function (m) { m.from.forEach(function (f) { var k = GDX.folderName(f).toLowerCase(); if (GDX.slug(f) && !g[k]) { g[k] = { player: GDX.folderName(f), rounds: [], dropOnly: true }; order.push(k); } }); }); // v99: tidy a moved round out of its old player's file
     return order.map(function (k) {
       var G = g[k], mine = samePlayer(G.player, me);
-      return { player: G.player, backup: SG.makeBackup(G.rounds, null, G.player, courses(), mine ? bagForBackup() : null, mine ? wedgesForBackup() : null) };
+      return { player: G.player, dropOnly: !!G.dropOnly, backup: SG.makeBackup(G.rounds, null, G.player, courses(), mine ? bagForBackup() : null, mine ? wedgesForBackup() : null) };
     });
   }
   function gdSync() {
     if (!gdOn || !gdState.connected || gdBusy || !gdState.pending) return Promise.resolve();
     var t = gdTok(); gdBusy = true; gdRefresh();
-    return GDX.sync({ state: gdState, fetch: window.fetch.bind(window), token: t && t.accessToken, online: navigator.onLine, files: gdFiles() }).then(function (st) {
+    return GDX.sync({ state: gdState, fetch: window.fetch.bind(window), token: t && t.accessToken, online: navigator.onLine, files: gdFiles(), moved: GDX.movedFrom(rounds) }).then(function (st) {
       gdBusy = false; gdState = st;
       if (st.needsAuth && t) localStorage.removeItem(GDX.TOKEN_KEY); // Google said the sign-in has run out
       gdSave();
@@ -1681,6 +1759,7 @@
     out += '<button class="primary big" data-act="pdf" style="margin-top:16px">📄 Make PDF report</button>' + pdfHTML();
     out += '<button class="big" data-act="csv">Export this round (CSV)</button>';
     out += '<button class="big sendbtn" data-act="sendopen" id="sendround">📤 Send round<small>to another phone – it lands in their History</small></button>';
+    out += '<button class="big sendbtn" data-act="mvone" id="chgplayer1">👤 Change player<small>' + (r.player || playerName() ? 'now ' + esc(r.player || playerName()) : 'whose round is this?') + '</small></button>';
     out += '<button class="big" data-act="backHole">Back to the round</button>';
     out += '<button class="big danger" data-act="delRound">Delete this round</button>';
     out += '<button class="big" data-act="about">ⓘ About the numbers</button>';
@@ -2316,20 +2395,34 @@
     return { b: b, keys: keys, n: set.length };
   }
   function cmpGapHTML(C) {
-    var B = cmpAgg(C.best), W = cmpAgg(C.worst), pr = function (x) { return x.pN ? Math.round(x.pS / x.pN) + ' ft' : '–'; }, gp = function (x) { return x.girN ? Math.round(x.gir / x.girN * 100) + '%' : '–'; };
-    var o = '<table id="gaptable" class="gaptable"><tr><th>From</th><th class="num">Avg to pin<br><small>best · worst</small></th><th class="num">GIR %<br><small>best · worst</small></th><th class="num">SG / round<br><small>best · worst</small></th><th class="num">Gap</th></tr>';
-    B.keys.forEach(function (k) { var b = B.b[k], w = W.b[k]; if (!b.n && !w.n) return;
-      var sb = b.sg / B.n, sw = w.sg / W.n, gap = sb - sw, ap = SG.APPR_BUCKETS.some(function (x) { return x.id === k; });
-      o += '<tr data-bucket="' + k + '"><td><b>' + k + '</b></td><td class="num">' + (ap ? pr(b) + ' · ' + pr(w) : '') + '</td><td class="num">' + (ap ? gp(b) + ' · ' + gp(w) : '') + '</td><td class="num"><span class="' + sgCls(sb) + '">' + fmtSG(sb) + '</span> · <span class="' + sgCls(sw) + '">' + fmtSG(sw) + '</span></td><td class="num gap ' + sgCls(gap) + '"><b>' + fmtSG(gap) + '</b></td></tr>'; });
-    return o + '</table><p class="help muted">Gap = strokes gained per round in your best rounds minus your worst (vs PGA Tour) – the biggest positive gaps are where your bad rounds lose the most. Avg to pin = where approaches from that distance finished; GIR % = regulation greens hit from there.</p>';
+    // v100: Best and Worst as two tinted column groups (Avg ft · GIR · SG each), then Gap behind a divider; rows grouped Approach / Short game / Putting
+    var B = cmpAgg(C.best), W = cmpAgg(C.worst), pr = function (x) { return x.pN ? Math.round(x.pS / x.pN) : '–'; }, gp = function (x) { return x.girN ? Math.round(x.gir / x.girN * 100) + '%' : '–'; };
+    var avg = function (L) { return L.reduce(function (a, x) { return a + x.S.strokes; }, 0) / L.length; };
+    var who = function (L) { return L.length === 1 ? esc(new Date(L[0].r.date).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })) + ' · ' + L[0].S.strokes : L.length + ' rounds · avg ' + Math.round(avg(L)); };
+    var o = '<div class="gapcard"><table id="gaptable" class="gaptable gapt"><colgroup><col class="c-from"><col span="3" class="c-b"><col span="3" class="c-w"><col class="c-gap"></colgroup>' +
+      '<thead><tr><th rowspan="2" class="from">From</th><th colspan="3" class="gb ghead" id="gapbesthead">Best<small>' + who(C.best) + '</small></th><th colspan="3" class="gw ghead" id="gapworsthead">Worst<small>' + who(C.worst) + '</small></th><th rowspan="2" class="gap">Gap</th></tr>' +
+      '<tr class="gsub"><th class="gb g1">Avg ft</th><th class="gb">GIR</th><th class="gb">SG</th><th class="gw g1">Avg ft</th><th class="gw">GIR</th><th class="gw">SG</th></tr></thead><tbody>';
+    var secs = [['Approach · yards', SG.APPR_BUCKETS.map(function (x) { return x.id; })], ['Short game · yards', ['0-20 yd']], ['Putting · first putt, feet', ['0-5 ft', '5-15 ft', '15-30 ft', '30+ ft']]];
+    secs.forEach(function (sec) {
+      var rows = sec[1].filter(function (k) { return B.b[k] && (B.b[k].n || W.b[k].n); }); if (!rows.length) return;
+      var ap = sec === secs[0];
+      o += '<tr class="gsec"><td colspan="8">' + sec[0] + '</td></tr>';
+      rows.forEach(function (k) { var b = B.b[k], w = W.b[k], sb = b.sg / B.n, sw = w.sg / W.n, gap = sb - sw;
+        o += '<tr data-bucket="' + k + '"><td class="from">' + k.replace(/ (yd|ft)$/, '').replace('-', '–') + '</td>' +
+          '<td class="gb g1">' + (ap ? pr(b) : '') + '</td><td class="gb">' + (ap ? gp(b) : '') + '</td><td class="gb ' + sgCls(sb) + '">' + fmtSG(sb) + '</td>' +
+          '<td class="gw g1">' + (ap ? pr(w) : '') + '</td><td class="gw">' + (ap ? gp(w) : '') + '</td><td class="gw ' + sgCls(sw) + '">' + fmtSG(sw) + '</td>' +
+          '<td class="gap ' + sgCls(gap) + '"><b>' + fmtSG(gap) + '</b></td></tr>'; });
+    });
+    return o + '</tbody></table></div><p class="help muted gapnote"><b>Avg ft</b> = how far from the hole approaches from that distance finished (feet). <b>GIR</b> = greens in regulation hit from there. <b>SG</b> = strokes gained per round vs PGA Tour. ' +
+      '<b>Gap</b> = best minus worst – the biggest green gaps are where your bad rounds lose the most.</p>';
   }
   function compareHTML2() {
     var C = cmpRounds(), kind = view.cmpKind || 'prox', ov = !!view.cmpOverlay;
     var h = '<div class="topbar"><button class="txt" data-act="history">‹ History</button><div class="title"><b>Best vs worst rounds</b><span>by score vs par</span></div><span></span></div>';
     if (C.maxN < 1) return h + '<p class="notice" id="cmpnone">You need at least 2 rounds with finished holes to compare.</p>';
     h += '<div class="cmpn" id="cmpn"><button data-act="cmpn" data-v="-1"' + (C.n <= 1 ? ' disabled' : '') + ' aria-label="Fewer rounds">−</button><span>Best <b>' + C.n + '</b> vs worst <b>' + C.n + '</b> round' + (C.n === 1 ? '' : 's') + '</span><button data-act="cmpn" data-v="1"' + (C.n >= C.maxN ? ' disabled' : '') + ' aria-label="More rounds">+</button></div>';
-    var line = function (x) { return '<li>' + esc(localDate(x.r.date)) + ' · ' + esc(x.r.course || 'Round') + ' · <b>' + x.S.strokes + '</b> (' + toPar(x.S.toPar) + ', ' + x.S.holesDone + ' holes)</li>'; };
-    h += '<div class="cmpcols"><div><h3>Best</h3><ul class="cmplist" id="cmpbest">' + C.best.map(line).join('') + '</ul></div><div><h3>Worst</h3><ul class="cmplist" id="cmpworst">' + C.worst.map(line).join('') + '</ul></div></div>';
+    var line = function (x) { return '<li><span class="cl-d">' + esc(new Date(x.r.date).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })) + '</span><span class="cl-c">' + esc(x.r.course || 'Round') + (x.S.holesDone < 18 ? ' · ' + x.S.holesDone + ' holes' : '') + '</span><span class="cl-s"><b>' + x.S.strokes + '</b> ' + toPar(x.S.toPar) + '</span></li>'; };
+    h += '<div class="cmpcols"><div class="cmpcard gbcard"><h3>Best</h3><ul class="cmplist" id="cmpbest">' + C.best.map(line).join('') + '</ul></div><div class="cmpcard gwcard"><h3>Worst</h3><ul class="cmplist" id="cmpworst">' + C.worst.map(line).join('') + '</ul></div></div>';
     h += '<h2>Where the strokes go</h2>' + cmpGapHTML(C);
     h += '<h2>Maps</h2><div class="seg cmpkinds" id="cmpkinds">' + CMP_KINDS.map(function (k) { return '<button data-act="cmpkind" data-v="' + k[0] + '" class="' + (k[0] === kind ? 'sel' : '') + '">' + k[1] + '</button>'; }).join('') + '</div>';
     var grp = null;
@@ -2951,7 +3044,7 @@
       case 'livestop': if (!live || !r || !confirm('Stop sharing? The link will stop showing this round.')) return; live.stop(r.id); view.liveCard = false; toast('Sharing stopped'); render(); return;
       case 'new': view.from = null; view.hmenu = null; view.newBl = null; newRound(((document.getElementById('course') || {}).value || '').trim()); return;
       case 'resume': view.from = null; view.roundId = localStorage.getItem(CUR); goHole(firstOpenHole(round()), true); return;
-      case 'open': view.pdf = null; view.addr = null; view.send = null; view.roundId = b.getAttribute('data-id'); view.from = view.screen === 'history' ? 'history' : null; view.screen = 'summary'; view.map = null; render(); window.scrollTo(0, 0); return;
+      case 'open': view.pdf = null; view.addr = null; view.send = null; view.mv = null; view.roundId = b.getAttribute('data-id'); view.from = view.screen === 'history' ? 'history' : null; view.screen = 'summary'; view.map = null; render(); window.scrollTo(0, 0); return;
       case 'home': view.screen = 'home'; view.from = null; view.hmenu = null; break;
       case 'archive': view.screen = 'archive'; view.hmenu = null; render(); window.scrollTo(0, 0); return;
       case 'plus': view.hmenu = view.hmenu ? (view.hmenu === 'new' ? 'menu' : null) : 'menu'; render(); return;
@@ -2966,7 +3059,7 @@
       case 'namechange': view.nameSheet = playerName() ? 'change' : 'first'; view.hmenu = null; render(); var pn2 = document.getElementById('pname'); if (pn2) pn2.focus(); return;
       case 'nameskip': localStorage.setItem(NA, '1'); view.nameSheet = null; render(); return;
       case 'namecancel': view.nameSheet = null; render(); return;
-      case 'history': view.hmenu = null; view.screen = 'history'; view.notice = null; render(); window.scrollTo(0, 0); return;
+      case 'history': view.hmenu = null; view.mv = null; view.screen = 'history'; view.notice = null; render(); window.scrollTo(0, 0); return;
       case 'backup': backupRounds(); return;
       case 'pdf': case 'pdfshare': case 'pdfod': pdfAct(act); return;
       case 'info': { infoOpen[v] = !infoOpen[v]; var t = b && document.getElementById(b.getAttribute('aria-controls'));
@@ -3015,6 +3108,7 @@
       case 'proxlie': { var mvl = document.getElementById('mapview'), stl = mvl ? mvl.scrollTop : 0; view.proxLie = v; render(); var mvl2 = document.getElementById('mapview'); if (mvl2) mvl2.scrollTop = stl; return; }
       case 'stx': view.stx = view.stx || {}; view.stx[b.getAttribute('data-v')] = !view.stx[b.getAttribute('data-v')]; render(); return;
       case 'sendopen': sendOpen(); return;
+      case 'mvstart': case 'mvall': case 'mvone': case 'mvtoggle': case 'mvcancel': case 'mvsheet': case 'mvclose': case 'mvcustom': case 'mvpick': case 'mvnew': case 'mvyes': mvAct(act, b); return;
       case 'sendclose': view.send = null; render(); return;
       case 'sendfile': sendFile(); return;
       case 'sendcode': sendCode(); return;

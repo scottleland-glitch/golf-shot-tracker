@@ -57,7 +57,7 @@
     return (rounds || []).filter(function (x) { return x.id === r.id || (String(x.course || '') === String(r.course || '') && String(x.date || '') === String(r.date || '') && shotsKey(x) === shotsKey(r)); })[0] || null;
   }
   // the copy that goes into this phone's history: original id kept, player = this phone's player (none → unnamed = theirs)
-  function prepare(r, player) { var o = clone(r); if (player) o.player = player; else delete o.player; return o; }
+  function prepare(r, player) { var o = clone(r); if (player) o.player = player; else delete o.player; delete o.movedFrom; return o; } // v99: the sender's "moved from" note isn't theirs
   var API = { PREFIX: PREFIX, LONG: LONG, payload: payload, fileName: fileName, fileText: fileText, encode: encode, read: read, check: check, findDup: findDup, prepare: prepare, b64u: b64u, unb64u: unb64u };
   if (typeof module !== 'undefined' && module.exports) module.exports = API; else root.SHARE = API;
 })(this);

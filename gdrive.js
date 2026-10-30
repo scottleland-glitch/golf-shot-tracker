@@ -114,13 +114,17 @@
 
   // ---------- merge (several phones, one player file) ----------
   function newer(a, b) { return String(a.updated || '') >= String(b.updated || ''); } // tie → this phone's copy
-  GD.mergeBackup = function (remote, local) {
-    var out = {}; for (var k in local) out[k] = local[k];
+  // v99 drops: rounds moved to another player on this phone ({ id, player: new player, updated }). The old player's file
+  // leaves out that id unless its copy is newer than the move (changed somewhere else afterwards).
+  GD.mergeBackup = function (remote, local, drops) {
+    var out = {}; for (var k in local) out[k] = local[k]; out.dropped = 0;
     if (!remote || typeof remote !== 'object' || !Array.isArray(remote.rounds)) return out;
-    var byId = {}, list = [], kept = 0;
+    var byId = {}, list = [], kept = 0, dr = {};
+    (drops || []).forEach(function (d) { dr[d.id] = d; });
     (local.rounds || []).forEach(function (r) { byId[r.id] = list.length; list.push(r); });
     remote.rounds.forEach(function (r) {
       if (!r || typeof r.id !== 'string' || !Array.isArray(r.holes)) return;
+      if (byId[r.id] == null && dr[r.id] && String(r.updated || '') <= String(dr[r.id].updated || '')) { out.dropped++; return; }
       if (byId[r.id] == null) { byId[r.id] = list.length; list.push(r); kept++; return; }
       var i = byId[r.id]; if (!newer(list[i], r)) list[i] = r;
     });
@@ -135,6 +139,12 @@
   /* One sync attempt. o: { state, fetch, token, online, now, files: [{ player, backup }] }
    * For each player: Pin High Backups › <Player> › golf-rounds-<slug>.json is read, merged, and written back in place
    * (created the first time), plus a dated weekly copy. No valid token → waits (needsAuth), nothing is lost. */
+  // Round moved to another player (v99): its old player(s) – r.movedFrom – lose that id from their file
+  GD.dropsFor = function (moved, player) {
+    var k = GD.folderName(player).toLowerCase();
+    return (moved || []).filter(function (m) { return GD.folderName(m.player).toLowerCase() !== k && (m.from || []).some(function (f) { return GD.folderName(f).toLowerCase() === k; }); });
+  };
+  GD.movedFrom = function (rounds) { return (rounds || []).filter(function (r) { return r && r.movedFrom && r.movedFrom.length; }).map(function (r) { return { id: r.id, player: r.player || '', from: r.movedFrom.slice(), updated: r.updated || '' }; }); };
   GD.sync = function (o) {
     var s = o.state, now = o.now || new Date(), f = o.fetch, t = o.token;
     if (!s.pending) return Promise.resolve(s);
@@ -145,11 +155,17 @@
     var rootP = null;
     function rootId() { return rootP || (rootP = s.ids.root ? Promise.resolve(s.ids.root) : GD.ensureFolder(f, t, GD.ROOT, 'root').then(function (id) { s.ids.root = id; return id; })); }
     function one(p) {
-      var fname = GD.folderName(p.player), key = 'p:' + fname.toLowerCase(), name = GD.fileFor(p.player), sl = GD.slug(p.player);
-      return rootId().then(function (rid) { return s.ids[key] || GD.ensureFolder(f, t, fname, rid).then(function (id) { s.ids[key] = id; return id; }); }).then(function (fid) {
+      var fname = GD.folderName(p.player), key = 'p:' + fname.toLowerCase(), name = GD.fileFor(p.player), sl = GD.slug(p.player), drops = GD.dropsFor(o.moved, p.player);
+      var only = !(p.backup.rounds || []).length && p.dropOnly; // just tidying an old player's file: never make folders / files for it
+      return rootId().then(function (rid) { return s.ids[key] || (only ? GD.findFolder(f, t, fname, rid).then(function (x) { return x && x.id; }) : GD.ensureFolder(f, t, fname, rid)).then(function (id) { if (id) s.ids[key] = id; return id; }); }).then(function (fid) {
+        if (!fid) return null;
         return GD.findFile(f, t, name, fid).then(function (ex) {
+          if (!ex && only) return null;
           return (ex ? GD.download(f, t, ex.id).then(function (txt) { try { return JSON.parse(txt); } catch (e) { return null; } }) : Promise.resolve(null)).then(function (remote) {
-            var json = JSON.stringify(GD.mergeBackup(remote, p.backup), null, 1);
+            var M = GD.mergeBackup(remote, p.backup, drops), nd = M.dropped; delete M.dropped;
+            if (only && remote) { var keep = {}; for (var k in remote) keep[k] = remote[k]; keep.rounds = M.rounds; keep.count = keep.rounds.length; M = keep; } // keep that file's bag / wedges / player as they were
+            if (only && !nd) return null; // nothing to take out
+            var json = JSON.stringify(M, null, 1);
             return (ex ? GD.updateFile(f, t, ex.id, json) : GD.createFile(f, t, name, fid, json)).then(function () {
               if (s.lastDated[sl] && now.getTime() - new Date(s.lastDated[sl]).getTime() < GD.DATED_EVERY_DAYS * 864e5) return null;
               var dn = GD.datedFor(p.player, now);

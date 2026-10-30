@@ -60,6 +60,9 @@ excluded and counted. This round / All rounds toggle.
 - `tests/send-round-focused.js` – Send round / Add a round (v97): payload, file + code round-trips (with and without compression), errors, confirmation card, re-stamp to this phone's player, no duplicates, in the backup (`node tests/send-round-focused.js`)
 - `gdrive.js` – Google Drive backup (v98): sign-in redirect + state check, Drive REST calls (folders, upload, update in place, download), multi-phone merge, sync step
 - `tests/gdrive-focused.js` – Google Drive backup (v98) against a fake Drive: folders per player, upload / update in place, weekly copies, two phones on one account, expired sign-in, restore, disconnect (`node tests/gdrive-focused.js`)
+- `tests/compare-focused.js` – Best vs worst rounds, including the v100 Best / Worst column groups fitting 390 px (`node tests/compare-focused.js`)
+- `tests/change-player-focused.js` – Change player (v99): select mode, single round, new name, cancel, History filter, Google Drive files following the move (`node tests/change-player-focused.js`)
+- `tests/fixtures/fake-drive.js` – in-memory fake Google Drive shared by the Drive tests
 - `tests/round-stats-quick-focused.js` – Round stats page (v96): Score / To par / Yards / Putts box on top, Quick view with SG, collapsed stat tiles, smaller legend; uses the 78 at Arcade Creek in `tests/fixtures/arcade-78.js` (`node tests/round-stats-quick-focused.js`)
 - `tests/profile-wedges-focused.js` – Profile + Wedges chart: menu, navigation, accordion, persistence, backup (`node tests/profile-wedges-focused.js`)
 - `tests/e2e.js` – Playwright (playwright-core) flow test at iPhone 390x844
@@ -141,6 +144,28 @@ The **+** menu is New round · **Profile** · History. Profile shows the player 
 - **Quick view** (under the box): three tiles – **Fairways** % (hit / par-4 and par-5 tee shots), **GIR** % (greens / finished holes) and **Putts** (total, per hole). Each shows the strokes gained of its category, green when positive and red when negative: Fairways → *Off the tee* SG, GIR → *Approach* SG, Putts → *Putting* SG (the same numbers as in the Strokes gained section, against the round's baseline).
 - **Stats:** every detailed tile (Fairways hit, Greens in regulation, Approach misses, Proximity, Pin location, Putts, Putt misses, Club performance, Penalty strokes, Tee misses L / R, Missed greens L / R, Missed greens short / long) is a row that starts **collapsed** with its headline number on the right. Tap the row to open it (the full tile – tap it again for the map) and tap again to close it. Open rows stay open while you go in and out of maps; another round starts collapsed.
 - The scorecard legend is smaller and lighter, and the "Blank = hole not finished…" note is gone. The scorecards (tap a hole to edit) are unchanged. The live-share viewer is unchanged.
+
+## Best vs worst rounds (v100)
+
+The "Where the strokes go" table on the Best vs worst rounds page is laid out more clearly now:
+
+- **Best** and **Worst** each get their own group of columns. Best is tinted soft green and Worst soft red. The top of each group says how many rounds it covers and their average score; with one round it shows the date and score instead.
+- Each group has three short columns: **Avg ft** (how far from the hole your approaches finished), **GIR** (greens hit) and **SG** (strokes gained per round). Each cell now holds one number, so there are no more "27 ft · 30 ft" cells.
+- **Gap** sits on the right behind a thin divider line and keeps its colours: green when your best rounds do better there, red when they don't.
+- Rows are the distance ranges, grouped under small labels: Approach (yards), Short game (yards) and Putting (first putt, feet).
+- It fits a 390 px phone screen without anything wrapping or getting cut off.
+- The lists of best and worst rounds above the table are now tinted cards showing the date, course and score.
+
+## Change player (v99)
+For rounds saved under the wrong name (e.g. Quincy's rounds saved as *Scott Leland*).
+
+- **History → 👤 Change player**: tap the rounds to move (a tick shows), or use *Select all shown* – pick a player chip first to see only that player's rounds. The bar at the bottom says *Move 3 rounds to…*.
+- Choose a name: the names already on this phone (from rounds and the Player name; *Quincy* comes first as the suggestion), or *New name…* to type one. Typing an existing name in any upper/lower case uses that name.
+- A card asks first – *Move 3 rounds to Quincy?* – with *Move* / *Cancel*. Cancel changes nothing (in History your ticks stay).
+- One round: open it and tap **👤 Change player** under *Send round*.
+- What changes: only the round's player name, plus an *updated* time (so it wins when phones' backups are merged) and a small note of the old name (`movedFrom`). Same round id, shots, stats.
+- **Backups:** Google Drive and OneDrive back up straight after. In Google Drive the round goes into the new player's file and is taken out of the old player's file (the note tells the old file to drop that round unless it was changed somewhere else after the move). Weekly dated copies made before the move are left as they were. OneDrive's file only holds this phone's player's rounds, so moved rounds simply leave it.
+- A round sent with *Send round* doesn't carry the note.
 
 ## Google Drive backup (v98)
 The main backup in **Archive**. OneDrive keeps working until you tap *Disconnect OneDrive* (its card is now further down the page).
