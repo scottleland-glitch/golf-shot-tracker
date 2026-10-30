@@ -1,8 +1,9 @@
 // Offline support: cache the whole app on install, serve cache-first.
+// v98: Google Drive automatic backup + restore (gdrive.js), one folder per player, multi-phone merge.
 // v97: Send round (file or PINHIGH1: code) + Add a round in History (share.js).
 // v96: Round stats – Score/To par/Yards/Putts box on top, Quick view, collapsible stat tiles, smaller legend.
-const CACHE = 'golf-sg-v97';
-const ASSETS = ['./', './img/home-bg.webp', './img/oriole.webp', './index.html', './styles.css', './sg.js', './birdie.js', './voice.js', './courses.js', './bag.js', './wedges.js', './live.js', './share.js', './app.js', './config.js', './onedrive.js', './vendor/msal-browser.min.js', './vendor/jspdf.umd.min.js',
+const CACHE = 'golf-sg-v98';
+const ASSETS = ['./', './img/home-bg.webp', './img/oriole.webp', './index.html', './styles.css', './sg.js', './birdie.js', './voice.js', './courses.js', './bag.js', './wedges.js', './live.js', './share.js', './gdrive.js', './app.js', './config.js', './onedrive.js', './vendor/msal-browser.min.js', './vendor/jspdf.umd.min.js',
   './manifest.webmanifest', './icons/apple-touch-icon.png', './icons/icon-192.png',
   './icons/icon-512.png', './icons/icon-512-maskable.png'];
 self.addEventListener('install', e => {

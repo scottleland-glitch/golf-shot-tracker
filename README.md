@@ -58,6 +58,8 @@ excluded and counted. This round / All rounds toggle.
 - `tests/wedge-ladder-focused.js` – Wedges simple view helpers + the wedge carry ladder on the scoring page: ≤100 yd boundary, three carries ±10 around the pin, no preselect, details, fallback, persistence (`node tests/wedge-ladder-focused.js`)
 - `share.js` – Send round / Add a round: single-round payload, file name, PINHIGH1: text code (gzip + base64url), checks, duplicate test
 - `tests/send-round-focused.js` – Send round / Add a round (v97): payload, file + code round-trips (with and without compression), errors, confirmation card, re-stamp to this phone's player, no duplicates, in the backup (`node tests/send-round-focused.js`)
+- `gdrive.js` – Google Drive backup (v98): sign-in redirect + state check, Drive REST calls (folders, upload, update in place, download), multi-phone merge, sync step
+- `tests/gdrive-focused.js` – Google Drive backup (v98) against a fake Drive: folders per player, upload / update in place, weekly copies, two phones on one account, expired sign-in, restore, disconnect (`node tests/gdrive-focused.js`)
 - `tests/round-stats-quick-focused.js` – Round stats page (v96): Score / To par / Yards / Putts box on top, Quick view with SG, collapsed stat tiles, smaller legend; uses the 78 at Arcade Creek in `tests/fixtures/arcade-78.js` (`node tests/round-stats-quick-focused.js`)
 - `tests/profile-wedges-focused.js` – Profile + Wedges chart: menu, navigation, accordion, persistence, backup (`node tests/profile-wedges-focused.js`)
 - `tests/e2e.js` – Playwright (playwright-core) flow test at iPhone 390x844
@@ -139,6 +141,20 @@ The **+** menu is New round · **Profile** · History. Profile shows the player 
 - **Quick view** (under the box): three tiles – **Fairways** % (hit / par-4 and par-5 tee shots), **GIR** % (greens / finished holes) and **Putts** (total, per hole). Each shows the strokes gained of its category, green when positive and red when negative: Fairways → *Off the tee* SG, GIR → *Approach* SG, Putts → *Putting* SG (the same numbers as in the Strokes gained section, against the round's baseline).
 - **Stats:** every detailed tile (Fairways hit, Greens in regulation, Approach misses, Proximity, Pin location, Putts, Putt misses, Club performance, Penalty strokes, Tee misses L / R, Missed greens L / R, Missed greens short / long) is a row that starts **collapsed** with its headline number on the right. Tap the row to open it (the full tile – tap it again for the map) and tap again to close it. Open rows stay open while you go in and out of maps; another round starts collapsed.
 - The scorecard legend is smaller and lighter, and the "Blank = hole not finished…" note is gone. The scorecards (tap a hole to edit) are unchanged. The live-share viewer is unchanged.
+
+## Google Drive backup (v98)
+The main backup in **Archive**. OneDrive keeps working until you tap *Disconnect OneDrive* (its card is now further down the page).
+
+- **Connect Google Drive** opens Google's own sign-in page (the whole screen, no pop-up – pop-ups don't work in an iPhone home-screen app) and comes back to Archive. The app can only see files it made itself (Google's `drive.file` permission) – nothing else in your Drive.
+- **Where it goes:** My Drive › **Pin High Backups** › one folder per player (*Scott*, *Quincy* …). In each: `golf-rounds-<name>.json` (always the latest) and a dated copy once a week (`golf-rounds-<name>-YYYY-MM-DD.json`).
+- **Which folder:** every round goes to the folder of *its own* player. A round Scott keeps for Quincy on his phone goes to Quincy's folder. Rounds with no player name go to this phone's player. My Bag and the Wedges chart go only in this phone's player's file; saved courses go in every file.
+- **Several phones, one Google account:** before each upload the app reads the file already in Drive and adds its rounds to the new one (matched by round id), so one phone never wipes out another phone's rounds. If both have the same round, the one changed most recently wins (each round now carries an `updated` time, set whenever it is saved). A round deleted on one phone stays in Drive if it is still in Drive.
+- **When it backs up:** by itself after a round is saved or finished, after changes to courses / bag / wedges / name, and when the app is opened – as long as you are signed in.
+- **Sign-in runs out after about an hour** (Google doesn't give this kind of app a long sign-in). Nothing is lost: changes wait, Archive shows a small *Sign in to Google to back up* button (never on Home, never a surprise jump to Google), and the waiting backup goes up straight after you sign in.
+- **Restore** → pick a player → *Latest backup* or a weekly copy → the usual tick-the-rounds screen. Only that player's rounds are offered; nothing on the phone is deleted. My Bag / Wedges only come along from your own folder.
+- **Disconnect Google Drive** signs this phone out (and tells Google to drop the sign-in). The backups stay in Drive.
+- Set up in `config.js` → `googleClientId` (public ID, no secret). Google Cloud: OAuth client type *Web application*, authorised JavaScript origin `https://scottleland-glitch.github.io`, redirect URI `https://scottleland-glitch.github.io/golf-shot-tracker/` (exact, with the slash).
+- iPhone note: if the app is installed on the Home Screen, Google's page opens inside the app and comes back to it. If iOS ever opens it in Safari instead, the sign-in lands in Safari – open Pin High from the Home Screen and tap *Sign in to Google* again.
 
 ## Send round (v97)
 For sending one saved round to another phone (e.g. Scott keeps score at Quincy's tournament and sends the round to her phone). No accounts or server – the round travels as a file or a text code.

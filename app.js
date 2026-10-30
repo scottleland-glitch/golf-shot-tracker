@@ -92,7 +92,7 @@
     return '<select id="' + id + '" class="blsel" data-f="baseline" aria-label="Compare against">' + SG.BASELINES.map(function (b) {
       return '<option value="' + b.id + '"' + (b.id === sel ? ' selected' : '') + '>' + blLabel(b.id) + '</option>'; }).join('') + '</select>';
   }
-  function save() { localStorage.setItem(KEY, JSON.stringify(rounds)); odDirty(60000); if (live) live.touch(); }
+  function save() { var cr = !view.preview && round(); if (cr) cr.updated = new Date().toISOString(); localStorage.setItem(KEY, JSON.stringify(rounds)); odDirty(60000); if (live) live.touch(); }
   function round() { if (view.preview) return view.preview; return rounds.filter(function (r) { return r.id === view.roundId; })[0]; }
   function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return '&#' + c.charCodeAt(0) + ';'; }); }
   function fmtSG(v) { var s = (Math.round(v * 100) / 100).toFixed(2); return (v > 0.004 ? '+' : '') + (s === '-0.00' ? '0.00' : s); }
@@ -628,11 +628,12 @@
     download(json, name, 'application/json'); backupDone();
   }
   // Restore = pick from the backup: list every round, preview read-only, merge only the selected ones.
-  function restoreFrom(text) {
+  function restoreFrom(text, only) {
     var P = SG.parseBackup(text);
     if (P.error) { view.notice = { text: P.error, bad: true }; render(); return; }
     var bp = ''; try { bp = (JSON.parse(text) || {}).player || ''; } catch (e) {}
     if (bp) P.rounds.forEach(function (r) { if (!r.player) r.player = bp; }); // label rounds with the backup's player
+    if (only) { P.rounds = P.rounds.filter(function (r) { return samePlayer(r.player || bp, only); }); if (!samePlayer(only, playerName())) { P.bag = null; P.wedges = null; } } // Google Drive: just that player
     P.rounds.sort(function (a, b) { return new Date(b.date) - new Date(a.date); });
     view.restore = { rounds: P.rounds, sel: {}, player: bp, courses: P.courses || [], bag: P.bag || null, wedges: P.wedges || null }; view.preview = null; view.screen = 'restorepick'; render(); window.scrollTo(0, 0);
   }
@@ -697,7 +698,7 @@
   function odRemember(a) { if (a) localStorage.setItem(ODA, JSON.stringify({ username: a.username || '', name: a.name || '', homeAccountId: a.homeAccountId || '' })); else localStorage.removeItem(ODA); }
   if (odOn && odSavedAcct()) odAcct = odSavedAcct();
   function odSaveState() { ODX.saveState(localStorage, odState); }
-  function odDirty(delay) { if (!odOn) return; ODX.markDirty(odState); odSaveState(); if (odAcct) odSoon(delay); }
+  function odDirty(delay) { gdDirty(delay); if (!odOn) return; ODX.markDirty(odState); odSaveState(); if (odAcct) odSoon(delay); }
   function odSoon(delay) { if (!odOn || !odAcct) return; clearTimeout(odTimer); odTimer = setTimeout(odSync, delay == null ? 1500 : delay); }
   function odToken() {
     if (!pca || !pca.getAllAccounts().length) { var x0 = new Error('Reconnect needed'); x0.kind = 'interaction'; return Promise.reject(x0); }
@@ -810,6 +811,141 @@
       });
     }
   }
+
+  // ---------- v98 Google Drive automatic backup (main backup; see gdrive.js) ----------
+  var GDX = window.GD, gdOn = !!(GDX && GDX.enabled(CFG)), gdState = gdOn ? GDX.loadState(localStorage) : null, gdTimer = null, gdBusy = false, gdBack = null;
+  function gdTok() { if (!gdOn) return null; try { var t = JSON.parse(localStorage.getItem(GDX.TOKEN_KEY)); return GDX.tokenValid(t, Date.now()) ? t : null; } catch (e) { return null; } }
+  function gdSave() { GDX.saveState(localStorage, gdState); }
+  function gdDirty(delay) { if (!gdOn || !gdState || !gdState.connected) return; GDX.markDirty(gdState); if (!gdTok()) gdState.needsAuth = true; gdSave(); gdSoon(delay); }
+  function gdSoon(delay) { if (!gdOn || !gdState.connected || !gdTok()) return; clearTimeout(gdTimer); gdTimer = setTimeout(gdSync, delay == null ? 1500 : delay); }
+  // One backup file per player – every round goes to the folder of its own round.player (rounds with no name = this phone's player).
+  // My Bag and the Wedges chart only go in this phone's player's file; saved courses go in every file.
+  function gdFiles() {
+    var me = playerName(), g = {}, order = [];
+    function grp(p) { var n = GDX.folderName(p), k = n.toLowerCase(); if (!GDX.slug(n)) return null; if (!g[k]) { g[k] = { player: n, rounds: [] }; order.push(k); } return g[k]; }
+    if (me && (bagForBackup() || wedgesForBackup() || ownRounds().length)) grp(me);
+    rounds.forEach(function (r) { if (SG.roundEmpty(r)) return; var G = grp(r.player || me); if (G) G.rounds.push(r); });
+    return order.map(function (k) {
+      var G = g[k], mine = samePlayer(G.player, me);
+      return { player: G.player, backup: SG.makeBackup(G.rounds, null, G.player, courses(), mine ? bagForBackup() : null, mine ? wedgesForBackup() : null) };
+    });
+  }
+  function gdSync() {
+    if (!gdOn || !gdState.connected || gdBusy || !gdState.pending) return Promise.resolve();
+    var t = gdTok(); gdBusy = true; gdRefresh();
+    return GDX.sync({ state: gdState, fetch: window.fetch.bind(window), token: t && t.accessToken, online: navigator.onLine, files: gdFiles() }).then(function (st) {
+      gdBusy = false; gdState = st;
+      if (st.needsAuth && t) localStorage.removeItem(GDX.TOKEN_KEY); // Google said the sign-in has run out
+      gdSave();
+      if (!st.pending) localStorage.setItem(BK, st.lastOk);
+      else if (!st.needsAuth && navigator.onLine && gdTok()) gdSoon(GDX.retryDelay(st.attempts));
+      gdRefresh();
+    });
+  }
+  function gdRefresh() { var c = document.getElementById('gdcard'); if (c && view.screen === 'archive') { var d = document.createElement('div'); d.innerHTML = gdCardHTML(); c.replaceWith(d.firstChild); } }
+  function gdWhen(iso) { var d = new Date(iso), t = new Date(); return (d.toDateString() === t.toDateString() ? 'today' : d.toLocaleDateString([], { month: 'short', day: 'numeric' })) + ' at ' + d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }); }
+  function gdStatus(tok) {
+    if (gdBusy) return '⏳ Backing up…';
+    var o = gdState.lastOk ? '✓ Last backed up ' + gdWhen(gdState.lastOk) : 'Not backed up yet';
+    if (gdState.pending) o += tok ? ' · ⏳ ' + esc(gdState.lastError || 'new changes going up soon') : ' · new changes are waiting';
+    return o;
+  }
+  function gdCardHTML() {
+    if (!gdOn) return '';
+    var h = '<div class="odcard gdcard" id="gdcard"><h3 class="tiphead">' + tipLbl('gdinfo', 'Google Drive backup') + tipBtn('gdinfo', 'i', 'About Google Drive backup') + '</h3>' +
+      tipText('gdinfo', 'Your rounds, saved courses, My Bag and Wedges chart are copied to Google Drive by themselves – after each round and when you open the app – into a folder called Pin High Backups, with one folder per player. Several phones can use the same Google account: each backup adds to what is there, nothing is overwritten. Google asks you to sign in again after about an hour; until then backups simply wait.');
+    if (!gdState.connected) return h + '<p class="odstat">Keeps a copy of everything safe in your Google Drive.</p><button class="big primary gdgo" data-act="gdconnect" id="gdconnect">Connect Google Drive</button></div>';
+    var tok = gdTok();
+    h += '<p class="odacct" id="gdacct">' + (gdState.user ? 'Connected as <b>' + esc(gdState.user) + '</b>' : 'Connected') + '</p><p class="odstat" id="gdstat" role="status">' + gdStatus(tok) + '</p>';
+    if (!tok) h += '<button class="gdsignin" data-act="gdsignin" id="gdsignin">Sign in to Google to back up</button>';
+    h += '<div class="odbtns"><button class="big" data-act="gdsync" id="gdsync"' + (gdBusy ? ' disabled' : '') + '>Back up now</button><button class="big" data-act="gdrestore" id="gdrestore">Restore</button></div>' +
+      '<button class="txt oddisc" data-act="gddisconnect" id="gddisc">Disconnect Google Drive</button></div>';
+    return h;
+  }
+  function gdRestoreHTML() {
+    var V = view.gdr, o = '<div class="rsheet-bg" data-act="gdrclose"></div><div class="rsheet" id="gdrsheet" role="dialog" aria-modal="true" aria-labelledby="gdrh">';
+    if (V.step === 'files') {
+      o += '<div class="rsh-h" id="gdrh">' + esc(V.player) + '’s backups</div><p class="rsh-sub">Only ' + esc(V.player) + '’s rounds are loaded.</p>';
+      if (V.loading) o += '<p class="rsh-help">Looking in Google Drive…</p>';
+      (V.files || []).forEach(function (f, i) {
+        o += '<button class="' + (i ? 'rsh-item' : 'rsh-go') + '" data-act="gdrfile" data-v="' + esc(f.id) + '">' + (f.date ? '🗓 Weekly copy · ' + esc(new Date(f.date + 'T12:00').toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' })) : '☁️ Latest backup') +
+          '<small>' + (f.modified ? 'saved ' + esc(gdWhen(f.modified)) : esc(f.name)) + '</small></button>';
+      });
+      if (!V.loading && V.files && !V.files.length) o += '<p class="rsh-help">No backups in this folder yet.</p>';
+      if (V.err) o += '<p class="rsh-err" role="alert">' + esc(V.err) + '</p>';
+      o += '<button class="rsh-item muted" data-act="gdrback">‹ Other players</button>';
+    } else {
+      o += '<div class="rsh-h" id="gdrh">Restore from Google Drive</div><p class="rsh-sub">Whose rounds?</p>';
+      if (V.loading) o += '<p class="rsh-help">Looking in Google Drive…</p>';
+      (V.players || []).forEach(function (p) { o += '<button class="rsh-item" data-act="gdrplayer" data-v="' + esc(p.id) + '" data-name="' + esc(p.name) + '">👤 ' + esc(p.name) + (samePlayer(p.name, playerName()) ? '<small>you</small>' : '') + '</button>'; });
+      if (!V.loading && V.players && !V.players.length) o += '<p class="rsh-help">No backups in Google Drive yet.</p>';
+      if (V.err) o += '<p class="rsh-err" role="alert">' + esc(V.err) + '</p>';
+      if (V.signin) o += '<button class="rsh-go" data-act="gdsignin" data-v="restore">Sign in to Google</button>';
+    }
+    return o + '<p class="rsh-help">Picked rounds are added to this phone – nothing here is deleted.</p><button class="rsh-item muted" data-act="gdrclose">Close</button></div>';
+  }
+  function gdFail(e) { var V = view.gdr; if (!V) return; V.loading = false; if (e && e.kind === 'auth') { localStorage.removeItem(GDX.TOKEN_KEY); V.step = 'players'; V.signin = true; V.err = 'Google needs you to sign in again.'; } else V.err = e && e.kind === 'offline' ? 'No connection – try again when you’re online.' : 'Couldn’t read Google Drive – please try again.'; render(); }
+  function gdRestoreOpen() {
+    var t = gdTok(); view.gdr = { step: 'players', loading: !!t, signin: !t, err: t ? null : 'Sign in to Google to see your backups.' }; render();
+    if (!t) return;
+    GDX.listPlayers(window.fetch.bind(window), t.accessToken).then(function (L) { if (!view.gdr) return; view.gdr.players = L; view.gdr.loading = false; render(); }, gdFail);
+  }
+  function gdAct(act, b) {
+    var v = b.getAttribute('data-v');
+    if (act === 'gdconnect' || act === 'gdsignin') {
+      if (!playerName()) { askName('Enter your player name first – it names your folder in Google Drive.'); return; }
+      if (!navigator.onLine) { toast('You’re offline – connect to the internet to sign in'); return; }
+      var st = GDX.newAuthState(function (a) { return crypto.getRandomValues(a); });
+      try { sessionStorage.setItem(GDX.AUTHSTATE_KEY, st); localStorage.setItem(GDX.AUTHSTATE_KEY, st); sessionStorage.setItem('golfsg.afterRedirect', 'archive'); if (v === 'restore') sessionStorage.setItem('golfsg.gdafter', 'restore'); } catch (e) {}
+      location.assign(GDX.authUrl(CFG.googleClientId.trim(), GDX.redirectUri(location), st, /@/.test(gdState.user || '') ? gdState.user : '')); return;
+    }
+    if (act === 'gdsync') { GDX.markDirty(gdState); gdState.attempts = 0; gdSave(); if (gdTok()) gdSync(); else gdAct('gdsignin', b); return; }
+    if (act === 'gdrestore') { gdRestoreOpen(); return; }
+    if (act === 'gdrclose') { view.gdr = null; render(); return; }
+    if (act === 'gdrback') { gdRestoreOpen(); return; }
+    if (act === 'gdrplayer') {
+      var t = gdTok(), name = b.getAttribute('data-name'); if (!t) { gdRestoreOpen(); return; }
+      view.gdr = { step: 'files', player: name, loading: true }; render();
+      GDX.listFiles(window.fetch.bind(window), t.accessToken, v).then(function (L) { if (!view.gdr) return; view.gdr.files = L; view.gdr.loading = false; render(); }, gdFail); return;
+    }
+    if (act === 'gdrfile') {
+      var t2 = gdTok(), who = view.gdr && view.gdr.player; if (!t2) { gdRestoreOpen(); return; }
+      view.gdr.loading = true; view.gdr.err = null; render();
+      GDX.download(window.fetch.bind(window), t2.accessToken, v).then(function (txt) { view.gdr = null; restoreFrom(txt, who); }, gdFail); return;
+    }
+    if (act === 'gddisconnect') {
+      if (!confirm('Disconnect Google Drive?\n\nYour backups stay in Google Drive. This phone stops backing up there.')) return;
+      var tk = gdTok(); if (tk) fetch(GDX.REVOKE + '?token=' + encodeURIComponent(tk.accessToken), { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' } }).catch(function () {});
+      clearTimeout(gdTimer); localStorage.removeItem(GDX.TOKEN_KEY); gdState = GDX.newState(); gdSave(); toast('Google Drive disconnected'); render();
+    }
+  }
+  // Back from Google's sign-in page: #access_token=…&state=… – checked, kept, and wiped from the address bar before anything else
+  var gdReturned = false, gdAfter = null;
+  function gdReturn() {
+    if (!gdOn) return;
+    var p = GDX.parseHash(location.hash); if (!p) return;
+    var exp = []; try { exp = [sessionStorage.getItem(GDX.AUTHSTATE_KEY), localStorage.getItem(GDX.AUTHSTATE_KEY)].filter(Boolean); } catch (e) {}
+    var res = GDX.checkReturn(p, exp, Date.now());
+    try { history.replaceState(null, '', location.pathname + location.search); } catch (e) { location.hash = ''; }
+    try { sessionStorage.removeItem(GDX.AUTHSTATE_KEY); localStorage.removeItem(GDX.AUTHSTATE_KEY); gdAfter = sessionStorage.getItem('golfsg.gdafter'); sessionStorage.removeItem('golfsg.gdafter'); } catch (e) {}
+    view.screen = 'archive';
+    if (res.error) { view.notice = { text: res.error, bad: true }; return; }
+    localStorage.setItem(GDX.TOKEN_KEY, JSON.stringify(res.token));
+    gdState.connected = true; gdState.needsAuth = false; gdState.attempts = 0; GDX.markDirty(gdState); gdSave(); gdReturned = true;
+  }
+  function gdInit() {
+    if (!gdOn) return;
+    window.addEventListener('online', function () { if (gdState.pending) gdSoon(500); });
+    document.addEventListener('visibilitychange', function () { if (!document.hidden && gdState.connected && gdState.pending) gdSoon(1000); });
+    if (!gdState.connected) return;
+    var t = gdTok();
+    if (gdReturned) {
+      toast('Google Drive connected');
+      GDX.about(window.fetch.bind(window), t.accessToken).then(function (u) { if (u) { gdState.user = u; gdSave(); gdRefresh(); } }, function () {});
+      gdSoon(300); if (gdAfter === 'restore') gdRestoreOpen(); return;
+    }
+    GDX.markDirty(gdState); if (!t) gdState.needsAuth = true; gdSave(); gdSoon(2500); // back up on app open (quietly waits if signed out)
+  }
   function askName(msg) { view.screen = 'archive'; view.editName = true; view.needName = msg; render(); var i = document.getElementById('pname'); if (i) { i.scrollIntoView({ block: 'center' }); i.focus(); } }
   function setName(n) {
     n = String(n || '').trim().replace(/\s+/g, ' ').slice(0, 40);
@@ -818,7 +954,7 @@
     if (old && old !== n && !confirm('Change player name from "' + old + '" to "' + n + '"?\n\nYour rounds are relabelled and new OneDrive backups go to ' + window.OD.fileFor(n) + '. Older backup files are kept.')) return;
     localStorage.setItem(PN, n); localStorage.setItem(NA, '1'); view.editName = false; view.needName = null; view.nameSheet = null; view.newPEdit = false;
     rounds.forEach(function (r) { if (!r.player || r.player === old) r.player = n; });
-    save(); if (odOn) { odState.attempts = 0; odSoon(800); }
+    save(); gdDirty(800); if (odOn) { odState.attempts = 0; odSoon(800); }
     toast('Player name: ' + n); render();
   }
   function playerHTML() {
@@ -880,13 +1016,15 @@
     if (cur) h += '<button class="danger discard frostdanger" data-act="discard" data-id="' + esc(cur.id) + '">🗑 Discard round in progress' + (cur.course ? ' – ' + esc(cur.course) : '') + '</button>';
     h += '<h2>Your data</h2>' + playerHTML();
     if (view.notice) h += '<p class="notice ' + (view.notice.bad ? 'bad' : 'good') + '" id="notice" role="status">' + esc(view.notice.text) + '</p>';
-    h += odCardHTML();
-    var rem = (odOn && odAcct) ? '' : backupReminder(); if (rem) h += '<div class="tiprow" id="bkremind">' + tipBtn('bktip', '💡', 'Backup tip') + tipLbl('bktip', 'Backup tip') + tipText('bktip', esc(rem)) + '</div>';
+    h += gdCardHTML();
+    var rem = (odOn && odAcct) || (gdOn && gdState.connected) ? '' : backupReminder(); if (rem) h += '<div class="tiprow" id="bkremind">' + tipBtn('bktip', '💡', 'Backup tip') + tipLbl('bktip', 'Backup tip') + tipText('bktip', esc(rem)) + '</div>';
     h += '<button class="big frostbtn" data-act="backup"' + (rounds.length || nC || bag().clubs.length || WEDGES.count(wedges()) ? '' : ' disabled') + '>💾 Back up rounds</button>' +
       '<label class="big filebtn frostbtn" for="restorefile">📂 Restore from backup</label><input type="file" id="restorefile" accept=".json,application/json" hidden>' +
       '<div class="tiprow" id="bkinfo">' + tipBtn('bkinfo', 'i', 'About backup and restore') + tipLbl('bkinfo', 'About backup &amp; restore') + tipText('bkinfo', 'Back up saves all rounds, saved courses, My Bag and your Wedges chart as one file (golf-rounds-backup-date.json) – choose Save to Files or OneDrive in the share sheet. Restore adds the rounds from a backup file; rounds already on this phone are not duplicated.') + '</div>';
     if (rounds.length) h += '<button class="big frostbtn" data-act="csvall">Export all rounds (CSV)</button>';
+    h += odCardHTML();
     h += '<button class="big frostbtn" data-act="about">ⓘ About the numbers</button>';
+    if (view.gdr) h += gdRestoreHTML();
     return h + '</div>';
   }
 
@@ -2854,6 +2992,7 @@
       case 'editname': view.editName = true; render(); var pi = document.getElementById('pname'); if (pi) pi.focus(); return;
       case 'cancelname': view.editName = false; view.needName = null; render(); return;
       case 'histplayer': view.histPlayer = v || null; render(); return;
+      case 'gdconnect': case 'gdsignin': case 'gdsync': case 'gdrestore': case 'gdrclose': case 'gdrback': case 'gdrplayer': case 'gdrfile': case 'gddisconnect': gdAct(act, b); return;
       case 'odconnect': case 'odreauth': case 'odsync': case 'odrestore': case 'odpick': case 'oddisconnect': odAct(act, v); return;
       case 'delHist': {
         var dr = rounds.filter(function (x) { return x.id === b.getAttribute('data-id'); })[0]; if (!dr) return;
@@ -2945,7 +3084,7 @@
           var F2 = SG.foldStubs(rounds); rounds = F2.rounds; if (localStorage.getItem(CUR) === rr.id) localStorage.removeItem(CUR);
           save(); odSoon(1500); toast('Round saved to History');
         }
-        view.screen = 'summary'; if (odOn && odState.pending) odSoon(300); render(); window.scrollTo(0, 0); return;
+        view.screen = 'summary'; if (odOn && odState.pending) odSoon(300); if (gdOn && gdState.pending) gdSoon(300); render(); window.scrollTo(0, 0); return;
       case 'backHole': goHole(view.hole); return;
       case 'goHole': goHole(+b.getAttribute('data-i')); return;
       case 'prev': goHole(view.hole - 1); return;
@@ -3120,7 +3259,7 @@
     return 17;
   }
 
-  render(); odInit();
+  gdReturn(); render(); gdInit(); odInit();
   if ('serviceWorker' in navigator && location.protocol !== 'file:') {
     // When a new version is installed, reload once so the update shows right away.
     var hadController = !!navigator.serviceWorker.controller, reloaded = false;

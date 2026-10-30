@@ -996,3 +996,9 @@ html body .roundpage.theme-sky .clubrow .holeout.on { color: #1f6b3a; background
 .frostpage .addrbtn { display: flex; flex-direction: column; align-items: center; width: 100%; margin: 4px 0 10px; padding: 10px 14px; border-radius: 18px; font-size: 16px; font-weight: 500; }
 .frostpage .addrbtn small { font-size: 12px; font-weight: 400; color: var(--frost-ink-soft); }
 .roundpage .sendbtn small { display: block; font-size: 12px; font-weight: 400; opacity: .75; }
+/* ---------- v98 Google Drive backup card (main backup in Archive) ---------- */
+.archivepage .gdcard { background: rgba(240, 250, 243, .7); }
+.gdcard .gdgo { width: 100%; margin: 4px 0 2px; }
+.archivepage .gdcard button.primary { background: linear-gradient(180deg, #8fd0a4, #5fb07c); border-color: #5fa477; color: #10301c; }
+.gdcard .gdsignin { display: block; width: 100%; margin: 0 0 10px; min-height: 44px; padding: 8px 14px; border-radius: 999px; font-size: 15px; font-weight: 500;
+  background: rgba(255, 255, 255, .8); border: 1px solid rgba(47, 107, 63, .3); color: #2f6b3f; box-shadow: none; }
