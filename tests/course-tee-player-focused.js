@@ -167,6 +167,6 @@ const Y = (b) => Array.from({ length: 18 }, (_, i) => b + i * 7), P = [4, 4, 3, 
   await seed({ 'golfsg.rounds.v1': [Object.assign({}, R1, { player: undefined })] }); await page.reload(); await page.waitForSelector('#home');
   assert.strictEqual(await page.$('#namesheet'), null); assert.strictEqual(await page.$('#playerrow'), null); await openNew(); assert.match(await page.textContent('#nplayer'), /Add golfer’s name/);
   const w = await page.evaluate(() => document.documentElement.scrollWidth); assert.ok(w <= 393, 'no sideways scroll ' + w);
-  const SWV = require('fs').readFileSync(__dirname + '/../sw.js', 'utf8').match(/golf-sg-v\d+/)[0]; assert.strictEqual(SWV, 'golf-sg-v100');
+  const SWV = require('fs').readFileSync(__dirname + '/../sw.js', 'utf8').match(/golf-sg-v\d+/)[0]; assert.strictEqual(SWV, 'golf-sg-v101');
   assert.deepStrictEqual(errors, []); console.log('COURSE / TEE / PLAYER OK'); await b.close(); srv.kill();
 })().catch(e => { console.error(e); process.exit(1); });

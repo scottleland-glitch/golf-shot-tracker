@@ -98,7 +98,7 @@ const ids = b => b.rounds.map(r => r.id).sort();
   assert.deepStrictEqual(await P.$$eval('#playerchips button', B => B.map(e => e.textContent)), ['All players', 'Quincy (4)', 'Scott Leland (1)']);
   await P.click('#playerchips [data-v="Quincy"]'); assert.deepStrictEqual((await P.$$eval('#histlist .hrow', B => B.map(e => e.getAttribute('data-id')))).sort(), ['q0', 'r1', 'r2', 'r3']);
   await P.click('#playerchips [data-v="Scott Leland"]'); assert.deepStrictEqual(await P.$$eval('#histlist .hrow', B => B.map(e => e.getAttribute('data-id'))), ['r4']);
-  // backups follow: Google Drive folders swap, OneDrive marked
+  // backups follow: Google Drive folders swap
   await waitOk(t0);
   assert.deepStrictEqual(ids(G.json('golf-rounds-scott-leland.json', 'Scott Leland')), ['r4'], 'out of Scott Leland’s file');
   assert.deepStrictEqual(ids(G.json('golf-rounds-quincy.json', 'Quincy')), ['q0', 'r1', 'r2', 'r3'], 'into Quincy’s file');

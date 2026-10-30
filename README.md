@@ -1,6 +1,6 @@
 # Pin High (PWA) — formerly "Golf Shot Tracker"
 
-Renamed to **Pin High** (title, home-screen label, header, PDF). Storage keys (`golfsg.*`), backup files (`golf-rounds-*.json`) and the OneDrive app folder (named after the Entra app registration, Apps › Golf Shot Tracker) are unchanged, so restore keeps working.
+Renamed to **Pin High** (title, home-screen label, header, PDF). Storage keys (`golfsg.*`) and backup files (`golf-rounds-*.json`) are unchanged, so restore keeps working.
 
 Phone web app for tracking every golf shot and strokes gained against a selectable baseline (PGA Tour by default).
 Static files only: no backend, no build step. Data is stored on the phone (localStorage).
@@ -62,6 +62,7 @@ excluded and counted. This round / All rounds toggle.
 - `tests/gdrive-focused.js` – Google Drive backup (v98) against a fake Drive: folders per player, upload / update in place, weekly copies, two phones on one account, expired sign-in, restore, disconnect (`node tests/gdrive-focused.js`)
 - `tests/compare-focused.js` – Best vs worst rounds, including the v100 Best / Worst column groups fitting 390 px (`node tests/compare-focused.js`)
 - `tests/change-player-focused.js` – Change player (v99): select mode, single round, new name, cancel, History filter, Google Drive files following the move (`node tests/change-player-focused.js`)
+- `tests/restore-list-focused.js` – Google Drive restore list (v101) and a phone that had OneDrive connected opening cleanly (`node tests/restore-list-focused.js`)
 - `tests/fixtures/fake-drive.js` – in-memory fake Google Drive shared by the Drive tests
 - `tests/round-stats-quick-focused.js` – Round stats page (v96): Score / To par / Yards / Putts box on top, Quick view with SG, collapsed stat tiles, smaller legend; uses the 78 at Arcade Creek in `tests/fixtures/arcade-78.js` (`node tests/round-stats-quick-focused.js`)
 - `tests/profile-wedges-focused.js` – Profile + Wedges chart: menu, navigation, accordion, persistence, backup (`node tests/profile-wedges-focused.js`)
@@ -101,18 +102,8 @@ Applies to the GIR tile + map, Approach-miss tile + map, Pin location map, Proxi
 - "By lie" table for the selected yardage: shots, greens hit x/n (%), avg proximity on greens hit, avg overall.
 - Practice warning (red row + message): a lie with 3+ shots and no greens hit ("From the rough you've missed 4 of 4 greens — worth some practice."), or 30+ points below the fairway's % (fairway needs 2+ shots).
 
-## OneDrive automatic backup (hidden until configured)
-Set `onedriveClientId` in `config.js` to the Application (client) ID of an Entra app registration:
-1. https://entra.microsoft.com (or portal.azure.com) → App registrations → New registration. Name: Golf Shot Tracker.
-2. Supported account types: "Personal Microsoft accounts only" (keep `onedriveAuthority` = `https://login.microsoftonline.com/consumers`), or "Accounts in any organizational directory and personal Microsoft accounts" (then set it to `https://login.microsoftonline.com/common`).
-3. Redirect URI: platform "Single-page application (SPA)", `https://scottleland-glitch.github.io/golf-shot-tracker/` (exact, trailing slash).
-4. API permissions → Add → Microsoft Graph → Delegated: `Files.ReadWrite.AppFolder` and `User.Read`. No client secret, no implicit-grant boxes.
-5. Copy the Application (client) ID into `config.js` and push. config.js is fetched network-first, so no cache bump is needed.
-
-Sign-in uses MSAL.js (vendor/msal-browser.min.js, v3.30.0, MIT – v4 is avoided because its localStorage cache is encrypted with a session-cookie key, which signs iOS home-screen apps out on relaunch) with the redirect flow (auth code + PKCE), because popups are unreliable in iOS home-screen apps. Backups go to OneDrive › Apps › Golf Shot Tracker: `golf-rounds-backup.json` (latest) plus a dated copy at most weekly.
-
-### Player names (several phones, one OneDrive)
-Each phone sets a Player name (Home › Your data). Its rounds are stamped with that name, and its backups go to `golf-rounds-<name>.json` plus a weekly `golf-rounds-<name>-YYYY-MM-DD.json`; a backup contains only that player's rounds, so phones on the same Microsoft account never write each other's files. The pre-name `golf-rounds-backup.json` is kept and shown as "Older backup". Restore lists files by player; History can filter by player.
+## Player names (several phones)
+Each phone sets a Player name (Profile, or the Player row when starting a round). Its rounds are stamped with that name. Backup files are named after the player (`golf-rounds-<name>.json`), and Google Drive keeps one folder per player. History can filter by player.
 
 ### Future PDF report: colour by distance group (not in the app)
 For the planned PDF report, approach tracers can be coloured by the strokes-gained distance group. The helper is in sg.js: `SG.REPORT_GROUPS` (id, name, color, colorName, halo) and `SG.reportGroup(yd)`. Groups are 20–60 (over 20 to under 60), 60–100, 100–130, 130–160, 160–200 and 200+ yd; 20 yd or closer = short game, returns null. Colours: 20–60 purple #6a1b9a, 60–100 blue #0d47a1, 100–130 teal #00838f, 130–160 amber orange #ffb300 (dark halo), 160–200 magenta #d81b60, 200+ brown #6d4c41. When colour means distance, show hit/miss with the end marker: filled dot = hit, white ring with ✕ = miss. The full map implementation is in commit b59bc90; screenshots are screenshots/46*.png. The in-app Proximity map stays as in v22 (40–200 yd 10-yd rail, blue hit / red miss).
@@ -122,7 +113,7 @@ On any round's stats page tap **📄 Make PDF report**. Built on the phone, offl
 1 header + score + scorecard + key stats · 2 strokes gained (category, by distance with avg to pin after, every baseline) ·
 3 fairways · 4 GIR · 5 approach misses · 6 pin location (one green, 3x3 grid, badge + mini plots per segment, table; empty segments skipped) ·
 then one proximity page per distance group with shots (`SG.REPORT_GROUPS`, group colour, lie strip, stats, by lie, misses by direction; first one carries an all-groups summary; empty groups skipped) · 1st putts · 2nd putts. Maps are rendered to 3x images.
-Save with the share sheet (`Golf-Round-<date>-<course>-<player>.pdf`, letters/digits/hyphens only; shared as files only, no title/text, so iOS Mail sends it) or, when connected, **Save to OneDrive** → app folder `/Reports`.
+Save with the share sheet (`Golf-Round-<date>-<course>-<player>.pdf`, letters/digits/hyphens only; shared as files only, no title/text, so iOS Mail sends it).
 
 ## Clubs and layups (v49)
 Each shot row (except putts on the green) has an optional club picker: Driver, 3W, 5W, 7W, 4H, 5H, 5i–9i, PW, 52, 54, 56, 58, 60. The tee row on par 4/5s has a **Layup** checkbox.
@@ -145,6 +136,20 @@ The **+** menu is New round · **Profile** · History. Profile shows the player 
 - **Stats:** every detailed tile (Fairways hit, Greens in regulation, Approach misses, Proximity, Pin location, Putts, Putt misses, Club performance, Penalty strokes, Tee misses L / R, Missed greens L / R, Missed greens short / long) is a row that starts **collapsed** with its headline number on the right. Tap the row to open it (the full tile – tap it again for the map) and tap again to close it. Open rows stay open while you go in and out of maps; another round starts collapsed.
 - The scorecard legend is smaller and lighter, and the "Blank = hole not finished…" note is gone. The scorecards (tap a hole to edit) are unchanged. The live-share viewer is unchanged.
 
+## OneDrive removed (v101)
+Google Drive is now the only automatic backup. The OneDrive card, sign-in (MSAL), *Restore from OneDrive*, *Save to OneDrive* for PDFs and the OneDrive settings in `config.js` are gone, along with `onedrive.js`, `vendor/msal-browser.min.js` and their tests. **Back up rounds** (to a file), **Restore from backup** (a file) and **Export all rounds (CSV)** stay.
+
+A phone that had OneDrive connected just opens as normal. The old OneDrive settings and the Microsoft sign-in it kept on the phone are quietly cleared, and a leftover Microsoft sign-in return in the address bar is ignored. Nothing in OneDrive itself is touched: the backups already there stay where they are (OneDrive › Apps › Golf Shot Tracker).
+
+## Restore from Google Drive (v101)
+Archive › Google Drive › **Restore** → pick a player (e.g. Quincy) → *Latest backup* or a weekly copy → **Quincy's rounds**:
+
+- **Every round in that backup is listed**, newest first, with its date, course, score and to par. Nothing is filtered out. If the same round is in the file twice, it is listed once (the newer copy).
+- **Not on this phone:** ticked to start with. **On this phone:** greyed out and can't be ticked. If the backup has a newer copy of a round that's on the phone, it says *backup copy is newer* and you can tick it to update it. If the phone's copy is newer, it says so and that round is left alone.
+- **Select all missing**, **Clear**, a running **N selected**, and **Restore N rounds** at the bottom. Tap **›** on a round to look at it first (read-only).
+- Restored rounds go into History under that player's name (rounds in the file with no name get the folder's name) and keep their ids, so nothing is doubled up and later backups match them. A newer copy on this phone is never replaced.
+- Restoring from a file (**Restore from backup**) still uses the earlier tick-the-rounds screen.
+
 ## Best vs worst rounds (v100)
 
 The "Where the strokes go" table on the Best vs worst rounds page is laid out more clearly now:
@@ -164,11 +169,11 @@ For rounds saved under the wrong name (e.g. Quincy's rounds saved as *Scott Lela
 - A card asks first – *Move 3 rounds to Quincy?* – with *Move* / *Cancel*. Cancel changes nothing (in History your ticks stay).
 - One round: open it and tap **👤 Change player** under *Send round*.
 - What changes: only the round's player name, plus an *updated* time (so it wins when phones' backups are merged) and a small note of the old name (`movedFrom`). Same round id, shots, stats.
-- **Backups:** Google Drive and OneDrive back up straight after. In Google Drive the round goes into the new player's file and is taken out of the old player's file (the note tells the old file to drop that round unless it was changed somewhere else after the move). Weekly dated copies made before the move are left as they were. OneDrive's file only holds this phone's player's rounds, so moved rounds simply leave it.
+- **Backups:** Google Drive backs up straight after. In Google Drive the round goes into the new player's file and is taken out of the old player's file (the note tells the old file to drop that round unless it was changed somewhere else after the move). Weekly dated copies made before the move are left as they were.
 - A round sent with *Send round* doesn't carry the note.
 
 ## Google Drive backup (v98)
-The main backup in **Archive**. OneDrive keeps working until you tap *Disconnect OneDrive* (its card is now further down the page).
+The automatic backup in **Archive** (the only one since v101 – OneDrive was removed).
 
 - **Connect Google Drive** opens Google's own sign-in page (the whole screen, no pop-up – pop-ups don't work in an iPhone home-screen app) and comes back to Archive. The app can only see files it made itself (Google's `drive.file` permission) – nothing else in your Drive.
 - **Where it goes:** My Drive › **Pin High Backups** › one folder per player (*Scott*, *Quincy* …). In each: `golf-rounds-<name>.json` (always the latest) and a dated copy once a week (`golf-rounds-<name>-YYYY-MM-DD.json`).
@@ -176,7 +181,7 @@ The main backup in **Archive**. OneDrive keeps working until you tap *Disconnect
 - **Several phones, one Google account:** before each upload the app reads the file already in Drive and adds its rounds to the new one (matched by round id), so one phone never wipes out another phone's rounds. If both have the same round, the one changed most recently wins (each round now carries an `updated` time, set whenever it is saved). A round deleted on one phone stays in Drive if it is still in Drive.
 - **When it backs up:** by itself after a round is saved or finished, after changes to courses / bag / wedges / name, and when the app is opened – as long as you are signed in.
 - **Sign-in runs out after about an hour** (Google doesn't give this kind of app a long sign-in). Nothing is lost: changes wait, Archive shows a small *Sign in to Google to back up* button (never on Home, never a surprise jump to Google), and the waiting backup goes up straight after you sign in.
-- **Restore** → pick a player → *Latest backup* or a weekly copy → the usual tick-the-rounds screen. Only that player's rounds are offered; nothing on the phone is deleted. My Bag / Wedges only come along from your own folder.
+- **Restore** → pick a player → *Latest backup* or a weekly copy → a list of every round in that backup (see *Restore from Google Drive (v101)*). Nothing on the phone is deleted. My Bag / Wedges only come along from your own folder.
 - **Disconnect Google Drive** signs this phone out (and tells Google to drop the sign-in). The backups stay in Drive.
 - Set up in `config.js` → `googleClientId` (public ID, no secret). Google Cloud: OAuth client type *Web application*, authorised JavaScript origin `https://scottleland-glitch.github.io`, redirect URI `https://scottleland-glitch.github.io/golf-shot-tracker/` (exact, with the slash).
 - iPhone note: if the app is installed on the Home Screen, Google's page opens inside the app and comes back to it. If iOS ever opens it in Safari instead, the sign-in lands in Safari – open Pin High from the Home Screen and tap *Sign in to Google* again.
@@ -196,7 +201,7 @@ For sending one saved round to another phone (e.g. Scott keeps score at Quincy's
 - **Confirmation card:** shows course, date (and tee), score, to par and holes, with "Goes into <player>’s history". Then **Add** / **Cancel**.
 - **Add:** the round keeps its original id. It is stamped with *this* phone's player name (no name set → it simply counts as this phone's own). It is never the round in progress.
 - **No duplicates:** if the same id – or the same course, start time and identical shots – is already there, the app says "This round is already in your history" and adds nothing.
-- **After adding:** **View round** opens its stats. Strokes gained and every stat are worked out on the phone as for any round, and it goes into this phone's backups and OneDrive sync like any of the player's own rounds.
+- **After adding:** **View round** opens its stats. Strokes gained and every stat are worked out on the phone as for any round, and it goes into this phone's backups like any of the player's own rounds.
 
 ## My Bag (v92)
 Open from the **+** menu → **Profile** → **My Bag**. Add clubs by manufacturer → model → club/loft (Titleist, TaylorMade, Callaway, Ping, Srixon, Cleveland, Mizuno, Cobra, PXG, Wilson, Bridgestone, Honma, Tour Edge, XXIO, Vokey, Scotty Cameron, Odyssey, Ben Hogan, Sub 70, Lynx; "Other brand" / "Model not listed" for anything else, plus a custom club name and loft). Lofts are typical stock lofts and editable. One club per name (adding a second 7i replaces the first). Enter each club's **carry** in yards; sort by club or by carry; tap a club to edit or remove it.

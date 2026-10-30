@@ -49,14 +49,14 @@ const BASE = 'http://127.0.0.1:8796/', OUT = '/workspace/golf-app/screenshots/',
   // Archive clean-up: long text sits behind (i) / 💡 buttons, hidden until tapped
   const vis = await page.evaluate(() => [...document.querySelectorAll('.archivepage p, .archivepage .tippop, .archivepage .notice')].filter(e => e.offsetParent && e.textContent.trim().length > 60).map(e => e.textContent.trim().slice(0, 40)));
   assert.deepStrictEqual(vis, [], 'no long text visible');
-  for (const k of ['odinfo', 'bktip', 'bkinfo']) assert.ok(await page.$('[data-act="info"][data-v="' + k + '"]') && await page.isHidden('#tip-' + k), k + ' collapsed');
-  assert.strictEqual(await page.textContent('[data-v="bktip"] span'), '💡'); assert.strictEqual(await page.textContent('[data-v="odinfo"] span'), 'i');
+  for (const k of ['gdinfo', 'bktip', 'bkinfo']) assert.ok(await page.$('[data-act="info"][data-v="' + k + '"]') && await page.isHidden('#tip-' + k), k + ' collapsed');
+  assert.strictEqual(await page.textContent('[data-v="bktip"] span'), '💡'); assert.strictEqual(await page.textContent('[data-v="gdinfo"] span'), 'i');
   await page.evaluate(() => { const t = document.getElementById('toast'); if (t) t.className = ''; }); await page.waitForTimeout(300); await page.screenshot({ path: OUT + 'archive-clean.png' });
-  await page.click('[data-v="odinfo"]'); assert.ok(await page.isVisible('#tip-odinfo')); assert.match(await page.textContent('#tip-odinfo'), /Works offline/);
-  assert.strictEqual(await page.getAttribute('[data-v="odinfo"]', 'aria-expanded'), 'true'); await page.waitForTimeout(300); await page.screenshot({ path: OUT + 'archive-clean-open.png' });
-  await page.click('[data-v="odinfo"]'); assert.ok(await page.isHidden('#tip-odinfo'), 'tap again closes');
+  await page.click('[data-v="gdinfo"]'); assert.ok(await page.isVisible('#tip-gdinfo')); assert.match(await page.textContent('#tip-gdinfo'), /Pin High Backups/);
+  assert.strictEqual(await page.getAttribute('[data-v="gdinfo"]', 'aria-expanded'), 'true'); await page.waitForTimeout(300); await page.screenshot({ path: OUT + 'archive-clean-open.png' });
+  await page.click('[data-v="gdinfo"]'); assert.ok(await page.isHidden('#tip-gdinfo'), 'tap again closes');
   // the label next to each icon toggles too (whole row tappable)
-  for (const k of ['odinfo', 'bktip', 'bkinfo']) { await page.click('button.tiplbl[data-v="' + k + '"]'); assert.ok(await page.isVisible('#tip-' + k), k + ' label opens');
+  for (const k of ['gdinfo', 'bktip', 'bkinfo']) { await page.click('button.tiplbl[data-v="' + k + '"]'); assert.ok(await page.isVisible('#tip-' + k), k + ' label opens');
     assert.strictEqual(await page.getAttribute('.tipbtn[data-v="' + k + '"]', 'aria-expanded'), 'true', k + ' icon state follows'); await page.click('button.tiplbl[data-v="' + k + '"]'); assert.ok(await page.isHidden('#tip-' + k), k + ' label closes'); }
   await page.click('[data-v="bktip"]'); assert.match(await page.textContent('#tip-bktip'), /backed up/); await page.click('[data-v="bkinfo"]'); assert.match(await page.textContent('#tip-bkinfo'), /golf-rounds-backup/);
   await page.click('.topbar [data-act="home"]'); await page.waitForSelector('#home');

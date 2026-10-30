@@ -22,7 +22,7 @@ let passed = 0; const ok = (m) => { passed++; console.log('  ✓', m); };
   const errors = []; page.on('pageerror', e => errors.push(e.message)); page.on('console', m => { if (m.type() === 'error') errors.push(m.text()); });
   page.on('dialog', d => d.accept());
   const act = async (a, v) => { if (a === 'history' && await page.$('#plusbtn') && !await page.$('#plusmenu')) await page.click('#plusbtn'); // History lives in the + menu on Home
-    else if (['backup', 'csvall', 'about', 'discard', 'odconnect', 'editname'].includes(a) && await page.$('#archivepill')) await page.click('#archivepill'); // data tools live on Archive
+    else if (['backup', 'csvall', 'about', 'discard', 'editname'].includes(a) && await page.$('#archivepill')) await page.click('#archivepill'); // data tools live on Archive
     return page.locator(v == null ? `[data-act="${a}"]` : `[data-act="${a}"][data-v="${v}"]`).first().click(); };
   const actK = (a, k) => page.locator(`[data-act="${a}"][data-k="${k}"]`).first().click();
   const dist = (k, v) => page.fill(`input[data-row="${k}"]`, String(v));

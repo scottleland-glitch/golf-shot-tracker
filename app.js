@@ -17,17 +17,17 @@
   // v92 My Bag: clubs + carries + playing conditions (bag.js), stored on the phone and in backups
   var BGK = 'golfsg.bag.v1';
   function bag() { try { return BAG.norm(JSON.parse(localStorage.getItem(BGK) || 'null')); } catch (e) { return BAG.blank(); } }
-  function saveBag(b, quiet) { b.updated = new Date().toISOString(); localStorage.setItem(BGK, JSON.stringify(BAG.norm(b))); if (!quiet) odDirty(3000); else odDirty(20000); }
+  function saveBag(b, quiet) { b.updated = new Date().toISOString(); localStorage.setItem(BGK, JSON.stringify(BAG.norm(b))); if (!quiet) backupDirty(3000); else backupDirty(20000); }
   function bagForBackup() { var b = bag(); return b.clubs.length ? b : null; }
   // v93 Wedges: chart of 40–110 yd (wedges.js), stored on the phone and in backups
   var WGK = 'golfsg.wedges.v1';
   function wedges() { try { return WEDGES.norm(JSON.parse(localStorage.getItem(WGK) || 'null')); } catch (e) { return WEDGES.blank(); } }
-  function saveWedges(w) { w.updated = new Date().toISOString(); localStorage.setItem(WGK, JSON.stringify(WEDGES.norm(w))); odDirty(20000); }
+  function saveWedges(w) { w.updated = new Date().toISOString(); localStorage.setItem(WGK, JSON.stringify(WEDGES.norm(w))); backupDirty(20000); }
   function wedgesForBackup() { var w = wedges(); return WEDGES.count(w) ? w : null; } // both flights, incl. entries kept from the 5-yard draft
   function courseById(id) { return courses().filter(function (c) { return c.id === id; })[0]; }
   function playerName() { return (localStorage.getItem(PN) || '').trim(); }
   // Rounds that belong to this phone's player (unnamed rounds count as theirs). Backups contain only these,
-  // so another player's rounds loaded from OneDrive are never written into this player's file.
+  // so another player's rounds are never written into this player's file.
   function samePlayer(a, b) { return String(a || '').trim().toLowerCase() === String(b || '').trim().toLowerCase(); }
   function ownRounds() { var n = playerName(); return rounds.filter(function (r) { return !r.player || samePlayer(r.player, n); }); }
   // Location choices (row = where the shot is played FROM)
@@ -92,7 +92,7 @@
     return '<select id="' + id + '" class="blsel" data-f="baseline" aria-label="Compare against">' + SG.BASELINES.map(function (b) {
       return '<option value="' + b.id + '"' + (b.id === sel ? ' selected' : '') + '>' + blLabel(b.id) + '</option>'; }).join('') + '</select>';
   }
-  function save() { var cr = !view.preview && round(); if (cr) cr.updated = new Date().toISOString(); localStorage.setItem(KEY, JSON.stringify(rounds)); odDirty(60000); if (live) live.touch(); }
+  function save() { var cr = !view.preview && round(); if (cr) cr.updated = new Date().toISOString(); localStorage.setItem(KEY, JSON.stringify(rounds)); backupDirty(60000); if (live) live.touch(); }
   function round() { if (view.preview) return view.preview; return rounds.filter(function (r) { return r.id === view.roundId; })[0]; }
   function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return '&#' + c.charCodeAt(0) + ';'; }); }
   function fmtSG(v) { var s = (Math.round(v * 100) / 100).toFixed(2); return (v > 0.004 ? '+' : '') + (s === '-0.00' ? '0.00' : s); }
@@ -141,7 +141,6 @@
     if (view.screen === 'about') el.innerHTML = aboutHTML();
     else if (view.screen === 'history') el.innerHTML = historyHTML();
     else if (view.screen === 'compare') { el.innerHTML = compareHTML2(); applyCompare(); }
-    else if (view.screen === 'odrestore') el.innerHTML = odRestoreHTML();
     else if (view.screen === 'restorepick') el.innerHTML = restorePickHTML();
     else if (view.screen === 'archive') el.innerHTML = archiveHTML();
     else if (view.screen === 'card') el.innerHTML = cardHTML();
@@ -167,7 +166,7 @@
   var infoOpen = {};
   function infoize(root) {
     [].slice.call(root.querySelectorAll('p.help, p.muted.help')).forEach(function (p, i) {
-      var txt = p.textContent.trim(); if (txt.length < 90 || p.closest('.infotext, .odcard, .pdfsheet, .playerbox') || /^(proxauto|pdfname|pdfodmsg|odstat)$/.test(p.id)) return;
+      var txt = p.textContent.trim(); if (txt.length < 90 || p.closest('.infotext, .odcard, .pdfsheet, .playerbox') || /^(proxauto|pdfname|odstat)$/.test(p.id)) return;
       var key = p.id || ('i' + i + ':' + txt.slice(0, 24)), id = p.id || ('info-' + key.replace(/[^\w-]/g, '_'));
       var w = document.createElement('div'); w.className = 'infowrap';
       var short = (txt.match(/^[^.!?–]{8,60}[.!?]?/) || [txt.slice(0, 50)])[0].replace(/[.:–]\s*$/, '');
@@ -482,7 +481,6 @@
     if (p.error) return '<div class="pdfsheet" id="pdfsheet"><p class="notice bad">' + esc(p.error) + '</p><button class="big" data-act="pdfclose">Close</button></div>';
     return '<div class="pdfsheet" id="pdfsheet"><b>📄 PDF report ready</b><p class="help" id="pdfname">' + esc(p.name) + ' · ' + p.pages + ' pages</p>' +
       '<button class="primary big" data-act="pdfshare">Share / Save to Files</button>' +
-      (odOn && odAcct ? '<button class="big" data-act="pdfod">☁️ Save to OneDrive (Reports)</button>' : '') + (p.od ? '<p class="help" id="pdfodmsg">' + esc(p.od) + '</p>' : '') +
       '<button class="txt" data-act="pdfclose">Close</button></div>';
   }
   function pdfAct(act) {
@@ -494,10 +492,6 @@
       if (f && navigator.canShare && navigator.canShare({ files: [f] })) { navigator.share({ files: [f] }).catch(function (e) { if (!e || e.name !== 'AbortError') pdfDownload(p); }); return; }
       pdfDownload(p); return;
     }
-    if (act === 'pdfod') { p.od = 'Uploading…'; render();
-      odToken().then(function (t) { return ODX.uploadPath(window.fetch.bind(window), t, 'Reports/' + p.name, p.blob, 'application/pdf'); })
-        .then(function () { p.od = '✓ Saved to OneDrive › Apps › Golf Shot Tracker › Reports'; }, function (e) { p.od = 'OneDrive: ' + (e.kind === 'offline' ? 'you\'re offline – try again with signal' : e.kind === 'interaction' || e.kind === 'auth' ? 'sign-in expired – reconnect on Home' : e.message); })
-        .then(render); return; }
   }
   function pdfDownload(p) { var u = URL.createObjectURL(p.blob), a = document.createElement('a'); a.href = u; a.download = p.name; document.body.appendChild(a); a.click(); setTimeout(function () { URL.revokeObjectURL(u); a.remove(); }, 4000); toast('PDF downloaded'); }
   // ---------- History ----------
@@ -578,7 +572,7 @@
       var mf = (r.movedFrom || []).filter(function (x) { return !samePlayer(x, to); }); if (old && !mf.some(function (x) { return samePlayer(x, old); })) mf.push(old);
       r.player = to; if (mf.length) r.movedFrom = mf; else delete r.movedFrom; r.updated = now; n++;
     });
-    if (n) { localStorage.setItem(KEY, JSON.stringify(rounds)); odDirty(1500); if (live) live.touch(); }
+    if (n) { localStorage.setItem(KEY, JSON.stringify(rounds)); backupDirty(1500); if (live) live.touch(); }
     return n;
   }
   function mvAct(act, b) {
@@ -595,7 +589,7 @@
       case 'mvpick': M.to = v; M.sheet = 'confirm'; break;
       case 'mvnew': {
         var t = String((document.getElementById('mvname') || {}).value || '').trim().replace(/\s+/g, ' ').slice(0, 40); M.typed = t;
-        if (!window.OD.slug(t)) { M.err = 'Please type a name (letters or numbers).'; break; }
+        if (!GDX.slug(t)) { M.err = 'Please type a name (letters or numbers).'; break; }
         var known = mvNames().filter(function (x) { return samePlayer(x, t); })[0]; M.to = known || t; M.sheet = 'confirm'; M.err = null; break;
       }
       case 'mvyes': { var n = moveRounds(M.ids, M.to); view.mv = null; render(); toast(n ? 'Moved ' + nRounds(n) + ' to ' + M.to + ' ✓' : 'Nothing to move'); return; }
@@ -678,7 +672,7 @@
     var dup = SHARE.findDup(rounds, A.round);
     if (dup) { view.addr = { step: 'done', dup: true, round: A.round, viewId: dup.id }; render(); return; }
     var r = SHARE.prepare(A.round, playerName()); // original id kept, this phone's player; never the round in progress
-    localStorage.setItem(KEY, JSON.stringify(rounds.concat([r]))); rounds = load(); odDirty(3000); // in the backup / OneDrive like any own round
+    localStorage.setItem(KEY, JSON.stringify(rounds.concat([r]))); rounds = load(); backupDirty(3000); // in the backup like any own round
     view.addr = { step: 'done', round: r, viewId: r.id }; render(); toast('Round added');
   }
   // ---------- Backup / restore ----------
@@ -687,13 +681,13 @@
   function backupReminder() {
     if (!rounds.length) return '';
     var last = localStorage.getItem(BK), days = last ? Math.floor((Date.now() - new Date(last).getTime()) / 864e5) : null;
-    if (days == null) return 'Tip: you haven\'t backed up your rounds yet. Tap Back up rounds to save a copy to Files or OneDrive.';
+    if (days == null) return 'Tip: you haven\'t backed up your rounds yet. Connect Google Drive for automatic backups, or tap Back up rounds to save a copy to Files.';
     return days >= 14 ? 'It\'s been ' + days + ' days since your last backup. Tap Back up rounds to save a fresh copy.' : '';
   }
   function backupDone() { localStorage.setItem(BK, new Date().toISOString()); var nO = ownRounds().filter(function (x) { return !SG.roundEmpty(x); }).length; view.notice = { text: 'Backup ready: ' + nO + ' round' + (nO === 1 ? '' : 's') + ' for ' + playerName() + ' saved.' }; if (view.screen === 'home' || view.screen === 'archive') render(); }
   function backupRounds() {
     if (!playerName()) { askName('Enter your player name first – it goes in the backup file name.'); return; }
-    var name = 'golf-rounds-' + window.OD.slug(playerName()) + '-' + localDay(new Date()) + '.json', json = JSON.stringify(SG.makeBackup(rounds.filter(function (x) { return !SG.roundEmpty(x); }), null, playerName(), courses(), bagForBackup(), wedgesForBackup()), null, 1), file;
+    var name = 'golf-rounds-' + GDX.slug(playerName()) + '-' + localDay(new Date()) + '.json', json = JSON.stringify(SG.makeBackup(rounds.filter(function (x) { return !SG.roundEmpty(x); }), null, playerName(), courses(), bagForBackup(), wedgesForBackup()), null, 1), file;
     try { file = new File([json], name, { type: 'application/json' }); } catch (e) { file = null; }
     if (file && navigator.canShare && navigator.canShare({ files: [file] })) {
       navigator.share({ files: [file] }).then(backupDone).catch(function (e) {
@@ -714,8 +708,68 @@
     P.rounds.sort(function (a, b) { return new Date(b.date) - new Date(a.date); });
     view.restore = { rounds: P.rounds, sel: {}, player: bp, courses: P.courses || [], bag: P.bag || null, wedges: P.wedges || null }; view.preview = null; view.screen = 'restorepick'; render(); window.scrollTo(0, 0);
   }
+  // ---------- v101 Google Drive restore: every round in that player's backup, tick the ones to bring back ----------
+  function gdListOpen(text, who, label) {
+    var P = SG.parseBackup(text), raw = null;
+    if (P.error) { view.notice = { text: P.error, bad: true }; view.screen = 'archive'; render(); return; }
+    try { raw = JSON.parse(text); } catch (e) {}
+    var items = GDX.restoreList(raw, who, rounds), sel = {}, mine = samePlayer(who, playerName());
+    items.forEach(function (it) { if (it.status === 'new') sel[it.round.id] = true; }); // missing rounds start ticked
+    view.restore = { gd: { player: who, label: label }, items: items, rounds: items.map(function (it) { return it.round; }), sel: sel, player: who,
+      courses: P.courses || [], bag: mine ? P.bag || null : null, wedges: mine ? P.wedges || null : null };
+    view.preview = null; view.screen = 'restorepick'; render(); window.scrollTo(0, 0);
+  }
+  function gdlItem(id) { return ((view.restore && view.restore.items) || []).filter(function (it) { return it.round.id === id; })[0]; }
+  function gdlChosen() { var R = view.restore; return R.items.filter(function (it) { return it.status !== 'same' && R.sel[it.round.id]; }); }
+  function gdlStatus(it) { return it.status === 'new' ? 'Not on this phone' : it.status === 'newer' ? 'On this phone · backup copy is newer' : it.phoneNewer ? 'On this phone · this phone’s copy is newer' : 'On this phone'; }
+  function restoreExtrasNotes(R) {
+    var o = '', nc = (R.courses || []).length, nb = R.bag && R.bag.clubs ? R.bag.clubs.length : 0, nws = R.wedges ? WEDGES.filled(R.wedges) : 0;
+    if (nc) o += '<p class="help muted" id="rpcourses">⛳ ' + nc + ' saved course' + (nc === 1 ? '' : 's') + ' come along (new or newer ones only).</p>';
+    if (nb) o += '<p class="help muted" id="rpbag">🏌️ My Bag (' + nb + ' club' + (nb === 1 ? '' : 's') + ') comes along if this phone’s bag is empty or older.</p>';
+    if (R.wedges && WEDGES.count(R.wedges)) o += '<p class="help muted" id="rpwedges">🎯 Wedges chart (' + nws + ' yardage' + (nws === 1 ? '' : 's') + ') comes along if this phone’s chart is empty or older.</p>';
+    return o;
+  }
+  function gdListHTML() {
+    var R = view.restore, G = R.gd, I = R.items, nSel = gdlChosen().length, nNew = I.filter(function (it) { return it.status === 'new'; }).length, nOn = I.length - nNew;
+    var allNew = nNew && I.every(function (it) { return it.status !== 'new' || R.sel[it.round.id]; });
+    var o = '<div class="frostpage theme-sky gdlpage" id="gdlpage"><div class="topbar frost"><button class="txt frostbtn" data-act="rpcancel">‹ Back</button><div class="title"><b>' + esc(G.player) + '’s rounds</b><span>' + esc(G.label) + '</span></div><span style="width:70px"></span></div>' +
+      '<div class="gdlsum" id="gdlsum"><b id="gdltotal">' + nRounds(I.length) + '</b> in this backup<div class="gdlchips"><span class="gdlchip gdlnew">' + nNew + ' not on this phone</span><span class="gdlchip gdlonc">' + nOn + ' on this phone</span></div></div>';
+    if (I.length) o += '<div class="gdltools"><button class="gdltool" data-act="gdlmissing" id="gdlmissing"' + (nNew && !allNew ? '' : ' disabled') + '>' + (allNew ? '✓ All missing' : 'Select all missing') + '</button>' +
+      '<button class="gdltool" data-act="gdlclear" id="gdlclear"' + (nSel ? '' : ' disabled') + '>Clear</button></div>';
+    o += '<div class="gdllist" id="rplist">';
+    I.forEach(function (it) {
+      var r = it.round, S = SG.summarize(r, blOf(r)), on = it.status === 'same', ck = !on && !!R.sel[r.id], d = new Date(r.date);
+      var nh = (r.holes || []).length, part = S.holesDone && S.holesDone < nh ? ' · ' + S.holesDone + ' holes' : '';
+      o += '<div class="rprow gdlrow' + (on ? ' gdlon' : '') + (ck ? ' gdlsel' : '') + '" data-id="' + esc(r.id) + '" data-status="' + it.status + '">' +
+        '<button class="gdltick" data-act="gdltoggle" data-id="' + esc(r.id) + '" role="checkbox" aria-checked="' + ck + '"' + (on ? ' disabled aria-disabled="true"' : '') + '>' +
+        '<span class="gdlbox" aria-hidden="true">' + (ck ? '✓' : '') + '</span>' +
+        '<span class="gdlmain"><span class="gdldate">' + esc(isNaN(d) ? '' : d.toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' })) + part + '</span>' +
+        '<b class="gdlcourse">' + esc(r.course || 'Round') + '</b><small class="rpst gdlst gdlst-' + it.status + '">' + gdlStatus(it) + '</small></span>' +
+        '<span class="gdlscore"><b>' + (S.holesDone ? S.strokes : '–') + '</b><small>' + (S.holesDone ? toPar(S.toPar) : '') + '</small></span></button>' +
+        '<button class="gdlview" data-act="rpview" data-id="' + esc(r.id) + '" aria-label="Look at this round">›</button></div>';
+    });
+    if (!I.length) o += '<p class="help muted" id="gdlempty">No rounds in this backup.</p>';
+    o += '</div>' + restoreExtrasNotes(R);
+    var extra = [(R.courses || []).length ? 'courses' : '', R.bag && R.bag.clubs && R.bag.clubs.length ? 'bag' : '', R.wedges && WEDGES.count(R.wedges) ? 'wedges' : ''].filter(Boolean);
+    o += '<p class="muted gdlnote">Rounds go into History under ' + esc(G.player) + '. Nothing on this phone is deleted, and a newer copy on this phone is never replaced.</p>';
+    return o + '<div class="gdlbar" id="gdlbar"><span class="gdlcount" id="gdlcount">' + nSel + ' selected</span><button class="gdlgo" data-act="rpgo" id="rpgo"' + (nSel || extra.length ? '' : ' disabled') + '>' +
+      (nSel || !extra.length ? 'Restore ' + nRounds(nSel) : 'Restore ' + extra.join(' &amp; ')) + '</button></div></div>';
+  }
+  function restoreExtras(R, parts) {
+    if (R.courses && R.courses.length) { var CM = COURSES.mergeCourses(courses(), R.courses); saveCourses(CM.courses); if (CM.added || CM.updated) parts.push((CM.added + CM.updated) + ' course' + (CM.added + CM.updated === 1 ? '' : 's')); }
+    if (R.bag) { var BM = BAG.mergeBag(bag(), R.bag); if (BM.changed) { localStorage.setItem(BGK, JSON.stringify(BM.bag)); parts.push('My Bag (' + BM.bag.clubs.length + ' clubs)'); } }
+    if (R.wedges) { var WM = WEDGES.mergeWedges(wedges(), R.wedges); if (WM.changed) { localStorage.setItem(WGK, JSON.stringify(WM.wedges)); var nlo = WEDGES.filled(WM.wedges, 'low'); parts.push('Wedges (' + WEDGES.filled(WM.wedges) + ' yardages' + (nlo ? ' · ' + nlo + ' Low flight' : '') + ')'); } }
+  }
+  function gdRestoreSelected() {
+    var R = view.restore, A = GDX.applyRestore(rounds, R.items, R.sel), who = R.gd.player;
+    localStorage.setItem(KEY, JSON.stringify(A.rounds)); rounds = load(); if (A.added || A.updated) backupDirty(3000);
+    var parts = []; restoreExtras(R, parts);
+    view.notice = { text: '✓ Restored ' + nRounds(A.added) + (A.updated ? ' and updated ' + A.updated : '') + ' from ' + who + '’s backup' + (A.added || A.updated ? ' – they’re in History under ' + who : '') + '.' + (parts.length ? ' Also: ' + parts.join(', ') + '.' : '') };
+    view.restore = null; view.preview = null; view.screen = 'archive'; render(); window.scrollTo(0, 0); toast(A.added + A.updated ? 'Restored ' + nRounds(A.added + A.updated) : 'Nothing new to restore');
+  }
   function restoreState(r) { var cur = rounds.filter(function (x) { return x.id === r.id; })[0]; return !cur ? 'new' : JSON.stringify(cur) === JSON.stringify(r) ? 'same' : 'diff'; }
   function restorePickHTML() {
+    if (view.restore.gd) return gdListHTML();
     var R = view.restore, L = R.rounds, nSel = L.filter(function (r) { return R.sel[r.id]; }).length;
     var o = '<div class="topbar"><button class="txt" data-act="rpcancel">‹ Cancel</button><div class="title"><b>Restore rounds</b><span>' + L.length + ' in backup' + (R.player ? ' · ' + esc(R.player) : '') + '</span></div><span style="width:70px"></span></div>' +
       '<p class="help muted">Tap a round to look at it. Tick the ones to bring onto this phone – nothing on the phone is deleted.</p>' +
@@ -744,16 +798,19 @@
     [].slice.call(el.querySelectorAll('select, input')).forEach(function (x) { x.disabled = true; });
     [].slice.call(el.querySelectorAll('[data-act="mapscope"]')).forEach(function (x) { var g = x.closest('.seg') || x; g.remove(); });
     var lab = el.querySelector('.label'); if (lab) lab.textContent = 'Scorecard';
+    var gi = view.restore.gd && gdlItem(view.preview.id);
+    if (gi && gi.status === 'same' && !el.querySelector('#rpprevsel')) el.insertAdjacentHTML('beforeend', '<p class="help muted" id="rpprevsel">✓ Already on this phone</p><button class="big" data-act="rpback">‹ Back to the backup list</button>');
     if (!el.querySelector('#rpprevsel')) el.insertAdjacentHTML('beforeend', '<button class="primary big" id="rpprevsel" data-act="rpselone" data-id="' + esc(view.preview.id) + '">' + (view.restore.sel[view.preview.id] ? '✓ Selected – tap to unselect' : 'Select this round to restore') + '</button><button class="big" data-act="rpback">‹ Back to the backup list</button>');
   }
   function restoreSelected() {
+    if (view.restore.gd) return gdRestoreSelected();
     var R = view.restore, pick = R.rounds.filter(function (r) { return R.sel[r.id]; }), P = { rounds: pick };
     var conf = SG.conflictsOf(rounds, P.rounds), replace = false;
     if (conf.length) replace = confirm(conf.length + ' round' + (conf.length === 1 ? '' : 's') + ' in the backup ' + (conf.length === 1 ? 'is' : 'are') + ' different from the copy on this phone (' +
       conf.slice(0, 3).map(function (r) { return new Date(r.date).toLocaleDateString() + (r.course ? ' ' + r.course : ''); }).join(', ') + (conf.length > 3 ? ', …' : '') +
       ').\n\nOK = replace with the backup version\nCancel = keep the phone\'s version');
     var M = SG.mergeRounds(rounds, P.rounds, replace);
-    localStorage.setItem(KEY, JSON.stringify(M.rounds)); rounds = load(); if (M.added || M.replaced) odDirty(3000); // uploads only this player's rounds
+    localStorage.setItem(KEY, JSON.stringify(M.rounds)); rounds = load(); if (M.added || M.replaced) backupDirty(3000); // uploads only this player's rounds
     var parts = [M.added + ' added'];
     if (R.courses && R.courses.length) { var CM = COURSES.mergeCourses(courses(), R.courses); saveCourses(CM.courses); if (CM.added || CM.updated) parts.push((CM.added + CM.updated) + ' course' + (CM.added + CM.updated === 1 ? '' : 's')); }
     if (R.bag) { var BM = BAG.mergeBag(bag(), R.bag); if (BM.changed) { localStorage.setItem(BGK, JSON.stringify(BM.bag)); parts.push('My Bag (' + BM.bag.clubs.length + ' clubs)'); } }
@@ -764,130 +821,15 @@
     view.notice = { text: '✓ Restored from backup: ' + parts.join(', ') + '. You now have ' + savedRounds().length + ' round' + (savedRounds().length === 1 ? '' : 's') + '.' };
     view.restore = null; view.preview = null; view.screen = 'archive'; render(); window.scrollTo(0, 0);
   }
-  // ---------- OneDrive backup (hidden unless config.js has a client ID) ----------
-  // Sign-in uses MSAL redirect flow (auth code + PKCE): popups are unreliable in iOS home-screen apps.
-  var CFG = window.GOLF_CONFIG || {}, ODX = window.OD, odOn = !!(ODX && ODX.enabled(CFG)), pca = null, odAcct = null, odReady = false, odTimer = null, odBusy = false, odFiles = null;
-  var odState = odOn ? ODX.loadState(localStorage) : null;
-  // The connected account is also remembered here, so Home shows "Connected" straight away on relaunch, and if
-  // MSAL's own cache is ever lost we show "Reconnect" (with the account pre-filled) instead of starting over.
-  var ODA = 'golfsg.onedrive.account.v1';
-  function odSavedAcct() { try { return JSON.parse(localStorage.getItem(ODA)); } catch (e) { return null; } }
-  function odRemember(a) { if (a) localStorage.setItem(ODA, JSON.stringify({ username: a.username || '', name: a.name || '', homeAccountId: a.homeAccountId || '' })); else localStorage.removeItem(ODA); }
-  if (odOn && odSavedAcct()) odAcct = odSavedAcct();
-  function odSaveState() { ODX.saveState(localStorage, odState); }
-  function odDirty(delay) { gdDirty(delay); if (!odOn) return; ODX.markDirty(odState); odSaveState(); if (odAcct) odSoon(delay); }
-  function odSoon(delay) { if (!odOn || !odAcct) return; clearTimeout(odTimer); odTimer = setTimeout(odSync, delay == null ? 1500 : delay); }
-  function odToken() {
-    if (!pca || !pca.getAllAccounts().length) { var x0 = new Error('Reconnect needed'); x0.kind = 'interaction'; return Promise.reject(x0); }
-    return pca.acquireTokenSilent({ scopes: ODX.SCOPES, account: pca.getActiveAccount() || pca.getAllAccounts()[0] }).then(function (r) { return r.accessToken; }, function (e) {
-      var x = new Error('Reconnect needed'); x.kind = (e && /interaction_required|login_required|consent_required|no_tokens_found|InteractionRequired/i.test((e.errorCode || '') + ' ' + (e.name || ''))) ? 'interaction' : 'offline'; throw x;
-    });
-  }
-  function odBackupJson() { return JSON.stringify(SG.makeBackup(ownRounds().filter(function (x) { return !SG.roundEmpty(x); }), null, playerName(), courses(), bagForBackup(), wedgesForBackup()), null, 1); }
-  function odSync() {
-    if (!odOn || !odAcct || odBusy || !odState.pending) return Promise.resolve();
-    odBusy = true;
-    return ODX.sync({ state: odState, fetch: window.fetch.bind(window), getToken: odToken, json: odBackupJson(), online: navigator.onLine, player: playerName() }).then(function (st) {
-      odBusy = false; odState = st; odSaveState();
-      if (!st.pending) localStorage.setItem(BK, st.lastOk);
-      else if (!st.needsAuth && navigator.onLine && playerName()) odSoon(ODX.retryDelay(st.attempts));
-      odRefresh();
-    });
-  }
-  function odRefresh() { var el = document.getElementById('odcard'); if (el) el.outerHTML = odCardHTML(); var rm = document.getElementById('bkremind'); if (rm && odAcct) rm.remove(); }
-  function odStatus() {
-    if (odState.needsAuth) return '<b class="neg">Sign-in expired.</b> Tap Reconnect to keep backing up.';
-    if (odBusy) return 'Uploading…';
-    if (odState.pending) return '⏳ Waiting to upload' + (odState.lastError ? ' – ' + esc(odState.lastError) : '');
-    return odState.lastOk ? '✓ Backed up ' + new Date(odState.lastOk).toLocaleString([], { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }) : 'Not backed up yet';
-  }
-  function odCardHTML() {
-    if (!odOn) return '';
-    var h = '<div class="odcard" id="odcard"><h3 class="tiphead">' + (odAcct ? '☁️ OneDrive backup' : tipLbl('odinfo', '☁️ OneDrive backup') + tipBtn('odinfo', 'i', 'About OneDrive backup')) + '</h3>';
-    if (!odReady && !odAcct) return h + '<p class="help muted">Loading…</p></div>';
-    if (!odAcct) return h + tipText('odinfo', 'Connect once and every finished hole and round is copied to OneDrive automatically (Apps › Golf Shot Tracker folder). Works offline – uploads wait until you have signal.') +
-      '<button class="big primary" data-act="odconnect">Connect OneDrive</button></div>';
-    return h + '<p class="odacct" id="odacct">Connected as <b>' + esc(odAcct.username || odAcct.name || 'Microsoft account') + '</b></p>' +
-      '<p class="odstat" id="odstat" role="status">' + odStatus() + '</p>' +
-      (odState.needsAuth ? '<button class="big primary" data-act="odreauth">Reconnect OneDrive</button>' : '') +
-      '<div class="odbtns"><button class="big" data-act="odsync">Back up now</button><button class="big" data-act="odrestore">Restore from OneDrive</button></div>' +
-      '<button class="txt oddisc" data-act="oddisconnect">Disconnect OneDrive</button></div>';
-  }
-  function odRestoreHTML() {
-    var h = '<div class="topbar"><button class="txt" data-act="home">‹ Home</button><div class="title"><b>Restore from OneDrive</b><span>' + esc(odAcct ? odAcct.username || '' : '') + '</span></div><span></span></div>';
-    if (odFiles === null) return h + '<p class="help muted" id="odlist">Loading backups…</p>';
-    if (odFiles.error) return h + '<p class="notice bad" id="odlist">' + esc(odFiles.error) + '</p><button class="big" data-act="odrestore">Try again</button>';
-    if (!odFiles.length) return h + '<p class="help muted" id="odlist">No backups on OneDrive yet.</p>';
-    var me = ODX.slug(playerName());
-    return h + '<p class="help muted">Pick a backup – yours or another player\'s. Its rounds are merged with this phone (each round keeps its player name): new rounds are added, rounds already here are not duplicated, and you\'re asked before any round is replaced.</p><div id="odlist">' +
-      ODX.groupFiles(odFiles).map(function (g) {
-        return '<div class="odgroup" data-player="' + esc(g.legacy ? '~legacy' : g.slug) + '"><h3>' + (g.legacy ? '🗂 Older backup' : '👤 ' + esc(g.label)) + (g.slug && g.slug === me ? ' <small class="muted">(you)</small>' : '') + '</h3>' +
-          g.files.map(function (f) { return '<button class="big odfile" data-act="odpick" data-v="' + esc(f.name) + '"><b>' + (f.date ? 'Weekly copy ' + esc(f.date) : g.legacy ? 'Older backup (before player names)' : 'Latest backup') + '</b><br><small>' +
-            (f.modified ? new Date(f.modified).toLocaleString() : '') + ' · ' + Math.max(1, Math.round((f.size || 0) / 1024)) + ' KB</small></button>'; }).join('') + '</div>'; }).join('') + '</div>';
-  }
-  function odLoadMsal() {
-    return new Promise(function (res, rej) { if (window.msal) return res(); var sc = document.createElement('script'); sc.src = 'vendor/msal-browser.min.js'; sc.onload = res; sc.onerror = rej; document.head.appendChild(sc); });
-  }
-  function odInit() {
-    if (!odOn) return;
-    odLoadMsal().then(function () {
-      // msal-browser v3 on purpose: v4 encrypts its localStorage cache with a key kept in a SESSION cookie, so a
-      // relaunched iOS home-screen app loses the sign-in. v3's localStorage cache survives relaunch; the
-      // refresh token (offline_access) lets acquireTokenSilent renew access tokens without any UI.
-      pca = new window.msal.PublicClientApplication({ auth: { clientId: CFG.onedriveClientId.trim(), authority: CFG.onedriveAuthority || 'https://login.microsoftonline.com/consumers',
-        redirectUri: location.origin + location.pathname, navigateToLoginRequestUrl: false }, cache: { cacheLocation: 'localStorage', storeAuthStateInCookie: false } });
-      return pca.initialize().then(function () { return pca.handleRedirectPromise(); });
-    }).then(function (resp) {
-      if (resp && resp.account) { pca.setActiveAccount(resp.account); odState.needsAuth = false; ODX.markDirty(odState); odSaveState(); toast('OneDrive connected'); }
-      var saved = odSavedAcct(), all = pca.getAllAccounts();
-      odAcct = pca.getActiveAccount() || (saved && all.filter(function (a) { return a.homeAccountId === saved.homeAccountId; })[0]) || all[0] || null;
-      if (odAcct) { pca.setActiveAccount(odAcct); odRemember(odAcct); }
-      else if (saved) { odAcct = saved; odState.needsAuth = true; odSaveState(); } // MSAL cache gone: keep showing the account, offer Reconnect
-      if (/[#?&](code|error|state)=/.test(location.hash + location.search)) history.replaceState(null, '', location.pathname);
-      odReady = true; odRefresh();
-      if (odAcct && !odState.needsAuth && navigator.onLine) odToken().then(function () { if (odState.needsAuth) { odState.needsAuth = false; odSaveState(); odRefresh(); } }, function (e) {
-        if (e.kind === 'interaction') { odState.needsAuth = true; odSaveState(); odRefresh(); } }); // silent refresh via the cached refresh token
-      if (odAcct && odState.pending) odSoon(500);
-    }).catch(function (e) { odReady = true; odAcct = null; odRefresh(); toast('OneDrive: ' + ((e && (e.errorMessage || e.message)) || 'sign-in failed').slice(0, 120)); });
-    window.addEventListener('online', function () { if (odState.pending) odSoon(500); });
-    document.addEventListener('visibilitychange', function () { if (document.visibilityState === 'visible' && odState.pending) odSoon(500); });
-  }
-  function odAct(act, v) {
-    if (!pca) { toast('OneDrive is still starting – try again in a moment'); return; }
-    if (act === 'odconnect' && !playerName()) { askName('Enter your player name before connecting OneDrive – it names your backup files.'); return; }
-    if (act === 'odconnect' || act === 'odreauth') {
-      if (!navigator.onLine) { toast('You\'re offline – connect OneDrive when you have signal'); return; }
-      var req = { scopes: ODX.SCOPES, prompt: 'select_account' };
-      var real = odAcct && pca.getAllAccounts().filter(function (a) { return a.homeAccountId === odAcct.homeAccountId; })[0];
-      try { sessionStorage.setItem('golfsg.afterRedirect', 'archive'); } catch (e) {} // come back to Archive after the Microsoft sign-in page
-      if (act === 'odreauth' && real) pca.acquireTokenRedirect({ scopes: ODX.SCOPES, account: real });
-      else pca.loginRedirect(act === 'odreauth' && odAcct && odAcct.username ? { scopes: ODX.SCOPES, loginHint: odAcct.username } : req);
-      return;
-    }
-    if (act === 'odsync') { ODX.markDirty(odState); odState.attempts = 0; odSaveState(); clearTimeout(odTimer); odSync().then(function () { toast(odState.pending ? 'Backup queued – ' + (odState.lastError || 'will retry') : 'Backed up to OneDrive'); }); odRefresh(); return; }
-    if (act === 'odrestore') {
-      view.screen = 'odrestore'; odFiles = null; render();
-      odToken().then(function (t) { return ODX.list(window.fetch.bind(window), t); }).then(function (L) { odFiles = L; }, function (e) {
-        odFiles = { error: e.kind === 'interaction' || e.kind === 'auth' ? 'Sign-in expired – go back and tap Reconnect OneDrive.' : e.kind === 'offline' ? 'You\'re offline – restore needs a connection.' : e.message };
-        if (e.kind === 'interaction' || e.kind === 'auth') { odState.needsAuth = true; odSaveState(); }
-      }).then(function () { if (view.screen === 'odrestore') render(); });
-      return;
-    }
-    if (act === 'odpick') {
-      toast('Downloading…');
-      odToken().then(function (t) { return ODX.download(window.fetch.bind(window), t, v); }).then(restoreFrom, function (e) { view.notice = { text: 'Could not download that backup: ' + e.message, bad: true }; view.screen = 'archive'; render(); });
-      return;
-    }
-    if (act === 'oddisconnect') {
-      if (!confirm('Disconnect OneDrive on this phone?\n\nAutomatic backup stops. Your backups stay in OneDrive (Apps › Golf Shot Tracker).')) return;
-      var acct = odAcct; odAcct = null; odRemember(null); clearTimeout(odTimer); odState = ODX.newState(); odSaveState();
-      var realA = pca.getAllAccounts().filter(function (a) { return a.homeAccountId === acct.homeAccountId; })[0];
-      Promise.resolve(pca.clearCache ? pca.clearCache(realA ? { account: realA } : undefined) : null).catch(function () {}).then(function () {
-        Object.keys(localStorage).forEach(function (k) { if (/msal|login\.windows|login\.microsoftonline/i.test(k)) localStorage.removeItem(k); });
-        toast('OneDrive disconnected'); render();
-      });
-    }
-  }
+  // ---------- v101: OneDrive backup removed – Google Drive (below) is the only automatic backup ----------
+  var CFG = window.GOLF_CONFIG || {};
+  function backupDirty(delay) { gdDirty(delay); } // every change to rounds, courses, My Bag or Wedges → Google Drive soon
+  // A phone that had OneDrive connected: quietly forget the old OneDrive state and Microsoft sign-in cache ON THIS PHONE
+  // (nothing in OneDrive itself is touched), and drop a leftover Microsoft sign-in return (#code=…) from the address bar.
+  (function () {
+    try { Object.keys(localStorage).forEach(function (k) { if (/^golfsg\.onedrive\./.test(k) || /^msal\.|login\.windows\.net|login\.microsoftonline\.com/i.test(k)) localStorage.removeItem(k); }); } catch (e) {}
+    try { if (/[#&](code|client_info)=/.test(location.hash) && !(window.GD && window.GD.parseHash(location.hash))) history.replaceState(null, '', location.pathname + location.search); } catch (e) {}
+  })();
 
   // ---------- v98 Google Drive automatic backup (main backup; see gdrive.js) ----------
   var GDX = window.GD, gdOn = !!(GDX && GDX.enabled(CFG)), gdState = gdOn ? GDX.loadState(localStorage) : null, gdTimer = null, gdBusy = false, gdBack = null;
@@ -989,7 +931,8 @@
     if (act === 'gdrfile') {
       var t2 = gdTok(), who = view.gdr && view.gdr.player; if (!t2) { gdRestoreOpen(); return; }
       view.gdr.loading = true; view.gdr.err = null; render();
-      GDX.download(window.fetch.bind(window), t2.accessToken, v).then(function (txt) { view.gdr = null; restoreFrom(txt, who); }, gdFail); return;
+      var fm = (view.gdr.files || []).filter(function (x) { return x.id === v; })[0], lab = fm && fm.date ? 'Weekly copy · ' + new Date(fm.date + 'T12:00').toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' }) : 'Latest backup';
+      GDX.download(window.fetch.bind(window), t2.accessToken, v).then(function (txt) { view.gdr = null; gdListOpen(txt, who, lab); }, gdFail); return;
     }
     if (act === 'gddisconnect') {
       if (!confirm('Disconnect Google Drive?\n\nYour backups stay in Google Drive. This phone stops backing up there.')) return;
@@ -1027,12 +970,12 @@
   function askName(msg) { view.screen = 'archive'; view.editName = true; view.needName = msg; render(); var i = document.getElementById('pname'); if (i) { i.scrollIntoView({ block: 'center' }); i.focus(); } }
   function setName(n) {
     n = String(n || '').trim().replace(/\s+/g, ' ').slice(0, 40);
-    if (!window.OD.slug(n)) { toast('Please enter a name (letters or numbers)'); return; }
+    if (!GDX.slug(n)) { toast('Please enter a name (letters or numbers)'); return; }
     var old = playerName();
-    if (old && old !== n && !confirm('Change player name from "' + old + '" to "' + n + '"?\n\nYour rounds are relabelled and new OneDrive backups go to ' + window.OD.fileFor(n) + '. Older backup files are kept.')) return;
+    if (old && old !== n && !confirm('Change player name from "' + old + '" to "' + n + '"?\n\nYour rounds are relabelled and new Google Drive backups go to the ' + GDX.folderName(n) + ' folder. Older backups are kept.')) return;
     localStorage.setItem(PN, n); localStorage.setItem(NA, '1'); view.editName = false; view.needName = null; view.nameSheet = null; view.newPEdit = false;
     rounds.forEach(function (r) { if (!r.player || r.player === old) r.player = n; });
-    save(); gdDirty(800); if (odOn) { odState.attempts = 0; odSoon(800); }
+    save(); gdDirty(800);
     toast('Player name: ' + n); render();
   }
   function playerHTML() {
@@ -1041,7 +984,7 @@
     return '<div class="playerbox edit" id="playerbox">' + (view.needName ? '<p class="notice bad" id="needname">' + esc(view.needName) + '</p>' : '') +
       '<label class="lbl" for="pname">Player name</label><div class="pnrow2"><input type="text" id="pname" value="' + esc(n) + '" placeholder="e.g. Scott" autocomplete="name" maxlength="40">' +
       '<button class="primary" data-act="setname">Save</button>' + (n ? '<button data-act="cancelname">Cancel</button>' : '') + '</div>' +
-      '<div class="tiprow">' + tipBtn('nameinfo', 'i', 'About the player name') + tipLbl('nameinfo', 'About the player name') + '</div>' + tipText('nameinfo', 'Saved on this phone. It labels your rounds and names your backups (golf-rounds-<i>name</i>.json), so several phones can share one OneDrive.') + '</div>';
+      '<div class="tiprow">' + tipBtn('nameinfo', 'i', 'About the player name') + tipLbl('nameinfo', 'About the player name') + '</div>' + tipText('nameinfo', 'Saved on this phone. It labels your rounds and names your backups (golf-rounds-<i>name</i>.json), so several phones can share one Google Drive.') + '</div>';
   }
   // First open on a new phone (no name, no rounds yet): ask who's playing once. 'Not now' doesn't ask again – the Player row in the New round sheet does it any time.
   function needFirstName() { return !playerName() && !localStorage.getItem(NA) && !rounds.length; }
@@ -1095,12 +1038,11 @@
     h += '<h2>Your data</h2>' + playerHTML();
     if (view.notice) h += '<p class="notice ' + (view.notice.bad ? 'bad' : 'good') + '" id="notice" role="status">' + esc(view.notice.text) + '</p>';
     h += gdCardHTML();
-    var rem = (odOn && odAcct) || (gdOn && gdState.connected) ? '' : backupReminder(); if (rem) h += '<div class="tiprow" id="bkremind">' + tipBtn('bktip', '💡', 'Backup tip') + tipLbl('bktip', 'Backup tip') + tipText('bktip', esc(rem)) + '</div>';
+    var rem = gdOn && gdState.connected ? '' : backupReminder(); if (rem) h += '<div class="tiprow" id="bkremind">' + tipBtn('bktip', '💡', 'Backup tip') + tipLbl('bktip', 'Backup tip') + tipText('bktip', esc(rem)) + '</div>';
     h += '<button class="big frostbtn" data-act="backup"' + (rounds.length || nC || bag().clubs.length || WEDGES.count(wedges()) ? '' : ' disabled') + '>💾 Back up rounds</button>' +
       '<label class="big filebtn frostbtn" for="restorefile">📂 Restore from backup</label><input type="file" id="restorefile" accept=".json,application/json" hidden>' +
-      '<div class="tiprow" id="bkinfo">' + tipBtn('bkinfo', 'i', 'About backup and restore') + tipLbl('bkinfo', 'About backup &amp; restore') + tipText('bkinfo', 'Back up saves all rounds, saved courses, My Bag and your Wedges chart as one file (golf-rounds-backup-date.json) – choose Save to Files or OneDrive in the share sheet. Restore adds the rounds from a backup file; rounds already on this phone are not duplicated.') + '</div>';
+      '<div class="tiprow" id="bkinfo">' + tipBtn('bkinfo', 'i', 'About backup and restore') + tipLbl('bkinfo', 'About backup &amp; restore') + tipText('bkinfo', 'Back up saves all rounds, saved courses, My Bag and your Wedges chart as one file (golf-rounds-backup-date.json) – choose Save to Files in the share sheet. Restore adds the rounds from a backup file; rounds already on this phone are not duplicated.') + '</div>';
     if (rounds.length) h += '<button class="big frostbtn" data-act="csvall">Export all rounds (CSV)</button>';
-    h += odCardHTML();
     h += '<button class="big frostbtn" data-act="about">ⓘ About the numbers</button>';
     if (view.gdr) h += gdRestoreHTML();
     return h + '</div>';
@@ -1187,7 +1129,7 @@
     var unnamed = kept.length > 1 ? C.course.tees.indexOf(kept.filter(function (x) { return COURSES.noName(x.name); })[0]) : -1;
     if (unnamed >= 0) { C.sel = unnamed; render(); toast('Name each tee box – e.g. White or Red'); var tn0 = document.querySelector('[data-cf="tee"]'); if (tn0) tn0.focus(); return; }
     var c = COURSES.clean(C.course), selK = kept.indexOf(C.course.tees[C.sel]);
-    var list = courses().filter(function (x) { return x.id !== c.id; }); list.unshift(c); saveCourses(list); odDirty(3000);
+    var list = courses().filter(function (x) { return x.id !== c.id; }); list.unshift(c); saveCourses(list); backupDirty(3000);
     var tee = (c.tees[selK] || c.tees[0] || {}).name || '';
     toast('Saved ' + c.name); view.card = null;
     if (C.from === 'new') { if (C.keep) view.newBl = C.keep.newBl; view.newC = { id: c.id, tee: tee }; view.newAdd = false; view.newName = ''; view.screen = 'home'; view.hmenu = 'new'; } else view.screen = 'courses';
@@ -1420,7 +1362,7 @@
   document.addEventListener('change', function (ev) {
     var t = ev.target; if (!t || !t.getAttribute) return;
     if (t.id === 'baguse') { var b = bag(); b.useCond = t.checked; saveBag(b, true); toast(t.checked ? 'Club picker shows carries for ' + condText(b.cond) : 'Club picker shows club names only'); return; }
-    var f = t.getAttribute('data-bc'); if (!f || f === 'carry') { if (f === 'carry') odDirty(3000); return; }
+    var f = t.getAttribute('data-bc'); if (!f || f === 'carry') { if (f === 'carry') backupDirty(3000); return; }
     var b2 = bag(), c = b2.clubs.filter(function (x) { return x.id === t.getAttribute('data-id'); })[0]; if (!c) return;
     if (f === 'code') { var v = t.value.trim(), i = BAG.indexOfCode(b2, v); if (!v || (i >= 0 && b2.clubs[i] !== c)) { toast(v ? v + ' is already in your bag' : 'The club needs a name'); t.value = c.code; return; } c.code = v; }
     else if (f === 'loft') { var l = t.value.trim(); if (l === '') delete c.loft; else if (isFinite(+l) && +l >= 0 && +l <= 80) c.loft = +l; else { toast('Loft: a number like 33'); t.value = c.loft == null ? '' : c.loft; return; } }
@@ -3061,7 +3003,7 @@
       case 'namecancel': view.nameSheet = null; render(); return;
       case 'history': view.hmenu = null; view.mv = null; view.screen = 'history'; view.notice = null; render(); window.scrollTo(0, 0); return;
       case 'backup': backupRounds(); return;
-      case 'pdf': case 'pdfshare': case 'pdfod': pdfAct(act); return;
+      case 'pdf': case 'pdfshare': pdfAct(act); return;
       case 'info': { infoOpen[v] = !infoOpen[v]; var t = b && document.getElementById(b.getAttribute('aria-controls'));
         [].slice.call(document.querySelectorAll('[data-act="info"]')).forEach(function (x) { if (x.getAttribute('data-v') === v) x.setAttribute('aria-expanded', !!infoOpen[v]); }); // icon + its label
         if (t) t.hidden = !infoOpen[v]; return; }
@@ -3080,13 +3022,15 @@
       case 'rpselone': { var id1 = b.getAttribute('data-id'); view.restore.sel[id1] = !view.restore.sel[id1]; render(); return; }
       case 'rpall': { var all1 = b.checked; view.restore.rounds.forEach(function (x) { view.restore.sel[x.id] = all1; }); render(); return; }
       case 'rpgo': restoreSelected(); return;
+      case 'gdltoggle': { var gt = gdlItem(b.getAttribute('data-id')); if (!gt || gt.status === 'same') return; view.restore.sel[gt.round.id] = !view.restore.sel[gt.round.id]; render(); return; }
+      case 'gdlmissing': view.restore.items.forEach(function (it) { if (it.status === 'new') view.restore.sel[it.round.id] = true; }); render(); return;
+      case 'gdlclear': view.restore.sel = {}; render(); return;
       case 'pdfclose': view.pdf = null; render(); return;
       case 'setname': setName((document.getElementById('pname') || {}).value); return;
       case 'editname': view.editName = true; render(); var pi = document.getElementById('pname'); if (pi) pi.focus(); return;
       case 'cancelname': view.editName = false; view.needName = null; render(); return;
       case 'histplayer': view.histPlayer = v || null; render(); return;
       case 'gdconnect': case 'gdsignin': case 'gdsync': case 'gdrestore': case 'gdrclose': case 'gdrback': case 'gdrplayer': case 'gdrfile': case 'gddisconnect': gdAct(act, b); return;
-      case 'odconnect': case 'odreauth': case 'odsync': case 'odrestore': case 'odpick': case 'oddisconnect': odAct(act, v); return;
       case 'delHist': {
         var dr = rounds.filter(function (x) { return x.id === b.getAttribute('data-id'); })[0]; if (!dr) return;
         if (!confirm('Delete the round from ' + new Date(dr.date).toLocaleDateString() + (dr.course ? ' (' + dr.course + ')' : '') + ' for good?')) return;
@@ -3155,7 +3099,7 @@
       case 'cardsave': cardSave(); return;
       case 'cardedit': { var ce = courseById(b.getAttribute('data-id')); if (ce) cardOpen('archive', JSON.parse(JSON.stringify(ce)), 'review'); return; }
       case 'coursedel': { var cd = courseById(b.getAttribute('data-id')); if (!cd || !confirm('Delete ' + cd.name + '? Rounds already played keep their numbers.')) return;
-        saveCourses(courses().filter(function (x) { return x.id !== cd.id; })); odDirty(3000); toast('Course deleted'); render(); return; }
+        saveCourses(courses().filter(function (x) { return x.id !== cd.id; })); backupDirty(3000); toast('Course deleted'); render(); return; }
       case 'vsave': voiceSave(); return;
       case 'vedit': view.voice.stage = 'edit'; render(); return;
       case 'vdict': case 'vretry': dictOpen(); return; // Retry: clear the box and refocus it (same tap opens the keyboard)
@@ -3176,9 +3120,9 @@
           var rr = round(); rr.holes.forEach(function (hh) { if (!hh.finished && hh.par && SG.analyzeHole(hh).complete) hh.finished = true; });
           if (live) live.finish(rr.id);
           var F2 = SG.foldStubs(rounds); rounds = F2.rounds; if (localStorage.getItem(CUR) === rr.id) localStorage.removeItem(CUR);
-          save(); odSoon(1500); toast('Round saved to History');
+          save(); gdSoon(1500); toast('Round saved to History');
         }
-        view.screen = 'summary'; if (odOn && odState.pending) odSoon(300); if (gdOn && gdState.pending) gdSoon(300); render(); window.scrollTo(0, 0); return;
+        view.screen = 'summary'; if (gdOn && gdState.pending) gdSoon(300); render(); window.scrollTo(0, 0); return;
       case 'backHole': goHole(view.hole); return;
       case 'goHole': goHole(+b.getAttribute('data-i')); return;
       case 'prev': goHole(view.hole - 1); return;
@@ -3193,7 +3137,7 @@
       case 'finish': {
         var af = SG.analyzeHole(h);
         if (!af.complete) { toast(hintText(h, af)); return; }
-        h.finished = true; save(); odSoon(1500); view.menu = null;
+        h.finished = true; save(); gdSoon(1500); view.menu = null;
         toast('Hole ' + (view.hole + 1) + ': ' + af.strokes + ' (' + toPar(af.strokes - h.par) + ')');
         break;
       }
@@ -3353,7 +3297,7 @@
     return 17;
   }
 
-  gdReturn(); render(); gdInit(); odInit();
+  gdReturn(); render(); gdInit();
   if ('serviceWorker' in navigator && location.protocol !== 'file:') {
     // When a new version is installed, reload once so the update shows right away.
     var hadController = !!navigator.serviceWorker.controller, reloaded = false;
@@ -3362,5 +3306,5 @@
     });
     window.addEventListener('load', function () { navigator.serviceWorker.register('./sw.js').catch(function () {}); });
   }
-  window.__golf = { card: function () { return view.card; }, voiceState: function () { return { dict: !!(view.voice && view.voice.stage === 'dict'), timer: !!dictTimer }; }, d1Bench: d1Bench, proxSVG: proxSVG, pinSVG: function () { return pinReportSVG(SG.pinSegments(pinDataRound())); }, odState: function () { return odState; }, csvFor: csvFor, rounds: function () { return rounds; } };
+  window.__golf = { card: function () { return view.card; }, voiceState: function () { return { dict: !!(view.voice && view.voice.stage === 'dict'), timer: !!dictTimer }; }, d1Bench: d1Bench, proxSVG: proxSVG, pinSVG: function () { return pinReportSVG(SG.pinSegments(pinDataRound())); }, csvFor: csvFor, rounds: function () { return rounds; } };
 })();

@@ -286,14 +286,13 @@ body.noscroll { overflow: hidden; }
 .pnrow .pnbtn:disabled small { color: #b0b0b0; }
 #puttstats { grid-template-columns: repeat(3, 1fr); }
 
-/* OneDrive backup card */
+/* Backup card (Google Drive – the class names are from the old OneDrive card) */
 .odcard { border: 1px solid #0a5bb5; border-radius: 18px; padding: 12px 14px 8px; margin: 12px 0; background: #f2f7ff; }
 .odcard h3 { margin: 0 0 6px; }
 .odacct, .odstat { margin: 4px 0 8px; font-size: 16px; overflow-wrap: anywhere; }
 .odbtns { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
 .odbtns .big { margin: 0; font-size: 16px; }
 .oddisc { display: block; margin: 10px auto 4px; color: #a00; font-weight: 700; min-height: 44px; }
-.odfile { text-align: left; }
 /* Player name */
 .playerbox { display: flex; align-items: center; justify-content: space-between; gap: 8px; border: 1px solid #ccc; border-radius: 16px; padding: 6px 12px; margin: 8px 0; font-size: 17px; }
 .playerbox.edit { display: block; padding: 10px 12px; }
@@ -1054,3 +1053,40 @@ table.gapt td.gap b { font-weight: 700; }
 table.gapt tr.gsec td { text-align: left; padding: 9px 8px 4px; font-size: 11px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; color: #6a7f72; background: #fafcfa; }
 table.gapt tbody tr:last-child td { border-bottom: 0; }
 .gapnote { font-size: 13px; line-height: 1.4; }
+
+/* ---------- v101 Google Drive restore: list of every round in a player's backup ---------- */
+.gdlpage { padding-bottom: 104px; }
+.gdlpage .gdlsum { margin: 8px 2px 6px; padding: 12px 14px; border-radius: 20px; background: rgba(244, 248, 252, .7); border: 1px solid rgba(255, 255, 255, .75); font-size: 16px; color: #2b3440; }
+.gdlpage .gdlsum b { font-size: 18px; }
+.gdlchips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+.gdlchip { font-size: 13px; font-weight: 600; padding: 4px 10px; border-radius: 999px; }
+.gdlchip.gdlnew { background: rgba(47, 125, 74, .14); color: #245a35; }
+.gdlchip.gdlonc { background: rgba(90, 105, 120, .13); color: #4a5563; }
+.gdltools { display: flex; gap: 8px; margin: 8px 2px; }
+.gdltools .gdltool { flex: 1 1 0; min-height: 44px; margin: 0; border-radius: 999px; font-size: 15px; font-weight: 600; background: rgba(255, 255, 255, .78); border: 1px solid rgba(255, 255, 255, .85); color: #245a35; box-shadow: none; }
+.gdltools .gdltool:disabled { color: #8a96a0; background: rgba(255, 255, 255, .45); }
+.gdllist { display: flex; flex-direction: column; gap: 8px; margin: 4px 2px 10px; }
+.gdlrow { display: flex; align-items: stretch; gap: 0; border-radius: 20px; background: rgba(250, 252, 253, .86); border: 1px solid rgba(255, 255, 255, .85); box-shadow: 0 4px 14px rgba(30, 50, 70, .08); overflow: hidden; }
+.gdlrow.gdlsel { box-shadow: 0 0 0 2px rgba(47, 107, 63, .6), 0 4px 14px rgba(30, 50, 70, .08); background: rgba(240, 250, 243, .92); }
+.gdlrow .gdltick { flex: 1 1 auto; min-width: 0; display: flex; align-items: center; gap: 12px; margin: 0; padding: 12px 6px 12px 12px; background: transparent; border: 0; border-radius: 0; box-shadow: none; text-align: left; color: #22303c; font: inherit; }
+.gdlbox { flex: 0 0 28px; height: 28px; border-radius: 50%; border: 2px solid rgba(23, 48, 31, .3); background: #fff; display: flex; align-items: center; justify-content: center; font-size: 16px; font-weight: 700; color: #fff; }
+.gdlsel .gdlbox { background: #2f6b3f; border-color: #2f6b3f; }
+.gdlmain { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
+.gdldate { font-size: 13px; color: #55636f; }
+.gdlcourse { font-size: 17px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.gdlst { font-size: 12.5px; font-weight: 600; }
+.gdlst-new { color: #2f7d4a; } .gdlst-newer { color: #9a6a12; } .gdlst-same { color: #7b8691; }
+.gdlscore { flex: 0 0 auto; display: flex; flex-direction: column; align-items: flex-end; min-width: 40px; }
+.gdlscore b { font-size: 22px; font-weight: 700; line-height: 1.1; } .gdlscore small { font-size: 13px; color: #55636f; }
+.gdlrow .gdlview { flex: 0 0 40px; margin: 0; padding: 0; border: 0; border-left: 1px solid rgba(30, 50, 70, .08); border-radius: 0; background: transparent; box-shadow: none; font-size: 24px; color: #7b8691; min-height: 0; }
+.gdlrow.gdlon { background: rgba(240, 243, 246, .7); }
+.gdlrow.gdlon .gdltick { color: #6f7b86; } .gdlrow.gdlon .gdlbox { background: rgba(230, 234, 238, .9); border-color: rgba(100, 115, 130, .25); border-style: dashed; }
+.gdlrow.gdlon .gdlscore b { color: #6f7b86; }
+.gdlpage .gdlnote { margin: 6px 6px 10px; font-size: 14px; line-height: 1.4; color: #3d4955; }
+.gdlbar { position: fixed; left: 8px; right: 8px; bottom: calc(8px + env(safe-area-inset-bottom)); z-index: 50; display: flex; align-items: center; gap: 8px; padding: 8px 8px 8px 16px; border-radius: 26px;
+  background: rgba(248, 250, 248, .93); -webkit-backdrop-filter: blur(22px) saturate(140%); backdrop-filter: blur(22px) saturate(140%); border: 1px solid rgba(255, 255, 255, .8); box-shadow: 0 10px 40px rgba(20, 45, 30, .22); }
+.gdlbar .gdlcount { flex: 0 0 auto; font-size: 15px; font-weight: 600; color: #3d4955; }
+.gdlbar .gdlgo { flex: 1 1 auto; min-height: 52px; margin: 0; border-radius: 20px; font-size: 17px; font-weight: 600; background: #2f6b3f; color: #fff; border: 0; box-shadow: none; }
+.gdlbar .gdlgo:disabled { background: rgba(47, 107, 63, .25); }
+.gdlrow .gdltick:disabled { opacity: 1; cursor: default; }
+.gdlrow.gdlon .gdlcourse { color: #56626e; } .gdlrow.gdlon .gdldate { color: #6f7b86; }

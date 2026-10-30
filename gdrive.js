@@ -144,6 +144,36 @@
     var k = GD.folderName(player).toLowerCase();
     return (moved || []).filter(function (m) { return GD.folderName(m.player).toLowerCase() !== k && (m.from || []).some(function (f) { return GD.folderName(f).toLowerCase() === k; }); });
   };
+  /* v101 restore list: every round in one player's backup file, compared with the phone (by id only, so nothing is hidden).
+   * Rounds with no name get the folder's player. The same id twice in a file keeps the newer copy (by 'updated').
+   * status: 'new' = not on this phone · 'newer' = on this phone, the backup copy is newer · 'same' = on this phone (same or phone copy newer).
+   * Sorted newest round first. */
+  GD.restoreList = function (backup, player, local) {
+    var list = backup && Array.isArray(backup.rounds) ? backup.rounds : Array.isArray(backup) ? backup : [], by = {}, order = [], mine = {};
+    var bp = player || (backup && !Array.isArray(backup) && backup.player) || '';
+    list.forEach(function (r) {
+      if (!r || typeof r.id !== 'string' || !r.id || !Array.isArray(r.holes)) return;
+      var c = JSON.parse(JSON.stringify(r)); if (!c.player && bp) c.player = bp;
+      if (!by[c.id]) { by[c.id] = c; order.push(c.id); } else if (String(c.updated || '') > String(by[c.id].updated || '')) by[c.id] = c;
+    });
+    (local || []).forEach(function (r) { if (r && r.id) mine[r.id] = r; });
+    return order.map(function (id) {
+      var r = by[id], L = mine[id], st = 'new', diff = !!L && JSON.stringify(L) !== JSON.stringify(r);
+      if (L) st = diff && r.updated && String(r.updated) > String(L.updated || '') ? 'newer' : 'same';
+      return { round: r, status: st, phoneNewer: st === 'same' && diff };
+    }).sort(function (a, b) { return String(b.round.date || '').localeCompare(String(a.round.date || '')); });
+  };
+  // Put the chosen rounds into the phone's list: new ones are added, 'newer' ones replace the phone copy in place; ids are kept.
+  GD.applyRestore = function (local, items, chosen) {
+    var out = (local || []).slice(), at = {}, res = { added: 0, updated: 0 };
+    out.forEach(function (r, i) { at[r.id] = i; });
+    (items || []).forEach(function (it) {
+      if (!chosen[it.round.id] || it.status === 'same') return;
+      if (at[it.round.id] == null) { at[it.round.id] = out.length; out.push(it.round); res.added++; }
+      else if (it.status === 'newer') { out[at[it.round.id]] = it.round; res.updated++; }
+    });
+    res.rounds = out; return res;
+  };
   GD.movedFrom = function (rounds) { return (rounds || []).filter(function (r) { return r && r.movedFrom && r.movedFrom.length; }).map(function (r) { return { id: r.id, player: r.player || '', from: r.movedFrom.slice(), updated: r.updated || '' }; }); };
   GD.sync = function (o) {
     var s = o.state, now = o.now || new Date(), f = o.fetch, t = o.token;
