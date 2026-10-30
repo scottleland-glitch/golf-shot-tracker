@@ -134,6 +134,7 @@
     if (view.screen !== 'summary' && view.screen !== 'hole') view.replay = null;
     if (view.screen !== 'hole') { view.pinOpen = false; view.voice = null; view.liveCard = false; micAbort(); }
     if (view.screen !== 'card') view.card = null;
+    if (view.screen !== 'summary') view.send = null; if (view.screen !== 'history') view.addr = null; // v97 sheets
     if (view.screen !== 'home') { if (view.hmenu !== 'new') { view.newC = null; view.newAdd = false; } view.crsOpen = false; view.nameSheet = null; }
     if (view.hmenu !== 'new') view.newPEdit = false;
     document.body.classList.toggle('noscroll', !!(view.pinOpen && view.screen === 'hole'));
@@ -152,7 +153,7 @@
     else if (view.screen === 'home' || !round()) el.innerHTML = homeHTML();
     else if (view.screen === 'hole') el.innerHTML = '<div class="frostpage roundpage' + roundTheme() + '">' + holeHTML() + (view.pinOpen ? pinHTML() : '') + (view.replay != null ? replayHTML() : '') + '</div>';
     else if (view.screen === 'about') el.innerHTML = aboutHTML();
-    else { el.innerHTML = '<div class="frostpage roundpage' + roundTheme() + '">' + summaryHTML() + (view.map ? mapHTML() : '') + (view.replay != null ? replayHTML() : '') + '</div>'; if (view.map) applyHeat(); if (view.preview) previewOnly(el); }
+    else { el.innerHTML = '<div class="frostpage roundpage' + roundTheme() + '">' + summaryHTML() + (view.send && round() && view.send.id === round().id ? sendSheetHTML(round()) : '') + (view.map ? mapHTML() : '') + (view.replay != null ? replayHTML() : '') + '</div>'; if (view.map) applyHeat(); if (view.preview) previewOnly(el); }
     document.body.classList.toggle('onhome', !!el.querySelector('#home'));
     if (view.screen !== 'hole') document.body.classList.toggle('noscroll', !!(view.map && view.screen === 'summary'));
     if (view.replay != null) document.body.classList.add('noscroll');
@@ -510,6 +511,7 @@
     if (multi) h += '<div class="liechips" id="playerchips" role="group" aria-label="Filter by player">' + [''].concat(names).map(function (n) {
         var sel = (view.histPlayer || '') === n; return '<button class="frostchip' + (sel ? ' sel' : '') + '" data-act="histplayer" data-v="' + esc(n) + '" aria-pressed="' + sel + '">' + (n ? esc(n) + ' (' + P[n] + ')' : 'All players') + '</button>'; }).join('') +
       (savedRounds().some(function (r) { return !r.player; }) ? '<button class="frostchip' + (view.histPlayer === '~none' ? ' sel' : '') + '" data-act="histplayer" data-v="~none">No name</button>' : '') + '</div>';
+    h += '<button class="frostbtn addrbtn" data-act="addopen" id="addround">📥 Add a round<small>someone sent you a round? add it here</small></button>';
     if (!list.length) h += '<p class="muted frostnote">No rounds yet. Start one from Home.</p>';
     if (list.length >= 2) h += '<button class="big cmpbtn frostmain" data-act="compare" id="cmpopen">⚖ Best vs worst rounds</button>';
     if (list.length) h += '<button class="big cmpbtn frostmain bzbtn" data-act="bzopen" data-v="all" data-id="' + list[0].id + '" id="histbz">🎯 Birdie zone</button>';
@@ -521,7 +523,86 @@
         (S.holesDone ? '<b>' + S.strokes + '</b> (' + toPar(S.toPar) + ')' : '–') + '<br><small class="' + sgCls(S.sgTotal) + '">SG ' + fmtSG(S.sgTotal) + '</small><br><small class="muted">vs ' + esc(blName(blOf(r))) + '</small></span></button>' +
         '<button class="hdel frostdanger" data-act="delHist" data-id="' + r.id + '" aria-label="Delete round ' + esc(new Date(r.date).toLocaleDateString() + (r.course ? ' ' + r.course : '')) + '">🗑</button></div>';
     });
-    return h + '</div></div>';
+    return h + '</div>' + (view.addr ? addSheetHTML() : '') + '</div>';
+  }
+  // ---------- v97 Send round / Add a round (share.js) ----------
+  function roundLine(r) { var S = SG.summarize(r, blOf(r)); return { day: new Date(r.date).toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' }), S: S }; }
+  function codeNote(c) { return c ? c.length.toLocaleString() + ' characters' + (c.length > SHARE.LONG ? ' – long, the file is easier' : '') : 'for a text message'; }
+  function sendSheetHTML(r) {
+    var V = view.send, L = roundLine(r);
+    return '<div class="rsheet-bg" data-act="sendclose"></div><div class="rsheet" id="sendsheet" role="dialog" aria-modal="true" aria-labelledby="sendh">' +
+      '<div class="rsh-h" id="sendh">Send round</div><p class="rsh-sub">' + esc(L.day) + (r.course ? ' · ' + esc(r.course) : '') + (L.S.holesDone ? ' · ' + L.S.strokes + ' (' + toPar(L.S.toPar) + ')' : '') + '</p>' +
+      '<button class="rsh-go" data-act="sendfile" id="sendfile">📄 Send as a file<small>' + esc(SHARE.fileName(r)) + '</small></button>' +
+      '<button class="rsh-item" data-act="sendcode" id="sendcode">💬 Send as a text code<small>' + codeNote(V.code) + '</small></button>' +
+      (V.copied ? '<p class="rsh-ok" id="sendcopied" role="status">✓ Copied – paste it into a message</p>' : '') +
+      (V.showCode ? '<label class="rsh-lbl" for="sendcodebox">' + (V.copied ? 'The code' : 'Copy this code') + '</label><textarea id="sendcodebox" class="rsh-code" readonly rows="3">' + esc(V.code || '') + '</textarea>' : '') +
+      '<p class="rsh-help">On the other phone: Pin High → History → 📥 Add a round, then choose the file or paste the code.</p>' +
+      '<button class="rsh-item muted" data-act="sendclose">Close</button></div>';
+  }
+  function sendOpen() {
+    var r = round(); if (!r) return; view.send = { id: r.id }; render();
+    SHARE.encode(r).then(function (c) { if (view.send && view.send.id === r.id) { view.send.code = c; var b = document.querySelector('#sendcode small'); if (b) b.textContent = codeNote(c); } }); // ready before the tap
+  }
+  function sendFile() {
+    var r = round(); if (!r) return; var name = SHARE.fileName(r), json = SHARE.fileText(r), file;
+    try { file = new File([json], name, { type: 'application/json' }); } catch (e) { file = null; }
+    if (file && navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
+      navigator.share({ files: [file], title: 'Pin High round' }).then(function () { toast('Round sent'); }).catch(function (e) {
+        if (e && e.name === 'AbortError') return; download(json, name, 'application/json', 'Round file downloaded'); });
+      return;
+    }
+    download(json, name, 'application/json', 'Round file downloaded');
+  }
+  function copyCode(code) {
+    var done = function () { if (!view.send) return; view.send.copied = true; view.send.showCode = true; render(); toast('Copied'); };
+    var fail = function () { if (!view.send) return; view.send.copied = false; view.send.showCode = true; render(); var t = document.getElementById('sendcodebox'); if (t) { t.focus(); t.select(); } };
+    if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(code).then(done, fail); else fail();
+  }
+  function sendCode() {
+    var r = round(); if (!r || !view.send) return;
+    var go = function (code) {
+      view.send.code = code;
+      var text = 'Pin High round – ' + roundLine(r).day + (r.course ? ', ' + r.course : '') + '. In Pin High: History → Add a round, paste this:\n' + code;
+      if (navigator.share) navigator.share({ text: text }).then(function () { toast('Code sent'); }).catch(function (e) { if (e && e.name === 'AbortError') return; copyCode(code); });
+      else copyCode(code);
+    };
+    if (view.send.code) go(view.send.code); else SHARE.encode(r).then(go);
+  }
+  function addSheetHTML() {
+    var A = view.addr, o = '<div class="rsheet-bg" data-act="addclose"></div><div class="rsheet" id="addsheet" role="dialog" aria-modal="true" aria-labelledby="addh">';
+    if (A.step === 'confirm' || A.step === 'done') {
+      var r = A.round, L = roundLine(r), S = L.S, pn = playerName();
+      o += '<div class="rsh-h" id="addh">' + (A.step === 'done' ? (A.dup ? 'Already in your history' : 'Round added') : 'Add this round to your history?') + '</div>' +
+        '<div class="arcard" id="addcard"><b class="arcourse">' + esc(r.course || 'Round') + '</b><span class="ardate">' + esc(L.day) + (r.tee ? ' · ' + esc(r.tee) : '') + '</span>' +
+        '<div class="arnums"><div><small>Score</small><b id="arscore">' + (S.holesDone ? S.strokes : '–') + '</b></div><div><small>To par</small><b id="artopar">' + (S.holesDone ? toPar(S.toPar) : '–') + '</b></div>' +
+        '<div><small>Holes</small><b id="arholes">' + (S.holesDone === r.holes.length ? r.holes.length : S.holesDone + '/' + r.holes.length) + '</b></div></div>' +
+        '<small class="arwho" id="arwho">' + (A.step === 'confirm' ? (pn ? 'Goes into ' + esc(pn) + '’s history' : 'Goes into your history') : (pn ? 'In ' + esc(pn) + '’s history' : 'In your history')) + '</small></div>';
+      if (A.step === 'confirm') o += '<button class="rsh-go" data-act="addyes" id="addyes">Add</button><button class="rsh-item muted" data-act="addclose" id="addno">Cancel</button>';
+      else o += '<p class="rsh-ok" id="adddone" role="status">' + (A.dup ? 'This round is already in your history.' : '✓ Added to your history.') + '</p>' +
+        '<button class="rsh-go" data-act="open" data-id="' + esc(A.viewId) + '" id="addview">View round</button><button class="rsh-item muted" data-act="addclose">Done</button>';
+      return o + '</div>';
+    }
+    return o + '<div class="rsh-h" id="addh">Add a round</div><p class="rsh-sub">Got a round from someone’s Pin High? Add it to your history.</p>' +
+      '<label class="rsh-go filebtn" for="addroundfile" id="addfilebtn">📂 Choose file</label><input type="file" id="addroundfile" accept=".json,application/json,text/plain" hidden>' +
+      '<div class="rsh-or">or</div><label class="rsh-lbl" for="addcode">Paste code</label>' +
+      '<textarea id="addcode" class="rsh-code" rows="3" placeholder="PINHIGH1:…" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false">' + esc(A.text || '') + '</textarea>' +
+      '<button class="rsh-item rsh-add" data-act="addcode" id="addcodego">Add</button>' +
+      (A.err ? '<p class="rsh-err' + (A.backup ? ' rsh-note' : '') + '" id="adderr" role="alert">' + esc(A.err) + '</p>' : '') +
+      '<button class="rsh-item muted" data-act="addclose">Cancel</button></div>';
+  }
+  function addRead(text, keep) {
+    SHARE.read(text).then(function (res) {
+      if (!view.addr) return;
+      view.addr = res.error ? { step: 'pick', err: res.error, backup: !!res.backup, text: keep || '' } : { step: 'confirm', round: res.round }; render();
+    });
+  }
+  function addYes() {
+    var A = view.addr; if (!A || !A.round) return;
+    var dup = SHARE.findDup(rounds, A.round);
+    if (dup) { view.addr = { step: 'done', dup: true, round: A.round, viewId: dup.id }; render(); return; }
+    var r = SHARE.prepare(A.round, playerName()); // original id kept, this phone's player; never the round in progress
+    localStorage.setItem(KEY, JSON.stringify(rounds.concat([r]))); rounds = load(); odDirty(3000); // in the backup / OneDrive like any own round
+    view.addr = { step: 'done', round: r, viewId: r.id }; render(); toast('Round added');
   }
   // ---------- Backup / restore ----------
   var BK = 'golfsg.lastBackup.v1';
@@ -581,7 +662,7 @@
   function previewOnly(el) { // read-only round preview: no editing, deleting or exporting
     var tb = el.querySelector('.topbar'); if (tb) tb.innerHTML = '<button class="txt" data-act="rpback">‹ Backup list</button><div class="title"><b>Preview (read-only)</b><span>' + new Date(view.preview.date).toLocaleDateString() + (view.preview.course ? ' · ' + esc(view.preview.course) : '') + '</span></div><span style="width:70px"></span>';
     [].slice.call(el.querySelectorAll('[data-act="goHole"]')).forEach(function (b) { b.removeAttribute('data-act'); b.disabled = true; b.classList.add('ro'); });
-    [].slice.call(el.querySelectorAll('[data-act="pdf"],[data-act="csv"],[data-act="backHole"],[data-act="delRound"],[data-act="history"],[data-act="home"],[data-act="about"],#pdfsheet')).forEach(function (b) { if (!b.closest('.maphead')) b.remove(); });
+    [].slice.call(el.querySelectorAll('[data-act="pdf"],[data-act="csv"],[data-act="sendopen"],[data-act="backHole"],[data-act="delRound"],[data-act="history"],[data-act="home"],[data-act="about"],#pdfsheet')).forEach(function (b) { if (!b.closest('.maphead')) b.remove(); });
     [].slice.call(el.querySelectorAll('select, input')).forEach(function (x) { x.disabled = true; });
     [].slice.call(el.querySelectorAll('[data-act="mapscope"]')).forEach(function (x) { var g = x.closest('.seg') || x; g.remove(); });
     var lab = el.querySelector('.label'); if (lab) lab.textContent = 'Scorecard';
@@ -1461,6 +1542,7 @@
     var sgPart = out; out = main + '<h2>Stats</h2>' + statTilesHTML(S);
     out += '<button class="primary big" data-act="pdf" style="margin-top:16px">📄 Make PDF report</button>' + pdfHTML();
     out += '<button class="big" data-act="csv">Export this round (CSV)</button>';
+    out += '<button class="big sendbtn" data-act="sendopen" id="sendround">📤 Send round<small>to another phone – it lands in their History</small></button>';
     out += '<button class="big" data-act="backHole">Back to the round</button>';
     out += '<button class="big danger" data-act="delRound">Delete this round</button>';
     out += '<button class="big" data-act="about">ⓘ About the numbers</button>';
@@ -2704,11 +2786,11 @@
     }
     download(csv, name);
   }
-  function download(csv, name, type) {
+  function download(csv, name, type, msg) {
     var url = URL.createObjectURL(new Blob([csv], { type: type || 'text/csv' }));
     var a = document.createElement('a'); a.href = url; a.download = name; document.body.appendChild(a); a.click();
     setTimeout(function () { URL.revokeObjectURL(url); a.remove(); }, 4000);
-    toast(/\.json$/.test(name) ? 'Backup downloaded' : 'CSV downloaded');
+    toast(msg || (/\.json$/.test(name) ? 'Backup downloaded' : 'CSV downloaded'));
   }
   function fileName(r) { return 'golf-' + (r ? localDate(r.date) + (r.course ? '-' + r.course.replace(/[^a-z0-9]+/gi, '-') : '') : 'all-rounds') + '.csv'; }
 
@@ -2731,7 +2813,7 @@
       case 'livestop': if (!live || !r || !confirm('Stop sharing? The link will stop showing this round.')) return; live.stop(r.id); view.liveCard = false; toast('Sharing stopped'); render(); return;
       case 'new': view.from = null; view.hmenu = null; view.newBl = null; newRound(((document.getElementById('course') || {}).value || '').trim()); return;
       case 'resume': view.from = null; view.roundId = localStorage.getItem(CUR); goHole(firstOpenHole(round()), true); return;
-      case 'open': view.pdf = null; view.roundId = b.getAttribute('data-id'); view.from = view.screen === 'history' ? 'history' : null; view.screen = 'summary'; view.map = null; render(); window.scrollTo(0, 0); return;
+      case 'open': view.pdf = null; view.addr = null; view.send = null; view.roundId = b.getAttribute('data-id'); view.from = view.screen === 'history' ? 'history' : null; view.screen = 'summary'; view.map = null; render(); window.scrollTo(0, 0); return;
       case 'home': view.screen = 'home'; view.from = null; view.hmenu = null; break;
       case 'archive': view.screen = 'archive'; view.hmenu = null; render(); window.scrollTo(0, 0); return;
       case 'plus': view.hmenu = view.hmenu ? (view.hmenu === 'new' ? 'menu' : null) : 'menu'; render(); return;
@@ -2793,6 +2875,14 @@
       case 'proxb': { var mv0 = document.getElementById('mapview'), st0 = mv0 ? mv0.scrollTop : 0; view.proxB = v; render(); var mv1 = document.getElementById('mapview'); if (mv1) mv1.scrollTop = st0; return; }
       case 'proxlie': { var mvl = document.getElementById('mapview'), stl = mvl ? mvl.scrollTop : 0; view.proxLie = v; render(); var mvl2 = document.getElementById('mapview'); if (mvl2) mvl2.scrollTop = stl; return; }
       case 'stx': view.stx = view.stx || {}; view.stx[b.getAttribute('data-v')] = !view.stx[b.getAttribute('data-v')]; render(); return;
+      case 'sendopen': sendOpen(); return;
+      case 'sendclose': view.send = null; render(); return;
+      case 'sendfile': sendFile(); return;
+      case 'sendcode': sendCode(); return;
+      case 'addopen': view.addr = { step: 'pick' }; render(); return;
+      case 'addclose': view.addr = null; render(); return;
+      case 'addcode': var tx = (document.getElementById('addcode') || {}).value || ''; addRead(tx, tx); return;
+      case 'addyes': addYes(); return;
       case 'sgtoggle': view.sgOpen = !view.sgOpen; render(); if (view.sgOpen) { var sh = document.getElementById('sgsec'); if (sh) window.scrollTo(0, sh.getBoundingClientRect().top + window.scrollY - 90); } return;
       case 'clubsel': view.club = v; view.heat = null; render(); return;
       case 'compare': view.screen = 'compare'; render(); window.scrollTo(0, 0); return;
@@ -2893,6 +2983,11 @@
     toast('Now comparing with ' + blLabel(id));
   }
   document.addEventListener('change', function (ev) {
+    if (ev.target && ev.target.id === 'addroundfile') { // v97 Add a round from a file
+      var af = ev.target.files && ev.target.files[0]; if (!af) return;
+      var ar = new FileReader(); ar.onload = function () { addRead(String(ar.result)); }; ar.onerror = function () { view.addr = { step: 'pick', err: 'Could not read that file.' }; render(); };
+      ar.readAsText(af); ev.target.value = ''; return;
+    }
     if (ev.target && ev.target.id === 'restorefile') {
       var f = ev.target.files && ev.target.files[0]; if (!f) return;
       var rd = new FileReader(); rd.onload = function () { restoreFrom(String(rd.result)); }; rd.onerror = function () { view.notice = { text: 'Could not read that file.', bad: true }; render(); };

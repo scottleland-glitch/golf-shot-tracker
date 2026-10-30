@@ -56,6 +56,8 @@ excluded and counted. This round / All rounds toggle.
 - `tests/sg.test.js` – unit tests: `node --test tests/sg.test.js`
 - `tests/bag-focused.js` – My Bag: physics checks + phone flow (`node tests/bag-focused.js`)
 - `tests/wedge-ladder-focused.js` – Wedges simple view helpers + the wedge carry ladder on the scoring page: ≤100 yd boundary, three carries ±10 around the pin, no preselect, details, fallback, persistence (`node tests/wedge-ladder-focused.js`)
+- `share.js` – Send round / Add a round: single-round payload, file name, PINHIGH1: text code (gzip + base64url), checks, duplicate test
+- `tests/send-round-focused.js` – Send round / Add a round (v97): payload, file + code round-trips (with and without compression), errors, confirmation card, re-stamp to this phone's player, no duplicates, in the backup (`node tests/send-round-focused.js`)
 - `tests/round-stats-quick-focused.js` – Round stats page (v96): Score / To par / Yards / Putts box on top, Quick view with SG, collapsed stat tiles, smaller legend; uses the 78 at Arcade Creek in `tests/fixtures/arcade-78.js` (`node tests/round-stats-quick-focused.js`)
 - `tests/profile-wedges-focused.js` – Profile + Wedges chart: menu, navigation, accordion, persistence, backup (`node tests/profile-wedges-focused.js`)
 - `tests/e2e.js` – Playwright (playwright-core) flow test at iPhone 390x844
@@ -137,6 +139,23 @@ The **+** menu is New round · **Profile** · History. Profile shows the player 
 - **Quick view** (under the box): three tiles – **Fairways** % (hit / par-4 and par-5 tee shots), **GIR** % (greens / finished holes) and **Putts** (total, per hole). Each shows the strokes gained of its category, green when positive and red when negative: Fairways → *Off the tee* SG, GIR → *Approach* SG, Putts → *Putting* SG (the same numbers as in the Strokes gained section, against the round's baseline).
 - **Stats:** every detailed tile (Fairways hit, Greens in regulation, Approach misses, Proximity, Pin location, Putts, Putt misses, Club performance, Penalty strokes, Tee misses L / R, Missed greens L / R, Missed greens short / long) is a row that starts **collapsed** with its headline number on the right. Tap the row to open it (the full tile – tap it again for the map) and tap again to close it. Open rows stay open while you go in and out of maps; another round starts collapsed.
 - The scorecard legend is smaller and lighter, and the "Blank = hole not finished…" note is gone. The scorecards (tap a hole to edit) are unchanged. The live-share viewer is unchanged.
+
+## Send round (v97)
+For sending one saved round to another phone (e.g. Scott keeps score at Quincy's tournament and sends the round to her phone). No accounts or server – the round travels as a file or a text code.
+- **Send:** Round stats → **📤 Send round** (under Export CSV). The sheet has two choices:
+  - **📄 Send as a file** – opens the iPhone share sheet (AirDrop, Messages, Mail, Save to Files) with `Pin-High-Round-<date>-<course>.json`. Phones without a share sheet download the file instead.
+  - **💬 Send as a text code** – a code starting `PINHIGH1:` that holds the whole round. It is gzip-compressed (about 750 characters for an 18-hole round) when the phone can compress (iOS 16.4 and newer), otherwise plain, about 6,000 characters. It opens the share sheet with a short message plus the code; if there is no share sheet it copies the code ("✓ Copied") and shows it in a box.
+  - The file and the code carry `{ pinhigh: 'round', v: 1, sent, round }`. The round is exactly as stored, the same as in the backup file: every hole and shot, pins, clubs, course, tee, date, baseline.
+- **Receive:** History → **📥 Add a round** (top of the list) opens a sheet with **📂 Choose file** and **Paste code** + **Add**. The pasted text can be the whole message – the app finds the `PINHIGH1:` code in it. Anything else gets a friendly message:
+  - not a code
+  - not a Pin High round
+  - damaged
+  - from a newer version
+  - a full backup file, which points to Archive → Restore from backup
+- **Confirmation card:** shows course, date (and tee), score, to par and holes, with "Goes into <player>’s history". Then **Add** / **Cancel**.
+- **Add:** the round keeps its original id. It is stamped with *this* phone's player name (no name set → it simply counts as this phone's own). It is never the round in progress.
+- **No duplicates:** if the same id – or the same course, start time and identical shots – is already there, the app says "This round is already in your history" and adds nothing.
+- **After adding:** **View round** opens its stats. Strokes gained and every stat are worked out on the phone as for any round, and it goes into this phone's backups and OneDrive sync like any of the player's own rounds.
 
 ## My Bag (v92)
 Open from the **+** menu → **Profile** → **My Bag**. Add clubs by manufacturer → model → club/loft (Titleist, TaylorMade, Callaway, Ping, Srixon, Cleveland, Mizuno, Cobra, PXG, Wilson, Bridgestone, Honma, Tour Edge, XXIO, Vokey, Scotty Cameron, Odyssey, Ben Hogan, Sub 70, Lynx; "Other brand" / "Model not listed" for anything else, plus a custom club name and loft). Lofts are typical stock lofts and editable. One club per name (adding a second 7i replaces the first). Enter each club's **carry** in yards; sort by club or by carry; tap a club to edit or remove it.
