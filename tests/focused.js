@@ -32,21 +32,21 @@ const BASE = process.env.BASE_URL || 'http://127.0.0.1:8765/', SHOTS = process.e
   assert.deepStrictEqual(await page.$$eval('#histlist .hrow', r => r.map(x => x.getAttribute('data-id'))), ['rcard', 'rputt', 'rold']);
   await page.screenshot({ path: SHOTS + '/34-history.png' });
   await page.click('#histlist [data-act="open"][data-id="rcard"]');
-  const marks = await page.$$eval('.scard tr.sscore td:not(.tot)', tds => tds.map(t => (t.querySelector('.mk') ? t.querySelector('.mk').getAttribute('data-mark') + ':' + t.textContent : 'blank')));
+  const marks = await page.$$eval('#scorecard tr.sscore td:not(.sum)', tds => tds.map(t => (t.querySelector('.mk') ? t.querySelector('.mk').getAttribute('data-mark') + ':' + t.textContent : 'blank')));
   assert.deepStrictEqual(marks, ['par:4', 'birdie:3', 'par:3', 'eagle:3', 'double:6', 'double:5', 'par:4', 'bogey:6', 'double:7', 'eagle:2', 'par:4', 'par:3', 'par:5', 'par:4', 'bogey:5', 'par:3', 'par:5', 'blank']);
-  const t = async (id, row) => page.textContent(`#${id} tr.${row} td.tot`);
+  const t = async (id, row) => page.textContent(`#scorecard tr.${row} td.sum.${id === 'card-front' ? 'out' : 'in'}`); // v103: one card, OUT / IN columns
   assert.deepStrictEqual([await t('card-front', 'shole'), await t('card-front', 'spar'), await t('card-front', 'sscore'), await t('card-back', 'shole'), await t('card-back', 'spar'), await t('card-back', 'sscore')], ['OUT', '36', '41', 'IN', '36', '31']);
   const trow = await page.$$eval('#rs-top tr:nth-child(2) td', ts => ts.map(x => x.textContent)); // v96: Score · To par · Yards · Putts box on top
   assert.deepStrictEqual(trow.slice(0, 3), ['72thru 17', '+4', '6885']); assert.deepStrictEqual(await page.$$eval('#rs-top th', t => t.map(x => x.textContent)), ['Score', 'To par', 'Yards', 'Putts']);
-  const fit = await page.evaluate(() => ({ docW: document.documentElement.scrollWidth, r: ['card-front', 'card-back', 'rs-top'].map(id => document.getElementById(id).getBoundingClientRect().right), h: Math.min(...[...document.querySelectorAll('#card-front tr.sscore .hc')].map(b => b.getBoundingClientRect().height)) }));
-  assert.ok(fit.docW <= 390 && fit.r.every(x => x <= 390), JSON.stringify(fit)); assert.ok(fit.h >= 44, 'cell h ' + fit.h);
+  const fit = await page.evaluate(() => ({ docW: document.documentElement.scrollWidth, r: ['sccard', 'rs-top'].map(id => document.getElementById(id).getBoundingClientRect().right), h: Math.min(...[...document.querySelectorAll('#scorecard tr.sscore .hc')].map(b => b.getBoundingClientRect().height)) }));
+  assert.ok(fit.docW <= 390 && fit.r.every(x => x <= 390), JSON.stringify(fit)); assert.ok(fit.h >= 30 && fit.h <= 34, 'cell h ' + fit.h); // v103 compact rows
   assert.match(await page.textContent('.topbar'), /‹ Rounds/);
   const lg = await page.$$eval('#card-legend .mk', ms => ms.map(m => m.className.replace('mk ', '') + ':' + m.textContent));
   assert.deepStrictEqual(lg, ['mk-eagle:', 'mk-birdie:', 'mk-par lgpar:–', 'mk-bogey:', 'mk-double:']);
   await page.locator('#card-legend').scrollIntoViewIfNeeded(); await page.screenshot({ path: SHOTS + '/33b-scorecard-legend.png' });
-  await page.locator('#card-front').scrollIntoViewIfNeeded(); await page.evaluate(() => window.scrollBy(0, -56));
+  await page.locator('#sccard').scrollIntoViewIfNeeded(); await page.evaluate(() => window.scrollBy(0, -56));
   await page.screenshot({ path: SHOTS + '/33-scorecard.png' });
-  await page.click('#card-back tr.sscore [data-act="goHole"][data-i="12"]'); assert.match(await page.textContent('.hc-head'), /Hole 13/);
+  await page.click('#scorecard tr.sscore [data-act="goHole"][data-i="12"]'); assert.match(await page.textContent('.hc-head'), /Hole 13/);
   await page.locator('[data-act="summary"]').first().click(); await page.click('.topbar [data-act="history"]'); await page.waitForSelector('#histlist');
   console.log('✓ scorecard: marks, OUT/IN/TOTAL, fits 390 (cells ' + fit.h.toFixed(0) + 'px), tap opens hole; History newest first, ‹ History back');
   // backup (download fallback) + restore

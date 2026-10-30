@@ -36,10 +36,10 @@ const BASE = 'http://127.0.0.1:8797/', OUT = '/workspace/golf-app/screenshots/',
   await page.evaluate(() => window.scrollTo(0, 0)); await shot('finished');
   await page.click('[data-act="replay"]'); await page.waitForSelector('[data-act="rpclose"]'); await page.waitForTimeout(600); await shot('replay'); await page.click('[data-act="rpclose"] >> nth=0');
   await page.click('[data-act="prev"]'); assert.match(await page.textContent('.hc-head'), /Hole 17/); await page.click('[data-act="next"]');
-  await page.click('[data-act="summary"][data-end="1"]'); await page.waitForSelector('#card-front'); await page.evaluate(() => window.scrollTo(0, 0)); await shot('scorecard');
+  await page.click('[data-act="summary"][data-end="1"]'); await page.waitForSelector('#scorecard'); await page.evaluate(() => window.scrollTo(0, 0)); await shot('scorecard');
   await shot('scorecard-full', true);
   if (TAG === 'after') {
-    const F = !!(await page.$('.frostpage.roundpage #card-front'));
+    const F = !!(await page.$('.frostpage.roundpage #scorecard'));
     await page.click('[data-act="goHole"][data-i="0"] >> nth=0'); await page.waitForSelector('.holecard');
     const H = await page.evaluate(() => { const q = s => document.querySelector(s), cs = s => getComputedStyle(q(s));
       return { wrap: !!q('.frostpage.roundpage .holecard'), bg: getComputedStyle(q('.frostpage'), '::before').backgroundImage, card: q('.holecard').classList.contains('frostcard'),

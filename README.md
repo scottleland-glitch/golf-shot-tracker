@@ -227,3 +227,31 @@ In a round, when the bag has clubs, the club picker lists only bag clubs (no put
 - **My Bag** has a **Bag | Wedge ladder** toggle at the top. Bag = the clubs view (carries, elevation/temperature, sort, add/edit); Wedge ladder = the Wedges view (40–110 yd, High/Low flight, Edit). Both use ‹ Home; there is no separate Wedges button.
 - Cache `golf-sg-v102`.
 
+## Scorecard (v103)
+The round's scorecard is now **one soft, rounded card** (it replaces the old Front 9 and Back 9 tables). Swipe it sideways to see more: holes 1–18, then **OUT**, **IN** and **TOT**. The row names stay stuck on the left while you swipe, and the swipe glides on iPhone. Rows are short (about 31 px), the type is light, and the lines are thin. The page itself never scrolls sideways. Tap any cell in a hole's column (hole number, score, any stat) to open that hole, the same as before. Holes not finished yet are blank, apart from their par and length.
+
+Rows, in three groups split by a thin line (there is no player-name row):
+- **Score group**
+  - **Hole** – 1 to 18.
+  - **Par** – the hole's par.
+  - **Length** – the hole's yards (the tee distance you typed).
+  - **Score** – your strokes, penalties included, with the usual shapes: circle = birdie, double circle = eagle or better, square = bogey, double square = double bogey or worse, plain = par. The small legend under the card explains them.
+- **Strokes gained group** – same numbers as the Strokes gained section, split per hole. Green = gained, red = lost; the deeper the colour, the bigger the number. A blank cell means no shot of that kind on that hole (e.g. OTT on a par 3).
+  - **TOT** – strokes gained for the whole hole.
+  - **OTT** – off the tee (tee shots on par 4s and 5s).
+  - **APP** – approach (shots from more than 20 yd, including par-3 tee shots).
+  - **ARG** – around the green (shots from 20 yd or less, off the green).
+  - **PUTT** – putting (every stroke from the green).
+- **Stats group**
+  - **Putts** – strokes played from the green.
+  - **GIR** – ✓ when you were on the green in regulation (par minus 2 strokes, penalties counted), ⊘ when you weren't.
+  - **Club** – the club you hit off the tee, if you picked one (Driver shows as DR, 7i as 7I). Blank if no club was picked.
+  - **FIR** – fairway hit off the tee on a par 4 or 5 (✓ / ⊘); a dash on par 3s. Same rule as the Fairways number.
+  - **Drive dist** – how far the tee shot went on a par 4 or 5 (tee distance minus the distance left), in yards. Blank on par 3s and when the tee shot was OB or a penalty.
+  - **1st putt** – how far away your first putt was, in feet.
+  - **Last putt** – how long the putt you holed was, in feet (on a one-putt it's the same as the 1st putt; blank if the ball was chipped in).
+  - **Up & down** – you missed the green in regulation and then had a short-game shot (off the green, 20 yd or less): ✓ if you holed out in 2 strokes or fewer from there, ⊘ if not. Blank when there was no chance (green hit in regulation, or no shot from 20 yd or less).
+  - **Sandies** – the same, when that short-game shot was from a greenside bunker.
+  - **Recovery** – a shot (not the last one) finished in trouble: in the trees, in a hazard / penalty area, OB or with a penalty. ✓ if you still made par or better, ⊘ if not. Blank when nothing went into trouble.
+- **OUT / IN / TOT columns**: par, length, score, putts and strokes gained are added up (finished holes only). GIR, FIR, Up & down, Sandies and Recovery show "made / chances", e.g. GIR 7/18, FIR 8/14. Drive dist, 1st putt and Last putt show the average. Club is left blank.
+- Cache `golf-sg-v103`.

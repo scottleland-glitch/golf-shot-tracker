@@ -1595,34 +1595,97 @@
     return '';
   }
 
-  // Traditional scorecard: Front 9 (OUT) and Back 9 (IN) as two stacked tables, then TOTAL.
+  // v103 Scorecard: ONE card that scrolls sideways (holes 1-18, then OUT / IN / TOT), sticky row labels on the left.
   // Marks: birdie = circle, eagle or better = double circle, bogey = square, double bogey or worse = double square, par = plain.
   function scoreMark(score, par) {
     var d = score - par; return d <= -2 ? 'eagle' : d === -1 ? 'birdie' : d === 0 ? 'par' : d === 1 ? 'bogey' : 'double';
   }
-  function scorecardHTML(r, S) {
-    var sum = function (a) { return a.reduce(function (t, x) { return t + x; }, 0); };
-    var nine = function (from, to, tag, id) {
-      var idx = []; for (var i = from; i < to && i < r.holes.length; i++) idx.push(i);
-      if (!idx.length) return '';
-      var yds = idx.map(function (i) { return SG.holeYards(r.holes[i]) || 0; }), pars = idx.map(function (i) { return Number(r.holes[i].par) || 0; });
-      var done = idx.filter(function (i) { return S.holes[i].done; });
-      var cell = function (i, inner, cls) { return '<td class="' + (cls || '') + '"><button class="hc" data-act="goHole" data-i="' + i + '" aria-label="Hole ' + (i + 1) + '">' + inner + '</button></td>'; };
-      var row = function (lbl, cls, cells, tot) { return '<tr class="' + cls + '"><th scope="row">' + lbl + '</th>' + cells + '<td class="tot">' + tot + '</td></tr>'; };
-      var t = '<table class="scard" id="' + id + '"><caption>' + (tag === 'OUT' ? 'Front 9' : 'Back 9') + '</caption>';
-      t += row('Hole', 'shole', idx.map(function (i) { return cell(i, i + 1); }).join(''), tag);
-      t += row('Yds', 'syds', idx.map(function (i, k) { return cell(i, yds[k] || ''); }).join(''), sum(yds) || '');
-      t += row('Par', 'spar', idx.map(function (i, k) { return cell(i, pars[k]); }).join(''), sum(pars));
-      t += row('Score', 'sscore', idx.map(function (i) {
-        var a = S.holes[i]; if (!a.done) return cell(i, '', 'blank');
-        var m = scoreMark(a.strokes, Number(r.holes[i].par));
-        return cell(i, '<span class="mk mk-' + m + '" data-mark="' + m + '">' + a.strokes + '</span>', 'done');
-      }).join(''), done.length ? sum(done.map(function (i) { return S.holes[i].strokes; })) : '');
-      t += row('Putts', 'sputts', idx.map(function (i) { var a = S.holes[i]; return cell(i, a.done ? a.putts : '', a.done ? '' : 'blank'); }).join(''),
-        done.length ? sum(done.map(function (i) { return S.holes[i].putts; })) : '');
-      return t + '</table>';
+  var SC_YES = '<svg class="scic yes" viewBox="0 0 16 16" aria-label="yes"><circle cx="8" cy="8" r="6.6"/><path d="M5 8.3l2 2 4-4.3"/></svg>';
+  var SC_NO = '<svg class="scic no" viewBox="0 0 16 16" aria-label="no"><circle cx="8" cy="8" r="6.6"/><path d="M3.4 12.6l9.2-9.2"/></svg>';
+  // Club on the tee, short: Driver -> DR, 7i -> 7I, 3W, PW, 56 ...
+  function scClub(c) { c = String(c || '').trim(); if (!c) return ''; return /^driver$/i.test(c) ? 'DR' : c.toUpperCase().slice(0, 4); }
+  function scFt(v) { return v == null ? '' : String(Math.round(v * 10) / 10); }
+  // Everything the scorecard shows for one finished hole (null = not finished yet -> blank column).
+  function scHole(h, a) {
+    if (!a || !a.done) return null;
+    var par = Number(h.par) || 0, sh = a.shots, cat = { tee: null, approach: null, short: null, putting: null };
+    sh.forEach(function (x) { cat[x.cat] = (cat[x.cat] || 0) + x.sg; });
+    var putts = sh.filter(function (x) { return x.start.lie === 'green'; }), t0 = sh[0];
+    var lastP = putts.length && putts[putts.length - 1].end.lie === 'holed' ? putts[putts.length - 1] : null;
+    // up and down: missed the green in regulation, then a short-game shot (off the green, within 20 yd) – made if holed in 2 or fewer from there
+    var k = -1; if (!a.gir) for (var j = 0; j < sh.length; j++) if (sh[j].cat === 'short') { k = j; break; }
+    var ud = null, sandy = null;
+    if (k >= 0) {
+      var left = sh.slice(k).reduce(function (t, x) { return t + 1 + x.penStrokes; }, 0);
+      ud = left <= 2; if (sh[k].start.lie === 'sand') sandy = ud;
+    }
+    // recovery: a shot (not the last) finished in trouble – trees, a hazard / penalty area, a penalty or OB – made if you still scored par or better
+    var trouble = sh.some(function (x, i) { return i < sh.length - 1 && (x.penStrokes > 0 || x.ob || x.end.lie === 'recovery' || x.end.lie === 'hazard'); });
+    return {
+      strokes: a.strokes, mark: scoreMark(a.strokes, par), sg: a.sg, cat: cat, putts: a.putts, gir: a.gir,
+      club: t0 ? scClub(t0.club) : '', fir: par >= 4 ? a.fairway : null,
+      drive: par >= 4 && t0 && !t0.ob && !t0.penStrokes && t0.hit != null && t0.hit > 0 ? t0.hit : null,
+      p1: putts.length ? putts[0].start.dist : null, pl: lastP ? lastP.start.dist : null,
+      ud: ud, sandy: sandy, rec: trouble ? a.strokes <= par : null
     };
-    return '<div class="label">Scorecard – tap a hole to edit</div>' + nine(0, 9, 'OUT', 'card-front') + nine(9, 18, 'IN', 'card-back') +
+  }
+  function scorecardHTML(r, S) {
+    var n = r.holes.length, idx = r.holes.map(function (h, i) { return i; });
+    var H = idx.map(function (i) { return scHole(r.holes[i], S.holes[i]); });
+    var groups = [['OUT', 'out', idx.filter(function (i) { return i < 9; })]];
+    if (n > 9) groups.push(['IN', 'in', idx.filter(function (i) { return i >= 9; })]);
+    groups.push(['TOT', 'tot', idx]);
+    var sum = function (a) { return a.reduce(function (t, x) { return t + x; }, 0); };
+    var tint = function (v, big) {
+      if (v == null || Math.abs(v) < 0.005) return '';
+      var al = (0.1 + 0.45 * Math.min(Math.abs(v) / (big ? 4 : 1.5), 1)).toFixed(2);
+      return ' style="background:rgba(' + (v > 0 ? '52,160,90,' : '214,80,70,') + al + ')"';
+    };
+    var yn = function (v) { return v === true ? SC_YES : v === false ? SC_NO : ''; };
+    var frac = function (L, f) { var k = L.filter(function (x) { return f(x) != null; }); return k.length ? k.filter(function (x) { return f(x); }).length + '/' + k.length : ''; };
+    var avg = function (L, f) { var v = L.map(f).filter(function (x) { return x != null; }); return v.length ? String(Math.round(sum(v) / v.length * 10) / 10) : ''; };
+    var cell = function (i, inner, cls, attr) { return '<td class="' + (cls || '') + '"' + (attr || '') + '><button class="hc" data-act="goHole" data-i="' + i + '" aria-label="Hole ' + (i + 1) + '">' + inner + '</button></td>'; };
+    // per row: label, class, f(i, hole data) -> [inner, cls, attr], total(list of finished hole data, hole indexes) -> [inner, attr]
+    var rows = [], G = function (g) { rows.push({ g: g }); }, R = function (lbl, cls, f, t) { rows.push({ lbl: lbl, cls: cls, f: f, t: t }); };
+    G('score');
+    R('Hole', 'shole', function (i) { return [i + 1]; }, function (L, I, g) { return [g[0]]; });
+    R('Par', 'spar', function (i) { return [Number(r.holes[i].par) || '']; }, function (L, I) { return [sum(I.map(function (i) { return Number(r.holes[i].par) || 0; }))]; });
+    R('Length', 'syds', function (i) { return [SG.holeYards(r.holes[i]) || '']; }, function (L, I) { return [sum(I.map(function (i) { return SG.holeYards(r.holes[i]) || 0; })) || '']; });
+    R('Score', 'sscore', function (i, d) { return d ? ['<span class="mk mk-' + d.mark + '" data-mark="' + d.mark + '">' + d.strokes + '</span>', 'done'] : ['', 'blank']; },
+      function (L) { return [L.length ? sum(L.map(function (d) { return d.strokes; })) : '']; });
+    G('sg');
+    var sgRow = function (lbl, cls, get) {
+      R(lbl, 'ssg ' + cls, function (i, d) { var v = d ? get(d) : null; return v == null ? [''] : [fmtSG(v), '', tint(v)]; },
+        function (L) { var v = L.map(get).filter(function (x) { return x != null; }); if (!v.length) return ['']; var s = sum(v); return [fmtSG(s), tint(s, true)]; });
+    };
+    sgRow('Tot', 'sgtot', function (d) { return d.sg; }); sgRow('OTT', 'sgott', function (d) { return d.cat.tee; });
+    sgRow('APP', 'sgapp', function (d) { return d.cat.approach; }); sgRow('ARG', 'sgarg', function (d) { return d.cat.short; });
+    sgRow('Putt', 'sgputt', function (d) { return d.cat.putting; });
+    G('stats');
+    R('Putts', 'sputts', function (i, d) { return [d ? d.putts : '']; }, function (L) { return [L.length ? sum(L.map(function (d) { return d.putts; })) : '']; });
+    R('GIR', 'sgir', function (i, d) { return [d ? yn(d.gir) : '']; }, function (L) { return [frac(L, function (d) { return d.gir; })]; });
+    R('Club', 'sclub', function (i, d) { return [d ? esc(d.club) : '']; }, function () { return ['']; });
+    R('FIR', 'sfir', function (i, d) { return [d ? (d.fir == null ? '<span class="scdash">–</span>' : yn(d.fir)) : '']; }, function (L) { return [frac(L, function (d) { return d.fir; })]; });
+    R('Drive dist', 'sdrive', function (i, d) { return [d && d.drive != null ? d.drive : '']; }, function (L) { var v = avg(L, function (d) { return d.drive; }); return [v === '' ? '' : Math.round(+v)]; });
+    R('1st putt', 'sp1', function (i, d) { return [d ? scFt(d.p1) : '']; }, function (L) { return [avg(L, function (d) { return d.p1; })]; });
+    R('Last putt', 'spl', function (i, d) { return [d ? scFt(d.pl) : '']; }, function (L) { return [avg(L, function (d) { return d.pl; })]; });
+    R('Up & down', 'sud', function (i, d) { return [d ? yn(d.ud) : '']; }, function (L) { return [frac(L, function (d) { return d.ud; })]; });
+    R('Sandies', 'ssand', function (i, d) { return [d ? yn(d.sandy) : '']; }, function (L) { return [frac(L, function (d) { return d.sandy; })]; });
+    R('Recovery', 'srec', function (i, d) { return [d ? yn(d.rec) : '']; }, function (L) { return [frac(L, function (d) { return d.rec; })]; });
+    var t = '<table class="scard sc1" id="scorecard"><tbody>', gname = '';
+    rows.forEach(function (row) {
+      if (row.g) { if (gname) t += '<tr class="scgap" aria-hidden="true"><th></th><td colspan="' + (n + groups.length) + '"></td></tr>'; gname = row.g; return; }
+      t += '<tr class="' + row.cls + ' g-' + gname + '"><th scope="row">' + row.lbl + '</th>';
+      idx.forEach(function (i) { var c = row.f(i, H[i]); t += cell(i, c[0] == null ? '' : c[0], (c[1] || '') + (i === 8 || i === n - 1 ? ' g9' : ''), c[2]); });
+      groups.forEach(function (g) {
+        var L = g[2].map(function (i) { return H[i]; }).filter(Boolean), c = row.t(L, g[2], g);
+        t += '<td class="sum ' + g[1] + '"' + (c[1] || '') + '>' + (c[0] == null ? '' : c[0]) + '</td>';
+      });
+      t += '</tr>';
+    });
+    t += '</tbody></table>';
+    return '<div class="label sclabel">Scorecard <span>· tap a hole to edit · swipe for more</span></div>' +
+      '<div class="sc1card" id="sccard"><div class="scscroll" id="scscroll">' + t + '</div></div>' +
       '<div class="legend sclegend" id="card-legend"><span><span class="mk mk-eagle"></span>Eagle or better</span><span><span class="mk mk-birdie"></span>Birdie</span><span><span class="mk mk-par lgpar">–</span>Par (no mark)</span>' +
       '<span><span class="mk mk-bogey"></span>Bogey</span><span><span class="mk mk-double"></span>Double bogey or worse</span></div>';
   }

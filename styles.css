@@ -236,30 +236,11 @@ body.noscroll { overflow: hidden; }
 .warnmsg { margin: 8px 0; padding: 10px 12px; border: 1px solid #e0102a; border-radius: 16px; background: #ffe1e4; color: #9b0016; font-weight: 900; font-size: 16px; }
 .legend .sw { display: inline-block; width: 22px; height: 14px; border-radius: 3px; flex: none; }
 /* v15 traditional scorecard: Front 9 / Back 9 tables (OUT / IN), TOTAL, score marks */
-.scard { width: 100%; table-layout: fixed; border-collapse: collapse; margin: 6px 0 12px; border: 1px solid var(--line); font-variant-numeric: tabular-nums; }
-.scard caption { text-align: left; font-weight: 900; font-size: 17px; padding: 2px 0 4px; }
-.scard th, .scard td { border: 1px solid #000; padding: 0; text-align: center; vertical-align: middle; }
-.scard th[scope="row"] { width: 50px; font-size: 13px; font-weight: 900; text-align: left; padding-left: 4px; background: #f2f2f2; }
-.scard td.tot { width: 44px; font-weight: 900; font-size: 15px; background: #f2f2f2; }
-.scard tr.shole td, .scard tr.shole th { background: #000; color: #fff; }
-.scard tr.shole td.tot { background: #000; color: #fff; }
-.scard .hc { display: flex; align-items: center; justify-content: center; width: 100%; min-height: 32px; height: 100%; padding: 0; border: 0; border-radius: 0; background: transparent; font-size: 14px; font-weight: 800; color: inherit; }
-.scard tr.shole .hc { font-size: 16px; font-weight: 900; }
-.scard tr.syds .hc { font-size: 11px; font-weight: 700; color: #333; min-height: 28px; }
-.scard tr.syds td.tot { font-size: 12px; }
-.scard tr.spar .hc { font-size: 16px; }
-.scard tr.sscore .hc { min-height: 46px; }
-.scard tr.sscore td.tot { font-size: 20px; }
-.scard tr.sputts .hc { font-size: 14px; color: #1e3f99; }
-.scard td.cur { box-shadow: inset 0 0 0 3px #ffd23f; }
 .mk { display: inline-flex; align-items: center; justify-content: center; width: 26px; height: 26px; font-size: 18px; font-weight: 900; line-height: 1; box-sizing: border-box; }
 .mk-birdie { border: 2px solid #000; border-radius: 50%; }
 .mk-eagle { border: 2px solid #000; border-radius: 50%; box-shadow: inset 0 0 0 2px #fff, inset 0 0 0 4px #000; width: 28px; height: 28px; font-size: 15px; }
 .mk-bogey { border: 2px solid #000; border-radius: 2px; }
 .mk-double { border: 2px solid #000; border-radius: 2px; box-shadow: inset 0 0 0 2px #fff, inset 0 0 0 4px #000; width: 28px; height: 28px; font-size: 15px; }
-.scard.stotal th { background: #000; color: #fff; font-size: 13px; padding: 6px 2px; }
-.scard.stotal td { font-size: 15px; font-weight: 800; padding: 8px 2px; }
-.scard.stotal td.big { font-size: 24px; font-weight: 900; }
 .sclegend { display: flex; flex-wrap: wrap; gap: 6px 14px; margin: 0 0 12px; font-size: 15px; }
 .sclegend > span { display: inline-flex; align-items: center; gap: 6px; }
 /* v15 History, backup / restore */
@@ -318,9 +299,7 @@ th, td { border-bottom-color: #e6ebe7; }
 .holecard { padding: 12px 10px 14px; margin: 14px 0; }
 .stat { padding: 10px 12px; }
 .c-d input, .srow select, .srow .dirbtn { border-color: #9faba1; }
-.scard th, .scard td { border-color: #d7ddd8; }
 .mapview svg { border: none; box-shadow: var(--shadow); }
-.scard .sputts td, .scard .sputts .hc { color: #555; }
 .infobtn { min-height: 44px; min-width: 44px; padding: 0; border: none; box-shadow: none; background: transparent; display: inline-flex; align-items: center; justify-content: center; vertical-align: middle; }
 .infobtn span { display: inline-flex; width: 26px; height: 26px; border-radius: 50%; border: 1px solid #9faba1; color: #345; font: italic 700 15px/24px Georgia, serif; justify-content: center; background: #f6f8f6; }
 .infobtn[aria-expanded="true"] span { background: #345; color: #fff; }
@@ -1141,3 +1120,48 @@ table.gapt tbody tr:last-child td { border-bottom: 0; }
 .bagpage .bagseg { display: flex; gap: 4px; padding: 4px; margin: 0 0 12px; border-radius: 999px; background: rgba(255, 255, 255, .5); border: 1px solid rgba(23, 48, 31, .1); }
 .bagpage .bagseg button { flex: 1; min-height: 42px; margin: 0; border: 0; border-radius: 999px; background: none; box-shadow: none; font-size: 16px; font-weight: 500; color: var(--frost-ink-soft, #3f5a48); transform: none; }
 .bagpage .bagseg button.on { background: #fff; color: var(--frost-ink, #17301f); font-weight: 600; box-shadow: 0 1px 5px rgba(23, 48, 31, .12); }
+/* ---------- v103 Scorecard: one soft card that scrolls sideways ---------- */
+.sclabel span { font-weight: 400; color: var(--frost-ink-soft, #3f5a48); text-transform: none; letter-spacing: 0; }
+.sc1card { margin: 6px 0 8px; border-radius: 18px; background: rgba(255, 255, 255, .9); border: 1px solid rgba(23, 48, 31, .08);
+  box-shadow: 0 4px 16px rgba(20, 45, 30, .08); overflow: hidden; }
+.sc1card .scscroll { overflow-x: auto; overflow-y: hidden; -webkit-overflow-scrolling: touch; overscroll-behavior-x: contain; scrollbar-width: none; }
+.sc1card .scscroll::-webkit-scrollbar { display: none; }
+.scard.sc1 { overflow: visible; width: auto; table-layout: auto; border-collapse: separate; border-spacing: 0; margin: 0; border: 0; font-size: 12.5px; font-weight: 400;
+  color: var(--frost-ink, #17301f); font-variant-numeric: tabular-nums; }
+.scard.sc1 th, .scard.sc1 td { margin: 0; border-radius: 0; border: 0; border-bottom: 1px solid rgba(23, 48, 31, .06); padding: 0; height: 31px; text-align: center; vertical-align: middle; white-space: nowrap; background: transparent; }
+.scard.sc1 tr:last-child > * { border-bottom: 0; }
+.scard.sc1 th[scope="row"] { position: sticky; left: 0; z-index: 2; width: auto; min-width: 70px; padding: 0 8px 0 12px; text-align: left; background: #fafbfa;
+  font-size: 10.5px; font-weight: 500; letter-spacing: .04em; text-transform: uppercase; color: #5d7266; box-shadow: 1px 0 0 rgba(23, 48, 31, .08); }
+.scard.sc1 td { min-width: 34px; }
+.scard.sc1 td.g9 { box-shadow: inset -1px 0 0 rgba(23, 48, 31, .07); }
+.scard.sc1 td.sum { min-width: 40px; padding: 0 4px; background: rgba(23, 48, 31, .035); font-weight: 400; font-size: 12px; }
+.scard.sc1 td.sum.tot { padding-right: 10px; font-weight: 500; }
+.scard.sc1 .hc { display: flex; align-items: center; justify-content: center; width: 100%; height: 30px; min-height: 0; min-width: 0; margin: 0; padding: 0 3px;
+  border: 0; border-radius: 0; background: transparent !important; box-shadow: none; font: inherit; color: inherit; }
+.scard.sc1 .hc:active { transform: none; background: rgba(47, 107, 63, .08) !important; }
+/* row groups: score · strokes gained · stats, split by a soft line and a little air */
+.scard.sc1 tr.scgap > * { height: 6px; padding: 0; background: rgba(23, 48, 31, .025); border-bottom: 1px solid rgba(23, 48, 31, .09); }
+.scard.sc1 tr.scgap > th { position: sticky; left: 0; z-index: 2; background: #f6f8f6; }
+.scard.sc1 tr.shole > * { background: #f1f5f2; }
+.scard.sc1 tr.shole th[scope="row"] { background: #f1f5f2; }
+.scard.sc1 tr.shole .hc, .scard.sc1 tr.shole td.sum { font-weight: 500; color: var(--frost-ink, #17301f); }
+.scard.sc1 tr.spar, .scard.sc1 tr.syds { color: #4d6357; }
+.scard.sc1 tr.syds { font-size: 11px; }
+.scard.sc1 tr.sputts .hc, .scard.sc1 .sputts td { color: inherit; }
+.scard.sc1 tr.ssg td { font-size: 11px; }
+.scard.sc1 tr.ssg td .hc { padding: 0 2px; }
+.scard.sc1 tr.sclub td { font-size: 11px; color: #4d6357; }
+.scard.sc1 tr.sp1 td, .scard.sc1 tr.spl td, .scard.sc1 tr.sdrive td { font-size: 11.5px; }
+.scard.sc1 .scdash { color: #a5b2aa; }
+.scard.sc1 .scic { width: 15px; height: 15px; fill: none; stroke-width: 1.4; stroke-linecap: round; stroke-linejoin: round; }
+.scard.sc1 .scic.yes { stroke: #2f8a4f; } .scard.sc1 .scic.yes circle { fill: rgba(47, 138, 79, .1); }
+.scard.sc1 .scic.no { stroke: #c4655c; } .scard.sc1 .scic.no circle { fill: rgba(196, 101, 92, .08); }
+/* soft, thin score shapes */
+.scard.sc1 .mk, .sclegend .mk { width: 23px; height: 23px; font-size: 12.5px; font-weight: 400; border-width: 1px; border-color: currentColor; }
+.scard.sc1 .mk-birdie { border-color: #3a8a57; background: rgba(58, 138, 87, .1); color: #22603a; }
+.scard.sc1 .mk-eagle { border-color: #3a8a57; background: rgba(58, 138, 87, .16); color: #22603a; box-shadow: inset 0 0 0 1.5px #fff, inset 0 0 0 2.5px #3a8a57; }
+.scard.sc1 .mk-bogey { border-color: #c79a3a; background: rgba(214, 170, 70, .12); color: #7a5512; border-radius: 4px; }
+.scard.sc1 .mk-double { border-color: #c4655c; background: rgba(196, 101, 92, .1); color: #8a3a33; border-radius: 4px; box-shadow: inset 0 0 0 1.5px #fff, inset 0 0 0 2.5px #c4655c; }
+.sclegend .mk-birdie, .sclegend .mk-eagle { border-color: #3a8a57; } .sclegend .mk-bogey { border-color: #c79a3a; border-radius: 4px; }
+.sclegend .mk-eagle { box-shadow: inset 0 0 0 1.5px #fff, inset 0 0 0 2.5px #3a8a57; }
+.sclegend .mk-double { border-color: #c4655c; border-radius: 4px; box-shadow: inset 0 0 0 1.5px #fff, inset 0 0 0 2.5px #c4655c; }
