@@ -93,7 +93,8 @@ const Y = (b) => Array.from({ length: 18 }, (_, i) => b + i * 7), P = [4, 4, 3, 
   await page.fill('[data-cf="tee"]', 'Forward'); await page.click('[data-act="cardsave"]'); await page.waitForSelector('#ntees');
   assert.deepStrictEqual((await store()).find(c => c.id === 'a').tees.map(t => t.name), ['Main tees', 'Red', 'Forward']);
   // Rename via ✎: rename Main tees → White
-  await page.click('#ntees [data-v="Main tees"]'); await page.click('[data-act="nedit"]'); await page.waitForSelector('.revgrid'); assert.strictEqual(await page.$eval('[data-cf="tee"]', e => e.value), 'Main tees');
+  assert.ok(await page.$('#nteefold'), 'v114: after a save the tee list is folded to the chosen tee'); await page.click('#nteefold'); await page.waitForSelector('#ntees [data-v="Main tees"]');
+  await page.click('#ntees [data-v="Main tees"]'); assert.ok(await page.$('#nteefold'), 'picking folds it again'); await page.click('[data-act="nedit"]'); await page.waitForSelector('.revgrid'); assert.strictEqual(await page.$eval('[data-cf="tee"]', e => e.value), 'Main tees');
   await page.click('#teequick [data-v="White"]'); await page.click('[data-act="cardsave"]'); await page.waitForSelector('#ntees');
   assert.deepStrictEqual((await store()).find(c => c.id === 'a').tees.map(t => t.name), ['White', 'Red', 'Forward']); assert.match(await page.textContent('#ntees .sel'), /^White/);
   // back out of the editor: the sheet keeps the course chosen
@@ -167,6 +168,6 @@ const Y = (b) => Array.from({ length: 18 }, (_, i) => b + i * 7), P = [4, 4, 3, 
   await seed({ 'golfsg.rounds.v1': [Object.assign({}, R1, { player: undefined })] }); await page.reload(); await page.waitForSelector('#home');
   assert.strictEqual(await page.$('#namesheet'), null); assert.strictEqual(await page.$('#playerrow'), null); await openNew(); assert.match(await page.textContent('#nplayer'), /Add golfer’s name/);
   const w = await page.evaluate(() => document.documentElement.scrollWidth); assert.ok(w <= 393, 'no sideways scroll ' + w);
-  const SWV = require('fs').readFileSync(__dirname + '/../sw.js', 'utf8').match(/golf-sg-v\d+/)[0]; assert.strictEqual(SWV, 'golf-sg-v113');
+  const SWV = require('fs').readFileSync(__dirname + '/../sw.js', 'utf8').match(/golf-sg-v\d+/)[0]; assert.strictEqual(SWV, 'golf-sg-v114');
   assert.deepStrictEqual(errors, []); console.log('COURSE / TEE / PLAYER OK'); await b.close(); srv.kill();
 })().catch(e => { console.error(e); process.exit(1); });

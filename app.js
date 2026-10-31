@@ -1233,6 +1233,10 @@
   function teeLabel(t, k) { return String(t.name || '').trim() || 'Tee box ' + (k + 1); }
   function teeTot(t) { var n = COURSES.teeTotal(t); return n ? n.toLocaleString('en-US') : ''; }
   // New round: Course dropdown (+ Add new course first, then saved courses, most recently used first) → tee box chips
+  function rememberedTee(c) { // v114: the tee from the last round played at this course, if it still exists
+    var best = null; (rounds || []).forEach(function (r) { if (r && r.courseId === c.id && r.tee && (!best || String(r.date || '') > String(best.date || ''))) best = r; });
+    return best && (c.tees || []).some(function (t) { return t.name === best.tee; }) ? best.tee : '';
+  }
   function newCourseHTML() {
     var list = COURSES.byRecent(courses(), rounds), nc = view.newC && courseById(view.newC.id), adding = !nc && (view.newAdd || !list.length), h = '';
     if (view.near) return h + nearHTML(); // v113: Courses near me panel in place of the course picker
@@ -1247,10 +1251,18 @@
     }
     if (nc) {
       var tees = nc.tees || [];
-      h += '<span class="lbl" id="teelbl">' + (tees.length > 1 ? 'Tee box' : 'Playing from') + '</span><div class="ntees" id="ntees" role="group" aria-labelledby="teelbl">' + tees.map(function (t) {
+      var cur = null, fold = false;
+      tees.forEach(function (t) { if (view.newC.tee === t.name) cur = t; });
+      if (tees.length === 1) cur = tees[0];
+      fold = !!cur && tees.length > 1 && !!view.newC.fold; // v114: a picked (or remembered) tee folds the list to one row
+      var teeSm = function (t) { var yd = teeTot(t) || (t.total ? Number(t.total).toLocaleString('en-US') : ''), rt = NEAR.rtText(t); return (yd ? yd + ' yd' : '') + (yd && rt ? ' · ' : '') + rt; }; // v113: rating / slope when known
+      var teeIn = function (t) { var sm = teeSm(t); return teeDot(t.name) + '<span class="tname">' + esc(t.name) + '</span>' + (sm ? '<small>' + sm + '</small>' : ''); };
+      h += '<span class="lbl" id="teelbl">' + (tees.length > 1 ? 'Tee box' : 'Playing from') + '</span>';
+      if (fold) h += '<div class="ntees folded" id="ntees" role="group" aria-labelledby="teelbl"><button type="button" class="ntee sel nteefold" id="nteefold" aria-expanded="false" aria-label="' + esc(cur.name) + ' – tap to change tee" data-act="nteeopen">' + teeIn(cur) + '<i class="ncaret" aria-hidden="true">▾</i></button></div>' +
+        '<button type="button" class="txtlink naddtee nlink" data-act="naddtee">＋ Add tee box</button>';
+      else h += '<div class="ntees" id="ntees" role="group" aria-labelledby="teelbl">' + tees.map(function (t) {
         var on = view.newC.tee === t.name || (tees.length === 1);
-        var yd = teeTot(t) || (t.total ? Number(t.total).toLocaleString('en-US') : ''), rt = NEAR.rtText(t), sm = (yd ? yd + ' yd' : '') + (yd && rt ? ' · ' : '') + rt; // v113: rating / slope when known
-        return '<button type="button" class="ntee' + (on ? ' sel' : '') + '" aria-pressed="' + on + '" data-act="ntee" data-v="' + esc(t.name) + '">' + teeDot(t.name) + '<span class="tname">' + esc(t.name) + '</span>' + (sm ? '<small>' + sm + '</small>' : '') + '</button>'; }).join('') +
+        return '<button type="button" class="ntee' + (on ? ' sel' : '') + '" aria-pressed="' + on + '" data-act="ntee" data-v="' + esc(t.name) + '">' + teeIn(t) + '</button>'; }).join('') +
         '<button type="button" class="ntee naddtee" data-act="naddtee">＋ Add tee box</button></div>';
       if (nc.src === 'golfcore') { // v113: imported course – blank holes note + credit
         var gp = NEAR.gaps(nc, view.newC.tee || (tees[0] || {}).name);
@@ -1449,7 +1461,7 @@
     var list = courses().filter(function (x) { return x.id !== c.id; }); list.unshift(c); saveCourses(list); backupDirty(3000);
     var tee = (c.tees[selK] || c.tees[0] || {}).name || '';
     toast('Saved ' + c.name); view.card = null;
-    if (C.from === 'new') { if (C.keep) view.newBl = C.keep.newBl; view.newC = { id: c.id, tee: tee }; view.newAdd = false; view.newName = ''; view.screen = 'home'; view.hmenu = 'new'; } else view.screen = 'courses';
+    if (C.from === 'new') { if (C.keep) view.newBl = C.keep.newBl; view.newC = { id: c.id, tee: tee, fold: !!tee }; view.newAdd = false; view.newName = ''; view.screen = 'home'; view.hmenu = 'new'; } else view.screen = 'courses';
     render(); window.scrollTo(0, 0);
   }
   function coursesHTML() {
@@ -3546,8 +3558,9 @@
       case 'bag': view.hmenu = null; view.screen = 'bag'; view.bagAdd = null; view.bagEdit = null; view.bagCondOpen = false; render(); window.scrollTo(0, 0); return;
       case 'bagact': bagAct(v, b); return;
       case 'ncourse': { var cc = courseById(b.getAttribute('data-id')); view.crsOpen = false;
-        if (cc && !(view.newC && view.newC.id === cc.id)) { view.newC = { id: cc.id, tee: (cc.tees[0] || {}).name || '' }; view.newAdd = false; } render(); return; }
-      case 'ntee': if (view.newC) view.newC.tee = v; render(); return;
+        if (cc && !(view.newC && view.newC.id === cc.id)) { var rt0 = rememberedTee(cc); view.newC = { id: cc.id, tee: rt0 || (cc.tees[0] || {}).name || '', fold: !!rt0 }; view.newAdd = false; } render(); return; }
+      case 'ntee': if (view.newC) { view.newC.tee = v; view.newC.fold = true; } render(); return; // v114: picking folds the list
+      case 'nteeopen': if (view.newC) view.newC.fold = false; render(); return;
       case 'crsadd': cardOpen('archive'); return;
       case 'cardmanual': cardOpen('new', COURSES.blankCourse(String(view.newName || '').trim())); return;
       case 'cardback': cardBack(); return;

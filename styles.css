@@ -1334,3 +1334,21 @@ tbody td, .mapsum, .mapsum small, .infocap, .bzlegend, .odstat, .bcbase > span, 
 .tdot-none { background: #fff; border-color: #9aa0a6; }
 .home .ntee.sel .tdot { border-color: rgba(255, 255, 255, .75); }
 .cardpage .revtees .frostchip .tdot { margin-right: 5px; }
+
+/* ---------- v114: tee list folds to the chosen tee; even, left-aligned one-line tee rows; roomier "Compare my shots against" ---------- */
+.home .hsheet > * { flex-shrink: 0; } /* a long sheet scrolls instead of squashing its rows (the squashed select on iPhone) */
+.home .ntees { flex-direction: column; flex-wrap: nowrap; gap: 4px; padding: 2px 0; }
+.home .ntee { display: flex; flex-direction: row; align-items: center; justify-content: flex-start; text-align: left; white-space: nowrap; gap: 7px;
+  width: 100%; max-width: 100%; box-sizing: border-box; min-height: 34px; padding: 5px 10px; overflow: hidden; }
+.home .ntee .tdot { flex: 0 0 auto; }
+.home .ntee .tname { flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.home .ntee small { flex: 0 0 auto; margin-left: auto; padding-left: 6px; }
+.home .ntee.naddtee { justify-content: flex-start; }
+.home .nteefold .ncaret { flex: 0 0 auto; font-style: normal; font-size: 12px; font-weight: 300; opacity: .85; margin-left: 4px; }
+.home .nteefold small { margin-left: auto; }
+.home .nlink { background: none !important; border: 0 !important; box-shadow: none !important; color: #3b6e9f; font-size: 14px; font-weight: 400; text-align: left; padding: 2px 6px; min-height: 30px; align-self: flex-start; }
+.home .ntees.folded + .nlink + .nmiss, .home .ntees.folded + .nlink + .gccredit { margin-top: 0; }
+.home .hsheet select.blsel { -webkit-appearance: none; appearance: none; box-sizing: border-box; height: 48px; min-height: 48px; line-height: normal; padding: 0 34px 0 14px;
+  font-size: 17px; font-weight: 400; color: #17301f; border: 1px solid rgba(23, 48, 31, .14); border-radius: 12px; background-color: rgba(255, 255, 255, .85);
+  background-image: linear-gradient(45deg, transparent 50%, #47604f 50%), linear-gradient(135deg, #47604f 50%, transparent 50%);
+  background-position: calc(100% - 18px) 21px, calc(100% - 13px) 21px; background-size: 5px 5px; background-repeat: no-repeat; }
