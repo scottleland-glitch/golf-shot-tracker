@@ -1170,7 +1170,21 @@
   function fmtFt(v) { return Math.round(v).toLocaleString('en-US') + ' ft'; }
   function condText(c) { return fmtFt(c.elev) + ' · ' + Math.round(c.temp) + '°F'; }
   // v106: summary under "Adjust for playing conditions" – the baseline, plus the slider values when they differ from it
-  function condSum(b) { return 'Carries entered at ' + condText(b.base) + (BAG.sameCond(b) ? '' : ' · now ' + condText(b.cond)); }
+  // v108: in density altitude mode the "now" part is the density altitude instead of elevation · temperature
+  function condNow(b) { return b.useDA ? fmtFt(b.da) + ' density altitude' : condText(b.cond); }
+  function condSum(b) { return 'Carries entered at ' + condText(b.base) + (BAG.sameCond(b) ? '' : ' · now ' + condNow(b)); }
+  function adjHead(b) { return b.useDA ? 'DA ' + fmtFt(b.da) : condText(b.cond); }
+  // v108: the "?" card next to Use density altitude – plain words, the free app, the easiest way to use it
+  function daHelpHTML() {
+    return '<div class="dahelp-back" id="dahelpback" data-act="bagact" data-v="dahelp"></div><div class="dahelp frostcard" id="dahelp" role="dialog" aria-modal="true" aria-labelledby="dahelph">' +
+      '<p class="dahh" id="dahelph">What is density altitude?</p>' +
+      '<p>It’s how thin the air plays – one number that rolls elevation, temperature, air pressure and humidity together.</p>' +
+      '<p>Higher or hotter means thinner air, so the ball carries farther. Below sea level (a negative number) means thicker air and shorter carries.</p>' +
+      '<p class="daex">For example, Reno at 5,000 ft can read around 8,000 ft, and Sacramento at 800 ft can read around −1,200 ft.</p>' +
+      '<p>The free iPhone app <a href="https://apps.apple.com/us/app/density-altitude/id994402197" target="_blank" rel="noopener" id="daapplink">Density Altitude+ by Rate of Climb</a> shows it for where you are.</p>' +
+      '<p>Easiest way: check “Use density altitude” and type the app’s “Density Altitude” number in the box.</p>' +
+      '<button class="frostbtn dahclose" id="dahclose" data-act="bagact" data-v="dahelp">Close</button></div>';
+  }
   function bagSub(c) { var t = BAG.title(c), l = c.loft != null && c.cat !== 'pt' ? (Math.round(c.loft * 10) / 10) + '°' : ''; return [t, l].filter(Boolean).join(' · ') || BAG.CAT_NAME[c.cat] || 'Club'; }
   function adjHTML(c, b) {
     if (!c.carry || c.cat === 'pt' || BAG.sameCond(b)) return '';
@@ -1197,13 +1211,21 @@
       '<label>Temperature<span><input type="text" inputmode="numeric" id="bagbtemp" maxlength="3" value="' + b.base.temp + '"> °F</span></label><button class="bcsave" data-act="bagact" data-v="basesave">Save</button></div>' +
       '<p class="bchint">Where and when you measured your carries – e.g. Reno is about 4,500–5,000 ft, San Diego is near sea level.</p>';
     if (co) h += '<p class="bchead">Playing somewhere else?</p>' +
+      '<div class="bcdarow"><label class="bcuse bcda"><input type="checkbox" id="bagusda"' + (b.useDA ? ' checked' : '') + '> Use density altitude</label>' +
+      '<button type="button" class="dahbtn" id="dahbtn" data-act="bagact" data-v="dahelp" aria-label="What is density altitude?" aria-expanded="' + !!view.bagDaHelp + '">?</button></div>';
+    if (co && b.useDA) h += '<div class="bcslide" id="bagdaslide"><div class="bclbl"><span>Density altitude</span><span class="datype"><button type="button" class="dasign" id="bagdasign" data-act="bagact" data-v="dasign" aria-label="Switch between above and below sea level">±</button>' +
+      '<input type="text" inputmode="text" pattern="-?[0-9]*" enterkeyhint="done" autocomplete="off" id="bagdatxt" maxlength="6" value="' + Math.round(b.da) + '" aria-label="Density altitude in feet (can be negative)"> ft</span></div>' +
+      '<input type="range" id="bagda" min="' + BAG.DA_MIN + '" max="' + BAG.DA_MAX + '" step="100" value="' + Math.round(b.da) + '" aria-label="Density altitude in feet"><div class="bcends"><span>−3,000 ft</span><span>12,000 ft</span></div>' +
+      '<p class="bcdabase" id="bagdabase">Your baseline air (' + condText(b.base) + ') is about ' + fmtFt(BAG.baseDA(b)) + ' density altitude.</p></div>';
+    if (co && !b.useDA) h += '' +
       '<div class="bcslide"><div class="bclbl"><span>Elevation</span><b id="bagelevv">' + fmtFt(b.cond.elev) + '</b></div><input type="range" id="bagelev" min="0" max="9000" step="100" value="' + b.cond.elev + '" aria-label="Elevation in feet"><div class="bcends"><span>Sea level</span><span>9,000 ft</span></div></div>' +
-      '<div class="bcslide"><div class="bclbl"><span>Temperature</span><b id="bagtempv">' + Math.round(b.cond.temp) + '°F</b></div><input type="range" id="bagtemp" min="30" max="110" step="1" value="' + b.cond.temp + '" aria-label="Temperature in °F"><div class="bcends"><span>30°F</span><span>110°F</span></div></div>' +
-      '<div class="bcrow"><button class="frostchip bcreset" id="bagreset" data-act="bagact" data-v="reset"' + (same ? ' disabled' : '') + '>↺ Back to my baseline</button></div>' +
+      '<div class="bcslide"><div class="bclbl"><span>Temperature</span><b id="bagtempv">' + Math.round(b.cond.temp) + '°F</b></div><input type="range" id="bagtemp" min="30" max="110" step="1" value="' + b.cond.temp + '" aria-label="Temperature in °F"><div class="bcends"><span>30°F</span><span>110°F</span></div></div>';
+    if (co) h += '<div class="bcrow"><button class="frostchip bcreset" id="bagreset" data-act="bagact" data-v="reset"' + (same ? ' disabled' : '') + '>↺ Back to my baseline</button></div>' +
       '<label class="bcuse"><input type="checkbox" id="baguse"' + (b.useCond ? ' checked' : '') + '> Show these carries in the club picker during a round</label>' +
       '<p class="bcnote">Estimates from air density: thinner (higher) or warmer air means less drag and lift, so the ball carries a bit farther. Wind, humidity, ball temperature and firm or soft ground are not included.</p></div></div>';
+    if (co && view.bagDaHelp) h += daHelpHTML();
     h += '<div class="bagsort" role="group" aria-label="Sort clubs"><button class="frostchip' + (b.sort === 'club' ? ' sel' : '') + '" data-act="bagact" data-v="sortclub">By club</button><button class="frostchip' + (b.sort === 'carry' ? ' sel' : '') + '" data-act="bagact" data-v="sortcarry">By carry</button></div>';
-    h += '<div class="frostcard baglist' + (same ? ' same' : '') + '" id="baglist"><div class="bagrow bhead"><span>Club</span><span>Carry</span><span class="badj" id="bagadjh">' + (same ? '' : esc(condText(b.cond))) + '</span></div>';
+    h += '<div class="frostcard baglist' + (same ? ' same' : '') + '" id="baglist"><div class="bagrow bhead"><span>Club</span><span>Carry</span><span class="badj" id="bagadjh">' + (same ? '' : esc(adjHead(b))) + '</span></div>';
     list.forEach(function (c) {
       var ed = view.bagEdit === c.id;
       h += '<div class="bagrow" data-id="' + esc(c.id) + '"><button class="bname" data-act="bagact" data-v="edit" data-id="' + esc(c.id) + '" aria-expanded="' + ed + '"><b>' + esc(c.code) + '</b><small>' + esc(bagSub(c)) + '</small></button>' +
@@ -1315,7 +1337,7 @@
     if ((el = document.getElementById('bagelevv'))) el.textContent = fmtFt(b.cond.elev);
     if ((el = document.getElementById('bagtempv'))) el.textContent = Math.round(b.cond.temp) + '°F';
     if ((el = document.getElementById('baglist'))) el.classList.toggle('same', same);
-    if ((el = document.getElementById('bagadjh'))) el.textContent = same ? '' : condText(b.cond);
+    if ((el = document.getElementById('bagadjh'))) el.textContent = same ? '' : adjHead(b);
     if ((el = document.getElementById('bagreset'))) el.disabled = same;
     if ((el = document.getElementById('bagcondsum'))) el.textContent = condSum(b);
     b.clubs.forEach(function (c) { var s = document.querySelector('.badj[data-adj="' + c.id + '"]'); if (s) s.innerHTML = adjHTML(c, b); });
@@ -1353,22 +1375,29 @@
       case 'edit': view.bagEdit = view.bagEdit === id ? null : id; break;
       case 'remove': if (!c || !confirm('Remove ' + c.code + (BAG.title(c) ? ' (' + BAG.title(c) + ')' : '') + ' from your bag?')) return;
         b.clubs = b.clubs.filter(function (x) { return x.id !== id; }); saveBag(b); view.bagEdit = null; toast(c.code + ' removed'); break;
-      case 'condfold': view.bagCondOpen = !view.bagCondOpen; if (!view.bagCondOpen) view.bagBaseEdit = false; render(); return;
+      case 'condfold': view.bagCondOpen = !view.bagCondOpen; if (!view.bagCondOpen) { view.bagBaseEdit = false; view.bagDaHelp = false; } render(); return;
+      case 'dahelp': view.bagDaHelp = !view.bagDaHelp; render(); if (view.bagDaHelp) focus('dahclose'); else focus('dahbtn'); return;
+      case 'dasign': b.da = Math.max(BAG.DA_MIN, Math.min(BAG.DA_MAX, -Math.round(b.da))); saveBag(b, true); render(); focus('bagdatxt'); return;
       case 'baseedit': view.bagBaseEdit = !view.bagBaseEdit; render(); if (view.bagBaseEdit) focus('bagbelev'); return;
       case 'basesave': {
         var e = +(document.getElementById('bagbelev') || {}).value, t = +(document.getElementById('bagbtemp') || {}).value;
         if (!isFinite(e) || e < -1000 || e > 12000 || String((document.getElementById('bagbelev') || {}).value).trim() === '') { toast('Elevation: 0 to 12,000 ft'); focus('bagbelev'); return; }
         if (!isFinite(t) || t < 20 || t > 120 || String((document.getElementById('bagbtemp') || {}).value).trim() === '') { toast('Temperature: 20 to 120 °F'); focus('bagbtemp'); return; }
-        var wasSame = BAG.sameCond(b); b.base = { elev: Math.round(e), temp: Math.round(t) }; if (wasSame) b.cond = { elev: Math.max(0, Math.min(9000, Math.round(e / 100) * 100)), temp: Math.max(30, Math.min(110, Math.round(t))) };
+        var wasSame = BAG.sameCond(b); if (b.useDA && wasSame) { var nb = { base: { elev: Math.round(e), temp: Math.round(t) } }; b.da = BAG.baseDA(nb); } b.base = { elev: Math.round(e), temp: Math.round(t) }; if (wasSame) b.cond = { elev: Math.max(0, Math.min(9000, Math.round(e / 100) * 100)), temp: Math.max(30, Math.min(110, Math.round(t))) };
         saveBag(b); view.bagBaseEdit = false; toast('Baseline: ' + condText(b.base)); break;
       }
-      case 'reset': b.cond = { elev: b.base.elev, temp: b.base.temp }; saveBag(b, true); break;
+      case 'reset': if (b.useDA) b.da = BAG.baseDA(b); else b.cond = { elev: b.base.elev, temp: b.base.temp }; saveBag(b, true); break; // v108: resets whichever mode is on
     }
     render();
   }
   document.addEventListener('input', function (ev) {
     var t = ev.target; if (!t || !t.getAttribute) return;
     if (t.id === 'bagelev' || t.id === 'bagtemp') { var b = bag(); b.cond[t.id === 'bagelev' ? 'elev' : 'temp'] = +t.value; saveBag(b, true); bagRefresh(); return; }
+    if (t.id === 'bagda') { var bd = bag(); bd.da = +t.value; saveBag(bd, true); var tx = document.getElementById('bagdatxt'); if (tx) tx.value = Math.round(bd.da); bagRefresh(); return; }
+    if (t.id === 'bagdatxt') { // v108: typed density altitude – digits and one leading minus; live while typing when it's in range
+      var cl = String(t.value).replace(/[−–—]/g, '-').replace(/[^0-9-]/g, ''); cl = (cl.charAt(0) === '-' ? '-' : '') + cl.replace(/-/g, '').slice(0, 5); if (cl !== t.value) t.value = cl;
+      var dv = +cl; if (cl === '' || cl === '-' || !isFinite(dv) || dv < BAG.DA_MIN || dv > BAG.DA_MAX) return;
+      var bt = bag(); bt.da = Math.round(dv); saveBag(bt, true); var sl = document.getElementById('bagda'); if (sl) sl.value = bt.da; bagRefresh(); return; }
     if (view.bagAdd) { if (t.id === 'bagmake') view.bagAdd.makeTxt = t.value; else if (t.id === 'bagmodel') view.bagAdd.modelTxt = t.value; else if (t.id === 'bagcloft') view.bagAdd.cloft = t.value.replace(/[^0-9.]/g, '');
       else if (t.id === 'bagcname') { view.bagAdd.cname = t.value; var n = Object.keys(view.bagAdd.sel).filter(function (k) { return view.bagAdd.sel[k]; }).length + (t.value.trim() ? 1 : 0), g = document.getElementById('bagaddgo'); if (g && view.bagAdd.cat !== 'd' && view.bagAdd.cat !== 'pt') { g.disabled = !n; g.textContent = 'Add ' + n + ' club' + (n === 1 ? '' : 's'); } } return; }
     if (t.getAttribute('data-bc') === 'carry') {
@@ -1380,7 +1409,12 @@
   });
   document.addEventListener('change', function (ev) {
     var t = ev.target; if (!t || !t.getAttribute) return;
-    if (t.id === 'baguse') { var b = bag(); b.useCond = t.checked; saveBag(b, true); toast(t.checked ? 'Club picker shows carries for ' + condText(b.cond) : 'Club picker shows club names only'); return; }
+    if (t.id === 'baguse') { var b = bag(); b.useCond = t.checked; saveBag(b, true); toast(t.checked ? 'Club picker shows carries for ' + condNow(b) : 'Club picker shows club names only'); return; }
+    if (t.id === 'bagusda') { var bu = bag(); bu.useDA = t.checked; saveBag(bu, true); render(); return; } // v108: swap the two sliders for one density altitude slider
+    if (t.id === 'bagdatxt') { // v108: on Done / leaving the box – clamp to −3,000 … 12,000 ft (blank or "-" goes back to the saved value)
+      var bx = bag(), raw = String(t.value).replace(/[−–—]/g, '-').trim(), n = +raw;
+      if (raw !== '' && raw !== '-' && isFinite(n)) { bx.da = Math.round(Math.max(BAG.DA_MIN, Math.min(BAG.DA_MAX, n))); if (bx.da !== n) toast('Density altitude: −3,000 to 12,000 ft'); saveBag(bx, true); }
+      t.value = Math.round(bx.da); var s2 = document.getElementById('bagda'); if (s2) s2.value = bx.da; bagRefresh(); return; }
     var f = t.getAttribute('data-bc'); if (!f || f === 'carry') { if (f === 'carry') backupDirty(3000); return; }
     var b2 = bag(), c = b2.clubs.filter(function (x) { return x.id === t.getAttribute('data-id'); })[0]; if (!c) return;
     if (f === 'code') { var v = t.value.trim(), i = BAG.indexOfCode(b2, v); if (!v || (i >= 0 && b2.clubs[i] !== c)) { toast(v ? v + ' is already in your bag' : 'The club needs a name'); t.value = c.code; return; } c.code = v; }

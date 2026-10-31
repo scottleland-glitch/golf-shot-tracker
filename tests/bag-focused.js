@@ -107,6 +107,7 @@ const pct = (a, b) => (a / b - 1) * 100;
     // sliders → San Diego (0 ft, 75°F)
     const slide = (id, v) => page.$eval('#' + id, (e, v) => { e.value = v; e.dispatchEvent(new Event('input', { bubbles: true })); }, v);
     await page.click('#bagcondh'); assert.strictEqual(await page.getAttribute('#bagcondh', 'aria-expanded'), 'true'); await page.waitForSelector('#bagelev');
+    assert.ok(await page.$('#bagusda') && !(await page.isChecked('#bagusda')) && !(await page.$('#bagda')), 'v108: Use density altitude is there, off, and the two sliders show (details in da-focused.js)');
     assert.match(await page.textContent('#bagcond'), /Carries entered at\s*5000 ft · 70°F\s*Change/);
     await slide('bagelev', 0); await slide('bagtemp', 75);
     assert.strictEqual(await page.textContent('#bagcondsum'), 'Carries entered at 5000 ft · 70°F · now 0 ft · 75°F', 'summary follows the sliders live');

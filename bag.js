@@ -44,12 +44,14 @@
 
   // ---------- the bag ----------
   var BASE0 = { elev: 5000, temp: 70 }; // Reno, NV – the conditions the carries were measured in
-  function blank() { return { v: 1, base: { elev: BASE0.elev, temp: BASE0.temp }, cond: { elev: BASE0.elev, temp: BASE0.temp }, useCond: false, sort: 'club', clubs: [] }; }
+  var DA_MIN = -3000, DA_MAX = 12000; // v108: density altitude slider / box range (ft)
+  function blank() { return { v: 1, base: { elev: BASE0.elev, temp: BASE0.temp }, cond: { elev: BASE0.elev, temp: BASE0.temp }, useCond: false, useDA: false, da: baseDA({ base: BASE0 }), sort: 'club', clubs: [] }; }
   function clampN(v, lo, hi, d) { v = Number(v); return isFinite(v) && v !== '' ? Math.max(lo, Math.min(hi, v)) : d; }
   function norm(b) { // tidy whatever is stored (or restored)
     var o = blank(); if (!b || typeof b !== 'object') return o;
     if (b.base) { o.base.elev = clampN(b.base.elev, -1000, 12000, BASE0.elev); o.base.temp = clampN(b.base.temp, 0, 130, BASE0.temp); }
     o.cond = b.cond ? { elev: clampN(b.cond.elev, 0, 9000, o.base.elev), temp: clampN(b.cond.temp, 30, 110, o.base.temp) } : { elev: o.base.elev, temp: o.base.temp };
+    o.useDA = !!b.useDA; o.da = Math.round(clampN(b.da == null || b.da === '' ? NaN : b.da, DA_MIN, DA_MAX, baseDA(o))); // v108
     o.useCond = !!b.useCond; o.sort = b.sort === 'carry' ? 'carry' : 'club'; if (b.updated) o.updated = String(b.updated);
     o.clubs = (Array.isArray(b.clubs) ? b.clubs : []).filter(function (c) { return c && String(c.code || '').trim(); }).map(function (c) {
       var x = { id: String(c.id || newId()), cat: CAT_NAME[c.cat] ? c.cat : 'ot', code: String(c.code).trim().slice(0, 14), make: String(c.make || '').slice(0, 40), model: String(c.model || '').slice(0, 50) };
@@ -142,8 +144,29 @@
     var L = launchFor(loft), r0 = density(+base.elev, +base.temp), r1 = density(+cond.elev, +cond.temp), v = speedFor(carry, L[0], L[1], r0);
     return carry * fly(v, L[0], L[1], r1) / fly(v, L[0], L[1], r0); // ratio form removes the tiny bisection error
   }
-  function clubCarry(c, bag) { var b = bag || blank(); if (!(c && c.carry > 0) || c.cat === 'pt') return null; return adjust(c.carry, loftOf(c), b.base, b.cond); }
-  function sameCond(b) { return +b.base.elev === +b.cond.elev && +b.base.temp === +b.cond.temp; }
+  // ---------- v108: density altitude ----------
+  // Density altitude = the height in the standard (ISA) atmosphere whose air has the same density. ISA: 59°F at sea level,
+  // cooling 1.98°C per 1,000 ft, with the same pressure formula used above – so isaDensity(h) = density(h, ISA temperature at h)
+  // and density altitude ↔ density are exact inverses of each other (sea level ISA = 1.225 kg/m³).
+  function isaTempF(ft) { return 59 - 0.0019812 * ft * 9 / 5; }
+  function isaDensity(ft) { return density(ft, isaTempF(ft)); }
+  function daFromDensity(rho) { // bisection on the (strictly falling) ISA density curve
+    var lo = -10000, hi = 40000; for (var i = 0; i < 60; i++) { var m = (lo + hi) / 2; if (isaDensity(m) > rho) lo = m; else hi = m; } return (lo + hi) / 2; }
+  function daOf(elev, temp) { return daFromDensity(density(+elev, +temp)); } // e.g. 5,000 ft at 70°F ≈ 6,900 ft density altitude
+  function baseDA(b) { var x = (b && b.base) || BASE0; return Math.round(daOf(x.elev, x.temp)); }
+  // Same ball flight as adjust(), given the two air densities directly
+  function adjustRho(carry, loft, r0, r1) {
+    carry = +carry; if (!(carry > 0)) return null; if (r0 === r1) return carry;
+    var L = launchFor(loft), v = speedFor(carry, L[0], L[1], r0);
+    return carry * fly(v, L[0], L[1], r1) / fly(v, L[0], L[1], r0);
+  }
+  // Carry for a club entered at the baseline (elevation + temperature) when the air reads `da` ft density altitude
+  function adjustDA(carry, loft, base, da) { return adjustRho(carry, loft, density(+base.elev, +base.temp), isaDensity(+da)); }
+  function clubCarry(c, bag) { var b = bag || blank(); if (!(c && c.carry > 0) || c.cat === 'pt') return null;
+    if (b.useDA) return sameCond(b) ? c.carry : adjustDA(c.carry, loftOf(c), b.base, b.da);
+    return adjust(c.carry, loftOf(c), b.base, b.cond); }
+  // "Same as baseline": in density altitude mode, the typed / slider value equals the baseline's density altitude
+  function sameCond(b) { if (b.useDA) return Math.round(+b.da) === baseDA(b); return +b.base.elev === +b.cond.elev && +b.base.temp === +b.cond.temp; }
 
   // ---------- restore ----------
   // The phone's bag is kept unless it is empty, or the backup's copy is newer.
@@ -156,6 +179,6 @@
 
   var api = { CATS: CATS, CAT_NAME: CAT_NAME, MAKERS: MAKERS, SLOTS: SLOTS, DRIVER_LOFTS: DRIVER_LOFTS, BASE0: BASE0, makers: makers, models: models, catsFor: catsFor,
     blank: blank, norm: norm, addClubs: addClubs, indexOfCode: indexOfCode, rank: rank, sorted: sorted, title: title, pickerClubs: pickerClubs, matchClub: matchClub,
-    pressure: pressure, density: density, launchFor: launchFor, loftOf: loftOf, fly: fly, adjust: adjust, clubCarry: clubCarry, sameCond: sameCond, mergeBag: mergeBag, newId: newId };
+    pressure: pressure, density: density, DA_MIN: DA_MIN, DA_MAX: DA_MAX, isaTempF: isaTempF, isaDensity: isaDensity, daFromDensity: daFromDensity, daOf: daOf, baseDA: baseDA, adjustRho: adjustRho, adjustDA: adjustDA, launchFor: launchFor, loftOf: loftOf, fly: fly, adjust: adjust, clubCarry: clubCarry, sameCond: sameCond, mergeBag: mergeBag, newId: newId };
   if (typeof module !== 'undefined' && module.exports) module.exports = api; else root.BAG = api;
 })(this);
