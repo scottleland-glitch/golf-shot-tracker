@@ -68,7 +68,8 @@ excluded and counted. This round / All rounds toggle.
 - `tests/profile-wedges-focused.js` – My Bag + Wedge ladder: menu, Bag | Wedge ladder toggle, accordion, persistence, backup (`node tests/profile-wedges-focused.js`)
 - `tests/rounds-tight-focused.js` – Rounds page (v102): tight list, 8+ rows at 390x844, tints, unfinished flag, tap, delete confirm, filter, select mode (`node tests/rounds-tight-focused.js`)
 - `tests/da-focused.js` – My Bag density altitude (v108): ISA conversion, DA at the baseline = no change, higher = longer, −1,200 ft = shorter, sliders and DA agree for the same air; checkbox swaps the controls, typing -1200, clamping, ± button, saved after reload, ? card with the App Store link, no outside network calls (`node tests/da-focused.js`)
-- `tests/version-focused.js` – the version line (e.g. "Pin High v108") on Settings and Home is small and light, and config.js `appVersion` equals the sw.js cache version (`node tests/version-focused.js`)
+- `tests/version-focused.js` – the version line (e.g. "Pin High v109") on Settings and Home is small and light, and config.js `appVersion` equals the sw.js cache version (`node tests/version-focused.js`)
+- `tests/pdf-focused.js` – the PDF report: page list, share / download name, every page has the player · course · date line and "Page x of n"; v109: every table's header and cells come from one column list (number columns right-aligned with the header at the same right edge, text left), no text past the right margin, and the PDF scorecard equals the on-screen scorecard row for row (`node tests/pdf-focused.js`)
 - `tests/lag-putts-focused.js` – 1st putt misses (<10 ft) and Lag putts (>10 ft) use only the 1st putt of each hole (v105, wording v106): 10 ft boundary, 3 ft boundary, tap-ins after a lag putt not counted, This round / All rounds (`node tests/lag-putts-focused.js`)
 - `tests/menu-bag-settings-focused.js` – v102 navigation: Home only +, menu New round · My Bag · Rounds · Settings, Bag | Wedge ladder toggle, Settings page (`node tests/menu-bag-settings-focused.js`)
 - `tests/e2e.js` – Playwright (playwright-core) flow test at iPhone 390x844
@@ -115,6 +116,7 @@ For the planned PDF report, approach tracers can be coloured by the strokes-gain
 
 ## PDF round report (v25)
 On any round's stats page tap **📄 Make PDF report**. Built on the phone, offline (jsPDF 4.2.1 bundled in `vendor/`), letter portrait, 9 pages:
+(v109 layout: 1 round summary + Quick view + Round stats · 2 scorecard (all rows, see below) · 3 strokes gained … then the map pages)
 1 header + score + scorecard + key stats · 2 strokes gained (category, by distance with avg to pin after, every baseline) ·
 3 fairways · 4 GIR · 5 approach misses · 6 pin location (one green, 3x3 grid, badge + mini plots per segment, table; empty segments skipped) ·
 then one proximity page per distance group with shots (`SG.REPORT_GROUPS`, group colour, lie strip, stats, by lie, misses by direction; first one carries an all-groups summary; empty groups skipped) · 1st putts · 2nd putts. Maps are rendered to 3x images.
@@ -301,7 +303,7 @@ No more large bold text anywhere in the app. Only sizes and weights changed (an 
 ## App version line (v107)
 - **Settings:** the last line of the page is a small, light grey **Pin High v107** (12px, light weight).
 - **Home:** the same text, smaller (11px) and light, at the very bottom of the photo; the Resume round pill stays above it.
-- The version lives in ONE place: `appVersion` in `config.js` (now `'v108'`). The service worker cache name in `sw.js` must be `golf-sg-` + that version; `tests/version-focused.js` fails if they ever differ. Each new version: change both (the cache name has to change in sw.js itself so phones pick up the update).
+- The version lives in ONE place: `appVersion` in `config.js` (now `'v109'`). The service worker cache name in `sw.js` must be `golf-sg-` + that version; `tests/version-focused.js` fails if they ever differ. Each new version: change both (the cache name has to change in sw.js itself so phones pick up the update).
 - Screenshots: `version-settings.png`, `version-home.png`.
 - Cache `golf-sg-v107`.
 
@@ -315,3 +317,14 @@ No more large bold text anywhere in the app. Only sizes and weights changed (an 
 - **?** opens a short card: what density altitude is, Reno / Sacramento examples, and the free iPhone app **Density Altitude+** by Rate of Climb (App Store link opens in a new tab). Close or tap outside to close it.
 - Screenshots: `da-collapsed.png`, `da-open-unchecked.png`, `da-checked-negative.png`, `da-help.png`.
 - Cache `golf-sg-v108`, `appVersion: 'v108'`.
+
+## PDF report – columns line up + new scorecard (v109)
+- **Every table lines up.** Each table now has one list of columns (where it starts, how wide, left or right). The header and every row use that same list, so a header like **SG** or **Avg to pin after** sits right over its numbers: number columns are right-aligned (header too, at the same right edge), words are left-aligned. Columns shrink to fit if they would ever go past the margin, long headers wrap to two lines, and notes under tables wrap inside the margins.
+- **Light type:** no bold anywhere in the PDF; headings are just a little bigger and darker, table headers light grey on a soft green-grey band.
+- **Same top on every page:** player · course · date on the left, Pin High on the right, the page title, and "Page x of n" at the bottom.
+- **Page 1 – Round report:** Score / To par / Yards / Putts / Strokes gained, the Quick view (Fairways, GIR, Putts with their SG) and the Round stats list exactly as on the phone, including 1st putt misses (<10 ft) and Lag putts (>10 ft) (the removed Missed greens rows stay out), plus 3-putt holes.
+- **Page 2 – Scorecard:** the v103 scorecard in two halves (Front 9 + OUT, Back 9 + IN + TOT) with every row: Hole, Par, Length, Score (circle / double circle / square / double square), Tot, OTT, APP, ARG, Putt (strokes gained vs the round's baseline, shaded green / red like the phone), Putts, GIR, Club, FIR, Drive dist, 1st putt, Last putt, Up & down, Sandies, Recovery. Yes / no are small tick and slash icons. The numbers come from the same function as the screen card (`scorecardData`), and the test checks they match cell for cell.
+- **Page 3 – Strokes gained:** By category, By distance (with Avg to pin after) and Same round vs every baseline, all aligned.
+- Then the map pages as before (fairways, GIR, approach misses, pin location, proximity groups, 1st / 2nd putts, 1st putt misses groups, and the all-rounds heat pages when there is more than one round).
+- Sample from the test round: `screenshots/pdf-v109-p1.png` … `pdf-v109-p6.png` (first 6 of 14 pages, 110 dpi).
+- Cache `golf-sg-v109`, `appVersion: 'v109'`.

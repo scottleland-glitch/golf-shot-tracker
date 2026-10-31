@@ -300,31 +300,58 @@
     return loadJsPDF().then(function () {
       var doc = new window.jspdf.jsPDF({ unit: 'pt', format: 'letter', orientation: 'portrait' }), M = 36, PW = 612, PH = 792, y;
       doc.setProperties({ title: 'Pin High round report – ' + (r.course || '') + ' ' + dateTxt, author: player, creator: 'Pin High' });
-      var T = function (t, x, yy, o) { doc.text(P(t), x, yy, o); };
-      var font = function (sz, b) { doc.setFont('helvetica', b ? 'bold' : 'normal'); doc.setFontSize(sz); };
-      var header = function (title) {
-        font(9); doc.setTextColor(90); T(P((player ? player + ' · ' : '') + (r.course || 'Round') + ' · ' + dateTxt), M, 24); T('Pin High', PW - M, 24, { align: 'right' }); doc.setTextColor(0);
-        font(18, true); T(title, M, 52); doc.setLineWidth(1); doc.line(M, 60, PW - M, 60); return 78;
+      // v109: every bit of text is logged (page, left / right edge) so a test can check nothing runs past the right margin
+      var LAY = [], TABS = [], txt0 = doc.text.bind(doc);
+      doc.text = function (t, x, yy, o) {
+        var L = Array.isArray(t) ? t : [t], al = (o && o.align) || 'left', lh = doc.getFontSize() * doc.getLineHeightFactor(), pg = doc.getCurrentPageInfo().pageNumber;
+        L.forEach(function (s, k) { var w = doc.getTextWidth(String(s)), x0 = al === 'right' ? x - w : al === 'center' ? x - w / 2 : x; if (String(s).trim()) LAY.push({ p: pg, t: String(s), x0: x0, x1: x0 + w, y: yy + k * lh }); });
+        return txt0(t, x, yy, o);
       };
-      // simple table: rows[0] = header; widths in pt; numeric cols right-aligned
+      var T = function (t, x, yy, o) { doc.text(P(t), x, yy, o); };
+      // light type only: Helvetica normal everywhere (no bold), headings just a little darker / bigger
+      var font = function (sz) { doc.setFont('helvetica', 'normal'); doc.setFontSize(sz); };
+      var ink = function (g) { doc.setTextColor(g == null ? 30 : g); };
+      var header = function (title) {
+        font(9); ink(110); T((player ? player + ' · ' : '') + (r.course || 'Round') + ' · ' + dateTxt, M, 26); T('Pin High', PW - M, 26, { align: 'right' });
+        font(16); ink(25); T(title, M, 54); doc.setDrawColor(190); doc.setLineWidth(0.6); doc.line(M, 63, PW - M, 63); doc.setDrawColor(0); ink(); return 84;
+      };
+      var heading = function (t, x, yy) { font(11.5); ink(40); T(t, x, yy); ink(); };
+      // v109 table: one column list (x, width, align) used for the header AND every row, so a header sits right over its numbers.
+      // Number columns are right-aligned (header too, same right edge); text columns left-aligned. Widths shrink to fit inside the margins.
+      // rows[0] = header. opt: fs, rh, align: ['left'|'right'|'center' ...], group(row), cont (title for an overflow page), clip, bfs (body font size)
+      var NUMRE = /^[-+]?[\d.,/ %()]*( ?(ft|yd))?$|^[-\u2013]$|^$/;
       var table = function (rows, x, yy, widths, opt) {
-        opt = opt || {}; var rh = opt.rh || 16, fs = opt.fs || 10;
-        var stop = false;
-        rows.forEach(function (row, i) {
+        opt = opt || {}; var rh = opt.rh || 16, fs = opt.fs || 10, bfs = opt.bfs || fs, isG = function (row) { return !!(opt.group && opt.group(row)); };
+        var room = PW - M - x, tot = widths.reduce(function (a, b) { return a + b; }, 0), k = tot > room ? room / tot : 1, cx = x;
+        var cols = rows[0].map(function (h, j) {
+          var w = (widths[j] || 60) * k, body = rows.slice(1).filter(function (rw) { return !isG(rw); }).map(function (rw) { return String(rw[j] == null ? '' : rw[j]); });
+          var al = (opt.align && opt.align[j]) || (j > 0 && body.length && body.every(function (c) { return NUMRE.test(c); }) && body.some(function (c) { return /\d/.test(c); }) ? 'right' : 'left');
+          var c = { x: cx, w: w, align: al, at: al === 'right' ? cx + w - 5 : al === 'center' ? cx + w / 2 : cx + 5 }; cx += w; return c;
+        });
+        var TW = cx - x, rec = { p: 0, x: x, w: TW, cols: cols, cells: [] }; TABS.push(rec);
+        var fit = function (s, w) { s = P(s); while (s.length > 2 && doc.getTextWidth(s) > w - 8) s = s.slice(0, -3) + '..'; return s; };
+        var cell = function (s, j, yb, hdr) { var c = cols[j]; doc.text(s, c.at, yb, c.align === 'left' ? undefined : { align: c.align });
+          var w = doc.getTextWidth(String(s)); if (Array.isArray(s)) w = Math.max.apply(null, s.map(function (q) { return doc.getTextWidth(q); }));
+          var x0 = c.align === 'right' ? c.at - w : c.align === 'center' ? c.at - w / 2 : c.at; rec.cells.push({ p: doc.getCurrentPageInfo().pageNumber, row: hdr ? 0 : 1, col: j, x0: x0, x1: x0 + w }); };
+        var drawHead = function () {
+          font(fs * 0.92); var L = rows[0].map(function (h, j) { return doc.splitTextToSize(P(h), cols[j].w - 9).slice(0, 2); }), n = Math.max.apply(null, L.map(function (l) { return l.length; }));
+          var hh = rh + (n - 1) * fs; doc.setFillColor(238, 241, 238); doc.roundedRect(x, yy - rh + 4, TW, hh, 3, 3, 'F'); ink(85);
+          L.forEach(function (l, j) { if (l.length) cell(l, j, yy, true); }); ink(); yy += hh; rec.p = rec.p || doc.getCurrentPageInfo().pageNumber;
+        };
+        var stop = false; drawHead();
+        rows.slice(1).forEach(function (row) {
           if (stop) return;
-          if (opt.clip && yy + rh > PH - M) { stop = true; return; }
-          if (opt.clip && yy + rh > PH - M) return;
-          if (yy + rh > PH - M) { doc.addPage(); yy = header(opt.cont || 'continued'); }
-          if (i === 0) { doc.setFillColor(230); doc.rect(x, yy - rh + 4, widths.reduce(function (a, b) { return a + b; }, 0), rh, 'F'); }
-          else if (opt.group && opt.group(row)) { doc.setFillColor(245); doc.rect(x, yy - rh + 4, widths.reduce(function (a, b) { return a + b; }, 0), rh, 'F'); }
-          font(fs, i === 0 || (opt.group && opt.group(row))); var cx = x;
-          row.forEach(function (c, j) { var w = widths[j] || 60, num = j > 0 && /^[-+]?[\d.,/ %()ft]*$|^-$|^\u2013$/.test(String(c)); var s = P(c);
-            while (s.length > 2 && doc.getTextWidth(s) > w - 6) s = s.slice(0, -2) + '.';
-            T(s, num ? cx + w - 4 : cx + 3, yy, num ? { align: 'right' } : undefined); cx += w; });
+          if (yy + rh > PH - M - 14) { if (opt.clip) { stop = true; return; } doc.addPage(); yy = header(opt.cont || 'continued'); drawHead(); }
+          var g = isG(row); if (g) { doc.setFillColor(248, 249, 248); doc.rect(x, yy - rh + 4, TW, rh, 'F'); }
+          font(g ? fs : bfs); ink(g ? 60 : 30);
+          row.forEach(function (c, j) { if (j < cols.length && String(c == null ? '' : c) !== '') cell(fit(c, cols[j].w), j, yy, false); });
+          doc.setDrawColor(228); doc.setLineWidth(0.4); doc.line(x, yy + 4, x + TW, yy + 4); doc.setDrawColor(0); ink();
           yy += rh;
         });
         return yy;
       };
+      // wrapped note text that always stays inside the margins
+      var note = function (t, x, yy, w, sz) { font(sz || 8); ink(100); var L = doc.splitTextToSize(P(t), w || PW - M - x); doc.text(L, x, yy); ink(); return yy + L.length * (sz || 8) * 1.25 + 4; };
       var rgb = function (h) { h = (h || '#000').replace('#', ''); if (h.length === 3) h = h.replace(/./g, '$&$&'); var c = parseInt(h, 16); return [(c >> 16) & 255, (c >> 8) & 255, c & 255]; };
       var swatch = function (it, x, y) { // x,y = left / vertical middle of a 22pt swatch box
         var f = function (c) { var v = rgb(c); doc.setFillColor(v[0], v[1], v[2]); }, d = function (c) { var v = rgb(c); doc.setDrawColor(v[0], v[1], v[2]); };
@@ -352,60 +379,84 @@
           if (++col >= cols) { col = 0; y0 += rowH; rowH = 0; } });
         return y0 + rowH + 14;
       };
-      // ---- Page 1: header, score, scorecard, key stats ----
+      // ---- Page 1: round summary + round stats (the same rows as the Round stats screen) ----
+      var grab = function (html) { var d = document.createElement('div'); d.innerHTML = html; return d; };
+      var tx = function (el) { return el ? el.textContent.replace(/\s+/g, ' ').trim() : ''; };
       y = header('Round report');
-      font(12, true); T((player || 'Player') + ' – ' + (r.course || 'Round'), M, y); font(11); T(dateTxt + ' · compared with ' + blName(R.bl), M, y + 16); y += 44;
-      font(30, true); T(S.holesDone ? String(S.strokes) : '-', M, y); var sw = doc.getTextWidth(S.holesDone ? String(S.strokes) : '-');
-      font(16, true); T(S.holesDone ? '(' + toPar(S.toPar) + ')' : '', M + sw + 8, y); font(11);
-      T(S.holesDone + ' of ' + r.holes.length + ' holes · Strokes gained ' + fmtSG(S.sgTotal), M + sw + 70, y - 2); y += 24;
-      var drawNine = function (from, tag) {
-        var idx = []; for (var i = from; i < from + 9 && i < r.holes.length; i++) idx.push(i); if (!idx.length) return;
-        var LW = 52, CW = 44, TW = 52, rh = 20, x0 = M, sum = function (a) { return a.reduce(function (t, v) { return t + v; }, 0); };
-        font(10, true); T(tag === 'OUT' ? 'Front 9' : 'Back 9', M, y); y += 6;
-        var rowsD = [['Hole', idx.map(function (i) { return String(i + 1); }), tag], ['Yds', idx.map(function (i) { return String(SG.holeYards(r.holes[i]) || ''); }), String(sum(idx.map(function (i) { return SG.holeYards(r.holes[i]) || 0; })) || '')],
-          ['Par', idx.map(function (i) { return String(r.holes[i].par); }), String(sum(idx.map(function (i) { return +r.holes[i].par || 0; })))]];
-        var done = idx.filter(function (i) { return S.holes[i].done; });
-        rowsD.push(['Score', idx.map(function (i) { return S.holes[i].done ? String(S.holes[i].strokes) : ''; }), done.length ? String(sum(done.map(function (i) { return S.holes[i].strokes; }))) : '']);
-        rowsD.push(['Putts', idx.map(function (i) { return S.holes[i].done ? String(S.holes[i].putts) : ''; }), done.length ? String(sum(done.map(function (i) { return S.holes[i].putts; }))) : '']);
-        doc.setLineWidth(0.6);
-        rowsD.forEach(function (rw, ri) {
-          var yy = y + ri * rh; if (ri === 0) { doc.setFillColor(20, 82, 20); doc.rect(x0, yy, LW + CW * idx.length + TW, rh, 'F'); doc.setTextColor(255); } else if (ri === 2) { doc.setFillColor(238); doc.rect(x0, yy, LW + CW * idx.length + TW, rh, 'F'); }
-          font(10, true); T(rw[0], x0 + 4, yy + 14);
-          rw[1].forEach(function (c, k) {
-            var cx = x0 + LW + CW * k + CW / 2;
-            font(ri === 3 ? 11 : 10, ri === 0 || ri === 3); T(c, cx, yy + 14, { align: 'center' });
-            if (ri === 3 && c) { var m = scoreMark(+c, +r.holes[idx[k]].par); doc.setDrawColor(0); doc.setLineWidth(1);
-              if (m === 'birdie' || m === 'eagle') { doc.circle(cx, yy + 10, 8, 'S'); if (m === 'eagle') doc.circle(cx, yy + 10, 10.5, 'S'); }
-              if (m === 'bogey' || m === 'double') { doc.rect(cx - 8, yy + 2, 16, 16, 'S'); if (m === 'double') doc.rect(cx - 10.5, yy - 0.5, 21, 21, 'S'); } }
-          });
-          font(10, true); T(rw[2], x0 + LW + CW * idx.length + TW / 2, yy + 14, { align: 'center' }); doc.setTextColor(0);
-          doc.setDrawColor(150); doc.setLineWidth(0.5); doc.rect(x0, yy, LW + CW * idx.length + TW, rh, 'S');
+      font(12); ink(30); T((player || 'Player') + ' – ' + (r.course || 'Round'), M, y); font(10); ink(100); T(dateTxt + ' · compared with ' + blName(R.bl), M, y + 16); ink(); y += 40;
+      var top = grab(rsTopHTML(r, S)), thr = top.querySelector('#rs-thru'), topV = [].map.call(top.querySelectorAll('td'), function (td) {
+        var c = td.cloneNode(true), s = c.querySelector('small'); if (s) s.remove(); return tx(c) + (td === (thr && thr.parentNode) ? ' (' + tx(thr) + ')' : ''); });
+      y = table([[].map.call(top.querySelectorAll('th'), tx).concat(['Strokes gained'])].concat([topV.concat([S.holesDone ? fmtSG(S.sgTotal) : '-'])]), M, y, [108, 108, 108, 108, 108],
+        { align: ['center', 'center', 'center', 'center', 'center'], fs: 9.5, bfs: 17, rh: 26 }) + 14;
+      heading('Quick view', M, y); y += 16;
+      var qv = grab(quickViewHTML(S));
+      y = table([['', 'Result', 'Detail', 'SG']].concat([].map.call(qv.querySelectorAll('.qv'), function (q) {
+        return [tx(q.querySelector('.qvl')), tx(q.querySelector('b')), tx(q.querySelector('small')), tx(q.querySelector('em')).replace(/\s*SG$/, '')]; })), M, y, [150, 90, 210, 90], { align: ['left', 'right', 'left', 'right'] }) + 14;
+      heading('Round stats', M, y); y += 16;
+      var keepStx = view.stx; view.stx = {}; var st = grab(statTilesHTML(S)); view.stx = keepStx;
+      var srows = [].map.call(st.querySelectorAll('.stxh'), function (b) { return [tx(b.querySelector('span')), tx(b.querySelector('b'))]; });
+      srows.push(['3-putt holes', R.three.three + ' of ' + R.three.holes]);
+      y = table([['Stat', 'This round']].concat(srows), M, y, [300, 240], { align: ['left', 'right'] }) + 6;
+      y = note('Proximity = average distance from the hole after approach shots. 1st putt misses = first putts under 10 ft that were missed. Lag putts = first putts over 10 ft that finished inside 3 ft.', M, y + 4);
+      // ---- Page 2: the scorecard (the same numbers as the on-screen card: scorecardData) ----
+      doc.addPage(); y = header('Scorecard – strokes gained vs ' + blName(R.bl));
+      var D = scorecardData(r, S), SCG = D.rows.map(function (row) { return [row.lbl]; }), nG = D.groups.length;
+      var halves = D.n > 9 ? [['Front 9', D.idx.filter(function (i) { return i < 9; }), [0]], ['Back 9', D.idx.filter(function (i) { return i >= 9; }), D.groups.map(function (g, k) { return k; }).slice(1)]]
+        : [['Front 9', D.idx, D.groups.map(function (g, k) { return k; })]];
+      var LW = 62, SW = 40, CW = Math.min(44, (PW - 2 * M - LW - 2 * SW) / 9), mix = function (c, a) { return c.map(function (v) { return Math.round(255 - (255 - v) * a); }); };
+      var tintRGB = function (v, big) { if (v == null || Math.abs(v) < 0.005) return null; return mix(v > 0 ? [52, 160, 90] : [214, 80, 70], 0.1 + 0.45 * Math.min(Math.abs(v) / (big ? 4 : 1.5), 1)); };
+      var markAt = function (m, cx, cy) { doc.setDrawColor(70); doc.setLineWidth(0.6);
+        if (m === 'birdie' || m === 'eagle') { doc.circle(cx, cy, 5.8, 'S'); if (m === 'eagle') doc.circle(cx, cy, 7.6, 'S'); }
+        if (m === 'bogey' || m === 'double') { doc.rect(cx - 5.8, cy - 5.8, 11.6, 11.6, 'S'); if (m === 'double') doc.rect(cx - 7.6, cy - 7.6, 15.2, 15.2, 'S'); } doc.setDrawColor(0); };
+      var ynAt = function (yes, cx, cy) { var c = yes ? [45, 135, 75] : [190, 95, 85]; doc.setDrawColor(c[0], c[1], c[2]); doc.setLineWidth(0.7); doc.circle(cx, cy, 4, 'S');
+        if (yes) doc.lines([[1.4, 1.5], [2.8, -3.2]], cx - 2.2, cy + 0.1, [1, 1], 'S', false); else doc.line(cx - 2.8, cy + 2.8, cx + 2.8, cy - 2.8); doc.setDrawColor(0); };
+      halves.forEach(function (hf) {
+        var hs = hf[1], ss = hf[2], W = LW + CW * hs.length + SW * ss.length, rec = { p: doc.getCurrentPageInfo().pageNumber, x: M, w: W, cols: [], cells: [], grid: true }; TABS.push(rec);
+        rec.cols = [{ x: M, w: LW, align: 'left', at: M + 5 }].concat(hs.map(function (i, k) { var x0 = M + LW + CW * k; return { x: x0, w: CW, align: 'center', at: x0 + CW / 2 }; }),
+          ss.map(function (g, k) { var x0 = M + LW + CW * hs.length + SW * k; return { x: x0, w: SW, align: 'center', at: x0 + SW / 2 }; }));
+        heading(hf[0], M, y); y += 8; var gname = '', y0 = y;
+        D.rows.forEach(function (row, ri) {
+          if (gname && row.grp !== gname) y += 5; gname = row.grp;
+          var RH = row.cls === 'sscore' ? 19 : 14, yb = y + RH / 2 + 2.8, cy = y + RH / 2, hole = ri === 0;
+          if (hole) { doc.setFillColor(238, 241, 238); doc.roundedRect(M, y, W, RH, 3, 3, 'F'); }
+          doc.setFillColor(247, 248, 247); doc.rect(M + LW + CW * hs.length, y + (hole ? RH : 0), SW * ss.length, hole ? 0 : RH, 'F');
+          var put = function (c, j, big) {
+            var col = rec.cols[j], t = c.t, rgbT = c.k === 'sg' ? tintRGB(c.v, big) : null;
+            if (rgbT) { doc.setFillColor(rgbT[0], rgbT[1], rgbT[2]); doc.rect(col.x + 1, y + 1, col.w - 2, RH - 2, 'F'); }
+            if (c.k === 'yn') { ynAt(c.b, col.at, cy); rec.cells.push({ p: rec.p, row: hole ? 0 : 1, col: j, x0: col.at - 4, x1: col.at + 4 }); return; }
+            if (t === '') return;
+            font(c.k === 'mark' ? 9.5 : c.k === 'sg' ? 7.2 : c.txt ? 7.2 : hole ? 8.5 : 8); ink(hole ? 70 : c.k === 'dash' ? 150 : 35);
+            doc.text(P(t), col.at, yb, { align: 'center' }); var w = doc.getTextWidth(P(t)); rec.cells.push({ p: rec.p, row: hole ? 0 : 1, col: j, x0: col.at - w / 2, x1: col.at + w / 2 }); ink();
+            if (c.k === 'mark') markAt(c.mark, col.at, cy - 0.3);
+          };
+          font(8); ink(hole ? 70 : 85); T(row.lbl, M + 5, yb); ink();
+          hs.forEach(function (i, k) { put(row.cells[i], 1 + k, false); SCG[ri][1 + i] = row.cells[i].t; });
+          ss.forEach(function (g, k) { put(row.sums[g], 1 + hs.length + k, true); SCG[ri][1 + D.n + g] = row.sums[g].t; });
+          if (!hole) { doc.setDrawColor(230); doc.setLineWidth(0.4); doc.line(M, y + RH, M + W, y + RH); doc.setDrawColor(0); }
+          y += RH;
         });
-        for (var k = 0; k <= idx.length; k++) doc.line(x0 + LW + CW * k, y, x0 + LW + CW * k, y + rh * rowsD.length);
-        y += rh * rowsD.length + 16;
-      };
-      drawNine(0, 'OUT'); drawNine(9, 'IN');
-      font(9); doc.text(doc.splitTextToSize(P('Marks: circle = birdie, double circle = eagle or better, square = bogey, double square = double bogey or worse, no mark = par. Blank = hole not finished.'), PW - 2 * M), M, y); y += 30;
-      var fwPct = S.fwTotal ? ' (' + Math.round(100 * S.fwHit / S.fwTotal) + '%)' : '', girPct = S.girHoles ? ' (' + Math.round(100 * S.gir / S.girHoles) + '%)' : '';
-      var tiles = [['Fairways hit', S.fwHit + ' / ' + S.fwTotal + fwPct], ['Greens in regulation', S.gir + ' / ' + S.girHoles + girPct], ['Putts', String(S.putts)],
-        ['Penalty strokes', String(S.penalties)], ['3-putt holes', R.three.three + ' of ' + R.three.holes], ['Approach misses', String(S.apprMiss.length)]];
-      font(13, true); T('Key stats', M, y); y += 10;
-      tiles.forEach(function (t, i) { var tw = (PW - 2 * M - 20) / 3, tx = M + (i % 3) * (tw + 10), ty = y + Math.floor(i / 3) * 62;
-        doc.setDrawColor(0); doc.setLineWidth(1.2); doc.roundedRect(tx, ty, tw, 54, 6, 6, 'S'); font(18, true); T(t[1], tx + 10, ty + 26); font(9); T(t[0].toUpperCase(), tx + 10, ty + 44); });
-      // ---- Page 2: strokes gained ----
+        doc.setDrawColor(215); doc.setLineWidth(0.5); [LW + CW * hs.length].forEach(function (dx) { doc.line(M + dx, y0, M + dx, y); }); doc.setDrawColor(0);
+        y += 18;
+      });
+      // legend: score shapes + what the shading / icons mean
+      font(8); ink(90); var lx = M, lg = [['eagle', 'Eagle or better'], ['birdie', 'Birdie'], ['par', 'Par (no mark)'], ['bogey', 'Bogey'], ['double', 'Double bogey or worse']];
+      lg.forEach(function (it) { markAt(it[0], lx + 8, y - 3); ink(90); T(it[1], lx + 23, y); lx += 23 + doc.getTextWidth(it[1]) + 18; }); y += 16;
+      ynAt(true, M + 8, y - 3); ink(90); T('yes', M + 16, y); ynAt(false, M + 46, y - 3); ink(90); T('no', M + 54, y);
+      y = note('Strokes gained rows (Tot, OTT = off the tee, APP = approach, ARG = around the green, Putt) compare each hole with ' + blName(R.bl) + ': green = strokes gained, red = strokes lost. – = not a par 4 or 5. Blank = hole not finished. Drive dist in yards; 1st / last putt in feet. OUT / IN / TOT add up the holes (averages for drive and putt lengths, made / chances for the yes / no rows).', M + 80, y, PW - 2 * M - 80);
+      // ---- Page 3: strokes gained ----
       doc.addPage(); y = header('Strokes gained – compared with ' + blName(R.bl));
-      font(12, true); T('By category', M, y); y += 16;
-      y = table([['Category', 'Shots', 'SG']].concat(['tee', 'approach', 'short', 'putting'].map(function (k) { return [CAT_NAME[k], String(S.cats[k].n), fmtSG(S.cats[k].sg)]; })).concat([['Total', '', fmtSG(S.sgTotal)]]), M, y, [220, 80, 90]) + 16;
-      font(12, true); T('By distance', M, y); y += 16;
+      heading('By category', M, y); y += 16;
+      y = table([['Category', 'Shots', 'SG']].concat(['tee', 'approach', 'short', 'putting'].map(function (k) { return [CAT_NAME[k], String(S.cats[k].n), fmtSG(S.cats[k].sg)]; })).concat([['Total', '', fmtSG(S.sgTotal)]]), M, y, [260, 90, 90]) + 16;
+      heading('By distance', M, y); y += 16;
       var dist = [['From', 'Shots', 'SG', 'Avg to pin after']];
       [['Approach', SG.APPR_BUCKETS.map(function (b) { return b.id; })], ['Short game', ['0-20 yd']], ['Putting', ['0-5 ft', '5-15 ft', '15-30 ft', '30+ ft']]].forEach(function (g) {
         dist.push([g[0], '', '', '']); g[1].forEach(function (b) { var c = S.buckets[b]; dist.push([b, String(c.n), c.n ? fmtSG(c.sg) : '-', g[0] === 'Approach' ? (c.proxN ? Math.round(c.proxFt) + ' ft' : '-') : '']); }); });
-      y = table(dist, M, y, [220, 80, 90, 120], { group: function (row) { return row[1] === '' && /^(Approach|Short game|Putting)$/.test(row[0]); }, cont: 'Strokes gained (continued)' });
-      font(8); doc.setTextColor(90); var dn = doc.splitTextToSize(P('Approach = shots from more than 20 yd off the green (par-3 tee shots included); 20-60 = over 20 up to under 60 yd, other ranges include the lower number. Short game = off the green from 20 yd and in. Avg to pin after = feet on the green, yards x 3 off it, 0 if holed; penalty/OB shots left out.'), PW - 2 * M);
-      doc.text(dn, M, y + 4); doc.setTextColor(0); y += dn.length * 10 + 18;
-      font(12, true); T('Same round vs every baseline', M, y); y += 16;
+      y = table(dist, M, y, [260, 90, 90, 100], { group: function (row) { return row[1] === '' && /^(Approach|Short game|Putting)$/.test(row[0]); }, cont: 'Strokes gained (continued)' });
+      y = note('Approach = shots from more than 20 yd off the green (par-3 tee shots included); 20-60 = over 20 up to under 60 yd, other ranges include the lower number. Short game = off the green from 20 yd and in. Avg to pin after = feet on the green, yards x 3 off it, 0 if holed; penalty/OB shots left out.', M, y + 6) + 12;
+      heading('Same round vs every baseline', M, y); y += 16;
       y = table([['Baseline', 'Tee', 'Approach', 'Short', 'Putting', 'Total']].concat(SG.BASELINES.map(function (b) { var X = SG.summarize(r, b.id);
-        return [b.name + (b.status === 'estimated' ? ' (est.)' : '') + (b.id === R.bl ? '  <' : ''), fmtSG(X.cats.tee.sg), fmtSG(X.cats.approach.sg), fmtSG(X.cats.short.sg), fmtSG(X.cats.putting.sg), fmtSG(X.sgTotal)]; })), M, y, [170, 70, 70, 70, 70, 80]);
+        return [b.name + (b.status === 'estimated' ? ' (est.)' : '') + (b.id === R.bl ? '  <' : ''), fmtSG(X.cats.tee.sg), fmtSG(X.cats.approach.sg), fmtSG(X.cats.short.sg), fmtSG(X.cats.putting.sg), fmtSG(X.sgTotal)]; })), M, y, [190, 70, 70, 70, 70, 70]);
+      y = note('< = the baseline this report uses. (est.) = estimated baseline (no published table).', M, y + 6);
       // ---- map pages ----
       var segs = SG.pinSegments(pinDataRound());
       var pages = [['Tee shots – fairways', 'fw'], ['Greens in regulation', 'gir'], ['Approach misses', 'miss'], ['Pin location', 'pin'],         'PROX', ['Putting – 1st putts', 'putt', { puttN: '1' }], ['Putting – 2nd putts', 'putt', { puttN: '2' }]].concat(
@@ -470,8 +521,9 @@
       });
       return chain.then(function () {
         var n = doc.getNumberOfPages();
-        for (var i = 1; i <= n; i++) { doc.setPage(i); font(8); doc.setTextColor(120); T('Page ' + i + ' of ' + n, PW - M, PH - 18, { align: 'right' }); doc.setTextColor(0); }
-        return { blob: new Blob([doc.output('arraybuffer')], { type: 'application/pdf' }), pages: n, name: SG.reportFileName(r.course, player, r.date) };
+        for (var i = 1; i <= n; i++) { doc.setPage(i); font(8); doc.setTextColor(130); T('Page ' + i + ' of ' + n, PW - M, PH - 18, { align: 'right' }); doc.setTextColor(0); }
+        return { blob: new Blob([doc.output('arraybuffer')], { type: 'application/pdf' }), pages: n, name: SG.reportFileName(r.course, player, r.date),
+          layout: { PW: PW, PH: PH, M: M, text: LAY, tables: TABS }, scorecard: SCG };
       });
     });
   }
@@ -1674,58 +1726,73 @@
       ud: ud, sandy: sandy, rec: trouble ? a.strokes <= par : null
     };
   }
-  function scorecardHTML(r, S) {
+  // v109: the scorecard numbers come from ONE function (scorecardData). The screen card (scorecardHTML) and the PDF scorecard page both draw from it.
+  // Each cell: { t: plain text, k: kind ('n' number/text, 'mark' score with shape, 'sg' strokes gained, 'yn' yes/no, 'dash' not a par 4/5, '' blank), ... }
+  function scorecardData(r, S) {
     var n = r.holes.length, idx = r.holes.map(function (h, i) { return i; });
     var H = idx.map(function (i) { return scHole(r.holes[i], S.holes[i]); });
     var groups = [['OUT', 'out', idx.filter(function (i) { return i < 9; })]];
     if (n > 9) groups.push(['IN', 'in', idx.filter(function (i) { return i >= 9; })]);
     groups.push(['TOT', 'tot', idx]);
     var sum = function (a) { return a.reduce(function (t, x) { return t + x; }, 0); };
+    var N = function (v) { return v === '' || v == null ? { t: '', k: '' } : { t: String(v), k: 'n' }; };
+    var YN = function (v) { return v === true ? { t: 'Y', k: 'yn', b: true } : v === false ? { t: 'N', k: 'yn', b: false } : { t: '', k: '' }; };
+    var frac = function (L, f) { var k = L.filter(function (x) { return f(x) != null; }); return N(k.length ? k.filter(function (x) { return f(x); }).length + '/' + k.length : ''); };
+    var avg = function (L, f) { var v = L.map(f).filter(function (x) { return x != null; }); return v.length ? String(Math.round(sum(v) / v.length * 10) / 10) : ''; };
+    var rows = [], gname = '', R = function (lbl, cls, f, t) {
+      rows.push({ lbl: lbl, cls: cls, grp: gname, cells: idx.map(function (i) { return f(i, H[i]); }),
+        sums: groups.map(function (g) { return t(g[2].map(function (i) { return H[i]; }).filter(Boolean), g[2], g); }) });
+    };
+    gname = 'score';
+    R('Hole', 'shole', function (i) { return N(i + 1); }, function (L, I, g) { return N(g[0]); });
+    R('Par', 'spar', function (i) { return N(Number(r.holes[i].par) || ''); }, function (L, I) { return N(sum(I.map(function (i) { return Number(r.holes[i].par) || 0; }))); });
+    R('Length', 'syds', function (i) { return N(SG.holeYards(r.holes[i]) || ''); }, function (L, I) { return N(sum(I.map(function (i) { return SG.holeYards(r.holes[i]) || 0; })) || ''); });
+    R('Score', 'sscore', function (i, d) { return d ? { t: String(d.strokes), k: 'mark', mark: d.mark } : { t: '', k: '', blank: true }; },
+      function (L) { return N(L.length ? sum(L.map(function (d) { return d.strokes; })) : ''); });
+    gname = 'sg';
+    var sgRow = function (lbl, cls, get) {
+      R(lbl, 'ssg ' + cls, function (i, d) { var v = d ? get(d) : null; return v == null ? N('') : { t: fmtSG(v), k: 'sg', v: v }; },
+        function (L) { var v = L.map(get).filter(function (x) { return x != null; }); if (!v.length) return N(''); var s = sum(v); return { t: fmtSG(s), k: 'sg', v: s, big: true }; });
+    };
+    sgRow('Tot', 'sgtot', function (d) { return d.sg; }); sgRow('OTT', 'sgott', function (d) { return d.cat.tee; });
+    sgRow('APP', 'sgapp', function (d) { return d.cat.approach; }); sgRow('ARG', 'sgarg', function (d) { return d.cat.short; });
+    sgRow('Putt', 'sgputt', function (d) { return d.cat.putting; });
+    gname = 'stats';
+    R('Putts', 'sputts', function (i, d) { return N(d ? d.putts : ''); }, function (L) { return N(L.length ? sum(L.map(function (d) { return d.putts; })) : ''); });
+    R('GIR', 'sgir', function (i, d) { return d ? YN(d.gir) : N(''); }, function (L) { return frac(L, function (d) { return d.gir; }); });
+    R('Club', 'sclub', function (i, d) { return d && d.club ? { t: d.club, k: 'n', txt: true } : N(''); }, function () { return N(''); });
+    R('FIR', 'sfir', function (i, d) { return d ? (d.fir == null ? { t: '–', k: 'dash' } : YN(d.fir)) : N(''); }, function (L) { return frac(L, function (d) { return d.fir; }); });
+    R('Drive dist', 'sdrive', function (i, d) { return N(d && d.drive != null ? d.drive : ''); }, function (L) { var v = avg(L, function (d) { return d.drive; }); return N(v === '' ? '' : Math.round(+v)); });
+    R('1st putt', 'sp1', function (i, d) { return N(d ? scFt(d.p1) : ''); }, function (L) { return N(avg(L, function (d) { return d.p1; })); });
+    R('Last putt', 'spl', function (i, d) { return N(d ? scFt(d.pl) : ''); }, function (L) { return N(avg(L, function (d) { return d.pl; })); });
+    R('Up & down', 'sud', function (i, d) { return d ? YN(d.ud) : N(''); }, function (L) { return frac(L, function (d) { return d.ud; }); });
+    R('Sandies', 'ssand', function (i, d) { return d ? YN(d.sandy) : N(''); }, function (L) { return frac(L, function (d) { return d.sandy; }); });
+    R('Recovery', 'srec', function (i, d) { return d ? YN(d.rec) : N(''); }, function (L) { return frac(L, function (d) { return d.rec; }); });
+    return { n: n, idx: idx, groups: groups, rows: rows };
+  }
+  // the plain-text grid (row label, 18 holes, OUT / IN / TOT) – what both the screen and the PDF show
+  function scorecardGrid(D) { return D.rows.map(function (row) { return [row.lbl].concat(row.cells.map(function (c) { return c.t; }), row.sums.map(function (c) { return c.t; })); }); }
+  function scorecardHTML(r, S) {
+    var D = scorecardData(r, S), n = D.n, idx = D.idx, groups = D.groups;
     var tint = function (v, big) {
       if (v == null || Math.abs(v) < 0.005) return '';
       var al = (0.1 + 0.45 * Math.min(Math.abs(v) / (big ? 4 : 1.5), 1)).toFixed(2);
       return ' style="background:rgba(' + (v > 0 ? '52,160,90,' : '214,80,70,') + al + ')"';
     };
-    var yn = function (v) { return v === true ? SC_YES : v === false ? SC_NO : ''; };
-    var frac = function (L, f) { var k = L.filter(function (x) { return f(x) != null; }); return k.length ? k.filter(function (x) { return f(x); }).length + '/' + k.length : ''; };
-    var avg = function (L, f) { var v = L.map(f).filter(function (x) { return x != null; }); return v.length ? String(Math.round(sum(v) / v.length * 10) / 10) : ''; };
-    var cell = function (i, inner, cls, attr) { return '<td class="' + (cls || '') + '"' + (attr || '') + '><button class="hc" data-act="goHole" data-i="' + i + '" aria-label="Hole ' + (i + 1) + '">' + inner + '</button></td>'; };
-    // per row: label, class, f(i, hole data) -> [inner, cls, attr], total(list of finished hole data, hole indexes) -> [inner, attr]
-    var rows = [], G = function (g) { rows.push({ g: g }); }, R = function (lbl, cls, f, t) { rows.push({ lbl: lbl, cls: cls, f: f, t: t }); };
-    G('score');
-    R('Hole', 'shole', function (i) { return [i + 1]; }, function (L, I, g) { return [g[0]]; });
-    R('Par', 'spar', function (i) { return [Number(r.holes[i].par) || '']; }, function (L, I) { return [sum(I.map(function (i) { return Number(r.holes[i].par) || 0; }))]; });
-    R('Length', 'syds', function (i) { return [SG.holeYards(r.holes[i]) || '']; }, function (L, I) { return [sum(I.map(function (i) { return SG.holeYards(r.holes[i]) || 0; })) || '']; });
-    R('Score', 'sscore', function (i, d) { return d ? ['<span class="mk mk-' + d.mark + '" data-mark="' + d.mark + '">' + d.strokes + '</span>', 'done'] : ['', 'blank']; },
-      function (L) { return [L.length ? sum(L.map(function (d) { return d.strokes; })) : '']; });
-    G('sg');
-    var sgRow = function (lbl, cls, get) {
-      R(lbl, 'ssg ' + cls, function (i, d) { var v = d ? get(d) : null; return v == null ? [''] : [fmtSG(v), '', tint(v)]; },
-        function (L) { var v = L.map(get).filter(function (x) { return x != null; }); if (!v.length) return ['']; var s = sum(v); return [fmtSG(s), tint(s, true)]; });
+    var inner = function (c) {
+      return c.k === 'mark' ? '<span class="mk mk-' + c.mark + '" data-mark="' + c.mark + '">' + c.t + '</span>' : c.k === 'yn' ? (c.b ? SC_YES : SC_NO) :
+        c.k === 'dash' ? '<span class="scdash">–</span>' : esc(c.t);
     };
-    sgRow('Tot', 'sgtot', function (d) { return d.sg; }); sgRow('OTT', 'sgott', function (d) { return d.cat.tee; });
-    sgRow('APP', 'sgapp', function (d) { return d.cat.approach; }); sgRow('ARG', 'sgarg', function (d) { return d.cat.short; });
-    sgRow('Putt', 'sgputt', function (d) { return d.cat.putting; });
-    G('stats');
-    R('Putts', 'sputts', function (i, d) { return [d ? d.putts : '']; }, function (L) { return [L.length ? sum(L.map(function (d) { return d.putts; })) : '']; });
-    R('GIR', 'sgir', function (i, d) { return [d ? yn(d.gir) : '']; }, function (L) { return [frac(L, function (d) { return d.gir; })]; });
-    R('Club', 'sclub', function (i, d) { return [d ? esc(d.club) : '']; }, function () { return ['']; });
-    R('FIR', 'sfir', function (i, d) { return [d ? (d.fir == null ? '<span class="scdash">–</span>' : yn(d.fir)) : '']; }, function (L) { return [frac(L, function (d) { return d.fir; })]; });
-    R('Drive dist', 'sdrive', function (i, d) { return [d && d.drive != null ? d.drive : '']; }, function (L) { var v = avg(L, function (d) { return d.drive; }); return [v === '' ? '' : Math.round(+v)]; });
-    R('1st putt', 'sp1', function (i, d) { return [d ? scFt(d.p1) : '']; }, function (L) { return [avg(L, function (d) { return d.p1; })]; });
-    R('Last putt', 'spl', function (i, d) { return [d ? scFt(d.pl) : '']; }, function (L) { return [avg(L, function (d) { return d.pl; })]; });
-    R('Up & down', 'sud', function (i, d) { return [d ? yn(d.ud) : '']; }, function (L) { return [frac(L, function (d) { return d.ud; })]; });
-    R('Sandies', 'ssand', function (i, d) { return [d ? yn(d.sandy) : '']; }, function (L) { return [frac(L, function (d) { return d.sandy; })]; });
-    R('Recovery', 'srec', function (i, d) { return [d ? yn(d.rec) : '']; }, function (L) { return [frac(L, function (d) { return d.rec; })]; });
+    var cell = function (i, c, row) {
+      var cls = (row.cls === 'sscore' ? (c.k === 'mark' ? 'done' : 'blank') : '') + (i === 8 || i === n - 1 ? ' g9' : '');
+      return '<td class="' + cls + '"' + (c.k === 'sg' ? tint(c.v) : '') + '><button class="hc" data-act="goHole" data-i="' + i + '" aria-label="Hole ' + (i + 1) + '">' + inner(c) + '</button></td>';
+    };
     var t = '<table class="scard sc1" id="scorecard"><tbody>', gname = '';
-    rows.forEach(function (row) {
-      if (row.g) { if (gname) t += '<tr class="scgap" aria-hidden="true"><th></th><td colspan="' + (n + groups.length) + '"></td></tr>'; gname = row.g; return; }
+    D.rows.forEach(function (row) {
+      if (row.grp !== gname) { if (gname) t += '<tr class="scgap" aria-hidden="true"><th></th><td colspan="' + (n + groups.length) + '"></td></tr>'; gname = row.grp; }
       t += '<tr class="' + row.cls + ' g-' + gname + '"><th scope="row">' + row.lbl + '</th>';
-      idx.forEach(function (i) { var c = row.f(i, H[i]); t += cell(i, c[0] == null ? '' : c[0], (c[1] || '') + (i === 8 || i === n - 1 ? ' g9' : ''), c[2]); });
-      groups.forEach(function (g) {
-        var L = g[2].map(function (i) { return H[i]; }).filter(Boolean), c = row.t(L, g[2], g);
-        t += '<td class="sum ' + g[1] + '"' + (c[1] || '') + '>' + (c[0] == null ? '' : c[0]) + '</td>';
-      });
+      idx.forEach(function (i) { t += cell(i, row.cells[i], row); });
+      groups.forEach(function (g, k) { var c = row.sums[k]; t += '<td class="sum ' + g[1] + '"' + (c.k === 'sg' ? tint(c.v, true) : '') + '>' + inner(c) + '</td>'; });
       t += '</tr>';
     });
     t += '</tbody></table>';
@@ -3439,5 +3506,5 @@
     });
     window.addEventListener('load', function () { navigator.serviceWorker.register('./sw.js').catch(function () {}); });
   }
-  window.__golf = { card: function () { return view.card; }, voiceState: function () { return { dict: !!(view.voice && view.voice.stage === 'dict'), timer: !!dictTimer }; }, d1Bench: d1Bench, proxSVG: proxSVG, pinSVG: function () { return pinReportSVG(SG.pinSegments(pinDataRound())); }, csvFor: csvFor, rounds: function () { return rounds; } };
+  window.__golf = { card: function () { return view.card; }, scorecardHTML: function () { var r = round(); return r ? scorecardHTML(r, SG.summarize(r, blOf(r))) : ''; }, voiceState: function () { return { dict: !!(view.voice && view.voice.stage === 'dict'), timer: !!dictTimer }; }, d1Bench: d1Bench, proxSVG: proxSVG, pinSVG: function () { return pinReportSVG(SG.pinSegments(pinDataRound())); }, csvFor: csvFor, rounds: function () { return rounds; } };
 })();
