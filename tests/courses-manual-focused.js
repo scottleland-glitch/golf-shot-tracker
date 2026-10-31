@@ -69,7 +69,7 @@ const PORT = 8813, BASE = `http://127.0.0.1:${PORT}/`, OUT = '/workspace/golf-ap
   await page.click('.revtees [data-i="0"]'); await page.evaluate(() => window.scrollTo(0, 0)); await page.evaluate(() => document.activeElement && document.activeElement.blur());
   await shot('manual-course-entry');
   await page.click('[data-act="cardsave"]'); await page.waitForSelector('#ntees');
-  assert.match(await page.textContent('#crspicked'), /Pebble Creek/); assert.deepStrictEqual(await page.$$eval('#ntees .ntee:not(.naddtee)', e => e.map(x => x.childNodes[0].textContent.trim())), ['White', 'Truckee']);
+  assert.match(await page.textContent('#crspicked'), /Pebble Creek/); assert.deepStrictEqual(await page.$$eval('#ntees .ntee:not(.naddtee)', e => e.map(x => (x.querySelector('.tname') || x.childNodes[0]).textContent.trim())), ['White', 'Truckee']);
   await page.click('#ntees [data-v="White"]'); await page.click('[data-act="new"]'); await page.waitForSelector('.holecard');
   assert.strictEqual(await page.$eval('input[data-row="0"]', e => e.value), String(TRUE.white[0])); assert.strictEqual(await page.textContent('.par button.sel'), '4');
   const rd = await page.evaluate(() => JSON.parse(localStorage.getItem('golfsg.rounds.v1'))[0]); assert.strictEqual(rd.tee, 'White'); assert.strictEqual(rd.course, 'Pebble Creek');

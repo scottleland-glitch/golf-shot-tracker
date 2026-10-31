@@ -56,7 +56,7 @@ const Y = (b) => Array.from({ length: 18 }, (_, i) => b + i * 7), P = [4, 4, 3, 
   // pick a course with several tee boxes → chips, first chosen; switch to White; round gets White's distances
   await page.click('#crslist [data-id="p"]'); await page.waitForSelector('#ntees'); assert.strictEqual(await page.$('#crslist'), null, 'list closes');
   assert.strictEqual((await page.textContent('#crspicked')).trim(), 'Pebble Creek'); assert.strictEqual((await page.textContent('#teelbl')).trim(), 'Tee box');
-  assert.deepStrictEqual(await page.$$eval('#ntees .ntee', e => e.map(x => x.childNodes[0].textContent.trim())), ['Blue', 'White', 'Red', '＋ Add tee box']);
+  assert.deepStrictEqual(await page.$$eval('#ntees .ntee', e => e.map(x => (x.querySelector('.tname') || x.childNodes[0]).textContent.trim())), ['Blue', 'White', 'Red', '＋ Add tee box']);
   assert.match(await page.textContent('#ntees .sel'), /^Blue/);
   await page.click('#ntees [data-v="White"]'); assert.match(await page.textContent('#ntees .sel'), /^White/); assert.strictEqual(await page.locator('#ntees .sel').count(), 1);
   await shot('tee-chips');
@@ -69,7 +69,7 @@ const Y = (b) => Array.from({ length: 18 }, (_, i) => b + i * 7), P = [4, 4, 3, 
   assert.deepStrictEqual(await opts(), ['+ Add new course', 'Pebble Creek', 'Arcade Creek', 'Lakeridge']);
   // one tee box: shown as the one in use; add another tee box with a name from the quick chips
   await page.click('#crslist [data-id="a"]'); assert.strictEqual((await page.textContent('#teelbl')).trim(), 'Playing from');
-  assert.deepStrictEqual(await page.$$eval('#ntees .ntee.sel', e => e.map(x => x.childNodes[0].textContent.trim())), ['Main tees']);
+  assert.deepStrictEqual(await page.$$eval('#ntees .ntee.sel', e => e.map(x => (x.querySelector('.tname') || x.childNodes[0]).textContent.trim())), ['Main tees']);
   await page.click('[data-act="naddtee"]'); await page.waitForSelector('.revgrid');
   assert.strictEqual(await page.$eval('[data-cf="name"]', e => e.value), 'Arcade Creek'); assert.strictEqual(await page.$eval('[data-cf="tee"]', e => e.value), '');
   assert.ok(await page.evaluate(() => document.activeElement && document.activeElement.getAttribute('data-cf') === 'tee'), 'tee name box focused');
@@ -167,6 +167,6 @@ const Y = (b) => Array.from({ length: 18 }, (_, i) => b + i * 7), P = [4, 4, 3, 
   await seed({ 'golfsg.rounds.v1': [Object.assign({}, R1, { player: undefined })] }); await page.reload(); await page.waitForSelector('#home');
   assert.strictEqual(await page.$('#namesheet'), null); assert.strictEqual(await page.$('#playerrow'), null); await openNew(); assert.match(await page.textContent('#nplayer'), /Add golfer’s name/);
   const w = await page.evaluate(() => document.documentElement.scrollWidth); assert.ok(w <= 393, 'no sideways scroll ' + w);
-  const SWV = require('fs').readFileSync(__dirname + '/../sw.js', 'utf8').match(/golf-sg-v\d+/)[0]; assert.strictEqual(SWV, 'golf-sg-v112');
+  const SWV = require('fs').readFileSync(__dirname + '/../sw.js', 'utf8').match(/golf-sg-v\d+/)[0]; assert.strictEqual(SWV, 'golf-sg-v113');
   assert.deepStrictEqual(errors, []); console.log('COURSE / TEE / PLAYER OK'); await b.close(); srv.kill();
 })().catch(e => { console.error(e); process.exit(1); });

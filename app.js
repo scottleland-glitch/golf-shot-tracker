@@ -1219,17 +1219,24 @@
       '<div class="tiprow" id="bkinfo">' + tipBtn('bkinfo', 'i', 'About backup and restore') + tipLbl('bkinfo', 'About backup &amp; restore') + tipText('bkinfo', 'Back up saves all rounds, saved courses, My Bag and your Wedges chart as one file (golf-rounds-backup-date.json) – choose Save to Files in the share sheet. Restore adds the rounds from a backup file; rounds already on this phone are not duplicated.') + '</div>';
     if (rounds.length) h += '<button class="big frostbtn" data-act="csvall">Export all rounds (CSV)</button>';
     h += '<button class="big frostbtn" data-act="about">ⓘ About the numbers</button>';
+    h += '<p class="credits" id="credits">Course data: <a href="https://www.golfcore.org/" target="_blank" rel="noopener">GolfCore</a> · <a href="https://opengolfapi.org/" target="_blank" rel="noopener" title="Contains data from OpenGolfAPI (opengolfapi.org), ODbL 1.0">OpenGolfAPI</a> (<a href="https://opendatacommons.org/licenses/odbl/1-0/" target="_blank" rel="noopener">ODbL</a>) · © <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a></p>'; // v113 – one short line (Settings keeps long text behind (i) buttons)
     h += '<p class="appver setver" id="setver" aria-label="App version">' + esc(APP_VER) + '</p>';
     if (view.gdr) h += gdRestoreHTML();
     return h + '</div>';
   }
 
   // ---------- Saved courses (typed in: par + yardages per tee box) ----------
+  // v113: small fixed-size tee dot (pure CSS, nothing to load): the colour in the name, two-tone for combos, a white circle otherwise
+  function teeDot(name) { var c = COURSES.teeColors(name);
+    var bg = c.length > 1 ? 'linear-gradient(90deg,' + c[0] + ' 50%,' + c[1] + ' 50%)' : (c[0] || '');
+    return '<i class="tdot' + (c.length ? '' : ' tdot-none') + '" aria-hidden="true"' + (bg ? ' style="background:' + bg + '"' : '') + '></i>'; }
   function teeLabel(t, k) { return String(t.name || '').trim() || 'Tee box ' + (k + 1); }
   function teeTot(t) { var n = COURSES.teeTotal(t); return n ? n.toLocaleString('en-US') : ''; }
   // New round: Course dropdown (+ Add new course first, then saved courses, most recently used first) → tee box chips
   function newCourseHTML() {
     var list = COURSES.byRecent(courses(), rounds), nc = view.newC && courseById(view.newC.id), adding = !nc && (view.newAdd || !list.length), h = '';
+    if (view.near) return h + nearHTML(); // v113: Courses near me panel in place of the course picker
+    h += '<button type="button" class="nearbtn" id="nearbtn" data-act="nearopen">📍 Courses near me</button>';
     if (list.length) {
       h += '<span class="lbl" id="crslbl">Course</span><button type="button" class="crspick' + (view.crsOpen ? ' open' : '') + (nc ? ' chosen' : '') + '" id="crspick" data-act="crsopen" aria-haspopup="listbox" aria-expanded="' + !!view.crsOpen + '" aria-labelledby="crslbl crspick">' +
         '<span id="crspicked">' + (nc ? esc(nc.name) : adding ? '+ Add new course' : 'Choose a course') + '</span><i aria-hidden="true">' + (view.crsOpen ? '▴' : '▾') + '</i></button>';
@@ -1242,13 +1249,146 @@
       var tees = nc.tees || [];
       h += '<span class="lbl" id="teelbl">' + (tees.length > 1 ? 'Tee box' : 'Playing from') + '</span><div class="ntees" id="ntees" role="group" aria-labelledby="teelbl">' + tees.map(function (t) {
         var on = view.newC.tee === t.name || (tees.length === 1);
-        return '<button type="button" class="ntee' + (on ? ' sel' : '') + '" aria-pressed="' + on + '" data-act="ntee" data-v="' + esc(t.name) + '">' + esc(t.name) + (teeTot(t) ? '<small>' + teeTot(t) + ' yd</small>' : '') + '</button>'; }).join('') +
-        '<button type="button" class="ntee naddtee" data-act="naddtee">＋ Add tee box</button></div>' +
-        '<button type="button" class="txtlink nedit" data-act="nedit">✎ Rename tees or fix numbers</button>';
+        var yd = teeTot(t) || (t.total ? Number(t.total).toLocaleString('en-US') : ''), rt = NEAR.rtText(t), sm = (yd ? yd + ' yd' : '') + (yd && rt ? ' · ' : '') + rt; // v113: rating / slope when known
+        return '<button type="button" class="ntee' + (on ? ' sel' : '') + '" aria-pressed="' + on + '" data-act="ntee" data-v="' + esc(t.name) + '">' + teeDot(t.name) + '<span class="tname">' + esc(t.name) + '</span>' + (sm ? '<small>' + sm + '</small>' : '') + '</button>'; }).join('') +
+        '<button type="button" class="ntee naddtee" data-act="naddtee">＋ Add tee box</button></div>';
+      if (nc.src === 'golfcore') { // v113: imported course – blank holes note + credit
+        var gp = NEAR.gaps(nc, view.newC.tee || (tees[0] || {}).name);
+        if (gp) h += '<button type="button" class="txtlink nmiss" id="nmiss" data-act="nedit">Some holes are missing – tap to fill in</button>';
+        h += gcCredit(nc);
+      }
+      h += '<button type="button" class="txtlink nedit" data-act="nedit">✎ Rename tees or fix numbers</button>';
     }
     if (adding) h += (list.length ? '' : '<span class="lbl" id="crslbl">Course</span>') + '<input type="text" id="course" placeholder="Course name' + (list.length ? '' : ' (optional)') + '" autocomplete="off" value="' + esc(view.newName || '') + '" aria-label="Course name">' +
       '<button class="sheet-item ntype" id="ntype" data-act="cardmanual" aria-label="Type in par and yardages">✎ Type in par &amp; yardages</button>';
     return h;
+  }
+  // ---------- v113: Courses near me (finder list from OpenGolfAPI, scorecards from GolfCore) ----------
+  var NEARLIST = null, NEARCACHE = 'pinhigh-courselist-v1', NEARURL = './data/us-courses.json';
+  function gcCredit(c) { return '<p class="gccredit" id="gccredit">Course data: <a href="' + esc(c.gcUrl || 'https://www.golfcore.org/') + '" target="_blank" rel="noopener">GolfCore</a></p>'; }
+  function nearRow(i, mi) { var r = NEARLIST[i], C = NEAR.COL; // v113: one tight line – name · town, ST · 18 holes … distance at the right
+    var sub = [(r[C.city] ? r[C.city] + ', ' : '') + r[C.state]]; if (r[C.holes]) sub.push(r[C.holes] + ' holes');
+    var saved = courses().some(function (c) { return c.ogKey === NEAR.key(r); });
+    return nearLine('nearpick', 'data-i="' + i + '"', r[C.name], sub.join(' · '), saved, mi != null ? NEAR.fmtMi(mi) : ''); }
+  function nearLine(act, attr, name, sub, saved, dist) {
+    return '<button type="button" class="nearopt" data-act="' + act + '" ' + attr + '><b>' + esc(name) + '</b><small>' + (sub ? ' · ' + esc(sub) : '') + '</small>' +
+      (saved ? '<em class="nsaved">saved</em>' : '') + (dist ? '<span class="nmi">' + esc(dist) + '</span>' : '') + '</button>'; }
+  function nearResHTML() {
+    var N = view.near, P = N.pos, R = NEAR.search(NEARLIST || [], N.q || '', P && P.lat, P && P.lng, 20);
+    if (!String(N.q || '').trim()) return '';
+    return R.length ? '<div class="crslist nearlist" id="nearres">' + R.map(function (x) { return nearRow(x.i, x.mi); }).join('') + '</div>' : '<p class="nearmsg" id="nearres">No course by that name in the list.</p>';
+  }
+  function nearHTML() {
+    var N = view.near, h = '<div class="nearbox" id="nearbox">';
+    if (N.step === 'ask') h += '<p class="nearwhy" id="nearwhy">Pin High uses your location once to find nearby courses. It isn\'t saved or sent anywhere.</p>' +
+      '<button type="button" class="nearok" data-act="neargo">Find courses near me</button><button type="button" class="nearlink" data-act="nearname">Search by name instead</button>';
+    else if (N.step === 'busy') h += '<p class="nearmsg" id="nearbusy" role="status">' + esc(N.msg) + '</p>';
+    else if (N.step === 'list') {
+      if (N.msg) h += '<p class="nearmsg" id="nearnote" role="status">' + esc(N.msg) + '</p>';
+      if (N.pos) { var L = NEAR.nearest(NEARLIST, N.pos.lat, N.pos.lng, N.more || 5);
+        h += '<span class="lbl">Nearest courses</span><div class="crslist nearlist" id="nearlist">' + L.map(function (x) { return nearRow(x.i, x.mi); }).join('') + '</div>' +
+          '<button type="button" class="nearlink" data-act="nearmore">Show more</button>'; }
+      h += '<input type="text" id="nearq" placeholder="Search by name or town" autocomplete="off" value="' + esc(N.q || '') + '" aria-label="Search courses by name or town">' + nearResHTML();
+    } else if (N.step === 'confirm') {
+      h += '<p class="nearmsg" id="nearask">Is it one of these? (GolfCore lists it a little differently)</p><div class="crslist nearlist" id="nearcands">' + N.cands.map(function (x, k) {
+        return nearLine('nearcand', 'data-k="' + k + '"', x.g.name, [x.g.city, x.g.region].filter(Boolean).join(', '), false, NEAR.fmtMi(x.mi)); }).join('') + '</div>' +
+        '<button type="button" class="nearlink" data-act="nearmanual">None of these – type it in myself</button>';
+    } else if (N.step === 'layout') {
+      h += '<p class="nearmsg" id="nearask">Which course at ' + esc(N.detail.name) + '?</p><div class="crslist nearlist">' + N.detail.layouts.map(function (l, k) {
+        return nearLine('nearlayout', 'data-k="' + k + '"', l.name || 'Course ' + (k + 1), [(l.par ? 'par ' + l.par : ''), (l.tees || []).length ? l.tees.length + ' tees' : ''].filter(Boolean).join(' · '), false, ''); }).join('') + '</div>';
+    } else if (N.step === 'err') {
+      h += '<p class="nearmsg nearerr" id="nearerr" role="status">' + esc(N.msg) + '</p>' + (N.retry ? '<button type="button" class="nearok" data-act="nearretry">Try again</button>' : '') +
+        '<button class="sheet-item ntype" data-act="nearmanual">✎ Type in par &amp; yardages</button>';
+    }
+    return h + '<button type="button" class="nearlink" data-act="nearclose">' + (N.step === 'list' || N.step === 'ask' ? 'Back to my courses' : 'Cancel') + '</button></div>';
+  }
+  function nearSet(o) { if (!view.near || view.hmenu !== 'new') return false; Object.assign(view.near, o); render(); if (o.step === 'list' && !view.near.pos) { var q = document.getElementById('nearq'); if (q) q.focus(); } return true; }
+  // the finder list: from its own cache if downloaded before (a new app version keeps it), otherwise downloaded once now
+  function nearLoad() {
+    if (NEARLIST) return Promise.resolve(NEARLIST);
+    var C = window.caches;
+    var get = function () { return fetch(NEARURL, { cache: 'no-store' }).then(function (res) { if (!res.ok) throw new Error('list ' + res.status);
+      var copy = C ? res.clone() : null, keep = C ? C.open(NEARCACHE).then(function (c) { return c.put(NEARURL, copy); }).catch(function () {}) : null; /* clone before the body is read */ return res.json().then(function (j) { return keep ? keep.then(function () { return j; }) : j; }); }); };
+    var p = C ? C.open(NEARCACHE).then(function (c) { return c.match(NEARURL); }).then(function (hit) { return hit ? hit.json() : get(); }, get) : get();
+    return p.then(function (j) { NEARLIST = (j && j.courses) || []; return NEARLIST; });
+  }
+  function nearWhere() { // one location reading, approximate is fine; nothing is stored
+    return new Promise(function (ok, bad) {
+      if (!navigator.geolocation) return bad({ code: 'none' });
+      var done = false, t = setTimeout(function () { if (!done) { done = true; bad({ code: 3 }); } }, 12000);
+      navigator.geolocation.getCurrentPosition(function (p) { if (done) return; done = true; clearTimeout(t); ok({ lat: p.coords.latitude, lng: p.coords.longitude }); },
+        function (e) { if (done) return; done = true; clearTimeout(t); bad(e || {}); }, { enableHighAccuracy: false, timeout: 10000, maximumAge: 600000 });
+    });
+  }
+  function nearGo(useLoc) {
+    var N = view.near; N.useLoc = useLoc; N.step = 'busy'; N.msg = useLoc ? 'Finding courses near you…' : 'Getting the course list…'; N.pos = null; N.more = 5; render();
+    var where = useLoc ? nearWhere().then(function (p) { return p; }, function (e) { return { err: e }; }) : Promise.resolve(null);
+    Promise.all([nearLoad(), where]).then(function (a) {
+      if (view.near !== N) return;
+      var p = a[1], msg = '';
+      if (p && p.err) { msg = p.err.code === 1 ? 'Location is turned off for Pin High – search by name instead.' : 'Couldn\'t get your location – search by name instead.'; p = null; }
+      nearSet({ step: 'list', pos: p, msg: msg });
+    }, function () { if (view.near === N) nearSet({ step: 'err', retry: true, msg: 'Couldn\'t download the course list – check your connection and try again, or type the course in yourself.' }); });
+  }
+  function gcGet(path) {
+    var G = window.GOLF_CONFIG || {}, base = String(G.GOLFCORE_BASE || '').replace(/\/+$/, ''); // the relay adds the key; none in the app
+    if (!base) return Promise.reject(Object.assign(new Error('no GolfCore address'), { status: 503 }));
+    return fetch(base + path, { headers: { Accept: 'application/json' } }).then(function (res) {
+      if (!res.ok) { var e = new Error('golfcore ' + res.status); e.status = res.status; throw e; } return res.json(); });
+  }
+  function gcErr(e) {
+    var st = e && e.status;
+    if (!st) return 'No connection right now, so the scorecard can\'t be fetched. Try again when you have signal, or type it in yourself.';
+    if (st === 404) return 'GolfCore doesn\'t have a scorecard for this course.';
+    if (st === 429) return 'The free course lookups are used up for now. Try again later, or type it in yourself.';
+    if (st === 401 || st === 403) return 'The course lookup isn\'t working right now (see the README). You can type the card in yourself.';
+    return 'Couldn\'t get the scorecard right now. Try again, or type it in yourself.';
+  }
+  function nearUse(c) { view.newC = { id: c.id, tee: (c.tees[0] || {}).name || '' }; view.newAdd = false; view.crsOpen = false; view.near = null; render(); }
+  function nearPick(i) {
+    var r = NEARLIST[i], C = NEAR.COL, N = view.near, saved = courses().filter(function (c) { return c.ogKey === NEAR.key(r); })[0];
+    if (saved) { nearUse(saved); return; } // already saved (and maybe edited): never fetched again
+    N.row = r; N.step = 'busy'; N.msg = 'Getting the scorecard for ' + r[C.name] + '…'; N.retry = null; render();
+    gcGet('/courses?near=' + r[C.lat] + ',' + r[C.lng] + '&radius=3&limit=10').then(function (j) {
+      if (view.near !== N) return;
+      var M = NEAR.match(r, j.courses || []);
+      if (!M.best) return nearSet({ step: 'err', retry: false, msg: 'GolfCore doesn\'t list this course yet. You can type the card in yourself.' });
+      if (M.close) return nearSlug(M.best.g.slug);
+      nearSet({ step: 'confirm', cands: M.list.slice(0, 5) });
+    }, function (e) { if (view.near === N) nearSet({ step: 'err', retry: function () { nearPick(i); }, msg: gcErr(e) }); });
+  }
+  function nearSlug(slug) {
+    var N = view.near, have = courses().filter(function (c) { return c.gcId === slug; });
+    if (have.length === 1) { nearUse(have[0]); return; }
+    N.step = 'busy'; N.msg = 'Getting the scorecard…'; render();
+    gcGet('/courses/' + encodeURIComponent(slug)).then(function (d) {
+      if (view.near !== N) return;
+      var L = d.layouts || [];
+      if (!L.some(function (l) { return (l.holes || []).length || (l.tees || []).length; })) return nearSet({ step: 'err', retry: false, msg: 'GolfCore has ' + d.name + ' but no scorecard for it yet. You can type it in yourself.' });
+      if (L.length > 1) return nearSet({ step: 'layout', detail: d });
+      nearSave(d, 0);
+    }, function (e) { if (view.near === N) nearSet({ step: 'err', retry: function () { nearSlug(slug); }, msg: gcErr(e) }); });
+  }
+  function nearSave(d, k) {
+    var c = COURSES.clean(NEAR.fromGolfCore(d, k, view.near.row)), list = courses(), old = list.filter(function (x) { return x.id === c.id; })[0];
+    if (old) { nearUse(old); return; } // Scott's copy (edited or not) always wins over a fresh import
+    list.unshift(c); saveCourses(list); backupDirty(3000); toast('Saved ' + c.name); nearUse(c);
+  }
+  function nearManual() { var r = view.near && view.near.row; view.near = null; cardOpen('new', COURSES.blankCourse(r ? r[NEAR.COL.name] : String(view.newName || '').trim())); }
+  function nearAct(act, b) {
+    var N = view.near;
+    switch (act) {
+      case 'nearopen': view.near = { step: 'ask' }; view.crsOpen = false; render(); return;
+      case 'neargo': nearGo(true); return;
+      case 'nearname': nearGo(false); return;
+      case 'nearmore': if (N) { N.more = (N.more || 5) + 5; render(); } return;
+      case 'nearpick': nearPick(+b.getAttribute('data-i')); return;
+      case 'nearcand': if (N && N.cands) nearSlug(N.cands[+b.getAttribute('data-k')].g.slug); return;
+      case 'nearlayout': if (N && N.detail) nearSave(N.detail, +b.getAttribute('data-k')); return;
+      case 'nearretry': if (N && typeof N.retry === 'function') N.retry(); else if (N) nearGo(!!N.useLoc); return;
+      case 'nearmanual': nearManual(); return;
+      case 'nearclose': view.near = null; render(); return;
+    }
   }
   // Open a saved course in the card editor from the New round sheet (rename tees, fix numbers, or add a tee box)
   function newEdit(addTee) {
@@ -1275,7 +1415,7 @@
       var t = c.tees[C.sel] || c.tees[0], P = c.pars, Y = t.yards;
       var miss = 0; for (var i = 0; i < 18; i++) if (P[i] == null || Y[i] == null) miss++;
       h += cardTop(courseById(c.id) ? 'Edit course' : 'Add a course') + '<div class="frostcard cardrev"><input type="text" class="crsname" data-cf="name" placeholder="Course name" value="' + esc(c.name) + '" autocomplete="off">' +
-        '<p class="teelbl" id="revteelbl">Tee boxes</p><div class="revtees">' + c.tees.map(function (x, k) { return '<button class="frostchip' + (k === C.sel ? ' sel' : '') + '" data-act="cardsel" data-i="' + k + '">' + esc(teeLabel(x, k)) + '</button>'; }).join('') +
+        '<p class="teelbl" id="revteelbl">Tee boxes</p><div class="revtees">' + c.tees.map(function (x, k) { return '<button class="frostchip' + (k === C.sel ? ' sel' : '') + '" data-act="cardsel" data-i="' + k + '">' + teeDot(x.name) + esc(teeLabel(x, k)) + '</button>'; }).join('') +
         '<button class="frostchip addtee" data-act="cardaddtee" aria-label="Add a tee box">＋ Tee box</button></div>' +
         '<label class="teelbl" for="teenamein">Name these tees</label><div class="teename"><input type="text" id="teenamein" data-cf="tee" value="' + esc(t.name) + '" placeholder="e.g. White, Red, Truckee" autocomplete="off">' + (c.tees.length > 1 ? '<button class="frostdanger" data-act="carddeltee" aria-label="Remove this tee box">🗑</button>' : '') + '</div>' +
         '<div class="teequick" id="teequick" role="group" aria-label="Common tee names">' + COURSES.TEE_CHIPS.map(function (n) { var on = String(t.name || '').trim().toLowerCase() === n.toLowerCase();
@@ -1286,7 +1426,7 @@
             '<input type="text" inputmode="numeric" maxlength="3" data-cf="yd" placeholder="–" data-i="' + j + '" value="' + (Y[j] == null ? '' : Y[j]) + '" aria-label="Yards hole ' + (j + 1) + '"></div>';
           return '<div class="rg-col">' + rows + '<div class="rg-t"><span>' + (f ? 'In' : 'Out') + '</span><b id="rgp' + f + '">' + (COURSES.sum(P.slice(f, f + 9)) || '') + '</b><b id="rgy' + f + '">' + (COURSES.teeTotal(t, f, f + 9) || '') + '</b></div></div>';
         }).join('') + '</div><p class="revtot" id="revtot">Par ' + (COURSES.sum(P) || '–') + ' · ' + (teeTot(t) || '–') + ' yd</p>' +
-        (miss ? '<p class="revmiss" id="revmiss">' + miss + ' hole' + (miss === 1 ? '' : 's') + ' to fill</p>' : '') + '</div>' +
+        (miss ? '<p class="revmiss" id="revmiss">' + miss + ' hole' + (miss === 1 ? '' : 's') + ' to fill</p>' : '') + (c.src === 'golfcore' ? gcCredit(c) : '') + '</div>' +
         '<div class="tiprow">' + tipBtn('revinfo', 'i', 'About this check') + tipLbl('revinfo', 'About this card') + tipText('revinfo', 'Type the par and yards from the scorecard. Tap any box to fix a number. Add a tee box for each set of tees – every tee box is saved, and the round uses the one you pick.') + '</div>' +
         '<button class="big frostmain" data-act="cardsave">✓ Save course</button>';
     }
@@ -1305,6 +1445,7 @@
     var unnamed = kept.length > 1 ? C.course.tees.indexOf(kept.filter(function (x) { return COURSES.noName(x.name); })[0]) : -1;
     if (unnamed >= 0) { C.sel = unnamed; render(); toast('Name each tee box – e.g. White or Red'); var tn0 = document.querySelector('[data-cf="tee"]'); if (tn0) tn0.focus(); return; }
     var c = COURSES.clean(C.course), selK = kept.indexOf(C.course.tees[C.sel]);
+    if (c.src) c.edited = true; // v113: an imported course Scott has changed – a later import never replaces it
     var list = courses().filter(function (x) { return x.id !== c.id; }); list.unshift(c); saveCourses(list); backupDirty(3000);
     var tee = (c.tees[selK] || c.tees[0] || {}).name || '';
     toast('Saved ' + c.name); view.card = null;
@@ -3303,7 +3444,8 @@
       case 'archive': view.screen = 'archive'; view.hmenu = null; render(); window.scrollTo(0, 0); return;
       case 'plus': view.hmenu = view.hmenu ? (view.hmenu === 'new' ? 'menu' : null) : 'menu'; render(); return;
       case 'newform': view.hmenu = 'new'; render(); var ci = document.getElementById('course'); if (ci) ci.focus(); return;
-      case 'menuclose': view.hmenu = null; view.newC = null; view.newAdd = false; view.newName = ''; view.newBl = null; view.crsOpen = false; render(); return;
+      case 'menuclose': view.hmenu = null; view.near = null; view.newC = null; view.newAdd = false; view.newName = ''; view.newBl = null; view.crsOpen = false; render(); return;
+      case 'nearopen': case 'neargo': case 'nearname': case 'nearmore': case 'nearpick': case 'nearcand': case 'nearlayout': case 'nearretry': case 'nearmanual': case 'nearclose': nearAct(act, b); return;
       case 'crsopen': view.crsOpen = !view.crsOpen; render(); return;
       case 'crsnew': view.newC = null; view.newAdd = true; view.crsOpen = false; render(); var cn = document.getElementById('course'); if (cn) cn.focus(); return;
       case 'naddtee': newEdit(true); return;
@@ -3521,7 +3663,8 @@
   }
   function blank0(v) { return v === '' || v == null; }
 
-  document.addEventListener('input', function (ev) { if (ev.target && ev.target.id === 'bzslider') bzUpdate(+ev.target.value); if (ev.target && ev.target.id === 'course') view.newName = ev.target.value; });
+  document.addEventListener('input', function (ev) { if (ev.target && ev.target.id === 'bzslider') bzUpdate(+ev.target.value); if (ev.target && ev.target.id === 'course') view.newName = ev.target.value;
+    if (ev.target && ev.target.id === 'nearq' && view.near) { view.near.q = ev.target.value; var nr = document.getElementById('nearres'), html = nearResHTML(); if (nr) nr.outerHTML = html || '<span id="nearres"></span>'; else ev.target.insertAdjacentHTML('afterend', html); } });
   document.addEventListener('change', function (ev) { if (ev.target && ev.target.id === 'newbl') view.newBl = ev.target.value; });
   document.addEventListener('keydown', function (ev) { if (ev.key === 'Enter' && ev.target && ev.target.id === 'pname' && !ev.isComposing) { ev.preventDefault(); setName(ev.target.value); } });
   document.addEventListener('input', function (ev) {

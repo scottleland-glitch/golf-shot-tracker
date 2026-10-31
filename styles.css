@@ -1300,3 +1300,37 @@ tbody td, .mapsum, .mapsum small, .infocap, .bzlegend, .odstat, .bcbase > span, 
 /* v111/v112: percent next to the fractions in the Round stats list, e.g. 9 / 12 (75%); value never wraps mid-way */
 .stxlist .stxh b { white-space: nowrap; }
 .stxlist .stxh .stxp { font-style: normal; font-weight: 400; font-size: inherit; color: inherit; } /* v112: brackets, same dark colour and size as the number – not grey */
+/* v113: Courses near me – soft rounded button, plain light text, thin borders */
+.home .nearbtn { width: 100%; min-height: 44px; margin: 4px 0 2px; padding: 10px 14px; border: 1px solid rgba(59, 110, 159, .3); border-radius: 14px;
+  background: rgba(169, 205, 240, .35); color: #0e2a44; font-size: 16px; font-weight: 400; text-align: left; box-shadow: none; }
+.home .nearbox { display: flex; flex-direction: column; gap: 4px; margin: 4px 0; }
+.home .nearwhy, .home .nearmsg { margin: 4px 4px 2px; font-size: 14px; font-weight: 400; line-height: 1.4; color: #2d4636; }
+.home .nearerr { color: #6b3a2a; }
+.home .nearok { min-height: 44px; border: 0; border-radius: 999px; padding: 11px; background: #3b6e9f; color: #fff; font-size: 16px; font-weight: 400; box-shadow: none; }
+.home .nearlink { background: none; border: 0; box-shadow: none; color: #3b6e9f; font-size: 14px; font-weight: 400; padding: 6px; min-height: 34px; }
+.home .nmiss { background: rgba(255, 236, 200, .6); border: 1px solid rgba(190, 140, 60, .3); border-radius: 12px; box-shadow: none; color: #6b4a14; font-size: 14px; font-weight: 400; text-align: left; padding: 8px 10px; margin: 4px 0 0; min-height: 36px; }
+.gccredit { margin: 4px 6px 0; font-size: 12px; font-weight: 300; color: #5b7464; }
+.gccredit a, .credits a { color: inherit; text-decoration: underline; text-decoration-thickness: 1px; }
+.archivepage .credits { margin: 18px 6px 0; font-size: 12px; font-weight: 300; line-height: 1.45; color: #6b7884; text-align: center; }
+/* v113 revision: tight one-line course rows like the Rounds list (name · town · holes … distance), compact tee chips with a colour dot */
+.home .nearlist { max-height: 432px; overflow-y: auto; box-shadow: none; border-radius: 16px; background: rgba(255, 255, 255, .72); border: 1px solid rgba(23, 48, 31, .08); }
+.home .nearlist .nearopt { display: flex; flex-direction: row; align-items: center; gap: 6px; width: 100%; min-height: 0; height: 42px; margin: 0; padding: 0 12px;
+  background: transparent; border: 0; border-top: 1px solid rgba(23, 48, 31, .08); border-radius: 0; box-shadow: none; text-align: left; color: #17301f; white-space: nowrap; }
+.home .nearlist .nearopt:first-child { border-top: 0; }
+.home .nearlist .nearopt:active { background: rgba(47, 107, 63, .06); }
+.home .nearopt b { flex: 0 0 auto; max-width: calc(100% - 62px); overflow: hidden; text-overflow: ellipsis; font-size: 14.5px; font-weight: 400; }
+.home .nearopt small { flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; font-size: 12px; font-weight: 300; color: #5b7464; }
+.home .nearopt .nmi { flex: 0 0 auto; margin-left: auto; padding-left: 6px; font-size: 12px; font-weight: 400; color: #4b6355; font-variant-numeric: tabular-nums; }
+.home .nsaved { flex: 0 0 auto; font-style: normal; font-size: 10px; font-weight: 400; line-height: 1; color: #2f6b3f; border: 1px solid rgba(47, 107, 63, .3); border-radius: 999px; padding: 2px 5px; }
+.home .nearopt .nsaved + .nmi { margin-left: 4px; }
+.home .nearopt .nsaved { margin-left: auto; }
+.home .ntees { gap: 5px; }
+.home .ntee { flex-direction: row; align-items: center; gap: 6px; min-height: 32px; padding: 4px 10px; border-radius: 10px; font-size: 14px; font-weight: 400; line-height: 1.1;
+  border: 1px solid rgba(23, 48, 31, .14); background: rgba(255, 255, 255, .75); }
+.home .ntee.sel { background: #1c1c1e; border-color: #1c1c1e; color: #fff; }
+.home .ntee small { font-size: 11px; font-weight: 300; opacity: .8; white-space: nowrap; }
+.home .ntee.naddtee { min-height: 32px; padding: 4px 10px; font-size: 13px; font-weight: 400; }
+.tdot { flex: 0 0 auto; display: inline-block; width: 10px; height: 10px; border-radius: 50%; border: 1px solid rgba(0, 0, 0, .28); background: #fff; box-sizing: border-box; vertical-align: -1px; }
+.tdot-none { background: #fff; border-color: #9aa0a6; }
+.home .ntee.sel .tdot { border-color: rgba(255, 255, 255, .75); }
+.cardpage .revtees .frostchip .tdot { margin-right: 5px; }
