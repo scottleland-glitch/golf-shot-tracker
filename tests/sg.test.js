@@ -764,3 +764,14 @@ test('club + layup: club kept on shots, layup tee shot excluded from SG entirely
   // old rows without club/layup still work
   assert.deepStrictEqual(SG.analyzeHole({ par: 4, finished: true, rows: [R(400, 'tee'), R(2, 'holed')] }, 'pga').shots[0].club, '');
 });
+
+test('v110 stats: putts made inside 10 ft, averages, last n', () => {
+  const L = [{ ft: 10, made: true }, { ft: 10.5, made: true }, { ft: 3, made: false }, { ft: 2, made: true }, { ft: 0, made: true }, { ft: 25, made: false }];
+  assert.deepStrictEqual(SG.puttsInside10(L), { attempts: 3, made: 2, pct: 200 / 3 }); // 10 ft counts, 10.5 / 25 do not, 0 (no distance) skipped
+  assert.deepStrictEqual(SG.puttsInside10([{ ft: 30, made: true }]), { attempts: 0, made: 0, pct: null });
+  // every putt counts, not just the first: a missed 8 footer then a made 2 footer = 1 of 2
+  const r = { holes: [{ par: 3, finished: true, rows: [{ dist: 160, loc: 'tee' }, { dist: 8, loc: 'green' }, { dist: 2, loc: 'holed' }] }] };
+  const S = SG.summarize(r, 'pga'); assert.deepStrictEqual(S.puttList.map(p => p.ft), [8, 2]); assert.deepStrictEqual(SG.puttsInside10(S.puttList), { attempts: 2, made: 1, pct: 50 });
+  assert.strictEqual(SG.trendAvg([1, null, 3]), 2); assert.strictEqual(SG.trendAvg([null]), null); assert.strictEqual(SG.trendAvg([]), null);
+  assert.deepStrictEqual(SG.lastN([1, 2, 3, 4, 5, 6], 5), [2, 3, 4, 5, 6]); assert.deepStrictEqual(SG.lastN([1, 2], 5), [1, 2]); assert.deepStrictEqual(SG.lastN([1, 2], 0), [1, 2]);
+});

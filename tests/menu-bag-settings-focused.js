@@ -29,9 +29,9 @@ const OUT = '/workspace/golf-app/screenshots/', PORT = 8840, BASE = 'http://127.
   assert.deepStrictEqual(await P.$$eval('#home button', e => e.map(x => x.id)), ['plusbtn'], 'Home: only the + button');
   assert.strictEqual(await P.$('#archivepill'), null); assert(!/Archive/.test(await vis()));
   await P.click('#plusbtn'); await P.waitForSelector('#plusmenu');
-  assert.deepStrictEqual(await P.$$eval('#plusmenu button', e => e.map(x => [x.textContent, x.dataset.act])), [['New round', 'newform'], ['My Bag', 'bag'], ['Rounds', 'history'], ['Settings', 'archive']]);
+  assert.deepStrictEqual(await P.$$eval('#plusmenu button', e => e.map(x => [x.textContent, x.dataset.act])), [['New round', 'newform'], ['Rounds', 'history'], ['Stats', 'stats'], ['My Bag', 'bag'], ['Settings', 'archive']]);
   await shot('menu-new.png');
-  console.log('  home: only +; menu New round · My Bag · Rounds · Settings');
+  console.log('  home: only +; menu New round · Rounds · Stats · My Bag · Settings');
 
   // ---------- 2. My Bag: Bag tab ----------
   await P.click('#plusmenu [data-act="bag"]'); await P.waitForSelector('#baglist');

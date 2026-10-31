@@ -68,10 +68,11 @@ excluded and counted. This round / All rounds toggle.
 - `tests/profile-wedges-focused.js` – My Bag + Wedge ladder: menu, Bag | Wedge ladder toggle, accordion, persistence, backup (`node tests/profile-wedges-focused.js`)
 - `tests/rounds-tight-focused.js` – Rounds page (v102): tight list, 8+ rows at 390x844, tints, unfinished flag, tap, delete confirm, filter, select mode (`node tests/rounds-tight-focused.js`)
 - `tests/da-focused.js` – My Bag density altitude (v108): ISA conversion, DA at the baseline = no change, higher = longer, −1,200 ft = shorter, sliders and DA agree for the same air; checkbox swaps the controls, typing -1200, clamping, ± button, saved after reload, ? card with the App Store link, no outside network calls (`node tests/da-focused.js`)
-- `tests/version-focused.js` – the version line (e.g. "Pin High v109") on Settings and Home is small and light, and config.js `appVersion` equals the sw.js cache version (`node tests/version-focused.js`)
+- `tests/version-focused.js` – the version line (e.g. "Pin High v110") on Settings and Home is small and light, and config.js `appVersion` equals the sw.js cache version (`node tests/version-focused.js`)
 - `tests/pdf-focused.js` – the PDF report: page list, share / download name, every page has the player · course · date line and "Page x of n"; v109: every table's header and cells come from one column list (number columns right-aligned with the header at the same right edge, text left), no text past the right margin, and the PDF scorecard equals the on-screen scorecard row for row (`node tests/pdf-focused.js`)
+- `tests/stats-focused.js` – Stats page (v110): + menu order, 7-round fixture (`tests/fixtures/stats-rounds.js`) – every chart point and table average equals the numbers on each round's own Round stats page; tap a point, legend toggles, All / Last 10 / Last 5, player chips, one baseline for all, "Add a couple of rounds", no page errors, no outside calls (`node tests/stats-focused.js`)
 - `tests/lag-putts-focused.js` – 1st putt misses (<10 ft) and Lag putts (>10 ft) use only the 1st putt of each hole (v105, wording v106): 10 ft boundary, 3 ft boundary, tap-ins after a lag putt not counted, This round / All rounds (`node tests/lag-putts-focused.js`)
-- `tests/menu-bag-settings-focused.js` – v102 navigation: Home only +, menu New round · My Bag · Rounds · Settings, Bag | Wedge ladder toggle, Settings page (`node tests/menu-bag-settings-focused.js`)
+- `tests/menu-bag-settings-focused.js` – v102 navigation: Home only +, menu New round · Rounds · Stats · My Bag · Settings (v110 order), Bag | Wedge ladder toggle, Settings page (`node tests/menu-bag-settings-focused.js`)
 - `tests/e2e.js` – Playwright (playwright-core) flow test at iPhone 390x844
 
 ## Hosting
@@ -127,7 +128,7 @@ Each shot row (except putts on the green) has an optional club picker: Driver, 3
 A layup tee shot is excluded from strokes gained entirely: its SG is set to 0, it is not counted in Off the tee (shots or SG) nor the SG total. The score is unchanged. Stored as `row.club` / `row.layup` (optional fields; older rounds load unchanged); included in backups and the CSV (`club`, `layup` columns).
 
 ## My Bag and Wedge ladder (v93; page layout changed in v102)
-The **+** menu is New round · **My Bag** · Rounds · Settings. My Bag has a **Bag | Wedge ladder** toggle at the top (see v102 below). The player name is in Settings.
+The **+** menu is New round · Rounds · **Stats** · **My Bag** · Settings (Stats added in v110). My Bag has a **Bag | Wedge ladder** toggle at the top (see v102 below). The player name is in Settings.
 
 **Wedges**: one row per yardage, 40–110 yd in 10-yard steps (40, 50 … 110 – 8 rows). Collapsed, a row shows a one-line summary (e.g. `54° · middle · 1–2° · P2 · hinge 90°`) or "Not set". Tap a row to open it (one open at a time): **Club** (short clubs from My Bag – wedges, PW, 9i, anything 40°+ – shown without carries, since distance depends on the setup; the standard PW/48–60° list if the bag has none; "Other" for free text), **Ball position** (Front, Middle, Back), **Shaft lean** (0°, 1–2°, 3–4°), **Club position** (swing positions P1, P2, P3), each with an optional note, and **Hinge** (wrist hinge: 45°, 90°, Full). Tap a selected chip again to unselect. Saves as you tap/type to `golfsg.wedges.v1`; "Clear" empties a yardage. Included in backups (`wedges` key) and restored when the phone's chart is empty or the backup's is newer; older backups without it restore as before. Entries saved at 45, 55 … 105 yd by the first (5-yard) v93 draft are kept in the stored data and backups, just not shown. Charts saved with the first v93 draft options are converted when read (ball Back/Back of center → Back, Center → Middle, Forward/Forward of center → Front; lean Neutral → 0°, Slight → 1–2°, Strong → 3–4°, Leaning back → a note; old clock hand positions → a Club position note).
 
@@ -303,7 +304,7 @@ No more large bold text anywhere in the app. Only sizes and weights changed (an 
 ## App version line (v107)
 - **Settings:** the last line of the page is a small, light grey **Pin High v107** (12px, light weight).
 - **Home:** the same text, smaller (11px) and light, at the very bottom of the photo; the Resume round pill stays above it.
-- The version lives in ONE place: `appVersion` in `config.js` (now `'v109'`). The service worker cache name in `sw.js` must be `golf-sg-` + that version; `tests/version-focused.js` fails if they ever differ. Each new version: change both (the cache name has to change in sw.js itself so phones pick up the update).
+- The version lives in ONE place: `appVersion` in `config.js` (now `'v110'`). The service worker cache name in `sw.js` must be `golf-sg-` + that version; `tests/version-focused.js` fails if they ever differ. Each new version: change both (the cache name has to change in sw.js itself so phones pick up the update).
 - Screenshots: `version-settings.png`, `version-home.png`.
 - Cache `golf-sg-v107`.
 
@@ -328,3 +329,18 @@ No more large bold text anywhere in the app. Only sizes and weights changed (an 
 - Then the map pages as before (fairways, GIR, approach misses, pin location, proximity groups, 1st / 2nd putts, 1st putt misses groups, and the all-rounds heat pages when there is more than one round).
 - Sample from the test round: `screenshots/pdf-v109-p1.png` … `pdf-v109-p6.png` (first 6 of 14 pages, 110 dpi).
 - Cache `golf-sg-v109`, `appVersion: 'v109'`.
+
+## Stats – trends over time (v110)
+Open from the **+** menu → **Stats** (New round · Rounds · Stats · My Bag · Settings). ‹ Home goes back.
+- **Which rounds:** the chosen player's *finished* rounds, oldest to newest. Player chips (All players / each name) work like the Rounds filter and start on this phone's player. Unfinished rounds (the same ones Rounds marks *Unfinished*) are left out; a note says how many.
+- **All / Last 10 / Last 5** at the top changes both charts and the table.
+- **Strokes gained per round:** one line each for TOT, OTT, ARG, APP, PUTT, with a dashed zero line. Tap a coloured name to hide/show its line; tap a round to see its date, course, SG numbers, score and putts.
+- **Fairways, greens and short putts:** % fairways hit, % greens in regulation, % putts made inside 10 ft (0–100%).
+  - *Putts made inside 10 ft* = of every putt that started 10 ft or closer (1st, 2nd or 3rd putt), the share that went in. A round with no such putts has no point.
+- **Averages per round** table: SG TOT/OTT/ARG/APP/PUTT, score, to par, putts per round, putts per GIR hole, fairways hit, GIR, putts made inside 10 ft, 2-putts and 3-putts per round, and the round count. Columns: *Last 5* and *All rounds* (or *Last 10*; one column when Last 5 is picked).
+  - Each number is the average of the rounds' own numbers; a round with nothing to count (e.g. no par 4s/5s for fairways) is skipped for that line.
+  - 2-putts / 3-putts = holes with exactly 2 / 3 or more putts.
+- **Same numbers as each round:** SG comes from the same scorecard data as the Round stats screen and uses each round's own baseline. The baseline box can switch every round to one baseline (e.g. PGA Tour) to compare like with like.
+- New helpers in `sg.js`: `puttsInside10`, `trendAvg`, `lastN`. Charts are plain SVG drawn in the app – no libraries, nothing loaded from the internet, works offline.
+- Screenshots: `screenshots/menu-stats.png`, `stats-trends-top.png` (SG chart), `stats-trends-mid.png` (% chart), `stats-trends-table.png`.
+- Cache `golf-sg-v110`, `appVersion: 'v110'`.

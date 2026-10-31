@@ -8,6 +8,7 @@
 // v106: wording – "1st putt misses (<10 ft)" and "Lag putts (>10 ft)", values like 2/3 missed and 12/12 inside 3 ft.
 // v106: Round stats – Missed greens L / R and short / long rows removed (data still recorded).
 // v106: My Bag – "Adjust for playing conditions" (elevation / temperature sliders) is a collapsible section, closed by default.
+// v110: Stats page (+ menu › Stats) – strokes gained, FIR / GIR / short putts over time, averages table.
 // v109: PDF report – columns line up (header over its numbers), nothing past the margins, light type, new scorecard page with all the SG rows.
 // v108: My Bag – "Use density altitude" (one slider + typed box, -3,000 to 12,000 ft) with a ? help card; carries from ISA density.
 // v107: app version shown small at the bottom of Settings and Home (from appVersion in config.js – must match this cache name).
@@ -16,7 +17,7 @@
 // v98: Google Drive automatic backup + restore (gdrive.js), one folder per player, multi-phone merge.
 // v97: Send round (file or PINHIGH1: code) + Add a round in History (share.js).
 // v96: Round stats – Score/To par/Yards/Putts box on top, Quick view, collapsible stat tiles, smaller legend.
-const CACHE = 'golf-sg-v109';
+const CACHE = 'golf-sg-v110';
 const ASSETS = ['./', './img/home-bg.webp', './img/oriole.webp', './index.html', './styles.css', './sg.js', './birdie.js', './voice.js', './courses.js', './bag.js', './wedges.js', './live.js', './share.js', './gdrive.js', './app.js', './config.js', './vendor/jspdf.umd.min.js',
   './manifest.webmanifest', './icons/apple-touch-icon.png', './icons/icon-192.png',
   './icons/icon-512.png', './icons/icon-512-maskable.png'];

@@ -1249,3 +1249,50 @@ tbody td, .mapsum, .mapsum small, .infocap, .bzlegend, .odstat, .bcbase > span, 
 .bagpage .dahelp .daex { color: var(--frost-ink-soft); }
 .bagpage .dahelp a { color: #2a5f8f; font-weight: 400; text-decoration: underline; text-underline-offset: 2px; }
 .bagpage .dahelp .dahclose { display: block; width: 100%; min-height: 44px; margin-top: 4px; border-radius: 999px; font-size: 16px !important; font-weight: 400 !important; }
+/* v110: Stats page – trends over time. Soft white cards, thin borders, light type only, inline SVG charts */
+.statspage { padding-bottom: calc(env(safe-area-inset-bottom) + 24px); }
+.statspage .topbar .title b { font-size: 20px !important; font-weight: 400 !important; }
+.statspage .topbar .title span { font-size: 13px !important; font-weight: 300 !important; }
+.statspage .hchips { display: flex; gap: 6px; overflow-x: auto; margin: 0 0 8px; padding: 2px 0; scrollbar-width: none; }
+.statspage .hchips::-webkit-scrollbar { display: none; }
+.statspage .hchips .frostchip { flex: 0 0 auto; min-height: 32px; padding: 0 12px; font-size: 14px !important; font-weight: 400 !important; }
+.statspage .stbar { display: flex; gap: 8px; align-items: center; margin: 0 0 6px; }
+.statspage .stseg { display: flex; flex: none; padding: 3px; gap: 2px; border-radius: 999px; background: rgba(255, 255, 255, .55); border: 1px solid rgba(23, 48, 31, .1); }
+.statspage .stseg button { min-height: 32px; padding: 0 11px; border: 0; border-radius: 999px; background: transparent; box-shadow: none; font-size: 13.5px !important; font-weight: 400 !important; color: #4a5866; }
+.statspage .stseg button.sel { background: rgba(255, 255, 255, .95); color: #1f2d38; box-shadow: 0 1px 4px rgba(20, 40, 60, .12); }
+.statspage select.stbl { flex: 1; min-width: 0; height: 38px; padding: 0 10px; border-radius: 999px; border: 1px solid rgba(23, 48, 31, .12); background: rgba(255, 255, 255, .72);
+  font: inherit; font-size: 13.5px; font-weight: 400; color: #33424f; -webkit-appearance: none; appearance: none; text-overflow: ellipsis; }
+.statspage .stsub { margin: 2px 4px 8px; font-size: 12.5px; font-weight: 300; color: #3f4e5b; }
+.statspage .stcard { background: rgba(255, 255, 255, .8); border: 1px solid rgba(23, 48, 31, .08); border-radius: 20px; padding: 12px 10px 10px; margin: 0 0 12px; }
+.statspage .sth { font-size: 16px; font-weight: 400; color: #23313d; margin: 0 4px 8px; }
+.statspage .stnote { font-size: 11.5px; font-weight: 300; line-height: 1.4; color: #6a7783; margin: 8px 4px 0; }
+.statspage .stnone p:first-child { font-size: 16px; font-weight: 300; margin: 6px 4px; color: #2b3944; }
+.statspage .stlegend { display: flex; flex-wrap: wrap; gap: 5px; margin: 0 0 6px; }
+.statspage .stleg { display: inline-flex; align-items: center; gap: 5px; min-height: 30px; padding: 0 9px; border-radius: 999px; border: 1px solid rgba(23, 48, 31, .12);
+  background: #fff; box-shadow: none; font-size: 12px !important; font-weight: 400 !important; color: #33424f; }
+.statspage .stleg i { width: 10px; height: 10px; border-radius: 50%; background: var(--c); border: 1.5px solid var(--c); box-sizing: border-box; }
+.statspage .stleg.off { color: #a3adb6; background: rgba(255, 255, 255, .5); }
+.statspage .stleg.off i { background: transparent; border-color: #c3cad1; }
+.statspage svg.stchart { display: block; width: 100%; height: auto; overflow: visible; touch-action: manipulation; }
+.statspage .stgrid { stroke: #e6eaee; stroke-width: 1; }
+.statspage .stzero { stroke: #8f9aa5; stroke-width: 1; stroke-dasharray: 4 3; }
+.statspage .sty, .statspage .stx { font-size: 10.5px; font-weight: 300; fill: #6d7a86; }
+.statspage .stline { fill: none; stroke-width: 1.8; stroke-linejoin: round; stroke-linecap: round; }
+.statspage .stdot { stroke: #fff; stroke-width: 1.2; }
+.statspage .stdot.on { stroke-width: 1.6; }
+.statspage .stsel { stroke: #9aa6b2; stroke-width: 1; stroke-dasharray: 2 3; }
+.statspage .sthit { fill: transparent; cursor: pointer; }
+.statspage .stempty { font-size: 12px; font-weight: 300; color: #7b8792; text-align: center; margin: -110px 0 96px; }
+.statspage .sttip { margin: 8px 2px 0; padding: 8px 10px; border-radius: 14px; background: #f5f8fa; border: 1px solid rgba(23, 48, 31, .07); font-size: 12.5px; font-weight: 400; color: #2b3944; }
+.statspage .sttiph { display: flex; align-items: center; justify-content: space-between; gap: 8px; font-weight: 400; }
+.statspage .sttipx { min-width: 28px; min-height: 28px; padding: 0; border: 0; background: transparent; box-shadow: none; font-size: 18px !important; font-weight: 300 !important; color: #7b8792; }
+.statspage .sttipv { display: flex; flex-wrap: wrap; gap: 4px 12px; margin-top: 4px; }
+.statspage .sttipv span { display: inline-flex; align-items: center; gap: 5px; font-weight: 300; }
+.statspage .sttipv i { width: 8px; height: 8px; border-radius: 50%; background: var(--c); }
+.statspage .sttipv em { font-style: normal; font-weight: 400; }
+.statspage .sttipm { margin-top: 3px; font-weight: 300; color: #6a7783; }
+.statspage table.sttable { width: 100%; font-size: 14px; border-collapse: collapse; }
+.statspage table.sttable th { font-size: 12px; font-weight: 400 !important; color: #6a7783; padding: 4px 6px 6px; border-bottom: 1px solid #e6eaee; }
+.statspage table.sttable td { font-weight: 300 !important; color: #23313d; padding: 6px 6px; border-bottom: 1px solid #eef1f3; }
+.statspage table.sttable td.num, .statspage table.sttable th.num { text-align: right; font-variant-numeric: tabular-nums; width: 82px; }
+.statspage table.sttable tr:last-child td { border-bottom: 0; }
