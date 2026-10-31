@@ -1939,19 +1939,21 @@
     return '<div class="stx' + (open ? ' open' : '') + '" data-stx="' + id + '"><button class="stxh" data-act="stx" data-v="' + id + '" aria-expanded="' + open + '"><span>' + label + '</span><b>' + val + '</b><i class="stxc" aria-hidden="true"></i></button>' +
       (open ? '<div class="stxb">' + body + '</div>' : '') + '</div>';
   }
+  // v111: the 1st putt misses / Lag putts rows drop "missed" / "inside 3 ft" so the row fits on one line at 390px – the opened tile still says it ("2/7 missed", "82% inside 3 ft")
+  function stxPct(n, d) { return d > 0 ? '<em class="stxp"> · ' + Math.round(100 * n / d) + '%</em>' : ''; } // v111: whole percent next to a fraction (no percent when nothing to count)
   function statTilesHTML(S) {
     var PM = SG.pmissList(S.puttList), PMm = PM.filter(function (p) { return !p.made; }).length, LG = SG.lagStats(S.puttList);
     var PX = SG.proxStats(S.proxList.filter(function (m) { return SG.inBucket('all', m.from); })), nc = {}; clubShots(false).forEach(function (x) { nc[x.club] = 1; }); nc = Object.keys(nc).length;
     var note = function (t) { return '<p class="stxn">' + t + '</p>'; };
     return '<div class="stat-grid stxlist" id="stattiles">' +
-      stx('fw', 'Fairways hit', S.fwHit + ' / ' + S.fwTotal, tile('fw', 'Fairways hit – tap for map', S.fwHit + ' / ' + S.fwTotal)) +
-      stx('gir', 'Greens in regulation', S.gir + ' / ' + S.girHoles, tile('gir', 'Greens in reg. – tap for map', S.gir + ' / ' + S.girHoles)) +
+      stx('fw', 'Fairways hit', S.fwHit + ' / ' + S.fwTotal + stxPct(S.fwHit, S.fwTotal), tile('fw', 'Fairways hit – tap for map', S.fwHit + ' / ' + S.fwTotal)) +
+      stx('gir', 'Greens in regulation', S.gir + ' / ' + S.girHoles + stxPct(S.gir, S.girHoles), tile('gir', 'Greens in reg. – tap for map', S.gir + ' / ' + S.girHoles)) +
       stx('miss', 'Approach misses', S.apprMiss.length, tile('miss', 'Approach misses (missed green) – tap for map', S.apprMiss.length, missMini(S.apprMiss))) +
       stx('prox', 'Proximity', PX.n ? fmtFt(PX.avgAllFt) : '–', proxTile(S)) +
       stx('pin', 'Pin location', S.pinHoles.length + ' / ' + S.holesDone, tile('pin', 'Pin location – tap for map', S.pinHoles.length + ' / ' + S.holesDone, '<small class="mini">holes with a pin set</small>')) +
       stx('putt', 'Putts', S.putts, puttTile(S)) +
-      stx('pmiss', '1st putt misses (&lt;10 ft)', PM.length ? PMm + '/' + PM.length + ' missed' : '–', pmissTile(S)) +
-      stx('lag', 'Lag putts (&gt;10 ft)', LG.attempts ? LG.inside + '/' + LG.attempts + ' inside 3 ft' : '–', lagTile(LG)) +
+      stx('pmiss', '1st putt misses (&lt;10 ft)', PM.length ? PMm + '/' + PM.length + stxPct(PMm, PM.length) : '–', pmissTile(S)) +
+      stx('lag', 'Lag putts (&gt;10 ft)', LG.attempts ? LG.inside + '/' + LG.attempts + stxPct(LG.inside, LG.attempts) : '–', lagTile(LG)) +
       stx('club', 'Club performance', nc ? nc + (nc === 1 ? ' club' : ' clubs') : '–', clubTile()) +
       stx('pen', 'Penalty strokes', S.penalties, stat('Penalty strokes', S.penalties) + note('Penalty strokes added this round (OB, water, unplayable…).')) +
       stx('teelr', 'Tee misses L / R', S.teeLeft + ' / ' + S.teeRight, stat('Tee misses L / R', S.teeLeft + ' / ' + S.teeRight) + note('Par-4 and par-5 tee shots that missed the fairway left / right.')) + '</div>'; // v106: Missed greens L / R and short / long rows removed (data still kept: S.apprLeft/Right/Short/Over)

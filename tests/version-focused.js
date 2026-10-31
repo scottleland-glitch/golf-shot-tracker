@@ -10,7 +10,7 @@ const swVer = (sw.match(/const CACHE = 'golf-sg-(v\d+)';/) || [])[1], cfgVers = 
 assert.ok(swVer, 'sw.js has a golf-sg-vN cache name'); assert.strictEqual(cfgVers.length, 1, 'exactly one appVersion in config.js');
 const cfgVer = cfgVers[0].match(/'(v\d+)'/)[1];
 assert.strictEqual(cfgVer, swVer, 'config.js appVersion (' + cfgVer + ') must equal the sw.js cache version (' + swVer + ')');
-assert.strictEqual(swVer, 'v110');
+assert.strictEqual(swVer, 'v111');
 assert.ok(!/Pin High v\d+/.test(app), 'no version typed into app.js – it reads GOLF_CONFIG.appVersion');
 ok('config.js appVersion ' + cfgVer + ' = sw.js cache golf-sg-' + swVer);
 (async () => {

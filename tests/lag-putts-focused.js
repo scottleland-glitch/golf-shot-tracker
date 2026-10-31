@@ -57,10 +57,10 @@ R2.holes = [{ par: 4, finished: true, rows: [R(400, 'tee'), R(150, 'fairway'), R
     const T = await P.evaluate(() => { const h = id => document.querySelector(`[data-stx="${id}"] .stxh`); return {
       pmH: h('pmiss').textContent, pmTile: document.querySelector('[data-stx="pmiss"] .stat.tile').textContent, lagH: h('lag').textContent, lagTile: document.querySelector('[data-stx="lag"] .stat.tile').textContent,
       order: [...document.querySelectorAll('#stattiles [data-act="stx"]')].map(x => x.getAttribute('data-v')) }; });
-    assert.strictEqual(T.pmH, '1st putt misses (<10 ft)2/3 missed'); assert.match(T.pmTile, /^2\/3 missed\s*1st putt misses \(<10 ft\) – tap for map\s*1st putts from 10 ft and in · 1 made$/); assert.ok(!/50 ft/.test(T.pmTile));
-    assert.strictEqual(T.lagH, 'Lag putts (>10 ft)3/5 inside 3 ft'); assert.match(T.lagTile, /^3\/5 inside 3 ft\s*Lag putts \(>10 ft\) – tap for map\s*60% inside 3 ft · avg leave 3\.9 ft$/);
+    assert.strictEqual(T.pmH, '1st putt misses (<10 ft)2/3 · 67%'); assert.match(T.pmTile, /^2\/3 missed\s*1st putt misses \(<10 ft\) – tap for map\s*1st putts from 10 ft and in · 1 made$/); assert.ok(!/50 ft/.test(T.pmTile));
+    assert.strictEqual(T.lagH, 'Lag putts (>10 ft)3/5 · 60%'); assert.match(T.lagTile, /^3\/5 inside 3 ft\s*Lag putts \(>10 ft\) – tap for map\s*60% inside 3 ft · avg leave 3\.9 ft$/);
     assert.strictEqual(T.order.indexOf('lag'), T.order.indexOf('pmiss') + 1);
-    ok('rows: "1st putt misses (<10 ft) – 2/3 missed", "Lag putts (>10 ft) – 3/5 inside 3 ft"; tiles: 2/3 missed · "1st putts from 10 ft and in · 1 made", 3/5 inside 3 ft · "60% inside 3 ft · avg leave 3.9 ft"');
+    ok('rows: "1st putt misses (<10 ft) – 2/3 · 67%", "Lag putts (>10 ft) – 3/5 · 60%" (v111); tiles: 2/3 missed · "1st putts from 10 ft and in · 1 made", 3/5 inside 3 ft · "60% inside 3 ft · avg leave 3.9 ft"');
     await P.evaluate(() => window.scrollTo(0, document.querySelector('[data-stx="pmiss"]').getBoundingClientRect().top + window.scrollY - 140));
     await shot('putt-wording-v106.png');
     // v106: Missed greens L / R and short / long rows are gone; Tee misses L / R is the last row, right above Make PDF report

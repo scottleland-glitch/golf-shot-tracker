@@ -53,6 +53,13 @@ const BASE = process.env.BASE_URL || 'http://127.0.0.1:8766/', OUT = process.env
   const txt = execSync('pdftotext -layout ' + f + ' -').toString();
   ['Round report', 'Scott', 'Lakeridge', 'Quick view', 'Round stats', '1st putt misses (<10 ft)', 'Lag putts (>10 ft)', 'Scorecard', 'Front 9', 'Back 9', 'Drive dist', 'Up & down', 'Sandies', 'Recovery', 'OTT', 'APP', 'ARG', 'Greens in regulation', 'By category', 'By distance', 'Avg to pin after', 'vs every baseline',
     'Tee shots - fairways', 'Approach misses', 'Pin location', 'Back left', 'Misses by direction', 'All approach groups this round', 'Misses by direction', 'Lie', 'Putting - 1st putts', 'Putting - 2nd putts', ].forEach(s => assert.ok(txt.includes(s), 'missing ' + s));
+  // v111: page 1 Round stats rows – whole percent next to the fractions (Fairways, GIR, 1st putt misses, Lag putts); none on Pin location / Putts / Tee misses L / R
+  { const p1 = execSync('pdftotext -f 1 -l 1 -layout ' + f + ' -').toString(), ln = k => (p1.split('\n').find(l => l.trim().startsWith(k)) || '').trim();
+    const S1 = await page.evaluate(() => { const S = SG.summarize(window.__golf.rounds()[0], 'pga'), PM = SG.pmissList(S.puttList), L = SG.lagStats(S.puttList); return { fw: [S.fwHit, S.fwTotal], gir: [S.gir, S.girHoles], pm: [PM.filter(p => !p.made).length, PM.length], lag: [L.inside, L.attempts] }; });
+    const pc = a => a[1] ? ' · ' + Math.round(100 * a[0] / a[1]) + '%' : '';
+    assert.ok(ln('Fairways hit').endsWith(S1.fw.join(' / ') + pc(S1.fw)), ln('Fairways hit')); assert.ok(ln('Greens in regulation').endsWith(S1.gir.join(' / ') + pc(S1.gir)), ln('Greens in regulation'));
+    assert.ok(ln('1st putt misses (<10 ft)').endsWith(S1.pm.join('/') + pc(S1.pm)), ln('1st putt misses')); assert.ok(ln('Lag putts (>10 ft)').endsWith(S1.lag.join('/') + pc(S1.lag)), ln('Lag putts'));
+    ['Pin location', 'Putts', 'Penalty strokes', 'Tee misses L / R', '3-putt holes'].forEach(k => assert.ok(ln(k) && !/%/.test(ln(k)), 'no percent: ' + ln(k))); }
   pmg.forEach(g => assert.ok(txt.includes('1st putt misses (<10 ft) - ' + g), 'missing putt-miss page ' + g)); assert.ok(txt.includes('1st putts made') || txt.includes('1ST PUTTS MADE')); assert.ok(txt.includes('Inside 3 ft') || txt.includes('INSIDE 3 FT'));
   groups.forEach(g => assert.ok(txt.includes('Proximity - ' + g), 'missing page ' + g)); assert.ok(txt.includes('Page ' + pages + ' of ' + pages));
   const absent = ['20-60 yd', '60-100 yd', '100-130 yd', '130-160 yd', '160-200 yd', '200+ yd'].filter(g => !groups.includes(g)); absent.forEach(g => assert.ok(!txt.includes('Proximity - ' + g), 'empty group page ' + g));
