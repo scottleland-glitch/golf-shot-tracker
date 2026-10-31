@@ -1,4 +1,5 @@
-// v111: Round stats list – a whole percent next to each fraction (Fairways hit, Greens in regulation, 1st putt misses, Lag putts).
+// v111: Round stats list – a whole percent next to each fraction (Fairways hit, Greens in regulation, 1st putts made inside 10 ft, Lag putts).
+// v112: the percent is in brackets, same colour/size as the number – "9 / 12 (75%)"; 1st putt misses became 1st putts made inside 10 ft (made / tries).
 // No percent on Pin location, Putts, Penalty strokes, Tee misses L / R, or when there is nothing to count (x / 0). Rows stay on one line at 390px.
 const { chromium } = require('playwright-core'); const assert = require('assert'); const { spawn } = require('child_process'); const fs = require('fs');
 const PORT = 8850, BASE = 'http://127.0.0.1:' + PORT + '/', OUT = process.env.SHOTS || '/workspace/golf-app/screenshots';
@@ -20,10 +21,10 @@ const SEED = fs.readFileSync(__dirname + '/fixtures/stats-rounds.js', 'utf8');
   const openRound = async id => { await page.click('#plusbtn'); await page.click('#plusmenu [data-act="history"]'); await page.click('#histlist [data-act="open"][data-id="' + id + '"]'); await page.waitForSelector('#stattiles'); };
   const rows = () => page.$$eval('#stattiles .stxh', h => h.map(x => { const b = x.querySelector('b'), s = x.querySelector('span'), em = b.querySelector('.stxp'), lh = parseFloat(getComputedStyle(b).lineHeight) || 22;
     return { v: x.dataset.v, l: s.textContent, n: b.textContent, oneLine: b.getBoundingClientRect().height < lh * 1.5 && s.getBoundingClientRect().height < (parseFloat(getComputedStyle(s).lineHeight) || 22) * 1.5,
-      fitsRight: x.getBoundingClientRect().right <= 390, pct: em ? { fs: parseFloat(getComputedStyle(em).fontSize), fw: +getComputedStyle(em).fontWeight, c: getComputedStyle(em).color, bfs: parseFloat(getComputedStyle(b).fontSize) } : null }; }));
+      fitsRight: x.getBoundingClientRect().right <= 390, pct: em ? { fs: parseFloat(getComputedStyle(em).fontSize), fw: +getComputedStyle(em).fontWeight, c: getComputedStyle(em).color, bfs: parseFloat(getComputedStyle(b).fontSize), bc: getComputedStyle(b).color } : null }; }));
   const expect = id => page.evaluate(id => { const r = window.__golf.rounds().find(x => x.id === id), S = SG.summarize(r, r.baseline), PM = SG.pmissList(S.puttList), L = SG.lagStats(S.puttList);
-    return { fw: [S.fwHit, S.fwTotal], gir: [S.gir, S.girHoles], pm: [PM.filter(p => !p.made).length, PM.length], lag: [L.inside, L.attempts], pin: S.pinHoles.length + ' / ' + S.holesDone }; }, id);
-  const pc = a => a[1] ? ' · ' + Math.round(100 * a[0] / a[1]) + '%' : '';
+    return { fw: [S.fwHit, S.fwTotal], gir: [S.gir, S.girHoles], pm: [PM.filter(p => p.made).length, PM.length], lag: [L.inside, L.attempts], pin: S.pinHoles.length + ' / ' + S.holesDone }; }, id);
+  const pc = a => a[1] ? ' (' + Math.round(100 * a[0] / a[1]) + '%)' : ''; // v112: brackets
 
   for (const id of ['s1', 's3', 's5', 's7', 'p3']) {
     await openRound(id); const H = Object.fromEntries((await rows()).map(r => [r.v, r])), E = await expect(id);
@@ -31,17 +32,17 @@ const SEED = fs.readFileSync(__dirname + '/fixtures/stats-rounds.js', 'utf8');
     assert.strictEqual(H.pmiss.n, E.pm[1] ? E.pm.join('/') + pc(E.pm) : '–', id + ' pmiss'); assert.strictEqual(H.lag.n, E.lag[1] ? E.lag.join('/') + pc(E.lag) : '–', id + ' lag');
     assert.strictEqual(H.pin.n, E.pin, 'Pin location unchanged'); ['pin', 'putt', 'pen', 'teelr', 'miss', 'prox', 'club'].forEach(k => assert.ok(!/%/.test(H[k].n) && !H[k].pct, id + ' no percent on ' + k));
     Object.values(H).forEach(r => assert.ok(r.oneLine && r.fitsRight, id + ' row wraps: ' + r.l + ' ' + r.n));
-    ['fw', 'gir', 'pmiss', 'lag'].forEach(k => { const p = H[k].pct; if (!p) return; assert.ok(p.fs <= p.bfs && p.fw <= 400 && p.c !== 'rgb(0, 0, 0)', 'percent is lighter / not bigger ' + JSON.stringify(p)); });
-    if (id === 's1') { await page.locator('#stattiles').scrollIntoViewIfNeeded(); await page.evaluate(() => window.scrollBy(0, -110)); await page.waitForTimeout(150); await page.screenshot({ path: OUT + '/stats-percent-v111.png' }); }
-    if (id !== 'p3') { await page.click('[data-act="stx"][data-v="lag"]'); await page.click('[data-act="stx"][data-v="pmiss"]'); const t = await page.$$eval('[data-stx="pmiss"] .stxb, [data-stx="lag"] .stxb', e => e.map(x => x.textContent)); assert.ok(/ missed/.test(t[0]) && /inside 3 ft/.test(t[1]), 'opened tiles still say missed / inside 3 ft'); await page.click('[data-act="stx"][data-v="lag"]'); await page.click('[data-act="stx"][data-v="pmiss"]'); }
-    if (id === 'p3') { assert.strictEqual(H.fw.n, '0 / 0', 'no fairways -> no percent'); assert.strictEqual(H.lag.n, '–'); assert.strictEqual(H.gir.n, '9 / 9 · 100%'); assert.strictEqual(H.pmiss.n, '9/9 · 100%'); }
+    ['fw', 'gir', 'pmiss', 'lag'].forEach(k => { const p = H[k].pct; if (!p) return; assert.ok(p.fs === p.bfs && p.fw <= 400 && p.c === p.bc, 'v112 percent: same size and colour as the number, not bold ' + JSON.stringify(p)); });
+    if (id === 's1') { await page.locator('#stattiles').scrollIntoViewIfNeeded(); await page.evaluate(() => window.scrollBy(0, -110)); await page.waitForTimeout(150); await page.screenshot({ path: OUT + '/stats-paren-v112.png' }); }
+    if (id !== 'p3') { await page.click('[data-act="stx"][data-v="lag"]'); await page.click('[data-act="stx"][data-v="pmiss"]'); const t = await page.$$eval('[data-stx="pmiss"] .stxb, [data-stx="lag"] .stxb', e => e.map(x => x.textContent)); assert.ok(/ made/.test(t[0]) && !/missed/.test(t[0]) && /inside 3 ft/.test(t[1]), 'opened tiles say made / inside 3 ft'); await page.click('[data-act="stx"][data-v="lag"]'); await page.click('[data-act="stx"][data-v="pmiss"]'); }
+    if (id === 'p3') { assert.strictEqual(H.fw.n, '0 / 0', 'no fairways -> no percent'); assert.strictEqual(H.lag.n, '–'); assert.strictEqual(H.gir.n, '9 / 9 (100%)'); assert.strictEqual(H.pmiss.n, '0/9 (0%)'); }
     console.log('  ' + id + ':', ['fw', 'gir', 'pmiss', 'lag', 'pin'].map(k => H[k].l + ' ' + H[k].n).join(' | '));
     await page.click('.topbar [data-act="home"]');
   }
   // longest likely values still sit on one line at 390px
   await openRound('s1');
   const worst = await page.evaluate(() => { const set = (v, t) => { document.querySelector('[data-stx="' + v + '"] .stxh b').innerHTML = t; };
-    set('pmiss', '18/18<em class="stxp"> · 100%</em>'); set('lag', '18/18<em class="stxp"> · 100%</em>'); set('fw', '14 / 14<em class="stxp"> · 100%</em>'); set('gir', '18 / 18<em class="stxp"> · 100%</em>'); return 1; });
+    set('pmiss', '18/18<em class="stxp"> (100%)</em>'); set('lag', '18/18<em class="stxp"> (100%)</em>'); set('fw', '14 / 14<em class="stxp"> (100%)</em>'); set('gir', '18 / 18<em class="stxp"> (100%)</em>'); return 1; });
   const W = await rows(); W.forEach(r => assert.ok(r.oneLine && r.fitsRight, 'longest value wraps: ' + r.l + ' ' + r.n));
   assert.deepStrictEqual(errors, []); assert.deepStrictEqual(outside, []);
   console.log('STATS PERCENT OK'); await browser.close(); srv.kill();

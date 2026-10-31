@@ -68,10 +68,10 @@ excluded and counted. This round / All rounds toggle.
 - `tests/profile-wedges-focused.js` – My Bag + Wedge ladder: menu, Bag | Wedge ladder toggle, accordion, persistence, backup (`node tests/profile-wedges-focused.js`)
 - `tests/rounds-tight-focused.js` – Rounds page (v102): tight list, 8+ rows at 390x844, tints, unfinished flag, tap, delete confirm, filter, select mode (`node tests/rounds-tight-focused.js`)
 - `tests/da-focused.js` – My Bag density altitude (v108): ISA conversion, DA at the baseline = no change, higher = longer, −1,200 ft = shorter, sliders and DA agree for the same air; checkbox swaps the controls, typing -1200, clamping, ± button, saved after reload, ? card with the App Store link, no outside network calls (`node tests/da-focused.js`)
-- `tests/version-focused.js` – the version line (e.g. "Pin High v111") on Settings and Home is small and light, and config.js `appVersion` equals the sw.js cache version (`node tests/version-focused.js`)
+- `tests/version-focused.js` – the version line (e.g. "Pin High v112") on Settings and Home is small and light, and config.js `appVersion` equals the sw.js cache version (`node tests/version-focused.js`)
 - `tests/pdf-focused.js` – the PDF report: page list, share / download name, every page has the player · course · date line and "Page x of n"; v109: every table's header and cells come from one column list (number columns right-aligned with the header at the same right edge, text left), no text past the right margin, and the PDF scorecard equals the on-screen scorecard row for row (`node tests/pdf-focused.js`)
 - `tests/stats-focused.js` – Stats page (v110): + menu order, 7-round fixture (`tests/fixtures/stats-rounds.js`) – every chart point and table average equals the numbers on each round's own Round stats page; tap a point, legend toggles, All / Last 10 / Last 5, player chips, one baseline for all, "Add a couple of rounds", no page errors, no outside calls (`node tests/stats-focused.js`)
-- `tests/stats-percent-focused.js` – Round stats list (v111): whole percent next to Fairways hit / GIR / 1st putt misses / Lag putts, none on Pin location, Putts, Penalty, Tee misses L / R or x / 0; every row on one line at 390px, even 18/18 · 100% (`node tests/stats-percent-focused.js`)
+- `tests/stats-percent-focused.js` – Round stats list (v111/v112): whole percent in brackets, same colour as the number, next to Fairways hit / GIR / 1st putts made inside 10 ft / Lag putts, none on Pin location, Putts, Penalty, Tee misses L / R or x / 0; every row on one line at 390px, even 18/18 (100%) (`node tests/stats-percent-focused.js`)
 - `tests/lag-putts-focused.js` – 1st putt misses (<10 ft) and Lag putts (>10 ft) use only the 1st putt of each hole (v105, wording v106): 10 ft boundary, 3 ft boundary, tap-ins after a lag putt not counted, This round / All rounds (`node tests/lag-putts-focused.js`)
 - `tests/menu-bag-settings-focused.js` – v102 navigation: Home only +, menu New round · Rounds · Stats · My Bag · Settings (v110 order), Bag | Wedge ladder toggle, Settings page (`node tests/menu-bag-settings-focused.js`)
 - `tests/e2e.js` – Playwright (playwright-core) flow test at iPhone 390x844
@@ -283,8 +283,8 @@ Both stats now look at **only the first putt on each hole**. A second or third p
 
 ## 1st putt misses and Lag putts – wording (v106)
 Wording only; what is counted is the same as v105 (first putt of each hole only).
-- **1st putt misses (<10 ft)** – row value e.g. **2/3 missed** – since v111 **2/3 · 67%** (see v111 below) – (misses / first putts from 10 ft and in; a first putt from exactly 10 ft is included). Opened: big **2/3 missed**, small line "1st putts from 10 ft and in · 1 made".
-- **Lag putts (>10 ft)** – row value e.g. **12/12 inside 3 ft** – since v111 **12/12 · 100%** – (first putts from over 10 ft that went in or finished within 3 ft / all of them). Opened: big **12/12 inside 3 ft**, small line "100% inside 3 ft · avg leave 1.2 ft".
+- **1st putt misses (<10 ft)** – row value e.g. **2/3 missed** – since v112 shown as made instead: **1st putts made inside 10 ft 1/3 (33%)** (see v112 below) – (misses / first putts from 10 ft and in; a first putt from exactly 10 ft is included). Opened: big **2/3 missed**, small line "1st putts from 10 ft and in · 1 made".
+- **Lag putts (>10 ft)** – row value e.g. **12/12 inside 3 ft** – since v112 **12/12 (100%)** – (first putts from over 10 ft that went in or finished within 3 ft / all of them). Opened: big **12/12 inside 3 ft**, small line "100% inside 3 ft · avg leave 1.2 ft".
 - Map: title **1st putt misses (<10 ft)**, line "2/2 missed – 1st putts from 6–10 ft this round", box **1st putts made 0/2**; lag box **Lag putts (>10 ft) – this round** with **Inside 3 ft 3/5 (60%)** and **Avg leave**. PDF pages: "1st putt misses (<10 ft) – 6–10 ft" / "– Under 6 ft".
 - Cache `golf-sg-v106`.
 - The **Missed greens L / R** and **Missed greens short / long** rows are gone from Round stats (Tee misses L / R is now the last row above Make PDF report). The app still records where approaches missed – the Approach misses tile and map, the PDF and the CSV are unchanged.
@@ -305,7 +305,7 @@ No more large bold text anywhere in the app. Only sizes and weights changed (an 
 ## App version line (v107)
 - **Settings:** the last line of the page is a small, light grey **Pin High v107** (12px, light weight).
 - **Home:** the same text, smaller (11px) and light, at the very bottom of the photo; the Resume round pill stays above it.
-- The version lives in ONE place: `appVersion` in `config.js` (now `'v111'`). The service worker cache name in `sw.js` must be `golf-sg-` + that version; `tests/version-focused.js` fails if they ever differ. Each new version: change both (the cache name has to change in sw.js itself so phones pick up the update).
+- The version lives in ONE place: `appVersion` in `config.js` (now `'v112'`). The service worker cache name in `sw.js` must be `golf-sg-` + that version; `tests/version-focused.js` fails if they ever differ. Each new version: change both (the cache name has to change in sw.js itself so phones pick up the update).
 - Screenshots: `version-settings.png`, `version-home.png`.
 - Cache `golf-sg-v107`.
 
@@ -350,7 +350,16 @@ Open from the **+** menu → **Stats** (New round · Rounds · Stats · My Bag �
 - The **Stats** list on the Round stats page now shows a whole percent, in lighter grey and a touch smaller, right after each fraction:
   - Fairways hit `4 / 14 · 29%`, Greens in regulation `10 / 18 · 56%`,
   - 1st putt misses (<10 ft) `2/7 · 29%` (the share missed), Lag putts (>10 ft) `9/11 · 82%` (the share left inside 3 ft).
+  - (v112: shown in brackets and not grey – see v112 below.)
 - To keep every row on one line at phone width, those two putting rows dropped the words "missed" / "inside 3 ft"; the opened tiles still say them ("2/7 missed", "82% inside 3 ft · avg leave …").
 - No percent when there is nothing to count (e.g. `0 / 0` fairways on a par-3 course), and none on Pin location, Putts, Penalty strokes or Tee misses L / R (a left / right split, not a fraction).
 - The PDF page 1 "Round stats" table reads the same rows, so it shows the same percents (right-aligned in the "This round" column).
 - Screenshot: `screenshots/stats-percent-v111.png`. Cache `golf-sg-v111`, `appVersion: 'v111'`.
+
+## Percents in brackets + 1st putts made inside 10 ft (v112)
+- The percents next to the fractions in the Round stats list (and the PDF page 1 Round stats table) are no longer grey: same dark colour and size as the number, regular light weight, in brackets – e.g. **9 / 12 (75%)**, **17 / 18 (94%)**, **4/7 (57%)**, **7/11 (64%)**. Still no percent on x / 0, Pin location, Putts, Penalty strokes, Tee misses L / R.
+- **1st putt misses (<10 ft)** is now **1st putts made inside 10 ft** – same putts as before (the 1st putt on each hole, from 10 ft and in; exactly 10 ft counts), but it counts the ones that went in: row `4/7 (57%)`, opened tile **4/7 made** with "57% made · 1st putts from 10 ft and in".
+- Its map keeps the two groups (Under 6 ft and 6–10 ft; exactly 10 ft is in 6–10 ft). Title "1st putts made inside 10 ft"; the line under the group buttons reads e.g. **2/5 made (40%) – 1st putts from 6–10 ft this round**. The picture still draws where the missed ones finished (left / right / short / long percentages are of the misses).
+- PDF: the map pages are titled "1st putts made inside 10 ft – 6–10 ft" / "– Under 6 ft"; the note under the page 1 table says "1st putts made inside 10 ft = first putts from 10 ft and in that went in."
+- Lag putts (>10 ft), the Putts tile and all strokes gained numbers are unchanged. The Stats trends page already said "Putts made inside 10 ft" (every putt from 10 ft and in, not only 1st putts) – unchanged.
+- Screenshot: `screenshots/stats-paren-v112.png`. Cache `golf-sg-v112`, `appVersion: 'v112'`.

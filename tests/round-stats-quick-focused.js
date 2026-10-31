@@ -54,7 +54,7 @@ const OUT = '/workspace/golf-app/screenshots/', PORT = 8833, BASE = 'http://127.
   assert.deepStrictEqual(heads.map(h => h.v), ['fw', 'gir', 'miss', 'prox', 'pin', 'putt', 'pmiss', 'lag', 'club', 'pen', 'teelr']);
   assert.ok(heads.every(h => h.ex === 'false'), 'all collapsed'); assert.strictEqual(await page.$$eval('#stattiles .stxb, #stattiles [data-act="map"]', x => x.length), 0, 'no bodies yet');
   const H = Object.fromEntries(heads.map(h => [h.v, h]));
-  const pc = f => f.join(' / ') + ' · ' + Math.round(100 * f[0] / f[1]) + '%'; // v111: whole percent next to the fraction
+  const pc = f => f.join(' / ') + ' (' + Math.round(100 * f[0] / f[1]) + '%)'; // v111: whole percent next to the fraction; v112: in brackets
   assert.strictEqual(H.fw.n, pc(exp.fw)); assert.strictEqual(H.gir.n, pc(exp.gir)); assert.ok(!/%/.test(H.pin.n + H.putt.n + H.pen.n + H.teelr.n), 'no percent on Pin location, Putts, Penalty, Tee misses L / R'); assert.strictEqual(H.putt.n, '31'); assert.strictEqual(H.fw.l, 'Fairways hit');
   // tap Greens in regulation → it opens (map button inside), the others stay shut; tap again → shut
   await page.click('[data-act="stx"][data-v="gir"]');

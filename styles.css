@@ -1297,6 +1297,6 @@ tbody td, .mapsum, .mapsum small, .infocap, .bzlegend, .odstat, .bcbase > span, 
 .statspage table.sttable td.num, .statspage table.sttable th.num { text-align: right; font-variant-numeric: tabular-nums; width: 82px; }
 .statspage table.sttable tr:last-child td { border-bottom: 0; }
 
-/* v111: percent next to the fractions in the Round stats list – lighter grey, a touch smaller; value never wraps mid-way */
+/* v111/v112: percent next to the fractions in the Round stats list, e.g. 9 / 12 (75%); value never wraps mid-way */
 .stxlist .stxh b { white-space: nowrap; }
-.stxlist .stxh .stxp { font-style: normal; font-weight: 300; font-size: 14px; color: #7d8a82; }
+.stxlist .stxh .stxp { font-style: normal; font-weight: 400; font-size: inherit; color: inherit; } /* v112: brackets, same dark colour and size as the number – not grey */

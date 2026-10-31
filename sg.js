@@ -814,7 +814,7 @@
       avgLeftFt: miss.length ? miss.reduce(function (t, p) { return t + (p.endFt || 0); }, 0) / miss.length : null };
   }
   // v110 Stats page: % of putts made from 10 ft and in. EVERY putt (1st, 2nd, 3rd ...) that starts 10 ft or closer (10 ft itself counts)
-  // is one try; made = holed with that putt. Same putt list (summarize().puttList) and 10 ft line as the 1st putt misses stat.
+  // is one try; made = holed with that putt. Same putt list (summarize().puttList) and 10 ft line as the 1st putts made inside 10 ft stat (Round stats; that one counts 1st putts only).
   function puttsInside10(list) {
     var L = (list || []).filter(function (p) { var f = Number(p.ft); return f > 0 && f <= PMISS_MAX_FT; }), m = L.filter(function (p) { return p.made; }).length;
     return { attempts: L.length, made: m, pct: L.length ? 100 * m / L.length : null };

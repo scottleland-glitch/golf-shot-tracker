@@ -398,7 +398,7 @@
       var srows = [].map.call(st.querySelectorAll('.stxh'), function (b) { return [tx(b.querySelector('span')), tx(b.querySelector('b'))]; });
       srows.push(['3-putt holes', R.three.three + ' of ' + R.three.holes]);
       y = table([['Stat', 'This round']].concat(srows), M, y, [300, 240], { align: ['left', 'right'] }) + 6;
-      y = note('Proximity = average distance from the hole after approach shots. 1st putt misses = first putts under 10 ft that were missed. Lag putts = first putts over 10 ft that finished inside 3 ft.', M, y + 4);
+      y = note('Proximity = average distance from the hole after approach shots. 1st putts made inside 10 ft = first putts from 10 ft and in that went in. Lag putts = first putts over 10 ft that finished inside 3 ft.', M, y + 4);
       // ---- Page 2: the scorecard (the same numbers as the on-screen card: scorecardData) ----
       doc.addPage(); y = header('Scorecard – strokes gained vs ' + blName(R.bl));
       var D = scorecardData(r, S), SCG = D.rows.map(function (row) { return [row.lbl]; }), nG = D.groups.length;
@@ -461,7 +461,7 @@
       // ---- map pages ----
       var segs = SG.pinSegments(pinDataRound());
       var pages = [['Tee shots – fairways', 'fw'], ['Greens in regulation', 'gir'], ['Approach misses', 'miss'], ['Pin location', 'pin'],         'PROX', ['Putting – 1st putts', 'putt', { puttN: '1' }], ['Putting – 2nd putts', 'putt', { puttN: '2' }]].concat(
-        (function () { var D = pmissData(false); return SG.PMISS_GROUPS.filter(function (g) { return D.counts[g.id]; }).reverse().map(function (g) { return ['1st putt misses (<10 ft) – ' + g.name, 'pmiss', { pmG: g.id }]; }); })());
+        (function () { var D = pmissData(false); return SG.PMISS_GROUPS.filter(function (g) { return D.counts[g.id]; }).reverse().map(function (g) { return ['1st putts made inside 10 ft – ' + g.name, 'pmiss', { pmG: g.id }]; }); })());
       var plist = S.proxList.filter(function (m) { return SG.reportGroup(m.from); }), gsum = SG.REPORT_GROUPS.map(function (g) {
         var L = plist.filter(function (m) { return SG.reportGroup(m.from) === g.id; }); return { g: g, L: L, P: SG.proxStats(L) }; }).filter(function (x) { return x.L.length; });
       var pi = pages.indexOf('PROX');
@@ -1939,10 +1939,10 @@
     return '<div class="stx' + (open ? ' open' : '') + '" data-stx="' + id + '"><button class="stxh" data-act="stx" data-v="' + id + '" aria-expanded="' + open + '"><span>' + label + '</span><b>' + val + '</b><i class="stxc" aria-hidden="true"></i></button>' +
       (open ? '<div class="stxb">' + body + '</div>' : '') + '</div>';
   }
-  // v111: the 1st putt misses / Lag putts rows drop "missed" / "inside 3 ft" so the row fits on one line at 390px – the opened tile still says it ("2/7 missed", "82% inside 3 ft")
-  function stxPct(n, d) { return d > 0 ? '<em class="stxp"> · ' + Math.round(100 * n / d) + '%</em>' : ''; } // v111: whole percent next to a fraction (no percent when nothing to count)
+  // v111: the putt rows drop "made" / "inside 3 ft" so the row fits on one line at 390px – the opened tile still says it ("4/7 made", "82% inside 3 ft")
+  function stxPct(n, d) { return d > 0 ? '<em class="stxp"> (' + Math.round(100 * n / d) + '%)</em>' : ''; } // v111: whole percent next to a fraction (no percent when nothing to count); v112: in brackets, same colour as the number
   function statTilesHTML(S) {
-    var PM = SG.pmissList(S.puttList), PMm = PM.filter(function (p) { return !p.made; }).length, LG = SG.lagStats(S.puttList);
+    var PM = SG.pmissList(S.puttList), PMk = PM.filter(function (p) { return p.made; }).length, LG = SG.lagStats(S.puttList);
     var PX = SG.proxStats(S.proxList.filter(function (m) { return SG.inBucket('all', m.from); })), nc = {}; clubShots(false).forEach(function (x) { nc[x.club] = 1; }); nc = Object.keys(nc).length;
     var note = function (t) { return '<p class="stxn">' + t + '</p>'; };
     return '<div class="stat-grid stxlist" id="stattiles">' +
@@ -1952,7 +1952,7 @@
       stx('prox', 'Proximity', PX.n ? fmtFt(PX.avgAllFt) : '–', proxTile(S)) +
       stx('pin', 'Pin location', S.pinHoles.length + ' / ' + S.holesDone, tile('pin', 'Pin location – tap for map', S.pinHoles.length + ' / ' + S.holesDone, '<small class="mini">holes with a pin set</small>')) +
       stx('putt', 'Putts', S.putts, puttTile(S)) +
-      stx('pmiss', '1st putt misses (&lt;10 ft)', PM.length ? PMm + '/' + PM.length + stxPct(PMm, PM.length) : '–', pmissTile(S)) +
+      stx('pmiss', '1st putts made inside 10 ft', PM.length ? PMk + '/' + PM.length + stxPct(PMk, PM.length) : '–', pmissTile(S)) +
       stx('lag', 'Lag putts (&gt;10 ft)', LG.attempts ? LG.inside + '/' + LG.attempts + stxPct(LG.inside, LG.attempts) : '–', lagTile(LG)) +
       stx('club', 'Club performance', nc ? nc + (nc === 1 ? ' club' : ' clubs') : '–', clubTile()) +
       stx('pen', 'Penalty strokes', S.penalties, stat('Penalty strokes', S.penalties) + note('Penalty strokes added this round (OB, water, unplayable…).')) +
@@ -2214,8 +2214,8 @@
   var DIR_ORDER = ['short', 'shortleft', 'shortright', 'left', 'right', 'long', 'longleft', 'longright'];
   function mapHTML() {
     var kind = view.map, D = mapData(kind), list = D.list, all = view.mapScope === 'all';
-    var out = '<div class="mapview" id="mapview" role="dialog" aria-label="' + (kind === 'gir' ? 'GIR map' : kind === 'fw' ? 'Fairway map' : kind === 'pin' ? 'Pin location map' : kind === 'prox' ? 'Proximity map' : kind === 'putt' ? 'Putting map' : kind === 'club' ? 'Club performance' : kind === 'pmiss' ? '1st putt misses map' : 'Approach miss map') + '">' +
-      '<div class="maphead"><b>' + (kind === 'gir' ? 'Greens in regulation' : kind === 'fw' ? 'Tee shots – fairways' : kind === 'pin' ? 'Pin location' : kind === 'prox' ? 'Proximity by distance' : kind === 'putt' ? 'Putting' : kind === 'club' ? 'Club performance' : kind === 'pmiss' ? '1st putt misses (&lt;10 ft)' : 'Approach misses') + '</b><button class="close" data-act="mapclose" aria-label="Close map">✕ Close</button></div>' +
+    var out = '<div class="mapview" id="mapview" role="dialog" aria-label="' + (kind === 'gir' ? 'GIR map' : kind === 'fw' ? 'Fairway map' : kind === 'pin' ? 'Pin location map' : kind === 'prox' ? 'Proximity map' : kind === 'putt' ? 'Putting map' : kind === 'club' ? 'Club performance' : kind === 'pmiss' ? '1st putts made map' : 'Approach miss map') + '">' +
+      '<div class="maphead"><b>' + (kind === 'gir' ? 'Greens in regulation' : kind === 'fw' ? 'Tee shots – fairways' : kind === 'pin' ? 'Pin location' : kind === 'prox' ? 'Proximity by distance' : kind === 'putt' ? 'Putting' : kind === 'club' ? 'Club performance' : kind === 'pmiss' ? '1st putts made inside 10 ft' : 'Approach misses') + '</b><button class="close" data-act="mapclose" aria-label="Close map">✕ Close</button></div>' +
       '<div class="seg"><button data-act="mapscope" data-v="round" class="' + (all ? '' : 'sel') + '">This round</button>' +
       '<button data-act="mapscope" data-v="all" class="' + (all ? 'sel' : '') + '">All rounds (' + savedRounds().length + ')</button></div>';
     if (kind === 'pin') out += pinMapHTML(all);
@@ -2801,12 +2801,12 @@
   var PMC = { short: '#ef6c00', long: '#6a1b9a', left: '#1565e0', right: '#d81b60', nearlong: '#555', nodir: '#888' };
   var PMN = { short: 'Short', long: 'Long (over 3 ft past)', left: 'Left', right: 'Right', nearlong: 'Just long (within 3 ft)', nodir: 'No direction entered' };
   function pmissTile(S) {
-    var L = SG.pmissList(S.puttList), m = L.filter(function (p) { return !p.made; }).length;
-    return tile('pmiss', '1st putt misses (&lt;10 ft) – tap for map', L.length ? m + '/' + L.length + ' missed' : '–', '<small class="mini" id="pmmini">' + pmissLine(m, L.length) + '</small>');
+    var L = SG.pmissList(S.puttList), k = L.filter(function (p) { return p.made; }).length; // v112: shown as made (was missed)
+    return tile('pmiss', '1st putts made inside 10 ft – tap for map', L.length ? k + '/' + L.length + ' made' : '–', '<small class="mini" id="pmmini">' + pmissLine(k, L.length) + '</small>');
   }
   // v105: one plain sentence, used by the tile and the map box
-  function pmissLine(m, n) {
-    return n ? '1st putts from 10 ft and in · ' + (n - m) + ' made' : 'no 1st putts from 10 ft and in yet';
+  function pmissLine(k, n) { // v112: k = made
+    return n ? Math.round(100 * k / n) + '% made · 1st putts from 10 ft and in' : 'no 1st putts from 10 ft and in yet';
   }
   // v104 lag putts (start more than 10 ft away; v105: 1st putt of the hole only): success = finished within 3 ft (or holed). Opens the putt-misses map, which shows the same box for the round / all rounds.
   function lagLine(LG) {
@@ -2874,7 +2874,7 @@
     var D = pmissData(all), G = SG.PMISS_GROUPS.filter(function (x) { return x.id === D.group; })[0];
     var btns = '<div class="seg pmgroups" id="pmgroups">' + SG.PMISS_GROUPS.map(function (g) { var c = D.counts[g.id];
       return '<button data-act="pmg" data-v="' + g.id + '" data-n="' + c + '" class="' + (g.id === D.group ? 'sel' : '') + '"' + (c ? '' : ' disabled') + ' aria-pressed="' + (g.id === D.group) + '">' + g.name + (c ? '<small> ' + c + '</small>' : '') + '</button>'; }).join('') + '</div>';
-    return btns + '<p class="mapsum" id="mapsum"><b>' + D.stats.misses + '/' + D.stats.attempts + '</b> missed – 1st putts from <b id="pmsel">' + G.name + '</b>' + (all ? ' in ' + D.rounds + ' round' + (D.rounds === 1 ? '' : 's') : ' this round') + '</p>' +
+    return btns + '<p class="mapsum" id="mapsum"><b>' + D.stats.made + '/' + D.stats.attempts + '</b> made' + (D.stats.attempts ? ' (' + Math.round(100 * D.stats.made / D.stats.attempts) + '%)' : '') + ' – 1st putts from <b id="pmsel">' + G.name + '</b>' + (all ? ' in ' + D.rounds + ' round' + (D.rounds === 1 ? '' : 's') : ' this round') + '</p>' +
       pmissSVG(D.list, D.group) + pmissCells(D.stats) + pmissLegend() + lagBox(D.lag, all, D.rounds) +
       '<p class="help muted">Each line runs from one common start (below the hole) to where the putt finished, placed around the hole by the direction and distance of the next putt: short = below the hole, long = above, left/right to the sides. Short = finished short (incl. short left/right). Long = finished long and more than 3 ft past the hole. Long left/right within 3 ft count as Left/Right; straight long within 3 ft = "just long" (good speed, not counted as Long). Percentages are of misses. Only the 1st putt on each hole counts, from 10 ft and in (10 ft included) – groups: under 6 ft and 6–10 ft. 1st putts from over 10 ft are in Lag putts (&gt;10 ft) above: they only need to finish inside 3 ft.</p>';
   }
