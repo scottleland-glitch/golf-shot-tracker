@@ -52,22 +52,25 @@ const LOW = ['40 yd · Low · not set', '50 yd · Low · not set', '60 yd · Low
     const resume = async (i) => { await page.reload(); await page.click('[data-act="resume"]'); await page.waitForSelector('select[data-f="loc"]');
       for (let n = 0; n < (i || 0); n++) await page.click('[aria-label="Next hole"]');
       await page.waitForFunction(i => document.querySelector('.holecard h2').textContent === 'Hole ' + (i + 1), i || 0); };
+    // v115: only the active shot has entry cells – tap a shot's tight line to open it
+    const open = async k => { if (await page.$('.tline[data-k="' + k + '"]')) { await page.click('.tline[data-k="' + k + '"]'); await page.waitForSelector('input[data-row="' + k + '"]'); } };
     // 1. no wedge setups yet → the normal picker
     await resume(0);
-    assert.strictEqual(await page.locator('select[data-f="wladder"]').count(), 0); assert.strictEqual(await page.locator('select[data-f="club"]').count(), 2);
+    assert.strictEqual(await page.locator('select[data-f="wladder"]').count(), 0); await open(0); assert.strictEqual(await page.locator('select[data-f="club"][data-k="0"]').count(), 1);
+    await open(1); assert.strictEqual(await page.locator('select[data-f="wladder"]').count(), 0); assert.strictEqual(await page.locator('select[data-f="club"][data-k="1"]').count(), 1);
     const sg0 = await page.evaluate(() => SG.analyzeHole(window.__golf.rounds()[0].holes[0], 'pga').sg);
     // 2. with a ladder: the 73 yd shot lists 60/70/80 in both flights, grouped, unset greyed, nothing preselected
     await page.evaluate(c => localStorage.setItem('golfsg.wedges.v1', JSON.stringify(c)), CHART);
     await resume(0);
     const groups = k => page.$$eval(sel(k) + ' optgroup', g => g.map(x => [x.label, [...x.querySelectorAll('option')].map(o => o.value)]));
-    assert.strictEqual(await page.locator('select[data-f="club"][data-k="0"]').count(), 1, 'tee shot (380) keeps the club picker');
+    await open(0); assert.strictEqual(await page.locator('select[data-f="club"][data-k="0"]').count(), 1, 'tee shot (380) keeps the club picker'); await open(1);
     assert.strictEqual(await page.locator('select[data-f="club"][data-k="1"]').count(), 0, 'no club picker at 100 yd and in');
     assert.strictEqual(await page.inputValue(sel(1)), '', 'nothing preselected'); assert.strictEqual(await page.$eval(sel(1), e => e.options[e.selectedIndex].textContent), 'Choose carry…');
     assert.deepStrictEqual(await groups(1), [['High flight', ['wh60', 'wh70', 'wh80']], ['Low flight', ['wl60', 'wl70', 'wl80']]]);
     assert.deepStrictEqual(await page.$$eval(sel(1) + ' optgroup option', o => o.map(x => x.textContent)), ['60 yd · High · not set', '70 yd · High · 54° · Middle · P2', '80 yd · High · not set', '60 yd · Low · 58° · Middle · P2', '70 yd · Low · 56° · Back · P1', '80 yd · Low · not set']);
     assert.deepStrictEqual(await page.$$eval(sel(1) + ' option:disabled', o => o.map(x => x.value)), ['wh60', 'wh80', 'wl80'], 'unset entries greyed');
     let hr = await holeRows(0); assert.ok(!hr[1].club && !hr[1].wedgeY, 'no club picked for you'); assert.strictEqual(await page.locator('.wladet').count(), 0);
-    assert.strictEqual(await page.locator('.clubrow.putter').count(), 1, 'putts unchanged');
+    assert.strictEqual(await page.textContent('.tline[data-k="2"] .t-c'), 'Putter', 'putts unchanged');
     // open-list screenshot (the native picker can't be captured, so show the options as a list for the screenshot only)
     await page.evaluate(s => { const e = document.querySelector(s); e.size = 9; e.style.height = 'auto'; e.style.fontSize = '14px'; e.closest('.clubrow').scrollIntoView({ block: 'start' }); window.scrollBy(0, -220); }, sel(1));
     await shot('score-wedge-ladder-open');
@@ -92,7 +95,7 @@ const LOW = ['40 yd · Low · not set', '50 yd · Low · not set', '60 yd · Low
     assert.strictEqual(await page.inputValue('select[data-f="club"][data-k="1"]'), '54', '>100 → normal picker, club kept');
     await page.fill('input[data-row="1"]', '73'); await page.waitForSelector(sel(1)); assert.strictEqual(await page.inputValue(sel(1)), 'wh70', 'your pick sticks');
     // 4. persistence after reload – carry + flight, not just the club
-    await resume(0); assert.strictEqual(await page.inputValue(sel(1)), 'wh70'); assert.match(await page.textContent('.wladet'), /FlightHigh.*Carry70 yd.*Club54°/);
+    await resume(0); await open(1); assert.strictEqual(await page.inputValue(sel(1)), 'wh70'); assert.match(await page.textContent('.wladet'), /FlightHigh.*Carry70 yd.*Club54°/);
     await page.evaluate(() => { const r = document.querySelector('.clubrow[data-club="1"]'); window.scrollTo(0, Math.max(0, r.getBoundingClientRect().top + window.scrollY - 330)); });
     await shot('score-wedge-ladder');
     // "Choose carry…" clears it
@@ -100,12 +103,12 @@ const LOW = ['40 yd · Low · not set', '50 yd · Low · not set', '60 yd · Low
     assert.strictEqual(await page.inputValue(sel(1)), '', 'stays empty');
     await page.selectOption(sel(1), 'wh70');
     // 5. hole 2: 101 → normal picker; 100 with 7i (not in the ladder) keeps it; a 15 yd chip gets the ladder too
-    await resume(1);
+    await resume(1); await open(1);
     assert.strictEqual(await page.locator('select[data-f="club"][data-k="1"]').count(), 1, '101 yd → club picker');
-    assert.strictEqual(await page.inputValue(sel(2)), 'c:7i'); assert.strictEqual(await page.locator('.clubrow[data-club="2"] .wladet').count(), 0);
+    await open(2); assert.strictEqual(await page.inputValue(sel(2)), 'c:7i'); assert.strictEqual(await page.locator('.clubrow[data-club="2"] .wladet').count(), 0);
     hr = await holeRows(1); assert.strictEqual(hr[2].club, '7i', 'existing club untouched');
     assert.deepStrictEqual(await groups(2), [['High flight', ['wh90', 'wh100', 'wh110']], ['Low flight', ['wl90', 'wl100', 'wl110']]], '100 → 90/100/110');
-    assert.strictEqual(await page.inputValue(sel(3)), '', '15 yd chip: ladder, nothing preselected'); assert.ok(!hr[3].club);
+    await open(3); assert.strictEqual(await page.inputValue(sel(3)), '', '15 yd chip: ladder, nothing preselected'); assert.ok(!hr[3].club);
     assert.deepStrictEqual(await groups(3), [['High flight', ['wh40', 'wh50', 'wh60']], ['Low flight', ['wl40', 'wl50', 'wl60']]], '15 → 40/50/60');
     // 6. typing a distance into range shows the ladder but picks nothing; keyboard stays up
     await page.click('[aria-label="Next hole"]'); await page.waitForFunction(() => document.querySelector('.holecard h2').textContent === 'Hole 3');
@@ -125,7 +128,7 @@ const LOW = ['40 yd · Low · not set', '50 yd · Low · not set', '60 yd · Low
     assert.strictEqual(await page.inputValue(sel(1)), 'c:54'); assert.strictEqual(await page.locator('.wladet').count(), 0);
     hr = await holeRows(3); assert.strictEqual(hr[1].club, '54');
     // 8. no yardage set → the normal picker returns and the chosen club is kept
-    await page.evaluate(() => localStorage.removeItem('golfsg.wedges.v1')); await resume(0);
+    await page.evaluate(() => localStorage.removeItem('golfsg.wedges.v1')); await resume(0); await open(1);
     assert.strictEqual(await page.locator('select[data-f="wladder"]').count(), 0); assert.strictEqual(await page.inputValue('select[data-f="club"][data-k="1"]'), '54');
     assert.deepStrictEqual(errors, []); console.log('WEDGE LADDER OK');
   } finally { await br.close(); srv.kill(); }

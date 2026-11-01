@@ -1352,3 +1352,80 @@ tbody td, .mapsum, .mapsum small, .infocap, .bzlegend, .odstat, .bcbase > span, 
   font-size: 17px; font-weight: 400; color: #17301f; border: 1px solid rgba(23, 48, 31, .14); border-radius: 12px; background-color: rgba(255, 255, 255, .85);
   background-image: linear-gradient(45deg, transparent 50%, #47604f 50%), linear-gradient(135deg, #47604f 50%, transparent 50%);
   background-position: calc(100% - 18px) 21px, calc(100% - 13px) 21px; background-size: 5px 5px; background-repeat: no-repeat; }
+
+/* ---------- v115: compact hole screen – small light type, tight rows; finished shots are one tight line ---------- */
+html body .roundpage.holepage { font-size: 14px; }
+html body .roundpage.holepage .topbar.frost { margin: 2px 0 6px; padding: 4px 6px; }
+html body .roundpage.holepage .topbar .title b { font-size: 15px !important; font-weight: 500 !important; }
+html body .roundpage.holepage .topbar .title span { font-size: 12px !important; font-weight: 400 !important; line-height: 1.3; }
+html body .roundpage.holepage .topbar .frostbtn { width: 38px; height: 38px; min-width: 38px; min-height: 38px; font-size: 20px; }
+html body .roundpage.holepage .livebar { margin: 0 0 4px; }
+html body .roundpage.holepage .livebtn { min-height: 32px; padding: 4px 12px; font-size: 13px; }
+html body .roundpage.holepage .holecard.frostcard { padding: 8px 8px 10px; margin: 6px 0; border-radius: 18px; }
+html body .roundpage.holepage .hc-head { padding: 0 2px 6px; align-items: center; gap: 8px; }
+html body .roundpage.holepage .holecard .hc-head h2 { font-size: 17px !important; font-weight: 500 !important; white-space: nowrap; }
+html body .roundpage.holepage .hmeta { display: flex; align-items: center; justify-content: flex-end; gap: 0; font-size: 13px; font-weight: 400; color: var(--soft-ink2, #4a5a6a); flex-wrap: wrap; }
+html body .roundpage.holepage .hmeta > * + *::before { content: '·'; margin: 0 7px; opacity: .6; }
+html body .roundpage.holepage .hpar { font-size: 13px; font-weight: 500; color: var(--soft-ink, #1d2a36); }
+html body .roundpage.holepage .holecard button.hparbtn { min-height: 32px; padding: 0 10px; border-radius: 10px; font-size: 13px; font-weight: 500; box-shadow: none; }
+html body .roundpage.holepage .hparbtn small { font-size: 11px; opacity: .6; margin-left: 2px; }
+html body .roundpage.holepage .parpick { display: inline-flex; align-items: center; gap: 4px; }
+html body .roundpage.holepage .parpick .plbl { margin-right: 2px; }
+html body .roundpage.holepage .holecard .parpick button { min-width: 34px; min-height: 34px; height: 34px; padding: 0; border-radius: 10px; font-size: 14px; font-weight: 400; box-shadow: none; }
+html body .roundpage.holepage .holecard .pinbtn { min-height: 34px; margin: 6px 0 2px; padding: 4px 10px; border-radius: 12px; font-size: 13px !important; font-weight: 400 !important; box-shadow: none; }
+html body .roundpage.holepage .pinbtn small { font-size: 12px; font-weight: 400; }
+/* tight lines */
+html body .roundpage.holepage .thead, html body .roundpage.holepage .tline { display: grid; grid-template-columns: 18px 50px minmax(0, .7fr) minmax(0, 1.7fr) 48px; align-items: center; column-gap: 5px; }
+html body .roundpage.holepage .thead { padding: 8px 6px 3px; font-size: 11px; font-weight: 400; letter-spacing: .05em; text-transform: uppercase; color: var(--soft-ink2, #5b6b7a); border-bottom: 1px solid rgba(60, 80, 100, .12); }
+html body .roundpage.holepage .thead span:last-child, html body .roundpage.holepage .t-s { text-align: right; }
+html body .roundpage.holepage .holecard button.tline, html body .roundpage.holepage .tline { width: 100%; min-height: 34px; height: auto; margin: 0; padding: 4px 6px; border: 0; border-bottom: 1px solid rgba(60, 80, 100, .1); border-radius: 0;
+  background: transparent; box-shadow: none; text-align: left; font-size: 13px; font-weight: 400; color: var(--soft-ink, #1d2a36); line-height: 1.2; }
+html body .roundpage.holepage .holecard button.tline:active { background: rgba(255, 255, 255, .5); }
+html body .roundpage.holepage .holecard button.tline.bad { background: rgba(255, 236, 200, .55); border-radius: 8px; }
+html body .roundpage.holepage .tline > span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+html body .roundpage.holepage .t-n { color: var(--soft-ink2, #5b6b7a); }
+html body .roundpage.holepage .tdash { font-style: normal; opacity: .45; }
+html body .roundpage.holepage .tline > span.t-l { display: flex; align-items: center; gap: 4px; }
+html body .roundpage.holepage .tlw { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+html body .roundpage.holepage .tto { font-style: normal; font-size: 12px; color: var(--soft-ink2, #5b6b7a); }
+html body .roundpage.holepage .tpen { flex-shrink: 0; }
+html body .roundpage.holepage .tpen { font-style: normal; font-size: 11px; color: #a4424c; }
+html body .roundpage.holepage .sgchip { display: inline-block; min-width: 42px; padding: 2px 5px; border-radius: 7px; text-align: center; font-size: 12px; font-weight: 500; font-variant-numeric: tabular-nums; }
+html body .roundpage.holepage .sgchip.pos { background: rgba(76, 175, 110, .2); color: #1f6b3a; }
+html body .roundpage.holepage .sgchip.neg { background: rgba(214, 90, 100, .18); color: #9c2f3b; }
+html body .roundpage.holepage .sgchip.zero, html body .roundpage.holepage .sgchip.lay { background: rgba(120, 135, 150, .14); color: #4f5f6e; }
+/* the shot being entered */
+html body .roundpage.holepage .srow { grid-template-columns: 26px 70px minmax(0, 1fr) 42px 38px 38px; gap: 4px; padding: 4px 0 0; }
+html body .roundpage.holepage .srow.shead { padding-top: 8px; font-size: 11px !important; font-weight: 400 !important; letter-spacing: .04em; }
+html body .roundpage.holepage .srow.shead .c-d { white-space: nowrap; font-size: 10.5px; letter-spacing: .02em; }
+html body .roundpage.holepage .srow .c-n { min-height: 38px; height: 38px; font-size: 13px; font-weight: 400; border-radius: 10px; box-shadow: none; }
+html body .roundpage.holepage .c-d input { width: 46px; height: 38px; font-size: 16px; font-weight: 400; border-radius: 10px; box-shadow: none; }
+html body .roundpage.holepage .c-d .u { font-size: 11px; }
+html body .roundpage.holepage .srow select { height: 38px; font-size: 14px; font-weight: 400; border-radius: 10px; box-shadow: none; background-position: calc(100% - 10px) 16px, calc(100% - 5px) 16px; }
+html body .roundpage.holepage .srow .dirbtn { height: 38px; min-height: 38px; font-size: 18px; border-radius: 10px; box-shadow: none; }
+html body .roundpage.holepage .c-p .pen { width: 38px; height: 38px; min-height: 38px; font-size: 12px; font-weight: 500; box-shadow: none; }
+html body .roundpage.holepage .srow .del { width: 38px; height: 38px; min-width: 38px; min-height: 38px; font-size: 15px; border-radius: 10px; }
+html body .roundpage.holepage .clubrow { gap: 10px; padding: 4px 0 4px 30px; }
+html body .roundpage.holepage .clubrow .clublbl { font-size: 12px; }
+html body .roundpage.holepage .clubrow select { min-height: 36px; height: 36px; font-size: 14px; border-radius: 10px; box-shadow: none; }
+html body .roundpage.holepage .clubrow .layup { min-height: 36px; font-size: 13px; font-weight: 400; gap: 5px; }
+html body .roundpage.holepage .clubrow .layup input { width: 20px; height: 20px; }
+html body .roundpage.holepage .clubrow .layup small { font-size: 11px; }
+html body .roundpage.holepage .clubrow .holeout { padding: 0 10px 0 6px; border-radius: 18px; }
+html body .roundpage.holepage .sinfo { font-size: 12px; font-weight: 400; padding: 0 4px 4px 30px; border-bottom: 0; }
+html body .roundpage.holepage .sinfo:empty { display: none; }
+html body .roundpage.holepage .sinfo b { font-weight: 500; }
+html body .roundpage.holepage .rowmenu button { min-height: 34px; font-size: 13px; font-weight: 400; }
+/* count, Say it, Add Shot, Finish, buttons under the card */
+html body .roundpage.holepage .countrow { min-height: 44px; margin-top: 6px; }
+html body .roundpage.holepage .count { font-size: 13px; font-weight: 400; padding: 0 4px; }
+html body .roundpage.holepage .holecard .micbtn { min-height: 38px; padding: 0 14px 0 10px; gap: 6px; font-size: 14px; font-weight: 500; box-shadow: 0 2px 8px rgba(30, 60, 100, .14); }
+html body .roundpage.holepage .micbtn .micico { width: 18px; height: 18px; }
+html body .roundpage.holepage button.big, html body .roundpage.holepage .holecard button.big, html body .roundpage.holepage > button.big { min-height: 42px; margin: 5px 0; padding: 6px 12px; font-size: 15px !important; font-weight: 400 !important; border-radius: 14px; }
+html body .roundpage.holepage .addshot { box-shadow: 0 2px 8px rgba(60, 110, 170, .16) !important; }
+html body .roundpage.holepage .hint { font-size: 12px; font-weight: 400; padding: 4px 4px 0; }
+html body .roundpage.holepage .hole-done { font-size: 14px; font-weight: 400; padding: 6px 4px; }
+html body .roundpage.holepage .row.sub { margin-top: 8px; } html body .roundpage.holepage .row.sub button { min-height: 38px; font-size: 14px; font-weight: 400; }
+html body .roundpage.holepage button.discard { min-height: 38px; font-size: 14px; }
+html body .roundpage.holepage .help { font-size: 12px; }
+html body .roundpage.holepage .srow.shead .c-n { height: auto; min-height: 0; border: 0; background: none; }

@@ -21,16 +21,16 @@ const BASE = 'http://127.0.0.1:8797/', OUT = '/workspace/golf-app/screenshots/',
   assert.match(await page.textContent('.hc-head'), /Hole 18/);
   await page.evaluate(() => window.scrollTo(0, 0)); await shot('hole');
   await shot('hole-full', true);
-  await page.click('[data-act="dirpick"][data-k="2"]'); await page.waitForSelector('.dirgrid'); await shot('direction');
+  await page.click('.tline[data-k="2"]'); /* v115: earlier shots are tight lines – tap to open */ await page.click('[data-act="dirpick"][data-k="2"]'); await page.waitForSelector('.dirgrid'); await shot('direction');
   await page.click('.dirgrid [data-act="setdir"][data-v="shortleft"]'); assert.strictEqual(await page.getAttribute('[data-act="dirpick"][data-k="2"]', 'data-dir'), 'shortleft');
   await page.click('[data-act="menu"][data-k="2"]'); await page.waitForSelector('.rowmenu'); await page.locator('.rowmenu').scrollIntoViewIfNeeded(); await shot('rowmenu');
   await page.click('.rowmenu [data-act="menu"]');
   await page.click('#pinbtn'); await page.waitForSelector('#pingreen'); await shot('pin');
   await page.click('#pingreen [data-act="pinset"][data-v="backleft"]'); await page.waitForTimeout(200); if (await page.$('#pinview')) await page.click('[data-act="pinclose"]');
   assert.match(await page.textContent('#pinbtn'), /Pin: back left/i);
-  await page.selectOption('select[data-f="club"][data-k="1"]', '6i'); assert.strictEqual(await page.$eval('select[data-f="club"][data-k="1"]', e => e.value), '6i');
+  await page.click('.tline[data-k="1"]'); await page.selectOption('select[data-f="club"][data-k="1"]', '6i'); assert.strictEqual(await page.$eval('select[data-f="club"][data-k="1"]', e => e.value), '6i');
   await page.click('[data-act="pen"][data-k="1"]'); assert.strictEqual(await page.$eval('[data-act="pen"][data-k="1"]', e => e.classList.contains('on')), false);
-  await page.click('[data-act="addShot"]'); assert.strictEqual(await page.locator('.srow[data-k]').count(), 5);
+  await page.click('[data-act="addShot"]'); assert.strictEqual(await page.locator('.tline, .srow[data-k]').count(), 5); assert.strictEqual(await page.locator('.srow[data-k]').count(), 1);
   await page.fill('input[data-row="4"]', '3'); await page.selectOption('select[data-f="loc"][data-k="4"]', 'holed'); await page.locator('input[data-row="4"]').blur();
   await page.click('[data-act="finish"]'); await page.waitForSelector('.hole-done'); assert.match(await page.textContent('.hole-done'), /Score 5/);
   await page.evaluate(() => window.scrollTo(0, 0)); await shot('finished');
@@ -43,11 +43,11 @@ const BASE = 'http://127.0.0.1:8797/', OUT = '/workspace/golf-app/screenshots/',
     await page.click('[data-act="goHole"][data-i="0"] >> nth=0'); await page.waitForSelector('.holecard');
     const H = await page.evaluate(() => { const q = s => document.querySelector(s), cs = s => getComputedStyle(q(s));
       return { wrap: !!q('.frostpage.roundpage .holecard'), bg: getComputedStyle(q('.frostpage'), '::before').backgroundImage, card: q('.holecard').classList.contains('frostcard'),
-        cardBg: cs('.holecard').backgroundColor, par: cs('.par button.sel').backgroundColor + '|' + cs('.par button.sel').color, parH: q('.par button').getBoundingClientRect().height,
+        cardBg: cs('.holecard').backgroundColor, par: q('#hpar').tagName + '|' + q('#hpar').textContent, pb: !!q('[data-act="par"]'),
         disc: q('[data-act="discard"]').classList.contains('frostdanger'), discBg: cs('[data-act="discard"]').backgroundColor, ink: cs('.hc-head h2').color }; });
     assert.ok(F && H.wrap && /linear-gradient/.test(H.bg) && !/home-bg/.test(H.bg), 'frosted page + blurred photo ' + JSON.stringify(H));
     assert.ok(H.card && /rgba\(2[3-5]\d, 2[3-5]\d, 2[3-5]\d, 0\.\d+\)/.test(H.cardBg), 'glassy hole card ' + H.cardBg);
-    assert.strictEqual(H.par, 'rgb(58, 70, 84)|rgb(255, 255, 255)', 'selected = dark slate pill + white (sky theme, v84 softer)'); assert.ok(H.parH >= 44, 'tap target ' + H.parH);
+    assert.ok(H.par === 'SPAN|Par 4' && !H.pb, 'v115: finished hole shows plain "Par 4", no 3/4/5 buttons ' + H.par);
     assert.ok(H.disc && /rgba\(255, 2\d\d, 2\d\d/.test(H.discBg), 'discard soft pink ' + JSON.stringify(H));
     const [r, g, bb] = H.ink.match(/\d+/g).map(Number); assert.ok(r + g + bb < 200, 'strong text ' + H.ink);
   }

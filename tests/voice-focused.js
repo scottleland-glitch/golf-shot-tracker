@@ -118,7 +118,7 @@ const SPY = () => { window.__recs = 0; class Spy { constructor() { window.__recs
   const box = s => page.$eval(s, e => { const r = e.getBoundingClientRect(); return { l: r.left, r: r.right, t: r.top, b: r.bottom, h: r.height, pos: getComputedStyle(e).position }; });
   const mic = await box('#micbtn'), add = await box('.addshot'), fin = await box('.finish');
   const hit = (a, c) => a.l < c.r && c.l < a.r && a.t < c.b && c.t < a.b;
-  assert.ok(mic.h >= 56 && mic.pos !== 'fixed' && mic.b <= add.t && !hit(mic, add) && !hit(mic, fin), 'inline, covers nothing ' + JSON.stringify({ mic, add, fin }));
+  assert.ok(mic.h >= 36 && mic.pos !== 'fixed' && mic.b <= add.t && !hit(mic, add) && !hit(mic, fin), 'inline, covers nothing ' + JSON.stringify({ mic, add, fin }));
   assert.ok(await page.$eval('#micbtn', e => !!e.closest('.countrow')));
   await shot('voice-button');
   // one tap: box opens and the field is focused inside the same tap (so iOS raises the keyboard)

@@ -152,6 +152,7 @@ const pct = (a, b) => (a / b - 1) * 100;
     const sg1 = await page.evaluate(() => SG.summarize(window.__golf.rounds()[0]).sgTotal);
     const bagJson = await page.evaluate(() => localStorage.getItem('golfsg.bag.v1'));
     await page.evaluate(() => localStorage.removeItem('golfsg.bag.v1')); await page.reload(); await page.click('[data-act="resume"]'); await page.waitForSelector('.holecard');
+    await page.click('.tline[data-k="0"]'); await page.waitForSelector('select[data-f="club"][data-k="0"]'); // v115: earlier shots are tight lines – tap to open
     assert.deepStrictEqual((await page.$$eval('select[data-f="club"][data-k="0"] option', e => e.map(o => o.value))).slice(1), SG.CLUBS, 'empty bag: standard list as before');
     assert.strictEqual(await page.evaluate(() => SG.summarize(window.__golf.rounds()[0]).sgTotal), sg1, 'strokes gained unaffected by the bag');
     // backup → restore round trip (bag only file) into an empty bag

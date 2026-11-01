@@ -14,28 +14,32 @@ const BASE = process.env.BASE_URL || 'http://127.0.0.1:8773/';
     localStorage.setItem('golfsg.rounds.v1', JSON.stringify([{ v: 3, dv: 2, id: 'rc', date: '2026-10-15T17:00:00.000Z', course: 'Club test', baseline: 'pga', player: 'Scott', holes }]));
     localStorage.setItem('golfsg.current.v1', 'rc'); });
   await page.reload(); await page.click('[data-act="resume"]'); await page.waitForSelector('select[data-f="loc"]');
-  const nav = async i => { if (!(await page.$('.clubrow'))) await page.click('[data-act="goHole"][data-i="' + i + '"] >> nth=0'); };
+  const nav = async i => { await page.waitForFunction(i => document.querySelector('.holecard h2').textContent === 'Hole ' + (i + 1), i); };
+  // v115: only the active shot has entry cells – tap a shot's tight line to open it
+  const open = async k => { if (await page.$('.tline[data-k="' + k + '"]')) { await page.click('.tline[data-k="' + k + '"]'); await page.waitForSelector('input[data-row="' + k + '"]'); } };
   await nav(0);
   // pickers on tee + fairway rows, none on putts
-  assert.strictEqual(await page.locator('select[data-f="club"]').count(), 2);
-  assert.strictEqual(await page.locator('.clubrow.putter').count(), 1);
+  await open(2); assert.strictEqual(await page.locator('select[data-f="club"]').count(), 0); assert.strictEqual(await page.locator('.clubrow.putter').count(), 1);
+  await open(1); assert.strictEqual(await page.locator('select[data-f="club"][data-k="1"]').count(), 1);
+  await open(0); assert.strictEqual(await page.locator('select[data-f="club"][data-k="0"]').count(), 1);
   const opts = await page.$$eval('select[data-f="club"][data-k="0"] option', o => o.map(x => x.textContent).slice(1));
   assert.deepStrictEqual(opts, ['Driver', '3W', '5W', '7W', '4H', '5H', '5i', '6i', '7i', '8i', '9i', 'PW', '52', '54', '56', '58', '60']);
-  const bb = await page.locator('select[data-f="club"][data-k="0"]').boundingBox(); assert.ok(bb.height >= 44, 'tap target');
+  const bb = await page.locator('select[data-f="club"][data-k="0"]').boundingBox(); assert.ok(bb.height >= 36, 'tap target (v115 compact: 36 px+)');
   assert.strictEqual(await page.locator('input[data-f="layup"]').count(), 1);
   const sg0 = await page.evaluate(() => SG.analyzeHole(window.__golf.rounds()[0].holes[0], 'pga').sg);
-  await page.selectOption('select[data-f="club"][data-k="0"]', '3W'); await page.selectOption('select[data-f="club"][data-k="1"]', '8i');
+  await open(1); await page.selectOption('select[data-f="club"][data-k="1"]', '8i');
+  await open(0); await page.selectOption('select[data-f="club"][data-k="0"]', '3W');
   await page.check('input[data-f="layup"]');
   assert.match(await page.textContent('.sinfo[data-info="0"]'), /layup – SG not counted/);
   await page.evaluate(() => window.scrollTo(0, 0)); await page.screenshot({ path: '/workspace/golf-app/screenshots/club-picker.png' });
-  await page.reload(); await page.click('[data-act="resume"]'); await page.waitForSelector('select[data-f="loc"]'); await nav(0);
+  await page.reload(); await page.click('[data-act="resume"]'); await page.waitForSelector('select[data-f="loc"]'); await nav(0); await open(0);
   const st = await page.evaluate(() => { const r = JSON.parse(localStorage.getItem('golfsg.rounds.v1'))[0]; return r.holes[0].rows.map(x => [x.club || '', !!x.layup]); });
   assert.deepStrictEqual(st, [['3W', true], ['8i', false], ['', false], ['', false]]);
   assert.strictEqual(await page.$eval('select[data-f="club"][data-k="0"]', e => e.value), '3W'); assert.ok(await page.isChecked('input[data-f="layup"]'));
   const sg1 = await page.evaluate(() => { const a = SG.analyzeHole(window.__golf.rounds()[0].holes[0], 'pga'); return [a.sg, a.shots.filter(s => s.cat === 'tee' && !s.layup).length]; });
   assert.ok(sg1[1] === 0 && Math.abs(sg1[0] - sg0) > 1e-6, 'layup removed from SG ' + sg1 + ' ' + sg0);
   // clear club
-  await page.selectOption('select[data-f="club"][data-k="1"]', ''); assert.strictEqual(await page.evaluate(() => JSON.parse(localStorage.getItem('golfsg.rounds.v1'))[0].holes[0].rows[1].club), undefined);
+  await open(1); await page.selectOption('select[data-f="club"][data-k="1"]', ''); assert.strictEqual(await page.evaluate(() => JSON.parse(localStorage.getItem('golfsg.rounds.v1'))[0].holes[0].rows[1].club), undefined);
   await page.selectOption('select[data-f="club"][data-k="1"]', '8i');
   // backup + CSV carry club/layup; restore keeps them
   const csv = await page.evaluate(() => window.__golf.csvFor ? window.__golf.csvFor(window.__golf.rounds()) : null);

@@ -118,12 +118,14 @@
     goHole(0, true);
   }
   function goHole(i, focus) {
-    view.screen = 'hole'; view.hole = Math.max(0, Math.min(17, i)); view.menu = null; view.liveCard = false; view.dirk = null; view.pinOpen = false; view.voice = null; micAbort();
+    view.screen = 'hole'; view.hole = Math.max(0, Math.min(17, i)); view.menu = null; view.edk = null; view.parEdit = null; view.liveCard = false; view.dirk = null; view.pinOpen = false; view.voice = null; micAbort();
     render(); window.scrollTo(0, 0);
     var h = round().holes[view.hole];
     if (focus && h.rows.length === 1 && h.rows[0].dist === '') focusDist(0);
   }
-  function focusDist(k) { var el = document.querySelector('input[data-row="' + k + '"]'); if (el) el.focus(); }
+  function focusDist(k) { var el = document.querySelector('input[data-row="' + k + '"]');
+    if (!el && view.screen === 'hole' && document.querySelector('.tline[data-k="' + k + '"]')) { view.edk = { h: view.hole, k: k }; render(); el = document.querySelector('input[data-row="' + k + '"]'); } // v115: open that shot's cells first
+    if (el) el.focus(); }
   function started(h) { return h.rows.length > 1 || h.rows[0].dist !== '' || !!h.finished; }
 
   // ---------- rendering ----------
@@ -152,7 +154,7 @@
     else if (view.screen === 'wedges') el.innerHTML = wedgesHTML();
     else if (view.screen === 'birdie') { view.bzD = null; el.innerHTML = birdieHTML(); }
     else if (view.screen === 'home' || !round()) el.innerHTML = homeHTML();
-    else if (view.screen === 'hole') el.innerHTML = '<div class="frostpage roundpage' + roundTheme() + '">' + holeHTML() + (view.pinOpen ? pinHTML() : '') + (view.replay != null ? replayHTML() : '') + '</div>';
+    else if (view.screen === 'hole') el.innerHTML = '<div class="frostpage roundpage holepage' + roundTheme() + '">' + holeHTML() + (view.pinOpen ? pinHTML() : '') + (view.replay != null ? replayHTML() : '') + '</div>';
     else if (view.screen === 'about') el.innerHTML = aboutHTML();
     else { el.innerHTML = '<div class="frostpage roundpage' + roundTheme() + '">' + summaryHTML() + (view.send && round() && view.send.id === round().id ? sendSheetHTML(round()) : '') + (view.mv && view.mv.from === 'summary' && view.mv.sheet ? mvSheetHTML() : '') + (view.map ? mapHTML() : '') + (view.replay != null ? replayHTML() : '') + '</div>'; if (view.map) applyHeat(); if (view.preview) previewOnly(el); }
     document.body.classList.toggle('onhome', !!el.querySelector('#home'));
@@ -1746,14 +1748,17 @@
       '<button class="frostbtn" data-act="next" aria-label="Next hole"' + (view.hole === 17 ? ' disabled' : '') + '>›</button></div>';
     out += liveBarHTML(r);
 
-    out += '<div class="holecard frostcard' + (fin ? ' fin' : '') + '"><div class="hc-head"><h2>Hole ' + (view.hole + 1) + '</h2>' +
-      '<div class="par"><span>Par</span>' + [3, 4, 5].map(function (p) {
-        return '<button data-act="par" data-v="' + p + '" class="' + (h.par === p ? 'sel' : '') + '"' + (fin ? ' disabled' : '') + '>' + p + '</button>'; }).join('') + '</div></div>';
+    out += '<div class="holecard frostcard' + (fin ? ' fin' : '') + '">' + holeHeadHTML(r, h, fin);
     var pin = SG.normPin(h.pin);
     out += '<button class="pinbtn frostbtn' + (pin ? ' set' : '') + '" id="pinbtn" data-act="pinopen">⛳ ' + (pin ? 'Pin: ' + SG.PIN_NAME[pin].toLowerCase() + ' <small>change</small>' : 'Set pin location') + '</button>';
 
-    out += '<div class="srow shead"><span class="c-n">#</span><span class="c-d">Dist</span><span class="c-l">Loc</span><span class="c-x">Dir</span><span class="c-p">P</span><span class="c-del"></span></div>';
-    h.rows.forEach(function (row, k) { out += rowHTML(h, a, row, k, fin); });
+    // v115: finished shots are one tight line (# · Hit · Club · Loc · SG); only the shot being entered has the entry cells + its header
+    var act = fin ? -1 : activeRow(h), thead = false;
+    h.rows.forEach(function (row, k) {
+      if (k === act) { out += '<div class="srow shead" id="shead"><span class="c-n">#</span><span class="c-d">Dist to pin</span><span class="c-l">Loc</span><span class="c-x">' + (k ? 'Dir' : '') + '</span><span class="c-p">' + (k ? 'P' : '') + '</span><span class="c-del"></span></div>' + rowHTML(h, a, row, k, fin); return; }
+      if (!thead) { thead = true; out += '<div class="thead" id="thead" aria-hidden="true"><span>#</span><span>Hit</span><span>Club</span><span>Loc</span><span>SG</span></div>'; }
+      out += tightHTML(h, a, k, fin);
+    });
 
     var pens = h.rows.reduce(function (n, rw, k) { return n + (SG.isPenalty(rw, k) ? 1 : 0); }, 0);
     var lastR = h.rows[h.rows.length - 1], talk = !fin && !SG.isHoled(lastR, h.rows.length - 1);
@@ -1876,7 +1881,7 @@
   function voiceSave() {
     var h = round().holes[view.hole], p = view.voice.p, res = VOICE.apply(h, p);
     if (res.done || res.k < 0) { toast(res.warn[0] || 'Nothing to save'); return; }
-    dictStop(); h.rows = res.rows; save(); view.voice = null; view.menu = null; view.vflash = res.touched.slice(); render(); view.vflash = null;
+    dictStop(); h.rows = res.rows; save(); view.voice = null; view.menu = null; view.edk = null; view.vflash = res.touched.slice(); render(); view.vflash = null;
     toast('Shot ' + (res.k + 1) + ' saved');
   }
   function dirSheetHTML(h, k) {
@@ -1894,6 +1899,52 @@
     return n + ' stroke' + (n === 1 ? '' : 's') + (pens ? ' + ' + pens + ' penalty' + (pens === 1 ? '' : ' strokes') + ' = ' + (n + pens) : '');
   }
 
+  // ---------- v115: hole header + tight shot lines ----------
+  function activeRow(h) { var n = h.rows.length, e = view.edk; return e && e.h === view.hole && e.k < n ? e.k : n - 1; }
+  function holeCard(r, i) { // scorecard facts for this hole from the saved course: yards for the tee played, par, stroke index
+    var c = r && r.courseId ? courseById(r.courseId) : null; if (!c) return {};
+    var t = (c.tees || []).filter(function (x) { return x.name === r.tee; })[0] || (c.tees || [])[0];
+    var y = t && t.yards && t.yards[i], si = c.hcp && c.hcp[i], p = c.pars && c.pars[i];
+    return { yd: y > 0 ? +y : null, si: si > 0 ? +si : null, par: p >= 3 && p <= 6 ? +p : null };
+  }
+  function holeHeadHTML(r, h, fin) {
+    var i = view.hole, C = holeCard(r, i), r0 = h.rows[0] || {}, yd = C.yd || (r0.loc !== 'holed' && +r0.dist > 0 ? +r0.dist : null);
+    var fixed = fin || (C.par && +h.par === C.par), pe = view.parEdit === i && !fin, par;
+    if (!h.par || pe) par = '<span class="parpick" id="parpick"><span class="plbl">Par</span>' + [3, 4, 5].map(function (p) {
+      return '<button type="button" data-act="par" data-v="' + p + '" class="' + (+h.par === p ? 'sel' : '') + '" aria-label="Par ' + p + '">' + p + '</button>'; }).join('') + '</span>';
+    else if (fixed) par = '<span class="hpar" id="hpar">Par ' + h.par + '</span>';
+    else par = '<button type="button" class="hpar hparbtn" id="hpar" data-act="paredit" aria-label="Par ' + h.par + ' – tap to change">Par ' + h.par + ' <small>✎</small></button>';
+    return '<div class="hc-head"><h2>Hole ' + (i + 1) + '</h2><div class="hmeta" id="hmeta">' + (yd ? '<span class="hyd" id="hyd">' + yd + ' yd</span>' : '') + par +
+      (C.si ? '<span class="hsi" id="hsi">SI ' + C.si + '</span>' : '') + '</div></div>';
+  }
+  var END_NAME = { fairway: 'Fairway', rough: 'Rough', deep: 'Deep rough', bunker: 'Bunker', green: 'Green', hazard: 'Hazard', trees: 'Trees', tee: 'Tee' };
+  function tightParts(h, a, k) {
+    var rows = h.rows, row = rows[k], nx = rows[k + 1], s = a.shots[k], holed = SG.isHoled(row, k) || (k === 0 && row.loc === 'holedx');
+    var lie = SG.lieOf(rows, k), putt = lie === 'green', u = SG.rowUnit(rows, k), hit = '', loc = '', arrow = '', pen = false;
+    var nDist = nx && nx.loc !== 'ob' && nx.dist !== '' && nx.dist != null;
+    if (holed) { hit = row.dist !== '' ? row.dist + ' ' + u : ''; loc = 'Holed'; }
+    else {
+      if (s && s.ob) hit = '';
+      else if (putt) hit = (s || nDist) && row.dist !== '' ? row.dist + ' ft' : '';
+      else if (s && s.hit != null) hit = s.hit + ' yd';
+      else if (nDist && row.dist !== '') { var y = function (j) { var d = SG.distOf(rows, j); return SG.rowUnit(rows, j) === 'ft' ? d / 3 : d; }; var hy = Math.round(y(k) - y(k + 1)); hit = hy > 0 ? hy + ' yd' : ''; }
+      if (nx && nx.loc) { loc = nx.loc === 'ob' ? 'OB' : nx.loc === 'holed' ? 'Green' : END_NAME[SG.lieOf(rows, k + 1)] || LOC_SHORT[nx.loc] || ''; pen = !!nx.pen || nx.loc === 'ob'; }
+    }
+    var club = putt ? 'Putter' : row.club ? clubShort(row.club) : '';
+    // v115: every line reads "from → to" – from = this shot's own lie, to = where it finished (the next shot's lie); no miss arrow
+    var from = k === 0 ? 'Tee' : END_NAME[lie] || LOC_SHORT[row.loc] || '';
+    return { hit: hit, loc: loc, pen: pen, club: club, s: s, from: from };
+  }
+  function clubShort(code) { var c = clubChoices(code).filter(function (x) { return x.code === code; })[0]; return c ? String(c.label).split(' · ')[0] : code; }
+  function tightHTML(h, a, k, fin) {
+    var P = tightParts(h, a, k), s = P.s, bad = !fin && a.bad === k, n = k + 1, dash = '<i class="tdash">–</i>';
+    var sg = s ? (s.layup ? '<span class="sgchip lay" title="Layup – not counted">layup</span>' : '<span class="sgchip ' + (sgCls(s.sg) || 'zero') + '">' + fmtSG(s.sg) + '</span>') : '';
+    var loc = '<span class="tlw">' + (P.from ? esc(P.from) + ' <i class="tto">→</i> ' : '') + (P.loc ? esc(P.loc) : dash) + '</span>' + (P.pen ? '<i class="tpen">+1</i>' : '');
+    var inner = '<span class="t-n">' + n + '</span><span class="t-h">' + (P.hit || dash) + '</span><span class="t-c">' + (P.club ? esc(P.club) : dash) + '</span><span class="t-l">' + loc + '</span><span class="t-s">' + sg + '</span>';
+    var lbl = 'Shot ' + n + (P.from ? ' from the ' + P.from.toLowerCase() : '') + (P.hit ? ', hit ' + P.hit : '') + (P.club ? ', ' + P.club : '') + (P.loc ? ', ended ' + P.loc : '') + (s && !s.layup ? ', SG ' + fmtSG(s.sg) : '');
+    return fin ? '<div class="tline fin" data-k="' + k + '" role="group" aria-label="' + esc(lbl) + '">' + inner + '</div>'
+      : '<button type="button" class="tline' + (bad ? ' bad' : '') + '" data-act="rowedit" data-k="' + k + '" aria-label="' + esc(lbl) + ' – tap to edit">' + inner + '</button>';
+  }
   function rowHTML(h, a, row, k, fin) {
     var ob = row.loc === 'ob', bad = !fin && a.bad === k, shotNo = k + 1, dis = fin ? ' disabled' : '';
     var out = '<div class="srow' + (bad ? ' bad' : '') + (view.vflash && view.vflash.indexOf(k) >= 0 ? ' vflash' : '') + '" data-k="' + k + '">';
@@ -1923,7 +1974,7 @@
         clubChoices(row.club).map(function (c) { return '<option value="' + esc(c.code) + '"' + (row.club === c.code ? ' selected' : '') + '>' + esc(c.label) + '</option>'; }).join('') + '</select></label>' +
         (k === 0 && Number(h.par) !== 3 ? '<label class="layup"><input type="checkbox" data-f="layup" data-k="0"' + (row.layup ? ' checked' : '') + dis + '> Layup <small>(not in SG)</small></label>' : '') + hoBox + '</div>';
     } else if (row.loc === 'green') out += '<div class="clubrow putter" data-club="' + k + '"><small>Putter</small>' + hoBox + '</div>';
-    out += '<div class="sinfo" data-info="' + k + '">' + infoHTML(a.shots[k]) + '</div>';
+    out += '<div class="sinfo" data-info="' + k + '">' + infoHTML(a.shots[k]) + '</div>'; // (only the shot being entered has this line now)
     if (view.menu === k && !fin) {
       out += '<div class="rowmenu">' + (k > 0 ? '<button data-act="insBefore" data-k="' + k + '">Insert shot above</button>' : '') +
         '<button data-act="insAfter" data-k="' + k + '">Insert shot below</button><button data-act="menu" data-k="' + k + '">Close</button></div>';
@@ -3599,11 +3650,13 @@
       case 'goHole': goHole(+b.getAttribute('data-i')); return;
       case 'prev': goHole(view.hole - 1); return;
       case 'next': goHole(view.hole + 1, true); return;
-      case 'par': h.par = +v; save(); break;
+      case 'par': h.par = +v; view.parEdit = null; save(); break;
+      case 'paredit': view.parEdit = view.parEdit === view.hole ? null : view.hole; break;
+      case 'rowedit': view.edk = { h: view.hole, k: k }; view.menu = null; view.dirk = null; break; // v115: tap a tight line to edit that shot
       case 'addShot': {
         var a = SG.analyzeHole(h);
         if (a.bad != null) { toast(hintText(h, a)); var bk = a.bad; render(); focusDist(bk); return; }
-        h.rows.push(newRow(h, h.rows.length - 1)); save(); view.menu = null; render();
+        h.rows.push(newRow(h, h.rows.length - 1)); save(); view.menu = null; view.edk = null; render();
         focusDist(h.rows.length - 1); return;
       }
       case 'finish': {
@@ -3613,15 +3666,15 @@
         toast('Hole ' + (view.hole + 1) + ': ' + af.strokes + ' (' + toPar(af.strokes - h.par) + ')');
         break;
       }
-      case 'reopen': h.finished = false; save(); break;
+      case 'reopen': h.finished = false; view.edk = null; save(); break;
       case 'pen': h.rows[k].pen = !h.rows[k].pen; save(); break;
       case 'del':
         if (!confirm('Delete row ' + (k + 1) + ' (' + (h.rows[k].dist || '') + ' ' + (LOC_SHORT[h.rows[k].loc] || '') + ')?')) return;
-        h.rows.splice(k, 1); view.menu = null; save(); break;
+        h.rows.splice(k, 1); view.menu = null; view.edk = null; save(); break;
       case 'menu': view.menu = view.menu === k ? null : k; break;
-      case 'insBefore': h.rows.splice(k, 0, newRow(h, k - 1)); view.menu = null; save(); render(); focusDist(k); return;
+      case 'insBefore': h.rows.splice(k, 0, newRow(h, k - 1)); view.menu = null; view.edk = { h: view.hole, k: k }; save(); render(); focusDist(k); return;
       case 'insAfter': { var nr = newRow(h, k); if (h.rows[k].holeOut) { delete h.rows[k].holeOut; nr.holeOut = true; } // the new shot is now the one that went in
-        h.rows.splice(k + 1, 0, nr); view.menu = null; save(); render(); focusDist(k + 1); return; }
+        h.rows.splice(k + 1, 0, nr); view.menu = null; view.edk = { h: view.hole, k: k + 1 }; save(); render(); focusDist(k + 1); return; }
     }
     render();
   });
@@ -3762,6 +3815,7 @@
       var el = document.querySelector('.sinfo[data-info="' + k + '"]'); if (el) el.innerHTML = infoHTML(a.shots[k]);
       var rw = document.querySelector('.srow[data-k="' + k + '"]'); if (rw) rw.classList.toggle('bad', a.bad === k);
       var ob = rw && rw.querySelector('.obtxt'); if (ob) ob.textContent = prevDist(h, k);
+      var tl = document.querySelector('.tline[data-k="' + k + '"]'); if (tl) { var tmp = document.createElement('div'); tmp.innerHTML = tightHTML(h, a, k, !!h.finished && a.complete); tl.parentNode.replaceChild(tmp.firstChild, tl); } // v115: Hit fills in as the next distance is typed
     });
   }
 

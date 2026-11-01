@@ -71,7 +71,7 @@ const PORT = 8813, BASE = `http://127.0.0.1:${PORT}/`, OUT = '/workspace/golf-ap
   await page.click('[data-act="cardsave"]'); await page.waitForSelector('#ntees');
   assert.match(await page.textContent('#crspicked'), /Pebble Creek/); if (await page.$('#nteefold')) await page.click('#nteefold'); /* v114: folded after a save */ assert.deepStrictEqual(await page.$$eval('#ntees .ntee:not(.naddtee)', e => e.map(x => (x.querySelector('.tname') || x.childNodes[0]).textContent.trim())), ['White', 'Truckee']);
   await page.click('#ntees [data-v="White"]'); await page.click('[data-act="new"]'); await page.waitForSelector('.holecard');
-  assert.strictEqual(await page.$eval('input[data-row="0"]', e => e.value), String(TRUE.white[0])); assert.strictEqual(await page.textContent('.par button.sel'), '4');
+  assert.strictEqual(await page.$eval('input[data-row="0"]', e => e.value), String(TRUE.white[0])); assert.strictEqual(await page.textContent('#hpar'), 'Par 4'); assert.strictEqual(await page.$('[data-act="par"]'), null, 'v115: par from the card, no 3/4/5 buttons');
   const rd = await page.evaluate(() => JSON.parse(localStorage.getItem('golfsg.rounds.v1'))[0]); assert.strictEqual(rd.tee, 'White'); assert.strictEqual(rd.course, 'Pebble Creek');
   assert.deepStrictEqual(rd.holes.map(x => x.par), TRUE.par);
   // Rename tees or fix numbers from the New round sheet still opens the editor

@@ -137,7 +137,7 @@ const hole1 = () => ({ par: 4, finished: true, rows: [R(467, 'tee', { club: 'Dri
     await page.click('[data-act="del"][data-k="3"]'); await page.waitForTimeout(150);
     assert.match(dialogs[dialogs.length - 1], /Delete row 4/); assert.deepStrictEqual(await boxes(), [2]);
     await page.click('[data-f="holeout"][data-k="2"]'); await page.waitForTimeout(150);
-    assert.strictEqual(await page.$$eval('.srow[data-k]', e => e.length), 3);
+    assert.strictEqual(await page.$$eval('.tline, .srow[data-k]', e => e.length), 3);
     assert.strictEqual(await page.$eval('select[data-f="loc"][data-k="2"]', s => s.value), 'deep', 'lie kept');
     assert.ok(await page.isChecked('[data-f="holeout"][data-k="2"]')); assert.strictEqual(await page.$('[data-act="addShot"]'), null, 'no Add Shot once holed');
     assert.strictEqual(await page.$('#micbtn'), null); assert.match(await page.textContent('#hint'), /All set – tap Finish hole/);
@@ -158,7 +158,7 @@ const hole1 = () => ({ par: 4, finished: true, rows: [R(467, 'tee', { club: 'Dri
     const nD = dialogs.length; assert.ok(!(await page.isDisabled('[data-act="finish"]')));
     await page.click('[data-act="finish"]'); await page.waitForSelector('.hole-done'); assert.strictEqual(dialogs.length, nD, 'no confirm when nothing after');
     assert.match(await page.textContent('.hole-done'), /Score 3 \(-1\)/);
-    assert.ok(await page.isDisabled('[data-f="holeout"][data-k="2"]'), 'box locked on a finished hole');
+    assert.strictEqual(await page.$('[data-f="holeout"]'), null, 'v115: finished hole = plain lines, no box to change'); assert.match(await page.textContent('.tline[data-k="2"]'), /Holed/);
     st = await page.evaluate(() => { const r = window.__golf.rounds()[0]; return { rows: r.holes[0].rows.map(x => [x.dist, x.loc, !!x.holeOut]), fin: r.holes[0].finished, saved: JSON.parse(localStorage.getItem('golfsg.rounds.v1'))[0].holes[0].rows[2].holeOut }; });
     assert.deepStrictEqual(st, { rows: [[467, 'tee', false], [155, 'fairway', false], [25, 'deep', true]], fin: true, saved: true });
     // old hole 2 untouched and still finished, summary/CSV fine
@@ -183,10 +183,14 @@ const hole1 = () => ({ par: 4, finished: true, rows: [R(467, 'tee', { club: 'Dri
     });
     await page.reload(); await page.click('[data-act="resume"]'); await page.waitForSelector('.holecard');
     const bx = () => page.$$eval('[data-f="holeout"]', e => e.map(x => [+x.getAttribute('data-k'), x.checked]));
-    assert.deepStrictEqual(await bx(), [[1, true], [3, false]], 'stale tick on shot 2 stays visible; shot 3 has no box');
+    // v115: only the active shot has entry cells; the stale tick shows as "Holed" on shot 2's tight line and its box is back when that line is tapped
+    assert.deepStrictEqual(await bx(), [[3, false]]); assert.match(await page.textContent('.tline[data-k="1"] .t-l'), /Holed/, 'stale tick on shot 2 stays visible');
+    await page.click('.tline[data-k="1"]'); await page.waitForSelector('input[data-row="1"]'); assert.deepStrictEqual(await bx(), [[1, true]], 'stale tick on shot 2 stays visible; shot 3 has no box');
+    await page.click('.tline[data-k="3"]'); await page.waitForSelector('input[data-row="3"]');
     const nD2 = dialogs.length; await page.click('[data-f="holeout"][data-k="3"]'); await page.waitForTimeout(150);
     assert.strictEqual(dialogs.length, nD2, 'no confirm for the last row');
     assert.deepStrictEqual(await bx(), [[3, true]], 'single tick: shot 2 cleared (and its box hidden), shot 4 ticked');
+    assert.doesNotMatch(await page.textContent('.tline[data-k="1"] .t-l'), /Holed/);
     st = await page.evaluate(() => window.__golf.rounds()[0].holes[0].rows.map(r => !!r.holeOut)); assert.deepStrictEqual(st, [false, false, false, true]);
     assert.deepStrictEqual(errors, []);
     console.log('HOLEOUT OK (' + (n + 1) + ' groups)');
