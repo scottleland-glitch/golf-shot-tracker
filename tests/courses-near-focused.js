@@ -45,12 +45,12 @@ const ok = m => console.log('  ✓ ' + m), HOME = { lat: 36.5686, lng: -121.9497
 // ---- 2. files ----
 {
   const sw = fs.readFileSync(ROOT + 'sw.js', 'utf8'), cfg = fs.readFileSync(ROOT + 'config.js', 'utf8');
-  assert.ok(sw.includes("'golf-sg-v123'") && sw.includes("'./near.js'") && /pinhigh-courselist-/.test(sw) && /\/data\//.test(sw));
+  assert.ok(sw.includes("'golf-sg-v124'") && sw.includes("'./near.js'") && /pinhigh-courselist-/.test(sw) && /\/data\//.test(sw));
   assert.match(cfg, /GOLFCORE_BASE:\s*'https:\/\/pinhigh-golfcore\.pinhigh\.workers\.dev\/v1'/); assert.ok(!/GOLFCORE_KEY|gc_live_/.test(cfg + fs.readFileSync(ROOT + 'app.js', 'utf8')), 'no GolfCore key anywhere in the app');
   const big = JSON.parse(fs.readFileSync(ROOT + 'data/us-courses.json', 'utf8'));
   assert.ok(big.courses.length > 14000 && /OpenGolfAPI/.test(big.source) && /ODbL/.test(big.source)); assert.deepStrictEqual(big.fields, LIST.fields);
   assert.ok(!big.courses.some(r => /[a-z]tm$/.test(r[0])), 'no run-together tm');
-  ok('sw v123 keeps the list cache and skips /data/; config points at the relay, no key in the app; finder list ' + big.courses.length + ' courses');
+  ok('sw v124 keeps the list cache and skips /data/; config points at the relay, no key in the app; finder list ' + big.courses.length + ' courses');
 }
 (async () => {
   const srv = spawn('python3', ['-m', 'http.server', String(PORT), '--bind', '127.0.0.1'], { cwd: ROOT, stdio: 'ignore' });

@@ -1813,3 +1813,32 @@ html body .roundpage.holepage .srow.shead .c-n { height: auto; min-height: 0; bo
 .mapview.lightmap #fwmap text.fwpct[fill="#b00020"] { fill: #e0313f; }
 /* Proximity: ring labels (e.g. "50 ft" sitting off the green) get a thin dark-green outline so they read on the pale background */
 .mapview.proxview #proxmap text.ring { stroke: #2e7d32; stroke-width: 2px; paint-order: stroke; stroke-linejoin: round; }
+
+/* ===== v124: Proximity page – compact controls so the green shows on screen while you pick ===== */
+.mapview.proxview .proxsum { margin: 4px 2px 0; font-size: 12.5px; line-height: 1.3; min-height: 26px; }
+.mapview.proxview .proxsum .infobtn { margin: -4px -4px -4px 2px; }
+.mapview.proxview .proxnote { margin: 0 2px; font-size: 11px; line-height: 1.3; }
+.mapview.proxview .proxqv { margin: 4px 0 2px; gap: 4px; }
+.mapview.proxview .proxqv .qv { padding: 3px 2px 3px; border-radius: 10px; }
+.mapview.proxview .proxqv .qvl { font-size: 10.5px; line-height: 1.2; }
+.mapview.proxview .proxqv b { font-size: 15px !important; line-height: 1.15; }
+.mapview.proxview .proxqv small { font-size: 10px; line-height: 1.15; }
+.mapview.proxview .proxhrow { display: flex; align-items: center; justify-content: space-between; gap: 6px; margin: 4px 2px 0; min-height: 30px; }
+.mapview.proxview .proxhrow .clubh3 { margin: 0; font-size: 13px; }
+.mapview.proxview .benchsel { display: inline-flex; align-items: center; gap: 5px; flex: none; }
+.mapview.proxview .benchsel .ln.dash { display: inline-block; width: 14px; height: 0; border-top: 1.5px dashed #e0313f; }
+.mapview.proxview .benchsel select { height: 28px; max-width: 170px; padding: 0 22px 0 8px; font: 400 12px/26px inherit; color: #1b2733; background-color: #fff; border: 1px solid rgba(23, 48, 31, .16); border-radius: 8px; -webkit-appearance: none; appearance: none;
+  background-image: linear-gradient(45deg, transparent 50%, #55636f 50%), linear-gradient(135deg, #55636f 50%, transparent 50%); background-position: right 11px center, right 7px center; background-size: 4px 4px; background-repeat: no-repeat; }
+.mapview.proxview .benchsel select option.nodata { color: #8a96a1; }
+.mapview.proxview .proxrail { grid-template-columns: repeat(9, 1fr); gap: 3px; margin: 2px 0 0; }
+.mapview.proxview .proxrail button { padding: 1px 0; }
+.mapview.proxview .proxrail button b { font-size: 12px !important; }
+.mapview.proxview .proxrail button small { font-size: 9.5px !important; line-height: 1.05; }
+.mapview.proxview .proxctl { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin: 4px 2px 0; min-height: 28px; }
+.mapview.proxview .proxctl .proxlbl { margin: 0; }
+.mapview.proxview .heatslot .heattog { margin: 0; width: 150px; }
+.mapview.proxview .heatslot .heattog button { min-height: 26px !important; font-size: 12px !important; padding: 0 6px; }
+.mapview.proxview .liechips { margin: 3px 0 4px; gap: 3px; }
+.mapview.proxview .liechips .liebtn { min-height: 34px !important; font-size: 12px !important; }
+.mapview.proxview #proxmap .nobenchlab { font-size: 10px; font-weight: 500; fill: #3f4c58; stroke: #fff; stroke-width: 2.5px; }
+.mapview.proxview .proxleg .nobench { color: #6b7884; font-style: italic; }

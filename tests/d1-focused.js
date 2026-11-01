@@ -1,3 +1,4 @@
+// v124: rounds benchmarked vs D1 women (the ring follows the round's benchmark); label 'D1 women avg NN’'
 const { chromium } = require('playwright-core'); const assert = require('assert'); const { spawn } = require('child_process');
 const xt = async (p, id) => { if (!(await p.$('[data-stx="' + id + '"].open')) && await p.$('[data-act="stx"][data-v="' + id + '"]')) await p.click('[data-act="stx"][data-v="' + id + '"]'); return p; }; // v96: stat tiles are collapsed – open one first
 const goHist = async p => { if (await p.$('#plusbtn')) await p.click('#plusbtn'); await p.click('[data-act="history"]'); };
@@ -11,18 +12,18 @@ const BASE = 'http://127.0.0.1:8786/', OUT = '/workspace/golf-app/screenshots/';
   await page.goto(BASE + '?x=' + Date.now());
   await page.evaluate(() => { const R = (d, l, dir) => ({ dist: d, loc: l, dir: dir || '', pen: false }); const D = ['left', 'right', 'long', 'short', 'shortleft', 'longright'];
     const AP = [80, 81, 150, 152, 148, 190, 40, 80, 150, 200];
-    const mk = (id, day) => ({ v: 3, dv: 2, id, date: '2026-10-' + day + 'T17:00:00.000Z', course: id, baseline: 'pga', player: 'Scott',
+    const mk = (id, day) => ({ v: 3, dv: 2, id, date: '2026-10-' + day + 'T17:00:00.000Z', course: id, baseline: 'd1w', player: 'Scott',
       holes: Array.from({ length: 18 }, (_, i) => { const a = AP[i % AP.length]; return { par: 4, pin: 'center', finished: true, rows: i % 4 === 0 ? [R(400, 'tee'), R(a, 'fairway'), R(8 + i, 'rough', D[(i + 1) % 6]), R(12, 'green', 'left'), R(1, 'holed')] : [R(400, 'tee'), R(a, 'fairway'), R(6 + (i * 7) % 40, 'green', D[i % 6]), R(1, 'holed')] }; }) });
     localStorage.clear(); localStorage.setItem('golfsg.player.v1', 'Scott'); localStorage.setItem('golfsg.rounds.v1', JSON.stringify([mk('a', 12), mk('b', 13)])); });
   await page.reload(); await goHist(page); await page.click('#histlist [data-act="open"] >> nth=0');
   await (await xt(page, 'prox')).click('[data-act="map"][data-v="prox"]'); await page.click('[data-act="mapscope"][data-v="all"]'); await page.waitForSelector('#proxrail');
   const ring = () => page.evaluate(() => { const g = document.getElementById('d1ring'); if (!g) return null; const svg = g.ownerSVGElement;
-    return { r: +g.querySelector('circle').getAttribute('r'), t: g.querySelector('text').textContent, last: svg.lastElementChild === g, legend: !!document.querySelector('.legend .ln.dash') && /D1 women avg/.test(document.querySelector('#mapview').textContent), note: (document.getElementById('d1note') || {}).textContent || '' }; });
+    return { r: +g.querySelector('circle').getAttribute('r'), t: g.querySelector('text').textContent, last: svg.lastElementChild === g, legend: !!document.querySelector('.legend .ln.dash') && /D1 women avg/.test(document.querySelector('#mapview').textContent), note: ((document.getElementById('d1note') || {}).textContent || '') + ' ' + ((document.getElementById('benchsrc') || {}).textContent || '') }; }); // v124: source line moved to #benchsrc
   for (const [yd, ft, est] of [['80', 22, false], ['150', 44, false], ['40', 15, false], ['190', 60, true], ['200', 64, true]]) {
     await page.click('[data-act="proxb"][data-v="' + yd + '"]'); await page.waitForSelector('#heattog');
     const K = 117 / (ft + 10);
     for (const v of ['dots', 'grad']) { await page.click('[data-act="heat"][data-v="' + v + '"]'); const r = await ring();
-      assert.ok(r, yd + ' ' + v + ' ring'); assert.ok(Math.abs(r.r - ft * K) < 0.1, yd + ' radius ' + r.r); assert.strictEqual(r.t, 'D1 avg ' + ft + '\u2019' + (est ? ' est.' : ''));
+      assert.ok(r, yd + ' ' + v + ' ring'); assert.ok(Math.abs(r.r - ft * K) < 0.1, yd + ' radius ' + r.r); assert.strictEqual(r.t, 'D1 women avg ' + ft + '\u2019' + (est ? ' est.' : ''));
       assert.ok(r.last, yd + ' ' + v + ' ring on top');
       const g = await page.evaluate(() => { const s = document.getElementById('proxmap'), vb = s.viewBox.baseVal, c = s.querySelector('#d1ring circle'), cx = +c.getAttribute('cx'), cy = +c.getAttribute('cy'), r = +c.getAttribute('r');
         const green = [...s.querySelectorAll('circle')].find(e => e.getAttribute('fill') === '#3da33d'); const gr = +green.getAttribute('r');

@@ -2683,8 +2683,8 @@
   // Continuous density (Gaussian kernel, sigma 13 px) painted to a canvas and embedded as an image: clear where
   // there are no shots, light -> dark red with density. Hot-spot tags at local density peaks (>= 30% of the max).
   function heatGradient(svg, pts, CL) {
-    var vb = svg.viewBox.baseVal, W = vb.width, H = vb.height, S = 3, gw = Math.ceil(W / S), gh = Math.ceil(H / S), sig = 6 + 3.4 * (CL || 3), D = new Float32Array(gw * gh), mx = 0;
-    for (var y = 0; y < gh; y++) for (var x = 0; x < gw; x++) { var v = 0, px = x * S + S / 2, py = y * S + S / 2;
+    var vb = svg.viewBox.baseVal, W = vb.width, H = vb.height, OX = vb.x || 0, OY = vb.y || 0, S = 3, gw = Math.ceil(W / S), gh = Math.ceil(H / S), sig = 6 + 3.4 * (CL || 3), D = new Float32Array(gw * gh), mx = 0; // v124: OX/OY = cropped viewBox origin (proximity page)
+    for (var y = 0; y < gh; y++) for (var x = 0; x < gw; x++) { var v = 0, px = OX + x * S + S / 2, py = OY + y * S + S / 2;
       for (var i = 0; i < pts.length; i++) { var dx = px - pts[i].x, dy = py - pts[i].y, q = dx * dx + dy * dy; if (q < 9 * sig * sig) v += Math.exp(-q / (2 * sig * sig)); }
       D[y * gw + x] = v; if (v > mx) mx = v; }
     var cv = document.createElement('canvas'); cv.width = gw; cv.height = gh; var cx = cv.getContext('2d'), im = cx.createImageData(gw, gh);
@@ -2694,11 +2694,11 @@
       while (j < RB.length - 1 && t > RB[j][0]) j++; var u = Math.max(0, Math.min(1, (t - RB[j - 1][0]) / (RB[j][0] - RB[j - 1][0])));
       for (var ch = 0; ch < 3; ch++) im.data[k * 4 + ch] = Math.round(RB[j - 1][1][ch] + (RB[j][1][ch] - RB[j - 1][1][ch]) * u); im.data[k * 4 + 3] = Math.round(a * 255); }
     cx.putImageData(im, 0, 0);
-    var o = '<image id="heatgrad" href="' + cv.toDataURL('image/png') + '" x="0" y="0" width="' + W + '" height="' + H + '" preserveAspectRatio="none"/>';
+    var o = '<image id="heatgrad" href="' + cv.toDataURL('image/png') + '" x="' + OX + '" y="' + OY + '" width="' + W + '" height="' + H + '" preserveAspectRatio="none"/>';
     var peaks = [];
     for (y = 1; y < gh - 1; y++) for (x = 1; x < gw - 1; x++) { var c = D[y * gw + x]; if (c < Math.min(0.3 * mx, 0.6)) continue; var top = true;
       for (var yy = -4; yy <= 4 && top; yy++) for (var xx = -4; xx <= 4; xx++) { var Y = y + yy, X = x + xx; if ((yy || xx) && Y >= 0 && X >= 0 && Y < gh && X < gw && D[Y * gw + X] > c) { top = false; break; } }
-      if (top) peaks.push([x * S + S / 2, y * S + S / 2, c]); }
+      if (top) peaks.push([OX + x * S + S / 2, OY + y * S + S / 2, c]); }
     // one hot spot per blob: a flat or twin-topped peak (2+ shots at the same spot) yields several local maxima -> keep the
     // strongest and drop any within 1.5 sigma of a kept one; each shot then belongs to its nearest kept peak (counted once)
     peaks.sort(function (a, b) { return b[2] - a[2]; });
@@ -2708,18 +2708,19 @@
     pts.forEach(function (q) { var bi = -1, bd = 2 * sig; keep.forEach(function (k, i) { var d = Math.hypot(q.x - k[0], q.y - k[1]); if (d <= bd) { bd = d; bi = i; } }); if (bi >= 0) own[bi].push(q); });
     var boxes = [], n = 0;
     keep.forEach(function (p, i) { var near = own[i]; if (!near.length) return; n++; if (view.map === 'fw') return; // tee map: no hot-spot labels
-      o += heatTag('hotspot', near.length, p[0], p[1], heatLabel(near), boxes, W, H); });
+      o += heatTag('hotspot', near.length, p[0], p[1], heatLabel(near), boxes, W, H, OX, OY); });
     return { svg: o, peaks: n };
   }
   // Tag placement: try spots around the anchor (nearest first); never over another tag; if the tag ends up
   // away from its anchor, a thin leader line joins them.
-  function heatTag(cls, n, ax, ay, t, boxes, W, H) {
+  function heatTag(cls, n, ax, ay, t, boxes, W, H, OX, OY) {
+    OX = OX || 0; OY = OY || 0; // v124: viewBox origin (the proximity page crops the top)
     var w = t.length * 6.2 + 10, hh = 18, c = [], best = null;
     [0, 1, 2, 3, 4].forEach(function (ring) { var d = 16 + ring * 22;
       [[0, -1], [0, 1], [1, 0], [-1, 0], [1, -1], [-1, -1], [1, 1], [-1, 1]].forEach(function (v) { c.push([ax + v[0] * (d + (v[0] ? w / 2 : 0)) - w / 2, ay + v[1] * d - hh / 2]); }); });
-    for (var i = 0; i < c.length; i++) { var x = Math.max(3, Math.min(W - 3 - w, c[i][0])), y = Math.max(3, Math.min(H - 3 - hh, c[i][1]));
+    for (var i = 0; i < c.length; i++) { var x = Math.max(OX + 3, Math.min(OX + W - 3 - w, c[i][0])), y = Math.max(OY + 3, Math.min(OY + H - 3 - hh, c[i][1]));
       if (!boxes.some(function (b) { return x < b[2] + 2 && x + w > b[0] - 2 && y < b[3] + 2 && y + hh > b[1] - 2; })) { best = [x, y]; break; } }
-    if (!best) best = [Math.max(3, Math.min(W - 3 - w, ax - w / 2)), Math.max(3, ay - 30)];
+    if (!best) best = [Math.max(OX + 3, Math.min(OX + W - 3 - w, ax - w / 2)), Math.max(OY + 3, ay - 30)];
     var x0 = best[0], y0 = best[1]; boxes.push([x0, y0, x0 + w, y0 + hh]);
     var nx = Math.max(x0, Math.min(x0 + w, ax)), ny = Math.max(y0, Math.min(y0 + hh, ay)), far = Math.hypot(nx - ax, ny - ay) > 18;
     return '<g class="' + cls + '" data-n="' + n + '"' + (far ? ' data-leader="1"' : '') + '>' + (far ? '<line class="leader" x1="' + f1(ax) + '" y1="' + f1(ay) + '" x2="' + f1(nx) + '" y2="' + f1(ny) + '" stroke="#3a0000" stroke-width="1.2"/>' : '') +
@@ -2754,7 +2755,7 @@
     var tg = document.createElement('div'); tg.className = 'seg heattog'; tg.id = 'heattog';
     tg.innerHTML = [['dots', 'Dots'], ['grad', 'Gradient']].map(function (b) { return '<button data-act="heat" data-v="' + b[0] + '" class="' + (mode === b[0] ? 'sel' : '') + '" aria-pressed="' + (mode === b[0]) + '"' + (pts.length || b[0] === 'dots' ? '' : ' disabled') + '>' + b[1] + '</button>'; }).join('');
     var anc = svg; while (anc.parentNode && anc.parentNode !== mv) anc = anc.parentNode;
-    anc.parentNode.insertBefore(tg, anc);
+    var slot = mv.querySelector('#heatslot'); if (slot) slot.appendChild(tg); else anc.parentNode.insertBefore(tg, anc); // v124: proximity page puts Dots / Gradient beside 'Hit from'
     if (on && pts.length) { var sl = document.createElement('div'); sl.className = 'heatclus'; sl.id = 'heatclus';
       var CL = heatClus(), U0 = pts.every(function (p) { return p.u === 'yd'; }) ? 'yd' : 'ft';
       sl.innerHTML = '<label for="clusr"><b>Cluster</b> <span>tight</span></label><input type="range" id="clusr" min="1" max="10" step="1" value="' + CL + '" aria-label="Cluster distance"><span>loose</span> <b id="clusv">' + CL + ' ' + U0 + '</b>';
@@ -2778,7 +2779,7 @@
       if (g.length === 1 && tagged) { h += '<g class="island lone" data-n="1"></g>'; return; }
       var mx = g.reduce(function (a, p) { return a + p.x; }, 0) / g.length, my = g.reduce(function (a, p) { return a + p.y; }, 0) / g.length;
       var cp = g.reduce(function (b, p) { return Math.hypot(p.x - mx, p.y - my) < Math.hypot(b.x - mx, b.y - my) ? p : b; }, g[0]); // anchor on a real shot of the island
-      h += heatTag('island', g.length, cp.x, cp.y, heatFmt(g) + ' · ' + g.length + (g.length === 1 ? ' shot' : ' shots'), boxes, VW, VH);
+      h += heatTag('island', g.length, cp.x, cp.y, heatFmt(g) + ' · ' + g.length + (g.length === 1 ? ' shot' : ' shots'), boxes, VW, VH, svg.viewBox.baseVal.x, svg.viewBox.baseVal.y);
     });
     }
     // average finish (all plotted shots): pixel mean for the marker, real distances for the words
@@ -3437,26 +3438,76 @@
       t(31, H - 46, 'OTHER') + t(PX.cx + 26, H - 12, 'TEE', 'start', '#1d5c12') + t(4, Z - 4, '↓ toward you', 'start', '#2f6b2a') + '</g>';
     return o;
   }
-  // D1 women's approach proximity benchmark (Shot Scope D1 women's chart, ft): one row per 10-yd band [from yd, low ft, high ft, estimated?].
-  // A rail button at Y yd uses the band containing Y; a boundary goes to the band that starts there (150 -> 150-160). Ring radius = midpoint.
-  // 180 yd and up are not on the chart: extended from the trend and marked estimated.
-  var D1_PROX = [[40, 12, 18], [50, 14, 20], [60, 15, 22], [70, 16, 24], [80, 18, 26], [90, 20, 28], [100, 22, 32], [110, 24, 36], [120, 26, 40], [130, 28, 45],
-    [140, 30, 50], [150, 33, 55], [160, 36, 60], [170, 39, 65], [180, 42, 70, true], [190, 45, 75, true], [200, 48, 80, true]];
-  function d1Bench(yd) { yd = Number(yd); if (!isFinite(yd) || yd < 40) return null; var b = null; D1_PROX.forEach(function (r) { if (yd >= r[0]) b = r; });
-    return b ? { from: b[0], lo: b[1], hi: b[2], ft: (b[1] + b[2]) / 2, est: !!b[3] } : null; }
-  function d1Ring(bucket) { var B = d1Bench(bucket); if (!B) return '';
-    var r = B.ft * PX.K, ty = Math.max(14, PX.cy - r - 5), lab = 'D1 avg ' + Math.round(B.ft) + '\u2019' + (B.est ? ' est.' : '');
-    return '<g id="d1ring" data-ft="' + B.ft + '" data-est="' + (B.est ? 1 : 0) + '"><circle class="d1halo" cx="' + PX.cx + '" cy="' + PX.cy + '" r="' + f1(r) + '" fill="none" stroke="#fff" stroke-opacity=".7" stroke-width="5"/>' +
+  // v124: approach proximity benchmarks (ft from the hole), one entry per SG baseline id (pga, lpga, d1m, d1w, scm, scw – see SG.BASELINES).
+  // Adding or updating a benchmark is a data-only change here. Each entry:
+  //   band: band width in yd (a row covers fromYd up to fromYd + band); open: true = the last row also covers everything beyond it
+  //   source / caveat: one line each for the map-key ⓘ; est: { fromYd: 'how the estimate was made' }
+  //   rows (sorted by distance), any of these shapes:
+  //     [fromYd, ft, tag, sourceId]          tag 'sourced' | 'derived' | 'estimate'  (the prox-benchmarks.json format)
+  //     [fromYd, [lowFt, highFt], tag, id]   range -> the ring sits at the middle
+  //     [fromYd, lowFt, highFt, estimated?]  range (the original D1 women format)      [fromYd, ft, estimated?]  single number
+  // A distance button at Y yd uses the band containing Y (150 -> the 150 band). No band there -> no ring and a
+  // '<name>: no data at this distance' note (no extrapolating). A baseline with no entry -> 'No proximity benchmark for <name> yet'.
+  // Data: /workspace/prox-benchmarks.json + .md (compiled Nov 1, 2026). D1 women is the original Shot Scope chart, unchanged.
+  var PROX_BENCH = {
+    pga: { band: 25, source: 'PGA Tour ShotLink (pgatour.com), 2026 season, from the fairway or a par-3 tee',
+      caveat: 'Tour stats only count shots that finish on or around the green (big misses left out), so this ring looks tight next to your numbers (every shot, every lie).',
+      rows: [[50, 17.2, 'sourced', 'pgatour_2026'], [75, 18.0, 'sourced', 'pgatour_2026'], [100, 20.25, 'sourced', 'pgatour_2026'], [125, 23.6, 'sourced', 'pgatour_2026'],
+        [150, 28.4, 'sourced', 'pgatour_2026'], [175, 33.9, 'sourced', 'pgatour_2026'], [200, 41.3, 'sourced', 'pgatour_2026'], [225, 50.1, 'sourced', 'pgatour_2026']] },
+    lpga: { band: 25, source: 'LPGA Tour averages from KPMG Performance Insights, July 2024 (season to date)',
+      caveat: 'Tour stat, probably only shots finishing on or around the green; the 2025 averages ran about 10% higher.',
+      est: { 50: 'PGA Tour 50\u201375 yd \u00d7 the LPGA/PGA ratio at 75\u2013100 yd (0.972)', 200: 'PGA Tour 200\u2013225 yd \u00d7 the LPGA/PGA ratio at 175\u2013200 yd (1.142)' },
+      rows: [[50, 16.7, 'estimate', 'est'], [75, 17.5, 'sourced', 'kpmg_wso2024'], [100, 20.1, 'sourced', 'kpmg_wso2024'], [125, 24.8, 'sourced', 'kpmg_wso2024'],
+        [150, 31.5, 'sourced', 'kpmg_wso2024'], [175, 38.7, 'sourced', 'kpmg_wso2024'], [200, 47.1, 'estimate', 'est']] },
+    d1m: { band: 25, open: true, source: 'Upgame (Trackman), Pac-12 men: 7 teams, 700+ rounds, 2022',
+      caveat: 'One conference, user-entered shots, all approach lies (closest to how Pin High counts).',
+      rows: [[50, 21.8, 'sourced', 'upgame_pac12'], [75, 23.2, 'sourced', 'upgame_pac12'], [100, 26.3, 'sourced', 'upgame_pac12'], [125, 29.9, 'sourced', 'upgame_pac12'],
+        [150, 34.0, 'sourced', 'upgame_pac12'], [175, 40.6, 'sourced', 'upgame_pac12'], [200, 50.1, 'sourced', 'upgame_pac12'], [225, 60.7, 'sourced', 'upgame_pac12'], [250, 100.1, 'sourced', 'upgame_pac12']] },
+    // D1 women: Shot Scope D1 women's chart (ft), 10-yd bands. 180 yd and up are not on the chart: extended from the trend and marked estimated.
+    d1w: { band: 10, open: true, source: 'Shot Scope D1 women\u2019s benchmarks', estNote: '180 yd and beyond is our estimate from the trend, not on the chart',
+      caveat: 'The chart gives a low\u2013high range per 10 yd; the ring sits at the middle, a rough stand-in for the average.',
+      rows: [[40, 12, 18], [50, 14, 20], [60, 15, 22], [70, 16, 24], [80, 18, 26], [90, 20, 28], [100, 22, 32], [110, 24, 36], [120, 26, 40], [130, 28, 45],
+        [140, 30, 50], [150, 33, 55], [160, 36, 60], [170, 39, 65], [180, 42, 70, true], [190, 45, 75, true], [200, 48, 80, true]] },
+    scm: { band: 50, open: true, source: 'Shot Scope handicap-0 golfers (Golf Monthly, Apr 2025), 50-yd bands',
+      caveat: 'Amateur tracker averages: every approach, misses included; not split by gender (mostly men).',
+      rows: [[50, 26, 'sourced', 'shotscope_gm'], [100, 38, 'sourced', 'shotscope_gm'], [150, 54, 'sourced', 'shotscope_gm'], [200, 92, 'sourced', 'shotscope_gm']] },
+    scw: { band: 25, source: 'Shot Scope \u201cThe Women\u2019s Game, By The Numbers\u201d (May 2026), scratch women',
+      caveat: 'Amateur tracker averages: every approach, misses included.',
+      est: { 50: '75\u2013100 yd (32 ft) \u00d7 the Pac-12 men ratio 21.8/23.2', 175: '150\u2013175 yd (89 ft) \u00d7 the Pac-12 men ratio 40.6/34.0' },
+      rows: [[50, 30.1, 'estimate', 'est'], [75, 32, 'sourced', 'shotscope_women2026'], [100, 42, 'sourced', 'shotscope_women2026'], [125, 60, 'sourced', 'shotscope_women2026'],
+        [150, 89, 'sourced', 'shotscope_women2026'], [175, 106.3, 'estimate', 'est']] }
+  };
+  var BENCH_SHORT = { pga: 'PGA Tour', lpga: 'LPGA', d1m: 'D1 men', d1w: 'D1 women', scm: 'Scratch men', scw: 'Scratch women' };
+  function benchName(id) { return BENCH_SHORT[id] || SG.baseline(id).name; }
+  function benchHasData(id) { var E = PROX_BENCH[id]; return !!(E && E.rows && E.rows.length); }
+  function benchRow(r) { // -> { from, lo, hi, est, tag } for any of the row shapes above
+    var v = r[1], lo, hi, est, tag;
+    if (Array.isArray(v)) { lo = v[0]; hi = v[1]; tag = r[2]; est = tag === 'estimate'; }
+    else if (typeof r[2] === 'number') { lo = v; hi = r[2]; est = !!r[3]; tag = est ? 'estimate' : 'sourced'; }
+    else { lo = hi = v; est = r[2] === true || r[2] === 'estimate'; tag = typeof r[2] === 'string' ? r[2] : est ? 'estimate' : 'sourced'; }
+    return { from: r[0], lo: lo, hi: hi, est: est, tag: tag, range: lo !== hi }; }
+  function proxBench(yd, id) { id = id || 'd1w'; var E = PROX_BENCH[id]; yd = Number(yd); if (!E || !E.rows || !E.rows.length || !isFinite(yd)) return null;
+    var band = E.band || 10, R = E.rows.map(benchRow), i = -1; R.forEach(function (r, k) { if (yd >= r.from) i = k; }); if (i < 0) return null;
+    var b = R[i], nx = R[i + 1], last = !nx, to = nx ? Math.min(nx.from, b.from + band) : b.from + band;
+    if (yd >= to && !(last && E.open)) return null; // a gap between bands, or past the last band: no data at this distance
+    return { id: id, name: benchName(id), source: E.source || '', caveat: E.caveat || '', estNote: b.est ? ((E.est && E.est[b.from]) || E.estNote || '') : '', from: b.from, to: to, open: last && !!E.open,
+      range: b.range, lo: b.lo, hi: b.hi, ft: (b.lo + b.hi) / 2, est: b.est, tag: b.tag }; }
+  function d1Bench(yd) { var B = proxBench(yd, 'd1w'); return B ? { from: B.from, lo: B.lo, hi: B.hi, ft: B.ft, est: B.est } : null; } // kept for the D1 tests / older callers
+  // the ring keeps its old id (#d1ring) so the heat layer keeps it on top; data-bench says which benchmark it is
+  function benchRing(bucket, id) { var B = proxBench(bucket, id); if (!B) return '';
+    var r = B.ft * PX.K, ty = Math.max(14, PX.cy - r - 5), lab = B.name + ' avg ' + Math.round(B.ft) + '\u2019' + (B.est ? ' est.' : '');
+    return '<g id="d1ring" class="benchring" data-bench="' + B.id + '" data-ft="' + B.ft + '" data-est="' + (B.est ? 1 : 0) + '"><circle class="d1halo" cx="' + PX.cx + '" cy="' + PX.cy + '" r="' + f1(r) + '" fill="none" stroke="#fff" stroke-opacity=".7" stroke-width="5"/>' +
       '<circle cx="' + PX.cx + '" cy="' + PX.cy + '" r="' + f1(r) + '" class="d1line" fill="none" stroke="#e00016" stroke-width="2.6" stroke-dasharray="9 6"/>' +
       '<text class="d1lab" x="' + PX.cx + '" y="' + f1(ty) + '" text-anchor="middle" font-size="11" font-weight="900" fill="#c00012" stroke="#fff" stroke-width="3" paint-order="stroke">' + lab + '</text></g>'; }
-  // Zoom: a selected yardage shows the D1 ring + 10 ft as the green radius; a distance group uses the ring at its midpoint;
-  // All 40-200 keeps the 60-yd green (90 ft). The green is always PX.Rg px across, so K (px per ft) changes per distance.
+  // Zoom: a selected yardage shows the benchmark ring + 10 ft as the green radius; a distance group uses the ring at its midpoint;
+  // All 40-200 (or a benchmark with no data) keeps the 60-yd green (90 ft). The green is always PX.Rg px across, so K (px per ft) changes per distance.
   function grpMid(group) { var g = String(group).replace(' yd', '').split(/[-+]/), lo = +g[0], hi = g[1] ? +g[1] : lo + 20; return (lo + hi) / 2; } // '130-160' -> 145, '200+' -> 210
-  function proxZoomFt(bucket, group) {
+  function proxZoomFt(bucket, group, bench) {
     if (group) bucket = grpMid(group);
-    var B2 = d1Bench(bucket); return B2 ? B2.ft + 10 : 90; }
-  function proxSVG(list, bucket, zoomFt) {
-    var RFT = zoomFt || proxZoomFt(bucket); PX.K = PX.Rg / RFT; var HMAX = RFT * 0.97;
+    var B2 = proxBench(bucket, bench); return B2 ? B2.ft + 10 : 90; }
+  function proxSVG(list, bucket, zoomFt, opts) {
+    opts = opts || {}; var BID = opts.bench || 'd1w'; // Compare + PDF: D1 women, as before
+    var RFT = zoomFt || proxZoomFt(bucket, null, BID); PX.K = PX.Rg / RFT; var HMAX = RFT * 0.97;
     var out = '<svg id="proxmap" viewBox="0 0 ' + PX.W + ' ' + PX.H + '" role="img" aria-label="Approach proximity">' +
       '<rect class="pbg" width="' + PX.W + '" height="' + PX.H + '" fill="#cfe8c4"/>' + lieStrip() + '<circle class="pgreen" cx="' + PX.cx + '" cy="' + PX.cy + '" r="' + PX.Rg + '" fill="#3da33d" stroke="#145214" stroke-width="4"/>';
     // ring step per zoom: 5 ft under 40 ft, 10 ft under 80, else 15; labels every ring, or every other one at 5-ft steps
@@ -3530,11 +3581,17 @@
       boxes.push([q[0] - 8, q[1] - 10, q[0] + 8, q[1] + 10]);
     });
     pend.forEach(function (p) { labels += lbl(p[0], p[1], p[2], p[3], p[4]); });
-    out += tr + starts + dots + labels + '<text class="pdir" x="' + PX.cx + '" y="16" text-anchor="middle" font-size="13" font-weight="800">LONG ↑</text>' +
-      '<text class="pdir" x="6" y="16" font-size="13" font-weight="800">◀ LEFT</text><text class="pdir" x="' + (PX.W - 6) + '" y="16" text-anchor="end" font-size="13" font-weight="800">RIGHT ▶</text>' +
+    // v124 (page only): crop the empty sky above the green – the LEFT / LONG / RIGHT row sits just above the highest dot, label or the green
+    var Y0 = 0;
+    if (opts.crop && !nd) { var top = PX.cy - PX.Rg - 8; boxes.forEach(function (b) { top = Math.min(top, b[1] - 10); }); Y0 = Math.max(0, Math.floor(top - 20)); }
+    if (Y0) out = out.replace('viewBox="0 0 ' + PX.W + ' ' + PX.H + '"', 'viewBox="0 ' + Y0 + ' ' + PX.W + ' ' + (PX.H - Y0) + '" data-crop="' + Y0 + '"');
+    out += tr + starts + dots + labels + '<text class="pdir" x="' + PX.cx + '" y="' + (Y0 + 16) + '" text-anchor="middle" font-size="13" font-weight="800">LONG ↑</text>' +
+      '<text class="pdir" x="6" y="' + (Y0 + 16) + '" font-size="13" font-weight="800">◀ LEFT</text><text class="pdir" x="' + (PX.W - 6) + '" y="' + (Y0 + 16) + '" text-anchor="end" font-size="13" font-weight="800">RIGHT ▶</text>' +
       (nd ? '<text class="pdir pnodir" x="' + (PX.W - 8) + '" y="34" text-anchor="end" font-size="11" font-weight="800">missed, no direction ↓</text>' : '');
-    return out + d1Ring(bucket) + '</svg>';
+    if (opts.nobench) out += '<text class="nobenchlab" id="nobenchlab" x="' + PX.cx + '" y="' + (PX.cy - PX.Rg + 17) + '" text-anchor="middle" font-size="10" fill="#3f4c58" stroke="#fff" stroke-width="2.5" paint-order="stroke">' + esc(opts.nobench) + '</text>';
+    return out + benchRing(bucket, BID) + '</svg>';
   }
+  function proxBenchId() { var r = round() || savedRounds()[0]; return view.proxReport ? 'd1w' : view.proxBench || blOf(r); } // the PDF report keeps D1 women, as before // v124: picked on the page, else the open round's SG baseline
   function proxHTML(all) {
     var D = proxData(), L = D.list, P = SG.proxStats(L), miss = L.filter(function (m) { return !m.hit; });
     // v121: distance chips in a 6-across grid (like the Club performance chips): All first, then 200 down to 40 (farther first, like the map)
@@ -3556,7 +3613,15 @@
       rows.map(function (r) { return '<tr data-lie="' + r.id + '" class="' + (wid[r.id] ? 'warn' : '') + (r.id === D.lie ? ' sel' : '') + '"><td>' + (wid[r.id] ? '⚠ ' : '') + r.name + '</td><td class="num">' + r.n + '</td><td class="num">' + pct(r) +
         '</td><td class="num">' + fmtFt(r.avgHitFt) + '</td><td class="num">' + fmtFt(r.avgAllFt) + '</td></tr>'; }).join('') + '</table>';
     var warnHTML = warns.map(function (w) { return '<p class="warnmsg" data-lie="' + w.id + '">⚠ ' + esc(w.text) + '</p>'; }).join('');
-    var B1 = d1Bench(D.bucket) && !view.proxGroup ? d1Bench(D.bucket) : null;
+    // v124: the red ring follows a benchmark – the round's SG baseline by default (All rounds: the open round's), or the one picked
+    // in the small selector on this page (this view only; the round's saved baseline is not changed)
+    var BID = proxBenchId(), BNM = benchName(BID), hasB = benchHasData(BID), B1 = !view.proxGroup ? proxBench(D.bucket, BID) : null;
+    var bsel = '<label class="benchsel" id="benchsel"><i class="ln dash" aria-hidden="true"></i><select id="proxbench" data-f="proxbench" aria-label="Benchmark ring">' + SG.BASELINES.map(function (b) {
+      var has = benchHasData(b.id); return '<option value="' + b.id + '"' + (b.id === BID ? ' selected' : '') + (has ? '' : ' data-nodata="1" class="nodata"') + '>' + benchName(b.id) + (has ? '' : ' (no data)') + '</option>'; }).join('') + '</select></label>';
+    var dflt = !view.proxBench || view.proxBench === blOf(round());
+    // no ring: the benchmark has no numbers at all, or none for this distance (no extrapolating). All 40–200 never has a ring.
+    var nob = !hasB ? 'No proximity benchmark for ' + BNM + ' yet' : !B1 && !view.proxGroup && D.bucket !== 'all' ? BNM + ': no data at this distance' : '';
+    var EB = PROX_BENCH[BID] || {}, srcLine = hasB ? '<p id="benchsrc"><b>' + esc(BNM) + '</b>: ' + esc(EB.source || '') + '. ' + esc(EB.caveat || '') + '</p>' : '';
     // the explanations that used to sit on the page now live behind small ⓘ buttons
     var tipTiles = '<b>Shots</b>: approaches in the map below. <b>Greens hit</b>: how many reached the green in regulation. <b>Avg prox · hit</b>: average first-putt distance on the greens you hit. ' +
       '<b>Avg prox · all</b>: hits and misses together (a miss counts its yards left × 3 as feet; OB is left out). ' +
@@ -3566,29 +3631,32 @@
     var tipDist = 'Each button is the distance the shot was hit from, rounded to the nearest 10 yd, halves up (144 → 140, 145 → 150), so 150 = 145 to 154 yd. The small number is the shot count; greyed-out buttons have none. ' +
       'The lie buttons filter the map and numbers by where the shot was hit from (Rough includes deep rough; Other = trees, hazard and anything else). ⚠ = a lie with 3+ shots and no greens hit, or 30+ points worse than from the fairway.';
     var sw = function (c, b) { return '<i class="sw" style="background:' + c + (b ? ';border:1px solid ' + b : '') + '"></i>'; };
-    var tipKey = '<div class="legend proxkey">' + (B1 ? '<span><i class="ln dash"></i>Red dashed ring = D1 women\u2019s average for this distance</span>' : '') +
+    var tipKey = '<div class="legend proxkey">' + (B1 ? '<span><i class="ln dash"></i>Red dashed ring = ' + esc(BNM) + ' average for this distance</span>' : '') +
       '<span><i class="dot" style="background:#1e6fd9"></i>Blue = hit the green, placed at the first-putt distance (ft) and direction from the hole</span>' +
       '<span><i class="dot" style="background:#e0102a"></i>Red = missed the green, in the miss direction; label = yards left + lie (› = further than the picture, drawn at the edge)</span>' +
       '<span><svg width="14" height="14" viewBox="0 0 20 20" style="flex:none"><path d="M10 1 l9 9 -9 9 -9 -9z" fill="#9aa5ae" stroke="#fff" stroke-width="1.5"/><text x="10" y="14" text-anchor="middle" font-size="11" fill="#fff">?</text></svg>No direction entered: blue sits straight up at its distance, red in the top-right corner</span>' +
       '<span><i class="dot" style="background:#fff;border:1px solid #6d7a86"></i>Where the shot was hit from, on the strip under the green:</span>' +
       '<span>' + sw('#b2e08f', '#4f9e3e') + 'Fairway (middle)</span><span>' + sw('#7dbb64', '#3f8a3a') + 'Rough – left or right from the direction you entered for the shot before, otherwise the side with fewer shots</span>' +
       '<span>' + sw('#f2d785', '#c29a2e') + 'Bunker</span><span>' + sw('#d2f0c0', '#4f9e3e') + 'Tee box (par 3s)</span><span>' + sw('#4e8f43', '#2f6b2a') + 'Trees / hazard drop / other</span>' +
-      '<span><b class="star">★</b>Holed out</span><span>White rings: distance from the hole in ft. The scale changes per distance: for a yardage the green reaches the D1 ring + 10 ft; for All, 60 yd across (90 ft). Hits farther than that sit at the edge (label ends with ›).</span></div>' +
-      (B1 ? '<p id="d1note">Red dashed ring = D1 women\u2019s average proximity from ' + B1.from + '\u2013' + (B1.from + 10) + ' yd (' + B1.lo + '\u2013' + B1.hi + ' ft range, ring at the middle' + (B1.est ? '; 180 yd and beyond is our estimate from the trend, not on the chart' : '') + '). Source: Shot Scope D1 women\u2019s benchmarks. A distance button uses the 10-yd band that starts there (150 = 150\u2013160 yd).</p>' : '');
+      '<span><b class="star">★</b>Holed out</span><span>White rings: distance from the hole in ft. The scale changes per distance: for a yardage the green reaches the benchmark ring + 10 ft; for All (or a benchmark with no numbers yet), 60 yd across (90 ft). Hits farther than that sit at the edge (label ends with ›).</span></div>' +
+      (B1 ? '<p id="d1note">Red dashed ring = ' + esc(BNM) + ' average proximity from ' + B1.from + (B1.open ? '+' : '\u2013' + B1.to) + ' yd (' + (B1.range ? B1.lo + '\u2013' + B1.hi + ' ft range, ring at the middle' : (Math.round(B1.ft * 10) / 10) + ' ft') + (B1.est ? '; est. = estimate' + (B1.estNote ? ': ' + esc(B1.estNote) : '') : '') + '). A distance button uses the band that contains it (' + B1.from + ' yd \u2192 ' + B1.from + (B1.open ? '+' : '\u2013' + B1.to) + ' yd).</p>' : '') + srcLine +
+      '<p id="benchnote">The ring uses ' + (dflt ? (all ? 'the open round\u2019s benchmark (' + esc(BNM) + ') for every round shown' : 'this round\u2019s benchmark (' + esc(BNM) + ')') : esc(BNM) + ', picked above (just for this view – the round\u2019s own benchmark is ' + esc(benchName(blOf(round()))) + ')') +
+      '. Change it with the small selector next to Distance. ' + (nob ? nob + ' \u2013 no ring, and the green shows 60 yd across (90 ft). ' : '') + (function () { var no = SG.BASELINES.filter(function (b) { return !benchHasData(b.id); }).map(function (b) { return benchName(b.id); }); return no.length ? 'No proximity numbers yet for: ' + no.join(', ') + '.' : 'The benchmarks use different definitions and years \u2013 compare against one, not across them.'; })() + '</p>';
     return '<div class="mapsum clubsum proxsum" id="mapsum"><span><b>' + P.n + '</b> approach' + (P.n === 1 ? '' : 'es') + ' from <b id="proxsel">' + bname + '</b>' + (D.lie === 'all' ? '' : ', <b id="proxliesel">' + LIE_NM[D.lie] + '</b>') + scope + '</span>' +
       tipBtn('proxtiles', 'i', 'About these numbers') + '</div>' + tipText('proxtiles', tipTiles) +
-      (D.auto ? '<p class="proxnote" id="proxauto">Showing your most-played distance – tap another, or All, to change it.</p>' : '') +
+      (D.auto ? '<p class="proxnote" id="proxauto">Showing your most-played distance – tap another or All.</p>' : '') +
       '<div class="quickview clubqv proxqv" id="proxstats">' +
       clubQV('shots', 'Shots', P.n, P.n === 1 ? 'approach' : 'approaches') +
       clubQV('gir', 'Greens hit', P.n ? P.hits + ' / ' + P.n : '–', P.n ? Math.round(P.hitPct) + '%' : '&nbsp;') +
       clubQV('proxhit', 'Avg prox', fmtFt(P.avgHitFt), 'greens hit') + clubQV('proxall', 'Avg prox', fmtFt(P.avgAllFt), 'all shots') + '</div>' +
       '<div id="proxwarn">' + warnHTML + '</div>' +
-      '<h3 class="clubh3">Distance (yd)' + tipBtn('proxdist', 'i', 'About the distance buttons') + '</h3>' + tipText('proxdist', tipDist) +
+      '<div class="proxhrow"><h3 class="clubh3">Distance (yd)' + tipBtn('proxdist', 'i', 'About the distance buttons') + '</h3>' + bsel + '</div>' + tipText('proxdist', tipDist) +
       '<div class="proxrail" id="proxrail" role="group" aria-label="Approach yardage">' +
       '<button class="yall' + (D.bucket === 'all' ? ' sel' : '') + '" data-act="proxb" data-v="all" data-n="' + D.counts.all + '" aria-pressed="' + (D.bucket === 'all') + '" aria-label="All 40 to 200 yards, ' + D.counts.all + ' shot' + (D.counts.all === 1 ? '' : 's') + '"><b>All</b><small>' + D.counts.all + '</small></button>' + rail + '</div>' +
-      '<p class="proxlbl">Hit from</p><div class="liechips" id="liechips" role="group" aria-label="Starting lie">' + chips + '</div>' +
-      '<div class="proxwrap">' + proxSVG(L, view.proxGroup ? grpMid(view.proxGroup) : D.bucket) + '</div>' +
-      '<div class="legend proxleg"><span><i class="dot" style="background:#1e6fd9"></i>Hit green</span><span><i class="dot" style="background:#e0102a"></i>Missed</span>' + (B1 ? '<span><i class="ln dash"></i>D1 women avg</span>' : '') +
+      '<div class="proxctl"><p class="proxlbl">Hit from</p><span class="heatslot" id="heatslot"></span></div><div class="liechips" id="liechips" role="group" aria-label="Starting lie">' + chips + '</div>' +
+      '<div class="proxwrap">' + proxSVG(L, view.proxGroup ? grpMid(view.proxGroup) : D.bucket, null, { bench: BID, crop: !view.proxReport, nobench: nob }) + '</div>' +
+      '<div class="legend proxleg"><span><i class="dot" style="background:#1e6fd9"></i>Hit green</span><span><i class="dot" style="background:#e0102a"></i>Missed</span>' +
+      (B1 ? '<span id="benchleg"><i class="ln dash"></i>' + esc(BNM) + ' avg' + (all && dflt ? ' (this round\u2019s benchmark)' : '') + '</span>' : nob ? '<span class="nobench" id="nobench">' + esc(nob) + '</span>' : '') +
       tipBtn('proxkey', 'i', 'How to read the map') + '</div>' + tipText('proxkey', tipKey) +
       '<h3>By lie – ' + bname + '</h3>' + lieTab +
       '<h3>Misses by direction</h3>' + dirTable(miss).replace('(not plotted)', '(drawn as ?)').replace('class="dirtab"', 'class="dirtab clubtab"');
@@ -3817,7 +3885,7 @@
       case 'aboutBack': view.screen = view.back && view.back !== 'about' ? view.back : 'home'; render(); window.scrollTo(0, 0); return;
       case 'setbl': setBaseline(v); return;
       case 'map': if (v === 'pmiss') view.pmG = b.closest('[data-stx="lag"]') ? 'lag' : view.pmG === 'lag' || view.pmG === 'all' ? null : view.pmG; // v117: the Lag tile opens the map on Over 10 ft
-        view.map = v; view.pinSeg = null; view.heat = null; if (v === 'prox') view.proxB = null; view.mapScope = view.mapScope || 'round'; render(); return;
+        view.map = v; view.pinSeg = null; view.heat = null; view.proxBench = null; if (v === 'prox') view.proxB = null; view.mapScope = view.mapScope || 'round'; render(); return;
       case 'pinseg': view.pinSeg = v || null; render(); var pv = document.getElementById('mapview'); if (pv) pv.scrollTop = 0; return;
       case 'mapclose': view.map = null; render(); return;
       case 'pinopen': view.pinOpen = true; view.menu = null; view.dirk = null; render(); return;
@@ -3950,6 +4018,7 @@
       rd.readAsText(f); ev.target.value = ''; return;
     }
     var t = ev.target, f = t.getAttribute('data-f'); if (!f) return;
+    if (f === 'proxbench') { var mvb = document.getElementById('mapview'), stb = mvb ? mvb.scrollTop : 0; view.proxBench = t.value; render(); var mvb2 = document.getElementById('mapview'); if (mvb2) mvb2.scrollTop = stb; return; } // v124: this view only
     if (f === 'baseline') { if (t.id === 'sumbl') setBaseline(t.value); else if (t.id === 'stbl') { view.stBl = t.value || ''; view.stSel = null; render(); } return; }
     var h = round().holes[view.hole], k = +t.getAttribute('data-k'), row = h.rows[k];
     if (f === 'loc') {
@@ -4087,5 +4156,5 @@
     });
     window.addEventListener('load', function () { navigator.serviceWorker.register('./sw.js').catch(function () {}); });
   }
-  window.__golf = { card: function () { return view.card; }, statsData: function () { return statsData(); }, statsRound: function (id, bl) { return statsRound(rounds.filter(function (r) { return r.id === id; })[0], bl || ''); }, scorecardHTML: function () { var r = round(); return r ? scorecardHTML(r, SG.summarize(r, blOf(r))) : ''; }, voiceState: function () { return { dict: !!(view.voice && view.voice.stage === 'dict'), timer: !!dictTimer }; }, d1Bench: d1Bench, proxSVG: proxSVG, pinSVG: function () { return pinReportSVG(SG.pinSegments(pinDataRound())); }, csvFor: csvFor, rounds: function () { return rounds; } };
+  window.__golf = { card: function () { return view.card; }, statsData: function () { return statsData(); }, statsRound: function (id, bl) { return statsRound(rounds.filter(function (r) { return r.id === id; })[0], bl || ''); }, scorecardHTML: function () { var r = round(); return r ? scorecardHTML(r, SG.summarize(r, blOf(r))) : ''; }, voiceState: function () { return { dict: !!(view.voice && view.voice.stage === 'dict'), timer: !!dictTimer }; }, d1Bench: d1Bench, proxBench: proxBench, PROX_BENCH: PROX_BENCH, proxZoomFt: proxZoomFt, proxSVG: proxSVG, pinSVG: function () { return pinReportSVG(SG.pinSegments(pinDataRound())); }, csvFor: csvFor, rounds: function () { return rounds; } };
 })();
