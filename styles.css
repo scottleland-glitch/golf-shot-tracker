@@ -1680,3 +1680,136 @@ html body .roundpage.holepage .srow.shead .c-n { height: auto; min-height: 0; bo
 .mapview.proxview #proxmap g.xdot text, .mapview.proxview #proxmap .xlbl { font-weight: 600; }
 .mapview.proxview #proxmap .d1line { stroke: #e0313f; }
 .mapview.proxview #proxmap .d1lab { font-weight: 600; fill: #c62832; }
+/* v123: round-page map sheets (GIR, approach misses, tee shots, putts, putt misses / lag / all putts, pin) – same tight, vibrant look as the v122 Proximity page.
+   Page chrome comes from .clubview; .lightmap adds v122 weights/colours. SVGs are restyled by CSS on their on-screen ids only, so Compare (ids stripped) and the PDF (drawn from the raw SVG text) keep their look. */
+.mapview.lightmap .maphead b { font-weight: 500 !important; color: #1b2733; }
+.mapview.lightmap .maphead .close { font-weight: 400 !important; color: #1f66b3; border-color: rgba(31, 102, 179, .35) !important; }
+.mapview.lightmap > button.big[data-act="mapclose"] { font-weight: 400 !important; color: #1f66b3 !important; }
+.mapview.lightmap .seg { background: #e6ebef; }
+.mapview.lightmap .seg button { font-weight: 400 !important; color: #3a4754 !important; }
+.mapview.lightmap .seg button.sel { font-weight: 500 !important; color: #1b2733 !important; box-shadow: 0 1px 2px rgba(23, 48, 31, .18); }
+.mapview.lightmap .seg button small { font-size: 10px; font-weight: 400 !important; color: #6b7884; margin-left: 2px; }
+.mapview.lightmap h3 { font-size: 14px !important; font-weight: 500 !important; color: #1b2733; }
+.mapview.lightmap .mapsum { margin: 6px 2px; font-size: 13px; font-weight: 400 !important; color: #1b2733; line-height: 1.35; }
+.mapview.lightmap .mapsum b { font-weight: 500 !important; }
+.mapview.lightmap .mapsum small { font-size: 11.5px; color: #55636f; }
+.mapview.lightmap .mapsum.pmshow { font-size: 12px; color: #55636f; margin-top: -2px; }
+.mapview.lightmap .fwcounts { font-size: 12.5px; margin: 2px 2px 6px; color: #1b2733; }
+.mapview.lightmap .fwcounts b { font-weight: 500 !important; }
+.mapview.lightmap svg[id] { border-radius: 14px; border: 1px solid rgba(23, 48, 31, .1); box-shadow: none; }
+/* 1st / 2nd / 3rd+ putt buttons → small chips */
+.mapview.lightmap .pnrow { gap: 4px; margin: 8px 0 4px; }
+.mapview.lightmap .pnrow .pnbtn { min-height: 34px; padding: 2px; border: 1px solid rgba(23, 48, 31, .16); border-radius: 8px; background: #fff; color: #1b2733; box-shadow: none; font-size: 12.5px !important; font-weight: 500 !important; line-height: 1.15; }
+.mapview.lightmap .pnrow .pnbtn small { font-size: 10px; font-weight: 400; color: #6b7884; }
+.mapview.lightmap .pnrow .pnbtn.sel { background: rgba(31, 115, 201, .12); color: #1b2733; border-color: #1f73c9; box-shadow: none; }
+.mapview.lightmap .pnrow .pnbtn.sel small { color: #1f66b3; }
+.mapview.lightmap .pnrow .pnbtn:disabled { background: #f6f8f9; border-color: rgba(23, 48, 31, .06); color: #b7c0c8; }
+/* number tiles: thin-bordered, small */
+.mapview.lightmap .stat-grid { gap: 6px; margin: 8px 0; }
+.mapview.lightmap .stat-grid .stat { padding: 7px 10px; border-radius: 12px; border: 1px solid rgba(23, 48, 31, .14); background: #fff; box-shadow: none; }
+.mapview.lightmap .stat-grid .stat b { font-size: 15px !important; font-weight: 400 !important; color: #1b2733; }
+.mapview.lightmap .stat-grid .stat span { display: block; font-size: 11px !important; font-weight: 400 !important; text-transform: none !important; letter-spacing: 0 !important; color: #55636f; }
+.mapview.lightmap .lagbox { padding: 8px 10px 4px; border-radius: 12px; background: #fff; border: 1px solid rgba(23, 48, 31, .14); }
+.mapview.lightmap .lagbox .lagh { font-size: 13px; font-weight: 500 !important; color: #1b2733; }
+/* legends: small */
+.mapview.lightmap .legend { gap: 3px 12px; margin: 6px 2px; font-size: 11.5px; font-weight: 400; color: #3f4c58; }
+.mapview.lightmap .legend span { gap: 4px; }
+.mapview.lightmap .legend .dot { width: 9px; height: 9px; border-width: 1px; }
+.mapview.lightmap .legend .dot.num { width: 14px; height: 14px; font-size: 9px; line-height: 12px; }
+.mapview.lightmap .legend .dia { width: 9px; height: 9px; border-width: 1px; font-size: 7px; }
+.mapview.lightmap .legend .star { font-size: 13px; -webkit-text-stroke: 1px #1b2733; width: 12px; }
+.mapview.lightmap .legend .x { font-size: 12px; width: 12px; }
+.mapview.lightmap .legend .ln { width: 16px; height: 2px; }
+.mapview.lightmap .legend .ln.dash { height: 0; border-top: 2px dashed #e0313f; background: none; }
+.mapview.lightmap .legend .sw { width: 14px; height: 10px; }
+.mapview.lightmap .legend svg { width: 14px; height: 14px; }
+/* tables */
+.mapview.lightmap .dirtab { font-size: 12.5px; }
+.mapview.lightmap .dirtab td, .mapview.lightmap .dirtab th { font-size: 12.5px; padding: 5px 4px; border-bottom: 1px solid #edf0f2; font-weight: 400 !important; color: #1b2733; }
+.mapview.lightmap .dirtab th { font-size: 11.5px; font-weight: 500 !important; color: #55636f; }
+/* long notes are behind ⓘ (infoize); make that line small */
+.mapview.lightmap .infowrap { font-size: 12px; font-weight: 400; color: #55636f; }
+.mapview.lightmap .infobtn { min-height: 32px; min-width: 32px; }
+.mapview.lightmap .infobtn span { width: 18px; height: 18px; font: italic 400 11px/17px Georgia, serif; border-color: #8d99a5; color: #3f4c58; background: #fff; }
+.mapview.lightmap .infobtn[aria-expanded="true"] span { background: #3f4c58; color: #fff; }
+.mapview.lightmap p.help.infotext, .mapview.lightmap p.help { font-size: 12px; font-weight: 400; color: #3f4c58; line-height: 1.45; }
+/* pin overview: the 3×3 green */
+.mapview.lightmap .pinlbl { font-size: 10.5px; font-weight: 500 !important; letter-spacing: .04em; color: #3f4c58; }
+.mapview.lightmap .pingreen { background: #5cb85c; border: 1.5px solid #2e7d32; }
+.mapview.lightmap .pingreen button { outline: 1px dashed rgba(255, 255, 255, .8); font-size: 12px; font-weight: 500 !important; text-shadow: 0 0 2px rgba(20, 60, 25, .6); }
+.mapview.lightmap .pinstats button small { font-size: 10.5px; font-weight: 500 !important; }
+.mapview.lightmap .pinstats .badge { min-width: 22px; height: 22px; line-height: 19px; border-radius: 11px; border-width: 1.5px; border-color: #1b2733; font-size: 12px; font-weight: 500 !important; color: #1b2733; text-shadow: none; }
+.mapview.lightmap .pinstats button.has .badge { background: #1b2733; color: #fff; border-color: #fff; }
+.mapview.lightmap button.big[data-act="pinseg"] { min-height: 34px !important; width: auto; padding: 0 12px; margin: 8px 0 2px; border-radius: 10px; font-size: 12.5px !important; font-weight: 400 !important; color: #1f66b3 !important; background: transparent !important; border: 1px solid rgba(31, 102, 179, .35) !important; box-shadow: none !important; }
+/* shared heat-map bits on every map sheet (round maps, Club performance, Proximity) */
+.mapview .heatsum { margin: 6px 2px; font-size: 12.5px; font-weight: 400; color: #1b2733; }
+.mapview .heatsum b { font-weight: 500 !important; }
+.mapview .heatclus { margin: 4px 2px; gap: 6px; font-size: 11.5px; font-weight: 400; color: #55636f; }
+.mapview .heatclus b { font-weight: 500 !important; color: #1b2733; }
+.mapview .heatclus input[type=range] { min-height: 32px; accent-color: #c62832; }
+.mapview .heatnote .ramp { width: 50px; height: 8px; border-width: 1px; }
+.mapview svg :is(.hotspot, .island) rect { stroke: #c62832; stroke-width: 1; fill: #fff; fill-opacity: .96; }
+.mapview svg :is(.hotspot, .island) text { font-size: 10px; font-weight: 600; fill: #9b1c26; }
+.mapview svg :is(.hotspot, .island) circle { stroke: #9b1c26; stroke-width: 1; }
+.mapview svg :is(.hotspot, .island) line.leader { stroke: #9b1c26; stroke-width: 1; }
+.mapview #heatavg circle[stroke="#000"] { stroke: #1b2733; stroke-width: 2; }
+.mapview #heatavg path { stroke: #1b2733; stroke-width: 1.5; }
+/* the maps: richer greens, crisp 1.5px edges, small labels a touch bolder (sizes/weights override the SVG attributes on screen only) */
+.mapview.lightmap :is(#girmap, #missmap, #puttmap, #pinmap, #pmissmap) > rect:is([fill="#cfe8c4"], [fill="#d7ecd0"]) { fill: #e2f0da; }
+.mapview.lightmap :is(#girmap, #missmap, #puttmap, #pinmap, #pmissmap) :is([fill="#3da33d"], [fill="#67b866"]) { fill: #5cb85c; stroke: #2e7d32; stroke-width: 1.5; }
+.mapview.lightmap :is(#girmap, #puttmap, #pmissmap) circle[fill="none"][stroke="#fff"] { stroke-width: 1; stroke-opacity: .85; }
+.mapview.lightmap :is(#girmap, #puttmap, #pmissmap) circle[fill="none"][stroke="#fff"]:is([stroke-width="2.5"], [stroke-width="2.2"], [stroke-width="1.6"]) { stroke-width: 1.5; stroke-opacity: 1; }
+.mapview.lightmap #girmap > line[stroke="#fff"] { stroke-width: 1; stroke-opacity: .7; }
+.mapview.lightmap :is(#girmap, #puttmap) text.ring { font-size: 9.5px; font-weight: 600; fill: #fff; stroke: #2e7d32; stroke-width: 1.5px; paint-order: stroke; stroke-linejoin: round; }
+.mapview.lightmap #pmissmap text.ring { font-size: 9.5px; font-weight: 500; fill: #fff; stroke: #2e7d32; stroke-width: 1.5px; paint-order: stroke; stroke-linejoin: round; }
+.mapview.lightmap :is(#girmap, #missmap, #puttmap, #pinmap) > text[font-weight="800"]:not(.ring), .mapview.lightmap #pmissmap > text[fill="#28402c"] { font-size: 10.5px; font-weight: 500; fill: #3f4c58; letter-spacing: .04em; }
+.mapview.lightmap :is(#girmap, #missmap, #puttmap, #pinmap, #fwmap) text[font-weight="900"] { font-weight: 600; }
+.mapview.lightmap :is(#girmap, #missmap, #pinmap) line[stroke="#000"][stroke-width="3"] { stroke: #1b2733; stroke-width: 1.5; }
+.mapview.lightmap :is(#girmap, #missmap, #pinmap) path[fill="#d0213a"] { fill: #e0313f; }
+.mapview.lightmap :is(#girmap, #missmap, #puttmap, #pinmap) circle[fill="#000"]:not([stroke]) { fill: #1b2733; }
+.mapview.lightmap :is(#girmap, #missmap, #puttmap, #pinmap) :is(circle, path, rect)[stroke="#000"] { stroke: #1b2733; stroke-width: 1.5; }
+/* GIR */
+.mapview.lightmap #girmap circle.gdot[fill="#ffd23f"] { fill: #f5b82e; }
+.mapview.lightmap #girmap text.farlbl { font-size: 10.5px; font-weight: 600; fill: #1b2733; stroke: #fff; stroke-width: 2.5px; paint-order: stroke; stroke-linejoin: round; }
+/* approach misses */
+.mapview.lightmap #missmap line[stroke="#8fb486"] { stroke: #8dbb84; stroke-width: 1; }
+.mapview.lightmap #missmap .mcount circle { r: 12px; stroke-width: 1; }
+.mapview.lightmap #missmap .mcount circle[fill="#000"] { fill: #1b2733; stroke: #1b2733; }
+.mapview.lightmap #missmap .mcount circle[fill="#fff"] { stroke: #9aa7b2; }
+.mapview.lightmap #missmap .mcount text { font-size: 12.5px; font-weight: 600; transform: translateY(-1.5px); transform-box: fill-box; }
+.mapview.lightmap #missmap > text[font-weight="800"] { letter-spacing: .02em; }
+/* putts */
+.mapview.lightmap #puttmap circle.pdot2 { stroke-width: 1.5; }
+.mapview.lightmap #puttmap circle.pdot2[stroke="#d0312d"] { stroke: #e0313f; stroke-width: 2; }
+.mapview.lightmap #puttmap text.plbl { font-size: 10px; font-weight: 600; stroke-width: 2.5px; stroke-linejoin: round; }
+.mapview.lightmap #pmissmap path.pmtr { stroke: #e0313f; }
+.mapview.lightmap #pmissmap circle.pmstart[stroke="#d0312d"] { stroke: #e0313f; }
+/* pin */
+.mapview.lightmap #pinmap line[stroke-dasharray="5 5"] { stroke-width: 1; stroke-opacity: .85; }
+.mapview.lightmap #pinmap rect[fill="#ffd23f"] { fill: #f5c542; fill-opacity: .35; }
+.mapview.lightmap #pinmap circle.pdot[fill="#e0102a"] { fill: #e0313f; }
+.mapview.lightmap #pinmap text:is(.plbl, .mlbl) { font-size: 10px; font-weight: 600; stroke-width: 2.5px; stroke-linejoin: round; }
+/* tee shots */
+.mapview.lightmap #fwmap rect[fill="#4f9a3c"] { fill: #7dbb64; stroke: #3f8a3a; stroke-width: 1.5; }
+.mapview.lightmap #fwmap path[fill="#7fd16a"] { fill: #b2e08f; stroke: #4f9e3e; stroke-width: 1.5; }
+.mapview.lightmap #fwmap line[stroke-dasharray="4 16"] { stroke-width: 1.5; }
+.mapview.lightmap #fwmap text[font-size="11"] { font-size: 10px; font-weight: 600; }
+.mapview.lightmap #fwmap ellipse[fill="#e8c766"] { fill: #f2d785; stroke: #c29a2e; stroke-width: 1.5; }
+.mapview.lightmap #fwmap rect[fill="#9be08a"] { fill: #d2f0c0; stroke: #4f9e3e; stroke-width: 1.5; }
+.mapview.lightmap #fwmap line[stroke-dasharray="3 6"] { stroke-width: 1; stroke-opacity: .85; }
+.mapview.lightmap #fwmap text.yd { font-size: 10px; font-weight: 600; stroke: #2e6b2a; stroke-width: 2px; paint-order: stroke; stroke-linejoin: round; }
+.mapview.lightmap #fwmap text[fill="#fff"][font-size="12"]:not(.yd) { font-size: 10px; font-weight: 600; fill: #1f4a24; }
+.mapview.lightmap #fwmap path.tracer { stroke: #fff; stroke-width: 4.5; stroke-opacity: .55; }
+.mapview.lightmap #fwmap path[stroke="#b6ff9e"] { stroke: #1e8c3a; stroke-width: 2.25; }
+.mapview.lightmap #fwmap path[stroke="#ff4d5e"] { stroke: #e0313f; stroke-width: 2.25; }
+.mapview.lightmap #fwmap circle.fwdot { stroke-width: 1.5; }
+.mapview.lightmap #fwmap circle.fwdot[stroke="#000"] { stroke: #1b2733; }
+.mapview.lightmap #fwmap circle.fwdot[stroke="#00a000"] { stroke: #1e8c3a; }
+.mapview.lightmap #fwmap text.fwdot { font-size: 16px; font-weight: 600; }
+.mapview.lightmap #fwmap #fwpct rect, .mapview.lightmap #fwmap g > rect[fill="#fff"] { stroke: rgba(23, 48, 31, .18); stroke-width: 1; }
+.mapview.lightmap #fwmap text[font-weight="700"] { font-weight: 500; fill: #3f4c58; }
+.mapview.lightmap #fwmap text.fwpct { font-size: 16px; font-weight: 600; }
+.mapview.lightmap #fwmap text.fwpct[fill="#00791b"] { fill: #1e8c3a; }
+.mapview.lightmap #fwmap text.fwpct[fill="#b00020"] { fill: #e0313f; }
+/* Proximity: ring labels (e.g. "50 ft" sitting off the green) get a thin dark-green outline so they read on the pale background */
+.mapview.proxview #proxmap text.ring { stroke: #2e7d32; stroke-width: 2px; paint-order: stroke; stroke-linejoin: round; }

@@ -160,7 +160,15 @@
     document.body.classList.toggle('onhome', !!el.querySelector('#home'));
     if (view.screen !== 'hole') document.body.classList.toggle('noscroll', !!(view.map && view.screen === 'summary'));
     if (view.replay != null) document.body.classList.add('noscroll');
-    if (view.screen !== 'about') infoize(el);
+    if (view.screen !== 'about') { legendNotes(el); infoize(el); }
+  }
+  // v123: on the round-page map sheets, long legend sentences without a symbol ("Rings = feet from the hole…") move under the legend as a note, which infoize() puts behind ⓘ
+  function legendNotes(root) {
+    [].slice.call(root.querySelectorAll('.mapview.lightmap .legend > span')).forEach(function (sp, i) {
+      if (sp.querySelector('i, svg, b, .dot, .ln, .sw, .dia, .x, .star') || sp.textContent.trim().length < 60) return;
+      var lg = sp.parentNode, p = document.createElement('p'); p.className = 'help muted legnote'; p.id = (lg.id || 'legend') + '-note' + i; p.innerHTML = sp.innerHTML;
+      var after = lg.__noteAfter || lg; after.parentNode.insertBefore(p, after.nextSibling); lg.__noteAfter = p; lg.removeChild(sp);
+    });
   }
   // Small tap-to-reveal tips (Archive): an (i) or 💡 button + a hidden soft panel, toggled by the shared 'info' action
   function tipBtn(key, icon, label) { return '<button type="button" class="infobtn tipbtn" data-act="info" data-v="' + key + '" aria-controls="tip-' + key + '" aria-expanded="' + !!infoOpen[key] + '" aria-label="' + (label || 'More info') + '"><span>' + icon + '</span></button>'; }
@@ -2482,7 +2490,7 @@
   var DIR_ORDER = ['short', 'shortleft', 'shortright', 'left', 'right', 'long', 'longleft', 'longright'];
   function mapHTML() {
     var kind = view.map, D = mapData(kind), list = D.list, all = view.mapScope === 'all';
-    var out = '<div class="mapview' + (kind === 'club' ? ' clubview' : kind === 'prox' ? ' clubview proxview' : '') + '" id="mapview" role="dialog" aria-label="' + (kind === 'gir' ? 'GIR map' : kind === 'fw' ? 'Fairway map' : kind === 'pin' ? 'Pin location map' : kind === 'prox' ? 'Proximity map' : kind === 'putt' ? 'Putting map' : kind === 'club' ? 'Club performance' : kind === 'pmiss' ? '1st putts made map' : 'Approach miss map') + '">' +
+    var out = '<div class="mapview' + (kind === 'club' ? ' clubview' : kind === 'prox' ? ' clubview proxview' : ' clubview lightmap') + '" id="mapview" role="dialog" aria-label="' + (kind === 'gir' ? 'GIR map' : kind === 'fw' ? 'Fairway map' : kind === 'pin' ? 'Pin location map' : kind === 'prox' ? 'Proximity map' : kind === 'putt' ? 'Putting map' : kind === 'club' ? 'Club performance' : kind === 'pmiss' ? '1st putts made map' : 'Approach miss map') + '">' +
       '<div class="maphead"><b>' + (kind === 'gir' ? 'Greens in regulation' : kind === 'fw' ? 'Tee shots – fairways' : kind === 'pin' ? 'Pin location' : kind === 'prox' ? 'Proximity by distance' : kind === 'putt' ? 'Putting' : kind === 'club' ? 'Club performance' : kind === 'pmiss' ? '1st putts made inside 10 ft' : 'Approach misses') + '</b><button class="close" data-act="mapclose" aria-label="Close map">✕ Close</button></div>' +
       '<div class="seg"><button data-act="mapscope" data-v="round" class="' + (all ? '' : 'sel') + '">This round</button>' +
       '<button data-act="mapscope" data-v="all" class="' + (all ? 'sel' : '') + '">All rounds (' + savedRounds().length + ')</button></div>';
@@ -2744,7 +2752,7 @@
     });
     var multi = view.mapScope === 'all' && savedRounds().length > 1, mode = view.heat === 'isl' ? 'grad' : view.heat || (multi || pts.length > 15 ? 'grad' : 'dots'), on = mode !== 'dots';
     var tg = document.createElement('div'); tg.className = 'seg heattog'; tg.id = 'heattog';
-    tg.innerHTML = [['dots', '● Dots'], ['grad', '🔥 Gradient']].map(function (b) { return '<button data-act="heat" data-v="' + b[0] + '" class="' + (mode === b[0] ? 'sel' : '') + '" aria-pressed="' + (mode === b[0]) + '"' + (pts.length || b[0] === 'dots' ? '' : ' disabled') + '>' + b[1] + '</button>'; }).join('');
+    tg.innerHTML = [['dots', 'Dots'], ['grad', 'Gradient']].map(function (b) { return '<button data-act="heat" data-v="' + b[0] + '" class="' + (mode === b[0] ? 'sel' : '') + '" aria-pressed="' + (mode === b[0]) + '"' + (pts.length || b[0] === 'dots' ? '' : ' disabled') + '>' + b[1] + '</button>'; }).join('');
     var anc = svg; while (anc.parentNode && anc.parentNode !== mv) anc = anc.parentNode;
     anc.parentNode.insertBefore(tg, anc);
     if (on && pts.length) { var sl = document.createElement('div'); sl.className = 'heatclus'; sl.id = 'heatclus';
