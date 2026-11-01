@@ -24,7 +24,7 @@ const CATS = ['driver', 'approach', 'putting', 'chipping', 'scoring'];
   // 1. the button: top right of the Stats page, plain words
   assert.strictEqual((await page.textContent('#stpdf')).trim(), 'Create PDF');
   const bb = await page.$eval('#stpdf', e => { const r = e.getBoundingClientRect(); return [r.right, r.top, r.height]; }); assert.ok(bb[0] <= 390 && bb[1] < 80 && bb[2] >= 36, bb);
-  await page.screenshot({ path: OUT + '/stats-pdf-button-v126.png' });
+  await page.screenshot({ path: OUT + '/stats-pdf-button-v127.png' });
   const before = await page.$$eval('.stcat', e => e.map(s => s.classList.contains('open')));
 
   // 2. All rounds PDF
@@ -52,6 +52,12 @@ const CATS = ['driver', 'approach', 'putting', 'chipping', 'scoring'];
     'Par 3 scores', 'Par 4 scores', 'Par 5 scores', 'LAST ROUND VS ALL ROUNDS', 'the newest finished round', 'All rounds: ' + D.n + ' finished rounds (grey dashed)',
     'Page ' + R.pages + ' of ' + R.pages].concat(titles).forEach(s => assert.ok(flat.includes(s), 'missing in PDF: ' + s));
   assert.match(flat, new RegExp('Last round: [A-Z][a-z]{2} \\d+, \\d{4} · ' + D.course));
+  // v127: avg 2nd putt in each putt-miss grid header + its count line, and the explanation (incl. the "Holes whose first putt was …" notes) still printed in the PDF
+  const S2 = await page.evaluate(() => { const ids = window.__golf.statsData().shown.map(p => p.id), R = window.__golf.rounds().filter(r => ids.includes(r.id));
+    return ['all', 'u5', 'f5', 'f10', 'o25'].map(b => { const s = window.SG.puttMissGrid([].concat(...R.map(r => window.SG.summarize(r).puttList)), b).second; return s.avg == null ? '-' : s.avg.toFixed(1) + ' ft'; }); });
+  ['All distances', 'Under 5 ft', '5-10 ft', '10-25 ft', 'Over 25 ft'].forEach((b, i) => assert.ok(flat.includes('Putt misses · ' + b) && flat.includes('avg 2nd putt ' + S2[i]), 'PDF avg 2nd putt ' + b));
+  assert.ok((flat.match(/avg 2nd putt /g) || []).length >= 14, 'header + count line on the 5 grids, count line on the 4 "1st putt" graphs');
+  assert.ok(flat.includes('Holes whose first putt was under 5 ft') && flat.includes('Avg 2nd putt = average distance left for the next putt after a missed 1st putt'), 'explanations kept in the PDF');
   if (D.open) assert.ok(flat.includes('The round in progress (') && flat.includes(D.open), 'the open round is named as left out');
   // 3. layout: Letter, text inside the margins, no graph or card crosses the page bottom, every page has the header + page number
   const L = R.L, out = L.text.filter(t => t.x0 < L.M - 0.5 || t.x1 > L.PW - L.M + 0.5); assert.deepStrictEqual(out, [], 'text outside the margins');
@@ -73,18 +79,18 @@ const CATS = ['driver', 'approach', 'putting', 'chipping', 'scoring'];
   await page.evaluate(() => { delete navigator.share; delete navigator.canShare; });
   const dl = page.waitForEvent('download'); await page.click('[data-act="pdfshare"]'); const d = await dl; assert.strictEqual(d.suggestedFilename(), R.name);
   // the PDF pages as pictures (Scoring page = the last-round overlay)
-  for (const old of fs.readdirSync(OUT).filter(n => /^stats-pdf-page\d+-v126\.png$/.test(n))) fs.unlinkSync(OUT + '/' + old);
+  for (const old of fs.readdirSync(OUT).filter(n => /^stats-pdf-page\d+-v127\.png$/.test(n))) fs.unlinkSync(OUT + '/' + old);
   fs.readdirSync(TMP).filter(n => /^pg-\d+\.png$/.test(n)).forEach(n => fs.unlinkSync(TMP + '/' + n));
-  execSync('pdftoppm -r 100 -png ' + f + ' ' + TMP + '/pg'); fs.readdirSync(TMP).filter(n => /^pg-\d+\.png$/.test(n)).forEach(n => fs.copyFileSync(TMP + '/' + n, OUT + '/stats-pdf-page' + (+/\d+/.exec(n)[0]) + '-v126.png'));
-  // the page(s) with the putt-miss grids, on their own: stats-pdf-putt-misses-v126.png (+ -2, -3 … when the grids run over more pages)
-  for (const old of fs.readdirSync(OUT).filter(n => /^stats-pdf-putt-misses(-\d+)?-v126\.png$/.test(n))) fs.unlinkSync(OUT + '/' + old);
+  execSync('pdftoppm -r 100 -png ' + f + ' ' + TMP + '/pg'); fs.readdirSync(TMP).filter(n => /^pg-\d+\.png$/.test(n)).forEach(n => fs.copyFileSync(TMP + '/' + n, OUT + '/stats-pdf-page' + (+/\d+/.exec(n)[0]) + '-v127.png'));
+  // the page(s) with the putt-miss grids, on their own: stats-pdf-putt-misses-v127.png (+ -2, -3 … when the grids run over more pages)
+  for (const old of fs.readdirSync(OUT).filter(n => /^stats-pdf-putt-misses(-\d+)?-v127\.png$/.test(n))) fs.unlinkSync(OUT + '/' + old);
   const pmPages = [...new Set(L.cards.filter(c => /^st-pm/.test(c.id)).map(c => c.p))]; assert.ok(pmPages.length >= 1);
   // v126 (Scott): plain white grid boxes – the putt-miss pages have no red shading and no purple (only the thin dark-red outline on the most common miss)
   for (const p of pmPages) { const ppm = execSync('pdftoppm -r 50 -f ' + p + ' -l ' + p + ' ' + f); const hdr = ppm.toString('latin1', 0, 30).split(/\s+/), w = +hdr[1], h = +hdr[2];
     const off = ppm.length - w * h * 3; let red = 0, purple = 0;
     for (let k = off; k < ppm.length; k += 3) { const r = ppm[k], g = ppm[k + 1], b = ppm[k + 2]; if (r > g + 80 && r > b + 80) red++; if (b > g + 40 && r > g + 20) purple++; }
     assert.ok(red / (w * h) < 0.004 && purple / (w * h) < 0.0005, 'page ' + p + ' red ' + red + ' purple ' + purple + ' of ' + w * h); }
-  pmPages.forEach((p, i) => fs.copyFileSync(TMP + '/pg-' + p + '.png', OUT + '/stats-pdf-putt-misses' + (i ? '-' + (i + 1) : '') + '-v126.png'));
+  pmPages.forEach((p, i) => fs.copyFileSync(TMP + '/pg-' + p + '.png', OUT + '/stats-pdf-putt-misses' + (i ? '-' + (i + 1) : '') + '-v127.png'));
   await page.click('[data-act="pdfclose"]'); assert.strictEqual(await page.$('#pdfsheet'), null);
 
   // 5. Last 5 + Compare and Selected round: name and header follow the range

@@ -180,6 +180,10 @@
     [].slice.call(root.querySelectorAll('p.help, p.muted.help')).forEach(function (p, i) {
       var txt = p.textContent.trim(); if (txt.length < 90 || p.closest('.infotext, .odcard, .pdfsheet, .playerbox') || /^(proxauto|pdfname|odstat)$/.test(p.id)) return;
       var key = p.id || ('i' + i + ':' + txt.slice(0, 24)), id = p.id || ('info-' + key.replace(/[^\w-]/g, '_'));
+      // v127: data-infoin="<id>" puts just the ⓘ at the end of that line (no caption) – e.g. the Stats putting "n = …" lines
+      var inl = p.getAttribute('data-infoin') && root.querySelector('#' + p.getAttribute('data-infoin'));
+      if (inl) { (inl.querySelector('.infoend') || inl).insertAdjacentHTML('beforeend', ' <button type="button" class="infobtn infoin" data-act="info" data-v="' + esc(key) + '" aria-controls="' + id + '" aria-expanded="' + !!infoOpen[key] + '" aria-label="More info"><span>i</span></button>');
+        p.classList.add('infotext'); p.hidden = !infoOpen[key]; p.setAttribute('data-info', id); if (!p.id) p.id = id; return; }
       var w = document.createElement('div'); w.className = 'infowrap';
       var short = (txt.match(/^[^.!?–]{8,60}[.!?]?/) || [txt.slice(0, 50)])[0].replace(/[.:–]\s*$/, '');
       w.innerHTML = '<button type="button" class="infobtn" data-act="info" data-v="' + esc(key) + '" aria-controls="' + id + '" aria-expanded="' + !!infoOpen[key] + '" aria-label="More info"><span>i</span></button><span class="infocap">' + esc(short) + '…</span>';
@@ -568,6 +572,8 @@
         var t = el.querySelector('.sth > span:first-child'), v = el.querySelector('.sth .stv'), svg = el.querySelector('svg.stchart');
         var note = [].slice.call(el.querySelectorAll('p.stnote')).map(tx).filter(Boolean).join(' ');
         if (/^st-pm/.test(el.id) && el.id !== 'st-pmall') note = ''; // the putt-miss explanation is printed once, on the All distances grid
+        var s2 = /^st-pm/.test(el.id) && el.querySelector('.st2nd b'); // v127: avg 2nd putt in the PDF grid header too
+        if (s2) v = { textContent: (v ? v.textContent : '') + ' · avg 2nd putt ' + s2.textContent };
         return { kind: 'card', id: el.id, title: tx(t), val: tx(v), svg: svg ? svgInline(svg) : '', lines: [].slice.call(el.querySelectorAll('p.stn, p.stfew')).map(tx).filter(Boolean), note: note };
       };
       var cats = [].slice.call(pg.querySelectorAll('.stcat')).map(function (sec) {
@@ -795,7 +801,7 @@
       ppg: girH.length ? girH.reduce(function (t, a) { return t + a.putts; }, 0) / girH.length : null, dist: dist, parN: parN,
       // v125: SG by first-putt distance / short-game lie and distance (SG.statBuckets), drives for the box chart, approach proximity
       b: SG.statBuckets(S), drv: S.teeMap.filter(function (m) { return !m.layup && m.kind !== 'ob' && !m.pen && m.hit != null && isFinite(m.hit) && m.hit > 0; }).map(function (m) { return { hit: Number(m.hit), club: m.club || '' }; }),
-      fp: S.puttList.filter(SG.firstPutt).map(function (p) { return { n: 1, ft: p.ft, made: p.made, endDir: p.endDir || '' }; }), // v126 putt misses
+      fp: S.puttList.filter(SG.firstPutt).map(function (p) { return { n: 1, ft: p.ft, made: p.made, endDir: p.endDir || '', endFt: p.endFt, endLie: p.endLie }; }), // v126 putt misses; v127 + 2nd putt length
       prox: stProx(S.proxList), proxN: S.proxList.filter(function (m) { return m.proxFt != null && SG.inBucket('all', m.from); }).length,
       unf: S.holesDone < r.holes.length };
   }
@@ -879,7 +885,7 @@
       : (mode === '5' ? 'Last 5 avg ' : 'Avg ') + '<em>' + fmt(avgSel) + '</em>' + (cmp ? ' · all <em>' + fmt(avgAll) + '</em>' : '');
     var few = mode !== 'sel' && D.shown.filter(function (p) { return val(p) != null; }).length < 2 ? '<p class="stfew">Not enough rounds yet for a trend – it starts with 2 rounds.</p>' : '';
     var nSum = function (L) { return L.reduce(function (t, p) { return t + (o.nOf(p) || 0); }, 0); }, nLine = o.nOf ? '<p class="stn" id="' + id + 'n">n = ' + nSum(D.shown) + ' ' + o.unit + (mode === 'sel' ? ' this round' : mode === '5' ? ' in the last 5' : '') +
-      (cmp ? ' · all rounds: ' + nSum(D.all) : '') + (nSum(D.shown) ? '' : ' – nothing to show yet') + '</p>' : '';
+      (cmp ? ' · all rounds: ' + nSum(D.all) : '') + (nSum(D.shown) ? '' : ' – nothing to show yet') + (o.nExtra ? o.nExtra : '') + '</p>' : '';
     var tip = '', sel = view.stSel && view.stSel.c === id ? view.stSel.i : null;
     if (sel != null && pts[sel]) { var p = pts[sel];
       tip = '<div class="sttip" id="' + id + 'tip"><div class="sttiph">' + esc(stDate(p.date)) + ' · ' + esc(p.course) + '<button class="sttipx" data-act="stpt" data-c="' + id + '" data-i="' + sel + '" aria-label="Close">×</button></div>' +
@@ -887,7 +893,7 @@
     var key = mode === 'sel' ? 'Big dot = this round; tap a grey dot to pick another.' + (cmp ? ' Grey dashed = all-rounds average.' : '')
       : 'Dashed = average' + (mode === '5' ? ' of the last 5' : '') + '.' + (cmp ? ' Grey = older rounds; grey dashed = all-rounds average.' : '');
     return '<div class="stcard stgraph" id="st-' + id + '"><div class="sth"><span>' + esc(o.title) + '</span><span class="stv" id="' + id + 'val">' + head + '</span></div>' + s + nLine + few + tip +
-      '<p class="stnote">' + esc(o.help) + ' ' + key + '</p></div>';
+      (o.helpIn && nLine ? '<p class="help stnote" id="' + id + 'help" data-infoin="' + id + 'n">' : '<p class="stnote">') + esc(o.help) + ' ' + key + '</p></div>';
   }
   // scoring curve for one par: % of finished holes at each score, Eagle (or better) … Triple (or worse)
   function stDist(par, D) {
@@ -981,11 +987,17 @@
     for (var i = 1; i < 3; i++) o += '<line class="stpmline" x1="' + (x0 + cs * i) + '" y1="' + y0 + '" x2="' + (x0 + cs * i) + '" y2="' + (y0 + cs * 3) + '"/><line class="stpmline" x1="' + x0 + '" y1="' + (y0 + cs * i) + '" x2="' + (x0 + cs * 3) + '" y2="' + (y0 + cs * i) + '"/>';
     return o + topBox + '<rect class="stpmedgebox" x="' + x0 + '" y="' + y0 + '" width="' + cs * 3 + '" height="' + cs * 3 + '" rx="14"/></svg>';
   }
+  // v127 "avg 2nd putt": average length of the next putt after a missed 1st putt (misses that stayed on the green), same band + range; grey "all" with Compare
+  var ST_2ND_HELP = 'Avg 2nd putt = average distance left for the next putt after a missed 1st putt (misses that stayed on the green).';
+  function stFt1(v) { return v == null ? '–' : (Math.round(v * 10) / 10).toFixed(1) + ' ft'; }
+  function stSecTxt(G, Z) { return ' · <span class="st2nd infoend">avg 2nd putt <b>' + stFt1(G.second.avg) + '</b>' + (Z ? ' (all ' + stFt1(Z.second.avg) + ')' : '') + '</span>'; }
+  function stSecond(D, band) { return stSecTxt(SG.puttMissGrid(stPmList(D.shown), band), D.cmp ? SG.puttMissGrid(stPmList(D.all), band) : null); }
   function stPmStats(G) {
     if (!G.putts) return 'No first putts here yet.';
-    return 'n = ' + G.putts + ' first putt' + (G.putts === 1 ? '' : 's') + ' · ' + G.made + ' made (' + Math.round(G.madePct) + '%) · ' + G.misses + ' missed' +
-      (G.top ? ' · most common miss: ' + SG.DIR_NAME[G.top] + ' (' + Math.round(G.pct[G.top]) + '%)' : '');
+    return 'n = ' + G.putts + ' putt' + (G.putts === 1 ? '' : 's') + ' · ' + G.made + ' made (' + Math.round(G.madePct) + '%)';
   }
+  // v127: the misses get their own line so the count line stays short (count · made · avg 2nd putt ⓘ)
+  function stPmMiss(G) { return G.misses + ' missed' + (G.top ? ' · most common miss: ' + SG.DIR_NAME[G.top] + ' (' + Math.round(G.pct[G.top]) + '%)' : ''); }
   function stPmSides(G) { var S = G.side; return G.withDir ? 'Left ' + S.left + ' · right ' + S.right + ' · short ' + S.short + ' · long ' + S.long + ' (corners count on both sides)' : ''; }
   // one card for one band (also used by the PDF for All + every band)
   function stPmissCard(D, band) {
@@ -994,9 +1006,9 @@
     return '<div class="stcard stgraph stpmcard" id="st-' + id + '" data-band="' + B.id + '"><div class="sth"><span>Putt misses · ' + esc(B.name) + '</span><span class="stv" id="' + id + 'val">Made <em>' + (G.madePct == null ? '–' : Math.round(G.madePct) + '%') + '</em>' +
       (Z ? ' · all <em>' + (Z.madePct == null ? '–' : Math.round(Z.madePct) + '%') + '</em>' : '') + '</span></div>' +
       (G.putts ? stPmissSVG(id + 'grid', G, Z) : '<p class="stfew" id="' + id + 'none">No first putts ' + (B.id === 'all' ? '' : B.name.toLowerCase() + ' ') + 'in ' + who + ' yet.</p>') +
-      '<p class="stn" id="' + id + 'n">' + stPmStats(G) + '</p>' + (stPmSides(G) ? '<p class="stn stpmsides" id="' + id + 'sides">' + stPmSides(G) + '</p>' : '') +
+      '<p class="stn" id="' + id + 'n">' + stPmStats(G) + (G.putts ? stSecTxt(G, Z) : '') + '</p>' + (G.putts ? '<p class="stn" id="' + id + 'miss">' + stPmMiss(G) + '</p>' : '') + (stPmSides(G) ? '<p class="stn stpmsides" id="' + id + 'sides">' + stPmSides(G) + '</p>' : '') +
       '<p class="stn stpmnodir" id="' + id + 'nodir">No direction: ' + G.nodir + ' miss' + (G.nodir === 1 ? '' : 'es') + ' (not drawn)' + (Z ? ' · all rounds: ' + Z.putts + ' first putts' : '') + '</p>' +
-      '<p class="help stnote stpmhelp" id="' + id + 'help">First putts only (the first putt on each finished hole), in the same distance bands as Strokes gained by first-putt distance (under 5 ft, 5–10, 10–25, over 25 ft). ' +
+      '<p class="help stnote stpmhelp" id="' + id + 'help" data-infoin="' + id + 'n">' + ST_2ND_HELP + ' First putts only (the first putt on each finished hole), in the same distance bands as Strokes gained by first-putt distance (under 5 ft, 5–10, 10–25, over 25 ft). ' +
       'Direction = what was entered for where the putt finished vs the hole – the 8 choices on the shot screen (Long = past the hole, Short = toward you). Each box: misses that finished there and their share of the misses with a direction. Middle: putts holed. ' +
       'Misses with no direction are counted, not drawn. Shows ' + who + (Z ? '; grey “all” = the share over all rounds' : '') + '.</p></div>';
   }
@@ -1035,8 +1047,8 @@
     var sgT = function (k) { var c = ST_SG.filter(function (x) { return x[0] === k; })[0]; return stTrend(k, D, function (p) { return p.sg[k]; }, { title: c[1], short: c[1].replace(/ \(.*\)$/, ''), color: c[2], help: c[3] }); };
     var pctT = function (k) { var c = ST_PCT.filter(function (x) { return x[0] === k; })[0]; return stTrend(k, D, function (p) { return p[k]; }, { title: c[1], short: c[1].replace(/ \(.*\)$/, ''), color: c[2], help: c[3], pct: true }); };
     // per-shot graphs: strokes gained per putt / shot in one bucket; a round with none in the bucket has no point
-    var bT = function (id, grp, key, title, short, col, help, unit) { var g = function (p) { return p.b[grp][key]; };
-      return stTrend(id, D, function (p) { var b = g(p); return b.n ? b.sg / b.n : null; }, { title: title, short: short, color: col, help: help, minSpan: 0.4, unit: unit,
+    var bT = function (id, grp, key, title, short, col, help, unit, x) { var g = function (p) { return p.b[grp][key]; };
+      return stTrend(id, D, function (p) { var b = g(p); return b.n ? b.sg / b.n : null; }, { title: title, short: short, color: col, help: help, minSpan: 0.4, unit: unit, nExtra: x && x.nExtra, helpIn: x && x.helpIn,
         avg: function (L) { return SG.bucketAvg(L.map(g)); }, nOf: function (p) { return g(p).n; } }); };
     var cats = [
       ['driver', 'Driver', function () { return stBox(D) + sgT('ott') + pctT('fir'); }, [['OTT', function (p) { return p.sg.ott; }], ['FW', function (p) { return p.fir; }, 'pct']]],
@@ -1045,7 +1057,7 @@
           avg: function (L) { var n = 0, t = 0; L.forEach(function (p) { if (p.prox != null) { n += p.proxN; t += p.prox * p.proxN; } }); return n ? t / n : null; }, nOf: function (p) { return p.proxN; } }); },
         [['APP', function (p) { return p.sg.app; }], ['GIR', function (p) { return p.gir; }, 'pct']]],
       ['putting', 'Putting', function () { var pc = ['#7c4dcc', '#9466e0', '#6a3fb5', '#5a2f9e'], hp = ' Strokes gained per hole from that first-putt distance (every putt on the hole counts).';
-        return sgT('putt') + SG.FP_BANDS.map(function (b, i) { return bT('pt' + b.id, 'putt', b.id, '1st putt ' + b.name.replace(/^Under/, 'under').replace(/^Over/, 'over'), b.name, pc[i], 'Holes whose first putt was ' + b.name.toLowerCase() + '.' + hp, 'putts'); }).join('') +
+        return sgT('putt') + SG.FP_BANDS.map(function (b, i) { return bT('pt' + b.id, 'putt', b.id, '1st putt ' + b.name.replace(/^Under/, 'under').replace(/^Over/, 'over'), b.name, pc[i], 'Holes whose first putt was ' + b.name.toLowerCase() + '.' + hp + ' ' + ST_2ND_HELP, 'putts', { helpIn: true, nExtra: stSecond(D, b.id) }); }).join('') +
           stTrend('ptmade5', D, function (p) { var b = p.b.putt.u5; return b.n ? 100 * b.made / b.n : null; }, { title: '1st putts made under 5 ft', short: 'Made under 5 ft', color: '#7c4dcc', pct: true, unit: 'putts',
             help: 'Of the first putts that started under 5 ft, the share holed.', avg: function (L) { var n = 0, m = 0; L.forEach(function (p) { n += p.b.putt.u5.n; m += p.b.putt.u5.made; }); return n ? 100 * m / n : null; }, nOf: function (p) { return p.b.putt.u5.n; } }) +
           stPmissSub(D); },

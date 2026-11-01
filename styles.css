@@ -1903,3 +1903,9 @@ html body .roundpage.holepage .srow.shead .c-n { height: auto; min-height: 0; bo
 .statspage .stpdfrow .pdfsheet { margin: 0; }
 /* v126 putt-miss grid: plain white boxes; white text only on the green made box */
 .statspage .stpmhole .stpmn, .statspage .stpmhole .stpmp { fill: #fff; }
+/* v127 ⓘ at the end of a Stats count line (same icon, small like the Proximity page's) */
+.statspage .stn .infobtn.infoin { min-height: 28px; min-width: 28px; margin: -6px 0 -6px 0; vertical-align: middle; }
+.statspage .stn .infobtn.infoin span { width: 18px; height: 18px; font: italic 400 11px/17px Georgia, serif; border-color: #b3bdc6; color: #5c6a76; }
+.statspage .stn .infobtn.infoin[aria-expanded="true"] span { background: #345; color: #fff; }
+.statspage .stn .st2nd b { font-weight: 500; }
+.statspage .stn .st2nd { white-space: nowrap; }

@@ -833,3 +833,15 @@ test('v126 putt misses: first-putt miss grid by direction and distance band; sta
   assert.strictEqual(SG.statsFileName('Scott', 'All rounds', '2026-11-01T18:00:00'), 'Golf-Stats-2026-11-01-All-rounds-Scott.pdf');
   assert.strictEqual(SG.statsFileName('', 'Last 5', '2026-11-01T18:00:00'), 'Golf-Stats-2026-11-01-Last-5.pdf');
 });
+
+test('v127 avg 2nd putt: next putt length after a missed 1st putt that stayed on the green, by band', () => {
+  const L = [
+    { hole: 1, n: 1, ft: 8, made: false, endFt: 3, endLie: 'green' }, { hole: 1, n: 2, ft: 3, made: true, endFt: 0, endLie: 'holed' },
+    { hole: 2, n: 1, ft: 6, made: false, endFt: 4, endLie: 'green' }, { hole: 2, n: 2, ft: 4, made: true, endFt: 0, endLie: 'holed' },
+    { hole: 3, n: 1, ft: 7, made: true, endFt: 0, endLie: 'holed' },                       // made: not counted
+    { hole: 4, n: 1, ft: 9, made: false, endFt: 30, endLie: 'fringe' },                    // rolled off the green: not counted
+    { hole: 5, n: 1, ft: 30, made: false, endFt: 2.5, endLie: 'green' }, { hole: 5, n: 2, ft: 2.5, made: true, endFt: 0, endLie: 'holed' }];
+  assert.deepStrictEqual(SG.puttMissGrid(L, 'f5').second, { n: 2, avg: 3.5 });
+  assert.deepStrictEqual(SG.puttMissGrid(L, 'all').second, { n: 3, avg: 9.5 / 3 });
+  assert.deepStrictEqual(SG.puttMissGrid(L, 'u5').second, { n: 0, avg: null });
+});

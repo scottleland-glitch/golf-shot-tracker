@@ -25,6 +25,10 @@ const DIR8 = ['longleft', 'long', 'longright', 'left', 'right', 'shortleft', 'sh
   const grid = (id) => page.evaluate(id => Object.fromEntries([...document.querySelectorAll('#' + id + ' rect.stpmcell')].map(c => [c.dataset.dir,
     [+document.getElementById(id + '-' + c.dataset.dir).textContent, document.getElementById(id + '-' + c.dataset.dir + 'p').textContent]])), id);
   const pct = v => v == null ? '–' : Math.round(v) + '%';
+  // v127 avg 2nd putt worked out here by hand from the saved rounds: missed 1st putts (first putt of a finished hole) that stayed on the green → the next putt's length
+  const sec = (band, ids) => page.evaluate(([band, ids]) => { const R = window.__golf.rounds().filter(r => ids.includes(r.id)); const B = window.SG.FP_BANDS.find(b => b.id === band);
+    const L = [].concat(...R.map(r => window.SG.summarize(r).puttList)).filter(p => p.n === 1 && !p.made && p.endLie === 'green' && p.endFt > 0 && (!B || B.test(p.ft)));
+    return L.length ? (Math.round(L.reduce((t, p) => t + p.endFt, 0) / L.length * 10) / 10).toFixed(1) + ' ft' : '–'; }, [band, ids]);
   await page.click('#plusbtn'); await page.click('#plusmenu [data-act="stats"]'); await page.waitForSelector('#statspage');
 
   // 1. Putting: SG graphs on top, the Putt misses sub-menu last; closed at first, same chevron
@@ -36,7 +40,7 @@ const DIR8 = ['longleft', 'long', 'longright', 'left', 'right', 'shortleft', 'sh
   const ids = await shownIds(), G = await expect('all', ids);
   assert.strictEqual(await page.textContent('#stpmsum'), G.misses + ' missed · most ' + { longright: 'Long right', longleft: 'Long left', long: 'Long', left: 'Left', right: 'Right', shortleft: 'Short left', short: 'Short', shortright: 'Short right' }[G.top]);
   assert.strictEqual(await page.$eval('#stpm', e => getComputedStyle(e).borderTopWidth), '1px');
-  await shot('stats-putt-misses-collapsed-v126.png', '#st-ptmade5', 120);
+  await shot('stats-putt-misses-collapsed-v127.png', '#st-ptmade5', 120);
 
   // 2. open: chips (All + the 4 SG first-putt bands), grid of 8 zones round the hole, numbers match sg.js
   await page.click('#stpm .stsubh'); assert.strictEqual(await page.getAttribute('#stpm .stsubh', 'aria-expanded'), 'true');
@@ -50,7 +54,10 @@ const DIR8 = ['longleft', 'long', 'longright', 'left', 'right', 'shortleft', 'sh
   const g = await grid('pmallgrid'); for (const d of DIR8) assert.deepStrictEqual(g[d], [G.counts[d], pct(G.pct[d])], d);
   assert.ok(G.top && await page.$('#pmallgrid rect.stpmcell.top[data-dir="' + G.top + '"]'), 'most common miss outlined');
   assert.match(await page.textContent('#pmallgrid-made'), new RegExp(G.made + ' made\\s*' + pct(G.madePct)));
-  assert.strictEqual(await page.textContent('#pmalln'), 'n = ' + G.putts + ' first putts · ' + G.made + ' made (' + pct(G.madePct) + ') · ' + G.misses + ' missed · most common miss: Long right (' + pct(G.pct.longright) + ')');
+  // v127: count line = n · made · avg 2nd putt + a small ⓘ (no caption); the misses on the next line
+  const S2 = await sec('all', ids); assert.match(S2, /^\d+\.\d ft$/); assert.ok(Math.abs(parseFloat(S2) - G.second.avg) < 0.06, 'sg.js agrees with the hand count');
+  assert.strictEqual(await page.textContent('#pmalln'), 'n = ' + G.putts + ' putts · ' + G.made + ' made (' + pct(G.madePct) + ') · avg 2nd putt ' + S2 + ' i');
+  assert.strictEqual(await page.textContent('#pmallmiss'), G.misses + ' missed · most common miss: Long right (' + pct(G.pct.longright) + ')');
   assert.ok(G.nodir > 0); assert.strictEqual(await page.textContent('#pmallnodir'), 'No direction: ' + G.nodir + ' misses (not drawn)');
   assert.strictEqual(DIR8.reduce((t, d) => t + G.counts[d], 0) + G.nodir, G.misses, 'every miss counted once');
   assert.match(await page.textContent('#pmallval'), new RegExp('Made ' + pct(G.madePct)));
@@ -74,22 +81,31 @@ const DIR8 = ['longleft', 'long', 'longright', 'left', 'right', 'shortleft', 'sh
   const loud = C.paints.map(rgb).filter(c => (c[2] > c[1] + 40 && c[0] > c[1] + 20) || (c[0] > c[1] + 80 && c[0] > c[2] + 80 && !(c[0] === 138 && c[1] === 28)));
   assert.deepStrictEqual(loud, [], 'no purple and no red shading in Putt misses');
   // explanation behind ⓘ
-  assert.ok(await page.$('#st-pmall .infowrap .infobtn'), 'help behind ⓘ'); assert.strictEqual(await page.isVisible('#pmallhelp'), false);
-  await page.click('#st-pmall .infobtn'); assert.match(await page.textContent('#pmallhelp'), /First putts only[\s\S]*Short = toward you|toward you/);
-  await page.click('#st-pmall .infobtn');
-  await shot('stats-putt-misses-open-v126.png', '#stpm', 70);
+  assert.ok(await page.$('#pmalln .infobtn.infoin'), 'help behind the ⓘ on the count line'); assert.strictEqual(await page.$('#st-pmall .infowrap'), null, 'no visible caption');
+  assert.strictEqual(await page.isVisible('#pmallhelp'), false); assert.ok(!/First putts only/.test(await page.$eval('#st-pmall', e => e.innerText)), 'explanation text not shown');
+  await page.click('#pmalln .infobtn'); assert.match(await page.textContent('#pmallhelp'), /^Avg 2nd putt = average distance left for the next putt after a missed 1st putt[\s\S]*First putts only[\s\S]*toward you/);
+  await page.click('#pmalln .infobtn'); assert.strictEqual(await page.isVisible('#pmallhelp'), false);
+  // v127: the 4 "1st putt …" SG graphs – "Holes whose first putt was …" collapsed into the ⓘ; avg 2nd putt next to n (same band, same range)
+  for (const b of ['u5', 'f5', 'f10', 'o25']) { const gid = { u5: 'ptu5', f5: 'ptf5', f10: 'ptf10', o25: 'pto25' }[b];
+    assert.strictEqual(await page.isVisible('#' + gid + 'help'), false, gid + ' text collapsed'); assert.strictEqual(await page.$('#st-' + gid + ' .infowrap'), null);
+    assert.ok(!/whose/.test(await page.$eval('#st-' + gid, e => e.innerText)), gid + ' no "whose" text showing');
+    assert.match(await page.textContent('#' + gid + 'n'), new RegExp('^n = \\d+ putts · avg 2nd putt ' + (await sec(b, ids)).replace('.', '\\.') + ' i$'), gid + ' n line'); }
+  await page.click('#ptu5n .infobtn'); assert.match(await page.textContent('#ptu5help'), /^Holes whose first putt was under 5 ft\.[\s\S]*Avg 2nd putt = /);
+  await page.click('#ptu5n .infobtn'); assert.strictEqual(await page.isVisible('#ptu5help'), false);
+  await shot('stats-putt-misses-open-v127.png', '#stpm', 70);
 
   // 3. a distance chip redraws the grid for that band only
   for (const b of ['u5', 'f5', 'f10', 'o25']) {
     await page.click('#stpmchips [data-v="' + b + '"]'); assert.strictEqual(await page.getAttribute('#stpmchips [data-v="' + b + '"]', 'aria-pressed'), 'true');
     const E = await expect(b, ids), gb = await grid('pm' + b + 'grid'); assert.strictEqual(await page.$('#pmallgrid'), null);
     for (const d of DIR8) assert.deepStrictEqual(gb[d], [E.counts[d], pct(E.pct[d])], b + ' ' + d);
-    assert.match(await page.textContent('#pm' + b + 'n'), new RegExp('^n = ' + E.putts + ' first putts'));
+    assert.match(await page.textContent('#pm' + b + 'n'), new RegExp('^n = ' + E.putts + ' putts · ' + E.made + ' made .* · avg 2nd putt ' + (await sec(b, ids)).replace('.', '\\.') + ' i$'));
     const sgN = await page.evaluate(b => window.__golf.statsData().shown.reduce((t, p) => t + p.b.putt[b].n, 0), b);
     assert.ok(sgN > 0); assert.strictEqual(sgN, E.putts, 'same putts as SG by first-putt distance ' + b);
     if (E.nodir) assert.strictEqual(await page.textContent('#pm' + b + 'nodir'), 'No direction: ' + E.nodir + ' miss' + (E.nodir === 1 ? '' : 'es') + ' (not drawn)');
   }
-  await page.click('#stpmchips [data-v="f5"]'); await shot('stats-putt-misses-band-v126.png', '#stpm', 70);
+  await page.click('#stpmchips [data-v="f5"]'); await shot('stats-putt-misses-band-v127.png', '#stpm', 70);
+  assert.match(await page.textContent('#pmf5n'), new RegExp('avg 2nd putt ' + (await sec('f5', ids)).replace('.', '\\.') + ' i$'), 'band avg 2nd putt');
 
   // 4. Last 5 + Compare: numbers for the last 5, grey "all x%" from all rounds; the open sub-menu and chip stay
   await page.click('#strange [data-v="5"]'); assert.strictEqual(await page.getAttribute('#stpm .stsubh', 'aria-expanded'), 'true');
@@ -102,12 +118,13 @@ const DIR8 = ['longleft', 'long', 'longright', 'left', 'right', 'shortleft', 'sh
   const allTxt = await page.$$eval('#pmallgrid .stpmall', e => e.map(x => x.textContent)); assert.ok(allTxt.length >= 8);
   assert.ok(allTxt.includes('all ' + pct(GA.pct.longright)), 'grey all-rounds share');
   assert.match(await page.textContent('#pmallval'), new RegExp('Made ' + pct(G5.madePct) + ' · all ' + pct(GA.madePct)));
+  assert.match(await page.textContent('#pmalln'), new RegExp('avg 2nd putt ' + (await sec('all', ids5)).replace('.', '\\.') + ' \\(all ' + (await sec('all', await allIds())).replace('.', '\\.') + '\\) i$'), 'last 5 + all rounds');
   await page.click('#stcmp'); assert.strictEqual(await page.$$eval('#pmallgrid .stpmall', e => e.length), 0, 'no grey without Compare');
 
   // 5. Selected round: one round's misses
   await page.click('#strange [data-v="sel"]'); await page.click('#strounds [data-id="c4"]');
   const G1 = await expect('all', ['c4']), g1 = await grid('pmallgrid'); for (const d of DIR8) assert.deepStrictEqual(g1[d], [G1.counts[d], pct(G1.pct[d])], 'c4 ' + d);
-  assert.match(await page.textContent('#pmalln'), new RegExp('^n = ' + G1.putts + ' first putts'));
+  assert.match(await page.textContent('#pmalln'), new RegExp('^n = ' + G1.putts + ' putts · .* · avg 2nd putt ' + (await sec('all', ['c4'])).replace('.', '\\.')));
 
   // 6. leaving Stats closes it again; 375 px fits; nothing heavy
   await page.click('#strange [data-v="all"]');

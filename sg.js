@@ -870,7 +870,10 @@
     var miss = L.length - made, withDir = miss - nodir, pct = {}, top = null;
     DIR8.forEach(function (d) { pct[d] = withDir ? 100 * c[d] / withDir : null; if (c[d] && (!top || c[d] > c[top])) top = d; });
     var sum = function (re) { return DIR8.filter(function (d) { return re.test(d); }).reduce(function (t, d) { return t + c[d]; }, 0); };
+    // v127 avg 2nd putt: the length of the next putt after a missed 1st putt = where the 1st putt finished (endFt), only when it stayed on the green
+    var sec = L.filter(function (p) { return !p.made && p.endLie === 'green' && Number(p.endFt) > 0; }), secFt = sec.reduce(function (t, p) { return t + Number(p.endFt); }, 0);
     return { putts: L.length, made: made, misses: miss, nodir: nodir, withDir: withDir, counts: c, pct: pct, madePct: L.length ? 100 * made / L.length : null, top: top,
+      second: { n: sec.length, avg: sec.length ? secFt / sec.length : null },
       side: { left: sum(/left$/), right: sum(/right$/), short: sum(/^short/), long: sum(/^long/) } };
   }
   // v126 Stats PDF name, same family as the round reports: Golf-Stats-2026-11-01-All-rounds-Scott.pdf
