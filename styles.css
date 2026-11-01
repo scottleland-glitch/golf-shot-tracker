@@ -317,7 +317,9 @@ th, td { border-bottom-color: #e6ebe7; }
 .hc.ro { opacity: 1; }
 button.discard { display: block; width: 100%; min-height: 48px; margin: 4px 0 10px; font-size: 16px; font-weight: 700; color: var(--red); border-color: #e7b9c0; background: #fff; }
 .pmgroups { flex-wrap: wrap; gap: 6px; }
-.pmgroups button { flex: 1 1 30%; min-height: 48px; font-size: 15px; }
+.pmgroups button { flex: 1 1 22%; min-height: 48px; font-size: 14px; padding-left: 4px; padding-right: 4px; } /* v117: 4 buttons – 6–10 ft, Under 6 ft, Over 10 ft, All putts */
+.pmgroups button small { display: block; font-size: 11.5px; opacity: .75; }
+.mapsum.pmshow { margin-top: -2px; font-size: 14.5px; color: #4d5f52; }
 .pmgroups button small { font-weight: 600; }
 .rpbtn { font-size: 18px; min-height: 52px; }
 .rpnav { align-items: center; gap: 6px; }

@@ -130,9 +130,9 @@ const BASE = process.env.BASE_URL || 'http://127.0.0.1:8765/', SHOTS = process.e
     for (let i = 0; i < c.length; i++) for (let j = 0; j < i; j++) assert.ok(Math.hypot(c[i][0] - c[j][0], c[i][1] - c[j][1]) >= 14, tag + ' dots overlap ' + c[i] + ' / ' + c[j]); return c.length; };
   await noOverlap('1st');
   const mk = () => page.$$eval('#puttmap .pdot2', ds => ds.map(d => { const e = d.tagName === 'g' ? d.querySelector('path') : d; return [+d.getAttribute('data-ft'), d.getAttribute('data-pk'), e.getAttribute('fill'), e.getAttribute('stroke')]; }));
-  assert.deepStrictEqual(await mk(), [[25, 'miss2', '#fff', '#1565e0'], [8, 'made', '#000', '#000'], [40, 'miss2', '#fff', '#1565e0'], [3, 'made', '#000', '#000'], [12, 'miss2', '#fff', '#1565e0'], [30, 'miss2', '#fff', '#1565e0']]);
+  assert.deepStrictEqual(await mk(), [[25, 'miss2', '#fff', '#d0312d'], [8, 'made', '#000', '#000'], [40, 'miss2', '#fff', '#d0312d'], [3, 'made', '#000', '#000'], [12, 'miss2', '#fff', '#d0312d'], [30, 'miss2', '#fff', '#d0312d']]);
   assert.strictEqual(await page.textContent('#threeputts'), '3-putt holes: 0 of 6 holes putted (0%)');
-  assert.deepStrictEqual(await page.$$eval('#puttlegend span', ss => ss.slice(0, 3).map(x => x.textContent)), ['Made', 'Missed – 2-putt hole', 'Missed – 3-putt or worse']);
+  assert.deepStrictEqual(await page.$$eval('#puttlegend span', ss => ss.slice(0, 2).map(x => x.textContent)), ['Made (black)', 'Missed (red)']);
   assert.strictEqual(await page.getAttribute('#puttmap', 'data-scale'), 'wide');
   await page.click('#puttbtns [data-v="2"]'); assert.match(await page.getAttribute('#puttbtns [data-v="2"]', 'class'), /sel/);
   const d2 = await page.$$eval('#puttmap .pdot2', ds => ds.map(d => [+d.getAttribute('data-ft'), d.getAttribute('data-made'), d.getAttribute('data-dir')]));
@@ -158,7 +158,7 @@ const BASE = process.env.BASE_URL || 'http://127.0.0.1:8765/', SHOTS = process.e
   const tpAll = await page.evaluate(() => { let h = 0, t = 0; window.__golf.rounds().forEach(r => { const x = SG.threePutts(SG.summarize(r).puttList); h += x.holes; t += x.three; }); return [h, t]; });
   assert.match(await page.textContent('#threeputts'), new RegExp('^3-putt holes: ' + tpAll[1] + ' of ' + tpAll[0] + ' holes putted')); assert.ok(tpAll[1] > 0);
   await page.click('#puttbtns [data-v="3"]'); assert.strictEqual(await page.locator('#puttmap .pdot2').count(), allExp[3]);
-  const k3 = await mk(); assert.ok(k3.some(k => k[1] === 'miss3') && k3.every(k => k[1] !== 'miss2') && k3.every(k => (k[1] === 'made') === (k[2] === '#000') && (k[1] !== 'miss3' || k[3] === '#e0102a')), JSON.stringify(k3));
+  const k3 = await mk(); assert.ok(k3.some(k => k[1] === 'miss3') && k3.every(k => k[1] !== 'miss2') && k3.every(k => (k[1] === 'made') === (k[2] === '#000') && (k[1] === 'made' || k[3] === '#d0312d')), JSON.stringify(k3));
   await page.screenshot({ path: SHOTS + '/37d-putting-3rd-all.png' }); assert.strictEqual(await page.getAttribute('#puttmap', 'data-scale'), 'close'); await noOverlap('All 3rd+'); assert.strictEqual(n2, allExp[2]);
   await page.click('[data-act="mapclose"]'); await page.waitForSelector('#puttmap', { state: 'detached' });
   console.log('✓ All rounds: 1st/2nd/3rd+ = ' + [allExp[1], allExp[2], allExp[3]].join('/') + '; Close');

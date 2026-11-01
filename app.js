@@ -463,7 +463,7 @@
       // ---- map pages ----
       var segs = SG.pinSegments(pinDataRound());
       var pages = [['Tee shots – fairways', 'fw'], ['Greens in regulation', 'gir'], ['Approach misses', 'miss'], ['Pin location', 'pin'],         'PROX', ['Putting – 1st putts', 'putt', { puttN: '1' }], ['Putting – 2nd putts', 'putt', { puttN: '2' }]].concat(
-        (function () { var D = pmissData(false); return SG.PMISS_GROUPS.filter(function (g) { return D.counts[g.id]; }).reverse().map(function (g) { return ['1st putts made inside 10 ft – ' + g.name, 'pmiss', { pmG: g.id }]; }); })());
+        (function () { var D = pmissData(false); return SG.PMISS_GROUPS.filter(function (g) { return D.counts[g.id]; }).reverse().map(function (g) { return ['1st putts made inside 10 ft – ' + g.name, 'pmiss', { pmG: g.id }]; }).concat(D.counts.all ? [['Putting – all putts', 'pmiss', { pmG: 'all' }]] : []); })()); // v117: + every putt of the round (made black, missed red)
       var plist = S.proxList.filter(function (m) { return SG.reportGroup(m.from); }), gsum = SG.REPORT_GROUPS.map(function (g) {
         var L = plist.filter(function (m) { return SG.reportGroup(m.from) === g.id; }); return { g: g, L: L, P: SG.proxStats(L) }; }).filter(function (x) { return x.L.length; });
       var pi = pages.indexOf('PROX');
@@ -2735,7 +2735,7 @@
   }
   function applyHeat(root) {
     var mv = root || document.getElementById('mapview'); if (!mv || !HEAT_MAPS[view.map]) return;
-    var svg = mv.querySelector('#' + HEAT_MAPS[view.map]); if (!svg) return;
+    var svg = mv.querySelector('#' + HEAT_MAPS[view.map]); if (!svg || svg.getAttribute('data-mode') === 'all') return; // v117: no heat layer on the All putts lines
     var C = heatCenter(svg, view.map), NS = 'http://www.w3.org/2000/svg', pts = [];
     var noDir = 0; // markers with no direction entered: real shots, but no position -> left off the heat map (and said so)
     svg.querySelectorAll('[data-hd]').forEach(function (e) {
@@ -3066,8 +3066,12 @@
       '<p class="help muted">A generic drawing, roughly to scale by hole length (straight hole, tee at the bottom, green at the top, pin at its set spot – centre if none). Positions come from your distances to the pin and the direction / lie entered, so they are approximate.</p></div>';
   }
   // ---------- Putt misses map ----------
-  var PMC = { short: '#ef6c00', long: '#6a1b9a', left: '#1565e0', right: '#d81b60', nearlong: '#555', nodir: '#888' };
+  // v117: one colour rule on every putt map – made = black (line runs into the hole), missed = red (line to where it finished).
+  // Where a miss finished (short / long / left / right) is still counted in the cells below the map; it is no longer a colour.
+  var PM_MADE = '#111', PM_MISS = '#d0312d';
   var PMN = { short: 'Short', long: 'Long (over 3 ft past)', left: 'Left', right: 'Right', nearlong: 'Just long (within 3 ft)', nodir: 'No direction entered' };
+  // map buttons: the two 1st-putt groups (10 ft and in), lag putts (1st putts over 10 ft), all putts
+  var PM_EXTRA = [{ id: 'lag', name: 'Over 10 ft' }, { id: 'all', name: 'All putts' }];
   function pmissTile(S) {
     var L = SG.pmissList(S.puttList), k = L.filter(function (p) { return p.made; }).length; // v112: shown as made (was missed)
     return tile('pmiss', '1st putts made inside 10 ft – tap for map', L.length ? k + '/' + L.length + ' made' : '–', '<small class="mini" id="pmmini">' + pmissLine(k, L.length) + '</small>');
@@ -3076,7 +3080,7 @@
   function pmissLine(k, n) { // v112: k = made
     return n ? Math.round(100 * k / n) + '% made · 1st putts from 10 ft and in' : 'no 1st putts from 10 ft and in yet';
   }
-  // v104 lag putts (start more than 10 ft away; v105: 1st putt of the hole only): success = finished within 3 ft (or holed). Opens the putt-misses map, which shows the same box for the round / all rounds.
+  // v104 lag putts (start more than 10 ft away; v105: 1st putt of the hole only): success = finished within 3 ft (or holed). Opens the putt map on "Over 10 ft".
   function lagLine(LG) {
     return LG.attempts ? Math.round(LG.pct) + '% inside 3 ft' : 'no 1st putts from over 10 ft yet';
   }
@@ -3086,52 +3090,93 @@
   }
   function fmtLeave(ft) { return ft == null ? '–' : (Math.round(ft * 10) / 10) + ' ft'; }
   function pmissData(scopeAll, gid) {
-    var all = [], lag = [], n = 0;
-    (scopeAll ? savedRounds() : [round()]).forEach(function (r) { n++; var PL = SG.summarize(r, 'pga').puttList; all = all.concat(SG.pmissList(PL)); lag = lag.concat(SG.lagList(PL)); });
+    var all = [], lag = [], every = [], n = 0;
+    (scopeAll ? savedRounds() : [round()]).forEach(function (r) { n++; var PL = SG.summarize(r, 'pga').puttList; all = all.concat(SG.pmissList(PL)); lag = lag.concat(SG.lagList(PL));
+      PL.forEach(function (p) { every.push(p); }); });
     var counts = {}; SG.PMISS_GROUPS.forEach(function (g) { counts[g.id] = all.filter(function (p) { return SG.pmissGroup(p.ft) === g.id; }).length; });
-    var g = gid || view.pmG; if (!g || !counts[g]) g = SG.PMISS_GROUPS.filter(function (x) { return counts[x.id]; }).map(function (x) { return x.id; }).pop() || '0-6';
-    var list = all.filter(function (p) { return SG.pmissGroup(p.ft) === g; });
-    return { group: g, counts: counts, list: list, stats: SG.pmissStats(list), rounds: n, lag: SG.lagStats(lag) };
+    counts.lag = lag.length; counts.all = every.length;
+    var g = gid || view.pmG; if (!g || !counts[g]) g = SG.PMISS_GROUPS.filter(function (x) { return counts[x.id]; }).map(function (x) { return x.id; }).pop() || (counts.lag ? 'lag' : counts.all ? 'all' : '0-6');
+    var list = g === 'all' ? every : g === 'lag' ? lag : all.filter(function (p) { return SG.pmissGroup(p.ft) === g; });
+    return { group: g, counts: counts, list: list, first: all, stats: SG.pmissStats(list), rounds: n, lag: SG.lagStats(lag), every: every };
   }
-  function pmissSVG(list, gid) {
-    var G = SG.PMISS_GROUPS.filter(function (x) { return x.id === gid; })[0], W = 360, H = 400, cx = 180, cy = 200, R = 170;
-    var sc = SG.pmissScale(G, list.filter(function (p) { return !p.made; }).map(function (p) { return p.endFt; })), maxFt = sc.max, step = sc.step, RR = R - 14, rad = function (ft) { return RR * Math.max(0, Math.min(ft, maxFt)) / maxFt; };
-    var o = '<svg id="pmissmap" viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="Missed putts"><rect width="' + W + '" height="' + H + '" fill="#cfe8c4"/><circle cx="' + cx + '" cy="' + cy + '" r="' + R + '" fill="#3da33d" stroke="#145214" stroke-width="4"/>';
-    for (var f = step; f <= maxFt; f += step) o += '<circle cx="' + cx + '" cy="' + cy + '" r="' + f1(rad(f)) + '" fill="none" stroke="#fff" stroke-opacity=".7" stroke-width="' + (f === maxFt ? 2 : 1) + '"/><text class="ring" x="' + f1(cx + rad(f) * 0.707 + 3) + '" y="' + f1(cy + rad(f) * 0.707 + 11) + '" font-size="10" font-weight="800" fill="#fff">' + f + ' ft</text>';
-    o += '<text x="' + cx + '" y="18" text-anchor="middle" font-size="12" font-weight="900">LONG ↑</text><text x="' + cx + '" y="' + (H - 6) + '" text-anchor="middle" font-size="12" font-weight="900">SHORT ↓ (toward you)</text>' +
-      '<text x="6" y="' + (cy + 4) + '" font-size="12" font-weight="900">L</text><text x="' + (W - 6) + '" y="' + (cy + 4) + '" text-anchor="end" font-size="12" font-weight="900">R</text>';
-    var tr = '', dots = '', labs = '', boxes = [], seenS = {}, seenE = {}, ns = 0;
-    var lbl = function (x, y, t, col) { var w = t.length * 6 + 6, best = null;
-      [[8, 4], [-8 - w, 4], [-w / 2, -9], [-w / 2, 17], [10, 14], [-10 - w, 14], [10, -8], [-10 - w, -8]].some(function (c) { var b = [x + c[0], y + c[1] - 10, x + c[0] + w, y + c[1] + 2];
+  function pmLbl(boxes, W, H) { // small ft label placed next to a point, away from other labels
+    return function (x, y, t, col) { var w = t.length * 5.6 + 6, best = null;
+      [[7, 4], [-7 - w, 4], [-w / 2, -8], [-w / 2, 16], [9, 13], [-9 - w, 13], [9, -7], [-9 - w, -7]].some(function (c) { var b = [x + c[0], y + c[1] - 10, x + c[0] + w, y + c[1] + 2];
         if (b[0] < 2 || b[2] > W - 2 || b[1] < 22 || b[3] > H - 20) return false; if (!best) best = b; if (boxes.some(function (q) { return b[0] < q[2] && b[2] > q[0] && b[1] < q[3] && b[3] > q[1]; })) return false; best = b; return true; });
-      if (!best) return ''; boxes.push(best); return '<text class="pmlbl" x="' + f1(best[0] + 3) + '" y="' + f1(best[3] - 2) + '" font-size="11" font-weight="900" fill="' + col + '" stroke="#fff" stroke-width="3" paint-order="stroke">' + esc(t) + '</text>'; };
-    var misses = list.filter(function (p) { return !p.made; }), pend = [];
-    misses.forEach(function (p, i) {
-      var cls = SG.pmissClass(p), col = PMC[cls];
-      var s = [cx, cy + RR]; // every putt starts from one spot straight below the hole (the hole is the target)
-      var ea = p.endDir ? SG.DIR_ANGLE[p.endDir] : 90, clamped = p.endFt > maxFt, ek = (p.endDir || 'n') + Math.round(p.endFt * 2), je = seenE[ek] = (seenE[ek] || 0) + 1;
+      if (!best) return ''; boxes.push(best); return '<text class="pmlbl" x="' + f1(best[0] + 3) + '" y="' + f1(best[3] - 2) + '" font-size="10.5" font-weight="500" fill="' + col + '" stroke="#fff" stroke-width="3" paint-order="stroke">' + esc(t) + '</text>'; };
+  }
+  function pmGreen(W, H, cx, cy, R) {
+    return '<rect width="' + W + '" height="' + H + '" fill="#d7ecd0"/><circle cx="' + cx + '" cy="' + cy + '" r="' + R + '" fill="#67b866" stroke="#2f7a34" stroke-width="2.5"/>';
+  }
+  function pmEdges(W, H, cy) {
+    var t = function (x, y, s, a) { return '<text x="' + x + '" y="' + y + '" text-anchor="' + (a || 'middle') + '" font-size="11.5" font-weight="500" fill="#28402c">' + s + '</text>'; };
+    return t(W / 2, 16, 'LONG ↑') + t(W / 2, H - 6, 'SHORT ↓ (toward you)') + t(6, cy + 4, 'L', 'start') + t(W - 6, cy + 4, 'R', 'end');
+  }
+  // 1st putts (one group) and lag putts: every putt drawn from ONE start spot straight below the hole (the hole is the target).
+  // Made = black line curving into the hole (spread a little so several stay visible); missed = red line to where it finished.
+  function pmissSVG(list, gid) {
+    var lagMode = gid === 'lag', G = lagMode ? { max: 10 } : SG.PMISS_GROUPS.filter(function (x) { return x.id === gid; })[0], W = 360, H = 400, cx = 180, cy = 200, R = 170;
+    var ends = list.filter(function (p) { return !p.made; }).map(function (p) { return p.endFt; }), sc;
+    if (lagMode) { var m = Math.max.apply(null, [0].concat(ends)); sc = { step: 3, max: Math.min(15, Math.max(6, Math.ceil(m / 3) * 3)) }; }
+    else sc = SG.pmissScale(G, ends);
+    var maxFt = sc.max, step = sc.step, RR = R - 14, rad = function (ft) { return RR * Math.max(0, Math.min(ft, maxFt)) / maxFt; };
+    var o = '<svg id="pmissmap" data-mode="' + (lagMode ? 'lag' : 'first') + '" viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="' + (lagMode ? 'Lag putts' : '1st putts') + ': made in black, missed in red">' + pmGreen(W, H, cx, cy, R);
+    for (var f = step; f <= maxFt; f += step) o += '<circle cx="' + cx + '" cy="' + cy + '" r="' + f1(rad(f)) + '" fill="none" stroke="#fff" stroke-opacity="' + (lagMode && f === 3 ? '.95' : '.6') + '" stroke-width="' + (f === maxFt || (lagMode && f === 3) ? 1.6 : 1) + '"/><text class="ring" x="' + f1(cx + rad(f) * 0.707 + 3) + '" y="' + f1(cy + rad(f) * 0.707 + 11) + '" font-size="9.5" font-weight="400" fill="#fff">' + f + ' ft</text>';
+    o += pmEdges(W, H, cy);
+    var s = [cx, cy + RR], made = list.filter(function (p) { return p.made; }), mk = '', tr = '', dots = '', labs = '', boxes = [], seenE = {}, pend = [], lbl = pmLbl(boxes, W, H);
+    made.forEach(function (p, k) { // black line into the hole; the k-th made putt bows a little left / right so they don't all sit on one line
+      var bow = k === 0 ? 0 : (k % 2 ? 1 : -1) * Math.ceil(k / 2) * 9;
+      mk += '<path class="pmmade" data-ft="' + p.ft + '" d="M' + f1(s[0]) + ' ' + f1(s[1]) + ' Q' + f1(cx + bow) + ' ' + f1((s[1] + cy) / 2) + ' ' + cx + ' ' + cy + '" fill="none" stroke="' + PM_MADE + '" stroke-width="1.8" stroke-opacity=".85" stroke-linecap="round"/>'; });
+    list.filter(function (p) { return !p.made; }).forEach(function (p) {
+      var cls = SG.pmissClass(p), ea = p.endDir ? SG.DIR_ANGLE[p.endDir] : 90, clamped = p.endFt > maxFt, ek = (p.endDir || 'n') + Math.round(p.endFt * 2), je = seenE[ek] = (seenE[ek] || 0) + 1;
       var e = pt(cx, cy, Math.max(rad(p.endFt), 9), ea + (je - 1) * 9);
-      var mx = (s[0] + e[0]) / 2 + (e[1] - s[1]) * 0.12, my = (s[1] + e[1]) / 2 - (e[0] - s[0]) * 0.12;
-      tr += '<path class="pmtr" data-class="' + cls + '" d="M' + f1(s[0]) + ' ' + f1(s[1]) + ' Q' + f1(mx) + ' ' + f1(my) + ' ' + f1(e[0]) + ' ' + f1(e[1]) + '" fill="none" stroke="#fff" stroke-width="5" stroke-opacity=".7"/>' +
-        '<path d="M' + f1(s[0]) + ' ' + f1(s[1]) + ' Q' + f1(mx) + ' ' + f1(my) + ' ' + f1(e[0]) + ' ' + f1(e[1]) + '" fill="none" stroke="' + col + '" stroke-width="2.6"/>';
-      dots += cls === 'nodir' ? '<g class="pmend" data-class="nodir"><path d="M' + f1(e[0]) + ' ' + f1(e[1] - 8) + ' l8 8 -8 8 -8 -8z" fill="#fff" stroke="#555" stroke-width="2"/><text x="' + f1(e[0]) + '" y="' + f1(e[1] + 4) + '" text-anchor="middle" font-size="10" font-weight="900">?</text></g>'
-        : '<circle class="pmend" data-hd="' + p.endFt + '" data-hu="ft" data-class="' + cls + '" cx="' + f1(e[0]) + '" cy="' + f1(e[1]) + '" r="5.5" fill="' + col + '" stroke="#000" stroke-width="1.5"/>';
-      boxes.push([e[0] - 6, e[1] - 6, e[0] + 6, e[1] + 6]);
-      pend.push([e[0], e[1], (Math.round(p.endFt * 10) / 10) + ' ft' + (clamped ? ' ›' : ''), col]);
+      var mx = (s[0] + e[0]) / 2 + (e[1] - s[1]) * 0.12, my = (s[1] + e[1]) / 2 - (e[0] - s[0]) * 0.12, d = 'M' + f1(s[0]) + ' ' + f1(s[1]) + ' Q' + f1(mx) + ' ' + f1(my) + ' ' + f1(e[0]) + ' ' + f1(e[1]);
+      tr += '<path class="pmtr" data-class="' + cls + '" d="' + d + '" fill="none" stroke="' + PM_MISS + '" stroke-width="1.8" stroke-opacity=".9" stroke-linecap="round"/>';
+      dots += cls === 'nodir' ? '<g class="pmend" data-class="nodir"><path d="M' + f1(e[0]) + ' ' + f1(e[1] - 7) + ' l7 7 -7 7 -7 -7z" fill="#fff" stroke="' + PM_MISS + '" stroke-width="1.6"/><text x="' + f1(e[0]) + '" y="' + f1(e[1] + 3.5) + '" text-anchor="middle" font-size="9" font-weight="500" fill="' + PM_MISS + '">?</text></g>'
+        : '<circle class="pmend" data-hd="' + p.endFt + '" data-hu="ft" data-class="' + cls + '" cx="' + f1(e[0]) + '" cy="' + f1(e[1]) + '" r="3.6" fill="' + PM_MISS + '" stroke="#fff" stroke-width="1.2"/>';
+      boxes.push([e[0] - 5, e[1] - 5, e[0] + 5, e[1] + 5]);
+      pend.push([e[0], e[1], (Math.round(p.endFt * 10) / 10) + ' ft' + (clamped ? ' ›' : '')]);
     });
-    pend.forEach(function (q) { labs += lbl(q[0], q[1], q[2], q[3] === '#888' ? '#333' : q[3]); });
-    return o + tr + '<circle cx="' + cx + '" cy="' + cy + '" r="4.5" fill="#000"/><circle id="pmorigin" cx="' + cx + '" cy="' + (cy + RR) + '" r="7" fill="#fff" stroke="#000" stroke-width="2"/><text x="' + (cx + 11) + '" y="' + (cy + RR + 4) + '" font-size="10" font-weight="800" fill="#fff">putts start here</text>' + dots + labs + '</svg>';
+    pend.forEach(function (q) { labs += lbl(q[0], q[1], q[2], '#8e1f1b'); });
+    return o + tr + mk + '<circle class="pmhole" cx="' + cx + '" cy="' + cy + '" r="4.5" fill="#000" stroke="#fff" stroke-width="1"/><circle id="pmorigin" cx="' + cx + '" cy="' + (cy + RR) + '" r="5" fill="#fff" stroke="#333" stroke-width="1.4"/><text x="' + (cx + 9) + '" y="' + (cy + RR + 4) + '" font-size="9.5" font-weight="400" fill="#fff">putts start here' + (lagMode ? ' (over 10 ft away)' : '') + '</text>' + dots + labs + '</svg>';
+  }
+  // v117 ALL putts: each putt from where it really started (its distance + the direction the ball was from the hole – a 2nd / 3rd putt starts
+  // where the one before finished, as on the Putts map), made = black line into the hole, missed = red line to where it finished.
+  function pmAllSVG(list) {
+    var W = 360, H = 400, cx = 180, cy = 200, R = 170, RR = R - 8;
+    var mxFt = list.reduce(function (m, p) { return Math.max(m, Number(p.ft) || 0, p.made ? 0 : Number(p.endFt) || 0); }, 0), sc = SG.puttScale('1', [{ ft: mxFt }]), rad = function (ft) { return SG.puttRadius(ft, sc, RR); };
+    var o = '<svg id="pmissmap" data-mode="all" viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="All putts: made in black, missed in red">' + pmGreen(W, H, cx, cy, R);
+    [3, 6, 10].concat(sc.rings.filter(function (x) { return x > 10 && (x % 10 === 0 || x === sc.maxFt); })).forEach(function (ft) { var r = rad(ft);
+      o += '<circle class="pring" cx="' + cx + '" cy="' + cy + '" r="' + f1(r) + '" fill="none" stroke="#fff" stroke-opacity=".6" stroke-width="1"/><text class="ring" x="' + f1(cx + r * 0.707 + 2) + '" y="' + f1(cy + r * 0.707 + 10) + '" font-size="9.5" font-weight="400" fill="#fff">' + ft + ' ft</text>'; });
+    o += pmEdges(W, H, cy);
+    var nd = list.filter(function (p) { return !p.dir; }).length, ndi = 0, lines = '', dots = '', seen = {};
+    var at = function (ft, dir, fallback) { var a = dir ? SG.DIR_ANGLE[dir] : fallback; return pt(cx, cy, rad(ft), a); };
+    list.forEach(function (p) {
+      var a0 = p.dir ? SG.DIR_ANGLE[p.dir] : 110 + 360 * (ndi++) / Math.max(1, nd);
+      var s = pt(cx, cy, rad(p.ft), a0), e = p.made ? [cx, cy] : at(Math.max(p.endFt || 0, 0.5), p.endDir, a0 + 180);
+      lines += '<path class="' + (p.made ? 'pmmade' : 'pmtr') + '" data-n="' + p.n + '" data-hole="' + p.hole + '" data-ft="' + p.ft + '" d="M' + f1(s[0]) + ' ' + f1(s[1]) + ' L' + f1(e[0]) + ' ' + f1(e[1]) + '" fill="none" stroke="' + (p.made ? PM_MADE : PM_MISS) + '" stroke-width="1.5" stroke-opacity=".8" stroke-linecap="round"/>';
+      dots += '<circle class="pmstart" data-n="' + p.n + '" cx="' + f1(s[0]) + '" cy="' + f1(s[1]) + '" r="2.6" fill="#fff" fill-opacity=".9" stroke="' + (p.made ? PM_MADE : PM_MISS) + '" stroke-width="1"/>';
+    });
+    return o + lines + '<circle class="pmhole" cx="' + cx + '" cy="' + cy + '" r="4.5" fill="#000" stroke="#fff" stroke-width="1"/>' + dots + '</svg>';
   }
   function pmissCells(st) {
     var pc = function (k) { return st.misses ? Math.round(st.pct[k]) + '%' : '–'; };
     return '<div class="stat-grid pmcells" id="pmcells">' + stat('Left', pc('left')) + stat('Right', pc('right')) + stat('Short', pc('short')) + stat('Long (> 3 ft past)', pc('long')) +
       stat('1st putts made', st.made + '/' + st.attempts) + stat('Just long ≤ 3 ft / no dir.', st.counts.nearlong + ' / ' + st.counts.nodir) + '</div>';
   }
-  function pmissLegend() {
-    return '<div class="legend" id="pmlegend">' + ['left', 'right', 'short', 'long', 'nearlong'].map(function (k) { return '<span><i class="ln" style="background:' + PMC[k] + '"></i><i class="dot" style="background:' + PMC[k] + '"></i>' + PMN[k] + '</span>'; }).join('') +
-      '<span><svg width="20" height="20" viewBox="0 0 20 20" style="flex:none"><path d="M10 2 l8 8 -8 8 -8 -8z" fill="#fff" stroke="#555" stroke-width="2"/><text x="10" y="14" text-anchor="middle" font-size="10" font-weight="900">?</text></svg>No direction entered for where it finished (drawn long)</span>' +
-      '<span><i class="dot" style="background:#fff"></i>Common start point: every putt is drawn from straight below the hole, so the hole is the target</span>' +
-      '<span>Label = feet left to the hole (› = further than the picture, drawn at the edge). Rings = feet from the hole, evenly spaced (linear scale, set per distance group so misses spread out).</span></div>';
+  function pmAllCells(L) {
+    var m = L.filter(function (p) { return p.made; }).length, tp = SG.threePutts(L), by = function (n) { var X = L.filter(function (p) { return n === 3 ? p.n >= 3 : p.n === n; }); return X.length ? X.filter(function (p) { return p.made; }).length + '/' + X.length : '–'; };
+    return '<div class="stat-grid pmcells" id="pmallcells">' + stat('Putts', L.length) + stat('Made', m) + stat('1st putts made', by(1)) + stat('2nd putts made', by(2)) + stat('3rd+ putts made', by(3)) + stat('3-putt holes', tp.three + '/' + tp.holes) + '</div>';
+  }
+  function pmissLegend(g) {
+    var all = g === 'all';
+    return '<div class="legend pmlegend" id="pmlegend"><span><i class="ln" style="background:' + PM_MADE + '"></i>Made – black line into the hole</span>' +
+      '<span><i class="ln" style="background:' + PM_MISS + '"></i>Missed – red line to where it finished' + (all ? '' : ' (label = feet left)') + '</span>' +
+      (all ? '<span><i class="dot" style="background:#fff;border:1px solid #555"></i>Small dot = where the putt started (distance and side of the hole; a 2nd or 3rd putt starts where the one before finished)</span>' +
+        '<span>Rings = feet from the hole; the inner 10 ft is drawn bigger. No direction entered: start spread around the hole, a miss drawn past the hole.</span>'
+      : '<span><svg width="20" height="20" viewBox="0 0 20 20" style="flex:none"><path d="M10 3 l7 7 -7 7 -7 -7z" fill="#fff" stroke="' + PM_MISS + '" stroke-width="1.6"/><text x="10" y="13.5" text-anchor="middle" font-size="9" fill="' + PM_MISS + '">?</text></svg>No direction entered for where it finished (drawn long)</span>' +
+        '<span><i class="dot" style="background:#fff;border:1px solid #333"></i>Common start point: every putt is drawn from straight below the hole, so the hole is the target</span>' +
+        '<span>Rings = feet from the hole, evenly spaced' + (g === 'lag' ? ' (the brighter ring is 3 ft – a good lag finishes inside it)' : '') + '. › = further than the picture, drawn at the edge.</span>') + '</div>';
   }
   function lagBox(LG, all, n) {
     return '<div class="lagbox" id="lagbox"><div class="lagh">Lag putts (&gt;10 ft)' + (all ? ' – ' + n + ' round' + (n === 1 ? '' : 's') : ' – this round') + '</div>' +
@@ -3139,12 +3184,21 @@
       '<p class="help muted">1st putt on each hole only, from more than 10 ft. Good = holed or finished within 3 ft (3 ft counts). Avg leave = distance left after the putt (holed = 0).</p></div>';
   }
   function pmissHTML(all) {
-    var D = pmissData(all), G = SG.PMISS_GROUPS.filter(function (x) { return x.id === D.group; })[0];
-    var btns = '<div class="seg pmgroups" id="pmgroups">' + SG.PMISS_GROUPS.map(function (g) { var c = D.counts[g.id];
-      return '<button data-act="pmg" data-v="' + g.id + '" data-n="' + c + '" class="' + (g.id === D.group ? 'sel' : '') + '"' + (c ? '' : ' disabled') + ' aria-pressed="' + (g.id === D.group) + '">' + g.name + (c ? '<small> ' + c + '</small>' : '') + '</button>'; }).join('') + '</div>';
-    return btns + '<p class="mapsum" id="mapsum"><b>' + D.stats.made + '/' + D.stats.attempts + '</b> made' + (D.stats.attempts ? ' (' + Math.round(100 * D.stats.made / D.stats.attempts) + '%)' : '') + ' – 1st putts from <b id="pmsel">' + G.name + '</b>' + (all ? ' in ' + D.rounds + ' round' + (D.rounds === 1 ? '' : 's') : ' this round') + '</p>' +
-      pmissSVG(D.list, D.group) + pmissCells(D.stats) + pmissLegend() + lagBox(D.lag, all, D.rounds) +
-      '<p class="help muted">Each line runs from one common start (below the hole) to where the putt finished, placed around the hole by the direction and distance of the next putt: short = below the hole, long = above, left/right to the sides. Short = finished short (incl. short left/right). Long = finished long and more than 3 ft past the hole. Long left/right within 3 ft count as Left/Right; straight long within 3 ft = "just long" (good speed, not counted as Long). Percentages are of misses. Only the 1st putt on each hole counts, from 10 ft and in (10 ft included) – groups: under 6 ft and 6–10 ft. 1st putts from over 10 ft are in Lag putts (&gt;10 ft) above: they only need to finish inside 3 ft.</p>';
+    var D = pmissData(all), g = D.group, G = SG.PMISS_GROUPS.filter(function (x) { return x.id === g; })[0], where = all ? ' in ' + D.rounds + ' round' + (D.rounds === 1 ? '' : 's') : ' this round';
+    var btns = '<div class="seg pmgroups" id="pmgroups">' + SG.PMISS_GROUPS.concat(PM_EXTRA).map(function (x) { var c = D.counts[x.id];
+      return '<button data-act="pmg" data-v="' + x.id + '" data-n="' + c + '" class="' + (x.id === g ? 'sel' : '') + (x.id === 'lag' || x.id === 'all' ? ' pmx' : '') + '"' + (c ? '' : ' disabled') + ' aria-pressed="' + (x.id === g) + '">' + x.name + (c ? '<small> ' + c + '</small>' : '') + '</button>'; }).join('') + '</div>';
+    // headline = the Round stats number (every 1st putt from 10 ft and in, both groups together); the 2nd line says what the map shows
+    var F = D.first, Fm = F.filter(function (p) { return p.made; }).length, pctx = function (k, n) { return n ? ' (' + Math.round(100 * k / n) + '%)' : ''; };
+    var head = '<p class="mapsum" id="mapsum"><b>' + Fm + '/' + F.length + '</b> made' + pctx(Fm, F.length) + ' – 1st putts from 10 ft and in' + where + '</p>';
+    var L = D.list, Lm = L.filter(function (p) { return p.made; }).length, show;
+    if (g === 'all') show = 'All putts: <b>' + L.length + '</b> putt' + (L.length === 1 ? '' : 's') + ' · <b>' + Lm + '</b> made';
+    else if (g === 'lag') show = '1st putts from over 10 ft: <b>' + L.length + '</b> putt' + (L.length === 1 ? '' : 's') + ' · <b>' + Lm + '</b> made · <b>' + D.lag.inside + '</b> inside 3 ft';
+    else show = '1st putts from <b id="pmsel">' + G.name + '</b>: <b>' + D.stats.made + '/' + D.stats.attempts + '</b> made' + pctx(D.stats.made, D.stats.attempts);
+    var out = btns + head + '<p class="mapsum pmshow" id="pmshow">Map shows ' + show + '</p>';
+    if (g === 'all') return out + pmAllSVG(L) + pmAllCells(L) + pmissLegend(g) + lagBox(D.lag, all, D.rounds) +
+      '<p class="help muted">All putts = every stroke from the green (1st, 2nd, 3rd …, any distance). Each line starts where the putt started – the distance and the side of the hole entered on that row; a 2nd or 3rd putt starts where the one before finished. Black = holed (runs into the hole); red = missed, ending where it stopped. The headline number above is unchanged: 1st putts from 10 ft and in only.</p>';
+    return out + pmissSVG(L, g) + (g === 'lag' ? '' : pmissCells(D.stats)) + pmissLegend(g) + lagBox(D.lag, all, D.rounds) +
+      '<p class="help muted">Black lines = putts that went in, curving into the hole. Red lines run from one common start (below the hole) to where the putt finished, placed around the hole by the direction and distance of the next putt: short = below the hole, long = above, left/right to the sides. Short = finished short (incl. short left/right). Long = finished long and more than 3 ft past the hole. Long left/right within 3 ft count as Left/Right; straight long within 3 ft = "just long" (good speed, not counted as Long). Percentages are of misses. Only the 1st putt on each hole counts, from 10 ft and in (10 ft included) – groups: under 6 ft and 6–10 ft. Over 10 ft = lag putts (1st putts from further away – good = inside 3 ft). All putts = every putt of the round.</p>';
   }
   function clubTile() {
     var n = clubShots(false).length, c = {}; clubShots(false).forEach(function (x) { c[x.club] = 1; });
@@ -3163,7 +3217,7 @@
   }
   // Non-linear radius: 0-10 ft takes 60% of the radius (1 ft rings readable); 10 ft..max ring the rest.
   var PG2 = { cx: 180, cy: 190, R: 168 };
-  var PCOL = { made: '#000', miss2: '#1565e0', miss3: '#e0102a' };
+  var PCOL = { made: '#000', miss2: '#d0312d', miss3: '#d0312d' }; // v117: made = black, missed = red on every putt map (3-putt holes are counted above the map)
   function puttSVG(list, group) {
     var sc = SG.puttScale(group, list), maxFt = sc.maxFt, close = sc.mode === 'close', R = function (ft) { return SG.puttRadius(ft, sc, PG2.R); };
     var o = '<svg id="puttmap" data-scale="' + sc.mode + '" data-maxft="' + maxFt + '" viewBox="0 0 360 400" role="img" aria-label="Putts by starting distance">' +
@@ -3211,7 +3265,7 @@
       '<p class="mapsum" id="threeputts">3-putt holes: <b>' + D.tp.three + '</b> of ' + D.tp.holes + ' hole' + (D.tp.holes === 1 ? '' : 's') + ' putted' + (D.tp.holes ? ' (' + Math.round(100 * D.tp.three / D.tp.holes) + '%)' : '') + '</p>' +
       '<div class="stat-grid" id="puttstats">' + stat('Putts', P.n) + stat('Made', P.n ? P.made + ' / ' + P.n + ' (' + pct(P.pct) + ')' : '–') + stat('Avg distance', P.avgFt == null ? '–' : (Math.round(P.avgFt * 10) / 10) + ' ft') + '</div>' +
       puttSVG(D.list, D.group) +
-      '<div class="legend" id="puttlegend"><span><i class="dot" style="background:#000;border-color:#000"></i>Made</span><span><i class="dot" style="background:#fff;border:3px solid #1565e0"></i>Missed – 2-putt hole</span><span><i class="dot" style="background:#fff;border:3px solid #e0102a"></i>Missed – 3-putt or worse</span>' +
+      '<div class="legend" id="puttlegend"><span><i class="dot" style="background:#000;border-color:#000"></i>Made (black)</span><span><i class="dot" style="background:#fff;border:3px solid #d0312d"></i>Missed (red)</span>' +
       '<span><svg width="20" height="20" viewBox="0 0 20 20" style="flex:none"><path d="M10 1 l9 9 -9 9 -9 -9z" fill="#fff" stroke="#555" stroke-width="2.5"/><text x="10" y="14.5" text-anchor="middle" font-size="11" font-weight="900" fill="#555">?</text></svg>No direction entered – right distance, spread around the hole (outline colour as above)</span>' +
       (D.group === '1' ? '<span>Rings every 1 ft out to 10 ft, then every 5 ft. The inner 10 ft is drawn bigger so short putts are easy to read; the label is the distance in ft.</span>' : '<span>Close-up: 10 ft green, a ring every 1 ft (true scale). Putts longer than 10 ft sit on the edge, labelled with › and their real distance.</span>') + '<span>Dots that would land on the same spot are nudged slightly apart.</span></div>' +
       '<h3>Make % by distance</h3><table class="dirtab" id="puttbands"><tr><th>Distance</th><th class="num">Putts</th><th class="num">Made</th><th class="num">Make %</th></tr>' + bandRows + '</table>' +
@@ -3628,7 +3682,8 @@
       case 'about': view.back = view.screen; view.screen = 'about'; render(); window.scrollTo(0, 0); return;
       case 'aboutBack': view.screen = view.back && view.back !== 'about' ? view.back : 'home'; render(); window.scrollTo(0, 0); return;
       case 'setbl': setBaseline(v); return;
-      case 'map': view.map = v; view.pinSeg = null; view.heat = null; if (v === 'prox') view.proxB = null; view.mapScope = view.mapScope || 'round'; render(); return;
+      case 'map': if (v === 'pmiss') view.pmG = b.closest('[data-stx="lag"]') ? 'lag' : view.pmG === 'lag' || view.pmG === 'all' ? null : view.pmG; // v117: the Lag tile opens the map on Over 10 ft
+        view.map = v; view.pinSeg = null; view.heat = null; if (v === 'prox') view.proxB = null; view.mapScope = view.mapScope || 'round'; render(); return;
       case 'pinseg': view.pinSeg = v || null; render(); var pv = document.getElementById('mapview'); if (pv) pv.scrollTop = 0; return;
       case 'mapclose': view.map = null; render(); return;
       case 'pinopen': view.pinOpen = true; view.menu = null; view.dirk = null; render(); return;
