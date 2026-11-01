@@ -2787,7 +2787,7 @@
     if (avgPos) h += '<g id="heatavg"><circle cx="' + f1(ax) + '" cy="' + f1(ay) + '" r="9" fill="none" stroke="#000" stroke-width="3"/><circle cx="' + f1(ax) + '" cy="' + f1(ay) + '" r="9" fill="none" stroke="#fff" stroke-width="1.2"/>' +
       '<path d="M' + f1(ax - 15) + ' ' + f1(ay) + ' h30 M' + f1(ax) + ' ' + f1(ay - 15) + ' v30" stroke="#000" stroke-width="2.4"/></g>';
     var g = document.createElementNS(NS, 'g'); g.setAttribute('id', 'heatlayer'); g.innerHTML = h; svg.appendChild(g);
-    var d1 = svg.querySelector('#d1ring'); if (d1) svg.appendChild(d1); // benchmark ring stays above the heat
+    var d1 = svg.querySelector('#d1ring'); if (d1) svg.appendChild(d1); var cr = svg.querySelector('#clubrings'); if (cr) { var tag1 = [].filter.call(g.children, function (e) { return e.querySelector && e.querySelector(':scope > rect[rx="9"]'); })[0]; if (tag1) g.insertBefore(cr, tag1); else svg.appendChild(cr); } // v119: club yardage rings above the gradient, below its tags // benchmark ring stays above the heat
     var U = yd ? ' yd' : ' ft', part = function (v, a, b) { return Math.round(Math.abs(v)) ? Math.round(Math.abs(v)) + U + ' ' + (v > 0 ? a : b) : ''; };
     var words = [part(lg, 'long', 'short'), part(lr, 'right', 'left')].filter(Boolean).join(', ');
     var sm = document.createElement('p'); sm.className = 'heatsum'; sm.id = 'heatsum';
@@ -2830,11 +2830,14 @@
     var C = 180, CY = 200, pts = list.filter(function (x) { return !x.ob && !x.tee && (x.dir || x.holed); }), mx = Math.max(10, Math.max.apply(null, pts.map(function (x) { return x.yd; }).concat([0])));
     var step = mx <= 15 ? 5 : mx <= 40 ? 10 : mx <= 80 ? 20 : 25, max = Math.ceil(mx / step) * step, K = 160 / max, G = Math.max(6, 10 * K);
     var o = '<svg id="clubmap" viewBox="0 0 360 400" role="img" aria-label="Where shots with this club finished"><rect width="360" height="400" fill="#f6f8f4"/>' +
-      '<circle cx="' + C + '" cy="' + CY + '" r="' + f1(Math.min(G, 160)) + '" fill="#e3f0dc" stroke="#c4d8bc" stroke-width="1"/>';
-    for (var f = step; f <= max; f += step) o += '<circle cx="' + C + '" cy="' + CY + '" r="' + f1(f * K) + '" fill="none" stroke="#c9d3c6" stroke-width="1" stroke-dasharray="3 3"/><text x="' + f1(C + f * K * 0.707 + 3) + '" y="' + f1(CY + f * K * 0.707 + 11) + '" font-size="10" font-weight="300" fill="#6d7a86">' + f + ' yd</text>';
+      '<circle cx="' + C + '" cy="' + CY + '" r="' + f1(Math.min(G, 160)) + '" fill="#e3f0dc" stroke="#8fae86" stroke-width="1.5"/><g id="clubrings">';
+    // v119: yardage rings readable on a phone – 1.5px green-grey, inner rings dashed, the outer ring a solid edge; labels 11.5px with a soft halo
+    for (var f = step; f <= max; f += step) o += '<circle class="cring" data-yd="' + f + '" cx="' + C + '" cy="' + CY + '" r="' + f1(f * K) + '" fill="none" stroke="#7f9a86" stroke-width="1.5"' + (f < max ? ' stroke-dasharray="5 4"' : '') + '/>';
+    for (f = step; f <= max; f += step) o += '<text class="cringl" x="' + f1(C + f * K * 0.707 + 4) + '" y="' + f1(CY + f * K * 0.707 + 13) + '" font-size="11.5" font-weight="400" fill="#3f5246" stroke="#f6f8f4" stroke-width="3" stroke-linejoin="round" paint-order="stroke">' + f + ' yd</text>';
+    o += '</g>';
     o += '<line x1="' + C + '" y1="' + CY + '" x2="' + C + '" y2="' + (CY - 24) + '" stroke="#2b3944" stroke-width="1"/><path d="M' + C + ' ' + (CY - 24) + ' l11 4 l-11 4z" fill="#c4574f"/><circle cx="' + C + '" cy="' + CY + '" r="3" fill="#2b3944"/>' +
-      '<text x="180" y="16" text-anchor="middle" font-size="11" font-weight="400" fill="#6d7a86">LONG ↑</text><text x="180" y="394" text-anchor="middle" font-size="11" font-weight="400" fill="#6d7a86">SHORT ↓ (toward you)</text>' +
-      '<text x="6" y="' + (CY - 6) + '" font-size="11" font-weight="400" fill="#6d7a86">L</text><text x="354" y="' + (CY - 6) + '" text-anchor="end" font-size="11" font-weight="400" fill="#6d7a86">R</text>';
+      '<text x="180" y="16" text-anchor="middle" font-size="11" font-weight="400" fill="#4b5866">LONG ↑</text><text x="180" y="394" text-anchor="middle" font-size="11" font-weight="400" fill="#4b5866">SHORT ↓ (toward you)</text>' +
+      '<text x="6" y="' + (CY - 6) + '" font-size="11" font-weight="400" fill="#4b5866">L</text><text x="354" y="' + (CY - 6) + '" text-anchor="end" font-size="11" font-weight="400" fill="#4b5866">R</text>';
     var seen = {};
     pts.forEach(function (x) {
       var k = x.dir + Math.round(x.yd), j = seen[k] = (seen[k] || 0) + 1, p = x.holed ? [C + (j - 1) * 8, CY] : pt(C, CY, Math.max(4, Math.min(x.yd, max) * K), SG.DIR_ANGLE[x.dir] + (j - 1) * 7);
@@ -2870,7 +2873,7 @@
     var W = 358, x0 = 18, x1 = 340, yT = 10, yB = 50, yM = 30, X = function (v) { return (x0 + (v - a0) / (a1 - a0) * (x1 - x0)).toFixed(1); }, r = Math.round;
     var o = '<svg class="clubdist" id="clubdist" viewBox="0 0 ' + W + ' 92" width="100%" role="img" aria-label="' + esc(club) + ' distances: shortest ' + r(lo) + ', 25th percentile ' + r(q1) + ', median ' + r(med) + ', 75th percentile ' + r(q3) + ', longest ' + r(hi) + ', average ' + r(mean) + ' yards">';
     for (var t = a0; t <= a1 + 1e-9; t += step) o += '<line class="cdg" x1="' + X(t) + '" y1="2" x2="' + X(t) + '" y2="' + (yB + 8) + '" stroke="#e6eaee" stroke-width="1"/><text class="cdt" x="' + X(t) + '" y="' + (yB + 21) + '" text-anchor="middle">' + t + '</text>';
-    o += '<line x1="' + x0 + '" y1="' + (yB + 8) + '" x2="' + x1 + '" y2="' + (yB + 8) + '" stroke="#d5dbe0" stroke-width="1"/>';
+    o += '<line x1="' + x0 + '" y1="' + (yB + 8) + '" x2="' + x1 + '" y2="' + (yB + 8) + '" stroke="#b9c3cc" stroke-width="1"/>';
     if (V.n === 1) o += '<line id="clubdistone" data-v="' + r(lo) + '" x1="' + X(lo) + '" y1="' + yT + '" x2="' + X(lo) + '" y2="' + yB + '" stroke="#3b82c4" stroke-width="1.5"/>';
     else o += '<line id="clubdistwl" data-v="' + r(lo) + '" x1="' + X(lo) + '" y1="' + yM + '" x2="' + X(q1) + '" y2="' + yM + '" stroke="#3b82c4" stroke-width="1"/>' +
       '<line id="clubdistwr" data-v="' + r(hi) + '" x1="' + X(q3) + '" y1="' + yM + '" x2="' + X(hi) + '" y2="' + yM + '" stroke="#3b82c4" stroke-width="1"/>' +
@@ -2899,9 +2902,9 @@
         '<text class="cfwp" id="cfwp' + g[0] + '" x="' + cx + '" y="' + (y0 + 70) + '" text-anchor="middle">' + p + '%</text>' +
         '<text class="cfwn" x="' + cx + '" y="' + (y0 + 90) + '" text-anchor="middle">' + g[4] + ' of ' + T.n + '</text>'; });
     // fairway edges + a faint centre line; the tee at the bottom
-    s += '<rect x="' + x0 + '" y="' + y0 + '" width="' + (x3 - x0) + '" height="' + (y1 - y0) + '" fill="none" stroke="#d5ddd2" stroke-width="1"/>' +
+    s += '<rect x="' + x0 + '" y="' + y0 + '" width="' + (x3 - x0) + '" height="' + (y1 - y0) + '" fill="none" stroke="#a9b8a6" stroke-width="1.25"/>' +
       '<line class="cfwedge" x1="' + x1 + '" x2="' + x1 + '" y1="' + y0 + '" y2="' + y1 + '"/><line class="cfwedge" x1="' + x2 + '" x2="' + x2 + '" y1="' + y0 + '" y2="' + y1 + '"/>' +
-      '<line x1="' + ((x1 + x2) / 2) + '" x2="' + ((x1 + x2) / 2) + '" y1="' + (y0 + 104) + '" y2="' + y1 + '" stroke="#b9cdb3" stroke-width="1" stroke-dasharray="3 4"/>' +
+      '<line x1="' + ((x1 + x2) / 2) + '" x2="' + ((x1 + x2) / 2) + '" y1="' + (y0 + 104) + '" y2="' + y1 + '" stroke="#98b38f" stroke-width="1.25" stroke-dasharray="4 4"/>' +
       '<circle cx="' + ((x1 + x2) / 2) + '" cy="' + (y1 + 14) + '" r="3" fill="#fff" stroke="#7d8b96" stroke-width="1"/><text class="cfwn" x="' + ((x1 + x2) / 2 + 9) + '" y="' + (y1 + 17.5) + '">tee</text>' +
       '<text class="cfwn" x="' + x0 + '" y="' + (H - 4) + '">' + (T.noSide ? T.noSide + ' missed with no side entered (not in left / right)' : '') + '</text>';
     return s + '</svg>';

@@ -1547,3 +1547,9 @@ html body .roundpage.holepage .srow.shead .c-n { height: auto; min-height: 0; bo
 .mapview .clubdist .cdt { font-size: 10.5px; font-weight: 300; fill: #6d7a86; }
 .mapview .clubdist .cdax { font-size: 10.5px; font-weight: 300; fill: #8a96a1; }
 .mapview .clubdistsum { margin: 2px 2px 0; text-align: center; font-variant-numeric: tabular-nums; }
+/* v119: Club performance lines readable on a phone */
+.clubfw .cfwedge { stroke: #7fa572; stroke-width: 1.5; }
+.mapview .clubdist .cdg { stroke: #dde3e8; }
+.mapview .clubdist .cdt { font-size: 11px; fill: #55636f; }
+.mapview .clubdist .cdax { font-size: 11px; fill: #6d7a86; }
+.clubfw .cfwn { fill: #5c6a76; }
