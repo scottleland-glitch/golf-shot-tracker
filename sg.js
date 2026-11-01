@@ -858,9 +858,29 @@
     });
     return o;
   }
+  // v126 Stats > Putting > Putt misses: FIRST putts only (like the SG by first-putt distance graph), in the same bands (FP_BANDS).
+  // A missed putt's direction = the direction entered on the next row ("Shot n ended…": where the putt finished vs the hole,
+  // the same 8 choices as the shot-entry screen, Short = toward you). list = puttList entries; band = 'all' or an FP_BANDS id.
+  // Returns putts, made, misses, nodir (misses with no direction – counted, not drawn), counts / pct per direction
+  // (pct = share of the misses WITH a direction, so the 8 zones add up to 100%), madePct, side (left / right / short / long totals) and top.
+  function puttMissGrid(list, band) {
+    var L = (list || []).filter(function (p) { return firstPutt(p) && Number(p.ft) > 0 && (!band || band === 'all' || puttBand(Number(p.ft)) === band); });
+    var c = {}, nodir = 0, made = 0; DIR8.forEach(function (d) { c[d] = 0; });
+    L.forEach(function (p) { if (p.made) { made++; return; } var d = normDir(p.endDir); if (d) c[d]++; else nodir++; });
+    var miss = L.length - made, withDir = miss - nodir, pct = {}, top = null;
+    DIR8.forEach(function (d) { pct[d] = withDir ? 100 * c[d] / withDir : null; if (c[d] && (!top || c[d] > c[top])) top = d; });
+    var sum = function (re) { return DIR8.filter(function (d) { return re.test(d); }).reduce(function (t, d) { return t + c[d]; }, 0); };
+    return { putts: L.length, made: made, misses: miss, nodir: nodir, withDir: withDir, counts: c, pct: pct, madePct: L.length ? 100 * made / L.length : null, top: top,
+      side: { left: sum(/left$/), right: sum(/right$/), short: sum(/^short/), long: sum(/^long/) } };
+  }
+  // v126 Stats PDF name, same family as the round reports: Golf-Stats-2026-11-01-All-rounds-Scott.pdf
+  function statsFileName(player, range, dateISO) {
+    var d = dateISO ? new Date(dateISO) : new Date(), p = function (n) { return (n < 10 ? '0' : '') + n; };
+    return ['Golf-Stats', d.getFullYear() + '-' + p(d.getMonth() + 1) + '-' + p(d.getDate()), fileWord(range), fileWord(player)].filter(Boolean).join('-') + '.pdf';
+  }
   // weighted strokes gained per entry over several rounds' buckets (null when there are none)
   function bucketAvg(list) { var n = 0, sg = 0; (list || []).forEach(function (b) { if (b && b.n) { n += b.n; sg += b.sg; } }); return n ? sg / n : null; }
-  var api = { CHIP_MAX_YD: CHIP_MAX_YD, CHIP_LIES: CHIP_LIES, CHIP_BANDS: CHIP_BANDS, FP_BANDS: FP_BANDS, puttBand: puttBand, chipLie: chipLie, chipBand: chipBand, statBuckets: statBuckets, bucketAvg: bucketAvg, PMISS_GROUPS: PMISS_GROUPS, puttsInside10: puttsInside10, trendAvg: trendAvg, lastN: lastN, PMISS_MAX_FT: PMISS_MAX_FT, LAG_INSIDE_FT: LAG_INSIDE_FT, lagPutt: lagPutt, lagGood: lagGood, lagStats: lagStats, firstPutt: firstPutt, pmissList: pmissList, lagList: lagList, pmissGroup: pmissGroup, pmissClass: pmissClass, pmissStats: pmissStats, pmissScale: pmissScale, CLUBS: CLUBS, arrivalDepth: arrivalDepth, roundEmpty: roundEmpty, foldStubs: foldStubs, pdfSafe: pdfSafe, reportFileName: reportFileName, pinSegments: pinSegments, REPORT_GROUPS: REPORT_GROUPS, reportGroup: reportGroup, SHORT_MAX_YD: SHORT_MAX_YD, SHORT_BUCKET: SHORT_BUCKET, APPR_BUCKETS: APPR_BUCKETS, apprBucket: apprBucket, proxAfterFt: proxAfterFt, puttKind: puttKind, threePutts: threePutts, puttScale: puttScale, puttRadius: puttRadius, puttPlace: puttPlace, PUTT_BANDS: PUTT_BANDS, puttGroup: puttGroup, puttStats: puttStats, makeBackup: makeBackup, parseBackup: parseBackup, mergeRounds: mergeRounds, conflictsOf: conflictsOf, PROX_LIES: PROX_LIES, lieGroup: lieGroup, proxByLie: proxByLie, proxWarnings: proxWarnings, PROX_BUCKETS: PROX_BUCKETS, inBucket: inBucket, roundYd: roundYd, proxStats: proxStats, reachedGreen: reachedGreen, PIN_GRID: PIN_GRID, PIN_NAME: PIN_NAME, normPin: normPin, DIR8: DIR8, DIR_NAME: DIR_NAME, DIR_ANGLE: DIR_ANGLE, normDir: normDir, expected: expected, expectedPGA: expectedPGA, BASELINES: BASELINES, baseline: function (id) { return BL[id] || BL.pga; },
+  var api = { puttMissGrid: puttMissGrid, statsFileName: statsFileName, CHIP_MAX_YD: CHIP_MAX_YD, CHIP_LIES: CHIP_LIES, CHIP_BANDS: CHIP_BANDS, FP_BANDS: FP_BANDS, puttBand: puttBand, chipLie: chipLie, chipBand: chipBand, statBuckets: statBuckets, bucketAvg: bucketAvg, PMISS_GROUPS: PMISS_GROUPS, puttsInside10: puttsInside10, trendAvg: trendAvg, lastN: lastN, PMISS_MAX_FT: PMISS_MAX_FT, LAG_INSIDE_FT: LAG_INSIDE_FT, lagPutt: lagPutt, lagGood: lagGood, lagStats: lagStats, firstPutt: firstPutt, pmissList: pmissList, lagList: lagList, pmissGroup: pmissGroup, pmissClass: pmissClass, pmissStats: pmissStats, pmissScale: pmissScale, CLUBS: CLUBS, arrivalDepth: arrivalDepth, roundEmpty: roundEmpty, foldStubs: foldStubs, pdfSafe: pdfSafe, reportFileName: reportFileName, pinSegments: pinSegments, REPORT_GROUPS: REPORT_GROUPS, reportGroup: reportGroup, SHORT_MAX_YD: SHORT_MAX_YD, SHORT_BUCKET: SHORT_BUCKET, APPR_BUCKETS: APPR_BUCKETS, apprBucket: apprBucket, proxAfterFt: proxAfterFt, puttKind: puttKind, threePutts: threePutts, puttScale: puttScale, puttRadius: puttRadius, puttPlace: puttPlace, PUTT_BANDS: PUTT_BANDS, puttGroup: puttGroup, puttStats: puttStats, makeBackup: makeBackup, parseBackup: parseBackup, mergeRounds: mergeRounds, conflictsOf: conflictsOf, PROX_LIES: PROX_LIES, lieGroup: lieGroup, proxByLie: proxByLie, proxWarnings: proxWarnings, PROX_BUCKETS: PROX_BUCKETS, inBucket: inBucket, roundYd: roundYd, proxStats: proxStats, reachedGreen: reachedGreen, PIN_GRID: PIN_GRID, PIN_NAME: PIN_NAME, normPin: normPin, DIR8: DIR8, DIR_NAME: DIR_NAME, DIR_ANGLE: DIR_ANGLE, normDir: normDir, expected: expected, expectedPGA: expectedPGA, BASELINES: BASELINES, baseline: function (id) { return BL[id] || BL.pga; },
     CALIB_ROUND: CALIB_ROUND, catLoss: catLoss, analyzeHole: analyzeHole, summarize: summarize,
     rowsToShots: rowsToShots, shotsToRows: shotsToRows, migrateV2Rows: migrateV2Rows, v1ToRows: v1ToRows, holeYards: holeYards,
     rowUnit: rowUnit, isHoled: isHoled, holedKind: holedKind, lieOf: lieOf, distOf: distOf, rowStrokes: rowStrokes, isPenalty: isPenalty,

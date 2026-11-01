@@ -809,3 +809,27 @@ test('v125 stats: SG by first-putt distance and by short-game lie / distance', (
   near(SG.bucketAvg([{ n: 2, sg: -0.4 }, { n: 0, sg: 0 }, null, { n: 1, sg: 0.1 }]), -0.1, 'weighted per shot'); assert.strictEqual(SG.bucketAvg([{ n: 0, sg: 0 }]), null);
   assert.strictEqual(SG.puttGroup(3) != null, true, 'the putt-map bands are untouched');
 });
+
+test('v126 putt misses: first-putt miss grid by direction and distance band; stats PDF name', () => {
+  const R = (d, l, dir) => ({ dist: d, loc: l, dir: dir || '', pen: false });
+  const holes = [
+    { par: 4, finished: true, rows: [R(380, 'tee'), R(8, 'green'), R(2, 'green', 'longright'), R(1, 'holed', 'short')] }, // 8 ft missed long right (2nd putt's miss is not a first putt)
+    { par: 4, finished: true, rows: [R(380, 'tee'), R(3, 'green'), R(1, 'holed', 'L')] },          // 3 ft missed, old letter L = left
+    { par: 3, finished: true, rows: [R(150, 'tee'), R(30, 'green'), R(4, 'holed', 'short')] },     // 30 ft missed short
+    { par: 3, finished: true, rows: [R(150, 'tee'), R(4, 'holed')] },                               // 4 ft made
+    { par: 4, finished: true, rows: [R(380, 'tee'), R(12, 'green'), R(2, 'holed')] },               // 12 ft missed, no direction
+    { par: 4, finished: true, rows: [R(380, 'tee'), R(9, 'green'), R(3, 'holed', 'longright')] }];  // 9 ft missed long right
+  const r = { holes: holes.concat(Array.from({ length: 12 }, () => ({ par: 4, rows: [R('', 'tee')] }))) };
+  const S = SG.summarize(r, 'pga'), G = SG.puttMissGrid(S.puttList, 'all');
+  assert.deepStrictEqual([G.putts, G.made, G.misses, G.nodir, G.withDir, G.top], [6, 1, 5, 1, 4, 'longright']);
+  assert.deepStrictEqual(G.counts, { longleft: 0, long: 0, longright: 2, left: 1, right: 0, shortleft: 0, short: 1, shortright: 0 });
+  near(G.pct.longright, 50, 'share of misses with a direction'); near(G.madePct, 100 / 6, 'made %');
+  assert.deepStrictEqual(G.side, { left: 1, right: 2, short: 1, long: 2 });
+  const B = SG.statBuckets(S);
+  for (const k of ['u5', 'f5', 'f10', 'o25']) { const g = SG.puttMissGrid(S.puttList, k); assert.deepStrictEqual([g.putts, g.made], [B.putt[k].n, B.putt[k].made], 'same first putts as SG by first-putt distance: ' + k); }
+  assert.deepStrictEqual(SG.puttMissGrid(S.puttList, 'f5').counts.longright, 2);
+  assert.strictEqual(SG.puttMissGrid(S.puttList, 'f10').nodir, 1);
+  assert.strictEqual(SG.puttMissGrid([], 'all').top, null);
+  assert.strictEqual(SG.statsFileName('Scott', 'All rounds', '2026-11-01T18:00:00'), 'Golf-Stats-2026-11-01-All-rounds-Scott.pdf');
+  assert.strictEqual(SG.statsFileName('', 'Last 5', '2026-11-01T18:00:00'), 'Golf-Stats-2026-11-01-Last-5.pdf');
+});

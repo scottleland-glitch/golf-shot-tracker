@@ -538,16 +538,173 @@
       });
     });
   }
+  // ---------- v126 Stats PDF: everything on the Stats page (every category, open or closed), drawn from the page's own SVG graphs ----------
+  // The page is rendered off-screen with every category and the Putt misses sub-menu open; each graph's SVG gets its on-screen CSS
+  // copied onto it (so the picture matches the page) and goes into the PDF as a crisp image, two graphs per row, never split by a page break.
+  var ST_SVG_PROPS = ['fill', 'fill-opacity', 'stroke', 'stroke-width', 'stroke-dasharray', 'stroke-opacity', 'opacity', 'font-size', 'font-weight', 'stroke-linecap', 'stroke-linejoin', 'paint-order', 'letter-spacing'];
+  function svgInline(svg) {
+    var c = svg.cloneNode(true), src = svg.querySelectorAll('*'), dst = c.querySelectorAll('*');
+    for (var i = 0; i < src.length; i++) { var cs = getComputedStyle(src[i]); dst[i].setAttribute('style', ST_SVG_PROPS.map(function (p) { return p + ':' + cs.getPropertyValue(p); }).join(';')); }
+    [].slice.call(c.querySelectorAll('.sthit, title')).forEach(function (e) { e.remove(); }); c.removeAttribute('class'); c.removeAttribute('style');
+    // 5 units of air each side so end labels (e.g. the last date) are not cut off in the picture
+    var vb = /^0 0 ([\d.]+) ([\d.]+)$/.exec(c.getAttribute('viewBox') || '');
+    if (vb) { var g = document.createElementNS('http://www.w3.org/2000/svg', 'g'); g.setAttribute('transform', 'translate(5,0)'); while (c.firstChild) g.appendChild(c.firstChild); c.appendChild(g); c.setAttribute('viewBox', '0 0 ' + (+vb[1] + 10) + ' ' + vb[2]); }
+    return c.outerHTML;
+  }
+  // the newest finished round of the rounds on the Stats page (the round in progress is not used until it is finished)
+  function stLastRound(D) { return D.all.length ? D.all[D.all.length - 1] : null; }
+  function statsPdfData() {
+    var keep = { stOpen: view.stOpen, stSel: view.stSel, stPmB: view.stPmB, pdf: view.pdf };
+    view.stOpen = { driver: true, approach: true, putting: true, chipping: true, scoring: true, pmiss: true }; view.stSel = null; view.pdf = null;
+    var box = document.createElement('div'); box.style.cssText = 'position:fixed;left:-10000px;top:0;width:390px';
+    var tx = function (e) { return e ? SG.pdfSafe(e.textContent.replace(/\s+/g, ' ')) : ''; };
+    try {
+      var D = statsData(); box.innerHTML = statsHTML(); document.body.appendChild(box);
+      var pg = box.querySelector('.statspage'), extra = document.createElement('div'); pg.appendChild(extra);
+      var last = stLastRound(D), DL = last ? { mode: 'sel', shown: [last], all: D.all, cmp: true } : null;
+      extra.innerHTML = '<div id="pdfpm">' + PM_BANDS.map(function (b) { return stPmissCard(D, b.id); }).join('') + '</div>' +
+        '<div id="pdfpar">' + (DL ? [3, 4, 5].map(function (par) { return stDist(par, DL); }).join('') : '') + '</div>';
+      var card = function (el) {
+        var t = el.querySelector('.sth > span:first-child'), v = el.querySelector('.sth .stv'), svg = el.querySelector('svg.stchart');
+        var note = [].slice.call(el.querySelectorAll('p.stnote')).map(tx).filter(Boolean).join(' ');
+        if (/^st-pm/.test(el.id) && el.id !== 'st-pmall') note = ''; // the putt-miss explanation is printed once, on the All distances grid
+        return { kind: 'card', id: el.id, title: tx(t), val: tx(v), svg: svg ? svgInline(svg) : '', lines: [].slice.call(el.querySelectorAll('p.stn, p.stfew')).map(tx).filter(Boolean), note: note };
+      };
+      var cats = [].slice.call(pg.querySelectorAll('.stcat')).map(function (sec) {
+        var c = sec.getAttribute('data-cat'), items = [];
+        [].slice.call(sec.querySelector('.stcatb').children).forEach(function (el) {
+          if (el.matches('p.stgrp')) items.push({ kind: 'label', t: tx(el) });
+          else if (el.matches('.stcard.stgraph') && !(c === 'scoring' && /^st-par\d$/.test(el.id))) items.push(card(el));
+        });
+        if (c === 'putting') { items.push({ kind: 'label', t: 'Putt misses (first putts) - all distances and each band' }); [].slice.call(extra.querySelectorAll('#pdfpm .stcard')).forEach(function (el) { items.push(card(el)); }); }
+        if (c === 'scoring') {
+          var O = D.openP && D.openP.open ? D.openP : null;
+          items.push({ kind: 'label', t: 'Par 3 / 4 / 5 scores - last round vs all rounds' });
+          items.push({ kind: 'legend', last: last ? SG.pdfSafe('Last round: ' + stDate(last.date) + ' · ' + last.course + ' · ' + last.score + ' (' + toPar(last.toPar) + ') - the newest finished round') : 'No finished round yet',
+            all: SG.pdfSafe('All rounds: ' + D.all.length + ' finished round' + (D.all.length === 1 ? '' : 's')),
+            note: O ? SG.pdfSafe('The round in progress (' + stDate(O.date) + ' · ' + O.course + ', ' + O.holes + ' holes so far) is not used until it is finished.') : '' });
+          [].slice.call(extra.querySelectorAll('#pdfpar .stcard')).forEach(function (el) { items.push(card(el)); });
+        }
+        return { id: c, name: tx(sec.querySelector('.stcath b')), sum: tx(sec.querySelector('.stcatsum')), items: items };
+      });
+      var tbl = pg.querySelector('#sttable'), rows = tbl ? [].slice.call(tbl.rows).map(function (r) { return [].slice.call(r.cells).map(tx); }) : [];
+      var mode = D.mode, rangeName = mode === 'sel' ? 'Selected round' : mode === '5' ? 'Last 5' : 'All rounds';
+      var bl = view.stBl ? blLabel(view.stBl) : 'each round’s own baseline';
+      var who = (pg.querySelector('.topbar .title span') || {}).textContent || '';
+      return { D: D, cats: cats, table: rows, tableNote: tx(pg.querySelector('#sttablecard .stnote')), shown: tx(pg.querySelector('#stshown')), range: rangeName, cmp: D.cmp,
+        baseline: SG.pdfSafe(bl), player: SG.pdfSafe(who.split(' · ').length > 1 ? who.split(' · ')[0] : ''),
+        sel: D.sel, last: last };
+    } finally { box.remove(); for (var k in keep) view[k] = keep[k]; }
+  }
+  function makeStatsReport() {
+    var R;
+    try { R = statsPdfData(); } catch (e) { return Promise.reject(e); }
+    if (!R.D.all.length) return Promise.reject(new Error('No finished rounds yet'));
+    var P = SG.pdfSafe, now = new Date(), dateTxt = now.toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' });
+    var rangeWord = R.range === 'Selected round' && R.sel ? 'Round-' + R.sel.course : R.range;
+    return loadJsPDF().then(function () {
+      var doc = new window.jspdf.jsPDF({ unit: 'pt', format: 'letter', orientation: 'portrait' }), M = 36, PW = 612, PH = 792, BOT = PH - M - 14, y;
+      doc.setProperties({ title: 'Pin High stats – ' + (R.player || '') + ' ' + R.range, author: R.player, creator: 'Pin High' });
+      var LAY = [], IMGS = [], CARDS = [], txt0 = doc.text.bind(doc);
+      doc.text = function (t, x, yy, o) {
+        var L = Array.isArray(t) ? t : [t], al = (o && o.align) || 'left', lh = doc.getFontSize() * doc.getLineHeightFactor(), pg = doc.getCurrentPageInfo().pageNumber;
+        L.forEach(function (s, k) { var w = doc.getTextWidth(String(s)), x0 = al === 'right' ? x - w : al === 'center' ? x - w / 2 : x; if (String(s).trim()) LAY.push({ p: pg, t: String(s), x0: x0, x1: x0 + w, y: yy + k * lh }); });
+        return txt0(t, x, yy, o);
+      };
+      var font = function (sz) { doc.setFont('helvetica', 'normal'); doc.setFontSize(sz); }, ink = function (g) { doc.setTextColor(g == null ? 30 : g); };
+      var T = function (t, x, yy, o) { doc.text(P(t), x, yy, o); };
+      var header = function (title) {
+        font(9); ink(110); T((R.player ? R.player + ' · ' : '') + 'Stats · ' + R.range + ' · ' + dateTxt, M, 26); T('Pin High', PW - M, 26, { align: 'right' });
+        font(16); ink(25); T(title, M, 54); doc.setDrawColor(190); doc.setLineWidth(0.6); doc.line(M, 63, PW - M, 63); doc.setDrawColor(0); ink(); return 82;
+      };
+      var wrap = function (t, w, sz) { font(sz); return doc.splitTextToSize(P(t), w); };
+      // ---- page 1: who / what / baseline, then the averages table ----
+      y = header('Stats report');
+      font(12); ink(30); T((R.player || 'Player') + ' – ' + R.range, M, y); y += 16;
+      font(9.5); ink(90);
+      [R.shown, 'Strokes gained compared with ' + R.baseline + '.', 'Compare to all rounds: ' + (R.cmp ? 'on (grey = all rounds)' : 'off') + ' · made ' + dateTxt + '.'].forEach(function (l) { wrap(l, PW - 2 * M, 9.5).forEach(function (s) { T(s, M, y); y += 12; }); });
+      y += 8; font(11.5); ink(40); T('Averages per round', M, y); y += 14;
+      // averages table: label + 1 or 2 number columns, right-aligned numbers
+      var tw = [250, 110, 110].slice(0, R.table[0] ? R.table[0].length : 2), tx0 = M, rh = 15;
+      R.table.forEach(function (row, i) {
+        if (i === 0) { doc.setFillColor(238, 241, 238); doc.roundedRect(tx0, y - 11, tw.reduce(function (a, b) { return a + b; }, 0), rh, 3, 3, 'F'); }
+        font(i === 0 ? 8.5 : 9.5); ink(i === 0 ? 85 : 30); var x = tx0;
+        row.forEach(function (c, j) { if (j === 0) T(c, x + 5, y); else T(c, x + tw[j] - 5, y, { align: 'right' }); x += tw[j]; });
+        if (i) { doc.setDrawColor(228); doc.setLineWidth(0.4); doc.line(tx0, y + 4, x, y + 4); doc.setDrawColor(0); }
+        y += rh;
+      });
+      ink(); y = (function () { var L = wrap(R.tableNote, PW - 2 * M, 7.5); ink(110); doc.text(L, M, y + 4); ink(); return y + 4 + L.length * 9.4 + 10; })();
+      // ---- the five categories, two graphs per row ----
+      var GAP = 12, CW = (PW - 2 * M - GAP) / 2, PAD = 7, chain = Promise.resolve();
+      var measure = function (c) { // height of a card at width CW (image height comes from the SVG's viewBox)
+        var m = /viewBox="0 0 ([\d.]+) ([\d.]+)"/.exec(c.svg || ''), iw = CW - 2 * PAD, ih = m ? iw * (+m[2]) / (+m[1]) : 0;
+        c.tl = wrap(c.title, iw * 0.62, 9.5); c.ll = []; c.lines.forEach(function (l) { c.ll = c.ll.concat(wrap(l, iw, 7.2)); }); c.nl = wrap(c.note, iw, 6.4); c.ih = ih; c.iw = iw;
+        return PAD + 11 * c.tl.length + 4 + ih + (ih ? 4 : 0) + c.ll.length * 9 + 3 + c.nl.length * 7.8 + PAD;
+      };
+      var newPage = function (title) { doc.addPage(); y = header(title); };
+      var drawCard = function (c, x, yy, h) {
+        doc.setDrawColor(214, 220, 226); doc.setLineWidth(0.6); doc.roundedRect(x, yy, CW, h, 6, 6, 'S'); doc.setDrawColor(0);
+        var yy2 = yy + PAD + 8; font(9.5); ink(25); doc.text(c.tl, x + PAD, yy2); font(8); ink(95); if (c.val) T(c.val, x + CW - PAD, yy2, { align: 'right' });
+        yy2 += 11 * (c.tl.length - 1) + 6; var pg = doc.getCurrentPageInfo().pageNumber, imgY = yy2;
+        CARDS.push({ p: pg, id: c.id, y0: yy, y1: yy + h, x0: x, x1: x + CW });
+        if (c.ih) { yy2 += c.ih + 4; }
+        font(7.2); ink(70); c.ll.forEach(function (l) { yy2 += 9; T(l, x + CW / 2, yy2 - 2, { align: 'center' }); });
+        yy2 += 3; font(6.4); ink(115); doc.text(c.nl, x + PAD, yy2 + 6); ink();
+        if (!c.svg) return Promise.resolve();
+        return svgToPng(c.svg, 3).then(function (im) { doc.setPage(pg); doc.addImage(im.data, 'JPEG', x + PAD, imgY, c.iw, c.ih); IMGS.push({ p: pg, id: c.id, y0: imgY, y1: imgY + c.ih }); });
+      };
+      var LEG = function (it, yy) { // last round (solid, par colours) vs all rounds (grey dashed)
+        var x = M; doc.setLineDashPattern([], 0); doc.setLineWidth(2.2); [['#1f73c9', 0], ['#2e9d4f', 8], ['#e8871e', 16]].forEach(function (q) { var v = parseInt(q[0].slice(1), 16); doc.setDrawColor((v >> 16) & 255, (v >> 8) & 255, v & 255); doc.line(x + q[1], yy - 3, x + q[1] + 7, yy - 3); });
+        font(8.5); ink(40); T(it.last + ' (solid, par colour)', x + 30, yy);
+        doc.setDrawColor(151, 163, 174); doc.setLineWidth(1.4); doc.setLineDashPattern([4, 3], 0); doc.line(x, yy + 11, x + 23, yy + 11); doc.setLineDashPattern([], 0); doc.setDrawColor(0);
+        T(it.all + ' (grey dashed)', x + 30, yy + 14); var h = 28;
+        if (it.note) { font(7.5); ink(110); var L = wrap(it.note, PW - 2 * M, 7.5); doc.text(L, x, yy + 27); h += L.length * 9.5; } ink();
+        return h + 4;
+      };
+      // group each category into blocks (a label, the legend, or a row of up to 2 graphs) so headings and labels never sit alone at a page bottom
+      var LEGH = function (it) { return 32 + (it.note ? wrap(it.note, PW - 2 * M, 7.5).length * 9.5 : 0); };
+      R.cats.forEach(function (cat) {
+        var B = [], row = null;
+        cat.items.forEach(function (it) {
+          if (it.kind === 'card') { it.h = measure(it); if (!row || row.c.length === 2) { row = { kind: 'row', c: [] }; B.push(row); } row.c.push(it); row.h = Math.max(row.h || 0, it.h); return; }
+          row = null; B.push(it.kind === 'label' ? { kind: 'label', t: it.t, h: 16 } : { kind: 'legend', it: it, h: LEGH(it) + 4 });
+        });
+        for (var i = B.length - 1; i >= 0; i--) B[i].need = (B[i].kind === 'row' ? B[i].h + 10 : B[i].h + (B[i + 1] ? B[i + 1].need : 0));
+        chain = chain.then(function () {
+          if (y + 20 + (B[0] ? B[0].need : 0) > BOT) newPage(cat.name);
+          doc.setFillColor(243, 240, 250); doc.roundedRect(M, y - 13, PW - 2 * M, 20, 4, 4, 'F'); font(12.5); ink(30); T(cat.name, M + 8, y + 1); font(9); ink(90); T(cat.sum, PW - M - 8, y + 1, { align: 'right' }); ink(); y += 20;
+          var q = Promise.resolve();
+          B.forEach(function (b) {
+            q = q.then(function () {
+              if (y + b.need > BOT) newPage(cat.name + ' (continued)');
+              if (b.kind === 'label') { font(8.5); ink(80); T(String(b.t).toUpperCase(), M + 2, y + 6); ink(); y += 16; return; }
+              if (b.kind === 'legend') { y += LEG(b.it, y + 6); return; }
+              var yy = y; y += b.h + 10; return Promise.all(b.c.map(function (c, k) { return drawCard(c, M + k * (CW + GAP), yy, b.h); }));
+            });
+          });
+          return q.then(function () { y += 6; });
+        });
+      });
+      return chain.then(function () {
+        var n = doc.getNumberOfPages();
+        for (var i = 1; i <= n; i++) { doc.setPage(i); font(8); doc.setTextColor(130); T('Page ' + i + ' of ' + n, PW - M, PH - 18, { align: 'right' }); doc.setTextColor(0); }
+        return { kind: 'stats', blob: new Blob([doc.output('arraybuffer')], { type: 'application/pdf' }), pages: n, name: SG.statsFileName(R.player, rangeWord, now.toISOString()),
+          layout: { PW: PW, PH: PH, M: M, BOT: BOT, text: LAY, images: IMGS, cards: CARDS }, cats: R.cats.map(function (c) { return { id: c.id, items: c.items.map(function (i) { return i.kind === 'card' ? i.id : i.kind; }) }; }), last: R.last && R.last.id };
+      });
+    });
+  }
   function pinDataRound() { var keep = view.mapScope; view.mapScope = 'round'; var D = pinData(); view.mapScope = keep; return D.holes; }
   function pdfHTML() {
     var p = view.pdf; if (!p) return '';
-    if (p.busy) return '<div class="pdfsheet" id="pdfsheet" role="status"><b>Making your PDF report…</b><p class="help muted">Drawing the maps – this takes a few seconds.</p></div>';
+    if (p.busy) return '<div class="pdfsheet" id="pdfsheet" role="status"><b>Making your PDF report…</b><p class="help muted">Drawing the ' + (p.kind === 'stats' ? 'graphs' : 'maps') + ' – this takes a few seconds.</p></div>';
     if (p.error) return '<div class="pdfsheet" id="pdfsheet"><p class="notice bad">' + esc(p.error) + '</p><button class="big" data-act="pdfclose">Close</button></div>';
     return '<div class="pdfsheet" id="pdfsheet"><b>📄 PDF report ready</b><p class="help" id="pdfname">' + esc(p.name) + ' · ' + p.pages + ' pages</p>' +
       '<button class="primary big" data-act="pdfshare">Share / Save to Files</button>' +
       '<button class="txt" data-act="pdfclose">Close</button></div>';
   }
   function pdfAct(act) {
+    if (act === 'stpdf') { view.pdf = { busy: true, kind: 'stats' }; render(); window.scrollTo(0, 0); // v126 Stats PDF
+      makeStatsReport().then(function (o) { view.pdf = o; window.__golf.lastPdf = o; render(); }, function (e) { view.pdf = { error: 'Could not make the PDF: ' + (e && e.message) }; render(); }); return; }
     if (act === 'pdf') { view.pdf = { busy: true }; render();
       makeReport().then(function (o) { view.pdf = o; window.__golf.lastPdf = o; render(); }, function (e) { view.pdf = { error: 'Could not make the PDF: ' + (e && e.message) }; render(); }); return; }
     var p = view.pdf; if (!p || !p.blob) return;
@@ -638,6 +795,7 @@
       ppg: girH.length ? girH.reduce(function (t, a) { return t + a.putts; }, 0) / girH.length : null, dist: dist, parN: parN,
       // v125: SG by first-putt distance / short-game lie and distance (SG.statBuckets), drives for the box chart, approach proximity
       b: SG.statBuckets(S), drv: S.teeMap.filter(function (m) { return !m.layup && m.kind !== 'ob' && !m.pen && m.hit != null && isFinite(m.hit) && m.hit > 0; }).map(function (m) { return { hit: Number(m.hit), club: m.club || '' }; }),
+      fp: S.puttList.filter(SG.firstPutt).map(function (p) { return { n: 1, ft: p.ft, made: p.made, endDir: p.endDir || '' }; }), // v126 putt misses
       prox: stProx(S.proxList), proxN: S.proxList.filter(function (m) { return m.proxFt != null && SG.inBucket('all', m.from); }).length,
       unf: S.holesDone < r.holes.length };
   }
@@ -790,11 +948,72 @@
     else if (D.mode === 'all') b += '<p class="stnote stparhint" id="stparhint">To lay one round over all rounds, tap the button above or pick Selected round and turn on Compare.</p>';
     return b;
   }
+  // ---------- v126 Putt misses (Stats > Putting, a collapsed sub-menu at the bottom) ----------
+  // A top-down 3 x 3 grid around the hole: the 8 directions of the shot screen's "Shot n ended…" picker (Long = past the hole at the top,
+  // Short = toward you at the bottom) and the hole in the middle. First putts only, in the SG by first-putt distance bands (SG.FP_BANDS).
+  var PM_BANDS = [{ id: 'all', name: 'All distances', chip: 'All' }].concat(SG.FP_BANDS.map(function (b) { return { id: b.id, name: b.name, chip: b.name }; }));
+  function stPmList(L) { var o = []; L.forEach(function (p) { (p.fp || []).forEach(function (x) { o.push(x); }); }); return o; }
+  function stPmLabel(d) { return d ? SG.DIR_NAME[d] : ''; }
+  // id = svg id; G = SG.puttMissGrid of the rounds shown; Z = the same for all rounds (Compare) or null
+  function stPmissSVG(id, G, Z) {
+    var W = 358, cs = 92, x0 = (W - cs * 3) / 2, y0 = 22, H = y0 + cs * 3 + 24, topBox = ''; // v126: plain white boxes, count + % only
+    var o = '<svg class="stchart stpmgrid" id="' + id + '" viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="' + esc('Putt misses: ' + SG.DIR8.map(function (d) { return SG.DIR_NAME[d] + ' ' + G.counts[d]; }).join(', ') + '; made ' + G.made + ' of ' + G.putts) + '">' +
+      '<text class="stpmedge" x="' + W / 2 + '" y="14" text-anchor="middle">LONG · past the hole</text>' +
+      '<text class="stpmedge" x="' + W / 2 + '" y="' + (H - 6) + '" text-anchor="middle">SHORT · toward you</text>' +
+      '<defs><clipPath id="' + id + 'clip"><rect x="' + x0 + '" y="' + y0 + '" width="' + cs * 3 + '" height="' + cs * 3 + '" rx="14"/></clipPath></defs>' +
+      '<rect class="stpmgreen" x="' + x0 + '" y="' + y0 + '" width="' + cs * 3 + '" height="' + cs * 3 + '" rx="14"/>';
+    var GRID = [['longleft', 'long', 'longright'], ['left', '', 'right'], ['shortleft', 'short', 'shortright']];
+    GRID.forEach(function (row, ri) { row.forEach(function (d, ci) {
+      var x = x0 + ci * cs, y = y0 + ri * cs, cx = x + cs / 2;
+      if (!d) { // the hole: putts holed
+        o += '<rect class="stpmmade" x="' + (x + 1.5) + '" y="' + (y + 1.5) + '" width="' + (cs - 3) + '" height="' + (cs - 3) + '" rx="3" style="fill:#5cb85c;stroke:#2e7d32;stroke-width:1.5"/>' +
+          '<g class="stpmhole" id="' + id + '-made"><circle cx="' + cx + '" cy="' + (y + 30) + '" r="9" fill="#14202b" stroke="#fff" stroke-width="2"/>' +
+          '<text class="stpmn" x="' + cx + '" y="' + (y + 62) + '" text-anchor="middle">' + G.made + ' made</text>' +
+          '<text class="stpmp" x="' + cx + '" y="' + (y + 77) + '" text-anchor="middle">' + (G.madePct == null ? '–' : Math.round(G.madePct) + '%') + (Z && Z.madePct != null ? ' · all ' + Math.round(Z.madePct) + '%' : '') + '</text></g>'; return; }
+      var n = G.counts[d], pc = G.pct[d], top = d === G.top;
+      if (top) topBox = '<rect class="stpmtop" x="' + (x + 1.5) + '" y="' + (y + 1.5) + '" width="' + (cs - 3) + '" height="' + (cs - 3) + '" rx="3" style="fill:none;stroke:#8a1c24;stroke-width:2"/>';
+      o += '<g class="stpmz"><rect class="stpmcell' + (top ? ' top' : '') + '" data-dir="' + d + '" data-n="' + n + '" x="' + (x + 0.5) + '" y="' + (y + 0.5) + '" width="' + (cs - 1) + '" height="' + (cs - 1) + '" clip-path="url(#' + id + 'clip)" style="fill:#fff"/>' +
+        '<text class="stpmname" x="' + cx + '" y="' + (y + 17) + '" text-anchor="middle">' + SG.DIR_NAME[d] + '</text>' +
+        '<text class="stpmn' + (n ? '' : ' zero') + '" id="' + id + '-' + d + '" x="' + cx + '" y="' + (y + 50) + '" text-anchor="middle">' + n + '</text>' +
+        '<text class="stpmp" id="' + id + '-' + d + 'p" x="' + cx + '" y="' + (y + 68) + '" text-anchor="middle">' + (pc == null ? '–' : Math.round(pc) + '%') + '</text>' +
+        (Z ? '<text class="stpmall" x="' + cx + '" y="' + (y + 83) + '" text-anchor="middle">all ' + (Z.pct[d] == null ? '–' : Math.round(Z.pct[d]) + '%') + '</text>' : '') + '</g>';
+    }); });
+    for (var i = 1; i < 3; i++) o += '<line class="stpmline" x1="' + (x0 + cs * i) + '" y1="' + y0 + '" x2="' + (x0 + cs * i) + '" y2="' + (y0 + cs * 3) + '"/><line class="stpmline" x1="' + x0 + '" y1="' + (y0 + cs * i) + '" x2="' + (x0 + cs * 3) + '" y2="' + (y0 + cs * i) + '"/>';
+    return o + topBox + '<rect class="stpmedgebox" x="' + x0 + '" y="' + y0 + '" width="' + cs * 3 + '" height="' + cs * 3 + '" rx="14"/></svg>';
+  }
+  function stPmStats(G) {
+    if (!G.putts) return 'No first putts here yet.';
+    return 'n = ' + G.putts + ' first putt' + (G.putts === 1 ? '' : 's') + ' · ' + G.made + ' made (' + Math.round(G.madePct) + '%) · ' + G.misses + ' missed' +
+      (G.top ? ' · most common miss: ' + SG.DIR_NAME[G.top] + ' (' + Math.round(G.pct[G.top]) + '%)' : '');
+  }
+  function stPmSides(G) { var S = G.side; return G.withDir ? 'Left ' + S.left + ' · right ' + S.right + ' · short ' + S.short + ' · long ' + S.long + ' (corners count on both sides)' : ''; }
+  // one card for one band (also used by the PDF for All + every band)
+  function stPmissCard(D, band) {
+    var B = PM_BANDS.filter(function (b) { return b.id === band; })[0] || PM_BANDS[0], G = SG.puttMissGrid(stPmList(D.shown), B.id), Z = D.cmp ? SG.puttMissGrid(stPmList(D.all), B.id) : null;
+    var who = D.mode === 'sel' ? 'this round' : D.mode === '5' ? 'the last 5 rounds' : 'all rounds', id = 'pm' + B.id;
+    return '<div class="stcard stgraph stpmcard" id="st-' + id + '" data-band="' + B.id + '"><div class="sth"><span>Putt misses · ' + esc(B.name) + '</span><span class="stv" id="' + id + 'val">Made <em>' + (G.madePct == null ? '–' : Math.round(G.madePct) + '%') + '</em>' +
+      (Z ? ' · all <em>' + (Z.madePct == null ? '–' : Math.round(Z.madePct) + '%') + '</em>' : '') + '</span></div>' +
+      (G.putts ? stPmissSVG(id + 'grid', G, Z) : '<p class="stfew" id="' + id + 'none">No first putts ' + (B.id === 'all' ? '' : B.name.toLowerCase() + ' ') + 'in ' + who + ' yet.</p>') +
+      '<p class="stn" id="' + id + 'n">' + stPmStats(G) + '</p>' + (stPmSides(G) ? '<p class="stn stpmsides" id="' + id + 'sides">' + stPmSides(G) + '</p>' : '') +
+      '<p class="stn stpmnodir" id="' + id + 'nodir">No direction: ' + G.nodir + ' miss' + (G.nodir === 1 ? '' : 'es') + ' (not drawn)' + (Z ? ' · all rounds: ' + Z.putts + ' first putts' : '') + '</p>' +
+      '<p class="help stnote stpmhelp" id="' + id + 'help">First putts only (the first putt on each finished hole), in the same distance bands as Strokes gained by first-putt distance (under 5 ft, 5–10, 10–25, over 25 ft). ' +
+      'Direction = what was entered for where the putt finished vs the hole – the 8 choices on the shot screen (Long = past the hole, Short = toward you). Each box: misses that finished there and their share of the misses with a direction. Middle: putts holed. ' +
+      'Misses with no direction are counted, not drawn. Shows ' + who + (Z ? '; grey “all” = the share over all rounds' : '') + '.</p></div>';
+  }
+  function stPmissSub(D) {
+    var on = !!(view.stOpen || {}).pmiss, band = view.stPmB || 'all', G = SG.puttMissGrid(stPmList(D.shown), 'all');
+    var sum = G.putts ? G.misses + ' missed' + (G.top ? ' · most ' + SG.DIR_NAME[G.top] : '') : '–';
+    return '<section class="stsubcat' + (on ? ' open' : '') + '" id="stpm"><button class="stsubh" data-act="stcat" data-v="pmiss" aria-expanded="' + on + '" aria-controls="stpmb">' +
+      '<b>Putt misses</b><span class="stcatsum" id="stpmsum">' + sum + '</span><i class="stcatc" aria-hidden="true"></i></button>' +
+      '<div class="stsubb" id="stpmb"' + (on ? '' : ' hidden') + '>' + (on ? '<div class="stpmchips" id="stpmchips" role="group" aria-label="First-putt distance">' + PM_BANDS.map(function (b) {
+        var s = b.id === band; return '<button class="stpmchip' + (s ? ' sel' : '') + '" data-act="stpmb" data-v="' + b.id + '" aria-pressed="' + s + '">' + esc(b.chip) + '</button>'; }).join('') + '</div>' + stPmissCard(D, band) : '') + '</div></section>';
+  }
   function statsHTML() {
     var I = statsPlayerInfo(), D = statsData(), all = D.all, shown = D.shown, mode = D.mode;
     var who = view.stPlayer === '~none' ? 'No name' : view.stPlayer || (I.multi ? 'All players' : (all[0] && (rounds.filter(function (r) { return r.id === all[0].id; })[0] || {}).player) || playerName() || '');
     var h = '<div class="frostpage theme-sky statspage" id="statspage"><div class="topbar frost"><button class="txt frostbtn" data-act="home">‹ Home</button><div class="title"><b>Stats</b><span>' +
-      (who ? esc(who) + ' · ' : '') + all.length + ' round' + (all.length === 1 ? '' : 's') + '</span></div><span class="tbspace"></span></div>';
+      (who ? esc(who) + ' · ' : '') + all.length + ' round' + (all.length === 1 ? '' : 's') + '</span></div>' +
+      (all.length ? '<button class="txt frostbtn stpdfbtn" id="stpdf" data-act="stpdf" aria-label="Create PDF of these stats">Create PDF</button>' : '<span class="tbspace"></span>') + '</div>' + (view.pdf ? '<div class="stpdfrow">' + pdfHTML() + '</div>' : '');
     if (I.multi) h += '<div class="hchips" id="stchips" role="group" aria-label="Player">' + [''].concat(I.names).map(function (nm) {
         var s = (view.stPlayer || '') === nm; return '<button class="frostchip' + (s ? ' sel' : '') + '" data-act="stplayer" data-v="' + esc(nm) + '" aria-pressed="' + s + '">' + (nm ? esc(nm) : 'All players') + '</button>'; }).join('') +
       (I.noName ? '<button class="frostchip' + (view.stPlayer === '~none' ? ' sel' : '') + '" data-act="stplayer" data-v="~none">No name</button>' : '') + '</div>';
@@ -828,7 +1047,8 @@
       ['putting', 'Putting', function () { var pc = ['#7c4dcc', '#9466e0', '#6a3fb5', '#5a2f9e'], hp = ' Strokes gained per hole from that first-putt distance (every putt on the hole counts).';
         return sgT('putt') + SG.FP_BANDS.map(function (b, i) { return bT('pt' + b.id, 'putt', b.id, '1st putt ' + b.name.replace(/^Under/, 'under').replace(/^Over/, 'over'), b.name, pc[i], 'Holes whose first putt was ' + b.name.toLowerCase() + '.' + hp, 'putts'); }).join('') +
           stTrend('ptmade5', D, function (p) { var b = p.b.putt.u5; return b.n ? 100 * b.made / b.n : null; }, { title: '1st putts made under 5 ft', short: 'Made under 5 ft', color: '#7c4dcc', pct: true, unit: 'putts',
-            help: 'Of the first putts that started under 5 ft, the share holed.', avg: function (L) { var n = 0, m = 0; L.forEach(function (p) { n += p.b.putt.u5.n; m += p.b.putt.u5.made; }); return n ? 100 * m / n : null; }, nOf: function (p) { return p.b.putt.u5.n; } }); },
+            help: 'Of the first putts that started under 5 ft, the share holed.', avg: function (L) { var n = 0, m = 0; L.forEach(function (p) { n += p.b.putt.u5.n; m += p.b.putt.u5.made; }); return n ? 100 * m / n : null; }, nOf: function (p) { return p.b.putt.u5.n; } }) +
+          stPmissSub(D); },
         [['PUTT', function (p) { return p.sg.putt; }]]],
       ['chipping', 'Chipping', function () { var lc = { sand: '#d4a017', rough: '#3f8f3a', fairway: '#6cbf43' }, dc = ['#f0a040', '#e8871e', '#c96a0e'],
           hc = ' Strokes gained per shot. The Around the green shots: off the green from ' + SG.SHORT_MAX_YD + ' yd and in – the same shots as the ARG total.';
@@ -3931,7 +4151,7 @@
       case 'namecancel': view.nameSheet = null; render(); return;
       case 'history': view.hmenu = null; view.mv = null; view.screen = 'history'; view.notice = null; render(); window.scrollTo(0, 0); return;
       case 'backup': backupRounds(); return;
-      case 'pdf': case 'pdfshare': pdfAct(act); return;
+      case 'pdf': case 'pdfshare': case 'stpdf': pdfAct(act); return;
       case 'info': { infoOpen[v] = !infoOpen[v]; var t = b && document.getElementById(b.getAttribute('aria-controls'));
         [].slice.call(document.querySelectorAll('[data-act="info"]')).forEach(function (x) { if (x.getAttribute('data-v') === v) x.setAttribute('aria-expanded', !!infoOpen[v]); }); // icon + its label
         if (t) t.hidden = !infoOpen[v]; return; }
@@ -3958,12 +4178,13 @@
       case 'editname': view.editName = true; render(); var pi = document.getElementById('pname'); if (pi) pi.focus(); return;
       case 'cancelname': view.editName = false; view.needName = null; render(); return;
       case 'histplayer': view.histPlayer = v || null; render(); return;
-      case 'stats': view.hmenu = null; view.screen = 'stats'; view.stSel = null; view.stPlayer = undefined; view.stOpen = {}; render(); window.scrollTo(0, 0); return; // v110
+      case 'stats': view.hmenu = null; view.screen = 'stats'; view.stSel = null; view.stPlayer = undefined; view.stOpen = {}; view.stPmB = 'all'; view.pdf = null; render(); window.scrollTo(0, 0); return; // v110
       case 'stplayer': view.stPlayer = v || null; view.histPlayer = view.stPlayer; view.stSel = null; render(); return;
       case 'strange': view.stMode = v || 'all'; view.stSel = null; render(); return; // v116: all | 5 | sel
       case 'stround': view.stMode = 'sel'; view.stRid = b.getAttribute('data-id'); view.stSel = null; render(); return;
       case 'stcmp': view.stCmp = !view.stCmp; view.stSel = null; render(); return;
-      case 'stcat': (view.stOpen = view.stOpen || {})[v] = !view.stOpen[v]; render(); return; // v125: open / close a category
+      case 'stcat': (view.stOpen = view.stOpen || {})[v] = !view.stOpen[v]; render(); return; // v125: open / close a category (v126: also the Putt misses sub-menu, v = 'pmiss')
+      case 'stpmb': view.stPmB = v || 'all'; render(); return; // v126: Putt misses distance chip
       case 'stcur': var oD = statsData(); if (!oD.openP) return; view.stMode = 'sel'; view.stRid = oD.openP.id; view.stCmp = true; view.stSel = null; (view.stOpen = view.stOpen || {}).scoring = true; render();
         var sc2 = document.getElementById('stcat-scoring'); if (sc2) window.scrollTo(0, window.scrollY + sc2.getBoundingClientRect().top - 8); return;
       case 'stpt': var sc = b.getAttribute('data-c'), si = +b.getAttribute('data-i'); view.stSel = view.stSel && view.stSel.c === sc && view.stSel.i === si ? null : { c: sc, i: si }; render(); return;

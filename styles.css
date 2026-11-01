@@ -1852,7 +1852,7 @@ html body .roundpage.holepage .srow.shead .c-n { height: auto; min-height: 0; bo
 .statspage .stcatsum { flex: 1; min-width: 0; text-align: right; font-size: 12px; font-weight: 300; color: #6a7783; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .statspage .stcatsum em { font-style: normal; font-weight: 400; color: #23313d; }
 .statspage .stcatc { flex: none; width: 8px; height: 8px; margin: 0 2px 3px 4px; border-right: 1.6px solid #6a7783; border-bottom: 1.6px solid #6a7783; transform: rotate(45deg); transition: transform .15s; }
-.statspage .stcat.open .stcatc { transform: rotate(-135deg); margin-bottom: -3px; }
+.statspage .stcat.open > .stcath .stcatc, .statspage .stsubcat.open > .stsubh .stcatc { transform: rotate(-135deg); margin-bottom: -3px; }
 .statspage .stcatb { padding: 0 6px 6px; border-top: 1px solid rgba(23, 48, 31, .07); }
 .statspage .stcatb[hidden] { display: none; }
 .statspage .stcatb > .stcard { margin-top: 6px; }
@@ -1871,3 +1871,35 @@ html body .roundpage.holepage .srow.shead .c-n { height: auto; min-height: 0; bo
 .statspage .sty, .statspage .stx { font-weight: 400; fill: #5f6c78; }
 .statspage .stline { stroke-width: 2.2; }
 .statspage .stgraph .sth > span:first-child { font-weight: 500; }
+/* v126: Stats > Putting > Putt misses – a collapsed sub-menu at the bottom of Putting (same chevron), distance chips, the grid around the hole */
+.statspage .stsubcat { margin: 8px 0 0; border-radius: 14px; background: rgba(255, 255, 255, .7); border: 1px solid rgba(23, 48, 31, .1); overflow: hidden; }
+.statspage .stsubcat.open { background: rgba(255, 255, 255, .85); }
+.statspage .stsubh { display: flex; align-items: center; gap: 8px; width: 100%; min-height: 44px; margin: 0; padding: 0 10px; border: 0; border-radius: 0; background: transparent; box-shadow: none;
+  text-align: left; font-size: 14px !important; font-weight: 400 !important; color: #23313d; transform: none; }
+.statspage .stsubh b { flex: none; font-weight: 500; color: #1f2d38; }
+.statspage .stsubb { padding: 0 4px 4px; border-top: 1px solid rgba(23, 48, 31, .08); }
+.statspage .stsubb[hidden] { display: none; }
+.statspage .stsubb > .stcard { margin: 6px 0 0; }
+.statspage .stpmchips { display: flex; flex-wrap: wrap; gap: 4px; margin: 8px 2px 0; }
+.statspage .stpmchip { min-height: 32px; padding: 0 10px; border-radius: 999px; border: 1px solid rgba(23, 48, 31, .14); background: #fff; box-shadow: none; transform: none;
+  font-size: 12px !important; font-weight: 400 !important; color: #33424f; }
+.statspage .stpmchip.sel { background: #3b82c4; border-color: #2f6ea8; color: #fff; }
+.statspage .stpmgreen { fill: #fff; }
+.statspage .stpmedgebox { fill: none; stroke: #aab4bd; stroke-width: 1; }
+.statspage .stpmline { stroke: #d3d9de; stroke-width: 1; }
+.statspage .stpmedge { font-size: 10px; font-weight: 500; letter-spacing: .06em; fill: #5f6c78; }
+.statspage .stpmname { font-size: 10px; font-weight: 400; fill: #5f6c78; }
+.statspage .stpmn { font-size: 16px; font-weight: 600; fill: #23313d; }
+.statspage .stpmn.zero { fill: #a3adb6; font-weight: 400; }
+.statspage .stpmhole .stpmn { font-size: 12px; font-weight: 500; }
+.statspage .stpmp { font-size: 11px; font-weight: 500; fill: #4a5763; }
+.statspage .stpmall { font-size: 9.5px; font-weight: 400; fill: #8f9aa5; }
+.statspage .stpmnodir { color: #7b8792; font-weight: 300; }
+.statspage .stpmcard .infowrap, .statspage .stpdfrow .infowrap { font-size: 12px; font-weight: 400; color: #55636f; }
+
+/* v126 Stats PDF button + sheet */
+.statspage .stpdfbtn { font-size: 13px; font-weight: 600; padding: 7px 11px; color: #5a2f9e; white-space: nowrap; }
+.statspage .stpdfrow { margin: 6px 12px 10px; }
+.statspage .stpdfrow .pdfsheet { margin: 0; }
+/* v126 putt-miss grid: plain white boxes; white text only on the green made box */
+.statspage .stpmhole .stpmn, .statspage .stpmhole .stpmp { fill: #fff; }
