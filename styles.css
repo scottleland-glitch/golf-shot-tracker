@@ -1553,3 +1553,80 @@ html body .roundpage.holepage .srow.shead .c-n { height: auto; min-height: 0; bo
 .mapview .clubdist .cdt { font-size: 11px; fill: #55636f; }
 .mapview .clubdist .cdax { font-size: 11px; fill: #6d7a86; }
 .clubfw .cfwn { fill: #5c6a76; }
+/* v121: Proximity page – same small, light look as Club performance (.mapview.proxview only; the round-page maps and Compare keep their look) */
+.mapview.proxview .proxsum { margin-top: 8px; }
+.mapview.proxview .proxsum .infobtn, .mapview.proxview .proxleg .infobtn { min-height: 32px; min-width: 32px; margin: -6px 0 -6px 2px; vertical-align: middle; }
+.mapview.proxview .proxsum .infobtn span, .mapview.proxview .proxleg .infobtn span { width: 18px; height: 18px; font: italic 400 11px/17px Georgia, serif; border-color: #b3bdc6; color: #5c6a76; }
+.mapview.proxview .proxsum .infobtn[aria-expanded="true"] span, .mapview.proxview .proxleg .infobtn[aria-expanded="true"] span { background: #5c6a76; color: #fff; }
+.mapview .tippop[id^="tip-prox"] { margin: 4px 0 8px; padding: 8px 10px; font-size: 12px; font-weight: 300; line-height: 1.45; color: #3f4e5b; background: rgba(246, 248, 250, .95); border: 1px solid rgba(23, 48, 31, .08); border-radius: 12px; }
+.mapview .tippop[id^="tip-prox"] b { font-weight: 500 !important; }
+.mapview .tippop[id^="tip-prox"] p { margin: 8px 0 0; }
+.mapview .tippop[id^="tip-prox"] .legend { display: flex; flex-direction: column; align-items: flex-start; gap: 5px; margin: 0; font-size: 12px; font-weight: 300; }
+.mapview .tippop[id^="tip-prox"] .legend span { display: flex; align-items: flex-start; gap: 6px; }
+.mapview .tippop[id^="tip-prox"] .legend .sw { flex: none; width: 14px; height: 10px; margin-top: 3px; border-radius: 3px; }
+.mapview.proxview .proxnote { margin: 2px 2px 0; font-size: 11.5px; font-weight: 300; color: #6d7a86; }
+/* four small tiles in one row */
+.mapview.proxview .proxqv { grid-template-columns: repeat(4, 1fr); gap: 5px; margin: 8px 0 6px; }
+.mapview.proxview .proxqv .qv { padding: 7px 2px 6px; border-radius: 12px; background: rgba(255, 255, 255, .8); border: 1px solid rgba(23, 48, 31, .08); }
+.mapview.proxview .proxqv .qvl { font-size: 11px; letter-spacing: 0; }
+.mapview.proxview .proxqv b { font-size: 17px !important; font-weight: 300 !important; line-height: 1.2; color: #23313d; white-space: nowrap; }
+.mapview.proxview .proxqv small { font-size: 10.5px; }
+.mapview.proxview .clubh3 { margin: 10px 2px 2px; }
+.mapview.proxview .proxlbl { margin: 8px 2px 0; font-size: 11.5px; font-weight: 300; color: #6d7a86; }
+/* distance and lie chips: 6 across, thin borders, pale blue when picked */
+.mapview.proxview .proxrail { display: grid; grid-template-columns: repeat(6, 1fr); gap: 4px; flex: none; margin: 4px 0 0; }
+.mapview.proxview .proxrail button, .mapview.proxview .liechips .liebtn { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 0; min-height: 34px !important; height: auto; margin: 0; padding: 2px 2px;
+  border: 1px solid rgba(23, 48, 31, .1) !important; border-radius: 8px; background: #fff !important; color: #23313d !important; box-shadow: none !important; font-size: 12.5px !important; font-weight: 300 !important; line-height: 1.15; width: auto; }
+.mapview.proxview .proxrail button b { font-size: 12.5px !important; font-weight: 400 !important; }
+.mapview.proxview .proxrail button small, .mapview.proxview .liechips .liebtn small { font-size: 10px !important; font-weight: 300 !important; color: #8a96a1 !important; }
+.mapview.proxview .proxrail button.sel, .mapview.proxview .liechips .liebtn.sel { border-color: #3b82c4 !important; background: rgba(59, 130, 196, .08) !important; color: #23313d !important; box-shadow: none !important; }
+.mapview.proxview .proxrail button.sel small, .mapview.proxview .liechips .liebtn.sel small { color: #3b6f9e !important; }
+.mapview.proxview .proxrail button:disabled, .mapview.proxview .liechips .liebtn:disabled { background: #f6f8f9 !important; border-color: rgba(23, 48, 31, .05) !important; color: #b7c0c8 !important; }
+.mapview.proxview .proxrail button:disabled small, .mapview.proxview .liechips .liebtn:disabled small { color: #c5ccd2 !important; }
+.mapview.proxview .liechips { display: grid; grid-template-columns: repeat(6, 1fr); gap: 4px; margin: 3px 0 8px; }
+.mapview.proxview .liechips .liebtn { flex: none; }
+.mapview.proxview #proxwarn .warnmsg { margin: 4px 0; padding: 6px 10px; font-size: 12.5px !important; font-weight: 300 !important; border-width: 1px; border-radius: 10px; }
+.mapview.proxview .proxwrap { display: block; margin-top: 2px; }
+.mapview.proxview .proxwrap svg { display: block; width: 100%; height: auto; border-radius: 14px; border: 1px solid rgba(23, 48, 31, .08); }
+.mapview.proxview .proxleg { display: flex; flex-wrap: wrap; align-items: center; gap: 2px 12px; margin: 6px 2px 0; font-size: 11.5px; font-weight: 300; color: #5c6a76; }
+.mapview.proxview .proxleg span { display: inline-flex; align-items: center; gap: 4px; }
+.mapview.proxview .proxleg .infobtn { margin-left: auto; }
+.mapview.proxview .legend .ln.dash { width: 16px; height: 0; border-top: 1.5px dashed #d64552; background: none; }
+.mapview.proxview .dirtab { font-size: 12.5px; font-weight: 300; }
+.mapview.proxview .dirtab td, .mapview.proxview .dirtab th { font-size: 12.5px; padding: 5px 4px; border-bottom: 1px solid #edf0f2; font-weight: 300 !important; }
+.mapview.proxview .dirtab th { font-weight: 400 !important; color: #6d7a86; font-size: 11.5px; }
+.mapview.proxview .lietab tr.sel td { background: rgba(59, 130, 196, .08); }
+.mapview.proxview .lietab tr.warn td { color: #8a3a33; }
+/* the map: same shapes, thin crisp outlines, flat soft colours, small light labels */
+.mapview.proxview #proxmap .pbg { fill: #eef5ea; }
+.mapview.proxview #proxmap .pgreen { fill: #8fc283; stroke: #3f7a45; stroke-width: 1.5; }
+.mapview.proxview #proxmap .pring { stroke: #fff; stroke-width: 1; stroke-opacity: .8; }
+.mapview.proxview #proxmap .pring2 { stroke-width: 1.5; stroke-opacity: .95; }
+.mapview.proxview #proxmap text.ring { font-size: 9.5px; font-weight: 500; fill: #fff; }
+.mapview.proxview #proxmap .phole { fill: #23313d; r: 3.5px; }
+.mapview.proxview #proxmap .ppole { stroke: #23313d; stroke-width: 1.5; }
+.mapview.proxview #proxmap .pflag { fill: #d9505c; }
+.mapview.proxview #proxmap .pdir { font-size: 10.5px; font-weight: 400; fill: #5c6a76; letter-spacing: .04em; }
+.mapview.proxview #proxmap .pnodir { font-size: 10px; }
+.mapview.proxview #proxmap .lie-rough { fill: #a7cf96; stroke: #6f9f5f; stroke-width: 1.5; }
+.mapview.proxview #proxmap .lie-fw { fill: #cfe9bd; stroke: #7fb06c; stroke-width: 1.5; }
+.mapview.proxview #proxmap .lie-mow { fill: #ffffff; opacity: .28; }
+.mapview.proxview #proxmap #lie-sand { fill: #f3e6b8; stroke: #c9ab5a; stroke-width: 1.5; }
+.mapview.proxview #proxmap #lie-other { fill: #7fa477; stroke: #5d8456; stroke-width: 1.5; }
+.mapview.proxview #proxmap .lie-tree { fill: #5d8456; }
+.mapview.proxview #proxmap #lie-tee { fill: #e6f6dc; stroke: #7fb06c; stroke-width: 1.5; }
+.mapview.proxview #proxmap .liet { font-size: 9px; font-weight: 500; letter-spacing: .06em; fill: #2f5a33; }
+.mapview.proxview #proxmap .tracer { stroke-width: 1.75; stroke-opacity: .7; }
+.mapview.proxview #proxmap .xstart { stroke-width: 1.5; r: 3.5px; }
+.mapview.proxview #proxmap circle.xdot { stroke: #fff; stroke-width: 1.5; r: 5.5px; }
+.mapview.proxview #proxmap g.xdot path, .mapview.proxview #proxmap path.xdot { stroke-width: 1.5; }
+.mapview.proxview #proxmap g.xdot path { stroke: #fff; }
+.mapview.proxview #proxmap g.xdot text { font-size: 10px; font-weight: 500; }
+.mapview.proxview #proxmap .xlbl { font-size: 10px; font-weight: 500; stroke-width: 2.5; }
+.mapview.proxview #proxmap .d1halo { stroke-width: 3; stroke-opacity: .6; }
+.mapview.proxview #proxmap .d1line { stroke: #d64552; stroke-width: 1.5; stroke-dasharray: 6 4; }
+.mapview.proxview #proxmap .d1lab { font-size: 10px; font-weight: 500; fill: #b8323f; stroke-width: 2.5; }
+.mapview .tippop[id^="tip-prox"] .legend .ln.dash { flex: none; width: 14px; height: 0; margin-top: 8px; border-top: 1.5px dashed #d64552; background: none; }
+.mapview .tippop[id^="tip-prox"] .legend .dot { flex: none; width: 9px; height: 9px; margin-top: 4px; border-width: 1px; }
+.mapview .tippop[id^="tip-prox"] .legend .star { font-size: 12px; line-height: 1.2; }
+.mapview .tippop[id^="tip-prox"] .legend svg { margin-top: 2px; }
