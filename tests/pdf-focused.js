@@ -62,7 +62,7 @@ const BASE = process.env.BASE_URL || 'http://127.0.0.1:8766/', OUT = process.env
     ['Pin location', 'Putts', 'Penalty strokes', 'Tee misses L / R', '3-putt holes'].forEach(k => assert.ok(ln(k) && !/%/.test(ln(k)), 'no percent: ' + ln(k))); }
   pmg.forEach(g => assert.ok(txt.includes('1st putts made inside 10 ft - ' + g), 'missing 1st-putts-made page ' + g)); assert.ok(txt.includes('1st putts made') || txt.includes('1ST PUTTS MADE')); assert.ok(txt.includes('Inside 3 ft') || txt.includes('INSIDE 3 FT'));
   groups.forEach(g => assert.ok(txt.includes('Proximity - ' + g), 'missing page ' + g)); assert.ok(txt.includes('Page ' + pages + ' of ' + pages));
-  const absent = ['20-60 yd', '60-100 yd', '100-130 yd', '130-160 yd', '160-200 yd', '200+ yd'].filter(g => !groups.includes(g)); absent.forEach(g => assert.ok(!txt.includes('Proximity - ' + g), 'empty group page ' + g));
+  const absent = ['30-60 yd', '60-100 yd', '100-130 yd', '130-160 yd', '160-200 yd', '200+ yd'].filter(g => !groups.includes(g)); absent.forEach(g => assert.ok(!txt.includes('Proximity - ' + g), 'empty group page ' + g));
   console.log('groups', groups, 'skipped', absent);
   assert.ok(!txt.includes('Front left'), 'empty pin segments skipped');
   assert.ok(!/Missed greens/.test(txt), 'removed Missed greens rows stay out of the PDF');

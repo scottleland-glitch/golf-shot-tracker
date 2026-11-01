@@ -63,7 +63,7 @@ test('OB is stroke and distance; water adds 1 stroke from drop', () => {
   assert.strictEqual(a.shots[0].hit, null);
 });
 
-test('par 3 tee shot = approach; short game within 20 yd', () => {
+test('par 3 tee shot = approach; short game within 30 yd', () => {
   const a = SG.analyzeHole({ par: 3, yards: 165, shots: [
     { lie: 'sand', dist: 15, side: 'L', pen: 'none' },
     { lie: 'green', dist: 4, pen: 'none' },
@@ -655,13 +655,15 @@ test('putt markers: made / missed on a 2-putt hole / missed on a 3-putt+ hole; 3
 });
 
 
-test("Scott's SG split: short game <= 20 yd off the green, approach > 20 yd (par-3 tee incl.), approach buckets + proximity after", () => {
-  // bucket edges: 20 = short, 20.5/30/59 = 20-60, 60 = 60-100, 100/130/160/200 start their ranges
-  assert.deepStrictEqual([20.5, 30, 59.9, 60, 99, 100, 129, 130, 159, 160, 199, 200, 450].map(SG.apprBucket),
-    ['20-60 yd', '20-60 yd', '20-60 yd', '60-100 yd', '60-100 yd', '100-130 yd', '100-130 yd', '130-160 yd', '130-160 yd', '160-200 yd', '160-200 yd', '200+ yd', '200+ yd']);
+test("Scott's SG split (v125: 30 yd): short game <= 30 yd off the green, approach > 30 yd (par-3 tee incl.), approach buckets + proximity after", () => {
+  // bucket edges: 30 = short, 30.5/45/59 = 30-60, 60 = 60-100, 100/130/160/200 start their ranges
+  assert.strictEqual(SG.SHORT_MAX_YD, 30); assert.strictEqual(SG.SHORT_BUCKET, '0-30 yd');
+  assert.deepStrictEqual([30.5, 45, 59.9, 60, 99, 100, 129, 130, 159, 160, 199, 200, 450].map(SG.apprBucket),
+    ['30-60 yd', '30-60 yd', '30-60 yd', '60-100 yd', '60-100 yd', '100-130 yd', '100-130 yd', '130-160 yd', '130-160 yd', '160-200 yd', '160-200 yd', '200+ yd', '200+ yd']);
   const cat = (rows, par) => SG.analyzeHole({ par: par || 4, finished: true, rows }).shots.map(s => [s.cat, s.bucket]);
-  assert.deepStrictEqual(cat([R(400, 'tee'), R(150, 'fairway'), R(20, 'rough'), R(21, 'sand'), R(25, 'green'), R(1, 'holed')]).slice(1, 4),
-    [['approach', '130-160 yd'], ['short', '0-20 yd'], ['approach', '20-60 yd']], '20 yd = short game, 21 yd = approach (was short under the old 30 yd rule)');
+  assert.deepStrictEqual(cat([R(400, 'tee'), R(150, 'fairway'), R(30, 'rough'), R(31, 'sand'), R(25, 'green'), R(1, 'holed')]).slice(1, 4),
+    [['approach', '130-160 yd'], ['short', '0-30 yd'], ['approach', '30-60 yd']], '30 yd = short game, 31 yd = approach');
+  assert.deepStrictEqual(cat([R(400, 'tee'), R(150, 'fairway'), R(21, 'rough'), R(25, 'green'), R(1, 'holed')])[2], ['short', '0-30 yd'], '21 yd = short game (was approach under the v101-v124 20 yd rule)');
   assert.deepStrictEqual(cat([R(170, 'tee'), R(8, 'green'), R(1, 'holed')], 3)[0], ['approach', '160-200 yd'], 'par-3 tee shot = approach');
   assert.deepStrictEqual(cat([R(420, 'tee'), R(200, 'fairway'), R(8, 'green'), R(1, 'holed')])[0], ['tee', 'Tee shots']);
   const S = SG.summarize({ holes: [
@@ -669,24 +671,24 @@ test("Scott's SG split: short game <= 20 yd off the green, approach > 20 yd (par
     { par: 4, finished: true, rows: [R(400, 'tee'), R(140, 'fairway'), R(10, 'rough'), R(4, 'green'), R(1, 'holed')] }, // 140 -> 10 yd off = 30 ft; 10 yd chip = short
     { par: 4, finished: true, rows: [R(400, 'tee'), R(135, 'holedx')] },                                               // holed from 135 = 0 ft
     { par: 4, finished: true, rows: [R(400, 'tee'), R(145, 'fairway'), { dist: 145, loc: 'hazard', dir: '', pen: true }, R(12, 'green'), R(1, 'holed')] }, // 145 into hazard w/ penalty: left out; replayed 145 -> 12 ft
-    { par: 3, finished: true, rows: [R(25, 'tee'), R(6, 'green'), R(1, 'holed')] }                                       // 25 yd par-3 tee = approach 20-60
+    { par: 3, finished: true, rows: [R(35, 'tee'), R(6, 'green'), R(1, 'holed')] }                                       // 35 yd par-3 tee = approach 30-60
   ] });
   const B = S.buckets['130-160 yd'];
   assert.deepStrictEqual([B.n, B.proxN, B.proxEx, B.proxFt], [5, 4, 1, (20 + 30 + 0 + 12) / 4]);
-  assert.deepStrictEqual([S.buckets['20-60 yd'].n, S.buckets['20-60 yd'].proxFt, S.buckets['0-20 yd'].n], [1, 6, 1]);
+  assert.deepStrictEqual([S.buckets['30-60 yd'].n, S.buckets['30-60 yd'].proxFt, S.buckets['0-30 yd'].n], [1, 6, 1]);
   const appr = SG.APPR_BUCKETS.reduce((t, b) => t + S.buckets[b.id].n, 0);
   assert.strictEqual(appr, S.cats.approach.n, 'approach buckets add up to the category');
   near(SG.APPR_BUCKETS.reduce((t, b) => t + S.buckets[b.id].sg, 0), S.cats.approach.sg, 'approach bucket SG adds up');
-  assert.strictEqual(S.buckets['0-20 yd'].n, S.cats.short.n);
+  assert.strictEqual(S.buckets['0-30 yd'].n, S.cats.short.n);
   assert.deepStrictEqual([SG.proxAfterFt({ end: { lie: 'holed', dist: 0 }, penStrokes: 0 }), SG.proxAfterFt({ end: { lie: 'rough', dist: 7 }, penStrokes: 0 }), SG.proxAfterFt({ ob: true, end: { lie: 'fairway', dist: 150 }, penStrokes: 2 })], [0, 21, null]);
 });
 
 
 test('PDF-report helper (not used by the map): SG distance groups + distinct colours', () => {
-  assert.deepStrictEqual(SG.REPORT_GROUPS.map(g => g.id), ['20-60', '60-100', '100-130', '130-160', '160-200', '200+']);
+  assert.deepStrictEqual(SG.REPORT_GROUPS.map(g => g.id), ['30-60', '60-100', '100-130', '130-160', '160-200', '200+']);
   assert.strictEqual(new Set(SG.REPORT_GROUPS.map(g => g.color)).size, 6);
-  assert.deepStrictEqual([20, 21, 60, 129.9, 130, 200, null].map(SG.reportGroup), [null, '20-60', '60-100', '100-130', '130-160', '200+', null]);
-  for (let y = 20.5; y < 400; y += 0.5) assert.strictEqual(SG.reportGroup(y) + ' yd', SG.apprBucket(y));
+  assert.deepStrictEqual([30, 31, 60, 129.9, 130, 200, null].map(SG.reportGroup), [null, '30-60', '60-100', '100-130', '130-160', '200+', null]);
+  for (let y = 30.5; y < 400; y += 0.5) assert.strictEqual(SG.reportGroup(y) + ' yd', SG.apprBucket(y));
   assert.strictEqual(SG.PROX_BUCKETS.length, 18, 'in-app proximity rail is still 40..200 by 10 yd');
 });
 
@@ -774,4 +776,36 @@ test('v110 stats: putts made inside 10 ft, averages, last n', () => {
   const S = SG.summarize(r, 'pga'); assert.deepStrictEqual(S.puttList.map(p => p.ft), [8, 2]); assert.deepStrictEqual(SG.puttsInside10(S.puttList), { attempts: 2, made: 1, pct: 50 });
   assert.strictEqual(SG.trendAvg([1, null, 3]), 2); assert.strictEqual(SG.trendAvg([null]), null); assert.strictEqual(SG.trendAvg([]), null);
   assert.deepStrictEqual(SG.lastN([1, 2, 3, 4, 5, 6], 5), [2, 3, 4, 5, 6]); assert.deepStrictEqual(SG.lastN([1, 2], 5), [1, 2]); assert.deepStrictEqual(SG.lastN([1, 2], 0), [1, 2]);
+});
+
+test('v125 stats: SG by first-putt distance and by short-game lie / distance', () => {
+  const R = (d, l) => ({ dist: d, loc: l, dir: '', pen: false });
+  const holes = [
+    { par: 4, finished: true, rows: [R(380, 'tee'), R(15, 'bunker'), R(4, 'holed')] },            // bunker 15 yd; 1st putt 4 ft made
+    { par: 4, finished: true, rows: [R(400, 'tee'), R(25, 'rough'), R(7, 'green'), R(2, 'holed')] }, // rough 25 yd (20-30); 7 ft then 2 ft
+    { par: 3, finished: true, rows: [R(150, 'tee'), R(8, 'fairway'), R(30, 'green'), R(3, 'holed')] }, // fairway 8 yd; 30 ft 2-putt
+    { par: 3, finished: true, rows: [R(160, 'tee'), R(25, 'holed')] },                         // 25 ft (in 10-25) made
+    { par: 4, finished: true, rows: [R(380, 'tee'), R(12, 'trees'), R(10, 'green'), R(5, 'holed')] }, // recovery 12 yd: distance only; 10 ft, then 5 ft
+    { par: 4, finished: true, rows: [R(380, 'tee'), R(40, 'fairway'), R(30, 'deep'), R(9.9, 'holed')] }, // 40 yd not a chip; deep rough 30 yd (20-30)
+    { par: 4, finished: false, rows: [R(380, 'tee'), R(5, 'rough'), R(3, 'green')] }];                       // unfinished: left out
+  const r = { holes: holes.concat(Array.from({ length: 11 }, () => ({ par: 4, rows: [R('', 'tee')] }))) };
+  const S = SG.summarize(r, 'pga'), B = SG.statBuckets(S), A = holes.map(h => SG.analyzeHole(h, 'pga'));
+  const sgOf = (k, f) => A[k].shots.filter(f).reduce((t, s) => t + s.sg, 0), onG = s => s.start.lie === 'green';
+  assert.deepStrictEqual(Object.keys(B.putt), ['u5', 'f5', 'f10', 'o25']);
+  assert.deepStrictEqual(['u5', 'f5', 'f10', 'o25'].map(k => [B.putt[k].n, B.putt[k].made]), [[1, 1], [2, 1], [2, 1], [1, 0]]);
+  near(B.putt.f5.sg, sgOf(1, onG) + sgOf(5, onG), '5-10 ft = all putts on holes whose 1st putt was 7 and 9.9 ft');
+  near(B.putt.f10.sg, sgOf(3, onG) + sgOf(4, onG), '10-25 ft: 25 (included) and 10 (included)');
+  near(B.putt.o25.sg, sgOf(2, onG), 'over 25 ft');
+  assert.deepStrictEqual(['sand', 'rough', 'fairway'].map(k => B.chipLie[k].n), [1, 2, 1]);
+  near(B.chipLie.sand.sg, A[0].shots[1].sg, 'bunker'); near(B.chipLie.rough.sg, A[1].shots[1].sg + A[5].shots[2].sg, 'rough + deep rough');
+  assert.deepStrictEqual(['c10', 'c20', 'c30'].map(k => B.chipDist[k].n), [1, 2, 2]);
+  near(B.chipDist.c20.sg, A[0].shots[1].sg + A[4].shots[1].sg, '10-20 yd incl. the recovery shot');
+  assert.strictEqual(SG.chipBand(10), 'c10'); assert.strictEqual(SG.chipBand(10.5), 'c20'); assert.strictEqual(SG.chipBand(30), 'c30'); assert.strictEqual(SG.chipBand(30.5), null);
+  assert.strictEqual(SG.puttBand(4.9), 'u5'); assert.strictEqual(SG.puttBand(5), 'f5'); assert.strictEqual(SG.puttBand(25), 'f10'); assert.strictEqual(SG.puttBand(25.1), 'o25');
+  assert.strictEqual(SG.CHIP_MAX_YD, 30); assert.strictEqual(SG.SHORT_MAX_YD, 30);
+  // v125: one 30-yd cutoff – the chipping distance bands are exactly the ARG (short game) shots
+  near(['c10', 'c20', 'c30'].reduce((t, k) => t + B.chipDist[k].sg, 0), S.cats.short.sg, 'distance bands add up to ARG');
+  assert.strictEqual(['c10', 'c20', 'c30'].reduce((t, k) => t + B.chipDist[k].n, 0), S.cats.short.n);
+  near(SG.bucketAvg([{ n: 2, sg: -0.4 }, { n: 0, sg: 0 }, null, { n: 1, sg: 0.1 }]), -0.1, 'weighted per shot'); assert.strictEqual(SG.bucketAvg([{ n: 0, sg: 0 }]), null);
+  assert.strictEqual(SG.puttGroup(3) != null, true, 'the putt-map bands are untouched');
 });

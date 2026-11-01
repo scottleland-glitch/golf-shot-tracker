@@ -38,6 +38,7 @@ const SEED = fs.readFileSync(__dirname + '/fixtures/stats-rounds.js', 'utf8');
 
   // 3. open Stats from the + menu
   await page.click('.topbar [data-act="home"]'); await page.click('#plusbtn'); await page.click('#plusmenu [data-act="stats"]'); await page.waitForSelector('#statspage');
+  for (const c of ['driver', 'approach', 'putting', 'chipping', 'scoring']) await page.click('#stcat-' + c + ' .stcath'); // v125: open the categories
   assert.strictEqual(await page.$('#plusmenu'), null, 'menu closed');
   assert.match(await page.textContent('#statspage .topbar'), /‹ Home\s*Stats\s*Scott · 7 rounds/);
   assert.deepStrictEqual(await page.$$eval('#stchips button', e => e.map(x => x.textContent + (x.getAttribute('aria-pressed') === 'true' ? '*' : ''))), ['All players', 'Quincy', 'Scott*'], 'defaults to this phone’s player');
@@ -58,8 +59,11 @@ const SEED = fs.readFileSync(__dirname + '/fixtures/stats-rounds.js', 'utf8');
 
   // 4. v116: one graph per number – TOT, OTT, APP, ARG, PUTT, then fairways and GIR; one dot per round, dashed average line
   assert.deepStrictEqual(await page.$$eval('#strange button', e => e.map(x => [x.dataset.v, x.textContent, x.getAttribute('aria-pressed')])), [['all', 'All rounds', 'true'], ['5', 'Last 5', 'false'], ['sel', 'Selected round', 'false']]);
-  assert.deepStrictEqual(await page.$$eval('.stgraph .sth span:first-child', e => e.map(x => x.textContent)),
-    ['Total (TOT)', 'Off the tee (OTT)', 'Approach (APP)', 'Around the green (ARG)', 'Putting (PUTT)', 'Fairways hit', 'Greens in regulation (GIR)', 'Par 3 scores', 'Par 4 scores', 'Par 5 scores']);
+  assert.deepStrictEqual((await page.$$eval('.stgraph .sth span:first-child', e => e.map(x => x.textContent))).slice(1),
+    // v125: grouped in categories – Driver, Approach, Putting, Chipping, Scoring
+    // (the first card is the drive box chart: 'Driver distance' or 'Drive distance', checked in stats-cats-focused)
+    ['Off the tee (OTT)', 'Fairways hit', 'Approach (APP)', 'Greens in regulation (GIR)', 'Approach proximity', 'Putting (PUTT)', '1st putt under 5 ft', '1st putt 5–10 ft', '1st putt 10–25 ft', '1st putt over 25 ft',
+      '1st putts made under 5 ft', 'Around the green (ARG)', 'From the bunker', 'From the rough', 'From the fairway', 'Up to 10 yd', '10–20 yd', '20–30 yd', 'Total (TOT)', 'Par 3 scores', 'Par 4 scores', 'Par 5 scores']);
   assert.strictEqual(await page.$('#stcmp'), null, 'no compare switch on All rounds');
   const dots = c => page.$$eval('#' + c + 'chart circle.stdot', e => e.length);
   for (const k of ['tot', 'ott', 'app', 'arg', 'putt', 'fir', 'gir']) { assert.strictEqual(await dots(k), 7, k); assert.ok(await page.$('#' + k + 'avg'), k + ' average line'); }

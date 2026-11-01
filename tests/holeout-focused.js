@@ -17,7 +17,7 @@ const hole1 = () => ({ par: 4, finished: true, rows: [R(467, 'tee', { club: 'Dri
   close(s3.sg, SG.expected('deep', 25, 'pga') - 1, 'shot 3 SG uses the deep-rough start');
   const s2 = a.shots[1]; assert.deepStrictEqual([s2.end.lie, s2.end.dist, s2.dir], ['deep', 25, 'right'], 'shot 2 still ends in the deep rough, right of the green');
   close(s2.sg, SG.expected('fairway', 155, 'pga') - SG.expected('deep', 25, 'pga') - 1, 'shot 2 SG ends in the deep rough');
-  assert.strictEqual(s3.cat, 'approach'); assert.strictEqual(a.putts, 0); assert.strictEqual(a.fairway, true);
+  assert.strictEqual(s3.cat, 'short', 'a 25 yd chip is Around the green (30 yd cutoff, v125; was approach with the old 20 yd cutoff)'); assert.strictEqual(a.putts, 0); assert.strictEqual(a.fairway, true);
   assert.strictEqual(a.gir, true, 'chip-in from 30 yd or closer right after counts as GIR (Scott rule) - same as before'); assert.strictEqual(a.appr.chipIn, true); assert.strictEqual(a.appr.holed, true);
   // the old way (row 3 = "In the hole (chip/shot)") scored the same 3 but valued shot 3 from the FAIRWAY
   const old = SG.analyzeHole({ par: 4, finished: true, rows: [R(467, 'tee'), R(155, 'fairway'), R(25, 'holedx', { dir: 'right' })] }, 'pga');
@@ -52,9 +52,15 @@ const hole1 = () => ({ par: 4, finished: true, rows: [R(467, 'tee', { club: 'Dri
   const X1 = SG.analyzeHole({ par: 4, rows: [R(400, 'tee'), R(150, 'fairway'), R(9, 'holed', { holeOut: true })] }), X0 = SG.analyzeHole({ par: 4, rows: [R(400, 'tee'), R(150, 'fairway'), R(9, 'holed')] });
   assert.deepStrictEqual(X1.shots.map(s => s.sg), X0.shots.map(s => s.sg)); n++; }
 
-// ---------- 3. existing rounds compute exactly like v89 ----------
+// ---------- 3. existing rounds compute exactly like v89 (with the v125 30 yd cutoff applied to both) ----------
 { let OLD = null; const tmp = path.join(os.tmpdir(), 'sg-v89-' + process.pid + '.js');
-  try { fs.writeFileSync(tmp, execSync('git show 8e31760:sg.js', { cwd: path.join(__dirname, '..') })); OLD = require(tmp); } catch (e) { console.log('  (skipped v89 comparison: ' + e.message.split('\n')[0] + ')'); }
+  // v125: Scott moved the around-the-green cutoff from 20 to 30 yd (one cutoff everywhere). The v89 code is compared
+  // with the same cutoff move applied to it, so everything else must still match exactly.
+  const to30 = src => [[/var SHORT_MAX_YD = 20;/, 'var SHORT_MAX_YD = 30;'], [/\{ id: '20-60 yd', lo: 20, hi: 60 \}/, "{ id: '30-60 yd', lo: 30, hi: 60 }"],
+    [/bucket = '0-20 yd'/, "bucket = '0-30 yd'"], [/\['0-20 yd',/, "['0-30 yd',"],
+    [/var k = d <= 20 \? p\.b : d >= 40 \? p\.a : p\.b \+ \(p\.a - p\.b\) \* \(d - 20\) \/ 20;/, 'var k = d <= 30 ? p.b : d >= 50 ? p.a : p.b + (p.a - p.b) * (d - 30) / 20;']]
+    .reduce((t, [re, to]) => { assert.ok(re.test(t), 'v89 source has ' + re); return t.replace(re, to); }, src);
+  try { fs.writeFileSync(tmp, to30(String(execSync('git show 8e31760:sg.js', { cwd: path.join(__dirname, '..') })))); OLD = require(tmp); } catch (e) { console.log('  (skipped v89 comparison: ' + e.message.split('\n')[0] + ')'); }
   if (OLD) {
     let seed = 7; const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647, pick = a => a[Math.floor(rnd() * a.length)];
     const rounds = [];

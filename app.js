@@ -460,10 +460,10 @@
       y = table([['Category', 'Shots', 'SG']].concat(['tee', 'approach', 'short', 'putting'].map(function (k) { return [CAT_NAME[k], String(S.cats[k].n), fmtSG(S.cats[k].sg)]; })).concat([['Total', '', fmtSG(S.sgTotal)]]), M, y, [260, 90, 90]) + 16;
       heading('By distance', M, y); y += 16;
       var dist = [['From', 'Shots', 'SG', 'Avg to pin after']];
-      [['Approach', SG.APPR_BUCKETS.map(function (b) { return b.id; })], ['Short game', ['0-20 yd']], ['Putting', ['0-5 ft', '5-15 ft', '15-30 ft', '30+ ft']]].forEach(function (g) {
+      [['Approach', SG.APPR_BUCKETS.map(function (b) { return b.id; })], ['Short game', [SG.SHORT_BUCKET]], ['Putting', ['0-5 ft', '5-15 ft', '15-30 ft', '30+ ft']]].forEach(function (g) {
         dist.push([g[0], '', '', '']); g[1].forEach(function (b) { var c = S.buckets[b]; dist.push([b, String(c.n), c.n ? fmtSG(c.sg) : '-', g[0] === 'Approach' ? (c.proxN ? Math.round(c.proxFt) + ' ft' : '-') : '']); }); });
       y = table(dist, M, y, [260, 90, 90, 100], { group: function (row) { return row[1] === '' && /^(Approach|Short game|Putting)$/.test(row[0]); }, cont: 'Strokes gained (continued)' });
-      y = note('Approach = shots from more than 20 yd off the green (par-3 tee shots included); 20-60 = over 20 up to under 60 yd, other ranges include the lower number. Short game = off the green from 20 yd and in. Avg to pin after = feet on the green, yards x 3 off it, 0 if holed; penalty/OB shots left out.', M, y + 6) + 12;
+      y = note('Approach = shots from more than 30 yd off the green (par-3 tee shots included); 30-60 = over 30 up to under 60 yd, other ranges include the lower number. Short game = off the green from 30 yd and in. Avg to pin after = feet on the green, yards x 3 off it, 0 if holed; penalty/OB shots left out.', M, y + 6) + 12;
       heading('Same round vs every baseline', M, y); y += 16;
       y = table([['Baseline', 'Tee', 'Approach', 'Short', 'Putting', 'Total']].concat(SG.BASELINES.map(function (b) { var X = SG.summarize(r, b.id);
         return [b.name + (b.status === 'estimated' ? ' (est.)' : '') + (b.id === R.bl ? '  <' : ''), fmtSG(X.cats.tee.sg), fmtSG(X.cats.approach.sg), fmtSG(X.cats.short.sg), fmtSG(X.cats.putting.sg), fmtSG(X.sgTotal)]; })), M, y, [190, 70, 70, 70, 70, 70]);
@@ -605,15 +605,15 @@
   // fairways / GIR = SG.summarize like the Quick view, putts = summarize().puttList (2-putts / 3-putts per hole by its putt count).
   // Rounds shown: All rounds | Last 5 | Selected round (picked from a scrolling list). "Compare to all rounds" overlays all rounds (grey, dashed).
   var ST_SG = [ // id, title, colour, help
-    ['tot', 'Total (TOT)', '#4b5866', 'Every shot on the round’s finished holes.'],
-    ['ott', 'Off the tee (OTT)', '#3b82c4', 'Tee shots on par 4s and 5s.'],
-    ['app', 'Approach (APP)', '#3c9a66', 'Shots from more than 20 yd that are not tee shots on par 4s and 5s (par-3 tee shots count here).'],
-    ['arg', 'Around the green (ARG)', '#d9902f', 'Shots from 20 yd and in that are not on the green.'],
-    ['putt', 'Putting (PUTT)', '#8b67c6', 'Every stroke from the green.']];
+    ['tot', 'Total (TOT)', '#34495e', 'Every shot on the round’s finished holes.'],
+    ['ott', 'Off the tee (OTT)', '#1f73c9', 'Tee shots on par 4s and 5s.'],
+    ['app', 'Approach (APP)', '#2e9d4f', 'Shots from more than 30 yd that are not tee shots on par 4s and 5s (par-3 tee shots count here).'],
+    ['arg', 'Around the green (ARG)', '#e8871e', 'Shots from 30 yd and in that are not on the green.'],
+    ['putt', 'Putting (PUTT)', '#7c4dcc', 'Every stroke from the green.']];
   var ST_PCT = [ // id, title, colour, help
-    ['fir', 'Fairways hit', '#3b82c4', 'Tee shots on par 4s and 5s that finished in the fairway (layups left out). A round with no par 4s or 5s has no point.'],
-    ['gir', 'Greens in regulation (GIR)', '#3c9a66', 'On the green in par minus 2 strokes or fewer.']];
-  var ST_PAR = { 3: '#3b82c4', 4: '#3c9a66', 5: '#d9902f' };
+    ['fir', 'Fairways hit', '#1f73c9', 'Tee shots on par 4s and 5s that finished in the fairway (layups left out). A round with no par 4s or 5s has no point.'],
+    ['gir', 'Greens in regulation (GIR)', '#2e9d4f', 'On the green in par minus 2 strokes or fewer.']];
+  var ST_PAR = { 3: '#1f73c9', 4: '#2e9d4f', 5: '#e8871e' };
   var ST_NAMES = ['Eagle', 'Birdie', 'Par', 'Bogey', 'Double', 'Triple'];
   var ST_ROWS = [ // label, value of one round, decimals, kind
     ['Strokes gained – TOT', function (p) { return p.sg.tot; }, 2, 'sg'], ['Off the tee (OTT)', function (p) { return p.sg.ott; }, 2, 'sg'],
@@ -635,8 +635,14 @@
       sg: { tot: sgOf('Tot'), ott: parN[4].n + parN[5].n ? sgOf('OTT') : null, arg: sgOf('ARG'), app: sgOf('APP'), putt: sgOf('Putt') },
       fir: S.fwTotal ? 100 * S.fwHit / S.fwTotal : null, gir: S.girHoles ? 100 * S.gir / S.girHoles : null, p10: p10.pct, p10n: p10.attempts, p10m: p10.made,
       two: first.filter(function (p) { return p.holePutts === 2; }).length, three: SG.threePutts(S.puttList).three,
-      ppg: girH.length ? girH.reduce(function (t, a) { return t + a.putts; }, 0) / girH.length : null, dist: dist, parN: parN };
+      ppg: girH.length ? girH.reduce(function (t, a) { return t + a.putts; }, 0) / girH.length : null, dist: dist, parN: parN,
+      // v125: SG by first-putt distance / short-game lie and distance (SG.statBuckets), drives for the box chart, approach proximity
+      b: SG.statBuckets(S), drv: S.teeMap.filter(function (m) { return !m.layup && m.kind !== 'ob' && !m.pen && m.hit != null && isFinite(m.hit) && m.hit > 0; }).map(function (m) { return { hit: Number(m.hit), club: m.club || '' }; }),
+      prox: stProx(S.proxList), proxN: S.proxList.filter(function (m) { return m.proxFt != null && SG.inBucket('all', m.from); }).length,
+      unf: S.holesDone < r.holes.length };
   }
+  // v125: average feet from the hole after the regulation approach from 40–200 yd (the Proximity page's "All 40–200 yd", every shot)
+  function stProx(L) { var a = L.filter(function (m) { return m.proxFt != null && SG.inBucket('all', m.from); }); return a.length ? a.reduce(function (t, m) { return t + m.proxFt; }, 0) / a.length : null; }
   function statsPlayerInfo() {
     var P = playersIn(), names = Object.keys(P).sort(), noName = savedRounds().some(function (r) { return !r.player; }), multi = names.length + (noName && names.length ? 1 : 0) > 1;
     if (view.stPlayer === undefined) view.stPlayer = view.histPlayer || (multi && P[playerName()] ? playerName() : null); // default: the Rounds filter, else this phone's player
@@ -650,10 +656,18 @@
       var S = SG.summarize(r), ok = S.holesDone === r.holes.length && r.holes.length > 0 && r.id !== cur; if (!ok) unf++; return ok; })
       .sort(function (a, b) { return String(a.date || '').localeCompare(String(b.date || '')); });
     var all = list.map(function (r) { return statsRound(r, view.stBl || ''); }), mode = view.stMode || 'all', selIdx = -1;
-    if (mode === 'sel') { all.forEach(function (p, i) { if (p.id === view.stRid) selIdx = i; }); if (selIdx < 0 && all.length) { selIdx = all.length - 1; view.stRid = all[selIdx].id; } } // default: newest round
+    var openOK = function (id) { return id && id === (view.roundId || cur) && savedRounds().some(function (r) { return r.id === id && SG.summarize(r).holesDone; }); };
+    if (mode === 'sel') { all.forEach(function (p, i) { if (p.id === view.stRid) selIdx = i; }); if (selIdx < 0 && all.length && !openOK(view.stRid)) { selIdx = all.length - 1; view.stRid = all[selIdx].id; } } // default: newest round
     var avg = function (L) { var o = { n: L.length }; ST_ROWS.forEach(function (d) { o[d[0]] = SG.trendAvg(L.map(d[1])); }); return o; };
-    var shown = mode === '5' ? SG.lastN(all, 5) : mode === 'sel' ? (selIdx >= 0 ? [all[selIdx]] : []) : all.slice();
-    return { all: all, shown: shown, mode: mode, selIdx: selIdx, sel: selIdx >= 0 ? all[selIdx] : null, cmp: !!view.stCmp && mode !== 'all', unfinished: unf, avgShown: avg(shown), avgAll: avg(all) };
+    // v125: the round open now (the one last opened, else the round in progress) – pickable even while unfinished (its finished holes count)
+    var openId = view.roundId || cur, openR = openId ? list.filter(function (r) { return r.id === openId; })[0] : null, openP = null;
+    if (openR) openP = all.filter(function (p) { return p.id === openId; })[0];
+    else if (openId) { var oR = savedRounds().filter(function (r) { return r.id === openId && (!who || (who === '~none' ? !r.player : r.player === who)); })[0];
+      if (oR && SG.summarize(oR).holesDone) { openP = statsRound(oR, view.stBl || ''); openP.open = true; } }
+    var selX = mode === 'sel' && openP && openP.open && view.stRid === openId ? openP : null;
+    if (selX) selIdx = -1; else if (mode === 'sel' && selIdx < 0 && all.length) { selIdx = all.length - 1; view.stRid = all[selIdx].id; }
+    var shown = mode === '5' ? SG.lastN(all, 5) : mode === 'sel' ? (selX ? [selX] : selIdx >= 0 ? [all[selIdx]] : []) : all.slice();
+    return { all: all, shown: shown, mode: mode, selIdx: selIdx, sel: selX || (selIdx >= 0 ? all[selIdx] : null), selExtra: !!selX, openP: openP || null, cmp: !!view.stCmp && mode !== 'all', unfinished: unf, avgShown: avg(shown), avgAll: avg(all) };
   }
   function stDate(d, short) { d = new Date(d); return short ? (d.getMonth() + 1) + '/' + d.getDate() : d.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' }); }
   function stNum(v, dec, kind) {
@@ -676,16 +690,19 @@
   // the chosen round as a big dot. Compare: all rounds' average as a grey dashed line (Last 5 also shows the older rounds in grey).
   function stTrend(id, D, val, o) {
     var W = 358, H = 150, L = 34, R = 10, T = 14, B = 22, pw = W - L - R, ph = H - T - B, mode = D.mode, cmp = D.cmp;
-    var pts = mode === '5' && !cmp ? D.shown : D.all, n = pts.length, solid0 = mode === 'sel' ? n : mode === '5' && cmp ? n - D.shown.length : 0, hl = mode === 'sel' ? D.selIdx : -1;
-    var avgSel = SG.trendAvg(D.shown.map(val)), avgAll = SG.trendAvg(D.all.map(val)), fmt = function (v) { return v == null ? '–' : o.pct ? Math.round(v) + '%' : fmtSG(v); };
+    // v125: o.avg(list) = a weighted average (per shot / per putt) instead of the mean of the rounds; o.nOf(p) = shots behind a point;
+    // o.ft = a distance in feet (no plus / minus, no zero line); D.selExtra = the picked round is the open, unfinished round (drawn after the others)
+    var pts = mode === '5' && !cmp ? D.shown : D.selExtra ? D.all.concat([D.sel]) : D.all, n = pts.length, solid0 = mode === 'sel' ? n : mode === '5' && cmp ? n - D.shown.length : 0, hl = mode === 'sel' ? (D.selExtra ? n - 1 : D.selIdx) : -1;
+    var avgOf = function (L) { return o.avg ? o.avg(L) : SG.trendAvg(L.map(val)); };
+    var avgSel = avgOf(D.shown), avgAll = avgOf(D.all), fmt = function (v) { return v == null ? '–' : o.pct ? Math.round(v) + '%' : o.ft ? Math.round(v) + ' ft' : fmtSG(v); };
     var lo = 0, hi = 100, step = 25;
     if (!o.pct) { var vals = [0]; pts.forEach(function (p) { var v = val(p); if (v != null) vals.push(v); }); if (avgAll != null) vals.push(avgAll);
-      var mn = Math.min.apply(null, vals), mx = Math.max.apply(null, vals), span = Math.max(mx - mn, 1);
-      step = [0.5, 1, 2, 5, 10, 20].filter(function (s) { return span / s <= 4; })[0] || 20; lo = Math.floor(mn / step) * step; hi = Math.ceil(mx / step) * step; if (hi === lo) hi = lo + step; }
+      var mn = Math.min.apply(null, vals), mx = Math.max.apply(null, vals), span = Math.max(mx - mn, o.minSpan || 1);
+      step = [0.1, 0.2, 0.5, 1, 2, 5, 10, 20, 50].filter(function (s) { return span / s <= 4; })[0] || 50; lo = Math.floor(mn / step) * step; hi = Math.ceil(mx / step) * step; if (hi === lo) hi = lo + step; }
     var X = function (i) { return L + (n === 1 ? pw / 2 : i * pw / (n - 1)); }, Y = function (v) { return T + ph - (v - lo) / (hi - lo) * ph; };
     var s = '<svg class="stchart sttrend" id="' + id + 'chart" viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="' + esc(o.title + ' per round') + '">';
-    for (var v = lo; v <= hi + 1e-9; v += step) { var yy = stF(Y(v)); s += '<line class="stgrid" x1="' + L + '" x2="' + (W - R) + '" y1="' + yy + '" y2="' + yy + '"/><text class="sty" x="' + (L - 6) + '" y="' + stF(yy + 3.5) + '" text-anchor="end">' + (o.pct ? Math.round(v) + '%' : (v > 0 ? '+' : '') + (step < 1 ? v.toFixed(1) : Math.round(v))) + '</text>'; }
-    if (!o.pct) s += '<line class="stzero" id="' + id + 'zero" x1="' + L + '" x2="' + (W - R) + '" y1="' + stF(Y(0)) + '" y2="' + stF(Y(0)) + '"/>';
+    for (var v = lo; v <= hi + 1e-9; v += step) { var yy = stF(Y(v)); s += '<line class="stgrid" x1="' + L + '" x2="' + (W - R) + '" y1="' + yy + '" y2="' + yy + '"/><text class="sty" x="' + (L - 6) + '" y="' + stF(yy + 3.5) + '" text-anchor="end">' + (o.pct ? Math.round(v) + '%' : o.ft ? Math.round(v) : (v > 0 ? '+' : '') + (step < 1 ? v.toFixed(1) : Math.round(v))) + '</text>'; }
+    if (!o.pct && !o.ft) s += '<line class="stzero" id="' + id + 'zero" x1="' + L + '" x2="' + (W - R) + '" y1="' + stF(Y(0)) + '" y2="' + stF(Y(0)) + '"/>';
     var every = Math.max(1, Math.ceil(n / 6));
     pts.forEach(function (p, i) { if (i !== n - 1 && (i % every || (i && n - 1 - i < every * 0.6))) return;
       s += '<text class="stx" x="' + stF(X(i)) + '" y="' + (H - 6) + '" text-anchor="middle">' + stDate(p.date, true) + '</text>'; });
@@ -703,13 +720,15 @@
     var head = mode === 'sel' ? 'This round <em>' + fmt(D.sel ? val(D.sel) : null) + '</em>' + (cmp ? ' · all avg <em>' + fmt(avgAll) + '</em>' : '')
       : (mode === '5' ? 'Last 5 avg ' : 'Avg ') + '<em>' + fmt(avgSel) + '</em>' + (cmp ? ' · all <em>' + fmt(avgAll) + '</em>' : '');
     var few = mode !== 'sel' && D.shown.filter(function (p) { return val(p) != null; }).length < 2 ? '<p class="stfew">Not enough rounds yet for a trend – it starts with 2 rounds.</p>' : '';
+    var nSum = function (L) { return L.reduce(function (t, p) { return t + (o.nOf(p) || 0); }, 0); }, nLine = o.nOf ? '<p class="stn" id="' + id + 'n">n = ' + nSum(D.shown) + ' ' + o.unit + (mode === 'sel' ? ' this round' : mode === '5' ? ' in the last 5' : '') +
+      (cmp ? ' · all rounds: ' + nSum(D.all) : '') + (nSum(D.shown) ? '' : ' – nothing to show yet') + '</p>' : '';
     var tip = '', sel = view.stSel && view.stSel.c === id ? view.stSel.i : null;
     if (sel != null && pts[sel]) { var p = pts[sel];
       tip = '<div class="sttip" id="' + id + 'tip"><div class="sttiph">' + esc(stDate(p.date)) + ' · ' + esc(p.course) + '<button class="sttipx" data-act="stpt" data-c="' + id + '" data-i="' + sel + '" aria-label="Close">×</button></div>' +
-        '<div class="sttipm">' + esc(o.short) + ' ' + fmt(val(p)) + ' · Score ' + p.score + ' (' + toPar(p.toPar) + ') · ' + p.putts + ' putts</div></div>'; }
+        '<div class="sttipm">' + esc(o.short) + ' ' + fmt(val(p)) + (o.nOf ? ' (n = ' + (o.nOf(p) || 0) + ')' : '') + ' · Score ' + p.score + ' (' + toPar(p.toPar) + ') · ' + p.putts + ' putts</div></div>'; }
     var key = mode === 'sel' ? 'Big dot = this round; tap a grey dot to pick another.' + (cmp ? ' Grey dashed = all-rounds average.' : '')
       : 'Dashed = average' + (mode === '5' ? ' of the last 5' : '') + '.' + (cmp ? ' Grey = older rounds; grey dashed = all-rounds average.' : '');
-    return '<div class="stcard stgraph" id="st-' + id + '"><div class="sth"><span>' + esc(o.title) + '</span><span class="stv" id="' + id + 'val">' + head + '</span></div>' + s + few + tip +
+    return '<div class="stcard stgraph" id="st-' + id + '"><div class="sth"><span>' + esc(o.title) + '</span><span class="stv" id="' + id + 'val">' + head + '</span></div>' + s + nLine + few + tip +
       '<p class="stnote">' + esc(o.help) + ' ' + key + '</p></div>';
   }
   // scoring curve for one par: % of finished holes at each score, Eagle (or better) … Triple (or worse)
@@ -736,6 +755,41 @@
     return h + s + '<p class="stn" id="' + id + 'n">n = ' + A.n + ' hole' + (A.n === 1 ? '' : 's') + (cmp ? ' · all rounds: ' + Z.n + ' holes (grey dashed)' : '') + '</p>' +
       '<p class="stnote">Share of finished par-' + par + ' holes at each score (number of strokes underneath). Eagle includes anything better (hole-in-one, albatross); Triple includes anything worse.</p></div>';
   }
+  // v125: drive distance box chart on the Stats page (the Club performance box plot): the rounds shown (blue) and, with Compare, all rounds (grey).
+  // Same drives as the round's Avg drive (no OB / penalty / layup tee shots, a measurable length); Driver only when most drives have a club.
+  function stDrives(L) { var all = [], c = 0; L.forEach(function (p) { (p.drv || []).forEach(function (m) { all.push(m); if (m.club) c++; }); });
+    var drv = all.length && c / all.length > 0.5, d = (drv ? all.filter(function (m) { return m.club === 'Driver'; }) : all).map(function (m) { return m.hit; }); return { n: d.length, d: d, driverOnly: drv }; }
+  function stBox(D) {
+    var A = stDrives(D.shown), Z = D.cmp ? stDrives(D.all) : null, two = !!(Z && Z.n), who = D.mode === 'sel' ? 'This round' : D.mode === '5' ? 'Last 5' : 'All rounds', r = Math.round;
+    var mean = function (V) { return V.d.reduce(function (a, b) { return a + b; }, 0) / V.n; }, med = function (V) { return clubQuart(V.d)(0.5); };
+    var h = '<div class="stcard stgraph" id="st-drive"><div class="sth"><span>' + (A.driverOnly || (Z && Z.driverOnly) ? 'Driver distance' : 'Drive distance') + '</span><span class="stv" id="driveval">' +
+      (A.n ? (D.mode === 'sel' ? 'This round' : D.mode === '5' ? 'Last 5' : 'Avg') + ' <em>' + r(mean(A)) + ' yd</em>' + (two ? ' · all <em>' + r(mean(Z)) + ' yd</em>' : '') : '') + '</span></div>';
+    if (!A.n) return h + '<p class="stfew" id="drivenone">No measurable drives in ' + (D.mode === 'sel' ? 'this round' : 'these rounds') + ' yet.</p></div>';
+    var vals = A.d.concat(two ? Z.d : []), lo = Math.min.apply(null, vals), hi = Math.max.apply(null, vals), span = Math.max(hi - lo, 10), step = span <= 35 ? 5 : span <= 90 ? 10 : span <= 180 ? 20 : 50;
+    var pad = hi - lo < 10 ? (10 - (hi - lo)) / 2 : 0, a0 = Math.floor((lo - pad) / step) * step, a1 = Math.ceil((hi + pad) / step) * step; if (a1 === a0) a1 = a0 + step;
+    var rows = two ? [[A, 'stdrv', who], [Z, 'stdrvall', 'All rounds']] : [[A, 'stdrv', '']], x0 = two ? 74 : 18, x1 = 340, rh = 28, gap = 12, top = 8, yAx = top + rows.length * rh + (rows.length - 1) * gap + 6, H = yAx + 30;
+    var X = function (v) { return (x0 + (v - a0) / (a1 - a0) * (x1 - x0)).toFixed(1); };
+    var o = '<svg class="stchart stbox" id="drivechart" viewBox="0 0 358 ' + H + '" role="img" aria-label="' + esc(rows.map(function (R) { var V = R[0]; return (R[2] || who) + ': ' + V.n + ' drives, shortest ' + r(Math.min.apply(null, V.d)) + ', median ' + r(med(V)) + ', average ' + r(mean(V)) + ', longest ' + r(Math.max.apply(null, V.d)) + ' yards'; }).join('; ')) + '">';
+    for (var t = a0; t <= a1 + 1e-9; t += step) o += '<line class="stgrid" x1="' + X(t) + '" y1="2" x2="' + X(t) + '" y2="' + yAx + '"/><text class="stx" x="' + X(t) + '" y="' + (yAx + 13) + '" text-anchor="middle">' + t + '</text>';
+    o += '<line class="staxis" x1="' + x0 + '" y1="' + yAx + '" x2="' + x1 + '" y2="' + yAx + '"/>';
+    rows.forEach(function (R, i) { var yT = top + i * (rh + gap), grey = R[1] === 'stdrvall';
+      if (R[2]) o += '<text class="sty stboxlab" x="2" y="' + (yT + rh / 2 + 3.5) + '">' + R[2] + '</text>';
+      o += boxShapes(R[0].d, X, yT, yT + rh, R[1], grey ? { line: '#8f9aa5', fill: 'rgba(143,154,165,.14)', med: '#6d7a86', mean: '#6d7a86' } : { line: '#1f73c9', fill: 'rgba(31,115,201,.16)', med: '#155ba3', mean: '#23313d' }); });
+    o += '<text class="stx" x="' + ((x0 + x1) / 2) + '" y="' + (yAx + 27) + '" text-anchor="middle">Yards</text></svg>';
+    var sum = function (V) { return V.n === 1 ? r(V.d[0]) + ' yd' : 'min ' + r(Math.min.apply(null, V.d)) + ' · median ' + r(med(V)) + ' · avg ' + r(mean(V)) + ' · max ' + r(Math.max.apply(null, V.d)) + ' yd'; };
+    return h + o + '<p class="stn" id="driven">n = ' + A.n + (A.n === 1 ? ' drive' : '') + ' · ' + sum(A) + (two ? '<br>All rounds: n = ' + Z.n + ' · ' + sum(Z) : '') + '</p>' +
+      '<p class="stnote">Tee shots on par 4s and 5s, hole length minus what was left' + (A.driverOnly ? ' (Driver only)' : '') + '; OB, penalty and layup tee shots left out. Box = middle half of the drives, line = median, whiskers = shortest and longest, ◇ = average.</p></div>';
+  }
+  // v125: above the par 3 / 4 / 5 curves – a one-tap "open round vs all rounds", the Compare switch and a small legend
+  function stParBar(D) {
+    var O = D.openP, isOpen = O && D.mode === 'sel' && D.sel && D.sel.id === O.id, b = '<div class="stparbar" id="stparbar">';
+    if (O && !(isOpen && D.cmp)) b += '<button class="stparcur" id="stparcur" data-act="stcur">' + (O.open ? 'Round in progress' : 'Open round') + ' (' + esc(stDate(O.date, true)) + ') vs all rounds</button>';
+    if (D.mode !== 'all') b += '<button class="stcmp' + (D.cmp ? ' on' : '') + '" id="stcmp2" data-act="stcmp" aria-pressed="' + D.cmp + '"><i aria-hidden="true"></i>Compare to all rounds</button>';
+    b += '</div>';
+    if (D.cmp) b += '<div class="stparleg" id="stparleg"><span><i class="solid"></i>' + (D.mode === 'sel' ? 'This round' : 'Last 5') + '</span><span><i class="dash"></i>All rounds</span></div>';
+    else if (D.mode === 'all') b += '<p class="stnote stparhint" id="stparhint">To lay one round over all rounds, tap the button above or pick Selected round and turn on Compare.</p>';
+    return b;
+  }
   function statsHTML() {
     var I = statsPlayerInfo(), D = statsData(), all = D.all, shown = D.shown, mode = D.mode;
     var who = view.stPlayer === '~none' ? 'No name' : view.stPlayer || (I.multi ? 'All players' : (all[0] && (rounds.filter(function (r) { return r.id === all[0].id; })[0] || {}).player) || playerName() || '');
@@ -747,20 +801,49 @@
     if (!all.length) return h + '<div class="stcard stnone" id="stnone"><p>No finished rounds yet.</p><p class="stnote">Graphs appear here once a round is finished' + (D.unfinished ? ' (' + D.unfinished + ' unfinished not shown)' : '') + '.</p></div></div>';
     h += '<div class="stseg" id="strange" role="group" aria-label="Rounds shown">' + [['all', 'All rounds'], ['5', 'Last 5'], ['sel', 'Selected round']].map(function (o) {
       var s = mode === o[0]; return '<button class="' + (s ? 'sel' : '') + '" data-act="strange" data-v="' + o[0] + '" aria-pressed="' + s + '">' + o[1] + '</button>'; }).join('') + '</div>';
-    if (mode === 'sel') h += '<div class="strounds" id="strounds" role="listbox" aria-label="Pick a round">' + all.slice().reverse().map(function (p) {
-      var s = D.sel && p.id === D.sel.id; return '<button class="stri' + (s ? ' sel' : '') + '" role="option" aria-selected="' + s + '" data-act="stround" data-id="' + esc(p.id) + '"><span class="strd">' + esc(stDate(p.date)) +
-        '</span><span class="strc">' + esc(p.course) + '</span><span class="strs">' + p.score + ' <small>(' + toPar(p.toPar) + ')</small></span></button>'; }).join('') + '</div>';
+    // v125: the open round is first in the list, marked "Open now" (an unfinished one shows its holes so far)
+    var OP = D.openP, rl = all.slice().reverse(); if (OP) rl = [OP].concat(rl.filter(function (p) { return p.id !== OP.id; }));
+    if (mode === 'sel') h += '<div class="strounds" id="strounds" role="listbox" aria-label="Pick a round">' + rl.map(function (p) {
+      var s = D.sel && p.id === D.sel.id, isO = OP && p.id === OP.id; return '<button class="stri' + (s ? ' sel' : '') + (isO ? ' stopen' : '') + '" role="option" aria-selected="' + s + '" data-act="stround" data-id="' + esc(p.id) + '"><span class="strd">' + (isO ? '<i class="stopenb">Open now</i>' : '') + esc(stDate(p.date)) +
+        '</span><span class="strc">' + esc(p.course) + (p.open ? ' <small>· ' + p.holes + ' holes</small>' : '') + '</span><span class="strs">' + p.score + ' <small>(' + toPar(p.toPar) + ')</small></span></button>'; }).join('') + '</div>';
     if (mode !== 'all') h += '<div class="stbar"><button class="stcmp' + (D.cmp ? ' on' : '') + '" id="stcmp" data-act="stcmp" aria-pressed="' + D.cmp + '"><i aria-hidden="true"></i>Compare to all rounds</button></div>';
-    h += '<p class="stsub" id="stshown">' + (mode === 'sel' && D.sel ? esc(stDate(D.sel.date)) + ' · ' + esc(D.sel.course) + ' · ' + D.sel.score + ' (' + toPar(D.sel.toPar) + ')' :
+    h += '<p class="stsub" id="stshown">' + (mode === 'sel' && D.sel ? esc(stDate(D.sel.date)) + ' · ' + esc(D.sel.course) + ' · ' + D.sel.score + ' (' + toPar(D.sel.toPar) + ')' + (D.sel.open ? ' · ' + D.sel.holes + ' holes so far' : '') :
       (mode === '5' ? 'Last ' + shown.length + ' of ' : '') + all.length + ' finished round' + (all.length === 1 ? '' : 's') + ' · ' + esc(stDate(shown[0].date)) + (shown.length > 1 ? ' – ' + esc(stDate(shown[shown.length - 1].date)) : '')) + '</p>';
     h += '<div class="stsec stsecsg"><span class="stsect">Strokes gained</span><select id="stbl" class="stbl" data-f="baseline" aria-label="Compare against"><option value="">Each round’s baseline</option>' + SG.BASELINES.map(function (b) {
         return '<option value="' + b.id + '"' + (view.stBl === b.id ? ' selected' : '') + '>' + esc(blLabel(b.id)) + '</option>'; }).join('') + '</select></div>' +
       '<p class="stnote stsgnote" id="stsgnote">Plus = strokes gained, minus = strokes lost, compared with ' + esc(view.stBl ? blLabel(view.stBl) : 'each round’s own baseline') + '.</p>';
-    ST_SG.forEach(function (c) { h += stTrend(c[0], D, function (p) { return p.sg[c[0]]; }, { title: c[1], short: c[1].replace(/ \(.*\)$/, ''), color: c[2], help: c[3] }); });
-    h += '<div class="stsec">Fairways and greens</div>';
-    ST_PCT.forEach(function (c) { h += stTrend(c[0], D, function (p) { return p[c[0]]; }, { title: c[1], short: c[1].replace(/ \(.*\)$/, ''), color: c[2], help: c[3], pct: true }); });
-    h += '<div class="stsec">Scoring by par</div>';
-    [3, 4, 5].forEach(function (par) { h += stDist(par, D); });
+    // v125: graphs grouped in collapsible categories (tap a header; open / closed is kept while the page is open)
+    var sgT = function (k) { var c = ST_SG.filter(function (x) { return x[0] === k; })[0]; return stTrend(k, D, function (p) { return p.sg[k]; }, { title: c[1], short: c[1].replace(/ \(.*\)$/, ''), color: c[2], help: c[3] }); };
+    var pctT = function (k) { var c = ST_PCT.filter(function (x) { return x[0] === k; })[0]; return stTrend(k, D, function (p) { return p[k]; }, { title: c[1], short: c[1].replace(/ \(.*\)$/, ''), color: c[2], help: c[3], pct: true }); };
+    // per-shot graphs: strokes gained per putt / shot in one bucket; a round with none in the bucket has no point
+    var bT = function (id, grp, key, title, short, col, help, unit) { var g = function (p) { return p.b[grp][key]; };
+      return stTrend(id, D, function (p) { var b = g(p); return b.n ? b.sg / b.n : null; }, { title: title, short: short, color: col, help: help, minSpan: 0.4, unit: unit,
+        avg: function (L) { return SG.bucketAvg(L.map(g)); }, nOf: function (p) { return g(p).n; } }); };
+    var cats = [
+      ['driver', 'Driver', function () { return stBox(D) + sgT('ott') + pctT('fir'); }, [['OTT', function (p) { return p.sg.ott; }], ['FW', function (p) { return p.fir; }, 'pct']]],
+      ['approach', 'Approach', function () { return sgT('app') + pctT('gir') + stTrend('prox', D, function (p) { return p.prox; }, { title: 'Approach proximity', short: 'Proximity', color: '#2e9d4f', ft: true, unit: 'approaches',
+          help: 'Average distance from the hole after the regulation approach from 40–200 yd, every shot (misses too) – the same shots as the Proximity page’s All button. Lower is better.',
+          avg: function (L) { var n = 0, t = 0; L.forEach(function (p) { if (p.prox != null) { n += p.proxN; t += p.prox * p.proxN; } }); return n ? t / n : null; }, nOf: function (p) { return p.proxN; } }); },
+        [['APP', function (p) { return p.sg.app; }], ['GIR', function (p) { return p.gir; }, 'pct']]],
+      ['putting', 'Putting', function () { var pc = ['#7c4dcc', '#9466e0', '#6a3fb5', '#5a2f9e'], hp = ' Strokes gained per hole from that first-putt distance (every putt on the hole counts).';
+        return sgT('putt') + SG.FP_BANDS.map(function (b, i) { return bT('pt' + b.id, 'putt', b.id, '1st putt ' + b.name.replace(/^Under/, 'under').replace(/^Over/, 'over'), b.name, pc[i], 'Holes whose first putt was ' + b.name.toLowerCase() + '.' + hp, 'putts'); }).join('') +
+          stTrend('ptmade5', D, function (p) { var b = p.b.putt.u5; return b.n ? 100 * b.made / b.n : null; }, { title: '1st putts made under 5 ft', short: 'Made under 5 ft', color: '#7c4dcc', pct: true, unit: 'putts',
+            help: 'Of the first putts that started under 5 ft, the share holed.', avg: function (L) { var n = 0, m = 0; L.forEach(function (p) { n += p.b.putt.u5.n; m += p.b.putt.u5.made; }); return n ? 100 * m / n : null; }, nOf: function (p) { return p.b.putt.u5.n; } }); },
+        [['PUTT', function (p) { return p.sg.putt; }]]],
+      ['chipping', 'Chipping', function () { var lc = { sand: '#d4a017', rough: '#3f8f3a', fairway: '#6cbf43' }, dc = ['#f0a040', '#e8871e', '#c96a0e'],
+          hc = ' Strokes gained per shot. The Around the green shots: off the green from ' + SG.SHORT_MAX_YD + ' yd and in – the same shots as the ARG total.';
+        return sgT('arg') + '<p class="stgrp">By lie</p>' + SG.CHIP_LIES.map(function (L) { return bT('ch' + L.id, 'chipLie', L.id, 'From the ' + L.name.toLowerCase(), L.name, lc[L.id], L.name + (L.id === 'rough' ? ' (incl. deep rough)' : '') + '.' + hc, 'shots'); }).join('') +
+          '<p class="stgrp">By distance</p>' + SG.CHIP_BANDS.map(function (b, i) { return bT('ch' + b.id, 'chipDist', b.id, b.name.replace(/^0/, 'Up to ').replace('Up to –', 'Up to '), b.name, dc[i], (i ? 'Over ' + b.lo + ' up to ' + b.hi + ' yd' : '10 yd and in') + ', any lie.' + hc, 'shots'); }).join(''); },
+        [['ARG', function (p) { return p.sg.arg; }]]],
+      ['scoring', 'Scoring', function () { return sgT('tot') + stParBar(D) + [3, 4, 5].map(function (par) { return stDist(par, D); }).join(''); },
+        [['TOT', function (p) { return p.sg.tot; }], ['Score', function (p) { return p.score; }, 'n']]]];
+    var op = view.stOpen || (view.stOpen = {});
+    var catSum = function (L) { return L.map(function (x) { var v = mode === 'sel' ? (D.sel ? x[1](D.sel) : null) : SG.trendAvg(D.shown.map(x[1]));
+      return x[0] + ' <em>' + (v == null ? '–' : x[2] === 'pct' ? Math.round(v) + '%' : x[2] === 'n' ? (Math.round(v * 10) / 10) : fmtSG(v)) + '</em>'; }).join(' · '); };
+    h += '<div class="stcats" id="stcats">' + cats.map(function (c) { var on = !!op[c[0]];
+      return '<section class="stcat' + (on ? ' open' : '') + '" id="stcat-' + c[0] + '" data-cat="' + c[0] + '"><button class="stcath" data-act="stcat" data-v="' + c[0] + '" aria-expanded="' + on + '" aria-controls="stcatb-' + c[0] + '">' +
+        '<b>' + c[1] + '</b><span class="stcatsum" id="stcatsum-' + c[0] + '">' + catSum(c[3]) + '</span><i class="stcatc" aria-hidden="true"></i></button>' +
+        '<div class="stcatb" id="stcatb-' + c[0] + '"' + (on ? '' : ' hidden') + '>' + c[2]() + '</div></section>'; }).join('') + '</div>';
     var colN = mode === 'sel' ? 'This round' : mode === '5' ? 'Last 5' : 'All rounds', two = D.cmp;
     h += '<div class="stcard" id="sttablecard"><div class="sth"><span>Averages per round</span></div><table class="sttable" id="sttable"><thead><tr><th></th><th class="num">' + colN + '</th>' + (two ? '<th class="num">All rounds</th>' : '') + '</tr></thead><tbody>' +
       '<tr data-k="Rounds"><td>Rounds</td><td class="num">' + D.avgShown.n + '</td>' + (two ? '<td class="num">' + D.avgAll.n + '</td>' : '') + '</tr>' +
@@ -2095,7 +2178,7 @@
     sh.forEach(function (x) { cat[x.cat] = (cat[x.cat] || 0) + x.sg; });
     var putts = sh.filter(function (x) { return x.start.lie === 'green'; }), t0 = sh[0];
     var lastP = putts.length && putts[putts.length - 1].end.lie === 'holed' ? putts[putts.length - 1] : null;
-    // up and down: missed the green in regulation, then a short-game shot (off the green, within 20 yd) – made if holed in 2 or fewer from there
+    // up and down: missed the green in regulation, then a short-game shot (off the green, within 30 yd) – made if holed in 2 or fewer from there
     var k = -1; if (!a.gir) for (var j = 0; j < sh.length; j++) if (sh[j].cat === 'short') { k = j; break; }
     var ud = null, sandy = null;
     if (k >= 0) {
@@ -2254,7 +2337,7 @@
       out += '<tr><td>' + CAT_NAME[k] + '</td><td class="num">' + c.n + '</td><td class="num ' + sgCls(c.sg) + '">' + fmtSG(c.sg) + '</td></tr>';
     });
     out += '</table>' + compareHTML(r, bl) + '<h3>By distance</h3><table id="bydist"><tr><th>From</th><th class="num">Shots</th><th class="num">SG</th><th class="num">Avg to pin after</th></tr>';
-    var groups = [['Approach', SG.APPR_BUCKETS.map(function (b) { return b.id; })], ['Short game', ['0-20 yd']], ['Putting', ['0-5 ft', '5-15 ft', '15-30 ft', '30+ ft']]], pex = 0;
+    var groups = [['Approach', SG.APPR_BUCKETS.map(function (b) { return b.id; })], ['Short game', [SG.SHORT_BUCKET]], ['Putting', ['0-5 ft', '5-15 ft', '15-30 ft', '30+ ft']]], pex = 0;
     groups.forEach(function (g) {
       out += '<tr><td colspan="4" style="background:#eee"><b>' + g[0] + '</b></td></tr>';
       g[1].forEach(function (b) {
@@ -2263,8 +2346,8 @@
           (ap ? (c.proxN ? Math.round(c.proxFt) + ' ft' : '–') : '') + '</td></tr>';
       });
     });
-    out += '</table><p class="help muted" id="bydistnote">Approach = every shot from more than 20 yd off the green, par-3 tee shots included (par-4/5 tee shots are Off the tee). ' +
-      'Short game = off the green from 20 yd and in. Ranges include the lower number (60–100 = 60 to under 100 yd); 20–60 = over 20 up to under 60 yd (it also takes the 20–30 yd shots). ' +
+    out += '</table><p class="help muted" id="bydistnote">Approach = every shot from more than 30 yd off the green, par-3 tee shots included (par-4/5 tee shots are Off the tee). ' +
+      'Short game = off the green from 30 yd and in. Ranges include the lower number (60–100 = 60 to under 100 yd); 30–60 = over 30 up to under 60 yd. ' +
       'Avg to pin after = how far from the hole the ball finished: feet on the green, yards × 3 off it, 0 if holed' +
       (pex ? '; <b>' + pex + '</b> approach shot' + (pex === 1 ? '' : 's') + ' with a penalty or OB left out of that average' : '; shots with a penalty or OB are left out of it') + '.</p>';
     var sgPart = out; out = main + '<h2>Stats</h2>' + statTilesHTML(S);
@@ -2871,6 +2954,21 @@
   }
   // v118: drive distance box plot – box = middle half (25th–75th percentile, linear interpolation), line = median, whiskers = shortest / longest, ◇ = average
   function clubQuart(d) { var s2 = d.slice().sort(function (a, b) { return a - b; }); return function (p) { var i = (s2.length - 1) * p, k = Math.floor(i); return s2[k] + (s2[Math.min(k + 1, s2.length - 1)] - s2[k]) * (i - k); }; }
+  // v125: the box / whiskers / median / ◇ average for one set of distances (shared by Club performance and the Stats drive chart).
+  // X = value -> x, yT / yB = top / bottom of the box, pre = id prefix (clubdist -> #clubdistbox, #clubdistmed …), c = colours
+  function boxShapes(d, X, yT, yB, pre, c) {
+    c = c || { line: '#3b82c4', fill: 'rgba(59,130,196,.16)', med: '#2f6aa3', mean: '#23313d' };
+    var q = clubQuart(d), lo = d.reduce(function (a, b) { return Math.min(a, b); }), hi = d.reduce(function (a, b) { return Math.max(a, b); }), mean = d.reduce(function (a, b) { return a + b; }, 0) / d.length;
+    var q1 = q(0.25), med = q(0.5), q3 = q(0.75), yM = (yT + yB) / 2, r = Math.round, o = '';
+    if (d.length === 1) o += '<line id="' + pre + 'one" data-v="' + r(lo) + '" x1="' + X(lo) + '" y1="' + yT + '" x2="' + X(lo) + '" y2="' + yB + '" stroke="' + c.line + '" stroke-width="1.5"/>';
+    else o += '<line id="' + pre + 'wl" data-v="' + r(lo) + '" x1="' + X(lo) + '" y1="' + yM + '" x2="' + X(q1) + '" y2="' + yM + '" stroke="' + c.line + '" stroke-width="1"/>' +
+      '<line id="' + pre + 'wr" data-v="' + r(hi) + '" x1="' + X(q3) + '" y1="' + yM + '" x2="' + X(hi) + '" y2="' + yM + '" stroke="' + c.line + '" stroke-width="1"/>' +
+      '<line class="cdcap" x1="' + X(lo) + '" y1="' + (yT + 2) + '" x2="' + X(lo) + '" y2="' + (yB - 2) + '" stroke="' + c.line + '" stroke-width="1"/><line class="cdcap" x1="' + X(hi) + '" y1="' + (yT + 2) + '" x2="' + X(hi) + '" y2="' + (yB - 2) + '" stroke="' + c.line + '" stroke-width="1"/>' +
+      '<rect id="' + pre + 'box" data-q1="' + r(q1) + '" data-q3="' + r(q3) + '" x="' + X(q1) + '" y="' + yT + '" width="' + Math.max(1, X(q3) - X(q1)).toFixed(1) + '" height="' + (yB - yT) + '" fill="' + c.fill + '" stroke="' + c.line + '" stroke-width="1"/>' +
+      '<line id="' + pre + 'med" data-v="' + r(med) + '" x1="' + X(med) + '" y1="' + yT + '" x2="' + X(med) + '" y2="' + yB + '" stroke="' + c.med + '" stroke-width="1.5"/>';
+    var mx = +X(mean);
+    return o + '<path id="' + pre + 'mean" data-v="' + r(mean) + '" d="M' + mx.toFixed(1) + ' ' + (yM - 4.5) + 'l4.5 4.5-4.5 4.5-4.5-4.5z" fill="#fff" stroke="' + c.mean + '" stroke-width="1"/>';
+  }
   function clubDistCard(V, club, all) {
     var h = '<div class="clubcard" id="clubdistcard"><div class="cch"><span>' + (club === 'Driver' ? 'Drive distance' : esc(club) + ' off the tee') + tipBtn('clubdist', 'i', 'About this graph') + '</span><span class="ccv" id="clubdistn">' + (V.n ? 'n = ' + V.n : '') + '</span></div>' +
       tipText('clubdist', 'Every ' + esc(club) + ' tee shot on a par 4 or 5' + (all ? ' (all rounds)' : ' (this round)') + ': hole length minus the distance left for the next shot – the same drives as the Avg drive tile (OB, penalty and layup tee shots left out). ' +
@@ -2884,15 +2982,8 @@
     var o = '<svg class="clubdist" id="clubdist" viewBox="0 0 ' + W + ' 92" width="100%" role="img" aria-label="' + esc(club) + ' distances: shortest ' + r(lo) + ', 25th percentile ' + r(q1) + ', median ' + r(med) + ', 75th percentile ' + r(q3) + ', longest ' + r(hi) + ', average ' + r(mean) + ' yards">';
     for (var t = a0; t <= a1 + 1e-9; t += step) o += '<line class="cdg" x1="' + X(t) + '" y1="2" x2="' + X(t) + '" y2="' + (yB + 8) + '" stroke="#e6eaee" stroke-width="1"/><text class="cdt" x="' + X(t) + '" y="' + (yB + 21) + '" text-anchor="middle">' + t + '</text>';
     o += '<line x1="' + x0 + '" y1="' + (yB + 8) + '" x2="' + x1 + '" y2="' + (yB + 8) + '" stroke="#b9c3cc" stroke-width="1"/>';
-    if (V.n === 1) o += '<line id="clubdistone" data-v="' + r(lo) + '" x1="' + X(lo) + '" y1="' + yT + '" x2="' + X(lo) + '" y2="' + yB + '" stroke="#3b82c4" stroke-width="1.5"/>';
-    else o += '<line id="clubdistwl" data-v="' + r(lo) + '" x1="' + X(lo) + '" y1="' + yM + '" x2="' + X(q1) + '" y2="' + yM + '" stroke="#3b82c4" stroke-width="1"/>' +
-      '<line id="clubdistwr" data-v="' + r(hi) + '" x1="' + X(q3) + '" y1="' + yM + '" x2="' + X(hi) + '" y2="' + yM + '" stroke="#3b82c4" stroke-width="1"/>' +
-      '<line class="cdcap" x1="' + X(lo) + '" y1="' + (yT + 2) + '" x2="' + X(lo) + '" y2="' + (yB - 2) + '" stroke="#3b82c4" stroke-width="1"/><line class="cdcap" x1="' + X(hi) + '" y1="' + (yT + 2) + '" x2="' + X(hi) + '" y2="' + (yB - 2) + '" stroke="#3b82c4" stroke-width="1"/>' +
-      '<rect id="clubdistbox" data-q1="' + r(q1) + '" data-q3="' + r(q3) + '" x="' + X(q1) + '" y="' + yT + '" width="' + Math.max(1, X(q3) - X(q1)).toFixed(1) + '" height="' + (yB - yT) + '" fill="rgba(59,130,196,.16)" stroke="#3b82c4" stroke-width="1"/>' +
-      '<line id="clubdistmed" data-v="' + r(med) + '" x1="' + X(med) + '" y1="' + yT + '" x2="' + X(med) + '" y2="' + yB + '" stroke="#2f6aa3" stroke-width="1.5"/>';
-    var mx = +X(mean);
-    o += '<path id="clubdistmean" data-v="' + r(mean) + '" d="M' + mx.toFixed(1) + ' ' + (yM - 4.5) + 'l4.5 4.5-4.5 4.5-4.5-4.5z" fill="#fff" stroke="#23313d" stroke-width="1"/>' +
-      '<text class="cdax" x="' + ((x0 + x1) / 2) + '" y="' + (yB + 38) + '" text-anchor="middle">Yards</text></svg>';
+    o += boxShapes(V.d, X, yT, yB, 'clubdist');
+    o += '<text class="cdax" x="' + ((x0 + x1) / 2) + '" y="' + (yB + 38) + '" text-anchor="middle">Yards</text></svg>';
     var sum = V.n === 1 ? '1 drive · ' + r(lo) + ' yd' : 'min ' + r(lo) + ' · median ' + r(med) + ' · avg ' + r(mean) + ' · max ' + r(hi) + ' yd';
     return h + o + '<p class="ccnote clubdistsum" id="clubdistsum">' + sum + '</p></div>';
   }
@@ -2965,7 +3056,7 @@
       tilesH = clubQV('gir', 'GIR', A.length ? pctOf(g, A.length) + '%' : '–', A.length ? g + ' / ' + A.length + ' greens' : 'no approaches', 'n = ' + A.length) +
         clubQV('sg', 'SG approach', AP.length ? '<span class="' + sgCls(aSG) + '">' + fmtSG(aSG) + '</span>' : '–', AP.length ? fmtSG(aSG / AP.length) + ' per shot' : 'no approach shots', pl(AP.length, 'shot')) +
         clubQV('prox', 'Proximity', fmtProx(pAvg), P.length ? 'avg to the pin' : 'no approaches', fromY != null ? 'from ' + fromY + ' yd avg' : null);
-      tips.push('<b>GIR</b> and <b>Proximity</b> use only the hole’s real approach – the shot that could reach the green in regulation (a par-3 tee shot, the 2nd on a par 4, the 2nd or 3rd on a par 5) – when it was hit with ' + esc(cur) + '. Not tee shots on par 4/5, layups, chips from 20 yd and in or shots from the green. Proximity = distance to the pin after the shot (first-putt length on the green; yards × 3 off it; OB left out). <b>SG approach</b> = every ' + esc(cur) + ' shot in the Approach category vs the PGA Tour baseline.' +
+      tips.push('<b>GIR</b> and <b>Proximity</b> use only the hole’s real approach – the shot that could reach the green in regulation (a par-3 tee shot, the 2nd on a par 4, the 2nd or 3rd on a par 5) – when it was hit with ' + esc(cur) + '. Not tee shots on par 4/5, layups, chips from 30 yd and in or shots from the green. Proximity = distance to the pin after the shot (first-putt length on the green; yards × 3 off it; OB left out). <b>SG approach</b> = every ' + esc(cur) + ' shot in the Approach category vs the PGA Tour baseline.' +
         (tees.length ? ' ' + pl(tees.length, 'tee shot') + ' on par 4/5 with ' + esc(cur) + ' are in the shot list but not in these tiles.' : ''));
     } else {
       tilesH = sgAll + clubQV('n', 'Shots', st.n, all ? 'all rounds' : 'this round', null) +
@@ -3015,7 +3106,7 @@
     return s.replace(/<svg id="[a-z]+"/, '<svg data-kind="' + kind + '"');
   }
   function cmpAgg(set) {
-    var b = {}, keys = SG.APPR_BUCKETS.map(function (x) { return x.id; }).concat(['0-20 yd', '0-5 ft', '5-15 ft', '15-30 ft', '30+ ft']);
+    var b = {}, keys = SG.APPR_BUCKETS.map(function (x) { return x.id; }).concat([SG.SHORT_BUCKET, '0-5 ft', '5-15 ft', '15-30 ft', '30+ ft']);
     keys.forEach(function (k) { b[k] = { n: 0, sg: 0, pS: 0, pN: 0, gir: 0, girN: 0 }; });
     set.forEach(function (x) { keys.forEach(function (k) { var B = x.S.buckets[k]; if (!B) return; b[k].n += B.n; b[k].sg += B.sg; b[k].pS += B.proxSum; b[k].pN += B.proxN; });
       x.S.proxList.forEach(function (m) { var k = cmpBucket(m.from); if (b[k]) { b[k].girN++; if (m.hit) b[k].gir++; } }); });
@@ -3029,7 +3120,7 @@
     var o = '<div class="gapcard"><table id="gaptable" class="gaptable gapt"><colgroup><col class="c-from"><col span="3" class="c-b"><col span="3" class="c-w"><col class="c-gap"></colgroup>' +
       '<thead><tr><th rowspan="2" class="from">From</th><th colspan="3" class="gb ghead" id="gapbesthead">Best<small>' + who(C.best) + '</small></th><th colspan="3" class="gw ghead" id="gapworsthead">Worst<small>' + who(C.worst) + '</small></th><th rowspan="2" class="gap">Gap</th></tr>' +
       '<tr class="gsub"><th class="gb g1">Avg ft</th><th class="gb">GIR</th><th class="gb">SG</th><th class="gw g1">Avg ft</th><th class="gw">GIR</th><th class="gw">SG</th></tr></thead><tbody>';
-    var secs = [['Approach · yards', SG.APPR_BUCKETS.map(function (x) { return x.id; })], ['Short game · yards', ['0-20 yd']], ['Putting · first putt, feet', ['0-5 ft', '5-15 ft', '15-30 ft', '30+ ft']]];
+    var secs = [['Approach · yards', SG.APPR_BUCKETS.map(function (x) { return x.id; })], ['Short game · yards', [SG.SHORT_BUCKET]], ['Putting · first putt, feet', ['0-5 ft', '5-15 ft', '15-30 ft', '30+ ft']]];
     secs.forEach(function (sec) {
       var rows = sec[1].filter(function (k) { return B.b[k] && (B.b[k].n || W.b[k].n); }); if (!rows.length) return;
       var ap = sec === secs[0];
@@ -3867,11 +3958,14 @@
       case 'editname': view.editName = true; render(); var pi = document.getElementById('pname'); if (pi) pi.focus(); return;
       case 'cancelname': view.editName = false; view.needName = null; render(); return;
       case 'histplayer': view.histPlayer = v || null; render(); return;
-      case 'stats': view.hmenu = null; view.screen = 'stats'; view.stSel = null; view.stPlayer = undefined; render(); window.scrollTo(0, 0); return; // v110
+      case 'stats': view.hmenu = null; view.screen = 'stats'; view.stSel = null; view.stPlayer = undefined; view.stOpen = {}; render(); window.scrollTo(0, 0); return; // v110
       case 'stplayer': view.stPlayer = v || null; view.histPlayer = view.stPlayer; view.stSel = null; render(); return;
       case 'strange': view.stMode = v || 'all'; view.stSel = null; render(); return; // v116: all | 5 | sel
       case 'stround': view.stMode = 'sel'; view.stRid = b.getAttribute('data-id'); view.stSel = null; render(); return;
       case 'stcmp': view.stCmp = !view.stCmp; view.stSel = null; render(); return;
+      case 'stcat': (view.stOpen = view.stOpen || {})[v] = !view.stOpen[v]; render(); return; // v125: open / close a category
+      case 'stcur': var oD = statsData(); if (!oD.openP) return; view.stMode = 'sel'; view.stRid = oD.openP.id; view.stCmp = true; view.stSel = null; (view.stOpen = view.stOpen || {}).scoring = true; render();
+        var sc2 = document.getElementById('stcat-scoring'); if (sc2) window.scrollTo(0, window.scrollY + sc2.getBoundingClientRect().top - 8); return;
       case 'stpt': var sc = b.getAttribute('data-c'), si = +b.getAttribute('data-i'); view.stSel = view.stSel && view.stSel.c === sc && view.stSel.i === si ? null : { c: sc, i: si }; render(); return;
       case 'gdconnect': case 'gdsignin': case 'gdsync': case 'gdrestore': case 'gdrclose': case 'gdrback': case 'gdrplayer': case 'gdrfile': case 'gddisconnect': gdAct(act, b); return;
       case 'delHist': {

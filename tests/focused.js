@@ -84,16 +84,16 @@ const BASE = process.env.BASE_URL || 'http://127.0.0.1:8765/', SHOTS = process.e
   console.log('✓ delete from History');
   // Putting green
   await page.click('#histlist [data-act="open"][data-id="rputt"]');
-  // SG by distance: approach > 20 yd in Scott's buckets, short game <= 20 yd, avg to pin after (ft)
+  // SG by distance: approach > 30 yd in Scott's buckets, short game <= 30 yd (v125), avg to pin after (ft)
   if (!(await page.$('#sgbody'))) await page.click('[data-act="sgtoggle"]');
   const bd = await page.$$eval('#bydist tr[data-bucket]', ts => ts.map(t => [...t.querySelectorAll('td')].map(d => d.textContent)));
-  assert.deepStrictEqual(bd.map(r => r[0]), ['20-60 yd', '60-100 yd', '100-130 yd', '130-160 yd', '160-200 yd', '200+ yd', '0-20 yd', '0-5 ft', '5-15 ft', '15-30 ft', '30+ ft']);
+  assert.deepStrictEqual(bd.map(r => r[0]), ['30-60 yd', '60-100 yd', '100-130 yd', '130-160 yd', '160-200 yd', '200+ yd', '0-30 yd', '0-5 ft', '5-15 ft', '15-30 ft', '30+ ft']);
   assert.deepStrictEqual(bd.slice(0, 6).map(r => [r[1], r[3]]), [['0', '–'], ['1', '12 ft'], ['0', '–'], ['3', '23 ft'], ['2', '19 ft'], ['1', '270 ft']]);
   const sgChk = await page.evaluate(() => { const S = SG.summarize(window.__golf.rounds().find(r => r.id === 'rputt')); return [S.cats.approach.n, S.cats.short.n]; });
   assert.deepStrictEqual(sgChk, [7, 0]); assert.strictEqual(bd.slice(0, 6).reduce((t, r) => t + +r[1], 0), 7, 'approach rows add up to the Approach category');
-  assert.match(await page.textContent('#bydistnote'), /more than 20 yd off the green, par-3 tee shots included.*from 20 yd and in.*20–60 = over 20 up to under 60 yd.*yards × 3/);
+  assert.match(await page.textContent('#bydistnote'), /more than 30 yd off the green, par-3 tee shots included.*from 30 yd and in.*30–60 = over 30 up to under 60 yd.*yards × 3/);
   await page.locator('#bydist').scrollIntoViewIfNeeded(); await page.evaluate(() => window.scrollBy(0, -60)); await page.waitForFunction(() => document.getElementById('toast').className !== 'show'); await page.screenshot({ path: SHOTS + '/38-sg-by-distance.png' });
-  console.log('✓ SG by distance: approach buckets 20-60/60-100/100-130/130-160/160-200/200+, short game 0-20 yd, avg to pin after; rows add up to category');
+  console.log('✓ SG by distance: approach buckets 30-60/60-100/100-130/130-160/160-200/200+, short game 0-30 yd, avg to pin after; rows add up to category');
   // Proximity (v22 rail): opens on the busiest yardage; All / single yardages; blue hit, red miss
   await (await xt(page, 'prox')).click('[data-act="map"][data-v="prox"]'); await page.waitForSelector('#proxmap');
   assert.strictEqual(await page.locator('#proxrail .ybtn').count(), 17);

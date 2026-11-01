@@ -17,6 +17,8 @@ const NAMES = ['Eagle', 'Birdie', 'Par', 'Bogey', 'Double', 'Triple'];
   const shot = async (n, el, off) => { if (el) await page.$eval(el, (e, o) => { window.scrollTo(0, 0); window.scrollTo(0, e.getBoundingClientRect().top - o); }, off == null ? 64 : off); else await page.evaluate(() => window.scrollTo(0, 0));
     await page.waitForTimeout(200); await page.screenshot({ path: OUT + '/' + n }); };
   await page.click('#plusbtn'); await page.click('#plusmenu [data-act="stats"]'); await page.waitForSelector('#statspage');
+  // v125: the graphs sit in collapsible categories – open them all for this test (they stay open while the page is open)
+  for (const c of ['driver', 'approach', 'putting', 'chipping', 'scoring']) await page.click('#stcat-' + c + ' .stcath');
 
   // hand count from the saved rounds: finished rounds only (every hole finished), strokes = rows, bucket = strokes - par clamped to Eagle..Triple
   const raw = await page.evaluate(() => JSON.parse(localStorage.getItem('golfsg.rounds.v1')));

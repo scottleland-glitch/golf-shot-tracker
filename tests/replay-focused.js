@@ -33,7 +33,7 @@ const BASE = process.env.BASE_URL || 'http://127.0.0.1:8771/', OUT = '/workspace
     assert.strictEqual(await page.locator('#rpgreenmap .rpputt').count(), nPutts, 'putts on zoomed green');
     assert.strictEqual(await page.locator('#rparrive').count(), 1, 'approach arrival drawn');
     assert.ok((await page.textContent('#rpgreenmap')).includes('▼ front of green') && !(await page.textContent('#rpgreenmap')).includes('toward the tee'));
-    assert.strictEqual(await page.textContent('#rparrlbl'), ['Short game pin high', 'Approach short', 'Approach long'][i]);
+    assert.strictEqual(await page.textContent('#rparrlbl'), ['Short game pin high', 'Approach short', 'Short game long'][i]); // v125: hole 3's last shot off the green is from 20–30 yd = short game (30 yd cutoff)
     assert.strictEqual(await page.locator('#rpgreenmap .rpfinish').count(), nPutts - 1, 'missed putts end at a white finish ball');
     assert.strictEqual(await page.locator('#rpgreenmap .rpputt.holed[stroke-dasharray]').count(), 1, 'holed putt dashed');
     assert.strictEqual(await page.locator('#rpgreenmap .rpcup').count(), 1);
