@@ -1630,3 +1630,53 @@ html body .roundpage.holepage .srow.shead .c-n { height: auto; min-height: 0; bo
 .mapview .tippop[id^="tip-prox"] .legend .dot { flex: none; width: 9px; height: 9px; margin-top: 4px; border-width: 1px; }
 .mapview .tippop[id^="tip-prox"] .legend .star { font-size: 12px; line-height: 1.2; }
 .mapview .tippop[id^="tip-prox"] .legend svg { margin-top: 2px; }
+/* v122: Proximity page – same tight layout, richer colours and a touch bolder type (300→400, 400→500); round-page maps, Club performance and Compare unchanged */
+.mapview.proxview .maphead b { font-weight: 500 !important; color: #1b2733; }
+.mapview.proxview .maphead .close { font-weight: 400 !important; color: #1f66b3; border-color: rgba(31, 102, 179, .35) !important; }
+.mapview.proxview .seg { background: #e6ebef; }
+.mapview.proxview .seg button { font-weight: 400 !important; color: #3a4754 !important; }
+.mapview.proxview .seg button.sel { font-weight: 500 !important; color: #1b2733 !important; box-shadow: 0 1px 2px rgba(23, 48, 31, .18); }
+.mapview.proxview .clubh3, .mapview.proxview h3 { font-weight: 500 !important; color: #1b2733; }
+.mapview.proxview .mapsum, .mapview.proxview .mapsum b { font-weight: 400 !important; color: #1b2733; }
+.mapview.proxview .proxnote, .mapview.proxview .proxlbl { font-weight: 400; color: #55636f; }
+.mapview.proxview .proxqv .qv { background: #fff; border-color: rgba(23, 48, 31, .14); }
+.mapview.proxview .proxqv .qvl { font-weight: 400 !important; color: #45525e; }
+.mapview.proxview .proxqv b { font-weight: 400 !important; color: #1b2733; }
+.mapview.proxview .proxqv small { font-weight: 400 !important; color: #55636f; }
+.mapview.proxview .proxrail button, .mapview.proxview .liechips .liebtn { font-weight: 400 !important; color: #1b2733 !important; border-color: rgba(23, 48, 31, .16) !important; }
+.mapview.proxview .proxrail button b { font-weight: 500 !important; }
+.mapview.proxview .proxrail button small, .mapview.proxview .liechips .liebtn small { font-weight: 400 !important; color: #6b7884 !important; }
+.mapview.proxview .proxrail button.sel, .mapview.proxview .liechips .liebtn.sel { border-color: #1f73c9 !important; background: rgba(31, 115, 201, .12) !important; }
+.mapview.proxview .proxrail button.sel small, .mapview.proxview .liechips .liebtn.sel small { color: #1f66b3 !important; }
+.mapview.proxview .proxleg { font-weight: 400; color: #3f4c58; }
+.mapview.proxview .legend .ln.dash { border-top-color: #e0313f; }
+.mapview.proxview .dirtab, .mapview.proxview .dirtab td { font-weight: 400 !important; color: #1b2733; }
+.mapview.proxview .dirtab th { font-weight: 500 !important; color: #55636f; }
+.mapview.proxview .lietab tr.sel td { background: rgba(31, 115, 201, .12); }
+.mapview.proxview .lietab tr.warn td { color: #b3261e; }
+.mapview.proxview > button.big[data-act="mapclose"] { font-weight: 400 !important; color: #1f66b3 !important; }
+.mapview .tippop[id^="tip-prox"] { font-weight: 400; color: #2f3c48; }
+.mapview .tippop[id^="tip-prox"] .legend { font-weight: 400; }
+.mapview .tippop[id^="tip-prox"] .legend .ln.dash { border-top-color: #e0313f; }
+.mapview.proxview .proxsum .infobtn span, .mapview.proxview .proxleg .infobtn span { border-color: #8d99a5; color: #3f4c58; }
+/* the map: richer greens and sand, crisp outlines, labels a touch bolder */
+.mapview.proxview #proxmap .pbg { fill: #e2f0da; }
+.mapview.proxview #proxmap .pgreen { fill: #5cb85c; stroke: #2e7d32; }
+.mapview.proxview #proxmap .pring { stroke-opacity: .85; }
+.mapview.proxview #proxmap text.ring { font-weight: 600; }
+.mapview.proxview #proxmap .phole { fill: #1b2733; }
+.mapview.proxview #proxmap .ppole { stroke: #1b2733; }
+.mapview.proxview #proxmap .pflag { fill: #e0313f; }
+.mapview.proxview #proxmap .pdir { font-weight: 500; fill: #3f4c58; }
+.mapview.proxview #proxmap .lie-rough { fill: #7dbb64; stroke: #3f8a3a; }
+.mapview.proxview #proxmap .lie-fw { fill: #b2e08f; stroke: #4f9e3e; }
+.mapview.proxview #proxmap .lie-mow { opacity: .3; }
+.mapview.proxview #proxmap #lie-sand { fill: #f2d785; stroke: #c29a2e; }
+.mapview.proxview #proxmap #lie-other { fill: #4e8f43; stroke: #2f6b2a; }
+.mapview.proxview #proxmap .lie-tree { fill: #2f6b2a; }
+.mapview.proxview #proxmap #lie-tee { fill: #d2f0c0; stroke: #4f9e3e; }
+.mapview.proxview #proxmap .liet { font-weight: 600; fill: #1f4a24; }
+.mapview.proxview #proxmap .tracer { stroke-width: 2; stroke-opacity: .85; }
+.mapview.proxview #proxmap g.xdot text, .mapview.proxview #proxmap .xlbl { font-weight: 600; }
+.mapview.proxview #proxmap .d1line { stroke: #e0313f; }
+.mapview.proxview #proxmap .d1lab { font-weight: 600; fill: #c62832; }
