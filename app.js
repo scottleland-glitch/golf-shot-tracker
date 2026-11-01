@@ -143,7 +143,7 @@
     document.body.classList.toggle('noscroll', !!(view.pinOpen && view.screen === 'hole'));
     if (view.screen === 'about') el.innerHTML = aboutHTML();
     else if (view.screen === 'history') el.innerHTML = historyHTML();
-    else if (view.screen === 'stats') el.innerHTML = statsHTML();
+    else if (view.screen === 'stats') { var stLs = (document.getElementById('strounds') || {}).scrollTop; el.innerHTML = statsHTML(); var stL = document.getElementById('strounds'); if (stL && stLs != null) stL.scrollTop = stLs; stListScroll(); }
     else if (view.screen === 'compare') { el.innerHTML = compareHTML2(); applyCompare(); }
     else if (view.screen === 'restorepick') el.innerHTML = restorePickHTML();
     else if (view.screen === 'archive') el.innerHTML = archiveHTML();
@@ -592,14 +592,24 @@
     return h + '</div>' + (view.addr ? addSheetHTML() : '') + (M ? mvBarHTML() : '') + (view.mv && view.mv.from === 'history' && view.mv.sheet ? mvSheetHTML() : '') + '</div>';
   }
 
-  // ---------- v110 Stats: trends over time (all finished rounds of the chosen player) ----------
+  // ---------- v116 Stats: one small graph per number + scoring curves for par 3 / 4 / 5 ----------
   // Numbers per round come from the same code as the round screens: strokes gained = the scorecard TOT column (scorecardData),
   // fairways / GIR = SG.summarize like the Quick view, putts = summarize().puttList (2-putts / 3-putts per hole by its putt count).
-  var ST_SG = [['tot', 'TOT', '#4b5866', 'Total'], ['ott', 'OTT', '#3b82c4', 'Off the tee'], ['arg', 'ARG', '#d9902f', 'Around the green'], ['app', 'APP', '#3c9a66', 'Approach'], ['putt', 'PUTT', '#8b67c6', 'Putting']];
-  var ST_PCT = [['fir', 'Fairways hit', '#3b82c4', 'FIR'], ['gir', 'GIR', '#3c9a66', 'GIR'], ['p10', 'Putts made inside 10 ft', '#d9902f', 'Putts ≤10 ft']]; // id, full name, colour, short legend name
+  // Rounds shown: All rounds | Last 5 | Selected round (picked from a scrolling list). "Compare to all rounds" overlays all rounds (grey, dashed).
+  var ST_SG = [ // id, title, colour, help
+    ['tot', 'Total (TOT)', '#4b5866', 'Every shot on the round’s finished holes.'],
+    ['ott', 'Off the tee (OTT)', '#3b82c4', 'Tee shots on par 4s and 5s.'],
+    ['app', 'Approach (APP)', '#3c9a66', 'Shots from more than 20 yd that are not tee shots on par 4s and 5s (par-3 tee shots count here).'],
+    ['arg', 'Around the green (ARG)', '#d9902f', 'Shots from 20 yd and in that are not on the green.'],
+    ['putt', 'Putting (PUTT)', '#8b67c6', 'Every stroke from the green.']];
+  var ST_PCT = [ // id, title, colour, help
+    ['fir', 'Fairways hit', '#3b82c4', 'Tee shots on par 4s and 5s that finished in the fairway (layups left out). A round with no par 4s or 5s has no point.'],
+    ['gir', 'Greens in regulation (GIR)', '#3c9a66', 'On the green in par minus 2 strokes or fewer.']];
+  var ST_PAR = { 3: '#3b82c4', 4: '#3c9a66', 5: '#d9902f' };
+  var ST_NAMES = ['Eagle', 'Birdie', 'Par', 'Bogey', 'Double', 'Triple'];
   var ST_ROWS = [ // label, value of one round, decimals, kind
     ['Strokes gained – TOT', function (p) { return p.sg.tot; }, 2, 'sg'], ['Off the tee (OTT)', function (p) { return p.sg.ott; }, 2, 'sg'],
-    ['Around the green (ARG)', function (p) { return p.sg.arg; }, 2, 'sg'], ['Approach (APP)', function (p) { return p.sg.app; }, 2, 'sg'],
+    ['Approach (APP)', function (p) { return p.sg.app; }, 2, 'sg'], ['Around the green (ARG)', function (p) { return p.sg.arg; }, 2, 'sg'],
     ['Putting (PUTT)', function (p) { return p.sg.putt; }, 2, 'sg'], ['Score', function (p) { return p.score; }, 1], ['To par', function (p) { return p.toPar; }, 1, 'par'],
     ['Putts per round', function (p) { return p.putts; }, 1], ['Putts per GIR hole', function (p) { return p.ppg; }, 2], ['Fairways hit', function (p) { return p.fir; }, 0, 'pct'],
     ['GIR', function (p) { return p.gir; }, 0, 'pct'], ['Putts made inside 10 ft', function (p) { return p.p10; }, 0, 'pct'],
@@ -609,11 +619,15 @@
     var bl = blSel || blOf(r), S = SG.summarize(r, bl), D = scorecardData(r, S), tot = D.groups.length - 1;
     var sgOf = function (lbl) { var c = D.rows.filter(function (x) { return x.lbl === lbl; })[0].sums[tot]; return c.k === 'sg' ? c.v : 0; };
     var first = S.puttList.filter(SG.firstPutt), p10 = SG.puttsInside10(S.puttList), girH = S.holes.filter(function (a) { return a && a.done && a.gir; });
+    // v116: scores on finished par 3 / 4 / 5 holes, bucketed Eagle-or-better … Triple-or-worse
+    var dist = { 3: [0, 0, 0, 0, 0, 0], 4: [0, 0, 0, 0, 0, 0], 5: [0, 0, 0, 0, 0, 0] }, parN = { 3: { n: 0, s: 0 }, 4: { n: 0, s: 0 }, 5: { n: 0, s: 0 } };
+    S.holes.forEach(function (a, i) { var par = Number((r.holes[i] || {}).par); if (!a || !a.done || !dist[par]) return;
+      dist[par][Math.max(0, Math.min(5, a.strokes - par + 2))]++; parN[par].n++; parN[par].s += a.strokes; });
     return { id: r.id, date: r.date, course: r.course || 'Round', bl: bl, holes: S.holesDone, score: S.strokes, toPar: S.toPar, putts: S.putts,
-      sg: { tot: sgOf('Tot'), ott: sgOf('OTT'), arg: sgOf('ARG'), app: sgOf('APP'), putt: sgOf('Putt') },
+      sg: { tot: sgOf('Tot'), ott: parN[4].n + parN[5].n ? sgOf('OTT') : null, arg: sgOf('ARG'), app: sgOf('APP'), putt: sgOf('Putt') },
       fir: S.fwTotal ? 100 * S.fwHit / S.fwTotal : null, gir: S.girHoles ? 100 * S.gir / S.girHoles : null, p10: p10.pct, p10n: p10.attempts, p10m: p10.made,
       two: first.filter(function (p) { return p.holePutts === 2; }).length, three: SG.threePutts(S.puttList).three,
-      ppg: girH.length ? girH.reduce(function (t, a) { return t + a.putts; }, 0) / girH.length : null };
+      ppg: girH.length ? girH.reduce(function (t, a) { return t + a.putts; }, 0) / girH.length : null, dist: dist, parN: parN };
   }
   function statsPlayerInfo() {
     var P = playersIn(), names = Object.keys(P).sort(), noName = savedRounds().some(function (r) { return !r.player; }), multi = names.length + (noName && names.length ? 1 : 0) > 1;
@@ -627,10 +641,11 @@
     var list = savedRounds().filter(function (r) { return !who || (who === '~none' ? !r.player : r.player === who); }).filter(function (r) {
       var S = SG.summarize(r), ok = S.holesDone === r.holes.length && r.holes.length > 0 && r.id !== cur; if (!ok) unf++; return ok; })
       .sort(function (a, b) { return String(a.date || '').localeCompare(String(b.date || '')); });
-    var all = list.map(function (r) { return statsRound(r, view.stBl || ''); }), N = view.stN || 0;
+    var all = list.map(function (r) { return statsRound(r, view.stBl || ''); }), mode = view.stMode || 'all', selIdx = -1;
+    if (mode === 'sel') { all.forEach(function (p, i) { if (p.id === view.stRid) selIdx = i; }); if (selIdx < 0 && all.length) { selIdx = all.length - 1; view.stRid = all[selIdx].id; } } // default: newest round
     var avg = function (L) { var o = { n: L.length }; ST_ROWS.forEach(function (d) { o[d[0]] = SG.trendAvg(L.map(d[1])); }); return o; };
-    var shown = SG.lastN(all, N);
-    return { all: all, shown: shown, N: N, unfinished: unf, avgShown: avg(shown), avgLast5: avg(SG.lastN(all, 5)) };
+    var shown = mode === '5' ? SG.lastN(all, 5) : mode === 'sel' ? (selIdx >= 0 ? [all[selIdx]] : []) : all.slice();
+    return { all: all, shown: shown, mode: mode, selIdx: selIdx, sel: selIdx >= 0 ? all[selIdx] : null, cmp: !!view.stCmp && mode !== 'all', unfinished: unf, avgShown: avg(shown), avgAll: avg(all) };
   }
   function stDate(d, short) { d = new Date(d); return short ? (d.getMonth() + 1) + '/' + d.getDate() : d.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' }); }
   function stNum(v, dec, kind) {
@@ -638,68 +653,117 @@
     if (kind === 'sg') return fmtSG(v); if (kind === 'pct') return Math.round(v) + '%';
     var s = (Math.round(v * Math.pow(10, dec)) / Math.pow(10, dec)).toFixed(dec); if (kind === 'par') return v > 0.04 ? '+' + s : Math.abs(v) < 0.05 ? 'E' : s; return s;
   }
-  // inline SVG line chart: one point per round in date order, evenly spaced
-  function stChart(id, pts, series, o) {
-    var W = 358, H = 206, L = 36, R = 12, T = 12, B = 30, pw = W - L - R, ph = H - T - B, n = pts.length;
-    var on = series.filter(function (s) { return !(view.stOff || {})[id + ':' + s[0]]; });
-    var lo = o.min, hi = o.max, step = o.step;
-    if (o.auto) { var vals = [0]; on.forEach(function (s) { pts.forEach(function (p) { var v = s[4](p); if (v != null) vals.push(v); }); });
+  function stF(v) { return Math.round(v * 10) / 10; }
+  // smooth curve through the points that never overshoots (monotone cubic), so it never dips below 0%
+  function stSmooth(P) {
+    var n = P.length, d = [], m = [], i; if (n < 2) return '';
+    for (i = 0; i < n - 1; i++) d.push((P[i + 1][1] - P[i][1]) / (P[i + 1][0] - P[i][0]));
+    m[0] = d[0]; m[n - 1] = d[n - 2]; for (i = 1; i < n - 1; i++) m[i] = d[i - 1] * d[i] <= 0 ? 0 : (d[i - 1] + d[i]) / 2;
+    for (i = 0; i < n - 1; i++) { if (!d[i]) { m[i] = 0; m[i + 1] = 0; continue; } var a = m[i] / d[i], b = m[i + 1] / d[i], s2 = a * a + b * b; if (s2 > 9) { var t = 3 / Math.sqrt(s2); m[i] = t * a * d[i]; m[i + 1] = t * b * d[i]; } }
+    var s = 'M' + stF(P[0][0]) + ' ' + stF(P[0][1]);
+    for (i = 0; i < n - 1; i++) { var h = (P[i + 1][0] - P[i][0]) / 3; s += 'C' + stF(P[i][0] + h) + ' ' + stF(P[i][1] + m[i] * h) + ' ' + stF(P[i + 1][0] - h) + ' ' + stF(P[i + 1][1] - m[i + 1] * h) + ' ' + stF(P[i + 1][0]) + ' ' + stF(P[i + 1][1]); }
+    return s;
+  }
+  // one number per round over time. All / Last 5: that line (solid) + its average (dashed). Selected round: every round in light grey,
+  // the chosen round as a big dot. Compare: all rounds' average as a grey dashed line (Last 5 also shows the older rounds in grey).
+  function stTrend(id, D, val, o) {
+    var W = 358, H = 150, L = 34, R = 10, T = 14, B = 22, pw = W - L - R, ph = H - T - B, mode = D.mode, cmp = D.cmp;
+    var pts = mode === '5' && !cmp ? D.shown : D.all, n = pts.length, solid0 = mode === 'sel' ? n : mode === '5' && cmp ? n - D.shown.length : 0, hl = mode === 'sel' ? D.selIdx : -1;
+    var avgSel = SG.trendAvg(D.shown.map(val)), avgAll = SG.trendAvg(D.all.map(val)), fmt = function (v) { return v == null ? '–' : o.pct ? Math.round(v) + '%' : fmtSG(v); };
+    var lo = 0, hi = 100, step = 25;
+    if (!o.pct) { var vals = [0]; pts.forEach(function (p) { var v = val(p); if (v != null) vals.push(v); }); if (avgAll != null) vals.push(avgAll);
       var mn = Math.min.apply(null, vals), mx = Math.max.apply(null, vals), span = Math.max(mx - mn, 1);
-      step = [0.5, 1, 2, 5, 10, 20].filter(function (s) { return span / s <= 7; })[0] || 20; lo = Math.floor(mn / step) * step; hi = Math.ceil(mx / step) * step; if (hi === lo) hi = lo + step; }
-    var X = function (i) { return L + (n === 1 ? pw / 2 : i * pw / (n - 1)); }, Y = function (v) { return T + ph - (v - lo) / (hi - lo) * ph; }, f1 = function (v) { return Math.round(v * 10) / 10; };
-    var sel = view.stSel && view.stSel.c === id ? view.stSel.i : null;
-    var s = '<svg class="stchart" id="' + id + 'chart" viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="' + esc(o.label) + '">';
-    for (var v = lo; v <= hi + 1e-9; v += step) { var yy = f1(Y(v)); s += '<line class="stgrid" x1="' + L + '" x2="' + (W - R) + '" y1="' + yy + '" y2="' + yy + '"/><text class="sty" x="' + (L - 6) + '" y="' + f1(yy + 3.5) + '" text-anchor="end">' + (o.pct ? Math.round(v) + '%' : (v > 0 ? '+' : '') + (step < 1 ? v.toFixed(1) : Math.round(v)) ) + '</text>'; }
-    if (o.zero) s += '<line class="stzero" id="' + id + 'zero" x1="' + L + '" x2="' + (W - R) + '" y1="' + f1(Y(0)) + '" y2="' + f1(Y(0)) + '"/>';
-    var every = Math.max(1, Math.ceil(n / 6)), yrs = pts.some(function (p) { return new Date(p.date).getFullYear() !== new Date(pts[0].date).getFullYear(); });
-    pts.forEach(function (p, i) { if (i !== n - 1 && (i % every || (i && n - 1 - i < every * 0.6))) return; // spread labels, keep the last one
-      s += '<text class="stx" x="' + f1(X(i)) + '" y="' + (H - 10) + '" text-anchor="middle">' + stDate(p.date, true) + (yrs ? '/' + String(new Date(p.date).getFullYear()).slice(2) : '') + '</text>'; });
-    if (sel != null && pts[sel]) s += '<line class="stsel" x1="' + f1(X(sel)) + '" x2="' + f1(X(sel)) + '" y1="' + T + '" y2="' + (T + ph) + '"/>';
-    on.forEach(function (sr) {
-      var d = '', pen = false; pts.forEach(function (p, i) { var v = sr[4](p); if (v == null) { pen = false; return; } d += (pen ? 'L' : 'M') + f1(X(i)) + ' ' + f1(Y(v)); pen = true; });
-      s += '<path class="stline" data-s="' + sr[0] + '" d="' + d + '" stroke="' + sr[2] + '"/>';
-      pts.forEach(function (p, i) { var v = sr[4](p); if (v == null) return; s += '<circle class="stdot' + (i === sel ? ' on' : '') + '" data-s="' + sr[0] + '" cx="' + f1(X(i)) + '" cy="' + f1(Y(v)) + '" r="' + (i === sel ? 4.2 : 3) + '" fill="' + sr[2] + '"/>'; });
-    });
-    pts.forEach(function (p, i) { var x0 = n === 1 ? L : Math.max(L, X(i) - pw / (n - 1) / 2), x1 = n === 1 ? W - R : Math.min(W - R, X(i) + pw / (n - 1) / 2);
-      s += '<rect class="sthit" data-act="stpt" data-c="' + id + '" data-i="' + i + '" x="' + f1(x0) + '" y="' + T + '" width="' + f1(x1 - x0) + '" height="' + ph + '"><title>' + esc(stDate(p.date) + ' · ' + p.course) + '</title></rect>'; });
+      step = [0.5, 1, 2, 5, 10, 20].filter(function (s) { return span / s <= 4; })[0] || 20; lo = Math.floor(mn / step) * step; hi = Math.ceil(mx / step) * step; if (hi === lo) hi = lo + step; }
+    var X = function (i) { return L + (n === 1 ? pw / 2 : i * pw / (n - 1)); }, Y = function (v) { return T + ph - (v - lo) / (hi - lo) * ph; };
+    var s = '<svg class="stchart sttrend" id="' + id + 'chart" viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="' + esc(o.title + ' per round') + '">';
+    for (var v = lo; v <= hi + 1e-9; v += step) { var yy = stF(Y(v)); s += '<line class="stgrid" x1="' + L + '" x2="' + (W - R) + '" y1="' + yy + '" y2="' + yy + '"/><text class="sty" x="' + (L - 6) + '" y="' + stF(yy + 3.5) + '" text-anchor="end">' + (o.pct ? Math.round(v) + '%' : (v > 0 ? '+' : '') + (step < 1 ? v.toFixed(1) : Math.round(v))) + '</text>'; }
+    if (!o.pct) s += '<line class="stzero" id="' + id + 'zero" x1="' + L + '" x2="' + (W - R) + '" y1="' + stF(Y(0)) + '" y2="' + stF(Y(0)) + '"/>';
+    var every = Math.max(1, Math.ceil(n / 6));
+    pts.forEach(function (p, i) { if (i !== n - 1 && (i % every || (i && n - 1 - i < every * 0.6))) return;
+      s += '<text class="stx" x="' + stF(X(i)) + '" y="' + (H - 6) + '" text-anchor="middle">' + stDate(p.date, true) + '</text>'; });
+    var path = function (a, b) { var d = '', pen = false; for (var i = a; i <= b; i++) { var vv = val(pts[i]); if (vv == null) { pen = false; continue; } d += (pen ? 'L' : 'M') + stF(X(i)) + ' ' + stF(Y(vv)); pen = true; } return d; };
+    if (solid0 > 0) s += '<path class="stline stlight" id="' + id + 'light" d="' + path(0, Math.min(solid0, n - 1)) + '"/>';
+    if (solid0 < n) s += '<path class="stline" id="' + id + 'line" d="' + path(solid0, n - 1) + '" stroke="' + o.color + '"/>';
+    if (cmp && avgAll != null) s += '<line class="stavgall" id="' + id + 'allavg" x1="' + L + '" x2="' + (W - R) + '" y1="' + stF(Y(avgAll)) + '" y2="' + stF(Y(avgAll)) + '"/>';
+    if (mode !== 'sel' && avgSel != null) s += '<line class="stavg" id="' + id + 'avg" x1="' + stF(n > 1 && solid0 < n - 1 ? X(solid0) : L) + '" x2="' + (W - R) + '" y1="' + stF(Y(avgSel)) + '" y2="' + stF(Y(avgSel)) + '" stroke="' + o.color + '"/>';
+    pts.forEach(function (p, i) { var vv = val(p); if (vv == null || i === hl) return; var on = i >= solid0;
+      s += '<circle class="stdot' + (on ? '' : ' stlight') + '" cx="' + stF(X(i)) + '" cy="' + stF(Y(vv)) + '" r="' + (on ? 3 : 2.4) + '"' + (on ? ' fill="' + o.color + '"' : '') + '/>'; });
+    if (hl >= 0) { var hv = val(pts[hl]); if (hv != null) s += '<circle class="stdot sthl" id="' + id + 'hl" cx="' + stF(X(hl)) + '" cy="' + stF(Y(hv)) + '" r="5.2" fill="' + o.color + '"/><text class="stval" x="' + stF(Math.min(W - R - 14, Math.max(L + 14, X(hl)))) + '" y="' + stF(Math.max(10, Y(hv) - 9)) + '" text-anchor="middle">' + fmt(hv) + '</text>'; }
+    pts.forEach(function (p, i) { var half = n === 1 ? pw / 2 : pw / (n - 1) / 2, x0 = Math.max(L, X(i) - half), x1 = Math.min(W - R, X(i) + half);
+      s += '<rect class="sthit" ' + (mode === 'sel' ? 'data-act="stround" data-id="' + esc(p.id) + '"' : 'data-act="stpt" data-c="' + id + '" data-i="' + i + '"') + ' x="' + stF(x0) + '" y="' + T + '" width="' + stF(x1 - x0) + '" height="' + ph + '"><title>' + esc(stDate(p.date) + ' · ' + p.course + ' · ' + fmt(val(p))) + '</title></rect>'; });
     s += '</svg>';
-    var leg = '<div class="stlegend" id="' + id + 'legend" role="group" aria-label="Show or hide lines">' + series.map(function (sr) { var off = !!(view.stOff || {})[id + ':' + sr[0]];
-      return '<button class="stleg' + (off ? ' off' : '') + '" data-act="sttog" data-v="' + id + ':' + sr[0] + '" aria-pressed="' + !off + '" title="' + esc(sr[3]) + '"><i style="--c:' + sr[2] + '"></i>' + esc(sr[1]) + '</button>'; }).join('') + '</div>';
-    var tip = '';
+    var head = mode === 'sel' ? 'This round <em>' + fmt(D.sel ? val(D.sel) : null) + '</em>' + (cmp ? ' · all avg <em>' + fmt(avgAll) + '</em>' : '')
+      : (mode === '5' ? 'Last 5 avg ' : 'Avg ') + '<em>' + fmt(avgSel) + '</em>' + (cmp ? ' · all <em>' + fmt(avgAll) + '</em>' : '');
+    var few = mode !== 'sel' && D.shown.filter(function (p) { return val(p) != null; }).length < 2 ? '<p class="stfew">Not enough rounds yet for a trend – it starts with 2 rounds.</p>' : '';
+    var tip = '', sel = view.stSel && view.stSel.c === id ? view.stSel.i : null;
     if (sel != null && pts[sel]) { var p = pts[sel];
-      tip = '<div class="sttip" id="' + id + 'tip"><div class="sttiph">' + esc(stDate(p.date)) + ' · ' + esc(p.course) + '<button class="sttipx" data-act="stpt" data-c="' + id + '" data-i="' + sel + '" aria-label="Close">×</button></div><div class="sttipv">' +
-        series.map(function (sr) { var v = sr[4](p); return '<span><i style="--c:' + sr[2] + '"></i>' + esc(sr[1]) + ' <em>' + (v == null ? '–' : o.pct ? Math.round(v) + '%' : fmtSG(v)) + '</em></span>'; }).join('') +
-        '</div><div class="sttipm">Score ' + p.score + ' (' + toPar(p.toPar) + ') · ' + p.putts + ' putts</div></div>'; }
-    return leg + s + (on.length ? '' : '<p class="stempty">Tap a name above to show a line.</p>') + tip;
+      tip = '<div class="sttip" id="' + id + 'tip"><div class="sttiph">' + esc(stDate(p.date)) + ' · ' + esc(p.course) + '<button class="sttipx" data-act="stpt" data-c="' + id + '" data-i="' + sel + '" aria-label="Close">×</button></div>' +
+        '<div class="sttipm">' + esc(o.short) + ' ' + fmt(val(p)) + ' · Score ' + p.score + ' (' + toPar(p.toPar) + ') · ' + p.putts + ' putts</div></div>'; }
+    var key = mode === 'sel' ? 'Big dot = this round; tap a grey dot to pick another.' + (cmp ? ' Grey dashed = all-rounds average.' : '')
+      : 'Dashed = average' + (mode === '5' ? ' of the last 5' : '') + '.' + (cmp ? ' Grey = older rounds; grey dashed = all-rounds average.' : '');
+    return '<div class="stcard stgraph" id="st-' + id + '"><div class="sth"><span>' + esc(o.title) + '</span><span class="stv" id="' + id + 'val">' + head + '</span></div>' + s + few + tip +
+      '<p class="stnote">' + esc(o.help) + ' ' + key + '</p></div>';
+  }
+  // scoring curve for one par: % of finished holes at each score, Eagle (or better) … Triple (or worse)
+  function stDist(par, D) {
+    var sum = function (L) { var c = [0, 0, 0, 0, 0, 0], n = 0, st = 0; L.forEach(function (p) { p.dist[par].forEach(function (x, i) { c[i] += x; }); n += p.parN[par].n; st += p.parN[par].s; }); return { c: c, n: n, avg: n ? st / n : null }; };
+    var A = sum(D.shown), Z = sum(D.all), cmp = D.cmp, col = ST_PAR[par], id = 'par' + par;
+    var who = D.mode === 'sel' ? 'this round' : D.mode === '5' ? 'the last 5 rounds' : 'these rounds';
+    var h = '<div class="stcard stgraph stdistcard" id="st-' + id + '"><div class="sth"><span>Par ' + par + ' scores</span><span class="stv" id="' + id + 'val">' +
+      (A.n ? 'avg <em>' + A.avg.toFixed(2) + '</em>' + (cmp && Z.n ? ' · all <em>' + Z.avg.toFixed(2) + '</em>' : '') : '') + '</span></div>';
+    if (!A.n) return h + '<p class="stfew" id="' + id + 'none">No par ' + par + ' holes in ' + who + ' yet.</p></div>';
+    var pc = function (S) { return S.c.map(function (x) { return S.n ? 100 * x / S.n : 0; }); }, pa = pc(A), pz = cmp && Z.n ? pc(Z) : null;
+    var mx = Math.max.apply(null, pa.concat(pz || [])), top = Math.min(100, Math.max(20, Math.ceil(mx / 10) * 10)); if (top % 20) top += 10;
+    var W = 358, H = 176, L = 34, R = 10, T = 16, B = 36, pw = W - L - R, ph = H - T - B;
+    var X = function (i) { return L + pw * (i + 0.5) / 6; }, Y = function (v) { return T + ph - v / top * ph; };
+    var s = '<svg class="stchart stdist" id="' + id + 'chart" viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="' + esc('Par ' + par + ' scores: ' + ST_NAMES.map(function (nm, i) { return nm + ' ' + Math.round(pa[i]) + '%'; }).join(', ')) + '">';
+    [0, top / 2, top].forEach(function (v) { var yy = stF(Y(v)); s += '<line class="stgrid" x1="' + L + '" x2="' + (W - R) + '" y1="' + yy + '" y2="' + yy + '"/><text class="sty" x="' + (L - 6) + '" y="' + stF(yy + 3.5) + '" text-anchor="end">' + v + '%</text>'; });
+    ST_NAMES.forEach(function (nm, i) { s += '<text class="stx stxn" x="' + stF(X(i)) + '" y="' + (H - 19) + '" text-anchor="middle">' + nm + '</text><text class="stx stxs" x="' + stF(X(i)) + '" y="' + (H - 6) + '" text-anchor="middle">' + (par - 2 + i) + '</text>'; });
+    var P = pa.map(function (v, i) { return [X(i), Y(v)]; }), curve = stSmooth(P);
+    if (pz) { var Pz = pz.map(function (v, i) { return [X(i), Y(v)]; }); s += '<path class="stline stcmpline" id="' + id + 'all" d="' + stSmooth(Pz) + '"/>' + Pz.map(function (q) { return '<circle class="stdot stcmpdot" cx="' + stF(q[0]) + '" cy="' + stF(q[1]) + '" r="2.4"/>'; }).join(''); }
+    s += '<path class="starea" d="' + curve + 'L' + stF(X(5)) + ' ' + stF(Y(0)) + 'L' + stF(X(0)) + ' ' + stF(Y(0)) + 'Z" fill="' + col + '"/>';
+    s += '<path class="stline" id="' + id + 'line" d="' + curve + '" stroke="' + col + '"/>';
+    P.forEach(function (q, i) { s += '<circle class="stdot" data-b="' + i + '" cx="' + stF(q[0]) + '" cy="' + stF(q[1]) + '" r="3" fill="' + col + '"/><text class="stval" data-b="' + i + '" x="' + stF(q[0]) + '" y="' + stF(Math.max(9, q[1] - 9)) + '" text-anchor="middle">' + Math.round(pa[i]) + '%</text>'; });
+    s += '</svg>';
+    return h + s + '<p class="stn" id="' + id + 'n">n = ' + A.n + ' hole' + (A.n === 1 ? '' : 's') + (cmp ? ' · all rounds: ' + Z.n + ' holes (grey dashed)' : '') + '</p>' +
+      '<p class="stnote">Share of finished par-' + par + ' holes at each score (number of strokes underneath). Eagle includes anything better (hole-in-one, albatross); Triple includes anything worse.</p></div>';
   }
   function statsHTML() {
-    var I = statsPlayerInfo(), D = statsData(), all = D.all, shown = D.shown;
+    var I = statsPlayerInfo(), D = statsData(), all = D.all, shown = D.shown, mode = D.mode;
     var who = view.stPlayer === '~none' ? 'No name' : view.stPlayer || (I.multi ? 'All players' : (all[0] && (rounds.filter(function (r) { return r.id === all[0].id; })[0] || {}).player) || playerName() || '');
     var h = '<div class="frostpage theme-sky statspage" id="statspage"><div class="topbar frost"><button class="txt frostbtn" data-act="home">‹ Home</button><div class="title"><b>Stats</b><span>' +
       (who ? esc(who) + ' · ' : '') + all.length + ' round' + (all.length === 1 ? '' : 's') + '</span></div><span class="tbspace"></span></div>';
     if (I.multi) h += '<div class="hchips" id="stchips" role="group" aria-label="Player">' + [''].concat(I.names).map(function (nm) {
         var s = (view.stPlayer || '') === nm; return '<button class="frostchip' + (s ? ' sel' : '') + '" data-act="stplayer" data-v="' + esc(nm) + '" aria-pressed="' + s + '">' + (nm ? esc(nm) : 'All players') + '</button>'; }).join('') +
       (I.noName ? '<button class="frostchip' + (view.stPlayer === '~none' ? ' sel' : '') + '" data-act="stplayer" data-v="~none">No name</button>' : '') + '</div>';
-    if (all.length < 2) return h + '<div class="stcard stnone" id="stnone"><p>Add a couple of rounds to see trends.</p><p class="stnote">Only finished rounds count' + (D.unfinished ? ' (' + D.unfinished + ' unfinished not shown)' : '') + '.</p></div></div>';
-    h += '<div class="stbar"><div class="stseg" id="strange" role="group" aria-label="Rounds shown">' + [[0, 'All'], [10, 'Last 10'], [5, 'Last 5']].map(function (o) {
-        var s = D.N === o[0]; return '<button class="' + (s ? 'sel' : '') + '" data-act="strange" data-v="' + o[0] + '" aria-pressed="' + s + '">' + o[1] + '</button>'; }).join('') + '</div>' +
-      '<select id="stbl" class="stbl" data-f="baseline" aria-label="Compare against"><option value="">Each round’s baseline</option>' + SG.BASELINES.map(function (b) {
-        return '<option value="' + b.id + '"' + (view.stBl === b.id ? ' selected' : '') + '>' + esc(blLabel(b.id)) + '</option>'; }).join('') + '</select></div>';
-    h += '<p class="stsub" id="stshown">' + shown.length + ' of ' + all.length + ' finished rounds · ' + esc(stDate(shown[0].date)) + ' – ' + esc(stDate(shown[shown.length - 1].date)) + '</p>';
-    h += '<div class="stcard" id="stsg"><div class="sth">Strokes gained per round</div>' +
-      stChart('sg', shown, ST_SG.map(function (s) { return s.concat([function (p) { return p.sg[s[0]]; }]); }), { auto: true, zero: true, label: 'Strokes gained per round' }) +
-      '<p class="stnote">Compared with ' + (view.stBl ? esc(blLabel(view.stBl)) : 'each round’s own baseline (as on its Round stats page)') + '. Plus = strokes gained, minus = lost. Tap a round to see its numbers.</p></div>';
-    h += '<div class="stcard" id="stpct"><div class="sth">Fairways, greens and short putts</div>' +
-      stChart('pct', shown, ST_PCT.map(function (s) { return [s[0], s[3], s[2], s[1], function (p) { return p[s[0]]; }]; }), { min: 0, max: 100, step: 25, pct: true, label: 'Percent per round' }) +
-      '<p class="stnote">Putts made inside 10 ft = of every putt that started 10 ft or closer (1st, 2nd or 3rd putt), the share that went in. A round with no such putts has no point.</p></div>';
-    var two = D.N !== 5, colN = D.N ? 'Last ' + D.N : 'All rounds';
-    h += '<div class="stcard" id="sttablecard"><div class="sth">Averages per round</div><table class="sttable" id="sttable"><thead><tr><th></th>' + (two ? '<th class="num">Last 5</th>' : '') + '<th class="num">' + colN + '</th></tr></thead><tbody>' +
-      '<tr data-k="Rounds"><td>Rounds</td>' + (two ? '<td class="num">' + D.avgLast5.n + '</td>' : '') + '<td class="num">' + D.avgShown.n + '</td></tr>' +
-      ST_ROWS.map(function (d) { return '<tr data-k="' + esc(d[0]) + '"' + (d[3] === 'sg' ? ' class="stsgrow"' : '') + '><td>' + esc(d[0]) + '</td>' + (two ? '<td class="num">' + stNum(D.avgLast5[d[0]], d[2], d[3]) + '</td>' : '') +
-        '<td class="num">' + stNum(D.avgShown[d[0]], d[2], d[3]) + '</td></tr>'; }).join('') + '</tbody></table>' +
-      '<p class="stnote">Each number is the average of the rounds’ own numbers (a round with nothing to count, e.g. no par 4s or 5s, is left out of that line). Last 5 = the 5 newest finished rounds. Unfinished rounds are not included' + (D.unfinished ? ' (' + D.unfinished + ' not shown)' : '') + '.</p></div>';
+    if (!all.length) return h + '<div class="stcard stnone" id="stnone"><p>No finished rounds yet.</p><p class="stnote">Graphs appear here once a round is finished' + (D.unfinished ? ' (' + D.unfinished + ' unfinished not shown)' : '') + '.</p></div></div>';
+    h += '<div class="stseg" id="strange" role="group" aria-label="Rounds shown">' + [['all', 'All rounds'], ['5', 'Last 5'], ['sel', 'Selected round']].map(function (o) {
+      var s = mode === o[0]; return '<button class="' + (s ? 'sel' : '') + '" data-act="strange" data-v="' + o[0] + '" aria-pressed="' + s + '">' + o[1] + '</button>'; }).join('') + '</div>';
+    if (mode === 'sel') h += '<div class="strounds" id="strounds" role="listbox" aria-label="Pick a round">' + all.slice().reverse().map(function (p) {
+      var s = D.sel && p.id === D.sel.id; return '<button class="stri' + (s ? ' sel' : '') + '" role="option" aria-selected="' + s + '" data-act="stround" data-id="' + esc(p.id) + '"><span class="strd">' + esc(stDate(p.date)) +
+        '</span><span class="strc">' + esc(p.course) + '</span><span class="strs">' + p.score + ' <small>(' + toPar(p.toPar) + ')</small></span></button>'; }).join('') + '</div>';
+    if (mode !== 'all') h += '<div class="stbar"><button class="stcmp' + (D.cmp ? ' on' : '') + '" id="stcmp" data-act="stcmp" aria-pressed="' + D.cmp + '"><i aria-hidden="true"></i>Compare to all rounds</button></div>';
+    h += '<p class="stsub" id="stshown">' + (mode === 'sel' && D.sel ? esc(stDate(D.sel.date)) + ' · ' + esc(D.sel.course) + ' · ' + D.sel.score + ' (' + toPar(D.sel.toPar) + ')' :
+      (mode === '5' ? 'Last ' + shown.length + ' of ' : '') + all.length + ' finished round' + (all.length === 1 ? '' : 's') + ' · ' + esc(stDate(shown[0].date)) + (shown.length > 1 ? ' – ' + esc(stDate(shown[shown.length - 1].date)) : '')) + '</p>';
+    h += '<div class="stsec stsecsg"><span class="stsect">Strokes gained</span><select id="stbl" class="stbl" data-f="baseline" aria-label="Compare against"><option value="">Each round’s baseline</option>' + SG.BASELINES.map(function (b) {
+        return '<option value="' + b.id + '"' + (view.stBl === b.id ? ' selected' : '') + '>' + esc(blLabel(b.id)) + '</option>'; }).join('') + '</select></div>' +
+      '<p class="stnote stsgnote" id="stsgnote">Plus = strokes gained, minus = strokes lost, compared with ' + esc(view.stBl ? blLabel(view.stBl) : 'each round’s own baseline') + '.</p>';
+    ST_SG.forEach(function (c) { h += stTrend(c[0], D, function (p) { return p.sg[c[0]]; }, { title: c[1], short: c[1].replace(/ \(.*\)$/, ''), color: c[2], help: c[3] }); });
+    h += '<div class="stsec">Fairways and greens</div>';
+    ST_PCT.forEach(function (c) { h += stTrend(c[0], D, function (p) { return p[c[0]]; }, { title: c[1], short: c[1].replace(/ \(.*\)$/, ''), color: c[2], help: c[3], pct: true }); });
+    h += '<div class="stsec">Scoring by par</div>';
+    [3, 4, 5].forEach(function (par) { h += stDist(par, D); });
+    var colN = mode === 'sel' ? 'This round' : mode === '5' ? 'Last 5' : 'All rounds', two = D.cmp;
+    h += '<div class="stcard" id="sttablecard"><div class="sth"><span>Averages per round</span></div><table class="sttable" id="sttable"><thead><tr><th></th><th class="num">' + colN + '</th>' + (two ? '<th class="num">All rounds</th>' : '') + '</tr></thead><tbody>' +
+      '<tr data-k="Rounds"><td>Rounds</td><td class="num">' + D.avgShown.n + '</td>' + (two ? '<td class="num">' + D.avgAll.n + '</td>' : '') + '</tr>' +
+      ST_ROWS.map(function (d) { return '<tr data-k="' + esc(d[0]) + '"' + (d[3] === 'sg' ? ' class="stsgrow"' : '') + '><td>' + esc(d[0]) + '</td><td class="num">' + stNum(D.avgShown[d[0]], d[2], d[3]) + '</td>' +
+        (two ? '<td class="num">' + stNum(D.avgAll[d[0]], d[2], d[3]) + '</td>' : '') + '</tr>'; }).join('') + '</tbody></table>' +
+      '<p class="stnote">Each number is the average of the rounds’ own numbers (a round with nothing to count, e.g. no par 4s or 5s, is left out of that line). Putts made inside 10 ft = of every putt that started 10 ft or closer, the share that went in. Last 5 = the 5 newest finished rounds. Only finished rounds count' + (D.unfinished ? ' (' + D.unfinished + ' unfinished not shown)' : '') + '.</p></div>';
     return h + '</div>';
   }
+  // keep the chosen round visible inside the scrolling list (without moving the page)
+  function stListScroll() { var L = document.getElementById('strounds'), s = L && L.querySelector('.stri.sel'); if (!s) return;
+    if (s.offsetTop < L.scrollTop || s.offsetTop + s.offsetHeight > L.scrollTop + L.clientHeight) L.scrollTop = Math.max(0, s.offsetTop - 6); }
 
   // ---------- v99 Change player: move saved rounds to another player's name ----------
   // round.player = new name, round.updated = now (merges prefer it), round.movedFrom = old name(s) so the Google Drive
@@ -3549,8 +3613,9 @@
       case 'histplayer': view.histPlayer = v || null; render(); return;
       case 'stats': view.hmenu = null; view.screen = 'stats'; view.stSel = null; view.stPlayer = undefined; render(); window.scrollTo(0, 0); return; // v110
       case 'stplayer': view.stPlayer = v || null; view.histPlayer = view.stPlayer; view.stSel = null; render(); return;
-      case 'strange': view.stN = +v || 0; view.stSel = null; render(); return;
-      case 'sttog': view.stOff = view.stOff || {}; view.stOff[v] = !view.stOff[v]; render(); return;
+      case 'strange': view.stMode = v || 'all'; view.stSel = null; render(); return; // v116: all | 5 | sel
+      case 'stround': view.stMode = 'sel'; view.stRid = b.getAttribute('data-id'); view.stSel = null; render(); return;
+      case 'stcmp': view.stCmp = !view.stCmp; view.stSel = null; render(); return;
       case 'stpt': var sc = b.getAttribute('data-c'), si = +b.getAttribute('data-i'); view.stSel = view.stSel && view.stSel.c === sc && view.stSel.i === si ? null : { c: sc, i: si }; render(); return;
       case 'gdconnect': case 'gdsignin': case 'gdsync': case 'gdrestore': case 'gdrclose': case 'gdrback': case 'gdrplayer': case 'gdrfile': case 'gddisconnect': gdAct(act, b); return;
       case 'delHist': {

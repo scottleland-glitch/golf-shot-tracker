@@ -1,5 +1,5 @@
-// v110 Stats page (+ menu › Stats): trends over time for the chosen player's finished rounds.
-// Checks the chart + table numbers equal what each round's own Round stats page shows, toggles, All / Last 10 / Last 5, player chips, 0/1 rounds.
+// v110/v116 Stats page (+ menu › Stats): trends over time for the chosen player's finished rounds.
+// Checks the chart + table numbers equal what each round's own Round stats page shows, separate graphs, All / Last 5 / Selected round, compare, player chips, 0/1 rounds.
 const { chromium } = require('playwright-core'); const assert = require('assert'); const { spawn } = require('child_process'); const fs = require('fs');
 const PORT = 8846, BASE = 'http://127.0.0.1:' + PORT + '/', OUT = process.env.SHOTS || '/workspace/golf-app/screenshots';
 const SEED = fs.readFileSync(__dirname + '/fixtures/stats-rounds.js', 'utf8');
@@ -41,7 +41,7 @@ const SEED = fs.readFileSync(__dirname + '/fixtures/stats-rounds.js', 'utf8');
   assert.strictEqual(await page.$('#plusmenu'), null, 'menu closed');
   assert.match(await page.textContent('#statspage .topbar'), /‹ Home\s*Stats\s*Scott · 7 rounds/);
   assert.deepStrictEqual(await page.$$eval('#stchips button', e => e.map(x => x.textContent + (x.getAttribute('aria-pressed') === 'true' ? '*' : ''))), ['All players', 'Quincy', 'Scott*'], 'defaults to this phone’s player');
-  assert.match(await page.textContent('#stshown'), /^7 of 7 finished rounds/); // the unfinished round u1 (12 of 18 holes) is left out
+  assert.match(await page.textContent('#stshown'), /^7 finished rounds · Aug 2, 2026 – Oct 18, 2026/); // the unfinished round u1 (12 of 18 holes) is left out
   const D = await page.evaluate(() => window.__golf.statsData());
   assert.deepStrictEqual(D.all.map(p => p.id), ids, 'finished rounds only, oldest first'); assert.strictEqual(D.unfinished, 1);
   const fmtSG = v => { const s = (Math.round(v * 100) / 100).toFixed(2); return (v > 0.004 ? '+' : '') + (s === '-0.00' ? '0.00' : s); };
@@ -56,41 +56,38 @@ const SEED = fs.readFileSync(__dirname + '/fixtures/stats-rounds.js', 'utf8');
   // s2 uses its own saved baseline (D1 college women), like its Round stats page
   assert.strictEqual(D.all[1].bl, 'd1w');
 
-  // 4. SG chart: 5 lines, one dot per round, zero line, axis labels
-  const dots = c => page.$$eval('#' + c + 'chart circle.stdot', e => e.reduce((o, x) => { o[x.dataset.s] = (o[x.dataset.s] || 0) + 1; return o; }, {}));
-  assert.deepStrictEqual(await dots('sg'), { tot: 7, ott: 7, arg: 7, app: 7, putt: 7 });
-  assert.ok(await page.$('#sgzero')); assert.deepStrictEqual(await page.$$eval('#sglegend button', e => e.map(x => x.textContent)), ['TOT', 'OTT', 'ARG', 'APP', 'PUTT']);
-  assert.ok((await page.$$eval('#sgchart text.stx', e => e.length)) >= 3, 'date labels');
-  // the dots sit at the right height: TOT dot of round i is at Y(value) – check order matches values
-  const ys = await page.$$eval('#sgchart circle.stdot[data-s="tot"]', e => e.map(x => +x.getAttribute('cy')));
-  for (let i = 0; i < 6; i++) { const a = D.all[i].sg.tot, b = D.all[i + 1].sg.tot; if (Math.abs(a - b) > 0.01) assert.strictEqual(ys[i] > ys[i + 1], a < b, 'dot heights follow the values'); }
-  // tap a round -> its date, course and values
-  await page.click('#sgchart .sthit[data-i="3"]'); await page.waitForSelector('#sgtip');
-  const tip = await page.textContent('#sgtip'); const r3 = D.all[3];
-  assert.ok(tip.includes('Lakeridge') && tip.includes('2026') && tip.includes('TOT ' + fmtSG(r3.sg.tot)) && tip.includes('PUTT ' + fmtSG(r3.sg.putt)) && tip.includes('Score ' + r3.score), tip);
-  await page.evaluate(() => window.scrollTo(0, 0)); await shot('stats-trends-top.png');
-  await page.click('#sgtip .sttipx'); assert.strictEqual(await page.$('#sgtip'), null, 'tap again closes');
-  // toggles
-  await page.click('#sglegend [data-v="sg:ott"]');
-  assert.strictEqual(await page.getAttribute('#sglegend [data-v="sg:ott"]', 'aria-pressed'), 'false'); assert.strictEqual(await page.$('#sgchart path[data-s="ott"]'), null);
-  assert.deepStrictEqual(await dots('sg'), { tot: 7, arg: 7, app: 7, putt: 7 });
-  await page.click('#sglegend [data-v="sg:ott"]'); assert.ok(await page.$('#sgchart path[data-s="ott"]'), 'back on');
+  // 4. v116: one graph per number – TOT, OTT, APP, ARG, PUTT, then fairways and GIR; one dot per round, dashed average line
+  assert.deepStrictEqual(await page.$$eval('#strange button', e => e.map(x => [x.dataset.v, x.textContent, x.getAttribute('aria-pressed')])), [['all', 'All rounds', 'true'], ['5', 'Last 5', 'false'], ['sel', 'Selected round', 'false']]);
+  assert.deepStrictEqual(await page.$$eval('.stgraph .sth span:first-child', e => e.map(x => x.textContent)),
+    ['Total (TOT)', 'Off the tee (OTT)', 'Approach (APP)', 'Around the green (ARG)', 'Putting (PUTT)', 'Fairways hit', 'Greens in regulation (GIR)', 'Par 3 scores', 'Par 4 scores', 'Par 5 scores']);
+  assert.strictEqual(await page.$('#stcmp'), null, 'no compare switch on All rounds');
+  const dots = c => page.$$eval('#' + c + 'chart circle.stdot', e => e.length);
+  for (const k of ['tot', 'ott', 'app', 'arg', 'putt', 'fir', 'gir']) { assert.strictEqual(await dots(k), 7, k); assert.ok(await page.$('#' + k + 'avg'), k + ' average line'); }
+  assert.ok(await page.$('#totzero')); assert.strictEqual(await page.$('#firzero'), null);
+  assert.ok((await page.$$eval('#totchart text.stx', e => e.length)) >= 3, 'date labels');
+  assert.match(await page.textContent('#totval'), new RegExp('^Avg ' + fmtSG(D.all.reduce((t, p) => t + p.sg.tot, 0) / 7).replace('+', '\\+') + '$'));
+  // the dots sit at the right height
+  for (const k of ['tot', 'putt']) { const ys = await page.$$eval('#' + k + 'chart circle.stdot', e => e.map(x => +x.getAttribute('cy')));
+    for (let i = 0; i < 6; i++) { const a = D.all[i].sg[k], b = D.all[i + 1].sg[k]; if (Math.abs(a - b) > 0.01) assert.strictEqual(ys[i] > ys[i + 1], a < b, k + ' dot heights follow the values'); } }
+  // tap a round -> its date, course and value
+  await page.click('#puttchart .sthit[data-i="3"]'); await page.waitForSelector('#putttip');
+  const tip = await page.textContent('#putttip'); const r3 = D.all[3];
+  assert.ok(tip.includes('Lakeridge') && tip.includes('2026') && tip.includes('Putting ' + fmtSG(r3.sg.putt)) && tip.includes('Score ' + r3.score), tip);
+  await page.click('#putttip .sttipx'); assert.strictEqual(await page.$('#putttip'), null, 'tap again closes');
 
-  // 5. percent chart: FIR / GIR / putts inside 10 ft, 0-100%
-  assert.deepStrictEqual(await dots('pct'), { fir: 7, gir: 7, p10: 7 });
-  assert.deepStrictEqual(await page.$$eval('#pctchart text.sty', e => e.map(x => x.textContent)), ['0%', '25%', '50%', '75%', '100%']);
-  assert.match(await page.textContent('#stpct .stnote'), /10 ft or closer/);
-  await page.click('#pctlegend [data-v="pct:gir"]'); assert.deepStrictEqual(await dots('pct'), { fir: 7, p10: 7 }); await page.click('#pctlegend [data-v="pct:gir"]');
-  await shot('stats-trends-mid.png', '#stpct');
+  // 5. percent graphs: 0-100%
+  assert.deepStrictEqual(await page.$$eval('#firchart text.sty', e => e.map(x => x.textContent)), ['0%', '25%', '50%', '75%', '100%']);
+  assert.match(await page.textContent('#st-fir .stnote'), /par 4s and 5s/);
+  assert.match(await page.textContent('#girval'), /^Avg \d+%$/);
 
   // 6. table: Last 5 + All rounds = the averages of the per-round screen numbers
   const tbl = await page.$$eval('#sttable tr', e => e.map(tr => [...tr.children].map(c => c.textContent.trim())));
-  assert.deepStrictEqual(tbl[0], ['', 'Last 5', 'All rounds']);
+  assert.deepStrictEqual(tbl[0], ['', 'All rounds']);
   const row = k => tbl.find(r => r[0] === k);
   const mean = a => a.reduce((t, x) => t + x, 0) / a.length, last5 = ids.slice(2);
-  const col = (f, fm) => [fm(mean(last5.map(id => f(screen[id])))), fm(mean(ids.map(id => f(screen[id]))))];
+  const col = (f, fm) => [fm(mean(ids.map(id => f(screen[id]))))];
   const sgScreen = k => s => +s.sg[k];
-  assert.deepStrictEqual(row('Rounds').slice(1), ['5', '7']);
+  assert.deepStrictEqual(row('Rounds').slice(1), ['7']);
   assert.deepStrictEqual(row('Strokes gained – TOT').slice(1), col(sgScreen('tot'), fmtSG));
   assert.deepStrictEqual(row('Off the tee (OTT)').slice(1), col(sgScreen('ott'), fmtSG));
   assert.deepStrictEqual(row('Around the green (ARG)').slice(1), col(sgScreen('arg'), fmtSG));
@@ -103,36 +100,51 @@ const SEED = fs.readFileSync(__dirname + '/fixtures/stats-rounds.js', 'utf8');
   assert.deepStrictEqual(row('2-putts per round').slice(1), col(s => s.two, v => v.toFixed(1)));
   assert.deepStrictEqual(row('3-putts per round').slice(1), col(s => s.three, v => v.toFixed(1)));
   const p10m = p10.map(([id, n, m]) => [id, 100 * m / n]);
-  assert.deepStrictEqual(row('Putts made inside 10 ft').slice(1), [Math.round(mean(p10m.filter(x => last5.includes(x[0])).map(x => x[1]))) + '%', Math.round(mean(p10m.map(x => x[1]))) + '%']);
+  assert.deepStrictEqual(row('Putts made inside 10 ft').slice(1), [Math.round(mean(p10m.map(x => x[1]))) + '%']);
   ['To par', 'Putts per GIR hole'].forEach(k => assert.ok(row(k), k));
-  await shot('stats-trends-table.png', '#sttablecard');
+  // Last 5 + compare -> two columns: Last 5 | All rounds
+  await page.click('#strange [data-v="5"]'); await page.click('#stcmp');
+  const tbl5 = await page.$$eval('#sttable tr', e => e.map(tr => [...tr.children].map(c => c.textContent.trim())));
+  assert.deepStrictEqual(tbl5[0], ['', 'Last 5', 'All rounds']); const row5 = k => tbl5.find(r => r[0] === k);
+  const col2 = (f, fm) => [fm(mean(last5.map(id => f(screen[id])))), fm(mean(ids.map(id => f(screen[id]))))];
+  assert.deepStrictEqual(row5('Rounds').slice(1), ['5', '7']);
+  assert.deepStrictEqual(row5('Strokes gained – TOT').slice(1), col2(sgScreen('tot'), fmtSG));
+  assert.deepStrictEqual(row5('Score').slice(1), col2(s => s.score, v => v.toFixed(1)));
+  assert.deepStrictEqual(row5('GIR').slice(1), col2(s => frac(s.gir), v => Math.round(v) + '%'));
+  assert.deepStrictEqual(row5('3-putts per round').slice(1), col2(s => s.three, v => v.toFixed(1)));
+  assert.deepStrictEqual(row5('Putts made inside 10 ft').slice(1), [Math.round(mean(p10m.filter(x => last5.includes(x[0])).map(x => x[1]))) + '%', Math.round(mean(p10m.map(x => x[1]))) + '%']);
+  await page.click('#stcmp'); await page.click('#strange [data-v="all"]');
 
-  // 7. All / Last 10 / Last 5 selector -> charts and table
+
+  // 7. Last 5 -> 5 dots per graph; Selected round -> list of every round, newest first, newest picked
   await page.click('#strange [data-v="5"]');
-  assert.deepStrictEqual(await dots('sg'), { tot: 5, ott: 5, arg: 5, app: 5, putt: 5 }); assert.deepStrictEqual(await dots('pct'), { fir: 5, gir: 5, p10: 5 });
+  for (const k of ['tot', 'ott', 'app', 'arg', 'putt', 'fir', 'gir']) assert.strictEqual(await dots(k), 5, k);
   assert.deepStrictEqual(await page.$$eval('#sttable thead th', e => e.map(x => x.textContent)), ['', 'Last 5']);
-  assert.match(await page.textContent('#stshown'), /^5 of 7 finished rounds · Aug 30, 2026/);
-  await page.click('#strange [data-v="10"]'); assert.deepStrictEqual(await page.$$eval('#sttable thead th', e => e.map(x => x.textContent)), ['', 'Last 5', 'Last 10']);
-  assert.strictEqual((await dots('sg')).tot, 7);
-  await page.click('#strange [data-v="0"]');
+  assert.match(await page.textContent('#stshown'), /^Last 5 of 7 finished rounds · Aug 30, 2026/);
+  await page.click('#strange [data-v="sel"]');
+  assert.deepStrictEqual(await page.$$eval('#strounds .stri', e => e.map(x => x.dataset.id)), ids.slice().reverse());
+  assert.strictEqual(await page.getAttribute('#strounds .stri.sel', 'data-id'), 's7');
+  assert.deepStrictEqual(await page.$$eval('#sttable thead th', e => e.map(x => x.textContent)), ['', 'This round']);
+  await page.click('#strange [data-v="all"]');
 
   // 8. one baseline for every round: recomputed, still equal to statsRound for that baseline
   await page.selectOption('#stbl', 'pga');
   const D2 = await page.evaluate(() => window.__golf.statsData()), s2 = await page.evaluate(() => window.__golf.statsRound('s2', 'pga'));
   assert.strictEqual(D2.all[1].bl, 'pga'); assert.strictEqual(D2.all[1].sg.tot, s2.sg.tot); assert.notStrictEqual(D2.all[1].sg.tot, D.all[1].sg.tot);
-  assert.match(await page.textContent('#stsg .stnote'), /Compared with PGA Tour/);
+  assert.match(await page.textContent('#stsgnote'), /compared with PGA Tour/);
   await page.selectOption('#stbl', '');
 
-  // 9. other player with one round -> friendly message; All players -> 8 finished rounds
-  await page.click('#stchips [data-v="Quincy"]'); await page.waitForSelector('#stnone');
-  assert.match(await page.textContent('#stnone'), /Add a couple of rounds to see trends/); assert.strictEqual(await page.$('#sgchart'), null);
-  await page.click('#stchips [data-v=""]'); assert.match(await page.textContent('#stshown'), /^8 of 8 finished rounds/);
+  // 9. other player with one round -> page still works, trend graphs say not enough rounds; All players -> 8 finished rounds
+  await page.click('#stchips [data-v="Quincy"]'); await page.waitForSelector('#statspage');
+  assert.strictEqual(await page.$('#stnone'), null); assert.match(await page.textContent('#st-tot .stfew'), /Not enough rounds yet/);
+  assert.strictEqual(await dots('tot'), 1);
+  await page.click('#stchips [data-v=""]'); assert.match(await page.textContent('#stshown'), /^8 finished rounds/);
   // back to Home
   await page.click('#statspage .topbar [data-act="home"]'); await page.waitForSelector('#home');
 
   // 10. no rounds at all
   await page.evaluate(() => localStorage.setItem('golfsg.rounds.v1', '[]')); await page.reload(); await page.click('#plusbtn'); await page.click('#plusmenu [data-act="stats"]');
-  assert.match(await page.textContent('#stnone'), /Add a couple of rounds to see trends/);
+  assert.match(await page.textContent('#stnone'), /No finished rounds yet/); assert.strictEqual(await page.$('#totchart'), null);
 
   // light type: no bold text on the page
   const heavy = await page.evaluate(() => [...document.querySelectorAll('#statspage *')].filter(e => e.childNodes.length && [...e.childNodes].some(n => n.nodeType === 3 && n.textContent.trim()) && +getComputedStyle(e).fontWeight > 500 && !e.closest('.topbar')).map(e => e.className || e.tagName));
