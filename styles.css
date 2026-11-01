@@ -1472,3 +1472,78 @@ html body .roundpage.holepage .row.sub { margin-top: 8px; } html body .roundpage
 html body .roundpage.holepage button.discard { min-height: 38px; font-size: 14px; }
 html body .roundpage.holepage .help { font-size: 12px; }
 html body .roundpage.holepage .srow.shead .c-n { height: auto; min-height: 0; border: 0; background: none; }
+/* v118: Club performance – Quick-view tiles, a clean fairway diagram and light cards (like the v116 Stats graphs) */
+.mapview .clubbtns button { min-height: 40px; font-size: 14px !important; font-weight: 400 !important; padding: 2px 4px; }
+.mapview .clubbtns button small { color: #6d7a86; font-size: 11px; font-weight: 400 !important; }
+.mapview .clubqv { margin: 8px 0 12px; }
+.mapview .clubqv .qvu { font-style: normal; font-size: 13px; font-weight: 300; }
+.mapview .clubqv .qvsg { font-size: 12px; font-weight: 400; }
+.mapview .clubqv b .pos { color: #2f7d4a; } .mapview .clubqv b .neg { color: #b8504a; }
+.mapview .clubcard { background: rgba(255, 255, 255, .8); border: 1px solid rgba(23, 48, 31, .08); border-radius: 20px; padding: 12px 10px 10px; margin: 0 0 12px; }
+.mapview .clubcard .cch { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; font-size: 15px; font-weight: 400; color: #23313d; margin: 0 2px 6px; }
+.mapview .clubcard .ccv { font-size: 12.5px; font-weight: 300; color: #5c6a76; white-space: nowrap; }
+.mapview .clubcard .ccv em { font-style: normal; font-weight: 400; color: #23313d; }
+.mapview .clubcard svg { display: block; width: 100%; height: auto; }
+.mapview .clubcard .ccnote { font-size: 11.5px; font-weight: 300; line-height: 1.4; color: #6a7783; margin: 6px 4px 0; }
+.mapview .clubcard .stat-grid { margin-top: 8px; }
+.mapview .clubcard .legend { font-size: 12px; font-weight: 300; }
+.clubfw .cfwh { font-size: 11px; font-weight: 400; fill: #5c6a76; letter-spacing: .02em; }
+.clubfw .cfwp { font-size: 24px; font-weight: 300; fill: #23313d; }
+.clubfw #cfwpF { fill: #2f7d4a; }
+.clubfw .cfwn { font-size: 10.5px; font-weight: 300; fill: #6d7a86; }
+.clubfw .cfwedge { stroke: #a9c4a0; stroke-width: 1; }
+.mapview .clubwarn { border-width: 1px; border-color: rgba(184, 80, 74, .35); background: rgba(255, 236, 232, .7); color: #8a3a33; font-weight: 400 !important; font-size: 14px; }
+.mapview .clubwarn b { font-weight: 500; }
+.mapview .clubtab { font-size: 13px; font-weight: 300; }
+.mapview .clubempty { margin: 14px 4px; padding: 14px; border-radius: 18px; background: rgba(255, 255, 255, .7); border: 1px solid rgba(23, 48, 31, .08); font-size: 14px; font-weight: 300; color: #3f4e5b; line-height: 1.45; }
+.mapview .clubsum { display: flex; align-items: center; justify-content: space-between; gap: 6px; margin: 8px 2px 0; font-size: 15px; font-weight: 300; }
+.mapview .clubsum b, .mapview .clubcard .cch b { font-weight: 400 !important; }
+.mapview .clubsum .infobtn, .mapview .clubcard .cch .infobtn, .mapview .clubh3 .infobtn, .mapview .clubwarn .infobtn, .mapview .clubempty .infobtn { min-height: 32px; min-width: 32px; margin: -6px 0 -6px 2px; vertical-align: middle; }
+.mapview .clubsum .infobtn span, .mapview .clubcard .cch .infobtn span, .mapview .clubh3 .infobtn span, .mapview .clubwarn .infobtn span, .mapview .clubempty .infobtn span { width: 18px; height: 18px; font: italic 400 11px/17px Georgia, serif; border-color: #b3bdc6; color: #5c6a76; }
+.mapview .clubsum .infobtn[aria-expanded="true"] span, .mapview .clubcard .infobtn[aria-expanded="true"] span, .mapview .clubh3 .infobtn[aria-expanded="true"] span, .mapview .clubwarn .infobtn[aria-expanded="true"] span, .mapview .clubempty .infobtn[aria-expanded="true"] span { background: #5c6a76; color: #fff; }
+.mapview .clubcard .cch > span:first-child { display: inline-flex; align-items: center; }
+.mapview .tippop[id^="tip-club"] { margin: 4px 0 8px; padding: 8px 10px; font-size: 12px; font-weight: 300; line-height: 1.45; color: #3f4e5b; background: rgba(246, 248, 250, .95); border: 1px solid rgba(23, 48, 31, .08); border-radius: 12px; }
+.mapview .tippop[id^="tip-club"] b { font-weight: 500; }
+.mapview .clubh3 { display: flex; align-items: center; gap: 2px; font-size: 15px !important; font-weight: 400 !important; }
+.mapview .clubqv .qv { padding: 9px 4px 8px; }
+.mapview .clubtab b, .mapview .clubtab th { font-weight: 400 !important; }
+.mapview .clubtab th { color: #6d7a86; font-size: 11.5px; }
+.mapview #clubrank tr.cur td { background: rgba(59, 130, 196, .08); }
+.mapview .clubwarn b { font-weight: 500 !important; }
+/* v118: Club performance dialog chrome – small, light, segmented (round-page maps keep their own look for now) */
+.mapview.clubview { padding-top: calc(env(safe-area-inset-top) + 8px); }
+.mapview.clubview .maphead b { font-size: 16px !important; font-weight: 400 !important; color: #23313d; letter-spacing: -.1px; }
+.mapview.clubview .maphead .close { min-height: 32px; padding: 2px 10px; font-size: 13px !important; font-weight: 300 !important; color: #3b6f9e; background: transparent !important; border: 1px solid rgba(23, 48, 31, .12) !important; border-radius: 10px; }
+.mapview.clubview .seg { gap: 2px; padding: 2px; margin: 8px 0 4px; background: #eef1f3; border-radius: 10px; }
+.mapview.clubview .seg button { min-height: 30px !important; padding: 2px 6px; font-size: 12.5px !important; font-weight: 300 !important; color: #4b5866 !important; background: transparent !important; border: 0 !important; border-radius: 8px; box-shadow: none; }
+.mapview.clubview .seg button.sel { background: #fff !important; color: #23313d !important; font-weight: 400 !important; box-shadow: 0 1px 2px rgba(23, 48, 31, .12); }
+.mapview.clubview .seg button:disabled { color: #b7c0c8 !important; }
+.mapview.clubview .clubbtns { display: grid; grid-template-columns: repeat(6, 1fr); background: transparent; padding: 0; gap: 4px; margin-top: 10px; }
+.mapview.clubview .clubbtns button { min-height: 30px !important; font-size: 12.5px !important; border: 1px solid rgba(23, 48, 31, .1) !important; background: #fff !important; border-radius: 8px; }
+.mapview.clubview .clubbtns button.sel { border-color: #3b82c4 !important; background: rgba(59, 130, 196, .08) !important; color: #23313d !important; box-shadow: none; }
+.mapview.clubview .clubbtns button:disabled { background: #f6f8f9 !important; border-color: rgba(23, 48, 31, .05) !important; }
+.mapview.clubview .clubbtns button small { font-size: 10px; color: #8a96a1; }
+.mapview.clubview h3 { font-size: 14px !important; font-weight: 400 !important; color: #23313d; margin: 14px 2px 6px; }
+.mapview.clubview .clubqv { gap: 6px; }
+.mapview.clubview .clubqv .qv { border-radius: 14px; }
+.mapview.clubview .clubqv .qvl { font-size: 11.5px; font-weight: 300; color: #5c6a76; }
+.mapview.clubview .clubqv small { font-size: 11px; font-weight: 300; color: #6d7a86; }
+.mapview.clubview .clubqv .qvsg { font-size: 11px !important; font-weight: 300; color: #6d7a86; font-style: normal; }
+.mapview.clubview .stat-grid .stat b, .mapview.clubview .stat-grid b { font-size: 15px !important; font-weight: 300 !important; }
+.mapview.clubview .stat-grid .stat, .mapview.clubview .stat-grid span { font-size: 11.5px; font-weight: 300; }
+.mapview.clubview .clubwarn { font-size: 12.5px !important; font-weight: 300 !important; padding: 6px 10px; border-radius: 10px; border-width: 1px; }
+.mapview.clubview .clubtab { font-size: 12.5px; }
+.mapview.clubview .clubtab td, .mapview.clubview .clubtab th { padding: 5px 4px; border-bottom: 1px solid #edf0f2; }
+.mapview.clubview .legend { font-size: 11.5px; font-weight: 300; gap: 4px 10px; }
+.mapview.clubview .legend .dot { width: 9px; height: 9px; border-width: 1px; }
+.mapview.clubview > button.big[data-act="mapclose"] { min-height: 40px !important; margin: 16px 0 8px; font-size: 13.5px !important; font-weight: 300 !important; color: #3b6f9e !important; background: transparent !important; border: 1px solid rgba(23, 48, 31, .12) !important; border-radius: 12px; box-shadow: none !important; }
+.mapview.clubview #clubcells { gap: 6px; margin-top: 8px; }
+.mapview.clubview #clubcells .stat { padding: 7px 10px; border-radius: 12px; border: 1px solid rgba(23, 48, 31, .08); background: rgba(246, 248, 250, .9); box-shadow: none; }
+.mapview.clubview #clubcells .stat b { font-size: 15px !important; font-weight: 300 !important; color: #23313d; }
+.mapview.clubview #clubcells .stat span { display: block; font-size: 11px !important; font-weight: 300 !important; text-transform: none !important; letter-spacing: 0 !important; color: #6d7a86; }
+.mapview .clubdist { display: block; margin: 2px 0 0; overflow: visible; }
+.mapview .clubdist .cdl { font-size: 11px; font-weight: 300; fill: #6d7a86; }
+.mapview .clubdist .cdmean { font-size: 11.5px; font-weight: 400; fill: #23313d; }
+.mapview .clubdist .cdt { font-size: 10.5px; font-weight: 300; fill: #6d7a86; }
+.mapview .clubdist .cdax { font-size: 10.5px; font-weight: 300; fill: #8a96a1; }
+.mapview .clubdistsum { margin: 2px 2px 0; text-align: center; font-variant-numeric: tabular-nums; }

@@ -2482,7 +2482,7 @@
   var DIR_ORDER = ['short', 'shortleft', 'shortright', 'left', 'right', 'long', 'longleft', 'longright'];
   function mapHTML() {
     var kind = view.map, D = mapData(kind), list = D.list, all = view.mapScope === 'all';
-    var out = '<div class="mapview" id="mapview" role="dialog" aria-label="' + (kind === 'gir' ? 'GIR map' : kind === 'fw' ? 'Fairway map' : kind === 'pin' ? 'Pin location map' : kind === 'prox' ? 'Proximity map' : kind === 'putt' ? 'Putting map' : kind === 'club' ? 'Club performance' : kind === 'pmiss' ? '1st putts made map' : 'Approach miss map') + '">' +
+    var out = '<div class="mapview' + (kind === 'club' ? ' clubview' : '') + '" id="mapview" role="dialog" aria-label="' + (kind === 'gir' ? 'GIR map' : kind === 'fw' ? 'Fairway map' : kind === 'pin' ? 'Pin location map' : kind === 'prox' ? 'Proximity map' : kind === 'putt' ? 'Putting map' : kind === 'club' ? 'Club performance' : kind === 'pmiss' ? '1st putts made map' : 'Approach miss map') + '">' +
       '<div class="maphead"><b>' + (kind === 'gir' ? 'Greens in regulation' : kind === 'fw' ? 'Tee shots – fairways' : kind === 'pin' ? 'Pin location' : kind === 'prox' ? 'Proximity by distance' : kind === 'putt' ? 'Putting' : kind === 'club' ? 'Club performance' : kind === 'pmiss' ? '1st putts made inside 10 ft' : 'Approach misses') + '</b><button class="close" data-act="mapclose" aria-label="Close map">✕ Close</button></div>' +
       '<div class="seg"><button data-act="mapscope" data-v="round" class="' + (all ? '' : 'sel') + '">This round</button>' +
       '<button data-act="mapscope" data-v="all" class="' + (all ? 'sel' : '') + '">All rounds (' + savedRounds().length + ')</button></div>';
@@ -2813,7 +2813,8 @@
         var holed = s.end.lie === 'holed', ob = s.ob, yd = holed ? 0 : s.end.lie === 'green' ? s.end.dist / 3 : s.end.dist, d = s.dir || '';
         var c = Math.SQRT1_2, diag = DIR_LG[d] && DIR_LR[d];
         out.push({ r: r, hole: hi + 1, s: s, club: s.club, holed: holed, ob: ob, yd: yd, dir: d, green: holed || s.end.lie === 'green',
-          tee: s.cat === 'tee', lg: ob || !d || s.cat === 'tee' ? null : DIR_LG[d] * yd * (diag ? c : 1), lr: ob || !d || s.cat === 'tee' ? null : DIR_LR[d] * yd * (diag ? c : 1), sg: s.sg, layup: !!s.layup });
+          tee: s.cat === 'tee', lg: ob || !d || s.cat === 'tee' ? null : DIR_LG[d] * yd * (diag ? c : 1), lr: ob || !d || s.cat === 'tee' ? null : DIR_LR[d] * yd * (diag ? c : 1), sg: s.sg, layup: !!s.layup, cat: s.cat, par: Number(h.par),
+          reg: !!(a.appr && a.appr.shot === s.n), gir: !!(a.appr && a.appr.shot === s.n && a.appr.gir), proxFt: a.appr && a.appr.shot === s.n ? a.appr.proxFt : null }); // v118: the hole's regulation approach (Proximity / GIR rule)
       });
     }); });
     return out;
@@ -2828,46 +2829,155 @@
   function clubSVG(list) {
     var C = 180, CY = 200, pts = list.filter(function (x) { return !x.ob && !x.tee && (x.dir || x.holed); }), mx = Math.max(10, Math.max.apply(null, pts.map(function (x) { return x.yd; }).concat([0])));
     var step = mx <= 15 ? 5 : mx <= 40 ? 10 : mx <= 80 ? 20 : 25, max = Math.ceil(mx / step) * step, K = 160 / max, G = Math.max(6, 10 * K);
-    var o = '<svg id="clubmap" viewBox="0 0 360 400" role="img" aria-label="Where shots with this club finished"><rect width="360" height="400" fill="#5f9e47"/>' +
-      '<circle cx="' + C + '" cy="' + CY + '" r="' + f1(Math.min(G, 160)) + '" fill="#8fd66f" stroke="#e8f8e0" stroke-width="2"/>';
-    for (var f = step; f <= max; f += step) o += '<circle cx="' + C + '" cy="' + CY + '" r="' + f1(f * K) + '" fill="none" stroke="#fff" stroke-opacity=".6" stroke-dasharray="4 4"/><text x="' + f1(C + f * K * 0.707 + 3) + '" y="' + f1(CY + f * K * 0.707 + 11) + '" font-size="10" font-weight="800" fill="#fff">' + f + ' yd</text>';
-    o += '<line x1="' + C + '" y1="' + CY + '" x2="' + C + '" y2="' + (CY - 24) + '" stroke="#000" stroke-width="2.5"/><path d="M' + C + ' ' + (CY - 24) + ' l14 5 l-14 5z" fill="#d0213a"/><circle cx="' + C + '" cy="' + CY + '" r="4" fill="#000"/>' +
-      '<text x="180" y="16" text-anchor="middle" font-size="13" font-weight="900" fill="#fff">LONG ↑</text><text x="180" y="394" text-anchor="middle" font-size="13" font-weight="900" fill="#fff">SHORT ↓ (toward you)</text>' +
-      '<text x="6" y="' + (CY - 6) + '" font-size="13" font-weight="900" fill="#fff">L</text><text x="354" y="' + (CY - 6) + '" text-anchor="end" font-size="13" font-weight="900" fill="#fff">R</text>';
+    var o = '<svg id="clubmap" viewBox="0 0 360 400" role="img" aria-label="Where shots with this club finished"><rect width="360" height="400" fill="#f6f8f4"/>' +
+      '<circle cx="' + C + '" cy="' + CY + '" r="' + f1(Math.min(G, 160)) + '" fill="#e3f0dc" stroke="#c4d8bc" stroke-width="1"/>';
+    for (var f = step; f <= max; f += step) o += '<circle cx="' + C + '" cy="' + CY + '" r="' + f1(f * K) + '" fill="none" stroke="#c9d3c6" stroke-width="1" stroke-dasharray="3 3"/><text x="' + f1(C + f * K * 0.707 + 3) + '" y="' + f1(CY + f * K * 0.707 + 11) + '" font-size="10" font-weight="300" fill="#6d7a86">' + f + ' yd</text>';
+    o += '<line x1="' + C + '" y1="' + CY + '" x2="' + C + '" y2="' + (CY - 24) + '" stroke="#2b3944" stroke-width="1"/><path d="M' + C + ' ' + (CY - 24) + ' l11 4 l-11 4z" fill="#c4574f"/><circle cx="' + C + '" cy="' + CY + '" r="3" fill="#2b3944"/>' +
+      '<text x="180" y="16" text-anchor="middle" font-size="11" font-weight="400" fill="#6d7a86">LONG ↑</text><text x="180" y="394" text-anchor="middle" font-size="11" font-weight="400" fill="#6d7a86">SHORT ↓ (toward you)</text>' +
+      '<text x="6" y="' + (CY - 6) + '" font-size="11" font-weight="400" fill="#6d7a86">L</text><text x="354" y="' + (CY - 6) + '" text-anchor="end" font-size="11" font-weight="400" fill="#6d7a86">R</text>';
     var seen = {};
     pts.forEach(function (x) {
       var k = x.dir + Math.round(x.yd), j = seen[k] = (seen[k] || 0) + 1, p = x.holed ? [C + (j - 1) * 8, CY] : pt(C, CY, Math.max(4, Math.min(x.yd, max) * K), SG.DIR_ANGLE[x.dir] + (j - 1) * 7);
       var col = x.holed ? '#ffd23f' : x.green ? '#fff' : '#d0213a';
-      o += '<circle class="cdot" data-hd="' + (x.green ? Math.round(x.yd * 3) : Math.round(x.yd)) + '" data-hu="' + (x.green ? 'ft' : 'yd') + '" data-hole="' + x.hole + '" cx="' + f1(p[0]) + '" cy="' + f1(p[1]) + '" r="6.5" fill="' + col + '" stroke="#000" stroke-width="2"/>';
+      o += '<circle class="cdot" data-hd="' + (x.green ? Math.round(x.yd * 3) : Math.round(x.yd)) + '" data-hu="' + (x.green ? 'ft' : 'yd') + '" data-hole="' + x.hole + '" cx="' + f1(p[0]) + '" cy="' + f1(p[1]) + '" r="5" fill="' + col + '" stroke="#2b3944" stroke-width="1"/>';
     });
     return o + '</svg>';
   }
+  // v118: tee shots on par 4 / 5 with this club, from the same list the fairway map uses (S.teeMap: finished holes; layups left out of the %)
+  function clubTees(all, club) {
+    var L = [];
+    (all ? savedRounds() : [round()]).forEach(function (r) { SG.summarize(r, 'pga').teeMap.forEach(function (m) { if (m.club === club) L.push(m); }); });
+    var lay = L.filter(function (m) { return m.layup; }).length; L = L.filter(function (m) { return !m.layup; });
+    var hit = L.filter(function (m) { return m.fairway; }).length, miss = L.filter(function (m) { return !m.fairway; });
+    var left = miss.filter(function (m) { return m.side === 'L'; }).length, right = miss.filter(function (m) { return m.side === 'R'; }).length;
+    return { n: L.length, hit: hit, left: left, right: right, noSide: miss.length - left - right, ob: miss.filter(function (m) { return m.kind === 'ob'; }).length, layups: lay, list: L };
+  }
+  function clubDrives(list) { // same rule as fwDrives (no OB / penalty / layup, a measurable length) but for this club's tee shots
+    var d = list.filter(function (m) { return !m.layup && m.kind !== 'ob' && !m.pen && m.hit != null && isFinite(m.hit) && m.hit > 0; }).map(function (m) { return Number(m.hit); });
+    return { n: d.length, d: d, avg: d.length ? Math.round(d.reduce(function (a, b) { return a + b; }, 0) / d.length) : null, max: d.length ? Math.round(Math.max.apply(null, d)) : null, min: d.length ? Math.round(Math.min.apply(null, d)) : null };
+  }
+  // v118: drive distance box plot – box = middle half (25th–75th percentile, linear interpolation), line = median, whiskers = shortest / longest, ◇ = average
+  function clubQuart(d) { var s2 = d.slice().sort(function (a, b) { return a - b; }); return function (p) { var i = (s2.length - 1) * p, k = Math.floor(i); return s2[k] + (s2[Math.min(k + 1, s2.length - 1)] - s2[k]) * (i - k); }; }
+  function clubDistCard(V, club, all) {
+    var h = '<div class="clubcard" id="clubdistcard"><div class="cch"><span>' + (club === 'Driver' ? 'Drive distance' : esc(club) + ' off the tee') + tipBtn('clubdist', 'i', 'About this graph') + '</span><span class="ccv" id="clubdistn">' + (V.n ? 'n = ' + V.n : '') + '</span></div>' +
+      tipText('clubdist', 'Every ' + esc(club) + ' tee shot on a par 4 or 5' + (all ? ' (all rounds)' : ' (this round)') + ': hole length minus the distance left for the next shot – the same drives as the Avg drive tile (OB, penalty and layup tee shots left out). ' +
+        '<b>Box</b> = the middle half of the drives (25th to 75th percentile). <b>Line in the box</b> = median (half longer, half shorter). <b>Whiskers</b> = shortest and longest drive. <b>◇</b> = average. ' +
+        'Percentiles use straight-line interpolation between drives; with fewer than 5 drives the box is only a rough guide' + (V.n === 1 ? ', and one drive is shown as a single line' : '') + '.');
+    if (!V.n) return h + '<p class="ccnote" id="clubdistnone">–</p></div>';
+    var q = clubQuart(V.d), lo = V.d.reduce(function (a, b) { return Math.min(a, b); }), hi = V.d.reduce(function (a, b) { return Math.max(a, b); }), mean = V.d.reduce(function (a, b) { return a + b; }, 0) / V.n;
+    var q1 = q(0.25), med = q(0.5), q3 = q(0.75), span = Math.max(hi - lo, 10), step = span <= 35 ? 5 : span <= 90 ? 10 : span <= 180 ? 20 : 50;
+    var a0 = Math.floor((lo - (hi - lo < 10 ? (10 - (hi - lo)) / 2 : 0)) / step) * step, a1 = Math.ceil((hi + (hi - lo < 10 ? (10 - (hi - lo)) / 2 : 0)) / step) * step; if (a1 === a0) a1 = a0 + step;
+    var W = 358, x0 = 18, x1 = 340, yT = 10, yB = 50, yM = 30, X = function (v) { return (x0 + (v - a0) / (a1 - a0) * (x1 - x0)).toFixed(1); }, r = Math.round;
+    var o = '<svg class="clubdist" id="clubdist" viewBox="0 0 ' + W + ' 92" width="100%" role="img" aria-label="' + esc(club) + ' distances: shortest ' + r(lo) + ', 25th percentile ' + r(q1) + ', median ' + r(med) + ', 75th percentile ' + r(q3) + ', longest ' + r(hi) + ', average ' + r(mean) + ' yards">';
+    for (var t = a0; t <= a1 + 1e-9; t += step) o += '<line class="cdg" x1="' + X(t) + '" y1="2" x2="' + X(t) + '" y2="' + (yB + 8) + '" stroke="#e6eaee" stroke-width="1"/><text class="cdt" x="' + X(t) + '" y="' + (yB + 21) + '" text-anchor="middle">' + t + '</text>';
+    o += '<line x1="' + x0 + '" y1="' + (yB + 8) + '" x2="' + x1 + '" y2="' + (yB + 8) + '" stroke="#d5dbe0" stroke-width="1"/>';
+    if (V.n === 1) o += '<line id="clubdistone" data-v="' + r(lo) + '" x1="' + X(lo) + '" y1="' + yT + '" x2="' + X(lo) + '" y2="' + yB + '" stroke="#3b82c4" stroke-width="1.5"/>';
+    else o += '<line id="clubdistwl" data-v="' + r(lo) + '" x1="' + X(lo) + '" y1="' + yM + '" x2="' + X(q1) + '" y2="' + yM + '" stroke="#3b82c4" stroke-width="1"/>' +
+      '<line id="clubdistwr" data-v="' + r(hi) + '" x1="' + X(q3) + '" y1="' + yM + '" x2="' + X(hi) + '" y2="' + yM + '" stroke="#3b82c4" stroke-width="1"/>' +
+      '<line class="cdcap" x1="' + X(lo) + '" y1="' + (yT + 2) + '" x2="' + X(lo) + '" y2="' + (yB - 2) + '" stroke="#3b82c4" stroke-width="1"/><line class="cdcap" x1="' + X(hi) + '" y1="' + (yT + 2) + '" x2="' + X(hi) + '" y2="' + (yB - 2) + '" stroke="#3b82c4" stroke-width="1"/>' +
+      '<rect id="clubdistbox" data-q1="' + r(q1) + '" data-q3="' + r(q3) + '" x="' + X(q1) + '" y="' + yT + '" width="' + Math.max(1, X(q3) - X(q1)).toFixed(1) + '" height="' + (yB - yT) + '" fill="rgba(59,130,196,.16)" stroke="#3b82c4" stroke-width="1"/>' +
+      '<line id="clubdistmed" data-v="' + r(med) + '" x1="' + X(med) + '" y1="' + yT + '" x2="' + X(med) + '" y2="' + yB + '" stroke="#2f6aa3" stroke-width="1.5"/>';
+    var mx = +X(mean);
+    o += '<path id="clubdistmean" data-v="' + r(mean) + '" d="M' + mx.toFixed(1) + ' ' + (yM - 4.5) + 'l4.5 4.5-4.5 4.5-4.5-4.5z" fill="#fff" stroke="#23313d" stroke-width="1"/>' +
+      '<text class="cdax" x="' + ((x0 + x1) / 2) + '" y="' + (yB + 38) + '" text-anchor="middle">Yards</text></svg>';
+    var sum = V.n === 1 ? '1 drive · ' + r(lo) + ' yd' : 'min ' + r(lo) + ' · median ' + r(med) + ' · avg ' + r(mean) + ' · max ' + r(hi) + ' yd';
+    return h + o + '<p class="ccnote clubdistsum" id="clubdistsum">' + sum + '</p></div>';
+  }
+  function pctOf(k, n) { return n ? Math.round(100 * k / n) : null; }
+  // Quick-view style tiles (the same look as the round's Quick view)
+  function clubQV(id, lbl, val, sub, em, emCls) {
+    return '<div class="qv" data-q="' + id + '"><span class="qvl">' + lbl + '</span><b>' + val + '</b><small>' + sub + '</small>' + (em != null ? '<em class="qvsg ' + (emCls || '') + '">' + em + '</em>' : '') + '</div>';
+  }
+  // v118: clean top-down fairway – left rough · fairway · right rough, each with its share of the tee shots (thin lines, light tints, exact numbers)
+  function clubFairwaySVG(T) {
+    var W = 358, H = 214, x0 = 8, x1 = 112, x2 = 246, x3 = 350, y0 = 26, y1 = 176;
+    var reg = [['L', 'Left rough', x0, x1, T.left, '#f3f5f0'], ['F', 'Fairway', x1, x2, T.hit, '#e3f0dc'], ['R', 'Right rough', x2, x3, T.right, '#f3f5f0']];
+    var s = '<svg class="clubfw" id="clubfw" viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="' + esc('Tee shots: left rough ' + pctOf(T.left, T.n) + '%, fairway ' + pctOf(T.hit, T.n) + '%, right rough ' + pctOf(T.right, T.n) + '%') + '">';
+    reg.forEach(function (g) { var cx = (g[2] + g[3]) / 2, p = pctOf(g[4], T.n);
+      s += '<rect class="cfwreg" data-reg="' + g[0] + '" data-n="' + g[4] + '" data-pct="' + p + '" x="' + g[2] + '" y="' + y0 + '" width="' + (g[3] - g[2]) + '" height="' + (y1 - y0) + '" fill="' + g[5] + '"' + (g[0] === 'F' ? ' rx="0"' : '') + '/>' +
+        '<text class="cfwh" x="' + cx + '" y="' + (y0 - 9) + '" text-anchor="middle">' + g[1] + '</text>' +
+        '<text class="cfwp" id="cfwp' + g[0] + '" x="' + cx + '" y="' + (y0 + 70) + '" text-anchor="middle">' + p + '%</text>' +
+        '<text class="cfwn" x="' + cx + '" y="' + (y0 + 90) + '" text-anchor="middle">' + g[4] + ' of ' + T.n + '</text>'; });
+    // fairway edges + a faint centre line; the tee at the bottom
+    s += '<rect x="' + x0 + '" y="' + y0 + '" width="' + (x3 - x0) + '" height="' + (y1 - y0) + '" fill="none" stroke="#d5ddd2" stroke-width="1"/>' +
+      '<line class="cfwedge" x1="' + x1 + '" x2="' + x1 + '" y1="' + y0 + '" y2="' + y1 + '"/><line class="cfwedge" x1="' + x2 + '" x2="' + x2 + '" y1="' + y0 + '" y2="' + y1 + '"/>' +
+      '<line x1="' + ((x1 + x2) / 2) + '" x2="' + ((x1 + x2) / 2) + '" y1="' + (y0 + 104) + '" y2="' + y1 + '" stroke="#b9cdb3" stroke-width="1" stroke-dasharray="3 4"/>' +
+      '<circle cx="' + ((x1 + x2) / 2) + '" cy="' + (y1 + 14) + '" r="3" fill="#fff" stroke="#7d8b96" stroke-width="1"/><text class="cfwn" x="' + ((x1 + x2) / 2 + 9) + '" y="' + (y1 + 17.5) + '">tee</text>' +
+      '<text class="cfwn" x="' + x0 + '" y="' + (H - 4) + '">' + (T.noSide ? T.noSide + ' missed with no side entered (not in left / right)' : '') + '</text>';
+    return s + '</svg>';
+  }
+  function clubFairwayCard(T, club, all) {
+    var h = '<div class="clubcard" id="clubfwcard"><div class="cch"><span>' + esc(club) + ' off the tee' + tipBtn('clubfw', 'i', 'About this picture') + '</span><span class="ccv" id="clubfwv">' + (T.n ? 'n = ' + T.n + (T.layups ? ' · ' + T.layups + ' layup' + (T.layups === 1 ? '' : 's') + ' out' : '') : '') + '</span></div>' +
+      tipText('clubfw', 'Every ' + esc(club) + ' tee shot on a par 4 or 5' + (all ? ' in all rounds' : ' this round') + ' (finished holes). Layup tee shots are left out. Fairway = finished on the fairway or green with no penalty – the same rule as Fairways hit and Tee misses L / R on the round. Left / right comes from the Dir entered on the next shot' +
+        (T.ob ? '; ' + T.ob + ' OB counted on its side' : '') + (T.noSide ? '; ' + T.noSide + ' miss' + (T.noSide === 1 ? '' : 'es') + ' with no side entered are in n but not in left / right' : '') + '.');
+    if (!T.n) return h + '<p class="ccnote" id="clubfwnone">No tee shots on par 4s or 5s ' + (all ? 'yet' : 'this round') + '</p></div>';
+    return h + clubFairwaySVG(T) + '</div>';
+  }
+  // v118: which tiles a club gets – by the bag's grouping (Driver / woods / hybrids + irons incl. PW, GW / wedges / putter)
+  function clubKind(code) {
+    var c = String(code), b = (bag().clubs || []).filter(function (x) { return String(x.code).toLowerCase() === c.toLowerCase(); })[0], cat = b && b.cat;
+    if (/^driver$/i.test(c) || cat === 'd') return 'driver';
+    if (/^\d+W$/i.test(c) || cat === 'fw') return 'wood';
+    if (/^\d+[Hi]$/i.test(c) || /^(PW|GW)$/i.test(c) || cat === 'hy' || cat === 'ir') return 'iron';
+    if (/^putter$/i.test(c) || cat === 'pt') return 'putter';
+    return 'wedge';
+  }
+  function fmtProx(ft) { return ft == null ? '–' : ft >= 90 ? Math.round(ft / 3) + '<i class="qvu"> yd</i>' : Math.round(ft) + '<i class="qvu"> ft</i>'; }
   function clubHTML(all) {
     var L = clubShots(all), by = {}; L.forEach(function (x) { (by[x.club] = by[x.club] || []).push(x); });
     var B0 = BAG.pickerClubs(bag()).map(function (c) { return c.code; }), base = B0.length ? B0 : SG.CLUBS, order = base.concat(Object.keys(by).filter(function (c) { return base.indexOf(c) < 0; }).sort(function (a, b) { return BAG.rank(a) - BAG.rank(b); }));
     var used = order.filter(function (c) { return by[c]; });
-    if (!used.length) return '<p class="notice" id="clubnone">No clubs entered yet' + (all ? '' : ' this round') + '. Pick a club under each shot when entering a hole, then come back here.</p>';
-    var cur = view.club && by[view.club] ? view.club : used.slice().sort(function (a, b) { return by[b].length - by[a].length; })[0], list = by[cur], st = clubStats(list);
+    if (!used.length) return '<p class="clubempty" id="clubnone">No clubs entered yet' + (all ? '' : ' this round') + tipBtn('clubnone', 'i', 'How to add clubs') + '</p>' + tipText('clubnone', 'Pick a club under each shot when entering a hole, then come back here.');
+    var cur = view.club && by[view.club] ? view.club : used.slice().sort(function (a, b) { return by[b].length - by[a].length; })[0], list = by[cur], st = clubStats(list), kind = clubKind(cur);
     var fmtD = function (v, a, b) { return v == null ? '–' : Math.abs(v) < 0.5 ? 'on line' : Math.round(Math.abs(v)) + ' yd ' + (v > 0 ? a : b); };
+    var pl = function (n, w) { return n + ' ' + w + (n === 1 ? '' : 's'); };
     var o = '<div class="seg clubbtns" id="clubbtns">' + order.map(function (c) { var n = by[c] ? by[c].length : 0;
       return '<button data-act="clubsel" data-v="' + esc(c) + '" class="' + (c === cur ? 'sel' : '') + '"' + (n ? '' : ' disabled') + ' aria-pressed="' + (c === cur) + '">' + esc(c) + (n ? '<small> ' + n + '</small>' : '') + '</button>'; }).join('') + '</div>';
-    o += '<p class="mapsum" id="mapsum"><b id="clubcur">' + esc(cur) + '</b> · <b>' + st.n + '</b> shot' + (st.n === 1 ? '' : 's') + (all ? ' in all rounds' : ' this round') + '</p>';
-    if (st.bias) o += '<p class="warnmsg" id="clubbias">⚠ ' + cur + ' finishes <b>' + Math.round(Math.abs(st.lg)) + ' yd ' + st.bias + '</b> on average – ' + (st.bias === 'short' ? 'consider clubbing up or checking your yardage for it.' : 'consider clubbing down for it.') + '</p>';
-    var tees = list.filter(function (x) { return x.tee; });
-    if (tees.length) o += '<p class="help" id="clubtee"><b>' + tees.length + ' tee shot' + (tees.length === 1 ? '' : 's') + ' on par 4/5</b> (judged by the fairway, not the pin – not on the map or in the short/long numbers): ' +
-      tees.filter(function (x) { return !x.ob && x.s.end.lie === 'fairway'; }).length + ' fairway, ' + tees.filter(function (x) { return /left$/.test(x.dir); }).length + ' left, ' + tees.filter(function (x) { return /right$/.test(x.dir); }).length + ' right' + (tees.filter(function (x) { return x.ob; }).length ? ', ' + tees.filter(function (x) { return x.ob; }).length + ' OB' : '') + '.</p>';
-    if (tees.length < list.length) o += clubSVG(list);
-    o += '<div class="stat-grid" id="clubcells">' + stat('Avg short / long', fmtD(st.lg, 'long', 'short')) + stat('Avg left / right', fmtD(st.lr, 'right', 'left')) +
-      stat('Finished on green', st.n ? st.green + ' / ' + st.n + ' (' + Math.round(st.green / st.n * 100) + '%)' : '–') + stat('Strokes gained', '<span class="' + sgCls(st.sg) + '">' + fmtSG(st.sg) + '</span>' + (st.sgN ? ' <small>(' + fmtSG(st.sg / st.sgN) + '/shot)</small>' : '')) + '</div>' +
-      '<div class="legend"><span><i class="dot" style="background:#fff"></i>Finished on the green</span><span><i class="dot" style="background:#d0213a"></i>Finished off the green</span><span><i class="dot" style="background:#ffd23f"></i>Holed</span>' +
-      '<span>Rings = yards from the hole; points use the distance left and direction you entered on the next shot. ' + (st.ob ? st.ob + ' OB shot(s) and ' : '') + (st.n - st.nDir - st.ob - tees.length > 0 ? (st.n - st.nDir - st.ob - tees.length) + ' shot(s) with no direction are not drawn / not in the averages.' : '') + '</span></div>';
-    o += '<h3>Shots with ' + esc(cur) + '</h3><table id="clubshots"><tr><th>Hole</th><th>From</th><th>Finished</th><th class="num">SG</th></tr>' + list.map(function (x) {
+    var tees = list.filter(function (x) { return x.tee; }), T = clubTees(all, cur), tips = [];
+    var sgAll = clubQV('sg', 'Strokes gained', st.sgN ? '<span class="' + sgCls(st.sg) + '">' + fmtSG(st.sg) + '</span>' : '–', st.sgN ? fmtSG(st.sg / st.sgN) + ' per shot' : 'no shots counted', pl(st.sgN, 'shot'));
+    var tilesH = '';
+    if (kind === 'driver' || kind === 'wood') {
+      var fwT = clubQV('fw', 'Fairways hit', T.n ? pctOf(T.hit, T.n) + '%' : '–', T.n ? T.hit + ' / ' + T.n + ' hit' : 'no tee shots', T.n ? 'L ' + T.left + ' · R ' + T.right : 'n = 0');
+      if (kind === 'driver') { var V = clubDrives(T.list);
+        tilesH = fwT + sgAll + clubQV('drive', 'Avg drive', V.n ? V.avg + '<i class="qvu"> yd</i>' : '–', V.n ? 'longest ' + V.max + ' yd' : 'no distances', V.n ? 'n = ' + V.n : null);
+        tips.push('<b>Avg drive</b> = hole length minus the distance left for the next shot (no OB, penalty or layup tee shots).');
+      } else { var fromFw = list.length - tees.length;
+        tilesH = fwT + sgAll + clubQV('use', 'Shots', st.n, tees.length + ' off the tee', fromFw + ' from fairway / other'); }
+      tips.unshift('<b>Fairways hit</b> counts only tee shots with ' + esc(cur) + ' on par 4s and 5s (layups left out), the same rule as the round’s Fairways hit. <b>Strokes gained</b> = every ' + esc(cur) + ' shot vs the PGA Tour baseline (layups count 0).');
+    } else if (kind === 'iron') {
+      var A = list.filter(function (x) { return x.reg && !x.tee && !x.layup && x.s.start.lie !== 'green' && x.cat === 'approach'; }), g = A.filter(function (x) { return x.gir; }).length;
+      var P = A.filter(function (x) { return x.proxFt != null; }), pAvg = P.length ? P.reduce(function (t, x) { return t + x.proxFt; }, 0) / P.length : null;
+      var AP = list.filter(function (x) { return x.cat === 'approach' && !x.layup; }), aSG = AP.reduce(function (t, x) { return t + x.sg; }, 0);
+      var fromY = A.length ? Math.round(A.reduce(function (t, x) { return t + x.s.start.dist; }, 0) / A.length) : null;
+      tilesH = clubQV('gir', 'GIR', A.length ? pctOf(g, A.length) + '%' : '–', A.length ? g + ' / ' + A.length + ' greens' : 'no approaches', 'n = ' + A.length) +
+        clubQV('sg', 'SG approach', AP.length ? '<span class="' + sgCls(aSG) + '">' + fmtSG(aSG) + '</span>' : '–', AP.length ? fmtSG(aSG / AP.length) + ' per shot' : 'no approach shots', pl(AP.length, 'shot')) +
+        clubQV('prox', 'Proximity', fmtProx(pAvg), P.length ? 'avg to the pin' : 'no approaches', fromY != null ? 'from ' + fromY + ' yd avg' : null);
+      tips.push('<b>GIR</b> and <b>Proximity</b> use only the hole’s real approach – the shot that could reach the green in regulation (a par-3 tee shot, the 2nd on a par 4, the 2nd or 3rd on a par 5) – when it was hit with ' + esc(cur) + '. Not tee shots on par 4/5, layups, chips from 20 yd and in or shots from the green. Proximity = distance to the pin after the shot (first-putt length on the green; yards × 3 off it; OB left out). <b>SG approach</b> = every ' + esc(cur) + ' shot in the Approach category vs the PGA Tour baseline.' +
+        (tees.length ? ' ' + pl(tees.length, 'tee shot') + ' on par 4/5 with ' + esc(cur) + ' are in the shot list but not in these tiles.' : ''));
+    } else {
+      tilesH = sgAll + clubQV('n', 'Shots', st.n, all ? 'all rounds' : 'this round', null) +
+        clubQV('green', 'On the green', st.n ? Math.round(st.green / st.n * 100) + '%' : '–', st.green + ' / ' + st.n + ' shots', null);
+      tips.push('<b>Strokes gained</b> = every ' + esc(cur) + ' shot vs the PGA Tour baseline. <b>On the green</b> = shots that finished on the green or in the hole.');
+    }
+    o += '<div class="mapsum clubsum" id="mapsum"><span><b id="clubcur">' + esc(cur) + '</b> · <b>' + st.n + '</b> shot' + (st.n === 1 ? '' : 's') + (all ? ' in all rounds' : ' this round') + '</span>' + tipBtn('clubtiles', 'i', 'About these numbers') + '</div>' +
+      tipText('clubtiles', tips.join(' ')) + '<div class="quickview clubqv" id="clubqv" data-kind="' + kind + '">' + tilesH + '</div>';
+    if (kind === 'driver' || (kind === 'wood' && T.n)) { var VD = clubDrives(T.list); if (kind === 'driver' || VD.n) o += clubDistCard(VD, cur, all); o += clubFairwayCard(T, cur, all); }
+    if (st.bias) o += '<p class="warnmsg clubwarn" id="clubbias">' + esc(cur) + ' finishes <b>' + Math.round(Math.abs(st.lg)) + ' yd ' + st.bias + '</b> on average' + tipBtn('clubbias', 'i', 'What to do') + '</p>' +
+      tipText('clubbias', st.bias === 'short' ? 'Consider clubbing up or checking your yardage for it.' : 'Consider clubbing down for it.');
+    if (tees.length < list.length) {
+      o += '<div class="clubcard" id="clubdisp"><div class="cch"><span>Finish vs the pin' + tipBtn('clubdisp', 'i', 'About this picture') + '</span><span class="ccv">n = ' + (list.length - tees.length) + '</span></div>' +
+        tipText('clubdisp', 'Rings = yards from the hole; points use the distance left and direction you entered on the next shot. White = finished on the green, red = off the green, yellow = holed.' + (tees.length ? ' Tee shots on par 4/5 are judged by the fairway, not the pin, so they are not drawn here.' : '') +
+          (st.ob ? ' ' + st.ob + ' OB shot(s) not drawn.' : '') + (st.n - st.nDir - st.ob - tees.length > 0 ? ' ' + (st.n - st.nDir - st.ob - tees.length) + ' shot(s) with no direction are not drawn / not in the averages.' : '')) +
+        clubSVG(list) + '<div class="stat-grid" id="clubcells">' + stat('Avg short / long', fmtD(st.lg, 'long', 'short')) + stat('Avg left / right', fmtD(st.lr, 'right', 'left')) + '</div></div>';
+    }
+    if (tees.length) o += '<span id="clubtee" hidden data-n="' + tees.length + '">' + pl(tees.length, 'tee shot') + ' on par 4/5</span>';
+    o += '<h3>Shots with ' + esc(cur) + '</h3><table id="clubshots" class="clubtab"><tr><th>Hole</th><th>From</th><th>Finished</th><th class="num">SG</th></tr>' + list.map(function (x) {
       var fin = x.holed ? 'holed' : x.ob ? 'OB' : (x.s.end.lie === 'green' ? Math.round(x.s.end.dist) + ' ft' : Math.round(x.s.end.dist) + ' yd') + (x.dir ? ' ' + SG.DIR_NAME[x.dir].toLowerCase() : '') + (x.s.end.lie !== 'green' ? ' · ' + (LIE_NAME[x.s.end.lie] || x.s.end.lie) : ' · green');
       return '<tr><td>' + (all ? localDate(x.r.date).slice(5) + ' #' : '#') + x.hole + '</td><td>' + Math.round(x.s.start.dist) + ' yd ' + (LIE_NAME[x.s.start.lie] || (x.s.start.lie === 'tee' ? 'tee' : x.s.start.lie)) + '</td><td>' + esc(fin) + '</td><td class="num ' + sgCls(x.sg) + '">' + (x.layup ? 'layup' : fmtSG(x.sg)) + '</td></tr>'; }).join('') + '</table>';
     var rank = used.map(function (c) { var s2 = clubStats(by[c]); return { c: c, s: s2 }; }).filter(function (x) { return x.s.sgN; }).sort(function (a, b) { return b.s.sg / b.s.sgN - a.s.sg / a.s.sgN; });
-    o += '<h3>Strokes gained by club</h3><table id="clubrank"><tr><th>#</th><th>Club</th><th class="num">Shots</th><th class="num">SG/shot</th><th class="num">Total</th><th>Bias</th></tr>' + rank.map(function (x, i) {
-      return '<tr data-act="clubsel" data-v="' + esc(x.c) + '" class="' + (x.c === cur ? 'cur' : '') + '"><td>' + (i + 1) + '</td><td><b>' + esc(x.c) + '</b></td><td class="num">' + x.s.sgN + '</td><td class="num ' + sgCls(x.s.sg) + '">' + fmtSG(x.s.sg / x.s.sgN) + '</td><td class="num ' + sgCls(x.s.sg) + '">' + fmtSG(x.s.sg) + '</td><td>' + (x.s.bias ? '⚠ ' + Math.round(Math.abs(x.s.lg)) + ' yd ' + x.s.bias : '') + '</td></tr>'; }).join('') + '</table>' +
-      '<p class="help muted">Best club per shot at the top (vs PGA Tour baseline). Layup tee shots are not in SG. Bias ⚠ = finishes more than 5 yd short or long on average (from the distance + direction of the next shot; straight left/right counts as pin high). Tap a row to see that club.</p>';
+    o += '<h3 class="clubh3">Strokes gained by club' + tipBtn('clubrank', 'i', 'About this table') + '</h3>' + tipText('clubrank', 'Best club per shot at the top (vs PGA Tour baseline). Layup tee shots are not in SG. Bias ⚠ = finishes more than 5 yd short or long on average (from the distance + direction of the next shot; straight left/right counts as pin high). Tap a row to see that club.') + '<table id="clubrank" class="clubtab"><tr><th>#</th><th>Club</th><th class="num">Shots</th><th class="num">SG/shot</th><th class="num">Total</th><th>Bias</th></tr>' + rank.map(function (x, i) {
+      return '<tr data-act="clubsel" data-v="' + esc(x.c) + '" class="' + (x.c === cur ? 'cur' : '') + '"><td>' + (i + 1) + '</td><td><b>' + esc(x.c) + '</b></td><td class="num">' + x.s.sgN + '</td><td class="num ' + sgCls(x.s.sg) + '">' + fmtSG(x.s.sg / x.s.sgN) + '</td><td class="num ' + sgCls(x.s.sg) + '">' + fmtSG(x.s.sg) + '</td><td>' + (x.s.bias ? '⚠ ' + Math.round(Math.abs(x.s.lg)) + ' yd ' + x.s.bias : '') + '</td></tr>'; }).join('') + '</table>';
+
     return o;
   }
   // ---------- Best vs worst rounds (app only) ----------
