@@ -2827,22 +2827,23 @@
       bias: lg != null && Math.abs(lg) > 5 ? (lg > 0 ? 'long' : 'short') : '' };
   }
   function clubSVG(list) {
-    var C = 180, CY = 200, pts = list.filter(function (x) { return !x.ob && !x.tee && (x.dir || x.holed); }), mx = Math.max(10, Math.max.apply(null, pts.map(function (x) { return x.yd; }).concat([0])));
-    var step = mx <= 15 ? 5 : mx <= 40 ? 10 : mx <= 80 ? 20 : 25, max = Math.ceil(mx / step) * step, K = 160 / max, G = Math.max(6, 10 * K);
+    var C = 180, CY = 200, pts = list.filter(function (x) { return !x.ob && !x.tee && (x.dir || x.holed); }), mx = Math.max(20, Math.max.apply(null, pts.map(function (x) { return x.yd * 3; }).concat([0])));
+    // v120: the scale is in FEET – rings every 10 ft up to 60 ft; bigger spreads use 20 ft rings (to 120 ft), then 50 ft, so it never gets crowded. K = px per foot.
+    var step = mx <= 60 ? 10 : mx <= 120 ? 20 : 50, max = Math.ceil(mx / step) * step, K = 160 / max, G = Math.max(6, 30 * K);
     var o = '<svg id="clubmap" viewBox="0 0 360 400" role="img" aria-label="Where shots with this club finished"><rect width="360" height="400" fill="#f6f8f4"/>' +
       '<circle cx="' + C + '" cy="' + CY + '" r="' + f1(Math.min(G, 160)) + '" fill="#e3f0dc" stroke="#8fae86" stroke-width="1.5"/><g id="clubrings">';
     // v119: yardage rings readable on a phone – 1.5px green-grey, inner rings dashed, the outer ring a solid edge; labels 11.5px with a soft halo
-    for (var f = step; f <= max; f += step) o += '<circle class="cring" data-yd="' + f + '" cx="' + C + '" cy="' + CY + '" r="' + f1(f * K) + '" fill="none" stroke="#7f9a86" stroke-width="1.5"' + (f < max ? ' stroke-dasharray="5 4"' : '') + '/>';
-    for (f = step; f <= max; f += step) o += '<text class="cringl" x="' + f1(C + f * K * 0.707 + 4) + '" y="' + f1(CY + f * K * 0.707 + 13) + '" font-size="11.5" font-weight="400" fill="#3f5246" stroke="#f6f8f4" stroke-width="3" stroke-linejoin="round" paint-order="stroke">' + f + ' yd</text>';
+    for (var f = step; f <= max; f += step) o += '<circle class="cring" data-ft="' + f + '" cx="' + C + '" cy="' + CY + '" r="' + f1(f * K) + '" fill="none" stroke="#7f9a86" stroke-width="1.5"' + (f < max ? ' stroke-dasharray="5 4"' : '') + '/>';
+    for (f = step; f <= max; f += step) o += '<text class="cringl" x="' + f1(C + f * K * 0.707 + 4) + '" y="' + f1(CY + f * K * 0.707 + 13) + '" font-size="11.5" font-weight="400" fill="#3f5246" stroke="#f6f8f4" stroke-width="3" stroke-linejoin="round" paint-order="stroke">' + f + ' ft</text>';
     o += '</g>';
     o += '<line x1="' + C + '" y1="' + CY + '" x2="' + C + '" y2="' + (CY - 24) + '" stroke="#2b3944" stroke-width="1"/><path d="M' + C + ' ' + (CY - 24) + ' l11 4 l-11 4z" fill="#c4574f"/><circle cx="' + C + '" cy="' + CY + '" r="3" fill="#2b3944"/>' +
       '<text x="180" y="16" text-anchor="middle" font-size="11" font-weight="400" fill="#4b5866">LONG ↑</text><text x="180" y="394" text-anchor="middle" font-size="11" font-weight="400" fill="#4b5866">SHORT ↓ (toward you)</text>' +
       '<text x="6" y="' + (CY - 6) + '" font-size="11" font-weight="400" fill="#4b5866">L</text><text x="354" y="' + (CY - 6) + '" text-anchor="end" font-size="11" font-weight="400" fill="#4b5866">R</text>';
     var seen = {};
     pts.forEach(function (x) {
-      var k = x.dir + Math.round(x.yd), j = seen[k] = (seen[k] || 0) + 1, p = x.holed ? [C + (j - 1) * 8, CY] : pt(C, CY, Math.max(4, Math.min(x.yd, max) * K), SG.DIR_ANGLE[x.dir] + (j - 1) * 7);
+      var k = x.dir + Math.round(x.yd), j = seen[k] = (seen[k] || 0) + 1, p = x.holed ? [C + (j - 1) * 8, CY] : pt(C, CY, Math.max(4, Math.min(x.yd * 3, max) * K), SG.DIR_ANGLE[x.dir] + (j - 1) * 7);
       var col = x.holed ? '#ffd23f' : x.green ? '#fff' : '#d0213a';
-      o += '<circle class="cdot" data-hd="' + (x.green ? Math.round(x.yd * 3) : Math.round(x.yd)) + '" data-hu="' + (x.green ? 'ft' : 'yd') + '" data-hole="' + x.hole + '" cx="' + f1(p[0]) + '" cy="' + f1(p[1]) + '" r="5" fill="' + col + '" stroke="#2b3944" stroke-width="1"/>';
+      o += '<circle class="cdot" data-hd="' + Math.round(x.yd * 3) + '" data-hu="ft" data-hole="' + x.hole + '" cx="' + f1(p[0]) + '" cy="' + f1(p[1]) + '" r="5" fill="' + col + '" stroke="#2b3944" stroke-width="1"/>';
     });
     return o + '</svg>';
   }
@@ -2932,7 +2933,7 @@
     var used = order.filter(function (c) { return by[c]; });
     if (!used.length) return '<p class="clubempty" id="clubnone">No clubs entered yet' + (all ? '' : ' this round') + tipBtn('clubnone', 'i', 'How to add clubs') + '</p>' + tipText('clubnone', 'Pick a club under each shot when entering a hole, then come back here.');
     var cur = view.club && by[view.club] ? view.club : used.slice().sort(function (a, b) { return by[b].length - by[a].length; })[0], list = by[cur], st = clubStats(list), kind = clubKind(cur);
-    var fmtD = function (v, a, b) { return v == null ? '–' : Math.abs(v) < 0.5 ? 'on line' : Math.round(Math.abs(v)) + ' yd ' + (v > 0 ? a : b); };
+    var fmtD = function (v, a, b) { return v == null ? '–' : Math.abs(v * 3) < 0.5 ? 'on line' : Math.round(Math.abs(v * 3)) + ' ft ' + (v > 0 ? a : b); }; // v120: finish vs the pin in feet (st.lg / st.lr are yards)
     var pl = function (n, w) { return n + ' ' + w + (n === 1 ? '' : 's'); };
     var o = '<div class="seg clubbtns" id="clubbtns">' + order.map(function (c) { var n = by[c] ? by[c].length : 0;
       return '<button data-act="clubsel" data-v="' + esc(c) + '" class="' + (c === cur ? 'sel' : '') + '"' + (n ? '' : ' disabled') + ' aria-pressed="' + (c === cur) + '">' + esc(c) + (n ? '<small> ' + n + '</small>' : '') + '</button>'; }).join('') + '</div>';
@@ -2969,7 +2970,7 @@
       tipText('clubbias', st.bias === 'short' ? 'Consider clubbing up or checking your yardage for it.' : 'Consider clubbing down for it.');
     if (tees.length < list.length) {
       o += '<div class="clubcard" id="clubdisp"><div class="cch"><span>Finish vs the pin' + tipBtn('clubdisp', 'i', 'About this picture') + '</span><span class="ccv">n = ' + (list.length - tees.length) + '</span></div>' +
-        tipText('clubdisp', 'Rings = yards from the hole; points use the distance left and direction you entered on the next shot. White = finished on the green, red = off the green, yellow = holed.' + (tees.length ? ' Tee shots on par 4/5 are judged by the fairway, not the pin, so they are not drawn here.' : '') +
+        tipText('clubdisp', 'Rings = feet from the hole (every 10 ft; 20 ft rings when shots finish further than 60 ft away); the light green circle is about the size of a green (30 ft); points use the distance left and direction you entered on the next shot. White = finished on the green, red = off the green, yellow = holed.' + (tees.length ? ' Tee shots on par 4/5 are judged by the fairway, not the pin, so they are not drawn here.' : '') +
           (st.ob ? ' ' + st.ob + ' OB shot(s) not drawn.' : '') + (st.n - st.nDir - st.ob - tees.length > 0 ? ' ' + (st.n - st.nDir - st.ob - tees.length) + ' shot(s) with no direction are not drawn / not in the averages.' : '')) +
         clubSVG(list) + '<div class="stat-grid" id="clubcells">' + stat('Avg short / long', fmtD(st.lg, 'long', 'short')) + stat('Avg left / right', fmtD(st.lr, 'right', 'left')) + '</div></div>';
     }
