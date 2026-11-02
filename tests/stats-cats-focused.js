@@ -1,5 +1,5 @@
 // v125 Stats categories: collapsible Driver / Approach / Putting / Chipping / Scoring sections (all closed at first, open / closed kept while the page is open),
-// the drive distance box chart, putting SG by first-putt distance, chipping SG by lie and by distance (per shot, a round with none is skipped),
+// the drive distance box chart, putting SG by first-putt distance, chipping SG by lie and by distance (added up per round),
 // approach proximity, and the par 3 / 4 / 5 curves for the open round laid over all rounds. Takes the v125 screenshots.
 const { chromium } = require('playwright-core'); const assert = require('assert'); const { spawn } = require('child_process'); const fs = require('fs');
 const PORT = 8876, BASE = 'http://127.0.0.1:' + PORT + '/', OUT = process.env.SHOTS || '/workspace/golf-app/screenshots';
@@ -48,7 +48,7 @@ const CATS = ['driver', 'approach', 'putting', 'chipping', 'scoring'];
   assert.deepStrictEqual(H.map(h => h.id), ['c1', 'c2', 'c3', 'c4', 'c5', 'c6']);
   const D = await page.evaluate(() => window.__golf.statsData());
   H.forEach((h, i) => assert.deepStrictEqual(D.all[i].b, h.b, 'buckets ' + h.id));
-  const W = (grp, key, L) => { let n = 0, s = 0; L.forEach(h => { n += h.b[grp][key].n; s += h.b[grp][key].sg; }); return n ? s / n : null; };
+  const W = (grp, key, L) => { let s = 0; L.forEach(h => { s += h.b[grp][key].sg; }); return L.length ? s / L.length : null; }; // v129: SG added up per round (a round with none = 0), averaged over the rounds
 
   // 3. Driver: box chart of the Driver drives (most drives have a club), then OTT and fairways
   await toggle('driver');
@@ -67,27 +67,32 @@ const CATS = ['driver', 'approach', 'putting', 'chipping', 'scoring'];
   assert.deepStrictEqual(await page.$$eval('#stcatb-approach .stgraph', e => e.map(x => x.id)), ['st-app', 'st-gir', 'st-prox']);
   assert.match(await page.textContent('#proxval'), /^Avg \d+ ft$/); assert.strictEqual(await page.$('#proxzero'), null);
 
-  // 5. Putting: PUTT, SG per hole by first-putt distance (weighted by putts), made % under 5 ft; c3 has no first putt over 25 ft -> no point
+  // 5. Putting: PUTT, SG added up per round by first-putt distance, made % under 5 ft; c3 has no first putt over 25 ft -> no point
   await toggle('putting');
-  assert.deepStrictEqual(await page.$$eval('#stcatb-putting .stgraph', e => e.map(x => x.id)), ['st-putt', 'st-ptu5', 'st-ptf5', 'st-ptf10', 'st-pto25', 'st-ptmade5']);
+  assert.deepStrictEqual(await page.$$eval('#stcatb-putting .stgraph', e => e.map(x => x.id)), ['st-putt', 'st-ptbrk', 'st-ptu5', 'st-ptf5', 'st-ptf10', 'st-pto25', 'st-ptmade5']);
   for (const k of ['u5', 'f5', 'f10', 'o25']) {
     assert.strictEqual(await page.textContent('#pt' + k + 'val'), 'Avg ' + fmtSG(W('putt', k, H)), k);
-    assert.strictEqual(await page.$$eval('#pt' + k + 'chart circle.stdot', e => e.length), k === 'o25' ? 5 : 6, k + ' dots');
+    assert.strictEqual(await page.$$eval('#pt' + k + 'chart circle.stdot', e => e.length), 6, k + ' dots (v129: every round has a point, 0 when none)');
     assert.match(await page.textContent('#pt' + k + 'n'), new RegExp('^n = ' + H.reduce((t, h) => t + h.b.putt[k].n, 0) + ' putts'));
   }
+  // v129: per round, the four first-putt-distance bands add up to the round's PUTT total
+  for (const p of D.all) { const g = ['u5', 'f5', 'f10', 'o25'].reduce((t, k) => t + p.b.putt[k].sg, 0); assert.ok(Math.abs(g - p.sg.putt) < 1e-9, p.id + ' putting bands add up to PUTT (' + g + ' vs ' + p.sg.putt + ')'); }
+  { const avgB = ['u5', 'f5', 'f10', 'o25'].reduce((t, k) => t + W('putt', k, H), 0), avgT = D.all.reduce((t, p) => t + p.sg.putt, 0) / D.all.length; assert.ok(Math.abs(avgB - avgT) < 1e-9, 'band averages add up to the PUTT average'); }
+  // v129 "Where putting strokes go": one bar per distance group, the four values add up to the total shown
+  { const vals = await page.$$eval('#st-ptbrk text.stbv', e => e.map(x => parseFloat(x.textContent))), tot = parseFloat((await page.textContent('#st-ptbrk .stv')).replace('Total', ''));
+    assert.strictEqual(vals.length, 4); assert.ok(Math.abs(vals.reduce((t, x) => t + x, 0) - tot) < 0.03, 'bars add up to the total'); assert.strictEqual(tot, parseFloat(fmtSG(D.all.reduce((t, p) => t + p.sg.putt, 0) / D.all.length)));
+    assert.match(await page.textContent('#st-ptbrk .stnote'), /add up to the total/); }
   const m5 = H.reduce((t, h) => t + h.b.putt.u5.made, 0), n5 = H.reduce((t, h) => t + h.b.putt.u5.n, 0);
   assert.strictEqual(await page.textContent('#ptmade5val'), 'Avg ' + Math.round(100 * m5 / n5) + '%');
   await shot('stats-putting-v125.png', '#stcat-putting', 100);
 
   // 6. Chipping: ARG, by lie (bunker / rough / fairway) and by distance (up to 10 / 10-20 / 20-30 yd); c3 has no bunker shot -> no point
   await toggle('chipping');
-  assert.deepStrictEqual(await page.$$eval('#stcatb-chipping .stgraph', e => e.map(x => x.id)), ['st-arg', 'st-chsand', 'st-chrough', 'st-chfairway', 'st-chc10', 'st-chc20', 'st-chc30']);
+  assert.deepStrictEqual(await page.$$eval('#stcatb-chipping .stgraph', e => e.map(x => x.id)), ['st-arg', 'st-chbrk', 'st-chsand', 'st-chrough', 'st-chfairway', 'st-chc10', 'st-chc20', 'st-chc30']);
   for (const [g, k] of [['chipLie', 'sand'], ['chipLie', 'rough'], ['chipLie', 'fairway'], ['chipDist', 'c10'], ['chipDist', 'c20'], ['chipDist', 'c30']]) {
     assert.strictEqual(await page.textContent('#ch' + k + 'val'), 'Avg ' + fmtSG(W(g, k, H)), k);
-    assert.strictEqual(await page.$$eval('#ch' + k + 'chart circle.stdot', e => e.length), k === 'sand' ? 5 : 6, k + ' dots');
+    assert.strictEqual(await page.$$eval('#ch' + k + 'chart circle.stdot', e => e.length), 6, k + ' dots (v129)');
   }
-  const sandX = await page.$$eval('#chsandchart circle.stdot', e => e.map(x => +x.getAttribute('cx'))), argX = await page.$$eval('#argchart circle.stdot', e => e.map(x => +x.getAttribute('cx')));
-  assert.deepStrictEqual(sandX, argX.filter((_, i) => i !== 2), 'the round with no bunker shot is skipped, the others keep their place');
   assert.match(await page.textContent('#st-chsand .stnote'), /off the green from 30 yd and in – the same shots as the ARG total/);
   assert.doesNotMatch(await page.textContent('#stcatb-chipping'), /ARG ends at 20|count as Approach/, 'one 30-yd cutoff (v125): no 20 yd note');
   // the distance bands are exactly the ARG shots: per round, n and SG add up to the round's ARG

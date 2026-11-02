@@ -1923,3 +1923,12 @@ html body .roundpage.holepage .srow.shead .c-n { height: auto; min-height: 0; bo
 .helppage .hpbtn { display: flex; align-items: center; justify-content: center; min-height: 44px; border-radius: 999px; border: 1px solid #2f6ea8; background: #1f73c9; color: #fff;
   font-size: 15px; font-weight: 600; text-decoration: none; -webkit-tap-highlight-color: transparent; }
 .helppage .hpbtn:active { transform: scale(.98); background: #1a63ad; }
+
+/* v129 Stats: strokes lost / gained by distance group (bars add up to the category total) */
+.statspage .stbrk .stbl { font-size: 13.5px; font-weight: 400; fill: #23313d; }
+.statspage .stbrk .stbv { font-size: 13.5px; font-weight: 400; fill: #23313d; }
+.statspage .stbrk .stbbg { fill: rgba(0, 0, 0, .06); }
+.statspage .stbrk .stbbar.neg { fill: #d2584c; } .statspage .stbrk .stbbar.pos { fill: #3f9a55; }
+.statspage .stbrk .sth { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; font-size: 15px; margin-bottom: 4px; }
+.statspage .stbrk .sth .stv { font-size: 12.5px; font-weight: 300; color: #5c6a76; white-space: nowrap; }
+.statspage .stbrk .sth .stv em { font-style: normal; font-weight: 400; color: #23313d; }

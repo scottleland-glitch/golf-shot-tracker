@@ -86,7 +86,9 @@ const CATS = ['driver', 'approach', 'putting', 'chipping', 'scoring'];
   for (const old of fs.readdirSync(OUT).filter(n => /^stats-pdf-putt-misses(-\d+)?-v127\.png$/.test(n))) fs.unlinkSync(OUT + '/' + old);
   const pmPages = [...new Set(L.cards.filter(c => /^st-pm/.test(c.id)).map(c => c.p))]; assert.ok(pmPages.length >= 1);
   // v126 (Scott): plain white grid boxes – the putt-miss pages have no red shading and no purple (only the thin dark-red outline on the most common miss)
-  for (const p of pmPages) { const ppm = execSync('pdftoppm -r 50 -f ' + p + ' -l ' + p + ' ' + f); const hdr = ppm.toString('latin1', 0, 30).split(/\s+/), w = +hdr[1], h = +hdr[2];
+  // v129: the putting breakdown card + purple graphs now flow in front of the grids, so a grid page may also carry the last purple graph (ptmade5): check the pixels on the grid page without that graph
+  const grids = pmPages.filter(p => !L.cards.some(c => c.p === p && /^st-pt/.test(c.id))); assert.ok(grids.length >= 1, 'a page with only putt-miss grids');
+  for (const p of grids) { const ppm = execSync('pdftoppm -r 50 -f ' + p + ' -l ' + p + ' ' + f); const hdr = ppm.toString('latin1', 0, 30).split(/\s+/), w = +hdr[1], h = +hdr[2];
     const off = ppm.length - w * h * 3; let red = 0, purple = 0;
     for (let k = off; k < ppm.length; k += 3) { const r = ppm[k], g = ppm[k + 1], b = ppm[k + 2]; if (r > g + 80 && r > b + 80) red++; if (b > g + 40 && r > g + 20) purple++; }
     assert.ok(red / (w * h) < 0.004 && purple / (w * h) < 0.0005, 'page ' + p + ' red ' + red + ' purple ' + purple + ' of ' + w * h); }

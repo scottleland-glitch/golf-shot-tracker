@@ -62,8 +62,8 @@ const SEED = fs.readFileSync(__dirname + '/fixtures/stats-rounds.js', 'utf8');
   assert.deepStrictEqual((await page.$$eval('.stgraph .sth span:first-child', e => e.map(x => x.textContent))).slice(1),
     // v125: grouped in categories – Driver, Approach, Putting, Chipping, Scoring
     // (the first card is the drive box chart: 'Driver distance' or 'Drive distance', checked in stats-cats-focused)
-    ['Off the tee (OTT)', 'Fairways hit', 'Approach (APP)', 'Greens in regulation (GIR)', 'Approach proximity', 'Putting (PUTT)', '1st putt under 5 ft', '1st putt 5–10 ft', '1st putt 10–25 ft', '1st putt over 25 ft',
-      '1st putts made under 5 ft', 'Around the green (ARG)', 'From the bunker', 'From the rough', 'From the fairway', 'Up to 10 yd', '10–20 yd', '20–30 yd', 'Total (TOT)', 'Par 3 scores', 'Par 4 scores', 'Par 5 scores']);
+    ['Off the tee (OTT)', 'Fairways hit', 'Approach (APP)', 'Greens in regulation (GIR)', 'Approach proximity', 'Putting (PUTT)', 'Where putting strokes go', '1st putt under 5 ft', '1st putt 5–10 ft', '1st putt 10–25 ft', '1st putt over 25 ft',
+      '1st putts made under 5 ft', 'Around the green (ARG)', 'Where chipping strokes go', 'From the bunker', 'From the rough', 'From the fairway', 'Up to 10 yd', '10–20 yd', '20–30 yd', 'Total (TOT)', 'Par 3 scores', 'Par 4 scores', 'Par 5 scores']);
   assert.strictEqual(await page.$('#stcmp'), null, 'no compare switch on All rounds');
   const dots = c => page.$$eval('#' + c + 'chart circle.stdot', e => e.length);
   for (const k of ['tot', 'ott', 'app', 'arg', 'putt', 'fir', 'gir']) { assert.strictEqual(await dots(k), 7, k); assert.ok(await page.$('#' + k + 'avg'), k + ' average line'); }

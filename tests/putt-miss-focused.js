@@ -33,7 +33,7 @@ const DIR8 = ['longleft', 'long', 'longright', 'left', 'right', 'shortleft', 'sh
 
   // 1. Putting: SG graphs on top, the Putt misses sub-menu last; closed at first, same chevron
   await page.click('#stcat-putting .stcath');
-  assert.deepStrictEqual(await page.$$eval('#stcatb-putting > *', e => e.map(x => x.id)), ['st-putt', 'st-ptu5', 'st-ptf5', 'st-ptf10', 'st-pto25', 'st-ptmade5', 'stpm']);
+  assert.deepStrictEqual(await page.$$eval('#stcatb-putting > *', e => e.map(x => x.id)), ['st-putt', 'st-ptbrk', 'st-ptu5', 'st-ptf5', 'st-ptf10', 'st-pto25', 'st-ptmade5', 'stpm']);
   assert.strictEqual(await page.getAttribute('#stpm .stsubh', 'aria-expanded'), 'false'); assert.strictEqual(await page.$eval('#stpmb', e => e.hidden), true);
   assert.strictEqual(await page.textContent('#stpm .stsubh b'), 'Putt misses'); assert.ok(await page.$('#stpm .stsubh .stcatc'), 'chevron');
   const rot0 = await page.$eval('#stpm .stcatc', e => getComputedStyle(e).transform);

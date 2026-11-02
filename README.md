@@ -321,7 +321,7 @@ No more large bold text anywhere in the app. Only sizes and weights changed (an 
 ## App version line (v107)
 - **Settings:** the last line of the page is a small, light grey **Pin High v107** (12px, light weight).
 - **Home:** the same text, smaller (11px) and light, at the very bottom of the photo; the Resume round pill stays above it.
-- The version lives in ONE place: `appVersion` in `config.js` (now `'v129'`). The service worker cache name in `sw.js` must be `golf-sg-` + that version; `tests/version-focused.js` fails if they ever differ. Each new version: change both (the cache name has to change in sw.js itself so phones pick up the update).
+- The version lives in ONE place: `appVersion` in `config.js` (now `'v130'`). The service worker cache name in `sw.js` must be `golf-sg-` + that version; `tests/version-focused.js` fails if they ever differ. Each new version: change both (the cache name has to change in sw.js itself so phones pick up the update).
 - Screenshots: `version-settings.png`, `version-home.png`.
 - Cache `golf-sg-v107`.
 
@@ -567,3 +567,7 @@ Open from the **+** menu → **Stats** (New round · Rounds · Stats · My Bag �
 
 ## Home background (v129)
 - `img/home-bg.webp` (600x1300) is now an AI-generated photo of a dewy green at sunrise, the ball close to the pin with a red flag (was a watercolor golfer). Same file name, so the CSS (`.home-bg`, blurred `.frostpage::before`) and the service worker list are unchanged. Previous watercolor is in v128 (0af0188).
+
+## Stats: strokes lost by distance that add up (v130)
+- The Putting graphs by first-putt distance and the Chipping graphs by lie / distance now plot strokes gained ADDED UP per round (a round with none in a group = 0), not the per-hole / per-shot average, so the distance groups add up to the PUTT / ARG total.
+- New card at the top of Putting ("Where putting strokes go") and Chipping ("Where chipping strokes go"): one bar per distance group (average per round), the total, and the biggest leak. It is an SVG (`.stbrk`), so it is also printed in the Stats PDF. Tests: `tests/stats-cats-focused.js` (bands add up to PUTT / ARG per round and on average), `tests/stats-pdf-focused.js`.

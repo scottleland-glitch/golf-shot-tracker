@@ -1049,23 +1049,36 @@
     var pctT = function (k) { var c = ST_PCT.filter(function (x) { return x[0] === k; })[0]; return stTrend(k, D, function (p) { return p[k]; }, { title: c[1], short: c[1].replace(/ \(.*\)$/, ''), color: c[2], help: c[3], pct: true }); };
     // per-shot graphs: strokes gained per putt / shot in one bucket; a round with none in the bucket has no point
     var bT = function (id, grp, key, title, short, col, help, unit, x) { var g = function (p) { return p.b[grp][key]; };
-      return stTrend(id, D, function (p) { var b = g(p); return b.n ? b.sg / b.n : null; }, { title: title, short: short, color: col, help: help, minSpan: 0.4, unit: unit, nExtra: x && x.nExtra, helpIn: x && x.helpIn,
-        avg: function (L) { return SG.bucketAvg(L.map(g)); }, nOf: function (p) { return g(p).n; } }); };
+      // v129: strokes gained ADDED UP per round (a round with none in the bucket = 0), so the graphs of one category add up to its total (PUTT / ARG)
+      return stTrend(id, D, function (p) { return g(p).sg; }, { title: title, short: short, color: col, help: help, minSpan: 0.4, unit: unit, nExtra: x && x.nExtra, helpIn: x && x.helpIn,
+        nOf: function (p) { return g(p).n; } }); };
+    // v129: "where the strokes go" – one bar per distance group = strokes gained (+) or lost (-) per round, adding up to the category total
+    var brk = function (id, title, tot, grp, items) {
+      var m = function (f) { var L = D.shown, v = L.map(f).filter(function (x) { return x != null && isFinite(x); }); return v.length ? v.reduce(function (t, x) { return t + x; }, 0) / v.length : null; };
+      var rows = items.map(function (it) { return { name: it.name, v: m(function (p) { return p.b[grp][it.id].sg; }), n: D.shown.reduce(function (t, p) { return t + p.b[grp][it.id].n; }, 0) }; }), T = m(tot);
+      if (T == null) return '';
+      var mx = Math.max.apply(null, rows.map(function (r) { return Math.abs(r.v || 0); }).concat([0.01])), worst = rows.filter(function (r) { return r.v != null && r.v < -0.005; }).sort(function (a, b) { return a.v - b.v; })[0];
+      var W = 358, rh = 28, L = 80, R = 52, bw = W - L - R, H = rows.length * rh + 6;
+      var svg = '<svg class="stchart stbrksvg" id="' + id + 'chart" viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="' + esc(title) + '">' + rows.map(function (r, i) { var y = 3 + i * rh, w = Math.max(r.v ? 3 : 0, Math.round(Math.abs(r.v || 0) / mx * bw));
+        return '<g class="stbrow" data-k="' + esc(r.name) + '"><text class="stbl" x="0" y="' + (y + 17) + '">' + esc(r.name) + '</text><rect class="stbbg" x="' + L + '" y="' + (y + 5) + '" width="' + bw + '" height="14" rx="7"/>' +
+          '<rect class="stbbar ' + (r.v < 0 ? 'neg' : 'pos') + '" x="' + L + '" y="' + (y + 5) + '" width="' + w + '" height="14" rx="7"/><text class="stbv" x="' + W + '" y="' + (y + 17) + '" text-anchor="end">' + fmtSG(r.v || 0) + '</text></g>'; }).join('') + '</svg>';
+      return '<div class="stcard stgraph stbrk" id="st-' + id + '"><div class="sth"><span>' + esc(title) + '</span><span class="stv">Total <em>' + fmtSG(T) + '</em></span></div>' + svg +
+        '<p class="stnote">Strokes gained (+) or lost (-) per round, by ' + (grp === 'putt' ? '1st putt distance' : 'shot distance') + '. The bars add up to the total' + (worst ? '. Biggest leak: ' + esc(worst.name) + ' (' + fmtSG(worst.v) + ' per round).' : '.') + '</p></div>'; };
     var cats = [
       ['driver', 'Driver', function () { return stBox(D) + sgT('ott') + pctT('fir'); }, [['OTT', function (p) { return p.sg.ott; }], ['FW', function (p) { return p.fir; }, 'pct']]],
       ['approach', 'Approach', function () { return sgT('app') + pctT('gir') + stTrend('prox', D, function (p) { return p.prox; }, { title: 'Approach proximity', short: 'Proximity', color: '#2e9d4f', ft: true, unit: 'approaches',
           help: 'Average distance from the hole after the regulation approach from 40–200 yd, every shot (misses too) – the same shots as the Proximity page’s All button. Lower is better.',
           avg: function (L) { var n = 0, t = 0; L.forEach(function (p) { if (p.prox != null) { n += p.proxN; t += p.prox * p.proxN; } }); return n ? t / n : null; }, nOf: function (p) { return p.proxN; } }); },
         [['APP', function (p) { return p.sg.app; }], ['GIR', function (p) { return p.gir; }, 'pct']]],
-      ['putting', 'Putting', function () { var pc = ['#7c4dcc', '#9466e0', '#6a3fb5', '#5a2f9e'], hp = ' Strokes gained per hole from that first-putt distance (every putt on the hole counts).';
-        return sgT('putt') + SG.FP_BANDS.map(function (b, i) { return bT('pt' + b.id, 'putt', b.id, '1st putt ' + b.name.replace(/^Under/, 'under').replace(/^Over/, 'over'), b.name, pc[i], 'Holes whose first putt was ' + b.name.toLowerCase() + '.' + hp + ' ' + ST_2ND_HELP, 'putts', { helpIn: true, nExtra: stSecond(D, b.id) }); }).join('') +
+      ['putting', 'Putting', function () { var pc = ['#7c4dcc', '#9466e0', '#6a3fb5', '#5a2f9e'], hp = ' Strokes gained on those holes, added up per round (every putt on the hole counts). The four distance graphs add up to the Putting total.';
+        return sgT('putt') + brk('ptbrk', 'Where putting strokes go', function (p) { return p.sg.putt; }, 'putt', SG.FP_BANDS) + SG.FP_BANDS.map(function (b, i) { return bT('pt' + b.id, 'putt', b.id, '1st putt ' + b.name.replace(/^Under/, 'under').replace(/^Over/, 'over'), b.name, pc[i], 'Holes whose first putt was ' + b.name.toLowerCase() + '.' + hp + ' ' + ST_2ND_HELP, 'putts', { helpIn: true, nExtra: stSecond(D, b.id) }); }).join('') +
           stTrend('ptmade5', D, function (p) { var b = p.b.putt.u5; return b.n ? 100 * b.made / b.n : null; }, { title: '1st putts made under 5 ft', short: 'Made under 5 ft', color: '#7c4dcc', pct: true, unit: 'putts',
             help: 'Of the first putts that started under 5 ft, the share holed.', avg: function (L) { var n = 0, m = 0; L.forEach(function (p) { n += p.b.putt.u5.n; m += p.b.putt.u5.made; }); return n ? 100 * m / n : null; }, nOf: function (p) { return p.b.putt.u5.n; } }) +
           stPmissSub(D); },
         [['PUTT', function (p) { return p.sg.putt; }]]],
       ['chipping', 'Chipping', function () { var lc = { sand: '#d4a017', rough: '#3f8f3a', fairway: '#6cbf43' }, dc = ['#f0a040', '#e8871e', '#c96a0e'],
-          hc = ' Strokes gained per shot. The Around the green shots: off the green from ' + SG.SHORT_MAX_YD + ' yd and in – the same shots as the ARG total.';
-        return sgT('arg') + '<p class="stgrp">By lie</p>' + SG.CHIP_LIES.map(function (L) { return bT('ch' + L.id, 'chipLie', L.id, 'From the ' + L.name.toLowerCase(), L.name, lc[L.id], L.name + (L.id === 'rough' ? ' (incl. deep rough)' : '') + '.' + hc, 'shots'); }).join('') +
+          hc = ' Strokes gained on these shots, added up per round. The Around the green shots: off the green from ' + SG.SHORT_MAX_YD + ' yd and in – the same shots as the ARG total.';
+        return sgT('arg') + brk('chbrk', 'Where chipping strokes go', function (p) { return p.sg.arg; }, 'chipDist', SG.CHIP_BANDS) + '<p class="stgrp">By lie</p>' + SG.CHIP_LIES.map(function (L) { return bT('ch' + L.id, 'chipLie', L.id, 'From the ' + L.name.toLowerCase(), L.name, lc[L.id], L.name + (L.id === 'rough' ? ' (incl. deep rough)' : '') + '.' + hc, 'shots'); }).join('') +
           '<p class="stgrp">By distance</p>' + SG.CHIP_BANDS.map(function (b, i) { return bT('ch' + b.id, 'chipDist', b.id, b.name.replace(/^0/, 'Up to ').replace('Up to –', 'Up to '), b.name, dc[i], (i ? 'Over ' + b.lo + ' up to ' + b.hi + ' yd' : '10 yd and in') + ', any lie.' + hc, 'shots'); }).join(''); },
         [['ARG', function (p) { return p.sg.arg; }]]],
       ['scoring', 'Scoring', function () { return sgT('tot') + stParBar(D) + [3, 4, 5].map(function (par) { return stDist(par, D); }).join(''); },
