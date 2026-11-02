@@ -321,7 +321,7 @@ No more large bold text anywhere in the app. Only sizes and weights changed (an 
 ## App version line (v107)
 - **Settings:** the last line of the page is a small, light grey **Pin High v107** (12px, light weight).
 - **Home:** the same text, smaller (11px) and light, at the very bottom of the photo; the Resume round pill stays above it.
-- The version lives in ONE place: `appVersion` in `config.js` (now `'v128'`). The service worker cache name in `sw.js` must be `golf-sg-` + that version; `tests/version-focused.js` fails if they ever differ. Each new version: change both (the cache name has to change in sw.js itself so phones pick up the update).
+- The version lives in ONE place: `appVersion` in `config.js` (now `'v129'`). The service worker cache name in `sw.js` must be `golf-sg-` + that version; `tests/version-focused.js` fails if they ever differ. Each new version: change both (the cache name has to change in sw.js itself so phones pick up the update).
 - Screenshots: `version-settings.png`, `version-home.png`.
 - Cache `golf-sg-v107`.
 
@@ -564,3 +564,6 @@ Open from the **+** menu → **Stats** (New round · Rounds · Stats · My Bag �
 - Files in `help/`: `PinHigh-Video.mp4` (H.264 yuv420p, AAC, faststart, ~7.4 MB), `PinHigh-HowTo.pdf` (~2.5 MB), `poster.webp`.
 - `sw.js`: everything under `/help/` bypasses the service worker (network only, like `/data/`). Keeps the install small and lets iPhone Safari make its own Range requests for the video (a cache-first full 200 answer can break video on iPhone). Offline, the Help page opens but the video and PDF need internet.
 - Tests: new `tests/help-focused.js` (port 8890, own Range-capable server, service worker on: menu items, video loads / seeks via Range, PDF 200 + new tab, help/ not cached); menu-list checks in home / menu-bag-settings / stats / bag / profile-wedges tests now end with Help; the 4 version tests → v128. Screenshots: `help-plus-menu-v128.png`, `help-page(-full)-v128.png`, `help-video-card-v128.png`.
+
+## Home background (v129)
+- `img/home-bg.webp` (600x1300) is now an AI-generated photo of a dewy green at sunrise, the ball close to the pin with a red flag (was a watercolor golfer). Same file name, so the CSS (`.home-bg`, blurred `.frostpage::before`) and the service worker list are unchanged. Previous watercolor is in v128 (0af0188).
