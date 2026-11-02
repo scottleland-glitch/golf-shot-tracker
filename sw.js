@@ -19,10 +19,11 @@
 // v98: Google Drive automatic backup + restore (gdrive.js), one folder per player, multi-phone merge.
 // v97: Send round (file or PINHIGH1: code) + Add a round in History (share.js).
 // v96: Round stats – Score/To par/Yards/Putts box on top, Quick view, collapsible stat tiles, smaller legend.
+// v128: Help page (+ menu › Help) – files in help/ (video, guide PDF, poster) are NOT in this cache and bypass this worker (network only, so iPhone Safari's Range requests for the video work).
 // v113: "Courses near me" (near.js). The course finder list (data/us-courses.json, ~1.0 MB, ~0.28 MB gzipped) is NOT in this cache:
 // the app downloads it on first use into its own cache 'pinhigh-courselist-v1', which a new version keeps (so no re-download).
 // GolfCore scorecards (through the Pin High relay, pinhigh-golfcore.pinhigh.workers.dev) go straight to the network; the app saves each picked course with the saved courses.
-const CACHE = 'golf-sg-v127';
+const CACHE = 'golf-sg-v128';
 const ASSETS = ['./', './img/home-bg.webp', './img/oriole.webp', './index.html', './styles.css', './sg.js', './birdie.js', './voice.js', './courses.js', './near.js', './bag.js', './wedges.js', './live.js', './share.js', './gdrive.js', './app.js', './config.js', './vendor/jspdf.umd.min.js',
   './manifest.webmanifest', './icons/apple-touch-icon.png', './icons/icon-192.png',
   './icons/icon-512.png', './icons/icon-512-maskable.png'];
@@ -43,6 +44,7 @@ self.addEventListener('fetch', e => {
   if (e.request.method !== 'GET') return;
   const url = new URL(e.request.url);
   if (url.origin === location.origin && url.pathname.indexOf('/data/') >= 0) return; // v113: course finder list – the app caches it itself (own cache), never this one
+  if (url.origin === location.origin && url.pathname.indexOf('/help/') >= 0) return; // v128: Help video / guide PDF / poster – straight to the network, never cached (keeps install small; lets iPhone Safari make its own Range requests for the video)
   if (url.origin !== location.origin) return; // Microsoft sign-in / Graph and the live-sharing database (firebaseio.com): always straight to the network, never cached
   // A live link (?watch=…) and the files it loads come fresh from the network while online, so family always get the current viewer
   // (even if their installed app is an older version); offline they fall back to the cache.

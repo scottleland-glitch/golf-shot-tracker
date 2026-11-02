@@ -29,7 +29,7 @@ const OUT = '/workspace/golf-app/screenshots/', PORT = 8840, BASE = 'http://127.
   assert.deepStrictEqual(await P.$$eval('#home button', e => e.map(x => x.id)), ['plusbtn'], 'Home: only the + button');
   assert.strictEqual(await P.$('#archivepill'), null); assert(!/Archive/.test(await vis()));
   await P.click('#plusbtn'); await P.waitForSelector('#plusmenu');
-  assert.deepStrictEqual(await P.$$eval('#plusmenu button', e => e.map(x => [x.textContent, x.dataset.act])), [['New round', 'newform'], ['Rounds', 'history'], ['Stats', 'stats'], ['My Bag', 'bag'], ['Settings', 'archive']]);
+  assert.deepStrictEqual(await P.$$eval('#plusmenu button', e => e.map(x => [x.textContent, x.dataset.act])), [['New round', 'newform'], ['Rounds', 'history'], ['Stats', 'stats'], ['My Bag', 'bag'], ['Settings', 'archive'], ['Help', 'help']]);
   await shot('menu-new.png');
   console.log('  home: only +; menu New round · Rounds · Stats · My Bag · Settings');
 

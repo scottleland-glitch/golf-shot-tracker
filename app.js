@@ -150,6 +150,7 @@
     else if (view.screen === 'card') el.innerHTML = cardHTML();
     else if (view.screen === 'courses') el.innerHTML = coursesHTML();
     else if (view.screen === 'bag') el.innerHTML = bagHTML();
+    else if (view.screen === 'help') el.innerHTML = helpHTML(); // v128
     else if (view.screen === 'profile') { view.screen = 'archive'; el.innerHTML = archiveHTML(); } // v102: old Profile → Settings
     else if (view.screen === 'wedges') el.innerHTML = wedgesHTML();
     else if (view.screen === 'birdie') { view.bzD = null; el.innerHTML = birdieHTML(); }
@@ -1575,7 +1576,7 @@
     if (!view.nameSheet && needFirstName()) { view.nameSheet = 'first'; view.hmenu = null; }
     var h = '<div class="home" id="home"><div class="home-bg" aria-hidden="true"></div><div class="home-fade" aria-hidden="true"></div>' +
       '<h1 class="home-title">Pin High</h1>' +
-      '<button class="glass plusbtn" id="plusbtn" data-act="plus" aria-label="Menu: new round, rounds, stats, my bag or settings" aria-expanded="' + !!view.hmenu + '">+</button>' +
+      '<button class="glass plusbtn" id="plusbtn" data-act="plus" aria-label="Menu: new round, rounds, stats, my bag, settings or help" aria-expanded="' + !!view.hmenu + '">+</button>' +
 ''; // v89: no Player row on Home (kept clean) – it lives in the New round sheet
     var bot = '';
     if (cur) { var S = SG.summarize(cur); bot += '<button class="glass pill" id="resumepill" data-act="resume">Resume round<small>' + (cur.course ? esc(cur.course) + ' · ' : '') + S.holesDone + ' holes done</small></button>'; }
@@ -1587,7 +1588,7 @@
       if (view.hmenu === 'new') h += '<div class="sheet-h">New round</div>' + newCourseHTML() +
         '<label class="lbl" for="newbl">Compare my shots against</label>' + blSelect('newbl', view.newBl || 'pga') + newPlayerHTML() +
         '<button class="sheet-go" data-act="new">Start round</button><button class="sheet-item muted" data-act="plus">Back</button>';
-      else h += '<button class="sheet-item" role="menuitem" data-act="newform">New round</button><button class="sheet-item" role="menuitem" data-act="history">Rounds</button><button class="sheet-item" role="menuitem" data-act="stats">Stats</button><button class="sheet-item" role="menuitem" data-act="bag">My Bag</button><button class="sheet-item" role="menuitem" data-act="archive">Settings</button>';
+      else h += '<button class="sheet-item" role="menuitem" data-act="newform">New round</button><button class="sheet-item" role="menuitem" data-act="history">Rounds</button><button class="sheet-item" role="menuitem" data-act="stats">Stats</button><button class="sheet-item" role="menuitem" data-act="bag">My Bag</button><button class="sheet-item" role="menuitem" data-act="archive">Settings</button><button class="sheet-item" role="menuitem" data-act="help">Help</button>';
       h += '</div>';
     }
     return h + '</div>';
@@ -1612,6 +1613,19 @@
     h += '<p class="appver setver" id="setver" aria-label="App version">' + esc(APP_VER) + '</p>';
     if (view.gdr) h += gdRestoreHTML();
     return h + '</div>';
+  }
+
+  // v128: Help (+ menu › Help) – a few Get started lines, the how-to video and the how-to guide PDF (help/, not in the offline cache)
+  function helpHTML() {
+    var steps = ['Tap <b>+</b> › <b>New round</b>, pick a course, <b>Start round</b>.', 'Log each shot: distance, lie, club.', 'Mark the shot that goes in: <b>In the hole</b> or <b>Hole out</b> (1-putts too).',
+      '<b>Scorecard &amp; stats</b> works any time mid-round.', '<b>Finish round</b> on 18, then open <b>Stats</b>.'];
+    return '<div class="frostpage theme-sky helppage" id="helppage"><div class="topbar frost"><button class="txt frostbtn" data-act="home">‹ Home</button><div class="title"><b>Help</b><span>Get started with Pin High</span></div><span></span></div>' +
+      '<div class="frostcard hpcard" id="hpstart"><b class="hph">Get started</b><ol class="hpsteps">' + steps.map(function (t) { return '<li>' + t + '</li>'; }).join('') + '</ol></div>' +
+      '<div class="frostcard hpcard" id="hpvideo"><b class="hph">Watch the video</b><small class="hpsub">Entering a round, finishing it, Stats · 3:41 · with voice</small>' +
+      '<video id="hpvid" class="hpvid" controls playsinline preload="none" poster="help/poster.webp" src="help/PinHigh-Video.mp4" aria-label="How-to video: entering a round and Stats"></video></div>' +
+      '<div class="frostcard hpcard" id="hpguide"><b class="hph">Read the guide</b><small class="hpsub">Every feature, step by step · 15 pages</small>' +
+      '<a class="hpbtn" id="hppdf" href="help/PinHigh-HowTo.pdf" target="_blank" rel="noopener">📄 Open the guide (PDF)</a></div>' +
+      '<p class="appver setver" aria-label="App version">' + esc(APP_VER) + '</p></div>';
   }
 
   // ---------- Saved courses (typed in: par + yardages per tee box) ----------
@@ -4255,6 +4269,7 @@
       case 'profile': view.hmenu = null; view.screen = 'archive'; view.bagAdd = null; view.bagEdit = null; view.editName = false; render(); window.scrollTo(0, 0); return;
       case 'wedges': view.hmenu = null; view.screen = 'wedges'; view.wOpen = null; view.wOther = null; view.wEdit = false; view.wFull = null; view.wFlight = 'high'; render(); window.scrollTo(0, 0); return;
       case 'wact': wAct(v, b); return;
+      case 'help': view.hmenu = null; view.screen = 'help'; render(); window.scrollTo(0, 0); return; // v128
       case 'bag': view.hmenu = null; view.screen = 'bag'; view.bagAdd = null; view.bagEdit = null; view.bagCondOpen = false; render(); window.scrollTo(0, 0); return;
       case 'bagact': bagAct(v, b); return;
       case 'ncourse': { var cc = courseById(b.getAttribute('data-id')); view.crsOpen = false;

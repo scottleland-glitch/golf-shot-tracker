@@ -16,7 +16,7 @@ const SEED = fs.readFileSync(__dirname + '/fixtures/stats-rounds.js', 'utf8');
 
   // 1. + menu: New round · Rounds · Stats · My Bag · Settings
   await page.click('#plusbtn'); await page.waitForSelector('#plusmenu');
-  assert.deepStrictEqual(await page.$$eval('#plusmenu button', e => e.map(x => [x.textContent, x.dataset.act])), [['New round', 'newform'], ['Rounds', 'history'], ['Stats', 'stats'], ['My Bag', 'bag'], ['Settings', 'archive']]);
+  assert.deepStrictEqual(await page.$$eval('#plusmenu button', e => e.map(x => [x.textContent, x.dataset.act])), [['New round', 'newform'], ['Rounds', 'history'], ['Stats', 'stats'], ['My Bag', 'bag'], ['Settings', 'archive'], ['Help', 'help']]);
   await shot('menu-stats.png');
 
   // 2. per-round numbers read off each round's own Round stats page (finished rounds of Scott, oldest first)

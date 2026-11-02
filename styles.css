@@ -1909,3 +1909,17 @@ html body .roundpage.holepage .srow.shead .c-n { height: auto; min-height: 0; bo
 .statspage .stn .infobtn.infoin[aria-expanded="true"] span { background: #345; color: #fff; }
 .statspage .stn .st2nd b { font-weight: 500; }
 .statspage .stn .st2nd { white-space: nowrap; }
+
+/* v128 Help page (+ menu › Help): Get started lines, the video, the guide PDF */
+.helppage { padding-bottom: calc(env(safe-area-inset-bottom) + 24px); }
+.helppage .hpcard { display: block; margin: 0 0 12px; padding: 12px 14px; border: 1px solid rgba(255, 255, 255, .7); }
+.helppage .hph { display: block; font-size: 15px; font-weight: 600; }
+.helppage .hpsub { display: block; font-size: 12px; font-weight: 400; color: var(--frost-ink-soft, #445064); margin: 2px 0 8px; }
+.helppage .hpsteps { margin: 6px 0 0; padding-left: 20px; font-size: 13px; font-weight: 400; line-height: 1.45; }
+.helppage .hpsteps li { margin: 2px 0; padding-left: 2px; }
+.helppage .hpsteps li::marker { color: #1f73c9; font-weight: 600; }
+.helppage .hpsteps b { font-weight: 600; }
+.helppage .hpvid { display: block; height: 62vh; width: auto; max-width: 100%; aspect-ratio: 780 / 1688; object-fit: contain; margin: 0 auto; border-radius: 14px; border: 1px solid rgba(23, 48, 31, .14); background: #0d1a12; }
+.helppage .hpbtn { display: flex; align-items: center; justify-content: center; min-height: 44px; border-radius: 999px; border: 1px solid #2f6ea8; background: #1f73c9; color: #fff;
+  font-size: 15px; font-weight: 600; text-decoration: none; -webkit-tap-highlight-color: transparent; }
+.helppage .hpbtn:active { transform: scale(.98); background: #1a63ad; }
