@@ -41,32 +41,33 @@ const CATS = ['driver', 'approach', 'putting', 'chipping', 'scoring'];
   for (const c of onPage) {
     const got = R.cats.find(x => x.id === c.id).items.filter(i => i !== 'label' && i !== 'legend');
     let want = c.items.slice(); if (c.id === 'putting') want = want.concat(['st-pmall', 'st-pmu5', 'st-pmf5', 'st-pmf10', 'st-pmo25']);
-    if (c.id === 'scoring') want = want.filter(i => !/^st-par\d$/.test(i)).concat(['st-par3', 'st-par4', 'st-par5']);
     assert.deepStrictEqual(got, want, c.id);
   }
   assert.deepStrictEqual(R.cats.map(c => c.id), CATS); assert.strictEqual(R.last, D.last, 'the last round = the newest finished round');
   const txt = execSync('pdftotext -layout ' + f + ' -').toString(), flat = txt.replace(/\s+/g, ' ');
   const titles = await page.$$eval('.stcatb .stcard.stgraph .sth > span:first-child', e => e.map(x => x.textContent.replace(/[–—]/g, '-')));
-  ['Stats report', 'Scott - All rounds', 'Strokes gained compared with each round\'s own baseline', 'Averages per round', 'Strokes gained - TOT', 'Putts per round',
+  ['Summary', 'Scott - All rounds', 'Strokes gained compared with each round\'s own baseline', 'Averages per round', 'Strokes gained - TOT', 'Putts per round',
     'Driver', 'Approach', 'Putting', 'Chipping', 'Scoring', 'Putt misses · All distances', 'Putt misses · Under 5 ft', 'Putt misses · 5-10 ft', 'Putt misses · 10-25 ft', 'Putt misses · Over 25 ft',
-    'Par 3 scores', 'Par 4 scores', 'Par 5 scores', 'LAST ROUND VS ALL ROUNDS', 'the newest finished round', 'All rounds: ' + D.n + ' finished rounds (grey dashed)',
+    'Par 3 scores', 'Par 4 scores', 'Par 5 scores',
     'Page ' + R.pages + ' of ' + R.pages].concat(titles).forEach(s => assert.ok(flat.includes(s), 'missing in PDF: ' + s));
-  assert.match(flat, new RegExp('Last round: [A-Z][a-z]{2} \\d+, \\d{4} · ' + D.course));
+  assert.ok(!/LAST ROUND|grey dashed\)|this round \(dashed\)/i.test(flat), 'v137: Stats PDF scoring curves are all rounds only');
   // v127: avg 2nd putt in each putt-miss grid header + its count line, and the explanation (incl. the "Holes whose first putt was …" notes) still printed in the PDF
   const S2 = await page.evaluate(() => { const ids = window.__golf.statsData().shown.map(p => p.id), R = window.__golf.rounds().filter(r => ids.includes(r.id));
     return ['all', 'u5', 'f5', 'f10', 'o25'].map(b => { const s = window.SG.puttMissGrid([].concat(...R.map(r => window.SG.summarize(r).puttList)), b).second; return s.avg == null ? '-' : s.avg.toFixed(1) + ' ft'; }); });
   ['All distances', 'Under 5 ft', '5-10 ft', '10-25 ft', 'Over 25 ft'].forEach((b, i) => assert.ok(flat.includes('Putt misses · ' + b) && flat.includes('avg 2nd putt ' + S2[i]), 'PDF avg 2nd putt ' + b));
   assert.ok((flat.match(/avg 2nd putt /g) || []).length >= 14, 'header + count line on the 5 grids, count line on the 4 "1st putt" graphs');
   assert.ok(flat.includes('Holes whose first putt was under 5 ft') && flat.includes('Avg 2nd putt = average distance left for the next putt after a missed 1st putt'), 'explanations kept in the PDF');
-  if (D.open) assert.ok(flat.includes('The round in progress (') && flat.includes(D.open), 'the open round is named as left out');
   // 3. layout: Letter, text inside the margins, no graph or card crosses the page bottom, every page has the header + page number
   const L = R.L, out = L.text.filter(t => t.x0 < L.M - 0.5 || t.x1 > L.PW - L.M + 0.5); assert.deepStrictEqual(out, [], 'text outside the margins');
   assert.deepStrictEqual(L.images.filter(i => i.y1 > L.BOT || i.y0 < 60), [], 'no graph cut by a page break');
   assert.deepStrictEqual(L.cards.filter(c => c.y1 > L.BOT), []); assert.strictEqual(L.images.length, L.cards.length, 'every card has its graph');
   for (let p = 1; p <= R.pages; p++) for (const a of L.cards.filter(c => c.p === p)) for (const b of L.cards.filter(c => c.p === p && c !== a))
     assert.ok(a.y1 <= b.y0 || b.y1 <= a.y0 || a.x1 <= b.x0 || b.x1 <= a.x0, 'cards overlap on page ' + p + ': ' + a.id + ' / ' + b.id);
-  const pagesTxt = txt.split('\f').filter(t => t.trim()); assert.strictEqual(pagesTxt.length, R.pages);
-  pagesTxt.forEach((t, i) => { assert.ok(t.includes('Scott · Stats · All rounds'), 'header p' + (i + 1)); assert.ok(t.includes('Page ' + (i + 1) + ' of ' + R.pages)); });
+  const pagesTxt = txt.split('\f').slice(0, R.pages); assert.ok(!pagesTxt[0].trim(), 'page 1 = the cover picture');
+  // v137: every category starts on a new page – no category shares a page with the one before
+  { const firstPg = ['Driver', 'Approach', 'Putting', 'Chipping', 'Scoring'].map(h => pagesTxt.findIndex(t => new RegExp('\\n\\s*' + h + '\\s*\\n').test(t))); firstPg.forEach((p, k) => assert.ok(p > 1 && (!k || p > firstPg[k - 1]), 'category page ' + firstPg));
+    firstPg.slice(1).forEach((p, k) => assert.ok(!new RegExp('\\n\\s*' + ['Driver', 'Approach', 'Putting', 'Chipping'][k] + '( \\(continued\\))?\\s*\\n').test(pagesTxt[p]), 'blended page ' + p)); }
+  pagesTxt.forEach((t, i) => { if (!i) return; assert.ok(t.includes('Scott · Stats · All rounds'), 'header p' + (i + 1)); assert.ok(t.includes('Page ' + (i + 1) + ' of ' + R.pages)); });
   // headings never sit alone at a page bottom: a category heading is followed by a graph on the same page
   ['Driver', 'Approach', 'Putting', 'Chipping', 'Scoring'].forEach(h => { const pg = L.text.find(t => t.t === h); assert.ok(pg && L.cards.some(c => c.p === pg.p && c.y0 > pg.y), 'heading alone: ' + h); });
 
@@ -92,7 +93,8 @@ const CATS = ['driver', 'approach', 'putting', 'chipping', 'scoring'];
     const off = ppm.length - w * h * 3; let red = 0, purple = 0;
     for (let k = off; k < ppm.length; k += 3) { const r = ppm[k], g = ppm[k + 1], b = ppm[k + 2]; if (r > g + 80 && r > b + 80) red++; if (b > g + 40 && r > g + 20) purple++; }
     assert.ok(red / (w * h) < 0.004 && purple / (w * h) < 0.0005, 'page ' + p + ' red ' + red + ' purple ' + purple + ' of ' + w * h); }
-  pmPages.forEach((p, i) => fs.copyFileSync(TMP + '/pg-' + p + '.png', OUT + '/stats-pdf-putt-misses' + (i ? '-' + (i + 1) : '') + '-v127.png'));
+  const pgFile = p => TMP + '/' + fs.readdirSync(TMP).find(n => new RegExp('^pg-0*' + p + '\\.png$').test(n)); // pdftoppm pads the number (pg-06) once there are 10+ pages
+  pmPages.forEach((p, i) => fs.copyFileSync(pgFile(p), OUT + '/stats-pdf-putt-misses' + (i ? '-' + (i + 1) : '') + '-v127.png'));
   await page.click('[data-act="pdfclose"]'); assert.strictEqual(await page.$('#pdfsheet'), null);
 
   // 5. Last 5 + Compare and Selected round: name and header follow the range

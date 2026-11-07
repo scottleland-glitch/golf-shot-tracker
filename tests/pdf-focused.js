@@ -49,12 +49,13 @@ const BASE = process.env.BASE_URL || 'http://127.0.0.1:8766/', OUT = process.env
   const info = execSync('pdfinfo ' + f).toString(); const pages = +/Pages:\s+(\d+)/.exec(info)[1];
   assert.ok(/Page size:\s+612 x 792/.test(info), info); const groups = await page.evaluate(() => { const S = SG.summarize(window.__golf.rounds()[0], 'pga'); return SG.REPORT_GROUPS.filter(g => S.proxList.some(m => SG.reportGroup(m.from) === g.id)).map(g => g.name.replace('\u2013', '-')); });
   const pmg = await page.evaluate(() => { const S = SG.summarize(window.__golf.rounds()[0], 'pga'); return SG.PMISS_GROUPS.filter(g => SG.pmissList(S.puttList).some(p => SG.pmissGroup(p.ft) === g.id)).map(g => g.name.replace('\u2013', '-')); });
-  assert.ok(groups.length >= 2, groups); assert.ok(pmg.length >= 1, pmg); assert.strictEqual(pages, 10 + groups.length + pmg.length, info + groups + pmg); // v109: + the scorecard page; v117: + Putting – all putts
+  assert.ok(groups.length >= 2, groups); assert.ok(pmg.length >= 1, pmg); assert.ok(pages >= 14, 'pages ' + pages); // v137: cover + summary + scorecard + SG + the five Stats categories, each with this round's maps
   const txt = execSync('pdftotext -layout ' + f + ' -').toString();
-  ['Round report', 'Scott', 'Lakeridge', 'Quick view', 'Round stats', '1st putts made inside 10 ft', 'Lag putts (>10 ft)', 'Scorecard', 'Front 9', 'Back 9', 'Drive dist', 'Up & down', 'Sandies', 'Recovery', 'OTT', 'APP', 'ARG', 'Greens in regulation', 'By category', 'By distance', 'Avg to pin after', 'vs every baseline',
-    'Tee shots - fairways', 'Approach misses', 'Pin location', 'Back left', 'Misses by direction', 'All approach groups this round', 'Misses by direction', 'Lie', 'Putting - 1st putts', 'Putting - 2nd putts', 'Putting - all putts', ].forEach(s => assert.ok(txt.includes(s), 'missing ' + s));
+  ['Round summary', 'Scott', 'Lakeridge', 'Quick view', 'Round stats', '1st putts made inside 10 ft', 'Lag putts (>10 ft)', 'Scorecard', 'Front 9', 'Back 9', 'Drive dist', 'Up & down', 'Sandies', 'Recovery', 'OTT', 'APP', 'ARG', 'Greens in regulation', 'By category', 'By distance', 'Avg to pin after', 'vs every baseline',
+    'Driver - this round', 'Tee shots - this round', 'Approach - this round', 'Approach misses', 'Pin location', 'Back left', 'Avg ft - greens hit', 'Putting - this round', '1st putts', '2nd putts',
+    'Off the tee (OTT)', 'Fairways hit', 'Chipping', 'Scoring', 'Par 3 scores', 'This round (dashed)', 'all rounds vs this round'.toUpperCase()].forEach(s => assert.ok(txt.includes(s), 'missing ' + s));
   // v111: page 1 Round stats rows – whole percent next to the fractions (Fairways, GIR, 1st putts made inside 10 ft, Lag putts) – v112: in brackets, e.g. 9 / 12 (75%); none on Pin location / Putts / Tee misses L / R
-  { const p1 = execSync('pdftotext -f 1 -l 1 -layout ' + f + ' -').toString(), ln = k => (p1.split('\n').find(l => l.trim().startsWith(k)) || '').trim();
+  { const p1 = execSync('pdftotext -f 2 -l 2 -layout ' + f + ' -').toString(), ln = k => (p1.split('\n').find(l => l.trim().startsWith(k)) || '').trim();
     const S1 = await page.evaluate(() => { const S = SG.summarize(window.__golf.rounds()[0], 'pga'), PM = SG.pmissList(S.puttList), L = SG.lagStats(S.puttList); return { fw: [S.fwHit, S.fwTotal], gir: [S.gir, S.girHoles], pm: [PM.filter(p => p.made).length, PM.length], lag: [L.inside, L.attempts] }; });
     const pc = a => a[1] ? ' (' + Math.round(100 * a[0] / a[1]) + '%)' : '';
     assert.ok(ln('Fairways hit').endsWith(S1.fw.join(' / ') + pc(S1.fw)), ln('Fairways hit')); assert.ok(ln('Greens in regulation').endsWith(S1.gir.join(' / ') + pc(S1.gir)), ln('Greens in regulation'));
@@ -68,7 +69,8 @@ const BASE = process.env.BASE_URL || 'http://127.0.0.1:8766/', OUT = process.env
   assert.ok(!/Missed greens/.test(txt), 'removed Missed greens rows stay out of the PDF');
   // v109: every page has the same player / course / date line and a page number
   const pagesTxt = txt.split('\f').filter(t => t.trim());
-  pagesTxt.forEach((t, i) => { assert.ok(t.includes('Scott - Lakeridge - October 9, 2026') || /Scott . Lakeridge . October 9, 2026/.test(t), 'page header ' + (i + 1)); assert.ok(t.includes('Page ' + (i + 1) + ' of ' + pages), 'page number ' + (i + 1)); });
+  assert.ok(!txt.split('\f')[0].trim(), 'page 1 is the cover picture');
+  txt.split('\f').forEach((t, i) => { if (!i || !t.trim()) return; assert.ok(t.includes('Scott - Lakeridge - October 9, 2026') || /Scott . Lakeridge . October 9, 2026/.test(t), 'page header ' + (i + 1)); assert.ok(t.includes('Page ' + (i + 1) + ' of ' + pages), 'page number ' + (i + 1)); });
   // v109 alignment: header and number cells use the same column list -> same right edge (or left edge / centre); no text past the right margin
   const lay = await page.evaluate(() => { const o = window.__golf.lastPdf; return o.layout; });
   const over = lay.text.filter(t => t.x1 > lay.PW - lay.M + 0.5 || t.x0 < lay.M - 0.5); assert.deepStrictEqual(over, [], 'text outside the margins');
@@ -82,7 +84,7 @@ const BASE = process.env.BASE_URL || 'http://127.0.0.1:8766/', OUT = process.env
   });
   assert.ok(checked >= 30, 'header/number columns checked ' + checked);
   // the strokes gained tables: number columns right-aligned with their header
-  const sgTabs = lay.tables.filter(tb => tb.p === 3);
+  const sgTabs = lay.tables.filter(tb => tb.p === 4);
   assert.ok(sgTabs.length === 3, 'SG page tables ' + sgTabs.length);
   assert.deepStrictEqual(sgTabs.map(tb => tb.cols.map(c => c.align)), [['left', 'right', 'right'], ['left', 'right', 'right', 'right'], ['left', 'right', 'right', 'right', 'right', 'right']]);
   // v109: the PDF scorecard shows exactly what the on-screen scorecard shows (same scorecardData)

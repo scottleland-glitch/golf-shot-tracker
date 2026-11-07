@@ -186,6 +186,89 @@
     ctx.restore();
   }
 
+  // ---------- v137 PDF cover: the same look on a Letter-shaped page (1080 x 1398 = 8.5 x 11) ----------
+  // d.kind 'round' (one round, from data()) or 'stats' (averages of several rounds, from combine()).
+  var CW_ = 1080, CH_ = 1398;
+  function combine(list, opts) { // per-round averages of several data() results, for the Stats PDF cover
+    opts = opts || {}; var n = list.length, av = function (f) { return n ? list.reduce(function (t, d) { return t + (f(d) || 0); }, 0) / n : 0; };
+    var sum = function (f) { return list.reduce(function (t, d) { return t + (f(d) || 0); }, 0); };
+    var fwH = sum(function (d) { return d.fw.hit; }), fwT = sum(function (d) { return d.fw.total; }), gH = sum(function (d) { return d.gir.hit; }), gT = sum(function (d) { return d.gir.total; });
+    var w2 = list.filter(function (d) { return d.putting.avg2nd != null; }), n2 = w2.reduce(function (t, d) { return t + d.putting.n2nd; }, 0);
+    return { kind: 'stats', rounds: n, player: opts.player || '', range: opts.range || '', dateText: opts.dateText || '', baseline: opts.baselineName || '',
+      strokes: av(function (d) { return d.strokes; }), toPar: av(function (d) { return d.toPar; }),
+      sg: { ott: av(function (d) { return d.sg.ott; }), app: av(function (d) { return d.sg.app; }), arg: av(function (d) { return d.sg.arg; }), putt: av(function (d) { return d.sg.putt; }), total: av(function (d) { return d.sg.total; }) },
+      fw: { hit: fwH, total: fwT, pct: pct(fwH, fwT) }, gir: { hit: gH, total: gT, pct: pct(gH, gT) },
+      putting: { putts: av(function (d) { return d.putting.putts; }), onePutts: av(function (d) { return d.putting.onePutts; }), threePutts: av(function (d) { return d.putting.threePutts; }),
+        avg2nd: n2 ? Math.round(10 * w2.reduce(function (t, d) { return t + d.putting.avg2nd * d.putting.n2nd; }, 0) / n2) / 10 : null,
+        longest: list.reduce(function (m, d) { return d.putting.longest != null && (m == null || d.putting.longest > m) ? d.putting.longest : m; }, null) } };
+  }
+  function drawCover(ctx, d, bg) {
+    var W0 = W, H0 = H; W = CW_; H = CH_; // background() and brand() use W / H
+    try {
+      var M = 72, CW = W - 2 * M, st = d.kind === 'stats', one = function (v) { return (Math.round(v * 10) / 10).toFixed(1); };
+      ctx.save(); ctx.textBaseline = 'alphabetic'; background(ctx, bg);
+      ctx.font = font(30, 700); ctx.fillStyle = GOLD; brand(ctx, 'STROKEWISE', W / 2, 132);
+      ctx.textAlign = 'center'; label(ctx, st ? 'Stats report' : 'Round report', W / 2, 196, 'center');
+      ctx.textAlign = 'center'; ctx.fillStyle = '#fff';
+      var head = st ? (d.player || 'Stats') : d.course; ctx.fillText(fitText(ctx, head, CW, 62, 600, 38), W / 2, 270);
+      var sub = st ? [d.range, d.rounds + (d.rounds === 1 ? ' round' : ' rounds'), d.dateText].filter(Boolean).join('  ·  ') : [d.dateText, d.tee ? d.tee + ' tees' : '', d.player].filter(Boolean).join('  ·  ');
+      ctx.font = font(30, 400); ctx.fillStyle = MUTED; ctx.fillText(fitText(ctx, sub, CW, 30, 400, 22), W / 2, 320);
+      // score (stats: average score per round)
+      var scoreTxt = st ? one(d.strokes) : String(d.strokes || 0), tp = st ? Math.round(d.toPar * 10) / 10 : d.toPar || 0, parTxt = st ? (tp === 0 ? 'E' : (tp > 0 ? '+' : '') + one(tp)) : toPar(tp);
+      var big = st ? 170 : 190; ctx.font = font(big, 300); var sw = ctx.measureText(scoreTxt).width;
+      ctx.font = font(72, 500); var pw = ctx.measureText(parTxt).width + 50, gap = 32, sx = W / 2 - (sw + gap + pw) / 2, base = 510;
+      ctx.textAlign = 'left'; ctx.fillStyle = '#fff'; ctx.font = font(big, 300); ctx.fillText(scoreTxt, sx, base);
+      var px = sx + sw + gap, py = base - 128;
+      ctx.save(); roundRect(ctx, px, py, pw, 96, 48); ctx.fillStyle = tp < 0 ? 'rgba(126,226,160,0.22)' : tp > 0 ? 'rgba(255,255,255,0.14)' : 'rgba(244,210,138,0.22)'; ctx.fill(); ctx.restore();
+      ctx.font = font(72, 500); ctx.fillStyle = tp < 0 ? POS : tp === 0 ? GOLD : '#fff'; ctx.textAlign = 'center'; ctx.fillText(parTxt, px + pw / 2, py + 73);
+      ctx.font = font(27, 400); ctx.fillStyle = MUTED; ctx.fillText(st ? 'average score per round' : d.holes + (d.holes === 1 ? ' hole' : ' holes'), W / 2, base + 50);
+      // strokes gained
+      var y0 = 600, ph = 268; panel(ctx, M, y0, CW, ph);
+      label(ctx, st ? 'Strokes gained per round' : 'Strokes gained', M + 44, y0 + 60);
+      if (d.baseline) { ctx.save(); ctx.font = font(25, 400); ctx.fillStyle = MUTED; ctx.textAlign = 'right'; ctx.fillText('vs ' + d.baseline, M + CW - 44, y0 + 60); ctx.restore(); }
+      var cols = [['Off the tee', d.sg.ott, d.sg.nOtt], ['Approach', d.sg.app, d.sg.nApp], ['Around green', d.sg.arg, d.sg.nArg], ['Putting', d.sg.putt, d.sg.nPutt]];
+      var inX = M + 28, cw = (CW - 56) / 4;
+      cols.forEach(function (c, i) {
+        var cx = inX + cw * i + cw / 2;
+        if (i) { ctx.save(); ctx.strokeStyle = 'rgba(255,255,255,0.12)'; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(inX + cw * i, y0 + 96); ctx.lineTo(inX + cw * i, y0 + 230); ctx.stroke(); ctx.restore(); }
+        ctx.textAlign = 'center'; ctx.fillStyle = '#fff'; ctx.fillText(fitText(ctx, c[0], cw - 16, 26, 500, 20), cx, y0 + 118);
+        ctx.fillStyle = sgColor(c[1]); ctx.fillText(fitText(ctx, fmtSG(c[1]), cw - 14, 64, 400, 40), cx, y0 + 196);
+        if (!st) { ctx.font = font(22, 400); ctx.fillStyle = MUTED; ctx.fillText(c[2] + (c[2] === 1 ? ' shot' : ' shots'), cx, y0 + 238); }
+      });
+      ctx.save(); ctx.font = font(29, 400); ctx.fillStyle = MUTED;
+      var tl = ctx.measureText('Total ').width, tv = fmtSG(d.sg.total); ctx.font = font(29, 600); var tvw = ctx.measureText(tv).width;
+      ctx.textAlign = 'left'; ctx.font = font(29, 400); ctx.fillText('Total ', W / 2 - (tl + tvw) / 2, y0 + ph + 44);
+      ctx.font = font(29, 600); ctx.fillStyle = sgColor(d.sg.total); ctx.fillText(tv, W / 2 - (tl + tvw) / 2 + tl, y0 + ph + 44); ctx.restore();
+      // fairways and greens (stats: all rounds added up)
+      var y1 = 950, th = 222, tw = (CW - 32) / 2;
+      [['Fairways', d.fw], ['Greens in reg', d.gir]].forEach(function (t, i) {
+        var x = M + i * (tw + 32), v = t[1]; panel(ctx, x, y1, tw, th); label(ctx, t[0], x + 40, y1 + 56);
+        var rcx = x + tw - 100, rcy = y1 + 124; ring(ctx, rcx, rcy, 58, v.total ? v.hit / v.total : 0, GOLD);
+        ctx.textAlign = 'center'; ctx.font = font(36, 500); ctx.fillStyle = '#fff'; ctx.fillText(v.pct == null ? '–' : v.pct + '%', rcx, rcy + 13);
+        ctx.textAlign = 'left'; ctx.font = font(st ? 64 : 84, 300); ctx.fillStyle = '#fff'; var hit = String(v.hit); ctx.fillText(hit, x + 40, y1 + 160);
+        var hw = ctx.measureText(hit).width; ctx.font = font(38, 300); ctx.fillStyle = MUTED; ctx.fillText('/' + v.total, x + 46 + hw, y1 + 160);
+        ctx.font = font(24, 400); ctx.fillText(v.total ? (st ? 'hit, all rounds' : 'hit') : 'none played', x + 40, y1 + 198);
+      });
+      // putting row
+      var y2 = 1202, h2 = 150, p = d.putting; panel(ctx, M, y2, CW, h2); label(ctx, 'Putting', M + 44, y2 + 50);
+      var num = function (v) { return v == null ? '–' : st ? one(v) : String(v); };
+      var cells = [[p.avg2nd == null ? '–' : p.avg2nd.toFixed(1) + ' ft', 'avg 2nd putt', GOLD], [num(p.putts), st ? 'putts / round' : 'putts'], [num(p.onePutts), st ? '1-putts / round' : '1-putts'],
+        [num(p.threePutts), st ? '3-putts / round' : '3-putts'], [p.longest == null ? '–' : p.longest + ' ft', 'longest make']];
+      var pcw = (CW - 56) / cells.length;
+      cells.forEach(function (c, i) { var cx = M + 28 + pcw * i + pcw / 2; ctx.textAlign = 'center';
+        ctx.font = font(46, 400); ctx.fillStyle = c[2] || '#fff'; ctx.fillText(fitText(ctx, c[0], pcw - 12, 46, 400, 30), cx, y2 + 106);
+        ctx.font = font(22, 400); ctx.fillStyle = MUTED; ctx.fillText(fitText(ctx, c[1], pcw - 10, 22, 400, 16), cx, y2 + 136); });
+      ctx.restore();
+    } finally { W = W0; H = H0; }
+  }
+  // → Promise<{ data: JPEG data URL, w, h }> for jsPDF
+  function coverImage(d, bgSrc) {
+    return loadImage(bgSrc).then(function (bg) {
+      var c = document.createElement('canvas'); c.width = CW_; c.height = CH_; drawCover(c.getContext('2d'), d, bg);
+      return { data: c.toDataURL('image/jpeg', 0.8), w: CW_, h: CH_ };
+    });
+  }
+
   function loadImage(src) {
     return new Promise(function (ok) { if (!src) return ok(null); var im = new Image(); im.onload = function () { ok(im); }; im.onerror = function () { ok(null); }; im.src = src; });
   }
@@ -198,6 +281,6 @@
     });
   }
 
-  var API = { W: W, H: H, data: data, draw: draw, makeImage: makeImage, fileName: fileName, fmtSG: fmtSG };
+  var API = { W: W, H: H, data: data, draw: draw, makeImage: makeImage, fileName: fileName, fmtSG: fmtSG, combine: combine, drawCover: drawCover, coverImage: coverImage };
   if (typeof module !== 'undefined' && module.exports) module.exports = API; else root.STORY = API;
 })(this);

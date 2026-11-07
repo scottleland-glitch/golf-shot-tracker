@@ -68,10 +68,7 @@ const ok = m => console.log('✓ ' + m);
     // 1st-putt misses, lag, all putts
     await open('pmiss', 'pmiss'); await chrome('pmiss'); await shot('pmiss', 600); await close();
     await open('lag', 'pmiss'); await chrome('lag'); assert.strictEqual(await P.getAttribute('#pmgroups button.sel', 'data-v'), 'lag'); await shot('lag', 600);
-    await P.click('[data-act="pmg"][data-v="all"]'); await chrome('allputts');
-    const a = await P.evaluate(() => ({ made: document.querySelectorAll('#pmissmap path.pmmade').length, miss: document.querySelectorAll('#pmissmap path.pmtr').length, heavy: [...document.querySelectorAll('#mapview svg text')].filter(t => +getComputedStyle(t).fontWeight > 500).length }));
-    assert.deepStrictEqual(a, { made: 18, miss: 17, heavy: 0 }); ok('Putt misses / Lag / All putts: same chrome; All putts 18 black + 17 red lines; labels ≤ 500');
-    await shot('allputts', 600); await close();
+    assert.strictEqual(await P.$('[data-act="pmg"][data-v="all"]'), null, 'v137: no All putts'); await close();
     // pin
     await open('pin', 'pin'); await chrome('pin');
     assert.deepStrictEqual(await cs('#pinstats', ['backgroundColor']), ['rgb(92, 184, 92)']); await shot('pin', 0);

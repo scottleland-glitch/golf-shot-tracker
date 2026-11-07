@@ -313,9 +313,10 @@
   function makeReport() {
     var r = round(); if (!r) return Promise.reject(new Error('No round'));
     var R = reportData(r), S = R.S, P = SG.pdfSafe, player = playerName() || r.player || '', dateTxt = new Date(r.date).toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' });
-    return loadJsPDF().then(function () {
+    return Promise.all([loadJsPDF(), roundCover(r)]).then(function (pre) {
       var doc = new window.jspdf.jsPDF({ unit: 'pt', format: 'letter', orientation: 'portrait' }), M = 36, PW = 612, PH = 792, y;
       doc.setProperties({ title: 'Strokewise round report – ' + (r.course || '') + ' ' + dateTxt, author: player, creator: 'Strokewise' });
+      doc.addImage(pre[1].data, 'JPEG', 0, 0, PW, PH); doc.addPage(); // v137 cover, the Instagram-picture look
       // v109: every bit of text is logged (page, left / right edge) so a test can check nothing runs past the right margin
       var LAY = [], TABS = [], txt0 = doc.text.bind(doc);
       doc.text = function (t, x, yy, o) {
@@ -398,7 +399,7 @@
       // ---- Page 1: round summary + round stats (the same rows as the Round stats screen) ----
       var grab = function (html) { var d = document.createElement('div'); d.innerHTML = html; return d; };
       var tx = function (el) { return el ? el.textContent.replace(/\s+/g, ' ').trim() : ''; };
-      y = header('Round report');
+      y = header('Round summary');
       font(12); ink(30); T((player || 'Player') + ' – ' + (r.course || 'Round'), M, y); font(10); ink(100); T(dateTxt + ' · compared with ' + blName(R.bl), M, y + 16); ink(); y += 40;
       var top = grab(rsTopHTML(r, S)), thr = top.querySelector('#rs-thru'), topV = [].map.call(top.querySelectorAll('td'), function (td) {
         var c = td.cloneNode(true), s = c.querySelector('small'); if (s) s.remove(); return tx(c) + (td === (thr && thr.parentNode) ? ' (' + tx(thr) + ')' : ''); });
@@ -473,71 +474,82 @@
       y = table([['Baseline', 'Tee', 'Approach', 'Short', 'Putting', 'Total']].concat(SG.BASELINES.map(function (b) { var X = SG.summarize(r, b.id);
         return [b.name + (b.status === 'estimated' ? ' (est.)' : '') + (b.id === R.bl ? '  <' : ''), fmtSG(X.cats.tee.sg), fmtSG(X.cats.approach.sg), fmtSG(X.cats.short.sg), fmtSG(X.cats.putting.sg), fmtSG(X.sgTotal)]; })), M, y, [190, 70, 70, 70, 70, 70]);
       y = note('< = the baseline this report uses. (est.) = estimated baseline (no published table).', M, y + 6);
-      // ---- map pages ----
-      var segs = SG.pinSegments(pinDataRound());
-      var pages = [['Tee shots – fairways', 'fw'], ['Greens in regulation', 'gir'], ['Approach misses', 'miss'], ['Pin location', 'pin'],         'PROX', ['Putting – 1st putts', 'putt', { puttN: '1' }], ['Putting – 2nd putts', 'putt', { puttN: '2' }]].concat(
-        (function () { var D = pmissData(false); return SG.PMISS_GROUPS.filter(function (g) { return D.counts[g.id]; }).reverse().map(function (g) { return ['1st putts made inside 10 ft – ' + g.name, 'pmiss', { pmG: g.id }]; }).concat(D.counts.all ? [['Putting – all putts', 'pmiss', { pmG: 'all' }]] : []); })()); // v117: + every putt of the round (made black, missed red)
+      // ---- v137: the Stats categories (all rounds, this round dashed on the par curves), each followed by this round's maps ----
+      var segs = SG.pinSegments(pinDataRound()), multi = savedRounds().length > 1, BOT = PH - M - 14, GAP = 12, MCW = (PW - 2 * M - GAP) / 2, PAD = 8;
+      var wrap = function (t, w, sz) { font(sz); return doc.splitTextToSize(P(t), w); };
       var plist = S.proxList.filter(function (m) { return SG.reportGroup(m.from); }), gsum = SG.REPORT_GROUPS.map(function (g) {
         var L = plist.filter(function (m) { return SG.reportGroup(m.from) === g.id; }); return { g: g, L: L, P: SG.proxStats(L) }; }).filter(function (x) { return x.L.length; });
-      var pi = pages.indexOf('PROX');
-      pages.splice.apply(pages, [pi, 1].concat(gsum.map(function (x, k) { return ['Proximity – ' + x.g.name, 'prox', { proxReport: true, proxGroup: x.g.id }, x.g, k === 0]; })));
-      if (savedRounds().length > 1) pages.push(['Tee shots – all rounds', 'fw', null, null, false, 'heat'], ['GIR – all rounds', 'gir', null, null, false, 'heat']);
-      var chain = Promise.resolve();
-      pages.forEach(function (pg) {
-        chain = chain.then(function () {
-          if (pg[5] === 'heat') { var hm = heatReport(pg[1]); if (!hm.svg) return;
-            return svgToPng(hm.svg, 1.5).then(function (im) { doc.addPage(); var yy = header(pg[0]), maxW = PW - 2 * M, sc = Math.min(maxW / im.w, (pg[1] === 'fw' ? 430 : 360) / im.h), w = im.w * sc, h = im.h * sc;
-              hm.lines.forEach(function (L) { font(L.b ? 10 : 9, !!L.b); var tl = doc.splitTextToSize(P(L.t), maxW); doc.text(tl, M, yy); yy += tl.length * 12 + 2; }); yy += 4;
-              doc.addImage(im.data, 'JPEG', M + (maxW - w) / 2, yy, w, h); yy += h + 14;
-              var ramp = [{ k: 'sw', c: '#0050ff', t: 'Blue = a few shots' }, { k: 'sw', c: '#00e63c', t: 'Green' }, { k: 'sw', c: '#fff000', t: 'Yellow' }, { k: 'sw', c: '#e60000', t: 'Red = the most shots' }];
-              legendBox(pg[1] === 'fw' ? ramp.concat([{ k: 'sw', c: '#7fd16a', t: 'Fairway' }, { k: 'sw', c: '#4f9a3c', t: 'Rough' }, { k: 'sw', c: '#e8c766', t: 'Bunker' }, { k: 'sw', c: '#2f6b2a', t: 'Trees' }, { k: 'dash', c: '#ffffff', t: 'White dashed line = OB' },
-                { k: 'none', t: 'All rounds, par 4 and 5 tee shots, layups left out. Placed by drive length, where it finished and the side missed (exact spot not recorded); OB drawn at 250 yd; misses with no side are not on the heat map. Top row: % missed left / fairway / % missed right.' }])
-                : ramp.concat([{ k: 'none', t: 'All rounds: where each green in regulation finished around the hole. White rings: 5 to 30 ft. Average proximity = the plain average distance from the hole of every GIR (no average-position marker: shots all around the hole would cancel out).' }]), M, yy, maxW, 2); }); }
-          var mp = pg[1] === 'pin' ? { svg: pinReportSVG(segs), lines: [] } : mapForReport(pg[1], pg[2]);
-          if (!mp.svg) return;
-          return svgToPng(mp.svg, 2.5).then(function (im) {
-            doc.addPage(); var yy = header(pg[0]);
-            if (pg[4]) { font(10, true); T('All approach groups this round', M, yy); yy = table([['Group', 'Shots', 'Greens hit', 'Avg ft - greens hit', 'Avg ft - all']].concat(gsum.map(function (x) { var Q = x.P;
-                return [x.g.name, String(Q.n), Q.hits + '/' + Q.n + ' (' + Math.round(Q.hitPct) + '%)', Q.avgHitFt == null ? '-' : Math.round(Q.avgHitFt) + ' ft', Q.avgAllFt == null ? '-' : Math.round(Q.avgAllFt) + ' ft']; })), M, yy + 14, [130, 60, 110, 120, 120], { fs: 8.5, rh: 13 }) + 8; }
-            var maxW = PW - 2 * M, maxH = pg[1] === 'pin' ? 400 : pg[4] ? 330 - 13 * gsum.length : pg[1] === 'prox' ? 380 : 360, sc = Math.min(maxW / im.w, maxH / im.h), w = im.w * sc, h = im.h * sc;
-            var TX = M;
-            if (pg[1] === 'prox') { h = Math.min(PH - M - 14 - yy, 290 * im.h / im.w); w = h * im.w / im.h; doc.addImage(im.data, 'JPEG', M, yy, w, h); TX = M + w + 14; maxW = PW - M - TX; }
-            else { doc.addImage(im.data, 'JPEG', M + (maxW - w) / 2, yy, w, h); yy += h + 14; if (pg[1] !== 'pin') yy = legendBox(mp.legend, M, yy, maxW, 2); }
-            if (pg[1] === 'prox') { yy += 10; var G = pg[3];
-              yy = legendBox([{ k: 'ln', c: G.color, t: 'Shot from ' + G.name + ' (line starts at the lie it was hit from)' },
-                { k: 'dot', c: G.color, b: '#000', t: 'Hit the green - label = first-putt distance (ft)' },
-                { k: 'ringx', c: G.color, t: 'Missed the green - always outside the green, farther out = farther from the pin; label = yards left + lie' },
-                { k: 'star', t: 'Holed out' }, { k: 'diamond', c: G.color, t: 'No direction entered' },
-                { k: 'txt', c: '>', t: 'Further than the picture - drawn at the edge (label ends with >)' },
-                { k: 'none', t: 'White rings: distance from the hole in ft. Scale changes per group: the green reaches the D1 women average for the group midpoint + 10 ft.' }, { k: 'dash', c: '#e00016', t: 'Red dashed = D1 women avg for the group midpoint (Shot Scope D1 women benchmarks)' },
-                { k: 'sw', c: '#9fdf86', t: 'Fairway' }, { k: 'sw', c: '#5f9e47', t: 'Rough (left / right side)' }, { k: 'sw', c: '#ecd27e', t: 'Bunker' },
-                { k: 'sw', c: '#c9f2b8', t: 'Tee box (par 3s)' }, { k: 'sw', c: '#2f6b2a', t: 'Trees / other' }], TX, yy, maxW, 1) + 8; }
-            if (pg[1] === 'pin') {
-              yy = legendBox([{ k: 'dot', c: '#ffffff', b: '#000', t: 'Green hit in regulation - first-putt distance and direction from the pin' },
-                { k: 'dot', c: '#e0102a', b: '#000', t: 'Missed green - in the rough, in the miss direction from the pin; farther out = more yards off (30 yd+ at the edge, label ends with >); label = yards + lie' },
-                { k: 'sw', c: '#8fd66f', t: 'Putting surface (the green) for that pin segment' }, { k: 'sw', c: '#2f6b2a', t: 'Rough around the green' },
-                { k: 'pin', t: 'Pin - drawn where it sits on the green (front = bottom)' }, { k: 'dring', t: 'Dashed ring = 20 ft from the pin' },
-                { k: 'badge', t: 'Badge: pin segment, holes, greens hit (GIR x/y)' }], M, yy, maxW, 2); yy += 12;
-              if (!segs.length) { font(11); T('No holes with a pin location set this round.', M, yy); return; }
-              var dirTxt = function (md) { return Object.keys(md).map(function (k) { return (k ? SG.DIR_NAME[k] : 'No direction') + ' ' + md[k]; }).join(', ') || 'None'; };
-              table([['Pin', 'Holes', 'GIR', 'GIR %', 'Avg ft (GIR)', 'Misses by direction']].concat(segs.map(function (s) {
-                return [s.name, String(s.holes), s.gir + '/' + s.holes, Math.round(s.girPct) + '%', s.avgHitFt == null ? '-' : Math.round(s.avgHitFt) + ' ft', dirTxt(s.missDirs)]; })), M, yy, [90, 45, 45, 50, 75, 235], { fs: 9, rh: 14, cont: 'Pin location (continued)' });
-              return;
-            }
-            mp.lines.forEach(function (L) {
-              if (yy > PH - M - 12) return;
-              if (L.table) { var n = L.table[0].length, fw = Math.min(180, maxW * (pg[1] === 'prox' ? 0.3 : 0.36)), ww = n === 1 ? [maxW] : [fw].concat(Array(n - 1).fill((maxW - fw) / (n - 1)));
-                if (pg[1] === 'prox' && n === 5) ww = [0.22, 0.14, 0.28, 0.18, 0.18].map(function (f) { return f * maxW; });
-                var rows = L.table; if (pg[1] === 'prox' && n === 2) rows = rows.filter(function (rw, k) { return !k || rw[1] !== '0'; });
-                rows = rows.slice(0, Math.max(2, Math.floor((PH - M - yy) / 13))); yy = table(rows, TX, yy + 10, ww, { fs: 8.5, rh: 13, clip: true }) + 4; return; }
-              font(L.b ? 10 : 9, !!L.b); var tl = doc.splitTextToSize(P(L.t), maxW); doc.text(tl, TX, yy); yy += tl.length * 12 + 2;
-            });
-          });
-        });
-      });
+      // a table squeezed to one line of the rows that have something in them ("Short left 3; No direction entered 9")
+      var squash = function (rows) { var H = rows[0], body = rows.slice(1).filter(function (rw) { return rw.slice(1).some(function (c) { return /[1-9]/.test(c); }); }); if (!body.length) return '';
+        return (H.length > 2 ? H[0] + ' (' + H.slice(1).join(' · ') + '): ' : H[0] + ': ') + body.map(function (rw) { return rw[0] + ' ' + rw.slice(1).filter(function (c) { return c && c !== '-'; }).join(' · '); }).join('; '); };
+      // legend items cut to their first words ("Hit the green - label = ..." -> "Hit the green")
+      var shortLeg = function (L) { return (L || []).filter(function (it) { return it.k !== 'none' && it.k !== 'txt'; }).map(function (it) { var o = {}; for (var k in it) o[k] = it[k]; o.t = String(it.t).split(/ - | \(|;|: | · white| = /)[0].trim(); return o; })
+        .filter(function (it, i, A) { return it.t && A.findIndex(function (q) { return q.t === it.t; }) === i; }); };
+      var HEAT_LEG = [{ k: 'sw', c: '#0050ff', t: 'Few shots' }, { k: 'sw', c: '#00e63c', t: '' }, { k: 'sw', c: '#fff000', t: '' }, { k: 'sw', c: '#e60000', t: 'Most shots' }];
+      var legRows = function (items, w) { // flow layout: [{it, x}] per line
+        var rows = [[]], x = 0; font(7); items.forEach(function (it) { var iw = 24 + (it.t ? doc.getTextWidth(P(it.t)) + 12 : 0); if (x + iw > w && rows[rows.length - 1].length) { rows.push([]); x = 0; } rows[rows.length - 1].push({ it: it, x: x }); x += iw; }); return rows.filter(function (r0) { return r0.length; }); };
+      var mapCard = function (o, w) { // o: { title, svg, facts[], legend[] } -> measured card
+        var m = /viewBox="0 0 ([\d.]+) ([\d.]+)"/.exec(o.svg || ''), iw = w - 2 * PAD, ih = m ? iw * (+m[2]) / (+m[1]) : 0, cap = o.cap || 330;
+        if (o.side && m) { ih = cap; iw = ih * (+m[1]) / (+m[2]); if (iw > w * 0.48) { iw = w * 0.48; ih = iw * (+m[2]) / (+m[1]); } }
+        else if (ih > cap) { iw = iw * cap / ih; ih = cap; }
+        var tw = o.side ? w - iw - 3 * PAD : w - 2 * PAD; o.tw = tw;
+        o.w = w; o.iw = iw; o.ih = ih; o.fl = []; (o.facts || []).forEach(function (f, k) { o.fl = o.fl.concat(wrap(f, tw, k ? 7.5 : 9).map(function (t) { return [t, k ? 7.5 : 9]; })); });
+        o.lr = legRows(o.legend || [], tw); var th = o.fl.reduce(function (t, f) { return t + f[1] * 1.35; }, 0) + (o.lr.length ? 8 + o.lr.length * 13 : 0);
+        o.h = o.side ? PAD + 14 + Math.max(ih, th) + PAD : PAD + 12 + ih + 8 + th + PAD; return o; };
+      var drawMapCard = function (o, x, yy, h) {
+        doc.setDrawColor(214, 220, 226); doc.setLineWidth(0.6); doc.roundedRect(x, yy, o.w, h, 6, 6, 'S'); doc.setDrawColor(0);
+        font(9.5); ink(25); T(o.title, x + PAD, yy + PAD + 8); ink();
+        var pg = doc.getCurrentPageInfo().pageNumber, imgY = yy + PAD + 14, imgX = o.side ? x + PAD : x + (o.w - o.iw) / 2, y2 = o.side ? imgY + 4 : imgY + o.ih + 8, tx0 = o.side ? x + 2 * PAD + o.iw : x + PAD;
+        o.fl.forEach(function (f) { font(f[1]); ink(f[1] === 9 ? 40 : 95); y2 += f[1] * 1.35; T(f[0], tx0, y2 - 2); }); ink();
+        if (o.lr.length) { y2 += 8; o.lr.forEach(function (row) { row.forEach(function (c) { swatch(c.it, tx0 + c.x, y2 + 4); font(7); ink(80); if (c.it.t) T(c.it.t, tx0 + c.x + 25, y2 + 6.5); ink(); }); y2 += 13; }); }
+        if (!o.svg) return Promise.resolve();
+        return svgToPng(o.svg, 1.8).then(function (im) { var back = doc.getCurrentPageInfo().pageNumber; doc.setPage(pg); doc.addImage(im.data, 'JPEG', imgX, imgY, o.iw, o.ih); doc.setPage(back); });
+      };
+      // build one card from an on-screen map (kind, view extras) or an all-rounds heat map
+      var fromMap = function (title, kind, extra, facts0) { var mp = mapForReport(kind, extra); if (!mp.svg) return null;
+        var facts = (facts0 || []).concat(mp.lines.filter(function (L) { return L.t && L.b; }).map(function (L) { return L.t; }).slice(0, 2)), small = mp.lines.filter(function (L) { return L.t && !L.b; }).map(function (L) { return L.t.replace(/\s+\|\s+/g, ' · '); }).concat(mp.lines.filter(function (L) { return L.table; }).map(function (L) { return squash(L.table); })).filter(Boolean);
+        if (kind === 'putt') small = small.map(function (t) { return t.replace(/^Distance \(Putts · Made · Make %\): /, 'Made by distance: '); });
+        return { title: title, svg: mp.svg, facts: facts.concat(small), legend: shortLeg(mp.legend) }; };
+      var fromHeat = function (title, kind) { if (!multi) return null; var hm = heatReport(kind); if (!hm.svg) return null;
+        return { title: title, svg: hm.svg, facts: hm.lines.slice(0, 4).map(function (L) { return L.t; }).concat(kind === 'fw' ? ['Par 4 and 5 tee shots, layups left out.'] : []), legend: HEAT_LEG }; };
+      var PROX_LEG = function (G) { return [{ k: 'ln', c: G.color, t: 'Shot' }, { k: 'dot', c: G.color, b: '#000', t: 'Hit green (ft)' }, { k: 'ringx', c: G.color, t: 'Missed (yd)' }, { k: 'star', t: 'Holed' }, { k: 'dash', c: '#e00016', t: 'D1 women avg' }]; };
+      // place cards two per row (a full-width card takes the row), new page when a row would not fit
+      var placeRows = function (cards, title) {
+        var q = Promise.resolve(), rows = [], row = null;
+        cards.filter(Boolean).forEach(function (c) { if (c.full) { rows.push([c]); row = null; return; } if (!row || row.length === 2) { row = []; rows.push(row); } row.push(c); });
+        rows.forEach(function (rw) { q = q.then(function () {
+          rw.forEach(function (c) { mapCard(c, c.full ? PW - 2 * M : MCW); }); var h = Math.max.apply(null, rw.map(function (c) { return c.h; }));
+          if (K.y + h > BOT) K.newPage(title + ' (continued)');
+          var yy = K.y; K.y += h + 12; return Promise.all(rw.map(function (c, k) { return drawMapCard(c, rw.length === 1 && !c.full ? M + (PW - 2 * M - c.w) / 2 : M + k * (MCW + GAP), yy, h); }));
+        }); });
+        return q;
+      };
+      var section = function (title, note) { K.newPage(title); if (note) { font(10); ink(90); T(note, M, K.y - 2); ink(); K.y += 16; } };
+      var pd = pmissData(false);
+      var AFTER = {
+        driver: function () { section('Driver – this round', 'Tee shots on par 4s and 5s' + (multi ? ', with all your rounds beside it' : ''));
+          return placeRows([fromMap('Tee shots – this round', 'fw'), fromHeat('Tee shots – all rounds', 'fw')], 'Driver – this round'); },
+        approach: function () { section('Approach – this round', gsum.length ? gsum.length + ' distance group' + (gsum.length === 1 ? '' : 's') + ' · ' + plist.length + ' approaches' : '');
+          if (gsum.length) { K.y = table([['Group', 'Shots', 'Greens hit', 'Avg ft - greens hit', 'Avg ft - all']].concat(gsum.map(function (x) { var Q = x.P;
+            return [x.g.name, String(Q.n), Q.hits + '/' + Q.n + ' (' + Math.round(Q.hitPct) + '%)', Q.avgHitFt == null ? '-' : Math.round(Q.avgHitFt) + ' ft', Q.avgAllFt == null ? '-' : Math.round(Q.avgAllFt) + ' ft']; })), M, K.y + 4, [130, 60, 110, 120, 120], { fs: 8.5, rh: 13 }) + 12; }
+          var cards = [fromMap('Greens in regulation', 'gir'), fromMap('Approach misses', 'miss')];
+          gsum.forEach(function (x) { var c = fromMap('Proximity – ' + x.g.name, 'prox', { proxReport: true, proxGroup: x.g.id }, [x.P.n + ' shot' + (x.P.n === 1 ? '' : 's') + ' · greens ' + x.P.hits + '/' + x.P.n + ' · ' + (x.P.avgAllFt == null ? '' : 'avg ' + Math.round(x.P.avgAllFt) + ' ft')]);
+            if (c) { c.facts = c.facts.slice(0, 1).concat(c.facts.slice(1).filter(function (f) { return /\(/.test(f); })); c.legend = PROX_LEG(x.g); c.cap = 285; c.full = true; c.side = true; cards.push(c); } });
+          cards.push(fromHeat('GIR – all rounds', 'gir'));
+          if (segs.length) cards.push({ full: true, cap: 360, title: 'Pin location', svg: pinReportSVG(segs), facts: [squash([['Pin', 'Holes', 'GIR', 'Avg ft (GIR)']].concat(segs.map(function (s0) { return [s0.name, String(s0.holes), s0.gir + '/' + s0.holes, s0.avgHitFt == null ? '-' : Math.round(s0.avgHitFt) + ' ft']; })))],
+            legend: [{ k: 'dot', c: '#ffffff', b: '#000', t: 'Green hit' }, { k: 'dot', c: '#e0102a', b: '#000', t: 'Missed green' }, { k: 'pin', t: 'Pin' }, { k: 'dring', t: '20 ft' }] });
+          return placeRows(cards, 'Approach – this round'); },
+        putting: function () { section('Putting – this round', S.putts + ' putts · ' + R.three.three + ' three-putt hole' + (R.three.three === 1 ? '' : 's'));
+          var cards = [fromMap('1st putts', 'putt', { puttN: '1' }), fromMap('2nd putts', 'putt', { puttN: '2' })];
+          SG.PMISS_GROUPS.filter(function (g) { return pd.counts[g.id]; }).reverse().forEach(function (g) { cards.push(fromMap('1st putts made inside 10 ft – ' + g.name, 'pmiss', { pmG: g.id })); });
+          cards.forEach(function (c) { if (c) c.cap = c.cap2 || 200; });
+          return placeRows(cards, 'Putting – this round'); }
+      };
+      var K = { M: M, PW: PW, BOT: BOT, font: font, ink: ink, T: T, wrap: wrap, header: header, imgScale: 2, after: function (id) { return AFTER[id] ? AFTER[id]() : null; } };
+      var chain = pdfStatsCats(doc, statsPdfData({ round: r }).cats, K);
       return chain.then(function () {
         var n = doc.getNumberOfPages();
-        for (var i = 1; i <= n; i++) { doc.setPage(i); font(8); doc.setTextColor(130); T('Page ' + i + ' of ' + n, PW - M, PH - 18, { align: 'right' }); doc.setTextColor(0); }
+        for (var i = 2; i <= n; i++) { doc.setPage(i); font(8); doc.setTextColor(130); T('Page ' + i + ' of ' + n, PW - M, PH - 18, { align: 'right' }); doc.setTextColor(0); }
         return { blob: new Blob([doc.output('arraybuffer')], { type: 'application/pdf' }), pages: n, name: SG.reportFileName(r.course, player, r.date),
           layout: { PW: PW, PH: PH, M: M, text: LAY, tables: TABS }, scorecard: SCG };
       });
@@ -558,16 +570,19 @@
   }
   // the newest finished round of the rounds on the Stats page (the round in progress is not used until it is finished)
   function stLastRound(D) { return D.all.length ? D.all[D.all.length - 1] : null; }
-  function statsPdfData() {
-    var keep = { stOpen: view.stOpen, stSel: view.stSel, stPmB: view.stPmB, pdf: view.pdf };
+  function statsPdfData(opts) {
+    opts = opts || {}; var OR = opts.round || null;
+    var keep = { stOpen: view.stOpen, stSel: view.stSel, stPmB: view.stPmB, pdf: view.pdf, stMode: view.stMode, stCmp: view.stCmp, stPlayer: view.stPlayer };
     view.stOpen = { driver: true, approach: true, putting: true, chipping: true, scoring: true, pmiss: true }; view.stSel = null; view.pdf = null;
+    if (OR) { view.stMode = 'all'; view.stCmp = false; if (OR.player) view.stPlayer = OR.player; } // the round PDF always shows every finished round
     var box = document.createElement('div'); box.style.cssText = 'position:fixed;left:-10000px;top:0;width:390px';
     var tx = function (e) { return e ? SG.pdfSafe(e.textContent.replace(/\s+/g, ' ')) : ''; };
     try {
       var D = statsData(); box.innerHTML = statsHTML(); document.body.appendChild(box);
       var pg = box.querySelector('.statspage'), extra = document.createElement('div'); pg.appendChild(extra);
-      var last = stLastRound(D), DL = last ? { mode: 'sel', shown: [last], all: D.all, cmp: true } : null;
-      extra.innerHTML = '<div id="pdfpm">' + PM_BANDS.map(function (b) { return stPmissCard(D, b.id); }).join('') + '</div>' +
+      // v137: Stats PDF = the page's own all-rounds par curves; round PDF = all rounds in colour with THIS round dashed
+      var last = stLastRound(D), DL = OR ? { mode: 'all', shown: [statsRound(OR, view.stBl || '')], all: D.all, flip: true } : null;
+      extra.innerHTML = '<div id="pdfpm">' + (OR ? stPmissCard(D, 'all') : PM_BANDS.map(function (b) { return stPmissCard(D, b.id); }).join('')) + '</div>' +
         '<div id="pdfpar">' + (DL ? [3, 4, 5].map(function (par) { return stDist(par, DL); }).join('') : '') + '</div>';
       var card = function (el) {
         var t = el.querySelector('.sth > span:first-child'), v = el.querySelector('.sth .stv'), svg = el.querySelector('svg.stchart');
@@ -581,15 +596,12 @@
         var c = sec.getAttribute('data-cat'), items = [];
         [].slice.call(sec.querySelector('.stcatb').children).forEach(function (el) {
           if (el.matches('p.stgrp')) items.push({ kind: 'label', t: tx(el) });
-          else if (el.matches('.stcard.stgraph') && !(c === 'scoring' && /^st-par\d$/.test(el.id))) items.push(card(el));
+          else if (el.matches('.stcard.stgraph') && !(OR && c === 'scoring' && /^st-par\d$/.test(el.id))) items.push(card(el));
         });
-        if (c === 'putting') { items.push({ kind: 'label', t: 'Putt misses (first putts) - all distances and each band' }); [].slice.call(extra.querySelectorAll('#pdfpm .stcard')).forEach(function (el) { items.push(card(el)); }); }
-        if (c === 'scoring') {
-          var O = D.openP && D.openP.open ? D.openP : null;
-          items.push({ kind: 'label', t: 'Par 3 / 4 / 5 scores - last round vs all rounds' });
-          items.push({ kind: 'legend', last: last ? SG.pdfSafe('Last round: ' + stDate(last.date) + ' · ' + last.course + ' · ' + last.score + ' (' + toPar(last.toPar) + ') - the newest finished round') : 'No finished round yet',
-            all: SG.pdfSafe('All rounds: ' + D.all.length + ' finished round' + (D.all.length === 1 ? '' : 's')),
-            note: O ? SG.pdfSafe('The round in progress (' + stDate(O.date) + ' · ' + O.course + ', ' + O.holes + ' holes so far) is not used until it is finished.') : '' });
+        if (c === 'putting') { items.push({ kind: 'label', t: OR ? 'Putt misses (first putts) - all rounds' : 'Putt misses (first putts) - all distances and each band' }); [].slice.call(extra.querySelectorAll('#pdfpm .stcard')).forEach(function (el) { items.push(card(el)); }); }
+        if (c === 'scoring' && OR) {
+          items.push({ kind: 'label', t: 'Par 3 / 4 / 5 scores - all rounds vs this round' });
+          items.push({ kind: 'legend', all: SG.pdfSafe('All rounds average: ' + D.all.length + ' finished round' + (D.all.length === 1 ? '' : 's') + ' (colour)'), last: 'This round (dashed)' });
           [].slice.call(extra.querySelectorAll('#pdfpar .stcard')).forEach(function (el) { items.push(card(el)); });
         }
         return { id: c, name: tx(sec.querySelector('.stcath b')), sum: tx(sec.querySelector('.stcatsum')), items: items };
@@ -603,15 +615,78 @@
         sel: D.sel, last: last };
     } finally { box.remove(); for (var k in keep) view[k] = keep[k]; }
   }
+  // v137 PDF covers – the Instagram story look (STORY.drawCover), Letter shaped
+  var COVER_BG = 'img/home-bg.webp';
+  function roundCover(r) { var bl = blOf(r), S = SG.summarize(r, bl); return STORY.coverImage(STORY.data(r, S, { baselineName: SG.baseline(bl).name, player: r.player || playerName() }), COVER_BG); }
+  function statsCover(R, dateTxt) {
+    var ids = {}; R.D.shown.forEach(function (p) { ids[p.id] = 1; });
+    var list = savedRounds().filter(function (r) { return ids[r.id]; }).map(function (r) { var bl = view.stBl || blOf(r); return STORY.data(r, SG.summarize(r, bl), {}); });
+    var f = R.D.shown[0], l = R.D.shown[R.D.shown.length - 1], span = f && l ? (f === l ? stDate(f.date) : stDate(f.date) + ' – ' + stDate(l.date)) : '';
+    return STORY.coverImage(STORY.combine(list, { player: R.player, range: R.range === 'Selected round' ? '' : R.range, dateText: span, baselineName: view.stBl ? blLabel(view.stBl) : '' }), COVER_BG);
+  }
+  // v137: the Stats categories as PDF pages – every category starts on a new page (no category runs into the next), graphs two per row,
+  // a row never split by a page end. Used by the Stats PDF and the round PDF. K = page kit; K.after(catId) adds pages after a category
+  // (the round PDF's maps). Returns the promise chain.
+  function pdfStatsCats(doc, cats, K) {
+    var M = K.M, PW = K.PW, BOT = K.BOT, font = K.font, ink = K.ink, T = K.T, wrap = K.wrap;
+    var GAP = 12, CW = (PW - 2 * M - GAP) / 2, PAD = 7, chain = Promise.resolve();
+    var measure = function (c) { // height of a card at width CW (image height comes from the SVG's viewBox)
+      var m = /viewBox="0 0 ([\d.]+) ([\d.]+)"/.exec(c.svg || ''), iw = CW - 2 * PAD, ih = m ? iw * (+m[2]) / (+m[1]) : 0;
+      c.tl = wrap(c.title, iw * 0.62, 9.5); c.ll = []; c.lines.forEach(function (l) { c.ll = c.ll.concat(wrap(l, iw, 7.2)); }); c.nl = wrap(c.note, iw, 6.4); c.ih = ih; c.iw = iw;
+      return PAD + 11 * c.tl.length + 4 + ih + (ih ? 4 : 0) + c.ll.length * 9 + 3 + c.nl.length * 7.8 + PAD;
+    };
+    K.newPage = function (title) { doc.addPage(); K.y = K.header(title); };
+    var drawCard = function (c, x, yy, h) {
+      doc.setDrawColor(214, 220, 226); doc.setLineWidth(0.6); doc.roundedRect(x, yy, CW, h, 6, 6, 'S'); doc.setDrawColor(0);
+      var yy2 = yy + PAD + 8; font(9.5); ink(25); doc.text(c.tl, x + PAD, yy2); font(8); ink(95); if (c.val) T(c.val, x + CW - PAD, yy2, { align: 'right' });
+      yy2 += 11 * (c.tl.length - 1) + 6; var pg = doc.getCurrentPageInfo().pageNumber, imgY = yy2;
+      if (K.CARDS) K.CARDS.push({ p: pg, id: c.id, y0: yy, y1: yy + h, x0: x, x1: x + CW });
+      if (c.ih) yy2 += c.ih + 4;
+      font(7.2); ink(70); c.ll.forEach(function (l) { yy2 += 9; T(l, x + CW / 2, yy2 - 2, { align: 'center' }); });
+      yy2 += 3; font(6.4); ink(115); doc.text(c.nl, x + PAD, yy2 + 6); ink();
+      if (!c.svg) return Promise.resolve();
+      return svgToPng(c.svg, K.imgScale || 3).then(function (im) { var back = doc.getCurrentPageInfo().pageNumber; doc.setPage(pg); doc.addImage(im.data, 'JPEG', x + PAD, imgY, c.iw, c.ih); doc.setPage(back); if (K.IMGS) K.IMGS.push({ p: pg, id: c.id, y0: imgY, y1: imgY + c.ih }); });
+    };
+    var LEG = function (it, yy) { // all rounds (solid, par colours) vs this round (dark dashed)
+      var x = M; doc.setLineDashPattern([], 0); doc.setLineWidth(2.2); [['#1f73c9', 0], ['#2e9d4f', 8], ['#e8871e', 16]].forEach(function (q) { var v = parseInt(q[0].slice(1), 16); doc.setDrawColor((v >> 16) & 255, (v >> 8) & 255, v & 255); doc.line(x + q[1], yy - 3, x + q[1] + 7, yy - 3); });
+      font(8.5); ink(40); T(it.all, x + 30, yy);
+      doc.setDrawColor(31, 45, 56); doc.setLineWidth(1.6); doc.setLineDashPattern([4, 3], 0); doc.line(x, yy + 11, x + 23, yy + 11); doc.setLineDashPattern([], 0); doc.setDrawColor(0);
+      T(it.last, x + 30, yy + 14); ink(); return 32;
+    };
+    cats.forEach(function (cat) {
+      var B = [], row = null;
+      cat.items.forEach(function (it) {
+        if (it.kind === 'card') { it.h = measure(it); if (!row || row.c.length === 2) { row = { kind: 'row', c: [] }; B.push(row); } row.c.push(it); row.h = Math.max(row.h || 0, it.h); return; }
+        row = null; B.push(it.kind === 'label' ? { kind: 'label', t: it.t, h: 16 } : { kind: 'legend', it: it, h: 36 });
+      });
+      for (var i = B.length - 1; i >= 0; i--) B[i].need = (B[i].kind === 'row' ? B[i].h + 10 : B[i].h + (B[i + 1] ? B[i + 1].need : 0));
+      chain = chain.then(function () {
+        K.newPage(cat.name);
+        if (cat.sum) { font(10); ink(90); T(cat.sum.replace(/ {2,}/g, ' · '), M, K.y - 2); ink(); K.y += 16; }
+        var q = Promise.resolve();
+        B.forEach(function (b) {
+          q = q.then(function () {
+            if (K.y + b.need > BOT) K.newPage(cat.name + ' (continued)');
+            if (b.kind === 'label') { font(8.5); ink(80); T(String(b.t).toUpperCase(), M + 2, K.y + 6); ink(); K.y += 16; return; }
+            if (b.kind === 'legend') { K.y += LEG(b.it, K.y + 6) + 4; return; }
+            var yy = K.y; K.y += b.h + 10; return Promise.all(b.c.map(function (c, k) { return drawCard(c, M + k * (CW + GAP), yy, b.h); }));
+          });
+        });
+        return q.then(function () { K.y += 6; return K.after ? K.after(cat.id) : null; });
+      });
+    });
+    return chain;
+  }
   function makeStatsReport() {
     var R;
     try { R = statsPdfData(); } catch (e) { return Promise.reject(e); }
     if (!R.D.all.length) return Promise.reject(new Error('No finished rounds yet'));
     var P = SG.pdfSafe, now = new Date(), dateTxt = now.toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' });
     var rangeWord = R.range === 'Selected round' && R.sel ? 'Round-' + R.sel.course : R.range;
-    return loadJsPDF().then(function () {
+    return Promise.all([loadJsPDF(), statsCover(R, dateTxt)]).then(function (pre) {
       var doc = new window.jspdf.jsPDF({ unit: 'pt', format: 'letter', orientation: 'portrait' }), M = 36, PW = 612, PH = 792, BOT = PH - M - 14, y;
       doc.setProperties({ title: 'Strokewise stats – ' + (R.player || '') + ' ' + R.range, author: R.player, creator: 'Strokewise' });
+      doc.addImage(pre[1].data, 'JPEG', 0, 0, PW, PH); doc.addPage(); // v137 cover, the Instagram-picture look
       var LAY = [], IMGS = [], CARDS = [], txt0 = doc.text.bind(doc);
       doc.text = function (t, x, yy, o) {
         var L = Array.isArray(t) ? t : [t], al = (o && o.align) || 'left', lh = doc.getFontSize() * doc.getLineHeightFactor(), pg = doc.getCurrentPageInfo().pageNumber;
@@ -626,7 +701,7 @@
       };
       var wrap = function (t, w, sz) { font(sz); return doc.splitTextToSize(P(t), w); };
       // ---- page 1: who / what / baseline, then the averages table ----
-      y = header('Stats report');
+      y = header('Summary');
       font(12); ink(30); T((R.player || 'Player') + ' – ' + R.range, M, y); y += 16;
       font(9.5); ink(90);
       [R.shown, 'Strokes gained compared with ' + R.baseline + '.', 'Compare to all rounds: ' + (R.cmp ? 'on (grey = all rounds)' : 'off') + ' · made ' + dateTxt + '.'].forEach(function (l) { wrap(l, PW - 2 * M, 9.5).forEach(function (s) { T(s, M, y); y += 12; }); });
@@ -641,60 +716,12 @@
         y += rh;
       });
       ink(); y = (function () { var L = wrap(R.tableNote, PW - 2 * M, 7.5); ink(110); doc.text(L, M, y + 4); ink(); return y + 4 + L.length * 9.4 + 10; })();
-      // ---- the five categories, two graphs per row ----
-      var GAP = 12, CW = (PW - 2 * M - GAP) / 2, PAD = 7, chain = Promise.resolve();
-      var measure = function (c) { // height of a card at width CW (image height comes from the SVG's viewBox)
-        var m = /viewBox="0 0 ([\d.]+) ([\d.]+)"/.exec(c.svg || ''), iw = CW - 2 * PAD, ih = m ? iw * (+m[2]) / (+m[1]) : 0;
-        c.tl = wrap(c.title, iw * 0.62, 9.5); c.ll = []; c.lines.forEach(function (l) { c.ll = c.ll.concat(wrap(l, iw, 7.2)); }); c.nl = wrap(c.note, iw, 6.4); c.ih = ih; c.iw = iw;
-        return PAD + 11 * c.tl.length + 4 + ih + (ih ? 4 : 0) + c.ll.length * 9 + 3 + c.nl.length * 7.8 + PAD;
-      };
-      var newPage = function (title) { doc.addPage(); y = header(title); };
-      var drawCard = function (c, x, yy, h) {
-        doc.setDrawColor(214, 220, 226); doc.setLineWidth(0.6); doc.roundedRect(x, yy, CW, h, 6, 6, 'S'); doc.setDrawColor(0);
-        var yy2 = yy + PAD + 8; font(9.5); ink(25); doc.text(c.tl, x + PAD, yy2); font(8); ink(95); if (c.val) T(c.val, x + CW - PAD, yy2, { align: 'right' });
-        yy2 += 11 * (c.tl.length - 1) + 6; var pg = doc.getCurrentPageInfo().pageNumber, imgY = yy2;
-        CARDS.push({ p: pg, id: c.id, y0: yy, y1: yy + h, x0: x, x1: x + CW });
-        if (c.ih) { yy2 += c.ih + 4; }
-        font(7.2); ink(70); c.ll.forEach(function (l) { yy2 += 9; T(l, x + CW / 2, yy2 - 2, { align: 'center' }); });
-        yy2 += 3; font(6.4); ink(115); doc.text(c.nl, x + PAD, yy2 + 6); ink();
-        if (!c.svg) return Promise.resolve();
-        return svgToPng(c.svg, 3).then(function (im) { doc.setPage(pg); doc.addImage(im.data, 'JPEG', x + PAD, imgY, c.iw, c.ih); IMGS.push({ p: pg, id: c.id, y0: imgY, y1: imgY + c.ih }); });
-      };
-      var LEG = function (it, yy) { // last round (solid, par colours) vs all rounds (grey dashed)
-        var x = M; doc.setLineDashPattern([], 0); doc.setLineWidth(2.2); [['#1f73c9', 0], ['#2e9d4f', 8], ['#e8871e', 16]].forEach(function (q) { var v = parseInt(q[0].slice(1), 16); doc.setDrawColor((v >> 16) & 255, (v >> 8) & 255, v & 255); doc.line(x + q[1], yy - 3, x + q[1] + 7, yy - 3); });
-        font(8.5); ink(40); T(it.last + ' (solid, par colour)', x + 30, yy);
-        doc.setDrawColor(151, 163, 174); doc.setLineWidth(1.4); doc.setLineDashPattern([4, 3], 0); doc.line(x, yy + 11, x + 23, yy + 11); doc.setLineDashPattern([], 0); doc.setDrawColor(0);
-        T(it.all + ' (grey dashed)', x + 30, yy + 14); var h = 28;
-        if (it.note) { font(7.5); ink(110); var L = wrap(it.note, PW - 2 * M, 7.5); doc.text(L, x, yy + 27); h += L.length * 9.5; } ink();
-        return h + 4;
-      };
-      // group each category into blocks (a label, the legend, or a row of up to 2 graphs) so headings and labels never sit alone at a page bottom
-      var LEGH = function (it) { return 32 + (it.note ? wrap(it.note, PW - 2 * M, 7.5).length * 9.5 : 0); };
-      R.cats.forEach(function (cat) {
-        var B = [], row = null;
-        cat.items.forEach(function (it) {
-          if (it.kind === 'card') { it.h = measure(it); if (!row || row.c.length === 2) { row = { kind: 'row', c: [] }; B.push(row); } row.c.push(it); row.h = Math.max(row.h || 0, it.h); return; }
-          row = null; B.push(it.kind === 'label' ? { kind: 'label', t: it.t, h: 16 } : { kind: 'legend', it: it, h: LEGH(it) + 4 });
-        });
-        for (var i = B.length - 1; i >= 0; i--) B[i].need = (B[i].kind === 'row' ? B[i].h + 10 : B[i].h + (B[i + 1] ? B[i + 1].need : 0));
-        chain = chain.then(function () {
-          if (y + 20 + (B[0] ? B[0].need : 0) > BOT) newPage(cat.name);
-          doc.setFillColor(243, 240, 250); doc.roundedRect(M, y - 13, PW - 2 * M, 20, 4, 4, 'F'); font(12.5); ink(30); T(cat.name, M + 8, y + 1); font(9); ink(90); T(cat.sum, PW - M - 8, y + 1, { align: 'right' }); ink(); y += 20;
-          var q = Promise.resolve();
-          B.forEach(function (b) {
-            q = q.then(function () {
-              if (y + b.need > BOT) newPage(cat.name + ' (continued)');
-              if (b.kind === 'label') { font(8.5); ink(80); T(String(b.t).toUpperCase(), M + 2, y + 6); ink(); y += 16; return; }
-              if (b.kind === 'legend') { y += LEG(b.it, y + 6); return; }
-              var yy = y; y += b.h + 10; return Promise.all(b.c.map(function (c, k) { return drawCard(c, M + k * (CW + GAP), yy, b.h); }));
-            });
-          });
-          return q.then(function () { y += 6; });
-        });
-      });
+      // ---- v137: the five categories, each starting on its own page (shared with the round PDF) ----
+      var K = { M: M, PW: PW, BOT: BOT, font: font, ink: ink, T: T, wrap: wrap, header: header, IMGS: IMGS, CARDS: CARDS };
+      var chain = pdfStatsCats(doc, R.cats, K);
       return chain.then(function () {
         var n = doc.getNumberOfPages();
-        for (var i = 1; i <= n; i++) { doc.setPage(i); font(8); doc.setTextColor(130); T('Page ' + i + ' of ' + n, PW - M, PH - 18, { align: 'right' }); doc.setTextColor(0); }
+        for (var i = 2; i <= n; i++) { doc.setPage(i); font(8); doc.setTextColor(130); T('Page ' + i + ' of ' + n, PW - M, PH - 18, { align: 'right' }); doc.setTextColor(0); }
         return { kind: 'stats', blob: new Blob([doc.output('arraybuffer')], { type: 'application/pdf' }), pages: n, name: SG.statsFileName(R.player, rangeWord, now.toISOString()),
           layout: { PW: PW, PH: PH, M: M, BOT: BOT, text: LAY, images: IMGS, cards: CARDS }, cats: R.cats.map(function (c) { return { id: c.id, items: c.items.map(function (i) { return i.kind === 'card' ? i.id : i.kind; }) }; }), last: R.last && R.last.id };
       });
@@ -947,10 +974,11 @@
   // scoring curve for one par: % of finished holes at each score, Eagle (or better) … Triple (or worse)
   function stDist(par, D) {
     var sum = function (L) { var c = [0, 0, 0, 0, 0, 0], n = 0, st = 0; L.forEach(function (p) { p.dist[par].forEach(function (x, i) { c[i] += x; }); n += p.parN[par].n; st += p.parN[par].s; }); return { c: c, n: n, avg: n ? st / n : null }; };
-    var A = sum(D.shown), Z = sum(D.all), cmp = D.cmp, col = ST_PAR[par], id = 'par' + par;
-    var who = D.mode === 'sel' ? 'this round' : D.mode === '5' ? 'the last 5 rounds' : 'these rounds';
+    var fl = !!D.flip, A = fl ? sum(D.all) : sum(D.shown), Z = fl ? sum(D.shown) : sum(D.all), cmp = fl || D.cmp, col = ST_PAR[par], id = 'par' + par;
+    var who = fl ? 'these rounds' : D.mode === 'sel' ? 'this round' : D.mode === '5' ? 'the last 5 rounds' : 'these rounds';
     var h = '<div class="stcard stgraph stdistcard" id="st-' + id + '"><div class="sth"><span>Par ' + par + ' scores</span><span class="stv" id="' + id + 'val">' +
-      (A.n ? 'avg <em>' + A.avg.toFixed(2) + '</em>' + (cmp && Z.n ? ' · all <em>' + Z.avg.toFixed(2) + '</em>' : '') : '') + '</span></div>';
+      (fl ? (A.n ? 'all <em>' + A.avg.toFixed(2) + '</em>' : '') + (Z.n ? ' · this round <em>' + Z.avg.toFixed(2) + '</em>' : '') :
+      (A.n ? 'avg <em>' + A.avg.toFixed(2) + '</em>' + (cmp && Z.n ? ' · all <em>' + Z.avg.toFixed(2) + '</em>' : '') : '')) + '</span></div>';
     if (!A.n) return h + '<p class="stfew" id="' + id + 'none">No par ' + par + ' holes in ' + who + ' yet.</p></div>';
     var pc = function (S) { return S.c.map(function (x) { return S.n ? 100 * x / S.n : 0; }); }, pa = pc(A), pz = cmp && Z.n ? pc(Z) : null;
     var mx = Math.max.apply(null, pa.concat(pz || [])), top = Math.min(100, Math.max(20, Math.ceil(mx / 10) * 10)); if (top % 20) top += 10;
@@ -960,12 +988,16 @@
     [0, top / 2, top].forEach(function (v) { var yy = stF(Y(v)); s += '<line class="stgrid" x1="' + L + '" x2="' + (W - R) + '" y1="' + yy + '" y2="' + yy + '"/><text class="sty" x="' + (L - 6) + '" y="' + stF(yy + 3.5) + '" text-anchor="end">' + v + '%</text>'; });
     ST_NAMES.forEach(function (nm, i) { s += '<text class="stx stxn" x="' + stF(X(i)) + '" y="' + (H - 19) + '" text-anchor="middle">' + nm + '</text><text class="stx stxs" x="' + stF(X(i)) + '" y="' + (H - 6) + '" text-anchor="middle">' + (par - 2 + i) + '</text>'; });
     var P = pa.map(function (v, i) { return [X(i), Y(v)]; }), curve = stSmooth(P);
-    if (pz) { var Pz = pz.map(function (v, i) { return [X(i), Y(v)]; }); s += '<path class="stline stcmpline" id="' + id + 'all" d="' + stSmooth(Pz) + '"/>' + Pz.map(function (q) { return '<circle class="stdot stcmpdot" cx="' + stF(q[0]) + '" cy="' + stF(q[1]) + '" r="2.4"/>'; }).join(''); }
+    var zDraw = '';
+    if (pz) { var Pz = pz.map(function (v, i) { return [X(i), Y(v)]; }), DK = fl ? ' style="stroke:#1f2d38;stroke-dasharray:5 4;stroke-width:1.8"' : '', DD = fl ? ' style="fill:#fff;stroke:#1f2d38;stroke-width:1.4"' : '';
+      zDraw = '<path class="stline stcmpline" id="' + id + (fl ? 'this' : 'all') + '"' + DK + ' d="' + stSmooth(Pz) + '"/>' + Pz.map(function (q) { return '<circle class="stdot stcmpdot"' + DD + ' cx="' + stF(q[0]) + '" cy="' + stF(q[1]) + '" r="2.4"/>'; }).join(''); }
+    if (pz && !fl) s += zDraw;
     s += '<path class="starea" d="' + curve + 'L' + stF(X(5)) + ' ' + stF(Y(0)) + 'L' + stF(X(0)) + ' ' + stF(Y(0)) + 'Z" fill="' + col + '"/>';
     s += '<path class="stline" id="' + id + 'line" d="' + curve + '" stroke="' + col + '"/>';
     P.forEach(function (q, i) { s += '<circle class="stdot" data-b="' + i + '" cx="' + stF(q[0]) + '" cy="' + stF(q[1]) + '" r="3" fill="' + col + '"/><text class="stval" data-b="' + i + '" x="' + stF(q[0]) + '" y="' + stF(Math.max(9, q[1] - 9)) + '" text-anchor="middle">' + Math.round(pa[i]) + '%</text>'; });
+    if (pz && fl) s += zDraw; // round PDF: this round's dashed line on top of the all-rounds colour
     s += '</svg>';
-    return h + s + '<p class="stn" id="' + id + 'n">n = ' + A.n + ' hole' + (A.n === 1 ? '' : 's') + (cmp ? ' · all rounds: ' + Z.n + ' holes (grey dashed)' : '') + '</p>' +
+    return h + s + '<p class="stn" id="' + id + 'n">' + (fl ? 'all rounds: ' + A.n + ' hole' + (A.n === 1 ? '' : 's') + ' (colour) · this round: ' + Z.n + ' (dashed)' : 'n = ' + A.n + ' hole' + (A.n === 1 ? '' : 's') + (cmp ? ' · all rounds: ' + Z.n + ' holes (grey dashed)' : '')) + '</p>' +
       '<p class="stnote">Share of finished par-' + par + ' holes at each score (number of strokes underneath). Eagle includes anything better (hole-in-one, albatross); Triple includes anything worse.</p></div>';
   }
   // v125: drive distance box chart on the Stats page (the Club performance box plot): the rounds shown (blue) and, with Compare, all rounds (grey).
@@ -3590,7 +3622,7 @@
   var PM_MADE = '#111', PM_MISS = '#d0312d';
   var PMN = { short: 'Short', long: 'Long (over 3 ft past)', left: 'Left', right: 'Right', nearlong: 'Just long (within 3 ft)', nodir: 'No direction entered' };
   // map buttons: the two 1st-putt groups (10 ft and in), lag putts (1st putts over 10 ft), all putts
-  var PM_EXTRA = [{ id: 'lag', name: 'Over 10 ft' }, { id: 'all', name: 'All putts' }];
+  var PM_EXTRA = [{ id: 'lag', name: 'Over 10 ft' }]; // v137: the v117 "All putts" map was removed (Scott: too confusing)
   function pmissTile(S) {
     var L = SG.pmissList(S.puttList), k = L.filter(function (p) { return p.made; }).length; // v112: shown as made (was missed)
     return tile('pmiss', '1st putts made inside 10 ft – tap for map', L.length ? k + '/' + L.length + ' made' : '–', '<small class="mini" id="pmmini">' + pmissLine(k, L.length) + '</small>');
@@ -3613,9 +3645,9 @@
     (scopeAll ? savedRounds() : [round()]).forEach(function (r) { n++; var PL = SG.summarize(r, 'pga').puttList; all = all.concat(SG.pmissList(PL)); lag = lag.concat(SG.lagList(PL));
       PL.forEach(function (p) { every.push(p); }); });
     var counts = {}; SG.PMISS_GROUPS.forEach(function (g) { counts[g.id] = all.filter(function (p) { return SG.pmissGroup(p.ft) === g.id; }).length; });
-    counts.lag = lag.length; counts.all = every.length;
-    var g = gid || view.pmG; if (!g || !counts[g]) g = SG.PMISS_GROUPS.filter(function (x) { return counts[x.id]; }).map(function (x) { return x.id; }).pop() || (counts.lag ? 'lag' : counts.all ? 'all' : '0-6');
-    var list = g === 'all' ? every : g === 'lag' ? lag : all.filter(function (p) { return SG.pmissGroup(p.ft) === g; });
+    counts.lag = lag.length;
+    var g = gid || view.pmG; if (!g || !counts[g]) g = SG.PMISS_GROUPS.filter(function (x) { return counts[x.id]; }).map(function (x) { return x.id; }).pop() || (counts.lag ? 'lag' : '0-6');
+    var list = g === 'lag' ? lag : all.filter(function (p) { return SG.pmissGroup(p.ft) === g; });
     return { group: g, counts: counts, list: list, first: all, stats: SG.pmissStats(list), rounds: n, lag: SG.lagStats(lag), every: every };
   }
   function pmLbl(boxes, W, H) { // small ft label placed next to a point, away from other labels
@@ -3659,41 +3691,15 @@
     pend.forEach(function (q) { labs += lbl(q[0], q[1], q[2], '#8e1f1b'); });
     return o + tr + mk + '<circle class="pmhole" cx="' + cx + '" cy="' + cy + '" r="4.5" fill="#000" stroke="#fff" stroke-width="1"/><circle id="pmorigin" cx="' + cx + '" cy="' + (cy + RR) + '" r="5" fill="#fff" stroke="#333" stroke-width="1.4"/><text x="' + (cx + 9) + '" y="' + (cy + RR + 4) + '" font-size="9.5" font-weight="400" fill="#fff">putts start here' + (lagMode ? ' (over 10 ft away)' : '') + '</text>' + dots + labs + '</svg>';
   }
-  // v117 ALL putts: each putt from where it really started (its distance + the direction the ball was from the hole – a 2nd / 3rd putt starts
-  // where the one before finished, as on the Putts map), made = black line into the hole, missed = red line to where it finished.
-  function pmAllSVG(list) {
-    var W = 360, H = 400, cx = 180, cy = 200, R = 170, RR = R - 8;
-    var mxFt = list.reduce(function (m, p) { return Math.max(m, Number(p.ft) || 0, p.made ? 0 : Number(p.endFt) || 0); }, 0), sc = SG.puttScale('1', [{ ft: mxFt }]), rad = function (ft) { return SG.puttRadius(ft, sc, RR); };
-    var o = '<svg id="pmissmap" data-mode="all" viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="All putts: made in black, missed in red">' + pmGreen(W, H, cx, cy, R);
-    [3, 6, 10].concat(sc.rings.filter(function (x) { return x > 10 && (x % 10 === 0 || x === sc.maxFt); })).forEach(function (ft) { var r = rad(ft);
-      o += '<circle class="pring" cx="' + cx + '" cy="' + cy + '" r="' + f1(r) + '" fill="none" stroke="#fff" stroke-opacity=".6" stroke-width="1"/><text class="ring" x="' + f1(cx + r * 0.707 + 2) + '" y="' + f1(cy + r * 0.707 + 10) + '" font-size="9.5" font-weight="400" fill="#fff">' + ft + ' ft</text>'; });
-    o += pmEdges(W, H, cy);
-    var nd = list.filter(function (p) { return !p.dir; }).length, ndi = 0, lines = '', dots = '', seen = {};
-    var at = function (ft, dir, fallback) { var a = dir ? SG.DIR_ANGLE[dir] : fallback; return pt(cx, cy, rad(ft), a); };
-    list.forEach(function (p) {
-      var a0 = p.dir ? SG.DIR_ANGLE[p.dir] : 110 + 360 * (ndi++) / Math.max(1, nd);
-      var s = pt(cx, cy, rad(p.ft), a0), e = p.made ? [cx, cy] : at(Math.max(p.endFt || 0, 0.5), p.endDir, a0 + 180);
-      lines += '<path class="' + (p.made ? 'pmmade' : 'pmtr') + '" data-n="' + p.n + '" data-hole="' + p.hole + '" data-ft="' + p.ft + '" d="M' + f1(s[0]) + ' ' + f1(s[1]) + ' L' + f1(e[0]) + ' ' + f1(e[1]) + '" fill="none" stroke="' + (p.made ? PM_MADE : PM_MISS) + '" stroke-width="1.5" stroke-opacity=".8" stroke-linecap="round"/>';
-      dots += '<circle class="pmstart" data-n="' + p.n + '" cx="' + f1(s[0]) + '" cy="' + f1(s[1]) + '" r="2.6" fill="#fff" fill-opacity=".9" stroke="' + (p.made ? PM_MADE : PM_MISS) + '" stroke-width="1"/>';
-    });
-    return o + lines + '<circle class="pmhole" cx="' + cx + '" cy="' + cy + '" r="4.5" fill="#000" stroke="#fff" stroke-width="1"/>' + dots + '</svg>';
-  }
   function pmissCells(st) {
     var pc = function (k) { return st.misses ? Math.round(st.pct[k]) + '%' : '–'; };
     return '<div class="stat-grid pmcells" id="pmcells">' + stat('Left', pc('left')) + stat('Right', pc('right')) + stat('Short', pc('short')) + stat('Long (> 3 ft past)', pc('long')) +
       stat('1st putts made', st.made + '/' + st.attempts) + stat('Just long ≤ 3 ft / no dir.', st.counts.nearlong + ' / ' + st.counts.nodir) + '</div>';
   }
-  function pmAllCells(L) {
-    var m = L.filter(function (p) { return p.made; }).length, tp = SG.threePutts(L), by = function (n) { var X = L.filter(function (p) { return n === 3 ? p.n >= 3 : p.n === n; }); return X.length ? X.filter(function (p) { return p.made; }).length + '/' + X.length : '–'; };
-    return '<div class="stat-grid pmcells" id="pmallcells">' + stat('Putts', L.length) + stat('Made', m) + stat('1st putts made', by(1)) + stat('2nd putts made', by(2)) + stat('3rd+ putts made', by(3)) + stat('3-putt holes', tp.three + '/' + tp.holes) + '</div>';
-  }
   function pmissLegend(g) {
-    var all = g === 'all';
     return '<div class="legend pmlegend" id="pmlegend"><span><i class="ln" style="background:' + PM_MADE + '"></i>Made – black line into the hole</span>' +
-      '<span><i class="ln" style="background:' + PM_MISS + '"></i>Missed – red line to where it finished' + (all ? '' : ' (label = feet left)') + '</span>' +
-      (all ? '<span><i class="dot" style="background:#fff;border:1px solid #555"></i>Small dot = where the putt started (distance and side of the hole; a 2nd or 3rd putt starts where the one before finished)</span>' +
-        '<span>Rings = feet from the hole; the inner 10 ft is drawn bigger. No direction entered: start spread around the hole, a miss drawn past the hole.</span>'
-      : '<span><svg width="20" height="20" viewBox="0 0 20 20" style="flex:none"><path d="M10 3 l7 7 -7 7 -7 -7z" fill="#fff" stroke="' + PM_MISS + '" stroke-width="1.6"/><text x="10" y="13.5" text-anchor="middle" font-size="9" fill="' + PM_MISS + '">?</text></svg>No direction entered for where it finished (drawn long)</span>' +
+      '<span><i class="ln" style="background:' + PM_MISS + '"></i>Missed – red line to where it finished (label = feet left)</span>' +
+      ('<span><svg width="20" height="20" viewBox="0 0 20 20" style="flex:none"><path d="M10 3 l7 7 -7 7 -7 -7z" fill="#fff" stroke="' + PM_MISS + '" stroke-width="1.6"/><text x="10" y="13.5" text-anchor="middle" font-size="9" fill="' + PM_MISS + '">?</text></svg>No direction entered for where it finished (drawn long)</span>' +
         '<span><i class="dot" style="background:#fff;border:1px solid #333"></i>Common start point: every putt is drawn from straight below the hole, so the hole is the target</span>' +
         '<span>Rings = feet from the hole, evenly spaced' + (g === 'lag' ? ' (the brighter ring is 3 ft – a good lag finishes inside it)' : '') + '. › = further than the picture, drawn at the edge.</span>') + '</div>';
   }
@@ -3705,17 +3711,14 @@
   function pmissHTML(all) {
     var D = pmissData(all), g = D.group, G = SG.PMISS_GROUPS.filter(function (x) { return x.id === g; })[0], where = all ? ' in ' + D.rounds + ' round' + (D.rounds === 1 ? '' : 's') : ' this round';
     var btns = '<div class="seg pmgroups" id="pmgroups">' + SG.PMISS_GROUPS.concat(PM_EXTRA).map(function (x) { var c = D.counts[x.id];
-      return '<button data-act="pmg" data-v="' + x.id + '" data-n="' + c + '" class="' + (x.id === g ? 'sel' : '') + (x.id === 'lag' || x.id === 'all' ? ' pmx' : '') + '"' + (c ? '' : ' disabled') + ' aria-pressed="' + (x.id === g) + '">' + x.name + (c ? '<small> ' + c + '</small>' : '') + '</button>'; }).join('') + '</div>';
+      return '<button data-act="pmg" data-v="' + x.id + '" data-n="' + c + '" class="' + (x.id === g ? 'sel' : '') + (x.id === 'lag' ? ' pmx' : '') + '"' + (c ? '' : ' disabled') + ' aria-pressed="' + (x.id === g) + '">' + x.name + (c ? '<small> ' + c + '</small>' : '') + '</button>'; }).join('') + '</div>';
     // headline = the Round stats number (every 1st putt from 10 ft and in, both groups together); the 2nd line says what the map shows
     var F = D.first, Fm = F.filter(function (p) { return p.made; }).length, pctx = function (k, n) { return n ? ' (' + Math.round(100 * k / n) + '%)' : ''; };
     var head = '<p class="mapsum" id="mapsum"><b>' + Fm + '/' + F.length + '</b> made' + pctx(Fm, F.length) + ' – 1st putts from 10 ft and in' + where + '</p>';
     var L = D.list, Lm = L.filter(function (p) { return p.made; }).length, show;
-    if (g === 'all') show = 'All putts: <b>' + L.length + '</b> putt' + (L.length === 1 ? '' : 's') + ' · <b>' + Lm + '</b> made';
-    else if (g === 'lag') show = '1st putts from over 10 ft: <b>' + L.length + '</b> putt' + (L.length === 1 ? '' : 's') + ' · <b>' + Lm + '</b> made · <b>' + D.lag.inside + '</b> inside 3 ft';
+    if (g === 'lag') show = '1st putts from over 10 ft: <b>' + L.length + '</b> putt' + (L.length === 1 ? '' : 's') + ' · <b>' + Lm + '</b> made · <b>' + D.lag.inside + '</b> inside 3 ft';
     else show = '1st putts from <b id="pmsel">' + G.name + '</b>: <b>' + D.stats.made + '/' + D.stats.attempts + '</b> made' + pctx(D.stats.made, D.stats.attempts);
     var out = btns + head + '<p class="mapsum pmshow" id="pmshow">Map shows ' + show + '</p>';
-    if (g === 'all') return out + pmAllSVG(L) + pmAllCells(L) + pmissLegend(g) + lagBox(D.lag, all, D.rounds) +
-      '<p class="help muted">All putts = every stroke from the green (1st, 2nd, 3rd …, any distance). Each line starts where the putt started – the distance and the side of the hole entered on that row; a 2nd or 3rd putt starts where the one before finished. Black = holed (runs into the hole); red = missed, ending where it stopped. The headline number above is unchanged: 1st putts from 10 ft and in only.</p>';
     return out + pmissSVG(L, g) + (g === 'lag' ? '' : pmissCells(D.stats)) + pmissLegend(g) + lagBox(D.lag, all, D.rounds) +
       '<p class="help muted">Black lines = putts that went in, curving into the hole. Red lines run from one common start (below the hole) to where the putt finished, placed around the hole by the direction and distance of the next putt: short = below the hole, long = above, left/right to the sides. Short = finished short (incl. short left/right). Long = finished long and more than 3 ft past the hole. Long left/right within 3 ft count as Left/Right; straight long within 3 ft = "just long" (good speed, not counted as Long). Percentages are of misses. Only the 1st putt on each hole counts, from 10 ft and in (10 ft included) – groups: under 6 ft and 6–10 ft. Over 10 ft = lag putts (1st putts from further away – good = inside 3 ft). All putts = every putt of the round.</p>';
   }
@@ -4285,7 +4288,7 @@
       case 'about': view.back = view.screen; view.screen = 'about'; render(); window.scrollTo(0, 0); return;
       case 'aboutBack': view.screen = view.back && view.back !== 'about' ? view.back : 'home'; render(); window.scrollTo(0, 0); return;
       case 'setbl': setBaseline(v); return;
-      case 'map': if (v === 'pmiss') view.pmG = b.closest('[data-stx="lag"]') ? 'lag' : view.pmG === 'lag' || view.pmG === 'all' ? null : view.pmG; // v117: the Lag tile opens the map on Over 10 ft
+      case 'map': if (v === 'pmiss') view.pmG = b.closest('[data-stx="lag"]') ? 'lag' : view.pmG === 'lag' ? null : view.pmG; // v117: the Lag tile opens the map on Over 10 ft
         view.map = v; view.pinSeg = null; view.heat = null; view.proxBench = null; if (v === 'prox') view.proxB = null; view.mapScope = view.mapScope || 'round'; render(); return;
       case 'pinseg': view.pinSeg = v || null; render(); var pv = document.getElementById('mapview'); if (pv) pv.scrollTop = 0; return;
       case 'mapclose': view.map = null; render(); return;

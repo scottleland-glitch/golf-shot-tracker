@@ -19,6 +19,7 @@
 // v98: Google Drive automatic backup + restore (gdrive.js), one folder per player, multi-phone merge.
 // v97: Send round (file or PINHIGH1: code) + Add a round in History (share.js).
 // v96: Round stats – Score/To par/Yards/Putts box on top, Quick view, collapsible stat tiles, smaller legend.
+// v137: PDF covers (story look), Stats PDF one category per page + all-rounds par curves, round PDF = Stats graphs + tidy map cards per category, par curves all rounds colour / this round dashed; All putts map removed.
 // v136: Best vs worst redone – sky look, per-round category tiles, From/Best/Worst/Diff table, one map with a Best / Worst switch (overlay removed).
 // v135: app renamed Strokewise (Home, title, Home Screen name, PDFs, story picture with a small icon, live page, Send round). Address, PINHIGH1: codes, Drive folder and cache names unchanged.
 // v134: Birdie zone renamed Scoring chances; no bird; Quick-view tiles, Stats-style pill, thin map, blue what-if ring.
@@ -29,7 +30,7 @@
 // v113: "Courses near me" (near.js). The course finder list (data/us-courses.json, ~1.0 MB, ~0.28 MB gzipped) is NOT in this cache:
 // the app downloads it on first use into its own cache 'pinhigh-courselist-v1', which a new version keeps (so no re-download).
 // GolfCore scorecards (through the Pin High relay, pinhigh-golfcore.pinhigh.workers.dev) go straight to the network; the app saves each picked course with the saved courses.
-const CACHE = 'golf-sg-v136';
+const CACHE = 'golf-sg-v137';
 const ASSETS = ['./', './img/home-bg.webp', './img/oriole.webp', './index.html', './styles.css', './sg.js', './birdie.js', './voice.js', './courses.js', './near.js', './bag.js', './wedges.js', './live.js', './share.js', './story.js', './gdrive.js', './app.js', './config.js', './vendor/jspdf.umd.min.js',
   './manifest.webmanifest', './icons/apple-touch-icon.png', './icons/icon-192.png',
   './icons/icon-512.png', './icons/icon-512-maskable.png'];

@@ -25,11 +25,11 @@ const BASE = 'http://127.0.0.1:8784/', OUT = '/workspace/pdf-preview';
   const pT = txt.findIndex(t => t.includes('Tee shots - all rounds')), pG = txt.findIndex(t => t.includes('GIR - all rounds'));
   assert.ok(pT > 0 && pG > 0, 'heat pages present'); console.log('pages', pages, 'size', size, 'tee page', pT + 1, 'gir page', pG + 1);
   assert.match(txt[pT], /Driver - avg \d+ yd/); assert.match(txt[pT], /Longest \d+ yd/); assert.match(txt[pT], /Left/); assert.match(txt[pT], /Fairway/); assert.match(txt[pT], /Right/);
-  assert.match(txt[pT], /Red = the most shots/); assert.match(txt[pT], /layups left out/);
+  assert.match(txt[pT], /Most shots/); assert.match(txt[pT], /layups left out/);
   assert.match(txt[pG], /Average proximity: \d+ ft/); assert.ok(!/Average finish/.test(txt[pG]));
   // header count = GIRs in saved rounds; summary count + no-direction note add up to it
   const hdr = +txt[pG].match(/(\d+) greens in regulation in (\d+) rounds/)[1], rr = +txt[pG].match(/in (\d+) rounds/)[1]; assert.strictEqual(rr, 3, 'stub round not counted');
-  const shots = +txt[pG].match(/· (\d+) shots/)[1]; assert.strictEqual(shots, hdr, 'GIR count matches ' + hdr + ' vs ' + shots); assert.match(txt[pG].replace(/\s+/g, ' '), /\+ 1 GIR with no direction entered/); assert.match(txt[pG], /Red = the most shots/);
+  const shots = +txt[pG].match(/· (\d+) shots/)[1]; assert.strictEqual(shots, hdr, 'GIR count matches ' + hdr + ' vs ' + shots); assert.match(txt[pG].replace(/\s+/g, ' '), /\+ 1 GIR with no direction entered/); assert.match(txt[pG], /Most shots/);
   assert.ok(size < 1500000, 'email-friendly size ' + size);
   execSync(`pdftoppm -png -r 80 -f ${pT + 1} -l ${pT + 1} -singlefile ${f} ${OUT}/pdf-tee-heat`); execSync(`pdftoppm -png -r 80 -f ${pG + 1} -l ${pG + 1} -singlefile ${f} ${OUT}/pdf-gir-heat`);
   assert.deepStrictEqual(errors, []); console.log('PDFHEAT OK'); await b.close(); srv.kill();

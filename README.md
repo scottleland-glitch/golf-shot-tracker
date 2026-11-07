@@ -47,6 +47,18 @@ one dot per hole (its approach into the green) is drawn - white = green hit in r
 left and where it finished). Same approach / reach-green rules as the other maps. Holes without a pin are
 excluded and counted. This round / All rounds toggle.
 
+## PDF reports (v137)
+Both PDFs open with a cover page in the Instagram story look (story.js drawCover, 1080 x 1398 = Letter): round cover = the round
+(score, SG by category, fairways / GIR rings, putting row); Stats cover = averages per round across the rounds picked (STORY.combine).
+Stats PDF: cover, Summary (averages table), then Driver / Approach / Putting / Chipping / Scoring – each category starts on a new page
+(pdfStatsCats), graphs two per row; Scoring shows the all-rounds par 3 / 4 / 5 curves only (no last-round overlay).
+Round PDF: cover, Round summary, Scorecard, Strokes gained, then the same five Stats categories (all finished rounds) with this round's
+maps after each: Driver – tee shots this round + all-rounds heat map; Approach – group table, GIR, approach misses, one wide card per
+proximity group (map left, numbers + legend right), GIR all-rounds heat map, pin location (only when pins were set); Putting – 1st /
+2nd putts and the 1st-putts-made maps. Map cards carry a few key numbers, one-line squeezed tables (rows with something in them) and a
+short legend. Scoring: par curves with all rounds in colour and THIS round as a dark dashed line (stDist flip). No page number on the cover.
+The v117 "All putts" map was removed from the app and the PDF (too confusing).
+
 ## Best vs worst (v136)
 Rounds → ⚖ Best vs worst: best N vs worst N rounds by score vs par (− / + stepper). Sky look like Rounds and Stats. "Where the strokes go
 · per round": one sentence (how many more strokes the worst rounds average, biggest loss) and four tiles – Off the tee, Approach,
