@@ -44,7 +44,7 @@
   function fileName(round) {
     var d = new Date(round.date), day = isNaN(d) ? 'round' : d.getFullYear() + '-' + ('0' + (d.getMonth() + 1)).slice(-2) + '-' + ('0' + d.getDate()).slice(-2);
     var c = String(round.course || '').normalize('NFKD').replace(/[̀-ͯ]/g, '').replace(/[^A-Za-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 30);
-    return 'Pin-High-' + day + (c ? '-' + c : '') + '.png';
+    return 'Strokewise-' + day + (c ? '-' + c : '') + '.png';
   }
 
   // ---------- drawing ----------
@@ -63,6 +63,17 @@
     var cx = align === 'center' ? x - w / 2 : align === 'right' ? x - w : x, keep = ctx.textAlign; ctx.textAlign = 'left';
     chars.forEach(function (c) { ctx.fillText(c, cx, y); cx += ctx.measureText(c).width + spacing; });
     ctx.textAlign = keep;
+  }
+  // v135: the app icon (flag on a green) drawn small, left of the spaced wordmark; the pair is centred on x
+  function brand(ctx, text, x, y) {
+    var S = 46, gap = 18, sp = 10, chars = String(text).split(''), tw = chars.reduce(function (t, c) { return t + ctx.measureText(c).width; }, 0) + sp * (chars.length - 1);
+    var ix = x - (S + gap + tw) / 2, iy = y - S + 8;
+    ctx.save(); roundRect(ctx, ix, iy, S, S, 11); ctx.fillStyle = '#0b5d1e'; ctx.fill();
+    ctx.beginPath(); ctx.ellipse(ix + S * 0.5, iy + S * 0.72, S * 0.33, S * 0.13, 0, 0, Math.PI * 2); ctx.fillStyle = '#34a344'; ctx.fill();
+    ctx.beginPath(); ctx.ellipse(ix + S * 0.5, iy + S * 0.72, S * 0.05, S * 0.025, 0, 0, Math.PI * 2); ctx.fillStyle = '#000'; ctx.fill();
+    ctx.fillStyle = '#fff'; ctx.fillRect(ix + S * 0.48, iy + S * 0.14, S * 0.04, S * 0.58);
+    ctx.beginPath(); ctx.moveTo(ix + S * 0.52, iy + S * 0.14); ctx.lineTo(ix + S * 0.8, iy + S * 0.24); ctx.lineTo(ix + S * 0.52, iy + S * 0.34); ctx.closePath(); ctx.fillStyle = '#e52a2a'; ctx.fill();
+    ctx.restore(); spaced(ctx, text, ix + S + gap, y, sp, 'left');
   }
   function roundRect(ctx, x, y, w, h, r) {
     ctx.beginPath(); ctx.moveTo(x + r, y); ctx.arcTo(x + w, y, x + w, y + h, r); ctx.arcTo(x + w, y + h, x, y + h, r);
@@ -105,7 +116,7 @@
     background(ctx, bg);
 
     // Header
-    ctx.font = font(30, 700); ctx.fillStyle = GOLD; spaced(ctx, 'PIN HIGH', W / 2, 250, 10, 'center');
+    ctx.font = font(30, 700); ctx.fillStyle = GOLD; brand(ctx, 'STROKEWISE', W / 2, 250);
     ctx.textAlign = 'center'; ctx.fillStyle = '#fff';
     var course = fitText(ctx, d.course, CW, 64, 600, 40); ctx.fillText(course, W / 2, 340);
     var sub = [d.dateText, d.tee ? d.tee + ' tees' : '', d.player].filter(Boolean).join('  ·  ');
@@ -171,7 +182,7 @@
       ctx.font = font(28, 400); ctx.fillStyle = MUTED; ctx.fillText(r[0], rx - 140, ry);
     });
 
-    ctx.textAlign = 'center'; ctx.font = font(24, 400); ctx.fillStyle = 'rgba(255,255,255,0.5)'; spaced(ctx, 'TRACKED WITH PIN HIGH', W / 2, 1760, 4, 'center');
+    ctx.textAlign = 'center'; ctx.font = font(24, 400); ctx.fillStyle = 'rgba(255,255,255,0.5)'; spaced(ctx, 'TRACKED WITH STROKEWISE', W / 2, 1760, 4, 'center');
     ctx.restore();
   }
 

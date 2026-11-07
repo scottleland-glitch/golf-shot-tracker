@@ -12,7 +12,7 @@ const OUT = '/workspace/golf-app/screenshots/', PORT = 8834, BASE = 'http://127.
   const P = SHARE.payload(R, new Date('2026-10-29T22:00:00Z'));
   assert.deepStrictEqual([P.pinhigh, P.v, P.sent], ['round', 1, '2026-10-29T22:00:00.000Z']);
   assert.deepStrictEqual(P.round, R, 'the whole round: holes, shots, pins, clubs, course, tee, notes'); assert.notStrictEqual(P.round, R, 'a copy');
-  assert.strictEqual(SHARE.fileName(R), 'Pin-High-Round-' + (d => d.getFullYear() + '-' + ('0' + (d.getMonth() + 1)).slice(-2) + '-' + ('0' + d.getDate()).slice(-2))(new Date(R.date)) + '-Arcade-Creek.json');
+  assert.strictEqual(SHARE.fileName(R), 'Strokewise-Round-' + (d => d.getFullYear() + '-' + ('0' + (d.getMonth() + 1)).slice(-2) + '-' + ('0' + d.getDate()).slice(-2))(new Date(R.date)) + '-Arcade-Creek.json');
   const fileTxt = SHARE.fileText(R);
   assert.deepStrictEqual((await SHARE.read(fileTxt)).round, R, 'file round-trip');
   const gz = await SHARE.encode(R), plain = await SHARE.encode(R, { noGzip: true });
@@ -27,8 +27,8 @@ const OUT = '/workspace/golf-app/screenshots/', PORT = 8834, BASE = 'http://127.
   assert.match(await err(''), /Choose a file or paste a code/);
   assert.match(await err('hello there'), /should start with PINHIGH1:/);
   assert.match(await err('PINHIGH1:' + gz.slice(9, 200)), /incomplete or damaged|could not be read/);
-  assert.match(await err('{not json'), /isn’t a Pin High round/);
-  assert.match(await err(JSON.stringify({ hello: 1 })), /isn’t a Pin High round/);
+  assert.match(await err('{not json'), /isn’t a Strokewise round/);
+  assert.match(await err(JSON.stringify({ hello: 1 })), /isn’t a Strokewise round/);
   assert.match(await err(JSON.stringify(Object.assign({}, P, { v: 2 }))), /newer version/);
   assert.match(await err(JSON.stringify(Object.assign({}, P, { round: { id: 'x', holes: 'no' } }))), /damaged/);
   const bk = await SHARE.read(JSON.stringify(SG.makeBackup([R], new Date(), 'Scott')));
@@ -65,7 +65,7 @@ const OUT = '/workspace/golf-app/screenshots/', PORT = 8834, BASE = 'http://127.
   assert.match(await S.textContent('#sendround'), /Send round/);
   await S.click('#sendround'); await S.waitForSelector('#sendsheet');
   await S.waitForFunction(() => /characters/.test(document.querySelector('#sendcode small').textContent));
-  assert.match(await S.textContent('#sendsheet'), /Arcade Creek · 78 \(\+6\)/); assert.match(await S.textContent('#sendfile'), /Pin-High-Round-.*-Arcade-Creek\.json/);
+  assert.match(await S.textContent('#sendsheet'), /Arcade Creek · 78 \(\+6\)/); assert.match(await S.textContent('#sendfile'), /Strokewise-Round-.*-Arcade-Creek\.json/);
   await S.screenshot({ path: OUT + 'send-round-button.png' });
   await S.click('#sendfile'); await S.waitForFunction(() => window.__shared.length === 1);
   const sentFile = (await S.evaluate(() => window.__shared[0])).files[0];
@@ -95,7 +95,7 @@ const OUT = '/workspace/golf-app/screenshots/', PORT = 8834, BASE = 'http://127.
   const pick = async (name, text) => { await Q.setInputFiles('#addroundfile', { name, mimeType: 'application/json', buffer: Buffer.from(text) }); };
   const paste = async t => { await Q.fill('#addcode', t); await Q.click('#addcodego'); };
   await paste('hello'); await Q.waitForSelector('#adderr'); assert.match(await Q.textContent('#adderr'), /PINHIGH1:/); assert.strictEqual(await Q.inputValue('#addcode'), 'hello', 'pasted text kept');
-  await pick('notes.json', '{"a":1}'); await Q.waitForFunction(() => /isn’t a Pin High round/.test((document.getElementById('adderr') || {}).textContent));
+  await pick('notes.json', '{"a":1}'); await Q.waitForFunction(() => /isn’t a Strokewise round/.test((document.getElementById('adderr') || {}).textContent));
   await pick('golf-rounds-Scott.json', JSON.stringify(SG.makeBackup([R], new Date(), 'Scott'))); await Q.waitForFunction(() => /full backup/.test((document.getElementById('adderr') || {}).textContent));
   assert.ok(await Q.$('#adderr.rsh-note'));
   // the file Scott sent → confirmation card

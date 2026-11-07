@@ -89,7 +89,7 @@ const ok = m => console.log('  ✓ ' + m), HOME = { lat: 36.5686, lng: -121.9497
     // ---- 3. button + the one-line explanation before any location prompt
     await openNew(); assert.strictEqual((await page.textContent('#nearbtn')).trim(), '📍 Courses near me'); await light('#nearbtn'); await shot('courses-near-picker');
     await page.click('#nearbtn'); await page.waitForSelector('#nearwhy');
-    assert.strictEqual(await page.textContent('#nearwhy'), 'Pin High uses your location once to find nearby courses. It isn\'t saved or sent anywhere.');
+    assert.strictEqual(await page.textContent('#nearwhy'), 'Strokewise uses your location once to find nearby courses. It isn\'t saved or sent anywhere.');
     assert.strictEqual(await page.evaluate(() => window.__geoCalls || 0), 0, 'no location asked yet'); assert.strictEqual(T.list, 0, 'list not downloaded yet'); await light('#nearwhy');
     await shot('courses-near-permission'); ok('button + plain explanation shown first; nothing asked or downloaded yet');
     // ---- 4. nearest 5, show more, search

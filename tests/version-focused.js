@@ -10,8 +10,8 @@ const swVer = (sw.match(/const CACHE = 'golf-sg-(v\d+)';/) || [])[1], cfgVers = 
 assert.ok(swVer, 'sw.js has a golf-sg-vN cache name'); assert.strictEqual(cfgVers.length, 1, 'exactly one appVersion in config.js');
 const cfgVer = cfgVers[0].match(/'(v\d+)'/)[1];
 assert.strictEqual(cfgVer, swVer, 'config.js appVersion (' + cfgVer + ') must equal the sw.js cache version (' + swVer + ')');
-assert.strictEqual(swVer, 'v134');
-assert.ok(!/Pin High v\d+/.test(app), 'no version typed into app.js – it reads GOLF_CONFIG.appVersion');
+assert.strictEqual(swVer, 'v135');
+assert.ok(!/(Pin High|Strokewise) v\d+/.test(app), 'no version typed into app.js – it reads GOLF_CONFIG.appVersion');
 ok('config.js appVersion ' + cfgVer + ' = sw.js cache golf-sg-' + swVer);
 (async () => {
   const srv = spawn('python3', ['-m', 'http.server', String(PORT), '--bind', '127.0.0.1'], { cwd: ROOT, stdio: 'ignore' });
@@ -25,7 +25,7 @@ ok('config.js appVersion ' + cfgVer + ' = sw.js cache golf-sg-' + swVer);
     await page.waitForSelector('#home'); if (await page.$('#namesheet')) await page.click('[data-act="nameskip"]');
     const look = sel => page.evaluate(s => { const e = document.querySelector(s); if (!e) return null; const c = getComputedStyle(e), r = e.getBoundingClientRect();
       return { t: e.textContent, fs: parseFloat(c.fontSize), fw: +c.fontWeight, col: c.color, r: r.toJSON(), vis: c.display !== 'none' && c.visibility !== 'hidden' && r.width > 0 }; }, sel);
-    const expect = 'Pin High ' + swVer, light = (L, n) => { assert.ok(L && L.vis, n + ' shown'); assert.strictEqual(L.t, expect, n + ' text'); assert.ok(L.fs <= 12 && L.fw <= 300, n + ' small + light ' + JSON.stringify(L)); };
+    const expect = 'Strokewise ' + swVer, light = (L, n) => { assert.ok(L && L.vis, n + ' shown'); assert.strictEqual(L.t, expect, n + ' text'); assert.ok(L.fs <= 12 && L.fw <= 300, n + ' small + light ' + JSON.stringify(L)); };
     // ---- 2. Home: bottom, small, light grey, not covering anything
     const H = await look('#homever'); light(H, 'Home version');
     assert.ok(H.r.bottom <= 844 && H.r.top > 844 - 40, 'at the very bottom ' + JSON.stringify(H.r));

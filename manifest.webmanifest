@@ -1,6 +1,6 @@
 {
-  "name": "Pin High",
-  "short_name": "Pin High",
+  "name": "Strokewise",
+  "short_name": "Strokewise",
   "description": "Track golf shots and strokes gained on the course.",
   "start_url": "./",
   "scope": "./",

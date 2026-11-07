@@ -47,6 +47,13 @@ one dot per hole (its approach into the green) is drawn - white = green hit in r
 left and where it finished). Same approach / reach-green rules as the other maps. Holes without a pin are
 excluded and counted. This round / All rounds toggle.
 
+## Name: Strokewise (v135, was Pin High)
+Everything people see says Strokewise: Home title, page title and Home Screen name (index.html, manifest), both PDF reports, the
+story picture (small app icon + STROKEWISE wordmark, "Tracked with Strokewise", file Strokewise-<date>-<course>.png), the live
+page, Send round (file Strokewise-Round-…json) and Help. Kept on purpose so nothing breaks: the web address and repo name
+(rounds are saved per address), PINHIGH1: round codes and the `pinhigh` payload key (old and new phones still swap rounds),
+the Google Drive folder "Pin High Backups" (old backups still found), cache names and the pinhigh-golfcore relay.
+
 ## Scoring chances (v134, was Birdie zone)
 Rounds → 🎯 Scoring chances, or a round's stats → 🎯 Scoring chances: every green hit in regulation on a green, the red 1-putt ring
 and a vertical "what if" slider (1 ft steps, up to 30'). v134: no bird picture; Stats-style This round / All rounds pill; three Quick-view

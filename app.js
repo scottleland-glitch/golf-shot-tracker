@@ -1,12 +1,12 @@
-/* Pin High (formerly Golf Shot Tracker) - UI (v4: shot rows + selectable SG baselines). Data lives in localStorage on the phone. */
+/* Strokewise (v135; was Pin High, before that Golf Shot Tracker) - UI (v4: shot rows + selectable SG baselines). Data lives in localStorage on the phone. */
 (function () {
   'use strict';
   // Family watching a shared round (?watch=<token>): a read-only live scorecard. Nothing below runs, so this phone's own rounds,
   // backups and settings are never read or changed by the viewer.
   var LIVE_DB = (window.GOLF_CONFIG || {}).liveDb || '';
-  var APP_VER = 'Pin High ' + ((window.GOLF_CONFIG || {}).appVersion || ''); // v107: shown small at the bottom of Settings and Home
+  var APP_VER = 'Strokewise ' + ((window.GOLF_CONFIG || {}).appVersion || ''); // v107: shown small at the bottom of Settings and Home
   if (window.LIVE && LIVE.watchId(location.search)) {
-    document.title = 'Pin High · Live'; document.body.classList.add('lvbody');
+    document.title = 'Strokewise · Live'; document.body.classList.add('lvbody');
     LIVE.startViewer(document.getElementById('app'), LIVE.watchId(location.search), { base: LIVE_DB, oriole: 'img/oriole.webp' });
     return;
   }
@@ -315,7 +315,7 @@
     var R = reportData(r), S = R.S, P = SG.pdfSafe, player = playerName() || r.player || '', dateTxt = new Date(r.date).toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' });
     return loadJsPDF().then(function () {
       var doc = new window.jspdf.jsPDF({ unit: 'pt', format: 'letter', orientation: 'portrait' }), M = 36, PW = 612, PH = 792, y;
-      doc.setProperties({ title: 'Pin High round report – ' + (r.course || '') + ' ' + dateTxt, author: player, creator: 'Pin High' });
+      doc.setProperties({ title: 'Strokewise round report – ' + (r.course || '') + ' ' + dateTxt, author: player, creator: 'Strokewise' });
       // v109: every bit of text is logged (page, left / right edge) so a test can check nothing runs past the right margin
       var LAY = [], TABS = [], txt0 = doc.text.bind(doc);
       doc.text = function (t, x, yy, o) {
@@ -328,7 +328,7 @@
       var font = function (sz) { doc.setFont('helvetica', 'normal'); doc.setFontSize(sz); };
       var ink = function (g) { doc.setTextColor(g == null ? 30 : g); };
       var header = function (title) {
-        font(9); ink(110); T((player ? player + ' · ' : '') + (r.course || 'Round') + ' · ' + dateTxt, M, 26); T('Pin High', PW - M, 26, { align: 'right' });
+        font(9); ink(110); T((player ? player + ' · ' : '') + (r.course || 'Round') + ' · ' + dateTxt, M, 26); T('Strokewise', PW - M, 26, { align: 'right' });
         font(16); ink(25); T(title, M, 54); doc.setDrawColor(190); doc.setLineWidth(0.6); doc.line(M, 63, PW - M, 63); doc.setDrawColor(0); ink(); return 84;
       };
       var heading = function (t, x, yy) { font(11.5); ink(40); T(t, x, yy); ink(); };
@@ -611,7 +611,7 @@
     var rangeWord = R.range === 'Selected round' && R.sel ? 'Round-' + R.sel.course : R.range;
     return loadJsPDF().then(function () {
       var doc = new window.jspdf.jsPDF({ unit: 'pt', format: 'letter', orientation: 'portrait' }), M = 36, PW = 612, PH = 792, BOT = PH - M - 14, y;
-      doc.setProperties({ title: 'Pin High stats – ' + (R.player || '') + ' ' + R.range, author: R.player, creator: 'Pin High' });
+      doc.setProperties({ title: 'Strokewise stats – ' + (R.player || '') + ' ' + R.range, author: R.player, creator: 'Strokewise' });
       var LAY = [], IMGS = [], CARDS = [], txt0 = doc.text.bind(doc);
       doc.text = function (t, x, yy, o) {
         var L = Array.isArray(t) ? t : [t], al = (o && o.align) || 'left', lh = doc.getFontSize() * doc.getLineHeightFactor(), pg = doc.getCurrentPageInfo().pageNumber;
@@ -621,7 +621,7 @@
       var font = function (sz) { doc.setFont('helvetica', 'normal'); doc.setFontSize(sz); }, ink = function (g) { doc.setTextColor(g == null ? 30 : g); };
       var T = function (t, x, yy, o) { doc.text(P(t), x, yy, o); };
       var header = function (title) {
-        font(9); ink(110); T((R.player ? R.player + ' · ' : '') + 'Stats · ' + R.range + ' · ' + dateTxt, M, 26); T('Pin High', PW - M, 26, { align: 'right' });
+        font(9); ink(110); T((R.player ? R.player + ' · ' : '') + 'Stats · ' + R.range + ' · ' + dateTxt, M, 26); T('Strokewise', PW - M, 26, { align: 'right' });
         font(16); ink(25); T(title, M, 54); doc.setDrawColor(190); doc.setLineWidth(0.6); doc.line(M, 63, PW - M, 63); doc.setDrawColor(0); ink(); return 82;
       };
       var wrap = function (t, w, sz) { font(sz); return doc.splitTextToSize(P(t), w); };
@@ -1233,7 +1233,7 @@
       '<button class="rsh-item" data-act="sendcode" id="sendcode">💬 Send as a text code<small>' + codeNote(V.code) + '</small></button>' +
       (V.copied ? '<p class="rsh-ok" id="sendcopied" role="status">✓ Copied – paste it into a message</p>' : '') +
       (V.showCode ? '<label class="rsh-lbl" for="sendcodebox">' + (V.copied ? 'The code' : 'Copy this code') + '</label><textarea id="sendcodebox" class="rsh-code" readonly rows="3">' + esc(V.code || '') + '</textarea>' : '') +
-      '<p class="rsh-help">On the other phone: Pin High → Rounds → 📥 Add a round, then choose the file or paste the code.</p>' +
+      '<p class="rsh-help">On the other phone: Strokewise → Rounds → 📥 Add a round, then choose the file or paste the code.</p>' +
       '<button class="rsh-item muted" data-act="sendclose">Close</button></div>';
   }
   function sendOpen() {
@@ -1244,7 +1244,7 @@
     var r = round(); if (!r) return; var name = SHARE.fileName(r), json = SHARE.fileText(r), file;
     try { file = new File([json], name, { type: 'application/json' }); } catch (e) { file = null; }
     if (file && navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
-      navigator.share({ files: [file], title: 'Pin High round' }).then(function () { toast('Round sent'); }).catch(function (e) {
+      navigator.share({ files: [file], title: 'Strokewise round' }).then(function () { toast('Round sent'); }).catch(function (e) {
         if (e && e.name === 'AbortError') return; download(json, name, 'application/json', 'Round file downloaded'); });
       return;
     }
@@ -1259,7 +1259,7 @@
     var r = round(); if (!r || !view.send) return;
     var go = function (code) {
       view.send.code = code;
-      var text = 'Pin High round – ' + roundLine(r).day + (r.course ? ', ' + r.course : '') + '. In Pin High: Rounds → Add a round, paste this:\n' + code;
+      var text = 'Strokewise round – ' + roundLine(r).day + (r.course ? ', ' + r.course : '') + '. In Strokewise: Rounds → Add a round, paste this:\n' + code;
       if (navigator.share) navigator.share({ text: text }).then(function () { toast('Code sent'); }).catch(function (e) { if (e && e.name === 'AbortError') return; copyCode(code); });
       else copyCode(code);
     };
@@ -1279,7 +1279,7 @@
         '<button class="rsh-go" data-act="open" data-id="' + esc(A.viewId) + '" id="addview">View round</button><button class="rsh-item muted" data-act="addclose">Done</button>';
       return o + '</div>';
     }
-    return o + '<div class="rsh-h" id="addh">Add a round</div><p class="rsh-sub">Got a round from someone’s Pin High? Add it to your rounds.</p>' +
+    return o + '<div class="rsh-h" id="addh">Add a round</div><p class="rsh-sub">Got a round from someone’s Strokewise? Add it to your rounds.</p>' +
       '<label class="rsh-go filebtn" for="addroundfile" id="addfilebtn">📂 Choose file</label><input type="file" id="addroundfile" accept=".json,application/json,text/plain" hidden>' +
       '<div class="rsh-or">or</div><label class="rsh-lbl" for="addcode">Paste code</label>' +
       '<textarea id="addcode" class="rsh-code" rows="3" placeholder="PINHIGH1:…" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false">' + esc(A.text || '') + '</textarea>' +
@@ -1499,7 +1499,7 @@
   function gdCardHTML() {
     if (!gdOn) return '';
     var h = '<div class="odcard gdcard" id="gdcard"><h3 class="tiphead">' + tipLbl('gdinfo', 'Google Drive backup') + tipBtn('gdinfo', 'i', 'About Google Drive backup') + '</h3>' +
-      tipText('gdinfo', 'Your rounds, saved courses, My Bag and Wedges chart are copied to Google Drive by themselves – after each round and when you open the app – into a folder called Pin High Backups, with one folder per player. Several phones can use the same Google account: each backup adds to what is there, nothing is overwritten. Google asks you to sign in again after about an hour; until then backups simply wait.');
+      tipText('gdinfo', 'Your rounds, saved courses, My Bag and Wedges chart are copied to Google Drive by themselves – after each round and when you open the app – into a folder called Pin High Backups (the app’s old name, kept so earlier backups are still found), with one folder per player. Several phones can use the same Google account: each backup adds to what is there, nothing is overwritten. Google asks you to sign in again after about an hour; until then backups simply wait.');
     if (!gdState.connected) return h + '<p class="odstat">Keeps a copy of everything safe in your Google Drive.</p><button class="big primary gdgo" data-act="gdconnect" id="gdconnect">Connect Google Drive</button></div>';
     var tok = gdTok();
     h += '<p class="odacct" id="gdacct">' + (gdState.user ? 'Connected as <b>' + esc(gdState.user) + '</b>' : 'Connected') + '</p><p class="odstat" id="gdstat" role="status">' + gdStatus(tok) + '</p>';
@@ -1636,7 +1636,7 @@
     var cur = rounds.filter(function (r) { return r.id === localStorage.getItem(CUR); })[0];
     if (!view.nameSheet && needFirstName()) { view.nameSheet = 'first'; view.hmenu = null; }
     var h = '<div class="home" id="home"><div class="home-bg" aria-hidden="true"></div><div class="home-fade" aria-hidden="true"></div>' +
-      '<h1 class="home-title">Pin High</h1>' +
+      '<h1 class="home-title">Strokewise</h1>' +
       '<button class="glass plusbtn" id="plusbtn" data-act="plus" aria-label="Menu: new round, rounds, stats, my bag, settings or help" aria-expanded="' + !!view.hmenu + '">+</button>' +
 ''; // v89: no Player row on Home (kept clean) – it lives in the New round sheet
     var bot = '';
@@ -1680,7 +1680,7 @@
   function helpHTML() {
     var steps = ['Tap <b>+</b> › <b>New round</b>, pick a course, <b>Start round</b>.', 'Log each shot: distance, lie, club.', 'Mark the shot that goes in: <b>In the hole</b> or <b>Hole out</b> (1-putts too).',
       '<b>Scorecard &amp; stats</b> works any time mid-round.', '<b>Finish round</b> on 18, then open <b>Stats</b>.'];
-    return '<div class="frostpage theme-sky helppage" id="helppage"><div class="topbar frost"><button class="txt frostbtn" data-act="home">‹ Home</button><div class="title"><b>Help</b><span>Get started with Pin High</span></div><span></span></div>' +
+    return '<div class="frostpage theme-sky helppage" id="helppage"><div class="topbar frost"><button class="txt frostbtn" data-act="home">‹ Home</button><div class="title"><b>Help</b><span>Get started with Strokewise</span></div><span></span></div>' +
       '<div class="frostcard hpcard" id="hpstart"><b class="hph">Get started</b><ol class="hpsteps">' + steps.map(function (t) { return '<li>' + t + '</li>'; }).join('') + '</ol></div>' +
       '<div class="frostcard hpcard" id="hpvideo"><b class="hph">Watch the video</b><small class="hpsub">Entering a round, finishing it, Stats · 3:41 · with voice</small>' +
       '<video id="hpvid" class="hpvid" controls playsinline preload="none" poster="help/poster.webp" src="help/PinHigh-Video.mp4" aria-label="How-to video: entering a round and Stats"></video></div>' +
@@ -1756,7 +1756,7 @@
   }
   function nearHTML() {
     var N = view.near, h = '<div class="nearbox" id="nearbox">';
-    if (N.step === 'ask') h += '<p class="nearwhy" id="nearwhy">Pin High uses your location once to find nearby courses. It isn\'t saved or sent anywhere.</p>' +
+    if (N.step === 'ask') h += '<p class="nearwhy" id="nearwhy">Strokewise uses your location once to find nearby courses. It isn\'t saved or sent anywhere.</p>' +
       '<button type="button" class="nearok" data-act="neargo">Find courses near me</button><button type="button" class="nearlink" data-act="nearname">Search by name instead</button>';
     else if (N.step === 'busy') h += '<p class="nearmsg" id="nearbusy" role="status">' + esc(N.msg) + '</p>';
     else if (N.step === 'list') {
@@ -1802,7 +1802,7 @@
     Promise.all([nearLoad(), where]).then(function (a) {
       if (view.near !== N) return;
       var p = a[1], msg = '';
-      if (p && p.err) { msg = p.err.code === 1 ? 'Location is turned off for Pin High – search by name instead.' : 'Couldn\'t get your location – search by name instead.'; p = null; }
+      if (p && p.err) { msg = p.err.code === 1 ? 'Location is turned off for Strokewise – search by name instead.' : 'Couldn\'t get your location – search by name instead.'; p = null; }
       nearSet({ step: 'list', pos: p, msg: msg });
     }, function () { if (view.near === N) nearSet({ step: 'err', retry: true, msg: 'Couldn\'t download the course list – check your connection and try again, or type the course in yourself.' }); });
   }
@@ -2282,7 +2282,7 @@
   function liveSelect() { var i = document.getElementById('livelink'); if (i) { i.focus(); i.select(); try { if (document.execCommand('copy')) toast('Link copied'); } catch (e) {} } }
   function liveSend(r) { // must run inside the tap (iOS share sheet needs it)
     var url = live.info(r.id).link;
-    if (navigator.share) navigator.share({ title: 'Pin High · Live', text: liveMsg(r), url: url }).catch(function (e) { if (!e || e.name !== 'AbortError') liveCopy(url); });
+    if (navigator.share) navigator.share({ title: 'Strokewise · Live', text: liveMsg(r), url: url }).catch(function (e) { if (!e || e.name !== 'AbortError') liveCopy(url); });
     else liveCopy(url);
   }
 
@@ -3870,7 +3870,7 @@
       rows: [[50, 16.7, 'estimate', 'est'], [75, 17.5, 'sourced', 'kpmg_wso2024'], [100, 20.1, 'sourced', 'kpmg_wso2024'], [125, 24.8, 'sourced', 'kpmg_wso2024'],
         [150, 31.5, 'sourced', 'kpmg_wso2024'], [175, 38.7, 'sourced', 'kpmg_wso2024'], [200, 47.1, 'estimate', 'est']] },
     d1m: { band: 25, open: true, source: 'Upgame (Trackman), Pac-12 men: 7 teams, 700+ rounds, 2022',
-      caveat: 'One conference, user-entered shots, all approach lies (closest to how Pin High counts).',
+      caveat: 'One conference, user-entered shots, all approach lies (closest to how Strokewise counts).',
       rows: [[50, 21.8, 'sourced', 'upgame_pac12'], [75, 23.2, 'sourced', 'upgame_pac12'], [100, 26.3, 'sourced', 'upgame_pac12'], [125, 29.9, 'sourced', 'upgame_pac12'],
         [150, 34.0, 'sourced', 'upgame_pac12'], [175, 40.6, 'sourced', 'upgame_pac12'], [200, 50.1, 'sourced', 'upgame_pac12'], [225, 60.7, 'sourced', 'upgame_pac12'], [250, 100.1, 'sourced', 'upgame_pac12']] },
     // D1 women: Shot Scope D1 women's chart (ft), 10-yd bands. 180 yd and up are not on the chart: extended from the trend and marked estimated.

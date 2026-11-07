@@ -158,14 +158,14 @@
     var out = '<div class="frostpage theme-sky lvpage" id="lvpage">';
     if (!s) {
       var msg = o.state === 'gone' ? 'This live round isn’t available. The link may be old, or sharing was stopped.' : o.state === 'error' ? 'Couldn’t reach the live scorecard. Check your signal – it will keep trying.' : 'Loading the live scorecard…';
-      return out + '<div class="lvhead frostcard"><p class="lvkick">Pin High · Live</p><h1>Live round</h1><p class="lvmsg" id="lvmsg">' + esc(msg) + '</p></div></div>';
+      return out + '<div class="lvhead frostcard"><p class="lvkick">Strokewise · Live</p><h1>Live round</h1><p class="lvmsg" id="lvmsg">' + esc(msg) + '</p></div></div>';
     }
     var who = s.name || 'Live round', date = '';
     try { date = s.date ? new Date(s.date).toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' }) : ''; } catch (e) {}
     var inProg = s.h[(s.cur || 1) - 1], status = s.fin ? 'Final' : s.thru ? 'Thru ' + s.thru : 'Not started';
     if (o.state === 'gone') out += '<div class="lvbanner" id="lvbanner">Sharing was stopped. This is the last score that was sent.</div>';
     else if (s.fin) out += '<div class="lvbanner fin" id="lvbanner">Round finished – final scorecard</div>';
-    out += '<div class="lvhead frostcard"><p class="lvkick"><span class="lvdot' + (o.state === 'live' && !s.fin ? ' on' : '') + '"></span>' + (s.fin ? 'Final' : 'Live') + ' · Pin High</p>' +
+    out += '<div class="lvhead frostcard"><p class="lvkick"><span class="lvdot' + (o.state === 'live' && !s.fin ? ' on' : '') + '"></span>' + (s.fin ? 'Final' : 'Live') + ' · Strokewise</p>' +
       '<h1>' + esc(who) + '</h1><p class="lvsub">' + esc([s.course, s.tee ? s.tee + ' tees' : '', date].filter(Boolean).join(' · ')) + '</p>' +
       '<div class="lvbig"><b id="lvtopar" class="' + (s.thru ? (s.toPar < 0 ? 'under' : s.toPar > 0 ? 'over' : 'even') : '') + '">' + (s.thru ? toPar(s.toPar) : '–') + '</b><span><span id="lvthru">' + status + '</span>' +
       (s.thru ? '<small>' + s.strokes + ' strokes</small>' : '') + (!s.fin && inProg ? '<small id="lvnow">Now on hole ' + s.cur + (inProg.live ? ' · ' + inProg.live + ' shot' + (inProg.live === 1 ? '' : 's') + ' so far' : '') + '</small>' : '') + '</span></div>' +

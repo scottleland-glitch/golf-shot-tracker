@@ -8,7 +8,7 @@
   function payload(r, now) { return { pinhigh: TYPE, v: V, app: 'golf-shot-tracker', sent: (now || new Date()).toISOString(), round: clone(r) }; }
   function slug(s) { return String(s || '').normalize('NFKD').replace(/[\u0300-\u036f]/g, '').replace(/[^A-Za-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 40); }
   function dayOf(iso) { var d = new Date(iso); if (isNaN(d)) return 'round'; return d.getFullYear() + '-' + ('0' + (d.getMonth() + 1)).slice(-2) + '-' + ('0' + d.getDate()).slice(-2); }
-  function fileName(r) { var c = slug(r.course); return 'Pin-High-Round-' + dayOf(r.date) + (c ? '-' + c : '') + '.json'; }
+  function fileName(r) { var c = slug(r.course); return 'Strokewise-Round-' + dayOf(r.date) + (c ? '-' + c : '') + '.json'; }
   function fileText(r, now) { return JSON.stringify(payload(r, now)); }
   // ---- bytes <-> base64url
   function b64u(bytes) { var s = '', k = 0x8000; for (var i = 0; i < bytes.length; i += k) s += String.fromCharCode.apply(null, bytes.subarray(i, i + k)); return btoa(s).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, ''); }
@@ -33,11 +33,11 @@
   }
   // check(text or object) → { round } | { error, backup? }
   function check(data) {
-    if (typeof data === 'string') { try { data = JSON.parse(data); } catch (e) { return { error: 'That isn’t a Pin High round (it could not be read).' }; } }
+    if (typeof data === 'string') { try { data = JSON.parse(data); } catch (e) { return { error: 'That isn’t a Strokewise round (it could not be read).' }; } }
     if (data && !Array.isArray(data) && (data.kind === 'rounds-backup' || (Array.isArray(data.rounds) && !data.pinhigh)) || Array.isArray(data))
       return { backup: true, error: 'That’s a full backup file, not a single round. To bring a whole backup onto this phone use Settings → 📂 Restore from backup.' };
-    if (!data || data.pinhigh !== TYPE) return { error: 'That isn’t a Pin High round.' };
-    if (data.v !== V) return { error: 'That round was sent from a newer version of Pin High – update the app and try again.' };
+    if (!data || data.pinhigh !== TYPE) return { error: 'That isn’t a Strokewise round.' };
+    if (data.v !== V) return { error: 'That round was sent from a newer version of Strokewise – update the app and try again.' };
     var r = data.round;
     if (!r || typeof r.id !== 'string' || !r.id || !Array.isArray(r.holes) || !r.holes.length || !r.holes.every(function (h) { return h && Array.isArray(h.rows); }))
       return { error: 'That round is damaged (its holes could not be read).' };
@@ -49,7 +49,7 @@
     if (!s) return Promise.resolve({ error: 'Choose a file or paste a code first.' });
     var code = findCode(s); if (code) return decodeCode(code, opts);
     if (s.charAt(0) === '{' || s.charAt(0) === '[') return Promise.resolve(check(s));
-    return Promise.resolve({ error: 'That isn’t a Pin High round code – it should start with PINHIGH1:' });
+    return Promise.resolve({ error: 'That isn’t a Strokewise round code – it should start with PINHIGH1:' });
   }
   function shotsKey(r) { return JSON.stringify((r.holes || []).map(function (h) { return [h.par, (h.rows || []).map(function (x) { return [x.loc || '', String(x.dist == null ? '' : x.dist), x.dir || '', !!x.pen]; })]; })); }
   // already there? same id, or same course + same start time + identical shots

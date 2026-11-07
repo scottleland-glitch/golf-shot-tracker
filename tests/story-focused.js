@@ -22,7 +22,7 @@ assert.strictEqual(D.putting.avg2nd, Math.round(10 * second.reduce((t, p) => t +
 assert.strictEqual(D.putting.avg2nd, 2, 'sample leaves every 1st putt 2 ft away');
 assert.strictEqual(D.putting.longest, Math.max(...made.map(p => p.ft)));
 assert.strictEqual(D.putting.onePutts, 5, 'five 1-putt holes in the sample'); assert.strictEqual(D.putting.threePutts, 0);
-assert.match(STORY.fileName(R), /^Pin-High-\d{4}-\d\d-\d\d-Arcade-Creek\.png$/);
+assert.match(STORY.fileName(R), /^Strokewise-\d{4}-\d\d-\d\d-Arcade-Creek\.png$/);
 assert.strictEqual(STORY.fmtSG(1.234), '+1.23'); assert.strictEqual(STORY.fmtSG(-0.001), '0.00');
 ok('story numbers match the round: 78 (+6), SG by category, FW 8/14, GIR 7/18, avg 2nd putt ' + D.putting.avg2nd + ' ft');
 (async () => {
@@ -66,7 +66,7 @@ ok('story numbers match the round: 78 (+6), SG by category, FW 8/14, GIR 7/18, a
     ok('⤢ full screen, tap to zoom 2x and back, ✕ closes');
     await page.click('#storyshare'); await page.waitForFunction(() => window.__shared);
     const shared = await page.evaluate(() => window.__shared);
-    assert.strictEqual(shared.length, 1); assert.strictEqual(shared[0].type, 'image/png'); assert.match(shared[0].name, /^Pin-High-.*Arcade-Creek\.png$/); assert.ok(shared[0].size > 50000);
+    assert.strictEqual(shared.length, 1); assert.strictEqual(shared[0].type, 'image/png'); assert.match(shared[0].name, /^Strokewise-.*Arcade-Creek\.png$/); assert.ok(shared[0].size > 50000);
     ok('Share picture hands the share sheet one PNG: ' + shared[0].name);
     await page.click('[data-act="storyclose"]'); assert.strictEqual(await page.$('#storysheet'), null); ok('Close removes the sheet');
     assert.deepStrictEqual(errors, [], 'no page errors'); console.log('PASS story-focused');
