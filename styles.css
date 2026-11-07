@@ -286,7 +286,19 @@ body.noscroll { overflow: hidden; }
 .pdfsheet { border: 1px solid #0b5d1e; border-radius: 18px; padding: 12px; margin: 10px 0; background: #f3fbf4; }
 .pdfsheet .txt { display: block; margin: 6px auto 0; min-height: 44px; font-weight: 700; }
 .storybtn small { display: block; font-weight: 400; font-size: 13px; opacity: 0.85; }
-.storysheet .storyprev { display: block; width: 62%; max-width: 280px; margin: 10px auto; border-radius: 14px; box-shadow: 0 6px 20px rgba(0, 0, 0, 0.3); }
+.storywrap { position: relative; width: 62%; max-width: 280px; margin: 10px auto; }
+.storysheet .storyprev { display: block; width: 100%; border-radius: 14px; box-shadow: 0 6px 20px rgba(0, 0, 0, 0.3); cursor: zoom-in; }
+.storyexp { position: absolute; top: 8px; right: 8px; width: 44px; height: 44px; min-height: 44px; padding: 0; border-radius: 50%; border: 0;
+  background: rgba(0, 0, 0, 0.55); color: #fff; font-size: 24px; line-height: 44px; box-shadow: none; }
+.storyfull { position: fixed; inset: 0; z-index: 1000; background: #000; }
+.storyfull .sfscroll { position: absolute; inset: 0; overflow: hidden; display: flex; align-items: center; justify-content: center; -webkit-overflow-scrolling: touch; }
+.storyfull .sfscroll.zoomed { overflow: auto; display: block; }
+.storyfull .sfimg { max-width: 100%; max-height: 100%; object-fit: contain; cursor: zoom-in; }
+.storyfull .sfimg.zoomed { max-width: none; max-height: none; width: 200%; cursor: zoom-out; }
+.storyfull .sfclose { position: absolute; top: calc(10px + env(safe-area-inset-top)); right: 12px; width: 44px; height: 44px; min-height: 44px; padding: 0; border-radius: 50%; border: 0;
+  background: rgba(255, 255, 255, 0.18); color: #fff; font-size: 22px; line-height: 44px; box-shadow: none; }
+.storyfull .sfhint { position: absolute; left: 50%; bottom: calc(14px + env(safe-area-inset-bottom)); transform: translateX(-50%); margin: 0; padding: 6px 14px;
+  border-radius: 999px; background: rgba(255, 255, 255, 0.16); color: #fff; font-size: 13px; pointer-events: none; }
 
 /* v35 softer look (function unchanged): 1px low-contrast lines, soft shadows, more air. Key numbers keep bold colour. */
 :root { --shadow: 0 1px 2px rgba(0,0,0,.06), 0 2px 8px rgba(0,0,0,.06); }

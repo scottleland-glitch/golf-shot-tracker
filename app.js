@@ -159,7 +159,7 @@
     else if (view.screen === 'about') el.innerHTML = aboutHTML();
     else { el.innerHTML = '<div class="frostpage roundpage' + roundTheme() + '">' + summaryHTML() + (view.send && round() && view.send.id === round().id ? sendSheetHTML(round()) : '') + (view.mv && view.mv.from === 'summary' && view.mv.sheet ? mvSheetHTML() : '') + (view.map ? mapHTML() : '') + (view.replay != null ? replayHTML() : '') + '</div>'; if (view.map) applyHeat(); if (view.preview) previewOnly(el); }
     document.body.classList.toggle('onhome', !!el.querySelector('#home'));
-    if (view.screen !== 'hole') document.body.classList.toggle('noscroll', !!(view.map && view.screen === 'summary'));
+    if (view.screen !== 'hole') document.body.classList.toggle('noscroll', !!((view.map || (view.story && view.story.full)) && view.screen === 'summary'));
     if (view.replay != null) document.body.classList.add('noscroll');
     if (view.screen !== 'about') { legendNotes(el); infoize(el); }
   }
@@ -727,14 +727,31 @@
     if (p.busy) return '<div class="pdfsheet storysheet" id="storysheet" role="status"><b>Making your story picture…</b></div>';
     if (p.error) return '<div class="pdfsheet storysheet" id="storysheet"><p class="notice bad">' + esc(p.error) + '</p><button class="big" data-act="storyclose">Close</button></div>';
     return '<div class="pdfsheet storysheet" id="storysheet"><b>📸 Story picture ready</b>' +
-      '<img class="storyprev" id="storyprev" src="' + p.url + '" alt="Round story picture">' +
+      '<div class="storywrap"><img class="storyprev" id="storyprev" src="' + p.url + '" alt="Round story picture" data-act="storyfull">' +
+      '<button class="storyexp" id="storyexp" data-act="storyfull" aria-label="View full screen">⤢</button></div>' +
       '<p class="help muted">Share it, then pick Instagram or TikTok – or Save Image to post it from Photos.</p>' +
       '<button class="primary big" data-act="storyshare" id="storyshare">Share picture</button>' +
-      '<button class="txt" data-act="storyclose">Close</button></div>';
+      '<button class="txt" data-act="storyclose">Close</button></div>' + (p.full ? storyFullHTML(p) : '');
+  }
+  // v132 full-screen look at the picture: fits the screen; a tap zooms to 2x to read the numbers, another tap fits again
+  function storyFullHTML(p) {
+    return '<div class="storyfull" id="storyfull" role="dialog" aria-label="Story picture full screen"><div class="sfscroll" id="sfscroll">' +
+      '<img class="sfimg" id="sfimg" src="' + p.url + '" alt="Round story picture" data-act="storyzoom"></div>' +
+      '<button class="sfclose" id="sfclose" data-act="storyfullclose" aria-label="Close full screen">✕</button>' +
+      '<p class="sfhint" id="sfhint">Tap to zoom</p></div>';
   }
   function storyClose() { if (view.story && view.story.url) URL.revokeObjectURL(view.story.url); view.story = null; }
   function storyAct(act) {
     if (act === 'storyclose') { storyClose(); render(); return; }
+    if (act === 'storyfull' || act === 'storyfullclose') { if (view.story && view.story.url) { view.story.full = act === 'storyfull'; render(); } return; }
+    if (act === 'storyzoom') { // no re-render, so the zoomed spot stays where it was tapped
+      var im = document.getElementById('sfimg'), box = document.getElementById('sfscroll'), hint = document.getElementById('sfhint'); if (!im || !box) return;
+      var ev = window.event, rect = im.getBoundingClientRect(), fx = ev && rect.width ? (ev.clientX - rect.left) / rect.width : 0.5, fy = ev && rect.height ? (ev.clientY - rect.top) / rect.height : 0.5;
+      var zoom = !im.classList.contains('zoomed'); im.classList.toggle('zoomed', zoom); box.classList.toggle('zoomed', zoom);
+      if (hint) hint.textContent = zoom ? 'Tap to fit' : 'Tap to zoom';
+      if (zoom) { box.scrollLeft = Math.max(0, fx * im.offsetWidth - box.clientWidth / 2); box.scrollTop = Math.max(0, fy * im.offsetHeight - box.clientHeight / 2); }
+      return;
+    }
     var r = round(); if (!r) return;
     if (act === 'story') {
       storyClose(); view.story = { busy: true, id: r.id }; render();
@@ -4245,7 +4262,7 @@
       case 'gdlmissing': view.restore.items.forEach(function (it) { if (it.status === 'new') view.restore.sel[it.round.id] = true; }); render(); return;
       case 'gdlclear': view.restore.sel = {}; render(); return;
       case 'pdfclose': view.pdf = null; render(); return;
-      case 'story': case 'storyshare': case 'storyclose': storyAct(act); return;
+      case 'story': case 'storyshare': case 'storyclose': case 'storyfull': case 'storyfullclose': case 'storyzoom': storyAct(act); return;
       case 'setname': setName((document.getElementById('pname') || {}).value); return;
       case 'editname': view.editName = true; render(); var pi = document.getElementById('pname'); if (pi) pi.focus(); return;
       case 'cancelname': view.editName = false; view.needName = null; render(); return;

@@ -1,5 +1,5 @@
 // v131 Round story picture. Round stats → "Share to Instagram / TikTok" draws a 1080x1920 picture of the round
-// (story.js): score, strokes gained off the tee / around the green / putting, fairways, GIR and feet of putts holed.
+// (story.js): score, strokes gained off the tee / around the green / putting, fairways, GIR and avg 2nd putt (v132).
 // Checks the numbers against SG.summarize, then the phone flow: button → preview → share picks a PNG file.
 // iPhone 390x844. Run: node tests/story-focused.js
 const { chromium } = require('playwright-core'); const assert = require('assert'); const { spawn } = require('child_process'); const fs = require('fs');
@@ -15,12 +15,15 @@ assert.deepStrictEqual([D.sg.ott, D.sg.arg, D.sg.putt, D.sg.app, D.sg.total], [S
 assert.deepStrictEqual([D.fw.hit, D.fw.total, D.fw.pct, D.gir.hit, D.gir.total, D.gir.pct], [8, 14, 57, 7, 18, 39]);
 const made = S.puttList.filter(p => p.made);
 assert.strictEqual(D.putting.putts, 31);
-assert.strictEqual(D.putting.feetMade, Math.round(made.reduce((t, p) => t + p.ft, 0)), 'feet of putts holed = every made putt');
+const second = S.puttList.filter(p => p.n === 2);
+assert.strictEqual(D.putting.n2nd, 13, '13 holes needed a 2nd putt (18 holes, five 1-putts)');
+assert.strictEqual(D.putting.avg2nd, Math.round(10 * second.reduce((t, p) => t + p.ft, 0) / second.length) / 10, 'avg 2nd putt = mean of every 2nd putt');
+assert.strictEqual(D.putting.avg2nd, 2, 'sample leaves every 1st putt 2 ft away');
 assert.strictEqual(D.putting.longest, Math.max(...made.map(p => p.ft)));
 assert.strictEqual(D.putting.onePutts, 5, 'five 1-putt holes in the sample'); assert.strictEqual(D.putting.threePutts, 0);
 assert.match(STORY.fileName(R), /^Pin-High-\d{4}-\d\d-\d\d-Arcade-Creek\.png$/);
 assert.strictEqual(STORY.fmtSG(1.234), '+1.23'); assert.strictEqual(STORY.fmtSG(-0.001), '0.00');
-ok('story numbers match the round: 78 (+6), SG by category, FW 8/14, GIR 7/18, ' + D.putting.feetMade + ' ft holed');
+ok('story numbers match the round: 78 (+6), SG by category, FW 8/14, GIR 7/18, avg 2nd putt ' + D.putting.avg2nd + ' ft');
 (async () => {
   const srv = spawn('python3', ['-m', 'http.server', String(PORT), '--bind', '127.0.0.1'], { cwd: ROOT, stdio: 'ignore' });
   await new Promise(r => setTimeout(r, 1500)); const errors = [];
@@ -45,6 +48,21 @@ ok('story numbers match the round: 78 (+6), SG by category, FW 8/14, GIR 7/18, '
     await page.locator('#storysheet').screenshot({ path: OUT + 'story-sheet.png' });
     const png = await page.evaluate(() => new Promise(r => { const f = new FileReader(); f.onload = () => r(f.result); f.readAsDataURL(window.__golf.lastStory.blob); }));
     fs.writeFileSync(OUT + 'story-arcade.png', Buffer.from(png.split(',')[1], 'base64'));
+    // v132 full screen: ⤢ fills the screen with the picture; tap zooms to 2x (scrolls), tap again fits; ✕ closes
+    await page.click('#storyexp'); await page.waitForSelector('#storyfull');
+    const full = await page.evaluate(() => { const o = document.getElementById('storyfull').getBoundingClientRect(), i = document.getElementById('sfimg').getBoundingClientRect();
+      return { o: [o.left, o.top, o.width, o.height], i: [i.width, i.height], noscroll: document.body.classList.contains('noscroll') }; });
+    assert.deepStrictEqual(full.o, [0, 0, 390, 844], 'overlay covers the whole screen'); assert.ok(full.noscroll, 'page behind does not scroll');
+    assert.ok(Math.abs(full.i[0] - 390) < 2 && full.i[1] < 844 && full.i[1] > 680, 'picture fits the screen width ' + JSON.stringify(full.i));
+    await page.screenshot({ path: OUT + 'story-full.png' });
+    await page.click('#sfimg', { position: { x: 300, y: 600 } });
+    const z = await page.evaluate(() => { const b = document.getElementById('sfscroll'), i = document.getElementById('sfimg'); return { w: i.getBoundingClientRect().width, sl: b.scrollLeft, st: b.scrollTop, hint: document.getElementById('sfhint').textContent }; });
+    assert.ok(Math.abs(z.w - 780) < 2 && z.sl > 0 && z.st > 0 && z.hint === 'Tap to fit', 'tap zooms to 2x around the tap ' + JSON.stringify(z));
+    await page.screenshot({ path: OUT + 'story-full-zoom.png' });
+    await page.click('#sfimg'); assert.ok(Math.abs((await page.locator('#sfimg').boundingBox()).width - 390) < 2, 'second tap fits again');
+    await page.click('#sfclose'); assert.strictEqual(await page.$('#storyfull'), null); assert.ok(await page.$('#storyprev'), 'back on the preview');
+    assert.ok(!(await page.evaluate(() => document.body.classList.contains('noscroll'))));
+    ok('⤢ full screen, tap to zoom 2x and back, ✕ closes');
     await page.click('#storyshare'); await page.waitForFunction(() => window.__shared);
     const shared = await page.evaluate(() => window.__shared);
     assert.strictEqual(shared.length, 1); assert.strictEqual(shared[0].type, 'image/png'); assert.match(shared[0].name, /^Pin-High-.*Arcade-Creek\.png$/); assert.ok(shared[0].size > 50000);

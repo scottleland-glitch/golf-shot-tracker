@@ -1,6 +1,6 @@
 // v131 Round story: a one-page 1080 x 1920 picture of a round for an Instagram or TikTok story.
 // Score, strokes gained off the tee / around the green / putting, fairways, greens in regulation and a putting
-// highlight (feet of putts holed), drawn on a canvas over the home photo. Nothing leaves the phone until the
+// highlight (average 2nd putt distance, v132), drawn on a canvas over the home photo. Nothing leaves the phone until the
 // golfer shares the picture. data() is plain numbers (tested in node); draw() and makeImage() need a browser.
 (function (root) {
   var W = 1080, H = 1920;
@@ -16,6 +16,8 @@
     opts = opts || {};
     var putts = S.puttList || [], made = putts.filter(function (p) { return p.made; });
     var firsts = putts.filter(function (p) { return p.n === 1; });
+    // v132 the putt left after the first putt: every 2nd putt of the round (1-putt holes have none)
+    var seconds = putts.filter(function (p) { return p.n === 2; });
     var d = new Date(round.date);
     return {
       course: String(round.course || 'Round').trim() || 'Round',
@@ -30,7 +32,8 @@
       gir: { hit: S.gir, total: S.girHoles, pct: pct(S.gir, S.girHoles) },
       putting: {
         putts: S.putts,
-        feetMade: Math.round(made.reduce(function (t, p) { return t + (Number(p.ft) || 0); }, 0)),
+        avg2nd: seconds.length ? Math.round(10 * seconds.reduce(function (t, p) { return t + (Number(p.ft) || 0); }, 0) / seconds.length) / 10 : null,
+        n2nd: seconds.length,
         longest: made.length ? Math.round(Math.max.apply(null, made.map(function (p) { return Number(p.ft) || 0; }))) : null,
         onePutts: firsts.filter(function (p) { return p.holePutts === 1; }).length,
         threePutts: firsts.filter(function (p) { return p.holePutts >= 3; }).length
@@ -155,9 +158,9 @@
     var y2 = 1414, h2 = 280, p = d.putting; panel(ctx, M, y2, CW, h2);
     label(ctx, 'Putting', M + 44, y2 + 62, 'left', MUTED);
     ctx.textAlign = 'left'; ctx.font = font(120, 300); ctx.fillStyle = GOLD;
-    var feet = String(p.feetMade); ctx.fillText(feet, M + 44, y2 + 180);
-    var fw2 = ctx.measureText(feet).width; ctx.font = font(48, 300); ctx.fillText(' ft', M + 44 + fw2, y2 + 180);
-    ctx.font = font(30, 400); ctx.fillStyle = '#fff'; ctx.fillText('of putts holed', M + 44, y2 + 232);
+    var feet = p.avg2nd == null ? '–' : p.avg2nd.toFixed(1); ctx.fillText(feet, M + 44, y2 + 180);
+    var fw2 = ctx.measureText(feet).width; ctx.font = font(48, 300); if (p.avg2nd != null) ctx.fillText(' ft', M + 44 + fw2, y2 + 180);
+    ctx.font = font(30, 400); ctx.fillStyle = '#fff'; ctx.fillText(p.avg2nd == null ? 'no 2nd putts' : 'avg 2nd putt', M + 44, y2 + 232);
     var rx = M + CW - 44, rows = [['Longest make', p.longest == null ? '–' : p.longest + ' ft'], ['Putts', String(p.putts)], ['1-putts', String(p.onePutts)], ['3-putts', String(p.threePutts)]];
     rows.forEach(function (r, i) {
       var ry = y2 + 102 + i * 50;
