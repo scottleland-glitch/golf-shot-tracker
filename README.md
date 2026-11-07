@@ -47,6 +47,14 @@ one dot per hole (its approach into the green) is drawn - white = green hit in r
 left and where it finished). Same approach / reach-green rules as the other maps. Holes without a pin are
 excluded and counted. This round / All rounds toggle.
 
+## Best vs worst (v136)
+Rounds → ⚖ Best vs worst: best N vs worst N rounds by score vs par (− / + stepper). Sky look like Rounds and Stats. "Where the strokes go
+· per round": one sentence (how many more strokes the worst rounds average, biggest loss) and four tiles – Off the tee, Approach,
+Around green, Putting – each worst minus best strokes gained per round (red = what the worst rounds lose; the biggest outlined), with
+best · worst underneath. "By distance · per round": From · Best · Worst · Diff (approach rows add avg ft · GIR in small grey). Maps:
+Proximity / GIR / Misses / 1st putts, distance chips for Proximity, and one full-width map with a Best rounds / Worst rounds switch
+(same scale). The v101 outline overlay and side-by-side maps were removed.
+
 ## Name: Strokewise (v135, was Pin High)
 Everything people see says Strokewise: Home title, page title and Home Screen name (index.html, manifest), both PDF reports, the
 story picture (small app icon + STROKEWISE wordmark, "Tracked with Strokewise", file Strokewise-<date>-<course>.png), the live

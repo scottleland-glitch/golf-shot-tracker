@@ -144,7 +144,7 @@
     if (view.screen === 'about') el.innerHTML = aboutHTML();
     else if (view.screen === 'history') el.innerHTML = historyHTML();
     else if (view.screen === 'stats') { var stLs = (document.getElementById('strounds') || {}).scrollTop; el.innerHTML = statsHTML(); var stL = document.getElementById('strounds'); if (stL && stLs != null) stL.scrollTop = stLs; stListScroll(); }
-    else if (view.screen === 'compare') { el.innerHTML = compareHTML2(); applyCompare(); }
+    else if (view.screen === 'compare') el.innerHTML = compareHTML2();
     else if (view.screen === 'restorepick') el.innerHTML = restorePickHTML();
     else if (view.screen === 'archive') el.innerHTML = archiveHTML();
     else if (view.screen === 'card') el.innerHTML = cardHTML();
@@ -3404,7 +3404,7 @@
     return o;
   }
   // ---------- Best vs worst rounds (app only) ----------
-  var CMP_KINDS = [['prox', 'Proximity'], ['gir', 'GIR'], ['miss', 'Approach misses'], ['putt', '1st putts']];
+  var CMP_KINDS = [['prox', 'Proximity'], ['gir', 'GIR'], ['miss', 'Misses'], ['putt', '1st putts']];
   function cmpRounds() {
     var L = rounds.filter(function (r) { return !SG.roundEmpty(r); }).map(function (r) { var S = SG.summarize(r, 'pga'); return { r: r, S: S, rel: S.holesDone ? S.toPar / S.holesDone * 18 : null }; })
       .filter(function (x) { return x.rel != null; }).sort(function (a, b) { return a.rel - b.rel || (a.S.strokes - b.S.strokes); });
@@ -3431,71 +3431,57 @@
       x.S.proxList.forEach(function (m) { var k = cmpBucket(m.from); if (b[k]) { b[k].girN++; if (m.hit) b[k].gir++; } }); });
     return { b: b, keys: keys, n: set.length };
   }
+  var CMP_CATS = [['tee', 'Off the tee'], ['approach', 'Approach'], ['short', 'Around green'], ['putting', 'Putting']];
+  function cmpAvg(L, f) { return L.length ? L.reduce(function (a, x) { return a + f(x); }, 0) / L.length : 0; }
+  // v136: four category tiles – strokes gained per round, worst minus best (minus = what the worst rounds lose there); the biggest loss is highlighted
+  function cmpCatHTML(C) {
+    var gaps = CMP_CATS.map(function (c) { var b = cmpAvg(C.best, function (x) { return x.S.cats[c[0]].sg; }), w = cmpAvg(C.worst, function (x) { return x.S.cats[c[0]].sg; }); return { id: c[0], name: c[1], b: b, w: w, d: w - b }; });
+    var low = gaps.slice().sort(function (x, y) { return x.d - y.d; })[0], diff = cmpAvg(C.worst, function (x) { return x.S.strokes; }) - cmpAvg(C.best, function (x) { return x.S.strokes; });
+    var lead = Math.round(diff) > 0 ? 'Worst rounds average <b>' + Math.round(diff) + ' more stroke' + (Math.round(diff) === 1 ? '' : 's') + '</b>.' + (low.d < -0.05 ? ' Biggest loss: <b>' + low.name + '</b>.' : '') : 'Best and worst rounds score about the same.';
+    return '<div class="frostcard cmpsum"><h3 class="cmph">Where the strokes go <small class="cmppr">per round</small>' + tipBtn('cmpcats', 'i', 'About these numbers') + '</h3>' +
+      tipText('cmpcats', 'Strokes gained per round vs PGA Tour, worst rounds minus best rounds. Minus (red) = strokes your worst rounds lose there; the biggest is outlined. Small numbers: best · worst on their own.') +
+      '<p class="cmplead" id="cmplead">' + lead + '</p><div class="cmpqv" id="cmpqv">' + gaps.map(function (g) {
+        return '<div class="qv' + (g === low && g.d < -0.05 ? ' big' : '') + '" data-q="' + g.id + '"><span class="qvl">' + g.name + '</span><b class="' + sgCls(g.d) + '">' + fmtSG(g.d) + '</b><small>' + fmtSG(g.b) + ' · ' + fmtSG(g.w) + '</small></div>'; }).join('') + '</div></div>';
+  }
   function cmpGapHTML(C) {
-    // v100: Best and Worst as two tinted column groups (Avg ft · GIR · SG each), then Gap behind a divider; rows grouped Approach / Short game / Putting
-    var B = cmpAgg(C.best), W = cmpAgg(C.worst), pr = function (x) { return x.pN ? Math.round(x.pS / x.pN) : '–'; }, gp = function (x) { return x.girN ? Math.round(x.gir / x.girN * 100) + '%' : '–'; };
-    var avg = function (L) { return L.reduce(function (a, x) { return a + x.S.strokes; }, 0) / L.length; };
-    var who = function (L) { return L.length === 1 ? esc(new Date(L[0].r.date).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })) + ' · ' + L[0].S.strokes : L.length + ' rounds · avg ' + Math.round(avg(L)); };
-    var o = '<div class="gapcard"><table id="gaptable" class="gaptable gapt"><colgroup><col class="c-from"><col span="3" class="c-b"><col span="3" class="c-w"><col class="c-gap"></colgroup>' +
-      '<thead><tr><th rowspan="2" class="from">From</th><th colspan="3" class="gb ghead" id="gapbesthead">Best<small>' + who(C.best) + '</small></th><th colspan="3" class="gw ghead" id="gapworsthead">Worst<small>' + who(C.worst) + '</small></th><th rowspan="2" class="gap">Gap</th></tr>' +
-      '<tr class="gsub"><th class="gb g1">Avg ft</th><th class="gb">GIR</th><th class="gb">SG</th><th class="gw g1">Avg ft</th><th class="gw">GIR</th><th class="gw">SG</th></tr></thead><tbody>';
-    var secs = [['Approach · yards', SG.APPR_BUCKETS.map(function (x) { return x.id; })], ['Short game · yards', [SG.SHORT_BUCKET]], ['Putting · first putt, feet', ['0-5 ft', '5-15 ft', '15-30 ft', '30+ ft']]];
+    // v136: From · Best · Worst · Diff (worst minus best); one SG number per cell, approach rows add a small "13′ · 100%" (avg ft · GIR) line
+    var B = cmpAgg(C.best), W = cmpAgg(C.worst), pr = function (x) { return x.pN ? Math.round(x.pS / x.pN) + '’' : '–'; }, gp = function (x) { return x.girN ? Math.round(x.gir / x.girN * 100) + '%' : '–'; };
+    var o = '<div class="frostcard cmpdist"><h3 class="cmph">By distance <small class="cmppr">per round</small>' + tipBtn('cmpdist', 'i', 'About this table') + '</h3>' +
+      tipText('cmpdist', '<b>Best / Worst</b> = strokes gained per round from that distance vs PGA Tour. Approach rows also show how far from the hole the approaches finished (feet) and greens hit. <b>Diff</b> = worst minus best: red is where your bad rounds lose strokes.') +
+      '<table id="gaptable" class="gapt2"><colgroup><col class="c-from"><col class="c-b"><col class="c-w"><col class="c-gap"></colgroup>' +
+      '<thead><tr><th class="from">From</th><th class="gb" id="gapbesthead">Best</th><th class="gw" id="gapworsthead">Worst</th><th class="gap">Diff</th></tr></thead><tbody>';
+    var secs = [['Approach · yd', SG.APPR_BUCKETS.map(function (x) { return x.id; })], ['Around green · yd', [SG.SHORT_BUCKET]], ['Putting · 1st putt', ['0-5 ft', '5-15 ft', '15-30 ft', '30+ ft']]];
     secs.forEach(function (sec) {
       var rows = sec[1].filter(function (k) { return B.b[k] && (B.b[k].n || W.b[k].n); }); if (!rows.length) return;
       var ap = sec === secs[0];
-      o += '<tr class="gsec"><td colspan="8">' + sec[0] + '</td></tr>';
-      rows.forEach(function (k) { var b = B.b[k], w = W.b[k], sb = b.sg / B.n, sw = w.sg / W.n, gap = sb - sw;
-        o += '<tr data-bucket="' + k + '"><td class="from">' + k.replace(/ (yd|ft)$/, '').replace('-', '–') + '</td>' +
-          '<td class="gb g1">' + (ap ? pr(b) : '') + '</td><td class="gb">' + (ap ? gp(b) : '') + '</td><td class="gb ' + sgCls(sb) + '">' + fmtSG(sb) + '</td>' +
-          '<td class="gw g1">' + (ap ? pr(w) : '') + '</td><td class="gw">' + (ap ? gp(w) : '') + '</td><td class="gw ' + sgCls(sw) + '">' + fmtSG(sw) + '</td>' +
-          '<td class="gap ' + sgCls(gap) + '"><b>' + fmtSG(gap) + '</b></td></tr>'; });
+      o += '<tr class="gsec"><td colspan="4">' + sec[0] + '</td></tr>';
+      rows.forEach(function (k) { var b = B.b[k], w = W.b[k], sb = b.sg / B.n, sw = w.sg / W.n, d = sw - sb;
+        var cell = function (cls, sg, x) { return '<td class="' + cls + '"><b class="' + sgCls(sg) + '">' + fmtSG(sg) + '</b>' + (ap ? '<small>' + pr(x) + ' · ' + gp(x) + '</small>' : '') + '</td>'; };
+        o += '<tr data-bucket="' + k + '"><td class="from">' + (/ ft$/.test(k) ? k.replace(/ ft$/, '').replace('-', '–').replace(/(\d)(\+?)$/, '$1’$2') : k.replace(/ yd$/, '').replace('-', '–')) + '</td>' + cell('gb', sb, b) + cell('gw', sw, w) +
+          '<td class="gap ' + sgCls(d) + '"><b>' + fmtSG(d) + '</b></td></tr>'; });
     });
-    return o + '</tbody></table></div><p class="help muted gapnote"><b>Avg ft</b> = how far from the hole approaches from that distance finished (feet). <b>GIR</b> = greens in regulation hit from there. <b>SG</b> = strokes gained per round vs PGA Tour. ' +
-      '<b>Gap</b> = best minus worst – the biggest green gaps are where your bad rounds lose the most.</p>';
+    return o + '</tbody></table></div>';
   }
   function compareHTML2() {
-    var C = cmpRounds(), kind = view.cmpKind || 'prox', ov = !!view.cmpOverlay;
-    var h = '<div class="topbar"><button class="txt" data-act="history">‹ Rounds</button><div class="title"><b>Best vs worst rounds</b><span>by score vs par</span></div><span></span></div>';
-    if (C.maxN < 1) return h + '<p class="notice" id="cmpnone">You need at least 2 rounds with finished holes to compare.</p>';
+    var C = cmpRounds(), kind = view.cmpKind || 'prox', side = view.cmpSide === 'worst' ? 'worst' : 'best';
+    var h = '<div class="frostpage theme-sky cmppage" id="cmppage"><div class="topbar frost"><button class="txt frostbtn" data-act="history">‹ Rounds</button><div class="title"><b>Best vs worst</b><span>by score vs par</span></div><span class="tbspace"></span></div>';
+    if (C.maxN < 1) return h + '<p class="notice" id="cmpnone">You need at least 2 rounds with finished holes to compare.</p></div>';
     h += '<div class="cmpn" id="cmpn"><button data-act="cmpn" data-v="-1"' + (C.n <= 1 ? ' disabled' : '') + ' aria-label="Fewer rounds">−</button><span>Best <b>' + C.n + '</b> vs worst <b>' + C.n + '</b> round' + (C.n === 1 ? '' : 's') + '</span><button data-act="cmpn" data-v="1"' + (C.n >= C.maxN ? ' disabled' : '') + ' aria-label="More rounds">+</button></div>';
     var line = function (x) { return '<li><span class="cl-d">' + esc(new Date(x.r.date).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })) + '</span><span class="cl-c">' + esc(x.r.course || 'Round') + (x.S.holesDone < 18 ? ' · ' + x.S.holesDone + ' holes' : '') + '</span><span class="cl-s"><b>' + x.S.strokes + '</b> ' + toPar(x.S.toPar) + '</span></li>'; };
-    h += '<div class="cmpcols"><div class="cmpcard gbcard"><h3>Best</h3><ul class="cmplist" id="cmpbest">' + C.best.map(line).join('') + '</ul></div><div class="cmpcard gwcard"><h3>Worst</h3><ul class="cmplist" id="cmpworst">' + C.worst.map(line).join('') + '</ul></div></div>';
-    h += '<h2>Where the strokes go</h2>' + cmpGapHTML(C);
-    h += '<h2>Maps</h2><div class="seg cmpkinds" id="cmpkinds">' + CMP_KINDS.map(function (k) { return '<button data-act="cmpkind" data-v="' + k[0] + '" class="' + (k[0] === kind ? 'sel' : '') + '">' + k[1] + '</button>'; }).join('') + '</div>';
+    var avgS = function (L) { return Math.round(cmpAvg(L, function (x) { return x.S.strokes; })); };
+    h += '<div class="cmpcols"><div class="cmpcard gbcard"><h3>Best<small>avg ' + avgS(C.best) + '</small></h3><ul class="cmplist" id="cmpbest">' + C.best.map(line).join('') + '</ul></div>' +
+      '<div class="cmpcard gwcard"><h3>Worst<small>avg ' + avgS(C.worst) + '</small></h3><ul class="cmplist" id="cmpworst">' + C.worst.map(line).join('') + '</ul></div></div>';
+    h += cmpCatHTML(C) + cmpGapHTML(C);
+    // Maps: one full-width map, Best / Worst switch (same scale for both)
+    h += '<div class="frostcard cmpmapcard"><h3 class="cmph">Maps</h3><div class="bzseg cmpkinds" id="cmpkinds">' + CMP_KINDS.map(function (k) { return '<button data-act="cmpkind" data-v="' + k[0] + '" class="' + (k[0] === kind ? 'sel' : '') + '">' + k[1] + '</button>'; }).join('') + '</div>';
     var grp = null;
     if (kind === 'prox') { var all = cmpList(C.best.concat(C.worst), 'prox'), cnt = {}; all.forEach(function (m) { var k = cmpBucket(m.from); cnt[k] = (cnt[k] || 0) + 1; });
       grp = view.cmpGrp && cnt[view.cmpGrp] ? view.cmpGrp : SG.APPR_BUCKETS.map(function (x) { return x.id; }).filter(function (k) { return cnt[k]; }).sort(function (a, b) { return cnt[b] - cnt[a]; })[0] || null;
-      h += '<div class="seg cmpgrps" id="cmpgrps">' + SG.APPR_BUCKETS.map(function (x) { return '<button data-act="cmpgrp" data-v="' + x.id + '" class="' + (x.id === grp ? 'sel' : '') + '"' + (cnt[x.id] ? '' : ' disabled') + '>' + x.id.replace(' yd', '') + '<small> ' + (cnt[x.id] || 0) + '</small></button>'; }).join('') + '</div>'; }
-    var lb = cmpList(C.best, kind, grp), lw = cmpList(C.worst, kind, grp);
-    h += '<div class="seg" id="cmpmode"><button data-act="cmpov" data-v="0" class="' + (ov ? '' : 'sel') + '">Side by side</button><button data-act="cmpov" data-v="1" class="' + (ov ? 'sel' : '') + '">Overlay</button></div>';
-    if (!ov) h += '<div class="cmpmaps" id="cmpmaps"><figure class="cmpbest"><figcaption>Best · ' + lb.length + '</figcaption>' + cmpSVG(kind, lb, grp) + '</figure><figure class="cmpworst"><figcaption>Worst · ' + lw.length + '</figcaption>' + cmpSVG(kind, lw, grp) + '</figure></div>' +
-      '<p class="help muted">Same scale on both sides. Best rounds left, worst right (dashed border).</p>';
-    else h += '<div class="cmpov" id="cmpov">' + cmpSVG(kind, lw, grp).replace('<svg ', '<svg id="cmpovmap" ') + '<div class="cmphide" aria-hidden="true">' + cmpSVG(kind, lb, grp).replace('<svg ', '<svg id="cmpbestsrc" ') + '</div></div>' +
-      '<div class="legend" id="cmplegend"><span><i class="dot" style="background:transparent;border:2.5px solid #db1420"></i>Worst rounds – red cluster outlines</span><span><i class="dot" style="background:transparent;border:2.5px solid #000"></i>Best rounds – black cluster outlines</span></div>' +
-      '<p class="help muted">Overlay: outlines of where shots clustered – worst rounds red, best rounds black, same scale and the same Cluster setting. No fill and no dots; a lone shot gets a small outline. Best ' + lb.length + ' · worst ' + lw.length + ' shots.</p>';
-    return h;
-  }
-  function cmpPoints(svg) {
-    var out = []; svg.querySelectorAll('[data-hd]').forEach(function (e) { var k = (e.getAttribute('data-kind') || '') + (e.getAttribute('data-class') || ''); if (/nodir/.test(k)) return;
-      var b = e.getBBox(); out.push({ x: b.x + b.width / 2, y: b.y + b.height / 2, d: +e.getAttribute('data-hd') || 0, u: e.getAttribute('data-hu') || 'ft' }); });
-    return out;
-  }
-  function applyCompare() {
-    var ov = document.getElementById('cmpovmap'), src = document.getElementById('cmpbestsrc'); if (!ov || !src) return;
-    var kind = ov.getAttribute('data-kind'), C = heatCenter(ov, kind), wp = cmpPoints(ov), bp = cmpPoints(src), h = '<defs><filter id="hgoo" filterUnits="userSpaceOnUse" x="-2000" y="-2000" width="6000" height="6000"><feGaussianBlur in="SourceGraphic" stdDeviation="4.5" result="b"/><feColorMatrix in="b" mode="matrix" values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 22 -9"/></filter>' +
-      // best-round islands: the same goo shape, hollowed out to a 2.6 px black outline (no fill)
-      '<filter id="houtl" filterUnits="userSpaceOnUse" x="-2000" y="-2000" width="6000" height="6000"><feGaussianBlur in="SourceGraphic" stdDeviation="4.5" result="b"/><feColorMatrix in="b" mode="matrix" values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 22 -9" result="s"/>' +
-      '<feMorphology in="s" operator="erode" radius="2.6" result="e"/><feComposite in="s" in2="e" operator="out"/></filter>' +
-      '<filter id="houtlr" filterUnits="userSpaceOnUse" x="-2000" y="-2000" width="6000" height="6000"><feGaussianBlur in="SourceGraphic" stdDeviation="4.5" result="b"/><feColorMatrix in="b" mode="matrix" values="0 0 0 0 .86  0 0 0 0 .08  0 0 0 0 .12  0 0 0 22 -9" result="s"/>' +
-      '<feMorphology in="s" operator="erode" radius="2.6" result="e"/><feComposite in="s" in2="e" operator="out"/></filter></defs>';
-    ov.classList.add('heat');
-    // Overlay = outlines only: each cluster's smooth hugging island shape, hollowed (no fill, no dots). Worst = red, best = black on top.
-    var outl = function (pts, id, cls) { if (!pts.length) return ''; var I = heatIslandsReal(pts, heatReal(pts, C), heatClus());
-      return '<g id="' + id + '" filter="url(#' + (cls === 'worstisl' ? 'houtlr' : 'houtl') + ')">' + I.map(function (g) { return '<path class="' + cls + '" data-n="' + g.length + '" d="' + islandShape(g, '~path') + '" fill="transparent" stroke="#000" stroke-width="25.4" stroke-linecap="round" stroke-linejoin="round"/>'; }).join('') + '</g>'; };
-    h += outl(wp, 'worstisls', 'worstisl');
-    h += outl(bp, 'bestisls', 'bestisl');
-    var g = document.createElementNS('http://www.w3.org/2000/svg', 'g'); g.setAttribute('id', 'cmplayer'); g.innerHTML = h; ov.appendChild(g);
-    src.parentNode.remove();
+      h += '<div class="cmpgrps" id="cmpgrps">' + SG.APPR_BUCKETS.map(function (x) { return '<button data-act="cmpgrp" data-v="' + x.id + '" class="' + (x.id === grp ? 'sel' : '') + '"' + (cnt[x.id] ? '' : ' disabled') + '>' + x.id.replace(' yd', '') + '<small>' + (cnt[x.id] || 0) + '</small></button>'; }).join('') + '</div>'; }
+    var lb = cmpList(C.best, kind, grp), lw = cmpList(C.worst, kind, grp), L = side === 'best' ? lb : lw;
+    h += '<div class="bzseg cmpside" id="cmpside"><button data-act="cmpside" data-v="best" class="' + (side === 'best' ? 'sel' : '') + '">Best rounds · ' + lb.length + '</button><button data-act="cmpside" data-v="worst" class="' + (side === 'worst' ? 'sel' : '') + '">Worst rounds · ' + lw.length + '</button></div>' +
+      '<div class="cmpmap ' + (side === 'best' ? 'cmpbest' : 'cmpworst') + '" id="cmpmap">' + cmpSVG(kind, L, grp) + '</div></div>';
+    return h + '</div>';
   }
   // ---------- Hole replay (app only): bird's-eye drawing of one hole with every shot chained ----------
   var RPC = { tee: '#1565e0', approach: '#6a1b9a', short: '#ef6c00', putting: '#fff' };
@@ -4329,7 +4315,7 @@
       case 'cmpn': view.cmpN = Math.max(1, cmpRounds().n + (+v)); render(); return;
       case 'cmpkind': view.cmpKind = v; render(); return;
       case 'cmpgrp': view.cmpGrp = v; render(); return;
-      case 'cmpov': view.cmpOverlay = v === '1'; render(); return;
+      case 'cmpside': view.cmpSide = v; render(); return;
       case 'heat': view.heat = v; render(); return;
       case 'replay': view.replay = Math.max(0, +v || 0); render(); return;
       case 'rpgreen': view.rpGreen = true; render(); return;

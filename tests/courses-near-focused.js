@@ -45,7 +45,7 @@ const ok = m => console.log('  ✓ ' + m), HOME = { lat: 36.5686, lng: -121.9497
 // ---- 2. files ----
 {
   const sw = fs.readFileSync(ROOT + 'sw.js', 'utf8'), cfg = fs.readFileSync(ROOT + 'config.js', 'utf8');
-  assert.ok(sw.includes("'golf-sg-v130'") && sw.includes("'./near.js'") && /pinhigh-courselist-/.test(sw) && /\/data\//.test(sw));
+  assert.ok(+(sw.match(/'golf-sg-v(\d+)'/) || [])[1] >= 130 && sw.includes("'./near.js'") && /pinhigh-courselist-/.test(sw) && /\/data\//.test(sw));
   assert.match(cfg, /GOLFCORE_BASE:\s*'https:\/\/pinhigh-golfcore\.pinhigh\.workers\.dev\/v1'/); assert.ok(!/GOLFCORE_KEY|gc_live_/.test(cfg + fs.readFileSync(ROOT + 'app.js', 'utf8')), 'no GolfCore key anywhere in the app');
   const big = JSON.parse(fs.readFileSync(ROOT + 'data/us-courses.json', 'utf8'));
   assert.ok(big.courses.length > 14000 && /OpenGolfAPI/.test(big.source) && /ODbL/.test(big.source)); assert.deepStrictEqual(big.fields, LIST.fields);

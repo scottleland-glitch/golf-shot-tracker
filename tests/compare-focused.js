@@ -29,37 +29,34 @@ const BASE = process.env.BASE_URL || 'http://127.0.0.1:8776/', OUT = '/workspace
   await page.click('[data-act="cmpn"][data-v="1"]');
   const gap = await page.$$eval('#gaptable tr[data-bucket]', t => t.map(r => [r.dataset.bucket, r.querySelector('.gap').textContent]));
   assert.ok(gap.length >= 3, JSON.stringify(gap));
-  const tot = gap.reduce((a, g) => a + parseFloat(g[1].replace('−', '-')), 0); assert.ok(tot > 0, 'best gains vs worst ' + tot);
-  await page.screenshot({ path: OUT + 'compare-gap-table.png' });
-  // v100: Best / Worst as separate column groups, one value per cell, fits 390 px without overflow
+      // v136: sky page, category tiles (worst minus best), 4-column table (From · Best · Worst · Diff), one full-width map with a Best / Worst switch
   const T = await page.evaluate(() => { const t = document.getElementById('gaptable');
-    return { heads: [...t.querySelectorAll('th.ghead')].map(h => [h.firstChild.textContent, h.colSpan, h.className.includes('gb') ? 'gb' : 'gw']),
-      sub: [...t.querySelectorAll('tr.gsub th')].map(h => h.textContent), cells: [...t.querySelectorAll('tr[data-bucket]')].map(r => r.children.length),
-      dots: [...t.querySelectorAll('tr[data-bucket] td')].filter(c => /·/.test(c.textContent)).length, secs: [...t.querySelectorAll('tr.gsec')].map(r => r.textContent),
-      over: [...t.querySelectorAll('td,th')].filter(e => e.scrollWidth > e.clientWidth + 1).map(e => e.textContent), w: t.getBoundingClientRect().right, gapLine: getComputedStyle(t.querySelector('td.gap')).borderLeftWidth,
-      tint: [getComputedStyle(t.querySelector('td.gb')).backgroundColor, getComputedStyle(t.querySelector('td.gw')).backgroundColor],
-      best: t.querySelector('#gapbesthead small').textContent, cards: [...document.querySelectorAll('.cmpcard')].map(c => c.className) }; });
-  assert.deepStrictEqual(T.heads, [['Best', 3, 'gb'], ['Worst', 3, 'gw']]); assert.deepStrictEqual(T.sub, ['Avg ft', 'GIR', 'SG', 'Avg ft', 'GIR', 'SG']);
-  assert.ok(T.cells.every(n => n === 8), 'From + 3 best + 3 worst + Gap'); assert.strictEqual(T.dots, 0, 'one value per cell – no "27 ft · 30 ft"');
-  assert.deepStrictEqual(T.secs, ['Approach · yards', 'Short game · yards', 'Putting · first putt, feet']);
-  assert.deepStrictEqual(T.over, [], 'nothing cut off'); assert.ok(T.w <= 390, 'fits the phone width'); assert.strictEqual(T.gapLine, '2px', 'divider before Gap');
-  assert.notStrictEqual(T.tint[0], T.tint[1]); assert.match(T.best, /^3 rounds · avg \d+$/); assert.ok(T.cards[0].includes('gbcard') && T.cards[1].includes('gwcard'));
-  { const ctx3 = await b.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 3, isMobile: true, hasTouch: true }), p3 = await ctx3.newPage();
-    await p3.goto(BASE + '?y=' + Date.now()); await p3.evaluate(L => { localStorage.clear(); localStorage.setItem('golfsg.player.v1', 'Scott'); localStorage.setItem('golfsg.rounds.v1', L); }, await page.evaluate(() => localStorage.getItem('golfsg.rounds.v1')));
-    await p3.reload(); await goHist(p3); await p3.click('#cmpopen'); await p3.waitForSelector('#gaptable');
-    await p3.screenshot({ path: OUT + 'best-worst-clean.png' }); await p3.screenshot({ path: OUT + 'best-worst-clean-full.png', fullPage: true }); await ctx3.close(); }
-  console.log('  v100 gap table: Best / Worst column groups, 8 cells per row, sections, no overflow at 390 px');
+    return { sky: !!document.querySelector('.frostpage.theme-sky.cmppage'), heads: [...t.querySelectorAll('thead th')].map(h => h.textContent),
+      cells: [...t.querySelectorAll('tr[data-bucket]')].map(r => r.children.length), secs: [...t.querySelectorAll('tr.gsec')].map(r => r.textContent),
+      from: [...t.querySelectorAll('tr[data-bucket] td.from')].map(c => c.textContent),
+      apSmall: [...t.querySelectorAll('tr[data-bucket]')].slice(0, 1).map(r => r.querySelector('td.gb small').textContent)[0],
+      over: [...document.querySelectorAll('#cmppage td, #cmppage th, #cmpqv .qv *')].filter(e => e.scrollWidth > e.clientWidth + 1).map(e => e.textContent), w: t.getBoundingClientRect().right,
+      tiles: [...document.querySelectorAll('#cmpqv .qv')].map(q => [q.dataset.q, q.classList.contains('big')]), lead: document.getElementById('cmplead').textContent,
+      cards: [...document.querySelectorAll('.cmpcard')].map(c => c.className) }; });
+  assert.ok(T.sky, 'same sky look as Rounds and Stats');
+  assert.deepStrictEqual(T.heads, ['From', 'Best', 'Worst', 'Diff']); assert.ok(T.cells.every(n => n === 4), 'From + Best + Worst + Diff');
+  assert.deepStrictEqual(T.secs, ['Approach · yd', 'Around green · yd', 'Putting · 1st putt']);
+  assert.ok(T.from.includes('100–130') && T.from.includes('0–5’') && T.from.includes('30’+'), T.from.join(' '));
+  assert.match(T.apSmall, /^\d+’ · \d+%$/, 'approach rows: avg ft · GIR'); assert.deepStrictEqual(T.over, [], 'nothing cut off'); assert.ok(T.w <= 390, 'fits the phone width');
+  assert.deepStrictEqual(T.tiles.map(t => t[0]), ['tee', 'approach', 'short', 'putting']); assert.strictEqual(T.tiles.filter(t => t[1]).length, 1, 'one biggest loss highlighted');
+  assert.match(T.lead, /^Worst rounds average \d+ more strokes?\./); assert.ok(T.cards[0].includes('gbcard') && T.cards[1].includes('gwcard'));
+  const diffSum = gap.reduce((a, g) => a + parseFloat(g[1].replace('−', '-')), 0); assert.ok(diffSum < 0, 'worst rounds lose strokes overall ' + diffSum);
+  await page.screenshot({ path: OUT + 'best-worst-clean.png' }); await page.screenshot({ path: OUT + 'best-worst-clean-full.png', fullPage: true });
+  console.log('  v136: tiles, 4-column table, no overflow at 390 px');
   for (const k of ['prox', 'gir', 'miss', 'putt']) {
-    await page.click('[data-act="cmpkind"][data-v="' + k + '"]'); await page.click('[data-act="cmpov"][data-v="0"]');
-    assert.strictEqual(await page.locator('#cmpmaps svg').count(), 2, k);
-    const vb = await page.$$eval('#cmpmaps svg', s => s.map(x => x.getAttribute('viewBox'))); assert.strictEqual(vb[0], vb[1], 'same scale');
-    if (k === 'prox' || k === 'gir') { await page.locator('#cmpmaps').scrollIntoViewIfNeeded(); await page.screenshot({ path: OUT + 'compare-side-' + k + '.png' }); }
-    await page.click('[data-act="cmpov"][data-v="1"]'); await page.waitForSelector('#cmplayer');
-    const ov = await page.evaluate(() => ({ isl: document.querySelectorAll('#cmplayer .worstisl').length, rings: document.querySelectorAll('#cmplayer .bestisl').length, last: document.querySelector('#cmpovmap').lastElementChild.id, hidden: !!document.getElementById('cmpbestsrc') }));
-    assert.ok(ov.rings + ov.isl > 0 && ov.last === 'cmplayer' && !ov.hidden, k + ' overlay ' + JSON.stringify(ov));
-    const order = await page.evaluate(() => { const L = [...document.querySelectorAll('#cmplayer > g')].map(e => e.id); const fr = L.indexOf('bestisls'), li = L.indexOf('worstisls'); return fr === -1 || fr > li; });
-    assert.ok(order, 'best rings drawn on top');
-    if (k === 'prox' || k === 'putt') { await page.locator('#cmpov').scrollIntoViewIfNeeded(); await page.screenshot({ path: OUT + 'compare-overlay-' + k + '.png' }); }
+    await page.click('[data-act="cmpkind"][data-v="' + k + '"]');
+    assert.strictEqual(await page.locator('#cmpmap svg').count(), 1, k + ': one map');
+    const vbB = await page.$eval('#cmpmap svg', s => s.getAttribute('viewBox')); assert.ok(await page.$('#cmpmap.cmpbest'), 'best first');
+    await page.click('[data-act="cmpside"][data-v="worst"]'); assert.ok(await page.$('#cmpmap.cmpworst'), k + ' worst');
+    assert.strictEqual(await page.$eval('#cmpmap svg', s => s.getAttribute('viewBox')), vbB, 'same scale both sides');
+    if (k === 'prox' || k === 'gir') { await page.locator('#cmpmap').scrollIntoViewIfNeeded(); await page.screenshot({ path: OUT + 'compare-map-' + k + '.png' }); }
+    await page.click('[data-act="cmpside"][data-v="best"]');
   }
+  assert.strictEqual(await page.$('[data-act="cmpov"]'), null, 'overlay removed');
   assert.deepStrictEqual(errors, []); console.log('COMPARE OK', JSON.stringify(gap)); await b.close(); if (srv) srv.kill();
 })().catch(e => { console.error(e); process.exit(1); });

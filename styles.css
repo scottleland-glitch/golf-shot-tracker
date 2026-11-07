@@ -664,9 +664,9 @@ html body .roundpage.theme-sky .hint { font-weight: 500; color: var(--soft-ink2)
 html body .roundpage.theme-sky .holecard .micbtn { border-radius: 999px; font-weight: 600; box-shadow: 0 4px 12px rgba(30, 60, 100, .16), inset 0 1px 0 rgba(255, 255, 255, .6); }
 html body .roundpage.theme-sky .topbar .title span { font-weight: 500; color: var(--soft-ink2); }
 /* v85 Birdie zone – v134: no bird; Stats-style round picker, Quick-view tiles, thin crisp map */
-.bzpage .bzseg { display: flex; padding: 3px; gap: 2px; margin: 10px 0; border-radius: 999px; background: rgba(255, 255, 255, .55); border: 1px solid rgba(23, 48, 31, .1); }
-.bzpage .bzseg button { flex: 1; min-height: 36px; padding: 0 6px; border: 0; border-radius: 999px; background: transparent; box-shadow: none; font-size: 13.5px !important; font-weight: 400 !important; color: #4a5866; }
-.bzpage .bzseg button.sel { background: rgba(255, 255, 255, .95); color: #1f2d38; box-shadow: 0 1px 4px rgba(20, 40, 60, .12); }
+.bzpage .bzseg, .cmppage .bzseg { display: flex; padding: 3px; gap: 2px; margin: 10px 0; border-radius: 999px; background: rgba(255, 255, 255, .55); border: 1px solid rgba(23, 48, 31, .1); }
+.bzpage .bzseg button, .cmppage .bzseg button { flex: 1; min-height: 36px; padding: 0 6px; border: 0; border-radius: 999px; background: transparent; box-shadow: none; font-size: 13.5px !important; font-weight: 400 !important; color: #4a5866; }
+.bzpage .bzseg button.sel, .cmppage .bzseg button.sel { background: rgba(255, 255, 255, .95); color: #1f2d38; box-shadow: 0 1px 4px rgba(20, 40, 60, .12); }
 .bzpage .bzcard { margin: 0 0 12px; padding: 10px 10px 10px; }
 .bzpage .bzqv { gap: 6px; margin: 0 0 8px; }
 .bzpage .bzqv .qv { padding: 8px 4px 7px; border-radius: 14px; }
@@ -1955,3 +1955,51 @@ html body .roundpage.holepage .srow.shead .c-n { height: auto; min-height: 0; bo
 .statspage .stbrk .sth { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; font-size: 15px; margin-bottom: 4px; }
 .statspage .stbrk .sth .stv { font-size: 12.5px; font-weight: 300; color: #5c6a76; white-space: nowrap; }
 .statspage .stbrk .sth .stv em { font-style: normal; font-weight: 400; color: #23313d; }
+
+/* ---------- v136 Best vs worst: sky page, category tiles, 4-column table, one map with a Best / Worst switch ---------- */
+.cmppage .frostcard { margin: 0 0 12px; padding: 10px 10px 10px; }
+.cmppage .cmph { margin: 2px 2px 6px; font-size: 15px; font-weight: 600; color: #1f2d38; display: flex; align-items: center; gap: 6px; }
+.cmppage .cmph .tipbtn { margin-left: auto; }
+.cmppage .cmpn { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin: 10px 0; padding: 3px; border-radius: 999px; background: rgba(255, 255, 255, .55); border: 1px solid rgba(23, 48, 31, .1); font-size: 14px; color: #4a5866; }
+.cmppage .cmpn button { min-width: 40px; min-height: 34px; padding: 0; border: 0; border-radius: 999px; background: rgba(255, 255, 255, .95); box-shadow: 0 1px 4px rgba(20, 40, 60, .12); font-size: 20px !important; font-weight: 300 !important; color: #1f2d38; }
+.cmppage .cmpn button:disabled { opacity: .35; box-shadow: none; }
+.cmppage .cmpn b { color: #1f2d38; }
+.cmppage .cmpcols { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 0 0 12px; }
+.cmppage .cmpcard { border-radius: 16px; padding: 8px 10px 6px; background: rgba(255, 255, 255, .62); border: 1px solid rgba(23, 48, 31, .1); }
+.cmppage .cmpcard h3 { display: flex; align-items: baseline; justify-content: space-between; margin: 0 0 2px; font-size: 14px; font-weight: 600; }
+.cmppage .cmpcard h3 small { font-size: 11px; font-weight: 400; color: #6d7a86; }
+.cmppage .gbcard h3 { color: #2e7d32; } .cmppage .gwcard h3 { color: #c0263a; }
+.cmppage .gbcard { border-top: 3px solid #5cb85c; } .cmppage .gwcard { border-top: 3px solid #e0313f; }
+.cmppage .cmpcard .cmplist { font-size: 12.5px; }
+.cmppage .cmpcard .cl-d { font-size: 11px; color: #6d7a86; }
+.cmppage .cmpcard .cl-s b { font-size: 15px; font-weight: 500; }
+.cmppage .cmplead { margin: 0 2px 8px; font-size: 13.5px; color: #4a5866; }
+.cmppage .cmplead b { color: #1f2d38; font-weight: 600; }
+.cmppage .cmpqv { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+.cmppage .cmpqv .qv { display: flex; flex-direction: column; align-items: center; gap: 1px; padding: 8px 4px 7px; border-radius: 14px; background: rgba(255, 255, 255, .7); border: 1px solid rgba(23, 48, 31, .1); }
+.cmppage .cmpqv .qv.big { border: 1.5px solid #e0313f; background: rgba(255, 240, 241, .85); }
+.cmppage .cmpqv .qvl { font-size: 11.5px; color: #45525e; }
+.cmppage .cmpqv b { font-size: 24px; font-weight: 400; line-height: 1.15; font-variant-numeric: tabular-nums; color: #1f2d38; }
+.cmppage .cmpqv small { font-size: 11px; font-weight: 300; color: #6d7a86; font-variant-numeric: tabular-nums; }
+.cmppage .pos { color: #2e7d32; } .cmppage .neg { color: #c0263a; }
+.cmppage table.gapt2 { width: 100%; table-layout: fixed; border-collapse: collapse; font-size: 13.5px; font-variant-numeric: tabular-nums; color: #1f2d38; }
+.cmppage table.gapt2 col.c-from { width: 26%; } .cmppage table.gapt2 col.c-gap { width: 22%; }
+.cmppage table.gapt2 th { padding: 4px 4px 6px; font-size: 11.5px; font-weight: 500; color: #6d7a86; text-align: right; }
+.cmppage table.gapt2 th.gb { color: #2e7d32; } .cmppage table.gapt2 th.gw { color: #c0263a; }
+.cmppage table.gapt2 td { padding: 6px 4px; text-align: right; border-top: 1px solid rgba(23, 48, 31, .07); white-space: nowrap; vertical-align: top; }
+.cmppage table.gapt2 .from { text-align: left; font-weight: 500; }
+.cmppage table.gapt2 td b { font-weight: 500; }
+.cmppage table.gapt2 td small { display: block; font-size: 10.5px; color: #6d7a86; margin-top: 1px; }
+.cmppage table.gapt2 td.gap { font-weight: 600; } .cmppage table.gapt2 td.gap b { font-weight: 600; }
+.cmppage table.gapt2 tr.gsec td { padding: 10px 4px 3px; text-align: left; font-size: 10.5px; font-weight: 600; letter-spacing: .05em; text-transform: uppercase; color: #6d7a86; border-top: 0; }
+.cmppage .cmpkinds { margin: 4px 0 8px; } .cmppage .cmpkinds button { font-size: 12.5px !important; padding: 0 2px; }
+.cmppage .cmpgrps { display: grid; grid-template-columns: repeat(6, 1fr); gap: 4px; margin: 0 0 8px; }
+.cmppage .cmpgrps button { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 38px; padding: 2px 0; border-radius: 12px; line-height: 1.1; border: 1px solid rgba(23, 48, 31, .12); background: rgba(255, 255, 255, .6); box-shadow: none; font-size: 12.5px !important; font-weight: 400 !important; color: #4a5866; }
+.cmppage .cmpgrps button small { font-size: 10px; color: #8a96a1; }
+.cmppage .cmpgrps button.sel { background: #1f2d38; color: #fff; border-color: #1f2d38; } .cmppage .cmpgrps button.sel small { color: rgba(255, 255, 255, .7); }
+.cmppage .cmpgrps button:disabled { opacity: .35; }
+.cmppage .cmpside button.sel { font-weight: 500 !important; }
+.cmppage .cmpmap { border-radius: 14px; overflow: hidden; border: 1px solid rgba(23, 48, 31, .12); }
+.cmppage .cmpmap.cmpworst { border-color: rgba(224, 49, 63, .45); }
+.cmppage .cmpmap svg { display: block; width: 100%; height: auto; }
+.cmppage .cmph .cmppr { font-size: 11.5px; font-weight: 400; color: #6d7a86; }
