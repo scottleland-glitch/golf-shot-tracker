@@ -50,26 +50,22 @@ const lastR = RS[RS.length - 1], L = BZ.scope([lastR]);
   assert.deepStrictEqual(s.bands, BZ.bands(ALL.putts).map(x => x.made + '/' + x.n));
   const vert = await page.$eval('#bzslider', e => { const r = e.getBoundingClientRect(), m = document.getElementById('bzmap').getBoundingClientRect(); return { tall: r.height > 3 * r.width, left: r.right <= m.left + 1 }; });
   assert.ok(vert.tall && vert.left, 'vertical slider on the left ' + JSON.stringify(vert));
-  const bird = await page.$eval('#bzbird', e => { const r = e.getBoundingClientRect(), c = document.getElementById('bzcount').getBoundingClientRect(); return { ok: e.complete && e.naturalWidth >= 250 && e.naturalWidth <= 320, w: r.width, beside: Math.abs((r.top + r.height / 2) - (c.top + c.height / 2)) < 8 && r.right <= c.left + 1 }; });
-  assert.ok(bird.ok && bird.w === 44 && bird.beside, 'oriole beside the birdie count ' + JSON.stringify(bird));
+  assert.strictEqual(await page.$('#bzbird'), null, 'v134: no bird picture'); assert.ok((await page.textContent('.topbar .title b')) === 'Scoring chances', 'renamed');
+  const tiles = await page.$$eval('#bzqv .qv', q => q.map(e => e.dataset.q)); assert.deepStrictEqual(tiles, ['made', 'ifin', 'ring'], 'three Quick-view tiles');
+  { const z = BZ.zone(ALL, ringAll); assert.deepStrictEqual(await page.evaluate(() => [+document.getElementById('bzact').textContent, +document.getElementById('bztot').textContent, document.getElementById('bzpot').textContent]), [z.actual, z.total, '+' + z.potential], 'tiles match the count'); }
   await page.screenshot({ path: OUT + 'birdie-zone-all.png' });
   // Slider: live update, no re-render, 1 ft steps
   await page.$eval('#bzmap', e => { e.__keep = 1; });
   await page.focus('#bzslider'); await page.keyboard.press('ArrowUp'); s = await state();
   assert.strictEqual(s.sl.v, ringAll + 1, '1 ft step'); assert.strictEqual(s.count, BZ.label(BZ.zone(ALL, ringAll + 1)));
-  await page.$eval('#bzbird', e => e.classList.remove('hop'));
   await page.$eval('#bzslider', e => { e.value = 14; e.dispatchEvent(new Event('input', { bubbles: true })); }); s = await state();
-  assert.ok(await page.$eval('#bzbird', e => e.classList.contains('hop') && getComputedStyle(e).animationName === 'bzhop'), 'oriole hops when the count goes up');
-  await page.$eval('#bzbird', e => e.classList.remove('hop'));
   await page.$eval('#bzslider', e => { e.value = 13; e.dispatchEvent(new Event('input', { bubbles: true })); });
-  assert.ok(await page.$eval('#bzbird', e => !e.classList.contains('hop')), 'no hop when the count goes down');
-  await page.emulateMedia({ reducedMotion: 'reduce' });
   await page.$eval('#bzslider', e => { e.value = 14; e.dispatchEvent(new Event('input', { bubbles: true })); });
-  assert.strictEqual(await page.$eval('#bzbird', e => getComputedStyle(e).animationName), 'none', 'reduced motion: no animation');
-  await page.emulateMedia({ reducedMotion: 'no-preference' }); await page.waitForTimeout(500); s = await state();
+  await page.$eval('#bzslider', e => { e.value = 14; e.dispatchEvent(new Event('input', { bubbles: true })); }); await page.waitForTimeout(200); s = await state();
+  { const z = BZ.zone(ALL, 14); assert.deepStrictEqual(await page.evaluate(() => [document.getElementById('bzrlbl').textContent, +document.getElementById('bztot').textContent, document.getElementById('bzpot').textContent]), ['Holed inside 14’', z.total, '+' + z.potential], 'middle tile follows the slider'); }
   assert.strictEqual(await page.$eval('#bzmap', e => e.__keep), 1, 'slider updates in place');
   assert.strictEqual(s.count, BZ.label(BZ.zone(ALL, 14))); assert.strictEqual(s.zone, 70); assert.strictEqual(s.zoneVis, null);
-  assert.ok(s.balls.every(x => x.ft <= 14 ? / in/.test(x.cls) && x.fill === '#fff' : / out/.test(x.cls) && x.fill === '#1c1c1e'), 'white inside, black outside');
+  assert.ok(s.balls.every(x => x.cls.includes('made') ? x.fill === '#e0313f' : x.ft <= 14 ? / in/.test(x.cls) && x.fill === '#1f73c9' : / out/.test(x.cls) && x.fill === '#fff'), 'red = birdie, blue inside, white outside');
   assert.ok(BZ.zone(ALL, 14).potential > 0);
   await page.$eval('#bzslider', e => e.blur()); await page.screenshot({ path: OUT + 'birdie-zone-expanded.png' });
   await page.$eval('#bzslider', e => { e.value = 99; e.dispatchEvent(new Event('input', { bubbles: true })); }); assert.strictEqual((await state()).sl.v, 30, 'max 30’');
@@ -95,7 +91,7 @@ const lastR = RS[RS.length - 1], L = BZ.scope([lastR]);
   await load(RS.concat([short])); await goHist(); await page.click('#histbz'); await page.click('[data-act="bzscope"][data-v="round"]'); s = await state();
   const SS = BZ.scope([short]), ringAll2 = BZ.onePutt(BZ.scope(RS.concat([short])).putts).ft;
   assert.ok(SS.putts.length < BZ.MIN_PUTTS); assert.strictEqual(s.ring, ringAll2 * 5, 'fallback ring = all rounds'); assert.ok(s.note.includes('Only ' + SS.putts.length + ' putts this round') && s.note.includes('all rounds'), s.note);
-  assert.ok((await page.textContent('.bzlegend')).includes('(all rounds)')); assert.strictEqual(s.count, BZ.label(BZ.zone(SS, ringAll2)));
+  assert.ok((await page.textContent('#bzqv .qv[data-q="ring"]')).includes('all rounds'), 'ring tile says all rounds'); assert.strictEqual(s.count, BZ.label(BZ.zone(SS, ringAll2)));
   // Brand new player, no data at all → default ring
   await load([short]); await goHist(); await page.click('#histbz'); s = await state(); assert.strictEqual(s.ring, BZ.DEFAULT_FT * 5); assert.ok(s.note.includes('Not enough putts yet'), s.note);
   const sw = fs.readFileSync('/workspace/golf-app/sw.js', 'utf8'); assert.ok(/'golf-sg-v(8[5-9]|9\d|\d{3,})'/.test(sw) && sw.includes("'./birdie.js'") && sw.includes("'./img/oriole.webp'"), 'sw v85+ + birdie.js cached');

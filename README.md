@@ -47,6 +47,13 @@ one dot per hole (its approach into the green) is drawn - white = green hit in r
 left and where it finished). Same approach / reach-green rules as the other maps. Holes without a pin are
 excluded and counted. This round / All rounds toggle.
 
+## Scoring chances (v134, was Birdie zone)
+Rounds → 🎯 Scoring chances, or a round's stats → 🎯 Scoring chances: every green hit in regulation on a green, the red 1-putt ring
+and a vertical "what if" slider (1 ft steps, up to 30'). v134: no bird picture; Stats-style This round / All rounds pill; three Quick-view
+tiles (Birdies made · Holed inside N' = birdies if every putt inside the slider had dropped, with +N · 1-putt distance); map in the same
+thin style as the other maps – red balls = birdies made, blue = inside the slider (would be birdies), white = outside, blue dashed ring = slider.
+Putts made table with thin solid blue bars.
+
 ## Story picture (v131)
 Round stats → "📸 Share to Instagram / TikTok" draws a 1080 x 1920 picture of the round on the phone (`story.js`):
 course, date, tees, player, score and to par; strokes gained off the tee, approach, around the green and putting (v133: all four, vs the round's
@@ -252,7 +259,7 @@ In a round, when the bag has clubs, the club picker lists only bag clubs (no put
   - **Holes pill**: 18 (or 9); an unfinished round (fewer holes done, or the round in progress) shows the holes done in a dashed amber pill, and "Unfinished" in front of the tee/player line.
   - **Date** as 07/13 with the year small underneath; **To par** with SG small and coloured underneath; **Course** with tee · player small underneath.
   - Tap a row to open its round stats. A small grey 🗑 at the far right of each row deletes – it still asks "Delete the round from … for good?" first.
-  - Tools are one slim row of small buttons: 📥 Add a round · 👤 Change player · ⚖ Best vs worst · 🎯 Birdie zone. The player filter is a slim row of chips. Select mode (Change player) puts a tick circle in front of each row and hides the trash.
+  - Tools are one slim row of small buttons: 📥 Add a round · 👤 Change player · ⚖ Best vs worst · 🎯 Scoring chances (was Birdie zone). The player filter is a slim row of chips. Select mode (Change player) puts a tick circle in front of each row and hides the trash.
   - Every "History" label now says "Rounds" (+ menu, page title, ‹ Rounds back buttons, Settings button, tips, messages). Internal names (`history` screen, `data-act="history"`) are unchanged.
 - **Settings** (was "Archive"): the Archive button on Home is gone; the same page now opens from the **+** menu as **Settings** (title, ‹ Settings back button from Courses, tips and messages renamed). Home shows only the **+** button (and Resume when a round is going).
 - **+ menu**: New round · My Bag · Rounds · Settings. **Profile is gone** – once My Bag and Wedges moved out it only held the player name, which Settings already shows, so the name lives in Settings only.

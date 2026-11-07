@@ -789,7 +789,7 @@
       h += '<div class="histtools htools" id="histtools">' + tool('addround', 'addopen', '📥', 'Add a round') +
         (list.length ? tool('chgplayer', 'mvstart', '👤', 'Change player') : '') +
         (list.length >= 2 ? tool('cmpopen', 'compare', '⚖', 'Best vs worst') : '') +
-        (list.length ? tool('histbz', 'bzopen', '🎯', 'Birdie zone', ' data-v="all" data-id="' + list[0].id + '"') : '') + '</div>';
+        (list.length ? tool('histbz', 'bzopen', '🎯', 'Scoring chances', ' data-v="all" data-id="' + list[0].id + '"') : '') + '</div>';
     }
     if (!list.length) h += '<p class="muted frostnote">No rounds yet. Start one from Home.</p>';
     else h += '<div class="hhead" id="hhead" aria-hidden="true">' + (M ? '<span class="hcchk"></span>' : '') + '<span class="hc1">Score</span><span class="hc2">Holes</span><span class="hc3">Date</span><span class="hc4">To par<br>SG</span><span class="hc5">Course</span>' + (M ? '' : '<span class="hc6"></span>') + '</div>';
@@ -2631,7 +2631,7 @@
     if (view.stxRound !== r.id) { view.stx = {}; view.stxRound = r.id; } // tiles start collapsed for each round
     out += rsTopHTML(r, S) + quickViewHTML(S);
     out += scorecardHTML(r, S) + '<button class="big rpbtn" data-act="replay" data-v="0" id="sumreplay">▶ Hole replay (hole by hole)</button>' +
-      (S.holesDone ? '<button class="big rpbtn bzbtn" data-act="bzopen" data-v="round" id="sumbz">🎯 Birdie zone</button>' : '');
+      (S.holesDone ? '<button class="big rpbtn bzbtn" data-act="bzopen" data-v="round" id="sumbz">🎯 Scoring chances</button>' : '');
     var B = SG.baseline(bl), main = out; out = '';
     out += '<h2>Strokes gained: <span class="' + sgCls(S.sgTotal) + '" id="sgtotal">' + fmtSG(S.sgTotal) + '</span></h2>' +
       '<div class="blbox"><label class="lbl" for="sumbl">Baseline – compared with</label>' + blSelect('sumbl', bl) +
@@ -2806,7 +2806,7 @@
       '<text x="4" y="192" font-size="14" font-weight="800">◀ L</text><text x="356" y="192" text-anchor="end" font-size="14" font-weight="800">R ▶</text>';
     return out + '</svg>';
   }
-  // ---------- Birdie zone: GIR balls on a green + the 1-putt ring + "what if" slider ----------
+  // ---------- Scoring chances (was Birdie zone): GIR balls on a green + the 1-putt ring + "what if" slider ----------
   function bzBase() { var r = rounds.filter(function (x) { return view.bz && x.id === view.bz.rid; })[0]; return r && !SG.roundEmpty(r) ? r : null; }
   function bzAllRounds(r) { return savedRounds().filter(function (x) { return !r || !r.player || x.player === r.player; }); }
   function bzData() {
@@ -2816,44 +2816,54 @@
     if (!ring) { src = 'none'; note = 'Not enough putts yet (' + all.putts.length + ' of ' + BZ.MIN_PUTTS + ') – ring set to ' + BZ.DEFAULT_FT + '’.'; }
     return { r: r, scope: scope, sc: sc, all: all, ring: ring ? ring.ft : BZ.DEFAULT_FT, ringInfo: ring, src: src, note: note, bands: BZ.bands(sc.putts) };
   }
-  function bzSVG(list, ring, R) {
+  function bzSVG(list, ring, R) { // v134: same green, rings and thin outlines as the other maps; red = 1-putt now, blue = "what if"
     var C = 180, CY = 180, K = 5, out = '<svg id="bzmap" viewBox="0 0 360 360" role="img" aria-label="Birdie chances on the green">' +
-      '<circle cx="180" cy="180" r="176" fill="#3da33d" stroke="#145214" stroke-width="3"/>';
-    [10, 20, 30].forEach(function (ft) { out += '<circle cx="180" cy="180" r="' + ft * K + '" fill="none" stroke="#fff" stroke-width="1.2" stroke-opacity=".55"/>' +
-      '<text x="' + f1(182 + ft * K * 0.707) + '" y="' + f1(193 + ft * K * 0.707) + '" font-size="12" font-weight="600" fill="#fff" fill-opacity=".85">' + ft + '’</text>'; });
-    out += '<circle id="bzzone" cx="180" cy="180" r="' + R * K + '" fill="#fff" fill-opacity=".14" stroke="#e0303f" stroke-width="2" stroke-dasharray="6 5"' + (R > ring ? '' : ' visibility="hidden"') + '/>' +
-      '<circle id="bzring" cx="180" cy="180" r="' + ring * K + '" fill="none" stroke="#e0303f" stroke-width="3.5"/>' +
-      '<circle cx="180" cy="180" r="5" fill="#000"/><line x1="180" y1="180" x2="180" y2="152" stroke="#000" stroke-width="2.5"/><path d="M180 152 l17 5 l-17 5z" fill="#d0213a"/>';
+      '<circle cx="180" cy="180" r="176" fill="#5cb85c" stroke="#2e7d32" stroke-width="2"/>';
+    [10, 20, 30].forEach(function (ft) { out += '<circle cx="180" cy="180" r="' + ft * K + '" fill="none" stroke="#fff" stroke-width="1" stroke-opacity=".7"/>' +
+      '<text x="' + f1(182 + ft * K * 0.707) + '" y="' + f1(193 + ft * K * 0.707) + '" font-size="11" font-weight="600" fill="#fff" fill-opacity=".9">' + ft + '’</text>'; });
+    out += '<circle id="bzzone" cx="180" cy="180" r="' + R * K + '" fill="#1f73c9" fill-opacity=".14" stroke="#1f73c9" stroke-width="1.6" stroke-dasharray="5 4"' + (R > ring ? '' : ' visibility="hidden"') + '/>' +
+      '<circle id="bzring" cx="180" cy="180" r="' + ring * K + '" fill="none" stroke="#e0313f" stroke-width="2.2"/>' +
+      '<circle cx="180" cy="180" r="4" fill="#000"/><line x1="180" y1="180" x2="180" y2="155" stroke="#000" stroke-width="2"/><path d="M180 155 l15 4.5 l-15 4.5z" fill="#e0313f"/>';
     var seen = {};
     list.forEach(function (m) { // same placement as the GIR map (girSVG): direction angle, dupes fanned 6°, no direction = straight up
       var ft = m.holed ? 0 : m.ft, far = ft > 30, rr = far ? 33 * K : ft * K, nodir = !m.holed && !m.dir;
       var key = (m.holed ? 'h' : m.dir || 'none') + Math.round(rr / 6), j = seen[key] = (seen[key] || 0) + 1;
       var p = m.holed ? [C - 14 + (j - 1) * 14, CY + 16] : pt(C, CY, rr, (nodir ? 90 : SG.DIR_ANGLE[m.dir]) + (j - 1) * (nodir ? 8 : 6));
       var x = f1(p[0]), y = f1(p[1]), a = ' data-ft="' + ft + '" data-hole="' + m.hole + '" data-birdie="' + (m.birdie ? 1 : 0) + '"';
-      if (m.holed) out += '<path class="bzball bzholed"' + a + ' d="M' + x + ' ' + (y - 10) + ' l3 6.5 7 .8 -5.3 4.8 1.5 7 -6.2 -3.6 -6.2 3.6 1.5 -7 -5.3 -4.8 7 -.8z" fill="#ffd23f" stroke="#000" stroke-width="1.5"/>';
+      if (m.holed) out += '<path class="bzball bzholed"' + a + ' d="M' + x + ' ' + (y - 9) + ' l2.7 5.8 6.3 .7 -4.8 4.3 1.4 6.3 -5.6 -3.2 -5.6 3.2 1.4 -6.3 -4.8 -4.3 6.3 -.7z" fill="#ffd23f" stroke="#1c1c1e" stroke-width="1"/>';
       else {
-        var inR = ft <= R; out += '<g class="bzball ' + (inR ? 'in' : 'out') + (nodir ? ' nodir' : '') + '"' + a + '><circle cx="' + x + '" cy="' + y + '" r="7.5" fill="' + (inR ? '#fff' : '#1c1c1e') + '" stroke="' + (inR ? '#1c1c1e' : '#fff') + '" stroke-width="1.5"/>' +
-          (m.birdie ? '<circle cx="' + x + '" cy="' + y + '" r="2.6" fill="#e0303f"/>' : '') + (nodir ? '<text x="' + x + '" y="' + f1(p[1] - 10) + '" text-anchor="middle" font-size="11" font-weight="700" fill="#fff">?</text>' : '') + '</g>';
+        var inR = ft <= R, col = bzBallCol(m.birdie, inR);
+        out += '<g class="bzball ' + (m.birdie ? 'made' : inR ? 'in' : 'out') + (nodir ? ' nodir' : '') + '"' + a + '><circle cx="' + x + '" cy="' + y + '" r="6.5" fill="' + col[0] + '" stroke="' + col[1] + '" stroke-width="1.2"/>' +
+          (nodir ? '<text x="' + x + '" y="' + f1(p[1] - 9) + '" text-anchor="middle" font-size="10" font-weight="700" fill="#fff">?</text>' : '') + '</g>';
       }
-      if (far) { var lx = p[0] > C ? p[0] - 11 : p[0] + 11; out += '<text class="bzfar" x="' + f1(lx) + '" y="' + f1(p[1] + (p[1] > CY + 120 ? -9 : 4)) + '"' + (p[0] > C ? ' text-anchor="end"' : '') + ' font-size="12" font-weight="700" fill="#fff">' + Math.round(ft) + '’</text>'; }
+      if (far) { var lx = p[0] > C ? p[0] - 10 : p[0] + 10; out += '<text class="bzfar" x="' + f1(lx) + '" y="' + f1(p[1] + (p[1] > CY + 120 ? -9 : 4)) + '"' + (p[0] > C ? ' text-anchor="end"' : '') + ' font-size="11" font-weight="600" fill="#fff">' + Math.round(ft) + '’</text>'; }
     });
     return out + '</svg>';
+  }
+  // ball colours: [fill, stroke] – red = birdie made, blue = inside the slider ring (a birdie if holed), white = outside
+  function bzBallCol(birdie, inR) { return birdie ? ['#e0313f', '#fff'] : inR ? ['#1f73c9', '#fff'] : ['#fff', '#1c1c1e']; }
+  // three Quick-view tiles: birdies made · birdies if every putt inside R went in · the 1-putt distance
+  function bzTiles(D, R) {
+    var z = BZ.zone(D.sc, R);
+    return '<div class="quickview bzqv" id="bzqv">' +
+      clubQV('made', 'Birdies', '<span id="bzact">' + z.actual + '</span>', 'made') +
+      clubQV('ifin', '<span id="bzrlbl">Holed inside ' + R + '’</span>', '<span id="bztot">' + z.total + '</span>', 'birdies', '<span id="bzpot">+' + z.potential + '</span>', 'bzplus') +
+      clubQV('ring', '1-putt', D.ring + '<i class="qvu">’</i>', D.src === 'all' && D.scope === 'round' ? 'all rounds' : D.src === 'none' ? 'default' : '50%+ made') + '</div>';
   }
   function bzCount(D, R) { return BZ.label(BZ.zone(D.sc, R)); }
   function birdieHTML() {
     var D = bzData(), r = D.r, ring = D.ring, R = Math.max(ring, Math.min(BZ.MAX_FT, view.bz.R || ring)); view.bz.R = R; view.bz.ring = ring; view.bz.shown = R;
     var back = view.bz.from === 'summary' && r ? '<button class="txt frostbtn" data-act="bzback">‹ Stats</button>' : '<button class="txt frostbtn" data-act="history">‹ Rounds</button>';
     var sub = D.scope === 'round' ? new Date(r.date).toLocaleDateString() + (r.course ? ' · ' + esc(r.course) : '') : D.all.rounds + ' round' + (D.all.rounds === 1 ? '' : 's') + (r && r.player ? ' · ' + esc(r.player) : '');
-    var h = '<div class="frostpage theme-sky bzpage" id="birdie"><div class="topbar frost">' + back + '<div class="title"><b>Birdie zone</b><span>' + sub + '</span></div><span class="tbspace"></span></div>';
-    if (r) h += '<div class="liechips bzscope" role="group" aria-label="Scope"><button class="frostchip' + (D.scope === 'round' ? ' sel' : '') + '" data-act="bzscope" data-v="round" aria-pressed="' + (D.scope === 'round') + '">This round</button>' +
-      '<button class="frostchip' + (D.scope === 'all' ? ' sel' : '') + '" data-act="bzscope" data-v="all" aria-pressed="' + (D.scope === 'all') + '">All rounds</button></div>';
+    var h = '<div class="frostpage theme-sky bzpage" id="birdie"><div class="topbar frost">' + back + '<div class="title"><b>Scoring chances</b><span>' + sub + '</span></div><span class="tbspace"></span></div>';
+    if (r) h += '<div class="bzseg bzscope" role="group" aria-label="Scope"><button class="' + (D.scope === 'round' ? 'sel' : '') + '" data-act="bzscope" data-v="round" aria-pressed="' + (D.scope === 'round') + '">This round</button>' +
+      '<button class="' + (D.scope === 'all' ? 'sel' : '') + '" data-act="bzscope" data-v="all" aria-pressed="' + (D.scope === 'all') + '">All rounds</button></div>';
     var n = D.sc.chances.length;
-    h += '<div class="frostcard bzcard"><p class="bzcount"><img class="bzbird" id="bzbird" src="img/oriole.webp" alt="" width="44" height="44"><span id="bzcount">' + bzCount(D, R) + '</span></p>' +
+    h += '<div class="frostcard bzcard">' + bzTiles(D, R) + '<p class="bzsr" id="bzcount" aria-live="polite">' + bzCount(D, R) + '</p>' +
       '<div class="bzwrap"><div class="bzslcol"><span class="bzsltop">30’</span><input type="range" id="bzslider" class="bzslider" min="' + ring + '" max="' + BZ.MAX_FT + '" step="1" value="' + R + '" aria-label="Make every putt inside this distance"' + (ring >= BZ.MAX_FT ? ' disabled' : '') + '><span class="bzslbot" id="bzslval">' + R + '’</span></div>' +
       bzSVG(D.sc.chances, ring, R) + '</div>' +
-      '<p class="bzlegend"><span class="bzk ring"></span>1-putt ' + ring + '’' + (D.src === 'all' && D.scope === 'round' ? ' (all rounds)' : '') + ' ' + tipBtn('bzring', 'i', 'How the 1-putt distance works') +
-      '<span class="bzk w"></span>inside <span class="bzk b"></span>outside</p>' +
-      tipText('bzring', '<b>Red ring = 1-putt distance:</b> the furthest whole foot where you make at least half your putts. For each distance d we look at putts from d − w to d + w (w = 1’ or 25% of d, whichever is bigger) and need at least ' + BZ.MIN_WIN + ' putts there. Starting at 1’ and moving out, it stops at the first distance under 50% or with too few putts, so one lucky long make can’t stretch it. Needs ' + BZ.MIN_PUTTS + '+ putts; a round with fewer uses all rounds' + (r && r.player ? ' (' + esc(r.player) + ')' : '') + '.<br><b>Balls</b> = greens hit in regulation (par 3 tee shot, par 4 2nd, par 5 3rd), placed like the GIR map (top = long, bottom = short, toward you; past 30’ sits on the edge with its distance). Red dot = made birdie, ★ = holed out.<br><b>Slider</b>: grow the ring – white balls would be birdies if you holed them (birdie or better counts).') +
+      '<p class="bzlegend"><span><span class="bzk ring"></span>1-putt ' + ring + '’</span><span><span class="bzk r"></span>birdie</span><span><span class="bzk bl"></span>inside</span><span><span class="bzk w"></span>outside</span>' + tipBtn('bzring', 'i', 'How Scoring chances works') + '</p>' +
+      tipText('bzring', '<b>Red ring = 1-putt distance:</b> the furthest whole foot where you make at least half your putts. For each distance d we look at putts from d − w to d + w (w = 1’ or 25% of d, whichever is bigger) and need at least ' + BZ.MIN_WIN + ' putts there. Starting at 1’ and moving out, it stops at the first distance under 50% or with too few putts, so one lucky long make can’t stretch it. Needs ' + BZ.MIN_PUTTS + '+ putts; a round with fewer uses all rounds' + (r && r.player ? ' (' + esc(r.player) + ')' : '') + '.<br><b>Balls</b> = greens hit in regulation (par 3 tee shot, par 4 2nd, par 5 3rd), placed like the GIR map (top = long, bottom = short, toward you; past 30’ sits on the edge with its distance). Red = made birdie, ★ = holed out.<br><b>Slider</b>: grow the blue ring – blue balls would be birdies if you holed them (birdie or better counts). The middle tile shows your birdie total if every putt inside that distance had dropped.') +
       (D.note ? '<p class="bznote" id="bznote">' + D.note + '</p>' : '') +
       '<p class="muted bzmeta" id="bzmeta">' + n + ' green' + (n === 1 ? '' : 's') + ' hit · ' + D.sc.missed + ' missed (not shown)</p></div>';
     h += '<div class="frostcard bzcard"><h3 class="bzh">Putts made ' + tipBtn('bzbands', '💡', 'About putt make rates') + '</h3>' + tipText('bzbands', 'Every putt' + (D.scope === 'round' ? ' this round' : ' in all rounds') + ', grouped by how far it started from the hole.') +
@@ -2865,11 +2875,12 @@
     var D = view.bzD || (view.bzD = bzData()); view.bz.R = R; var z = document.getElementById('bzzone');
     if (z) { z.setAttribute('r', R * 5); if (R > view.bz.ring) z.removeAttribute('visibility'); else z.setAttribute('visibility', 'hidden'); }
     [].slice.call(document.querySelectorAll('#bzmap g.bzball')).forEach(function (g) {
-      var inR = +g.getAttribute('data-ft') <= R, c = g.querySelector('circle'); g.classList.toggle('in', inR); g.classList.toggle('out', !inR);
-      c.setAttribute('fill', inR ? '#fff' : '#1c1c1e'); c.setAttribute('stroke', inR ? '#1c1c1e' : '#fff'); });
-    var t0 = BZ.zone(D.sc, view.bz.shown || R).total, t1 = BZ.zone(D.sc, R).total; view.bz.shown = R;
+      var b = g.getAttribute('data-birdie') === '1', inR = +g.getAttribute('data-ft') <= R, c = g.querySelector('circle'), col = bzBallCol(b, inR);
+      g.classList.toggle('in', !b && inR); g.classList.toggle('out', !b && !inR); c.setAttribute('fill', col[0]); c.setAttribute('stroke', col[1]); });
+    var z = BZ.zone(D.sc, R); view.bz.shown = R;
     document.getElementById('bzcount').textContent = bzCount(D, R); document.getElementById('bzslval').textContent = R + '’';
-    var bird = document.getElementById('bzbird'); if (bird && t1 > t0) { bird.classList.remove('hop'); void bird.offsetWidth; bird.classList.add('hop'); } // oriole hops when the count goes up
+    document.getElementById('bztot').textContent = z.total; document.getElementById('bzpot').textContent = '+' + z.potential;
+    document.getElementById('bzrlbl').textContent = 'Holed inside ' + R + '’';
   }
   function dirTable(list) {
     var c = countDirs(list), out = '<table class="dirtab" id="dirtab"><tr><th>Direction</th><th class="num">Count</th></tr>';
