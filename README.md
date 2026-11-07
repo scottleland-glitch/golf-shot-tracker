@@ -47,6 +47,14 @@ one dot per hole (its approach into the green) is drawn - white = green hit in r
 left and where it finished). Same approach / reach-green rules as the other maps. Holes without a pin are
 excluded and counted. This round / All rounds toggle.
 
+## PDF graph pages (v138)
+Every Stats graph in both PDFs runs the full page width, one per row (tall ones capped at 260 pt). Each page takes as many as fit; the
+pictures on a page shrink together (never below 80%, never stretched) when that lets one more fit; a page never ends on a label, and a page
+left with one graph takes the last graph of a page before it that has three (Driver: drive distance + OTT | fairways hit + fairway picture).
+New in the Driver category: "Fairways hit and missed" (fwSideSVG) – sideways fairway, tee on the left, left rough on top, right rough at the
+bottom, one dot per par 4 / 5 tee shot where it finished (white = fairway, red = missed, grey on the fairway edge = no side entered,
+✕ = OB), Left / Fairway / Right % on the bands; layups left out. The Stats PDF Summary table is full width with bigger rows.
+
 ## PDF reports (v137)
 Both PDFs open with a cover page in the Instagram story look (story.js drawCover, 1080 x 1398 = Letter): round cover = the round
 (score, SG by category, fairways / GIR rings, putting row); Stats cover = averages per round across the rounds picked (STORY.combine).

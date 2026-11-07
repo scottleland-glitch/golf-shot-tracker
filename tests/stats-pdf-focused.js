@@ -40,7 +40,7 @@ const CATS = ['driver', 'approach', 'putting', 'chipping', 'scoring'];
   const D = await page.evaluate(() => { const D = window.__golf.statsData(), l = D.all[D.all.length - 1]; return { last: l.id, course: l.course, date: l.date, n: D.all.length, open: D.openP && D.openP.open ? D.openP.course : null }; });
   for (const c of onPage) {
     const got = R.cats.find(x => x.id === c.id).items.filter(i => i !== 'label' && i !== 'legend');
-    let want = c.items.slice(); if (c.id === 'putting') want = want.concat(['st-pmall', 'st-pmu5', 'st-pmf5', 'st-pmf10', 'st-pmo25']);
+    let want = c.items.slice(); if (c.id === 'putting') want = want.concat(['st-pmall', 'st-pmu5', 'st-pmf5', 'st-pmf10', 'st-pmo25']); if (c.id === 'driver') want = want.concat(['st-fwside']); // v138: sideways fairways hit / missed picture
     assert.deepStrictEqual(got, want, c.id);
   }
   assert.deepStrictEqual(R.cats.map(c => c.id), CATS); assert.strictEqual(R.last, D.last, 'the last round = the newest finished round');

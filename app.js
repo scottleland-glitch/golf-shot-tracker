@@ -598,6 +598,7 @@
           if (el.matches('p.stgrp')) items.push({ kind: 'label', t: tx(el) });
           else if (el.matches('.stcard.stgraph') && !(OR && c === 'scoring' && /^st-par\d$/.test(el.id))) items.push(card(el));
         });
+        if (c === 'driver') { var fwc = fwSideCard(D); if (fwc) items.push(fwc); }
         if (c === 'putting') { items.push({ kind: 'label', t: OR ? 'Putt misses (first putts) - all rounds' : 'Putt misses (first putts) - all distances and each band' }); [].slice.call(extra.querySelectorAll('#pdfpm .stcard')).forEach(function (el) { items.push(card(el)); }); }
         if (c === 'scoring' && OR) {
           items.push({ kind: 'label', t: 'Par 3 / 4 / 5 scores - all rounds vs this round' });
@@ -615,6 +616,40 @@
         sel: D.sel, last: last };
     } finally { box.remove(); for (var k in keep) view[k] = keep[k]; }
   }
+  // v138: Fairways hit and missed, sideways – tee on the left, left rough on top, fairway in the middle, right rough at the bottom; one dot
+  // per tee shot where it finished (no tracers), the L / F / R share on each band. Rounds = the Stats rounds shown. Used in both PDFs.
+  function fwSideList(ids) { var L = []; savedRounds().forEach(function (r) { if (!ids[r.id]) return; SG.summarize(r).teeMap.forEach(function (m) { if (!m.layup) L.push(m); }); }); return L; }
+  function fwSideSVG(list) {
+    var W = 600, H = 226, x0 = 104, x1 = 592, yT = 8, yF = 70, yR = 136, yB = 198, X = function (yd) { return x0 + 14 + (Math.max(60, Math.min(350, yd)) - 60) / 290 * (x1 - x0 - 24); };
+    var N = list.length, nL = list.filter(function (m) { return !m.fairway && m.side === 'L'; }).length, nR = list.filter(function (m) { return !m.fairway && m.side === 'R'; }).length, nF = list.filter(function (m) { return m.fairway; }).length;
+    var pc = function (k) { return N ? Math.round(100 * k / N) + '%' : '–'; };
+    var o = '<svg id="fwside" viewBox="0 0 ' + W + ' ' + H + '">' +
+      '<rect x="' + x0 + '" y="' + yT + '" width="' + (x1 - x0) + '" height="' + (yB - yT) + '" rx="8" fill="#6fae5c" stroke="#2e7d32" stroke-width="1.2"/>' +
+      '<path d="M' + X(95) + ' ' + yF + ' L' + (x1 - 1) + ' ' + yF + ' L' + (x1 - 1) + ' ' + yR + ' L' + X(95) + ' ' + yR + ' Q' + (X(95) - 14) + ' ' + ((yF + yR) / 2) + ' ' + X(95) + ' ' + yF + 'Z" fill="#a9df8f"/>' +
+      '<rect x="' + (x0 + 6) + '" y="' + ((yF + yR) / 2 - 9) + '" width="14" height="18" rx="3" fill="#d6f5c8" stroke="#fff" stroke-width="1.2"/>' +
+      '<text x="' + (x0 + 13) + '" y="' + (yB - 6) + '" text-anchor="middle" font-size="9" fill="#fff" font-weight="600">TEE</text>';
+    [100, 150, 200, 250, 300].forEach(function (yd) { var x = f1(X(yd)); o += '<line x1="' + x + '" y1="' + (yT + 2) + '" x2="' + x + '" y2="' + (yB - 2) + '" stroke="#fff" stroke-opacity=".55" stroke-dasharray="3 5"/>' +
+      '<text x="' + x + '" y="' + (H - 6) + '" text-anchor="middle" font-size="11" fill="#5b6770">' + yd + ' yd</text>'; });
+    [['Left', nL, yT, yF, '#c0263a'], ['Fairway', nF, yF, yR, '#2e7d32'], ['Right', nR, yR, yB, '#c0263a']].forEach(function (b) { var cy = (b[2] + b[3]) / 2;
+      o += '<text x="' + (x0 - 12) + '" y="' + f1(cy - 5) + '" text-anchor="end" font-size="11" fill="#5b6770">' + b[0] + '</text><text x="' + (x0 - 12) + '" y="' + f1(cy + 15) + '" text-anchor="end" font-size="20" fill="' + b[4] + '">' + pc(b[1]) + '</text>'; });
+    var dots = '';
+    list.forEach(function (m, i) {
+      var j = (((i * 37) % 11) - 5) / 5, sgn = m.side === 'L' ? -1 : m.side === 'R' ? 1 : 0, y, fill, stroke = '#fff', x = X(m.kind === 'ob' ? 250 : m.hit || 0);
+      if (m.kind === 'ob') { y = sgn < 0 ? yT + 10 : sgn > 0 ? yB - 10 : (yF + yR) / 2; dots += '<text x="' + f1(x) + '" y="' + f1(y + 5) + '" text-anchor="middle" font-size="15" font-weight="700" fill="#c0263a" stroke="#fff" stroke-width="2" paint-order="stroke">✕</text>'; return; }
+      if (m.fairway) { y = (yF + yR) / 2 + sgn * 12 + j * 18; fill = '#fff'; stroke = '#2e7d32'; }
+      else if (sgn) { y = sgn < 0 ? (yT + yF) / 2 + j * 20 : (yR + yB) / 2 + j * 20; fill = '#e0313f'; }
+      else { y = (i % 2 ? yF : yR) + j * 4; fill = '#9aa5ae'; } // missed, side not entered: on the fairway edge, not in it
+      dots += '<circle cx="' + f1(x) + '" cy="' + f1(y) + '" r="4.4" fill="' + fill + '" stroke="' + stroke + '" stroke-width="1.4"/>';
+    });
+    return o + dots + '</svg>';
+  }
+  function fwSideCard(D) {
+    var ids = {}; (D.shown || []).forEach(function (p) { ids[p.id] = 1; }); var L = fwSideList(ids); if (!L.length) return null;
+    var hit = L.filter(function (m) { return m.fairway && m.hit; }).map(function (m) { return m.hit; }), nU = L.filter(function (m) { return !m.fairway && !m.side; }).length;
+    return { kind: 'card', id: 'st-fwside', full: true, title: 'Fairways hit and missed', val: L.length + ' tee shots', svg: fwSideSVG(L),
+      lines: [SG.pdfSafe('Par 4 and 5 tee shots, layups left out' + (nU ? ' · ' + nU + ' miss' + (nU === 1 ? '' : 'es') + ' with no side entered (grey, on the fairway edge)' : '') + (L.some(function (m) { return m.kind === 'ob'; }) ? ' · ✕ = OB' : ''))],
+      note: SG.pdfSafe('One dot per tee shot where it finished: white = fairway, red = missed left (top) or right (bottom). Seen from the tee: the tee is on the left, the hole off to the right.') };
+  }
   // v137 PDF covers – the Instagram story look (STORY.drawCover), Letter shaped
   var COVER_BG = 'img/home-bg.webp';
   function roundCover(r) { var bl = blOf(r), S = SG.summarize(r, bl); return STORY.coverImage(STORY.data(r, S, { baselineName: SG.baseline(bl).name, player: r.player || playerName() }), COVER_BG); }
@@ -629,23 +664,32 @@
   // (the round PDF's maps). Returns the promise chain.
   function pdfStatsCats(doc, cats, K) {
     var M = K.M, PW = K.PW, BOT = K.BOT, font = K.font, ink = K.ink, T = K.T, wrap = K.wrap;
-    var GAP = 12, CW = (PW - 2 * M - GAP) / 2, PAD = 7, chain = Promise.resolve();
-    var measure = function (c) { // height of a card at width CW (image height comes from the SVG's viewBox)
-      var m = /viewBox="0 0 ([\d.]+) ([\d.]+)"/.exec(c.svg || ''), iw = CW - 2 * PAD, ih = m ? iw * (+m[2]) / (+m[1]) : 0;
-      c.tl = wrap(c.title, iw * 0.62, 9.5); c.ll = []; c.lines.forEach(function (l) { c.ll = c.ll.concat(wrap(l, iw, 7.2)); }); c.nl = wrap(c.note, iw, 6.4); c.ih = ih; c.iw = iw;
-      return PAD + 11 * c.tl.length + 4 + ih + (ih ? 4 : 0) + c.ll.length * 9 + 3 + c.nl.length * 7.8 + PAD;
+    // v138: every graph full page width, one per row (Scott: big graphs, about 2 per page, no wasted space). Each page takes as many
+    // graphs as fit; the pictures on a page shrink together (never below SMIN, never stretched) when that lets one more fit.
+    var FW_ = PW - 2 * M, PAD = 9, CAP = 260, SMIN = 0.8, GAPC = 10, chain = Promise.resolve();
+    var measure = function (c) { // c.oh = card height without the picture, c.ih0 / c.iw0 = the picture at full width (tall ones capped)
+      var CW = c.cw = FW_, m = /viewBox="0 0 ([\d.]+) ([\d.]+)"/.exec(c.svg || ''), tw = CW - 2 * PAD, iw = tw, ih = m ? iw * (+m[2]) / (+m[1]) : 0;
+      if (ih > CAP) { iw = iw * CAP / ih; ih = CAP; }
+      c.fs = [11, 8.5, 7.4, 13, 10.5, 9]; // title, line, note sizes + their line heights
+      c.tl = wrap(c.title, tw * 0.62, c.fs[0]); c.ll = []; c.lines.forEach(function (l) { c.ll = c.ll.concat(wrap(l, tw, c.fs[1])); }); c.nl = wrap(c.note, tw, c.fs[2]);
+      c.iw0 = iw; c.ih0 = ih; c.oh = PAD + c.fs[3] * c.tl.length + 4 + (ih ? 5 : 0) + c.ll.length * c.fs[4] + 3 + c.nl.length * c.fs[5] + PAD;
     };
+    var sized = function (c, sc) { c.iw = c.iw0 * sc; c.ih = c.ih0 * sc; return c.oh + c.ih; };
+    // picture scale that makes these blocks fill `room` (1 = full size); null when they cannot fit at SMIN
+    var fitScale = function (L, room) { var fixed = 0, img = 0; L.forEach(function (b) { if (b.kind === 'card') { fixed += b.c.oh + GAPC; img += b.c.ih0; } else fixed += b.h; });
+      if (!img) return fixed <= room ? 1 : null; var sc = Math.min(1, (room - fixed) / img); return sc >= SMIN ? sc : null; };
     K.newPage = function (title) { doc.addPage(); K.y = K.header(title); };
     var drawCard = function (c, x, yy, h) {
+      var CW = c.cw, F = c.fs;
       doc.setDrawColor(214, 220, 226); doc.setLineWidth(0.6); doc.roundedRect(x, yy, CW, h, 6, 6, 'S'); doc.setDrawColor(0);
-      var yy2 = yy + PAD + 8; font(9.5); ink(25); doc.text(c.tl, x + PAD, yy2); font(8); ink(95); if (c.val) T(c.val, x + CW - PAD, yy2, { align: 'right' });
-      yy2 += 11 * (c.tl.length - 1) + 6; var pg = doc.getCurrentPageInfo().pageNumber, imgY = yy2;
+      var yy2 = yy + PAD + F[0] - 1; font(F[0]); ink(25); doc.text(c.tl, x + PAD, yy2); font(F[0] - 1.5); ink(95); if (c.val) T(c.val, x + CW - PAD, yy2, { align: 'right' });
+      yy2 += F[3] * (c.tl.length - 1) + 7; var pg = doc.getCurrentPageInfo().pageNumber, imgY = yy2, imgX = x + (CW - c.iw) / 2;
       if (K.CARDS) K.CARDS.push({ p: pg, id: c.id, y0: yy, y1: yy + h, x0: x, x1: x + CW });
-      if (c.ih) yy2 += c.ih + 4;
-      font(7.2); ink(70); c.ll.forEach(function (l) { yy2 += 9; T(l, x + CW / 2, yy2 - 2, { align: 'center' }); });
-      yy2 += 3; font(6.4); ink(115); doc.text(c.nl, x + PAD, yy2 + 6); ink();
+      if (c.ih) yy2 += c.ih + 5;
+      font(F[1]); ink(70); c.ll.forEach(function (l) { yy2 += F[4]; T(l, x + CW / 2, yy2 - 2, { align: 'center' }); });
+      yy2 += 3; font(F[2]); ink(115); doc.text(c.nl, x + PAD, yy2 + F[2] - 0.4); ink();
       if (!c.svg) return Promise.resolve();
-      return svgToPng(c.svg, K.imgScale || 3).then(function (im) { var back = doc.getCurrentPageInfo().pageNumber; doc.setPage(pg); doc.addImage(im.data, 'JPEG', x + PAD, imgY, c.iw, c.ih); doc.setPage(back); if (K.IMGS) K.IMGS.push({ p: pg, id: c.id, y0: imgY, y1: imgY + c.ih }); });
+      return svgToPng(c.svg, K.imgScale || 3).then(function (im) { var back = doc.getCurrentPageInfo().pageNumber; doc.setPage(pg); doc.addImage(im.data, 'JPEG', imgX, imgY, c.iw, c.ih); doc.setPage(back); if (K.IMGS) K.IMGS.push({ p: pg, id: c.id, y0: imgY, y1: imgY + c.ih }); });
     };
     var LEG = function (it, yy) { // all rounds (solid, par colours) vs this round (dark dashed)
       var x = M; doc.setLineDashPattern([], 0); doc.setLineWidth(2.2); [['#1f73c9', 0], ['#2e9d4f', 8], ['#e8871e', 16]].forEach(function (q) { var v = parseInt(q[0].slice(1), 16); doc.setDrawColor((v >> 16) & 255, (v >> 8) & 255, v & 255); doc.line(x + q[1], yy - 3, x + q[1] + 7, yy - 3); });
@@ -654,22 +698,37 @@
       T(it.last, x + 30, yy + 14); ink(); return 32;
     };
     cats.forEach(function (cat) {
-      var B = [], row = null;
-      cat.items.forEach(function (it) {
-        if (it.kind === 'card') { it.h = measure(it); if (!row || row.c.length === 2) { row = { kind: 'row', c: [] }; B.push(row); } row.c.push(it); row.h = Math.max(row.h || 0, it.h); return; }
-        row = null; B.push(it.kind === 'label' ? { kind: 'label', t: it.t, h: 16 } : { kind: 'legend', it: it, h: 36 });
-      });
-      for (var i = B.length - 1; i >= 0; i--) B[i].need = (B[i].kind === 'row' ? B[i].h + 10 : B[i].h + (B[i + 1] ? B[i + 1].need : 0));
+      var B = cat.items.map(function (it) { if (it.kind === 'card') { measure(it); return { kind: 'card', c: it }; } return it.kind === 'label' ? { kind: 'label', t: it.t, h: 16 } : { kind: 'legend', it: it, h: 36 }; });
       chain = chain.then(function () {
-        K.newPage(cat.name);
+        K.newPage(cat.name); var room2 = BOT - K.y; // a continued page starts at the same height
         if (cat.sum) { font(10); ink(90); T(cat.sum.replace(/ {2,}/g, ' · '), M, K.y - 2); ink(); K.y += 16; }
-        var q = Promise.resolve();
+        // split into pages: greedy, a label / legend never ends a page
+        var pages = [], cur = [], room = BOT - K.y;
         B.forEach(function (b) {
+          if (!cur.length || fitScale(cur.concat([b]), room) != null) { cur.push(b); return; }
+          var carry = []; while (cur.length > 1 && cur[cur.length - 1].kind !== 'card') carry.unshift(cur.pop());
+          pages.push({ L: cur, room: room });
+          room = room2; cur = carry.concat([b]);
+        });
+        if (cur.length) pages.push({ L: cur, room: room });
+        // rebalance: a page left with ONE graph takes the last graph of a page before it that has three or more (Driver: drive + OTT | fairways hit + the fairway picture)
+        var nC = function (L) { return L.filter(function (x) { return x.kind === 'card'; }).length; };
+        for (var pi2 = pages.length - 1; pi2 > 0; pi2--) { var A = pages[pi2 - 1], Z = pages[pi2];
+          if (nC(Z.L) !== 1 || nC(A.L) < 3) continue;
+          var k = A.L.length - 1; while (k > 0 && A.L[k].kind !== 'card') k--; var mv = A.L.slice(k); while (k > 0 && A.L[k - 1].kind !== 'card') { k--; mv = A.L.slice(k); }
+          var A2 = A.L.slice(0, k), Z2 = mv.concat(Z.L); if (fitScale(Z2, Z.room) != null && nC(A2)) { A.L = A2; Z.L = Z2; } }
+        var q = Promise.resolve();
+        pages.forEach(function (pg, pi) {
           q = q.then(function () {
-            if (K.y + b.need > BOT) K.newPage(cat.name + ' (continued)');
-            if (b.kind === 'label') { font(8.5); ink(80); T(String(b.t).toUpperCase(), M + 2, K.y + 6); ink(); K.y += 16; return; }
-            if (b.kind === 'legend') { K.y += LEG(b.it, K.y + 6) + 4; return; }
-            var yy = K.y; K.y += b.h + 10; return Promise.all(b.c.map(function (c, k) { return drawCard(c, M + k * (CW + GAP), yy, b.h); }));
+            if (pi) K.newPage(cat.name + ' (continued)');
+            var sc = fitScale(pg.L, pg.room); if (sc == null) { var fx = 0, im = 0; pg.L.forEach(function (b) { if (b.kind === 'card') { fx += b.c.oh + GAPC; im += b.c.ih0; } else fx += b.h; }); sc = Math.max(0.3, Math.min(1, (pg.room - fx) / Math.max(1, im))); }
+            var r = Promise.resolve();
+            pg.L.forEach(function (b) { r = r.then(function () {
+              if (b.kind === 'label') { font(8.5); ink(80); T(String(b.t).toUpperCase(), M + 2, K.y + 6); ink(); K.y += 16; return; }
+              if (b.kind === 'legend') { K.y += LEG(b.it, K.y + 6) + 4; return; }
+              var h = sized(b.c, sc), yy = K.y; K.y += h + GAPC; return drawCard(b.c, M, yy, h);
+            }); });
+            return r;
           });
         });
         return q.then(function () { K.y += 6; return K.after ? K.after(cat.id) : null; });
@@ -705,17 +764,17 @@
       font(12); ink(30); T((R.player || 'Player') + ' – ' + R.range, M, y); y += 16;
       font(9.5); ink(90);
       [R.shown, 'Strokes gained compared with ' + R.baseline + '.', 'Compare to all rounds: ' + (R.cmp ? 'on (grey = all rounds)' : 'off') + ' · made ' + dateTxt + '.'].forEach(function (l) { wrap(l, PW - 2 * M, 9.5).forEach(function (s) { T(s, M, y); y += 12; }); });
-      y += 8; font(11.5); ink(40); T('Averages per round', M, y); y += 14;
+      y += 8; font(11.5); ink(40); T('Averages per round', M, y); y += 22;
       // averages table: label + 1 or 2 number columns, right-aligned numbers
-      var tw = [250, 110, 110].slice(0, R.table[0] ? R.table[0].length : 2), tx0 = M, rh = 15;
+      var nc = R.table[0] ? R.table[0].length : 2, tw = nc > 2 ? [300, 120, 120] : [380, 160], tx0 = M, rh = 22; // v138: full width, roomier rows
       R.table.forEach(function (row, i) {
-        if (i === 0) { doc.setFillColor(238, 241, 238); doc.roundedRect(tx0, y - 11, tw.reduce(function (a, b) { return a + b; }, 0), rh, 3, 3, 'F'); }
-        font(i === 0 ? 8.5 : 9.5); ink(i === 0 ? 85 : 30); var x = tx0;
+        if (i === 0) { doc.setFillColor(238, 241, 238); doc.roundedRect(tx0, y - 15, tw.reduce(function (a, b) { return a + b; }, 0), rh, 3, 3, 'F'); }
+        font(i === 0 ? 10 : 12); ink(i === 0 ? 85 : 30); var x = tx0;
         row.forEach(function (c, j) { if (j === 0) T(c, x + 5, y); else T(c, x + tw[j] - 5, y, { align: 'right' }); x += tw[j]; });
-        if (i) { doc.setDrawColor(228); doc.setLineWidth(0.4); doc.line(tx0, y + 4, x, y + 4); doc.setDrawColor(0); }
+        if (i) { doc.setDrawColor(228); doc.setLineWidth(0.4); doc.line(tx0, y + 7, x, y + 7); doc.setDrawColor(0); }
         y += rh;
       });
-      ink(); y = (function () { var L = wrap(R.tableNote, PW - 2 * M, 7.5); ink(110); doc.text(L, M, y + 4); ink(); return y + 4 + L.length * 9.4 + 10; })();
+      ink(); y = (function () { var L = wrap(R.tableNote, PW - 2 * M, 8.5); ink(110); doc.text(L, M, y + 4); ink(); return y + 4 + L.length * 10.6 + 10; })();
       // ---- v137: the five categories, each starting on its own page (shared with the round PDF) ----
       var K = { M: M, PW: PW, BOT: BOT, font: font, ink: ink, T: T, wrap: wrap, header: header, IMGS: IMGS, CARDS: CARDS };
       var chain = pdfStatsCats(doc, R.cats, K);
