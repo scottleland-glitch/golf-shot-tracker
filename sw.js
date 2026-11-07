@@ -19,12 +19,13 @@
 // v98: Google Drive automatic backup + restore (gdrive.js), one folder per player, multi-phone merge.
 // v97: Send round (file or PINHIGH1: code) + Add a round in History (share.js).
 // v96: Round stats – Score/To par/Yards/Putts box on top, Quick view, collapsible stat tiles, smaller legend.
+// v131: Round stats – "Share to Instagram / TikTok" makes a one-page 1080x1920 story picture of the round (story.js).
 // v128: Help page (+ menu › Help) – files in help/ (video, guide PDF, poster) are NOT in this cache and bypass this worker (network only, so iPhone Safari's Range requests for the video work).
 // v113: "Courses near me" (near.js). The course finder list (data/us-courses.json, ~1.0 MB, ~0.28 MB gzipped) is NOT in this cache:
 // the app downloads it on first use into its own cache 'pinhigh-courselist-v1', which a new version keeps (so no re-download).
 // GolfCore scorecards (through the Pin High relay, pinhigh-golfcore.pinhigh.workers.dev) go straight to the network; the app saves each picked course with the saved courses.
-const CACHE = 'golf-sg-v130';
-const ASSETS = ['./', './img/home-bg.webp', './img/oriole.webp', './index.html', './styles.css', './sg.js', './birdie.js', './voice.js', './courses.js', './near.js', './bag.js', './wedges.js', './live.js', './share.js', './gdrive.js', './app.js', './config.js', './vendor/jspdf.umd.min.js',
+const CACHE = 'golf-sg-v131';
+const ASSETS = ['./', './img/home-bg.webp', './img/oriole.webp', './index.html', './styles.css', './sg.js', './birdie.js', './voice.js', './courses.js', './near.js', './bag.js', './wedges.js', './live.js', './share.js', './story.js', './gdrive.js', './app.js', './config.js', './vendor/jspdf.umd.min.js',
   './manifest.webmanifest', './icons/apple-touch-icon.png', './icons/icon-192.png',
   './icons/icon-512.png', './icons/icon-512-maskable.png'];
 self.addEventListener('install', e => {

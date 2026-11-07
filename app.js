@@ -137,7 +137,7 @@
     if (view.screen !== 'summary' && view.screen !== 'hole') view.replay = null;
     if (view.screen !== 'hole') { view.pinOpen = false; view.voice = null; view.liveCard = false; micAbort(); }
     if (view.screen !== 'card') view.card = null;
-    if (view.screen !== 'summary') view.send = null; if (view.screen !== 'history') view.addr = null; // v97 sheets
+    if (view.screen !== 'summary') { view.send = null; if (view.story) storyClose(); } if (view.screen !== 'history') view.addr = null; // v97 sheets
     if (view.screen !== 'home') { if (view.hmenu !== 'new') { view.newC = null; view.newAdd = false; } view.crsOpen = false; view.nameSheet = null; }
     if (view.hmenu !== 'new') view.newPEdit = false;
     document.body.classList.toggle('noscroll', !!(view.pinOpen && view.screen === 'hole'));
@@ -721,6 +721,37 @@
       pdfDownload(p); return;
     }
   }
+  // ---------- v131 Round story picture (story.js) ----------
+  function storyHTML() {
+    var p = view.story; if (!p || p.id !== view.roundId) return '';
+    if (p.busy) return '<div class="pdfsheet storysheet" id="storysheet" role="status"><b>Making your story picture…</b></div>';
+    if (p.error) return '<div class="pdfsheet storysheet" id="storysheet"><p class="notice bad">' + esc(p.error) + '</p><button class="big" data-act="storyclose">Close</button></div>';
+    return '<div class="pdfsheet storysheet" id="storysheet"><b>📸 Story picture ready</b>' +
+      '<img class="storyprev" id="storyprev" src="' + p.url + '" alt="Round story picture">' +
+      '<p class="help muted">Share it, then pick Instagram or TikTok – or Save Image to post it from Photos.</p>' +
+      '<button class="primary big" data-act="storyshare" id="storyshare">Share picture</button>' +
+      '<button class="txt" data-act="storyclose">Close</button></div>';
+  }
+  function storyClose() { if (view.story && view.story.url) URL.revokeObjectURL(view.story.url); view.story = null; }
+  function storyAct(act) {
+    if (act === 'storyclose') { storyClose(); render(); return; }
+    var r = round(); if (!r) return;
+    if (act === 'story') {
+      storyClose(); view.story = { busy: true, id: r.id }; render();
+      var bl = blOf(r), S = SG.summarize(r, bl), d = STORY.data(r, S, { baselineName: SG.baseline(bl).name, player: r.player || playerName() });
+      STORY.makeImage(d, 'img/home-bg.webp').then(function (blob) {
+        if (!view.story || view.story.id !== r.id) return;
+        view.story = { id: r.id, blob: blob, url: URL.createObjectURL(blob), name: STORY.fileName(r) }; window.__golf.lastStory = view.story; render();
+        var el = document.getElementById('storysheet'); if (el && el.scrollIntoView) el.scrollIntoView({ block: 'center' });
+      }, function (e) { view.story = { id: r.id, error: 'Could not make the picture: ' + (e && e.message) }; render(); });
+      return;
+    }
+    var p = view.story; if (act !== 'storyshare' || !p || !p.blob) return;
+    var f = null; try { f = new File([p.blob], p.name, { type: 'image/png', lastModified: Date.now() }); } catch (e) {}
+    if (f && navigator.canShare && navigator.canShare({ files: [f] })) { navigator.share({ files: [f] }).catch(function (e) { if (!e || e.name !== 'AbortError') storyDownload(p); }); return; }
+    storyDownload(p);
+  }
+  function storyDownload(p) { var a = document.createElement('a'); a.href = p.url; a.download = p.name; document.body.appendChild(a); a.click(); setTimeout(function () { a.remove(); }, 4000); toast('Picture downloaded'); }
   function pdfDownload(p) { var u = URL.createObjectURL(p.blob), a = document.createElement('a'); a.href = u; a.download = p.name; document.body.appendChild(a); a.click(); setTimeout(function () { URL.revokeObjectURL(u); a.remove(); }, 4000); toast('PDF downloaded'); }
   // ---------- History ----------
   function savedRounds() { return rounds.filter(function (r) { return !SG.roundEmpty(r); }); }
@@ -2610,6 +2641,7 @@
       'Avg to pin after = how far from the hole the ball finished: feet on the green, yards × 3 off it, 0 if holed' +
       (pex ? '; <b>' + pex + '</b> approach shot' + (pex === 1 ? '' : 's') + ' with a penalty or OB left out of that average' : '; shots with a penalty or OB are left out of it') + '.</p>';
     var sgPart = out; out = main + '<h2>Stats</h2>' + statTilesHTML(S);
+    out += (S.holesDone ? '<button class="primary big storybtn" data-act="story" id="storybtn" style="margin-top:16px">📸 Share to Instagram / TikTok<small>a one-page story picture of this round</small></button>' + storyHTML() : '');
     out += '<button class="primary big" data-act="pdf" style="margin-top:16px">📄 Make PDF report</button>' + pdfHTML();
     out += '<button class="big" data-act="csv">Export this round (CSV)</button>';
     out += '<button class="big sendbtn" data-act="sendopen" id="sendround">📤 Send round<small>to another phone – it lands in their Rounds</small></button>';
@@ -4213,6 +4245,7 @@
       case 'gdlmissing': view.restore.items.forEach(function (it) { if (it.status === 'new') view.restore.sel[it.round.id] = true; }); render(); return;
       case 'gdlclear': view.restore.sel = {}; render(); return;
       case 'pdfclose': view.pdf = null; render(); return;
+      case 'story': case 'storyshare': case 'storyclose': storyAct(act); return;
       case 'setname': setName((document.getElementById('pname') || {}).value); return;
       case 'editname': view.editName = true; render(); var pi = document.getElementById('pname'); if (pi) pi.focus(); return;
       case 'cancelname': view.editName = false; view.needName = null; render(); return;

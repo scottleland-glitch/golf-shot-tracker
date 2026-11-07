@@ -47,6 +47,14 @@ one dot per hole (its approach into the green) is drawn - white = green hit in r
 left and where it finished). Same approach / reach-green rules as the other maps. Holes without a pin are
 excluded and counted. This round / All rounds toggle.
 
+## Story picture (v131)
+Round stats → "📸 Share to Instagram / TikTok" draws a 1080 x 1920 picture of the round on the phone (`story.js`):
+course, date, tees, player, score and to par; strokes gained off the tee, around the green and putting (vs the round's
+baseline, with the total and approach underneath); fairways hit and greens in regulation with rings; and putting –
+feet of putts holed, longest make, putts, 1-putts and 3-putts. The content stays out of the top and bottom strips that
+Instagram and TikTok cover. "Share picture" opens the share sheet with the PNG (pick Instagram, TikTok or Save Image);
+without a share sheet it downloads. Test: `node tests/story-focused.js`.
+
 ## Files
 - `index.html`, `styles.css`, `app.js` – the app
 - `wedges.js` – Wedges chart (40–110 yd, every 10): options, summary line, tidy/merge helpers
