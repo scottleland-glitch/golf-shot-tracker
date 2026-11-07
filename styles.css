@@ -744,18 +744,21 @@ body.lvbody { background: transparent; }
 .lvbig small { font-size: 14px; font-weight: 400; color: var(--frost-ink-soft); }
 .lvupd { margin: 6px 0 0; font-size: 13px; color: var(--frost-ink-soft); }
 .lvmsg { color: var(--frost-ink-soft); }
-.lvnine { display: grid; grid-template-columns: 50px repeat(9, 1fr) 40px; margin: 4px 0 10px; }
+.lvnine { display: grid; grid-template-columns: 42px repeat(9, minmax(0, 1fr)) 34px; margin: 4px 0 10px; min-width: 0; } /* v139: columns shrink to fit any phone (Safari made them overflow) */
+.lvtotal { display: flex; align-items: baseline; gap: 10px; margin: 0 0 10px; padding: 8px 2px 0; border-top: 1px solid rgba(255, 255, 255, .6); font-size: 13px; color: var(--frost-ink-soft); }
+.lvtotal b { font-size: 20px; font-weight: 500; color: var(--frost-ink); }
+.lvtotal em { font-style: normal; font-size: 14px; }
 .lvrow { display: grid; grid-template-rows: 26px 26px 38px; align-items: center; font-size: 12px; color: var(--frost-ink-soft); }
 .lvrow span { display: flex; align-items: center; }
 .lvtot span { justify-content: center; font-weight: 500; color: var(--frost-ink); font-size: 14px; }
 .lvtot span:first-child { font-size: 12px; color: var(--frost-ink-soft); font-weight: 400; }
-.lvpage button.lvcol { display: grid; grid-template-rows: 26px 26px 38px; align-items: center; justify-items: center; min-height: 0; padding: 0; margin: 0;
+.lvpage button.lvcol { display: grid; grid-template-rows: 26px 26px 38px; align-items: center; justify-items: center; min-height: 0; min-width: 0; width: 100%; padding: 0; margin: 0; -webkit-appearance: none; appearance: none; font-size: inherit;
   border: 0; border-radius: 12px; background: transparent; font-weight: 400; box-shadow: none; }
 .lvpage button.lvcol:active { transform: none; background: rgba(255, 255, 255, .5); }
 .lvcol.now { background: rgba(255, 255, 255, .45); }
 .lvcol.open { background: rgba(255, 255, 255, .75); box-shadow: inset 0 0 0 1px rgba(28, 28, 30, .25); }
 .lvh { font-size: 13px; color: var(--frost-ink-soft); } .lvp { font-size: 14px; color: var(--frost-ink-soft); }
-.lvs i, .lvkey i { font-style: normal; display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px; font-size: 16px; font-weight: 500; color: var(--frost-ink); }
+.lvs i, .lvkey i { font-style: normal; display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px; box-sizing: border-box; font-size: 16px; font-weight: 500; color: var(--frost-ink); }
 i.birdie { border-radius: 50%; border: 1.5px solid #c9505c; color: #b23a48; background: rgba(255, 232, 234, .7); }
 i.eagle { border-radius: 50%; border: 1.5px solid #c9505c; color: #fff; background: #d0606b; box-shadow: 0 0 0 2px rgba(255, 255, 255, .9), 0 0 0 3.5px #c9505c; }
 i.par { color: var(--frost-ink); }
@@ -765,6 +768,7 @@ i.prog { color: #e0565e; font-size: 22px; }
 .lvkey { margin: 2px 0 0; font-size: 12px; color: var(--frost-ink-soft); display: flex; flex-wrap: wrap; align-items: center; gap: 4px 6px; }
 .lvtap { margin: 4px 0 0; font-size: 12px; color: var(--frost-ink-soft); }
 .lvkey i { width: 20px; height: 20px; font-size: 11px; }
+.lvs i { width: min(28px, calc((100vw - 120px) / 9.6)); height: min(28px, calc((100vw - 120px) / 9.6)); font-size: min(16px, 4.2vw); } /* v139: square boxes that shrink on narrow phones */
 .lvshots h2 { margin: 0 0 6px; font-size: 20px; font-weight: 600; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 .lvshots h2 small { font-weight: 400; font-size: 15px; color: var(--frost-ink-soft); }
 .lvres { margin-left: auto; font-size: 14px; font-weight: 500; padding: 3px 10px; border-radius: 999px; background: rgba(255, 255, 255, .7); }

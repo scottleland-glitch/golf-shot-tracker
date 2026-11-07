@@ -32,7 +32,8 @@
     var holes = [], st = 0, pr = 0, thru = 0, cur = 0, lastDone = -1, firstLive = -1;
     (r.holes || []).forEach(function (h, i) {
       var a = SGx.analyzeHole(h), e = { par: Number(h.par) || 0 }, rows = h.rows || [];
-      var started = rows.length > 1 || (rows[0] && rows[0].dist !== '' && rows[0].dist != null) || !!h.finished;
+      // v139: the tee distance is pre-filled from the scorecard when the round starts, so it alone does not mean the hole was started
+      var r0 = rows[0] || {}, started = rows.length > 1 || !!h.finished || !!(r0.club || r0.pen || r0.layup || (r0.loc && r0.loc !== 'tee'));
       var shots = started ? rows.map(function (w) {
         return [w.dist === '' || w.dist == null ? '' : w.dist, w.loc || '', w.dir || '', w.club || '', w.pen ? 1 : '', w.layup ? 1 : '', w.holeOut && w.loc && rows[0] !== w ? 1 : ''].join('|').replace(/\|+$/, '');
       }) : [];
@@ -182,6 +183,8 @@
           '<span class="lvs"><i class="' + (d == null ? (h.live ? 'prog' : 'none') : cls(d)) + '">' + (h.sc != null ? h.sc : h.live ? '·' : '') + '</i></span></button>'; });
       out += '<div class="lvrow lvtot"><span>' + (f ? 'In' : 'Out') + '</span><span>' + (tp || '') + '</span><span>' + (ts || '') + '</span></div></div>';
     });
+    if (s.h.length > 9) { var tp2 = 0, ts2 = 0; s.h.forEach(function (h) { if (h.sc != null) { ts2 += h.sc; tp2 += h.par; } });
+      out += '<div class="lvtotal" id="lvtotal"><span>Total</span><b>' + (ts2 || '–') + '</b>' + (ts2 ? '<em>' + toPar(ts2 - tp2) + (s.fin ? '' : ' · thru ' + s.thru) + '</em>' : '') + '</div>'; }
     out += '<p class="lvkey"><i class="birdie">3</i> birdie <i class="par">4</i> par <i class="bogey">5</i> bogey <i class="dbl">6</i> double+</p><p class="lvtap">Tap a hole to see its shots</p></div>';
     if (o.open != null && s.h[o.open]) {
       var h = s.h[o.open], d2 = h.sc != null ? h.sc - h.par : null;

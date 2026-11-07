@@ -24,6 +24,10 @@ const noNullsInArrays = o => JSON.stringify(o, (k, v) => { if (Array.isArray(v))
   assert.strictEqual(L.watchId('?watch=' + t), t); assert.strictEqual(L.watchId('?x=1&watch=short'), null, 'short ids rejected'); assert.strictEqual(L.watchId(''), null);
   assert.strictEqual(L.link(t), 'https://scottleland-glitch.github.io/golf-shot-tracker/?watch=' + t);
   assert.strictEqual(L.dbUrl(DB + '/', t), DB + '/live/' + t + '.json'); }
+// ---------- 1b. v139: a hole whose tee distance was only pre-filled from the scorecard is NOT started ----------
+{ const r = makeRound(); r.holes[5].rows = [R(380, 'tee')]; r.holes[6].rows = [R(160, 'tee', '', '7i')];
+  const S = L.snapshot(r, SG, { now: 1 }); assert.strictEqual(S.h[5].live, undefined, 'pre-filled tee distance alone = not started'); assert.strictEqual(S.h[6].live, 1, 'a club picked = started');
+  assert.strictEqual(S.cur, 4, 'still on hole 4'); }
 // ---------- 2. snapshot ----------
 const RD = makeRound(), S1 = L.snapshot(RD, SG, { now: 1000 });
 { assert.strictEqual(S1.name, 'Quincy'); assert.strictEqual(S1.course, 'Haggin Oaks'); assert.strictEqual(S1.tee, 'Sage'); assert.strictEqual(S1.date, RD.date);
@@ -162,6 +166,9 @@ function rig(o) {
   await V.evaluate(s => window.__es[0].emit('put', { path: '/', data: s }), SV); await V.waitForSelector('#lvcard');
   assert.strictEqual(await V.textContent('#lvtopar'), '+1'); assert.strictEqual(await V.textContent('#lvthru'), 'Thru 3'); assert.match(await V.textContent('#lvupd'), /Updated 1 min ago/);
   assert.strictEqual(await V.$('#lvcele'), null, 'no celebration for birdies already on the card');
+  // v139: both nines and the Total fit the phone – nothing off the right edge (Scott could not see the back 9)
+  { const fit = await V.evaluate(() => ({ sw: document.documentElement.scrollWidth, vw: innerWidth, r: Math.max(...[...document.querySelectorAll('.lvnine')].map(n => n.getBoundingClientRect().right)), tot: document.getElementById('lvtotal').textContent }));
+    assert.ok(fit.sw <= fit.vw && fit.r <= fit.vw, JSON.stringify(fit)); assert.match(fit.tot, /^Total13\+1 · thru 3$/); }
   await V.screenshot({ path: OUT + 'live-viewer.png', fullPage: true });
   await V.click('[data-lh="2"]'); await V.waitForSelector('#lvshots'); assert.match(await V.textContent('#lvshots'), /Hole 3.*6 · Bogey/);
   assert.strictEqual(await V.locator('#lvshots li').count(), 6); await V.click('[data-lh="2"]'); assert.strictEqual(await V.$('#lvshots'), null, 'tap again closes');

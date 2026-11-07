@@ -47,6 +47,11 @@ one dot per hole (its approach into the green) is drawn - white = green hit in r
 left and where it finished). Same approach / reach-green rules as the other maps. Holes without a pin are
 excluded and counted. This round / All rounds toggle.
 
+## Live scorecard fit (v139)
+The watch page (?watch=) scorecard columns shrink to fit any phone (minmax(0, 1fr), buttons min-width 0, square score boxes sized from the
+screen width), so both nines and Out / In always show; a Total line (strokes · to par · thru N) sits under the back nine. live.js snapshot:
+a hole counts as started only with a real shot – a tee distance pre-filled from the course scorecard alone no longer makes it "playing".
+
 ## PDF graph pages (v138)
 Every Stats graph in both PDFs runs the full page width, one per row (tall ones capped at 260 pt). Each page takes as many as fit; the
 pictures on a page shrink together (never below 80%, never stretched) when that lets one more fit; a page never ends on a label, and a page
