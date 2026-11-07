@@ -27,7 +27,7 @@
       holes: S.holesDone, strokes: S.strokes, toPar: S.toPar,
       baseline: opts.baselineName || '',
       sg: { ott: S.cats.tee.sg, app: S.cats.approach.sg, arg: S.cats.short.sg, putt: S.cats.putting.sg, total: S.sgTotal,
-        nOtt: S.cats.tee.n, nArg: S.cats.short.n, nPutt: S.cats.putting.n },
+        nOtt: S.cats.tee.n, nApp: S.cats.approach.n, nArg: S.cats.short.n, nPutt: S.cats.putting.n },
       fw: { hit: S.fwHit, total: S.fwTotal, pct: pct(S.fwHit, S.fwTotal) },
       gir: { hit: S.gir, total: S.girHoles, pct: pct(S.gir, S.girHoles) },
       putting: {
@@ -128,17 +128,20 @@
     var y0 = 715, ph = 310; panel(ctx, M, y0, CW, ph);
     label(ctx, 'Strokes gained', M + 44, y0 + 66);
     if (d.baseline) { ctx.save(); ctx.font = font(26, 400); ctx.fillStyle = MUTED; ctx.textAlign = 'right'; ctx.fillText('vs ' + d.baseline, M + CW - 44, y0 + 66); ctx.restore(); }
-    var cols = [['Off the tee', d.sg.ott, d.sg.nOtt], ['Around green', d.sg.arg, d.sg.nArg], ['Putting', d.sg.putt, d.sg.nPutt]];
-    var cw = (CW - 88) / 3;
+    // v133 all four categories: off the tee, approach, around the green, putting
+    var cols = [['Off the tee', d.sg.ott, d.sg.nOtt], ['Approach', d.sg.app, d.sg.nApp], ['Around green', d.sg.arg, d.sg.nArg], ['Putting', d.sg.putt, d.sg.nPutt]];
+    var inX = M + 28, cw = (CW - 56) / 4;
     cols.forEach(function (c, i) {
-      var cx = M + 44 + cw * i + cw / 2;
-      if (i) { ctx.save(); ctx.strokeStyle = 'rgba(255,255,255,0.12)'; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(M + 44 + cw * i, y0 + 110); ctx.lineTo(M + 44 + cw * i, y0 + 250); ctx.stroke(); ctx.restore(); }
-      ctx.textAlign = 'center'; ctx.font = font(30, 500); ctx.fillStyle = '#fff'; ctx.fillText(c[0], cx, y0 + 132);
-      ctx.font = font(84, 400); ctx.fillStyle = sgColor(c[1]); ctx.fillText(fmtSG(c[1]), cx, y0 + 224);
-      ctx.font = font(24, 400); ctx.fillStyle = MUTED; ctx.fillText(c[2] + (c[2] === 1 ? ' shot' : ' shots'), cx, y0 + 266);
+      var cx = inX + cw * i + cw / 2;
+      if (i) { ctx.save(); ctx.strokeStyle = 'rgba(255,255,255,0.12)'; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(inX + cw * i, y0 + 110); ctx.lineTo(inX + cw * i, y0 + 250); ctx.stroke(); ctx.restore(); }
+      ctx.textAlign = 'center'; ctx.fillStyle = '#fff'; ctx.fillText(fitText(ctx, c[0], cw - 16, 27, 500, 20), cx, y0 + 132);
+      ctx.fillStyle = sgColor(c[1]); ctx.fillText(fitText(ctx, fmtSG(c[1]), cw - 14, 70, 400, 44), cx, y0 + 218);
+      ctx.font = font(23, 400); ctx.fillStyle = MUTED; ctx.fillText(c[2] + (c[2] === 1 ? ' shot' : ' shots'), cx, y0 + 264);
     });
-    ctx.save(); ctx.font = font(28, 400); ctx.fillStyle = MUTED; ctx.textAlign = 'center';
-    var tot = 'Total ' + fmtSG(d.sg.total) + '   ·   Approach ' + fmtSG(d.sg.app); ctx.fillText(tot, W / 2, y0 + ph + 50); ctx.restore();
+    ctx.save(); ctx.font = font(30, 400); ctx.fillStyle = MUTED; ctx.textAlign = 'center';
+    var tl = ctx.measureText('Total ').width, tv = fmtSG(d.sg.total); ctx.font = font(30, 600); var tvw = ctx.measureText(tv).width;
+    ctx.textAlign = 'left'; ctx.font = font(30, 400); ctx.fillText('Total ', W / 2 - (tl + tvw) / 2, y0 + ph + 50);
+    ctx.font = font(30, 600); ctx.fillStyle = sgColor(d.sg.total); ctx.fillText(tv, W / 2 - (tl + tvw) / 2 + tl, y0 + ph + 50); ctx.restore();
 
     // Fairways and greens
     var y1 = 1112, th = 270, tw = (CW - 32) / 2;

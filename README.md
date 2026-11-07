@@ -49,8 +49,8 @@ excluded and counted. This round / All rounds toggle.
 
 ## Story picture (v131)
 Round stats → "📸 Share to Instagram / TikTok" draws a 1080 x 1920 picture of the round on the phone (`story.js`):
-course, date, tees, player, score and to par; strokes gained off the tee, around the green and putting (vs the round's
-baseline, with the total and approach underneath); fairways hit and greens in regulation with rings; and putting –
+course, date, tees, player, score and to par; strokes gained off the tee, approach, around the green and putting (v133: all four, vs the round's
+baseline, with the total underneath); fairways hit and greens in regulation with rings; and putting –
 average 2nd putt distance (v132: the putt left after each first putt; 1-putt holes have none), longest make, putts, 1-putts
 and 3-putts. v132: ⤢ on the preview (or tapping it) opens the picture full screen; tap zooms to 2x around the tap, tap again fits. The content stays out of the top and bottom strips that
 Instagram and TikTok cover. "Share picture" opens the share sheet with the PNG (pick Instagram, TikTok or Save Image);

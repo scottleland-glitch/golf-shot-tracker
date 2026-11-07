@@ -12,6 +12,7 @@ const D = STORY.data(R, S, { baselineName: 'PGA Tour', locale: 'en-US' });
 assert.deepStrictEqual([D.course, D.tee, D.player, D.holes, D.strokes, D.toPar], ['Arcade Creek', 'White', 'Scott', 18, 78, 6]);
 assert.strictEqual(D.dateText, 'Oct 29, 2026');
 assert.deepStrictEqual([D.sg.ott, D.sg.arg, D.sg.putt, D.sg.app, D.sg.total], [S.cats.tee.sg, S.cats.short.sg, S.cats.putting.sg, S.cats.approach.sg, S.sgTotal]);
+assert.deepStrictEqual([D.sg.nOtt, D.sg.nApp, D.sg.nArg, D.sg.nPutt], [S.cats.tee.n, S.cats.approach.n, S.cats.short.n, S.cats.putting.n], 'v133: approach shown too');
 assert.deepStrictEqual([D.fw.hit, D.fw.total, D.fw.pct, D.gir.hit, D.gir.total, D.gir.pct], [8, 14, 57, 7, 18, 39]);
 const made = S.puttList.filter(p => p.made);
 assert.strictEqual(D.putting.putts, 31);
