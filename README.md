@@ -25,6 +25,18 @@ Every Shot Counts Table 3.10). The other five are ESTIMATED: per-round gaps from
 Player Quality ladder, then spread over the PGA table. Full sources, method and caveats: in-app
 "About the numbers" and the BASELINES comment in `sg.js`.
 
+## Shot card, greenside bunkers, hazard re-tee (v157)
+Hole entry is one card per shot: FROM (lie + distance to the pin, pre-filled from where the last shot finished), CLUB, FINISHED
+(Fairway / Rough / Bunker / Green / Deep rough / Trees / Hazard / OB / In the hole; on the green: Missed or In the hole), then
+which way it missed. Distance hit is backed out from the next shot's distance. Saved rows are unchanged (same format as before).
+Greenside bunkers (sand, 50 yd and in, `BUNKER_MAX_YD`) are their own area – `cat 'bunker'`, bucket "Greenside bunker" – in
+strokes gained, scorecard (BNK), stats (sand saves, out first time, proximity), My Game spoke, practice split and takeaways.
+Fairway bunkers stay Approach. Calibration folds bunker into short game, so baselines are unchanged.
+Hazard: Finished = Hazard asks Drop or Re-tee (Replay after shot 1), or "played it from the hazard" (no penalty). A re-tee row
+(`loc 'hazard'`, `retee: true`) is stroke and distance – same spot as before, like OB, but recorded as a hazard.
+Hole replay: shot numbers sit where each shot was hit (1 on the tee) with a small ball where it finished; the green close-up
+brings the shot onto the green in from where it was played (`fromAng`), not always from the front.
+
 ## Directions are read from the player (v156)
 Beta-test bugs 1–3. A Dir on any shot after the tee is read the way the golfer sees it – along the line from where the ball lay to the
 pin: Long = past the hole, Short = same side and closer, Left / Right as the player faces the hole. SG.analyzeHole gives each shot

@@ -86,18 +86,18 @@ const BASE = process.env.BASE_URL || 'http://127.0.0.1:8766/', OUT = process.env
   // the strokes gained tables: number columns right-aligned with their header
   // v144: page 3 is the Round takeaway (headline, Work on next, the four areas), so the SG page is page 5
   const tk = lay.text.filter(t => t.p === 3).map(t => t.t).join(' | ');
-  assert.match(tk, /Round takeaway/); assert.match(tk, /How well Strokewise knows your game · \d\/4 ready/); assert.match(tk, /WORK ON NEXT/);
+  assert.match(tk, /Round takeaway/); assert.match(tk, /How well Strokewise knows your game · \d\/5 ready/); assert.match(tk, /WORK ON NEXT/);
   assert.match(tk, /Off the tee/); assert.match(tk, /Putting/);
   const sgTabs = lay.tables.filter(tb => tb.p === 5);
   assert.ok(sgTabs.length === 3, 'SG page tables ' + sgTabs.length);
-  assert.deepStrictEqual(sgTabs.map(tb => tb.cols.map(c => c.align)), [['left', 'right', 'right'], ['left', 'right', 'right', 'right'], ['left', 'right', 'right', 'right', 'right', 'right']]);
+  assert.deepStrictEqual(sgTabs.map(tb => tb.cols.map(c => c.align)), [['left', 'right', 'right'], ['left', 'right', 'right', 'right'], ['left', 'right', 'right', 'right', 'right', 'right', 'right']]); // v157: + Bunker column
   // v109: the PDF scorecard shows exactly what the on-screen scorecard shows (same scorecardData)
   const pdfCard = await page.evaluate(() => window.__golf.lastPdf.scorecard);
   const screenCard = await page.evaluate(() => { let d = document.querySelector('#scorecard') ? document : null; if (!d) { d = document.createElement('div'); d.innerHTML = window.__golf.scorecardHTML(); }
     return [...d.querySelectorAll('#scorecard tr:not(.scgap)')].map(tr => [...tr.children].map(c => c.querySelector('svg.yes') ? 'Y' : c.querySelector('svg.no') ? 'N' : c.textContent.trim())); });
-  assert.strictEqual(pdfCard.length, 19); assert.strictEqual(pdfCard[0].length, 1 + 18 + 3);
+  assert.strictEqual(pdfCard.length, 20); assert.strictEqual(pdfCard[0].length, 1 + 18 + 3); // v157: + BNK row
   assert.deepStrictEqual(pdfCard, screenCard, 'PDF scorecard = screen scorecard');
-  ['Hole', 'Par', 'Length', 'Score', 'Tot', 'OTT', 'APP', 'ARG', 'Putt', 'Putts', 'GIR', 'Club', 'FIR', 'Drive dist', '1st putt', 'Last putt', 'Up & down', 'Sandies', 'Recovery'].forEach((l, i) => assert.strictEqual(pdfCard[i][0], l));
+  ['Hole', 'Par', 'Length', 'Score', 'Tot', 'OTT', 'APP', 'ARG', 'BNK', 'Putt', 'Putts', 'GIR', 'Club', 'FIR', 'Drive dist', '1st putt', 'Last putt', 'Up & down', 'Sandies', 'Recovery'].forEach((l, i) => assert.strictEqual(pdfCard[i][0], l));
   console.log('aligned columns checked', checked, 'tables', lay.tables.length, 'scorecard rows', pdfCard.length);
   execSync(`pdftoppm -png -r 80 ${f} ${OUT}/page`);
   assert.deepStrictEqual(errors, []);

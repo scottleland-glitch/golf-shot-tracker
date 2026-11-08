@@ -13,6 +13,7 @@
     { k: 'tee', short: 'TEE', name: 'Off the tee', word: 'driving', in: 'off the tee', need: 50, unit: 'drives' },
     { k: 'approach', short: 'APP', name: 'Approach', word: 'approach play', in: 'on approach shots', need: 60, unit: 'shots' },
     { k: 'short', short: 'ARG', name: 'Around the green', word: 'the short game', in: 'around the green', need: 40, unit: 'chips' },
+    { k: 'bunker', short: 'BNK', name: 'Bunker', word: 'bunker play', in: 'from greenside bunkers', need: 15, unit: 'bunker shots' }, // v157
     { k: 'putting', short: 'PUTT', name: 'Putting', word: 'putting', in: 'on the greens', need: 100, unit: 'putts' }
   ];
   var BY = {}; AREAS.forEach(function (a) { BY[a.k] = a; });
@@ -91,7 +92,20 @@
     if (ln) F.push({ area: 'putting', id: 'puttline', title: 'Short putt start line', lost: lost(putts.filter(function (s) { return s.start.dist >= 4 && s.start.dist < 15; })),
       text: ln.n + ' of ' + ln.of + ' misses from 4–15 ft went ' + (ln.which ? 'right' : 'left') + '.',
       drill: 'Gate drill: two tees just wider than the ball, 2 ft in front of it. Roll 20 putts from 6 ft through the gate.' });
-    // Around the green: how far chips and bunker shots finished, vs the benchmark's leave from the same spots.
+    // v157 Greenside bunkers: stuck in the sand, or how far the ones that got out finished vs the benchmark's leave.
+    var bsh = all.filter(function (s) { return s.cat === 'bunker'; });
+    if (bsh.length >= 2) {
+      var stuck = bsh.filter(function (s) { return s.end.lie === 'sand'; }).length, out = bsh.filter(function (s) { return s.end.lie !== 'sand' && leaveFt(s) != null; });
+      var bAvg = out.length ? sum(out, leaveFt) / out.length : null, bPar = out.length ? sum(out, function (s) { return parLeaveFt(SG, s, bl); }) / out.length : null;
+      var stuckBad = stuck >= 1 && stuck / bsh.length >= 0.25;
+      F.push({ area: 'bunker', id: 'bunker', title: stuckBad ? 'Getting out of greenside bunkers' : 'Greenside bunker distance', lost: lost(bsh),
+        qualifies: stuckBad || (out.length >= 2 && bAvg > bPar + 3), yours: bAvg, par: bPar, n: bsh.length, stuck: stuck,
+        text: (stuckBad ? plural(stuck, 'bunker shot') + ' of ' + bsh.length + ' stayed in the sand. ' : '') +
+          (out.length ? 'Shots that got out finished ' + Math.round(bAvg) + ' ft from the hole on average (' + blName + ': about ' + Math.round(bPar) + ' ft).' : ''),
+        drill: stuckBad ? 'Draw a line in the sand 2 in behind the ball. Hit 10 shots that enter at the line and splash the sand onto the green, before aiming at anything.'
+          : 'From one bunker, hit 5 balls each to a near, middle and back pin. Count how many stop inside 6 ft.' });
+    }
+    // Around the green: how far chips finished, vs the benchmark's leave from the same spots.
     var chips = all.filter(function (s) { return s.cat === 'short' && leaveFt(s) != null; });
     if (chips.length >= 3) {
       var avg = sum(chips, leaveFt) / chips.length, par = sum(chips, function (s) { return parLeaveFt(SG, s, bl); }) / chips.length;
@@ -156,7 +170,7 @@
       focus = pick(worst.k) || { area: worst.k, id: 'area', title: cap(worst.word), lost: Math.max(0, -worst.delta),
         text: (worst.mine ? 'You lost ' + r1(worst.delta) + ' more strokes ' + worst.in + ' than you usually do' : 'You lost ' + r1(worst.delta) + ' strokes ' + worst.in + ' against the ' + blName + ' average') + ', over ' + plural(worst.n, 'shot') + '.',
         drill: { tee: 'Hit drivers at a narrow target on the range and track where the misses go.', approach: 'Practise your most common approach distances and track how close you finish.',
-          short: 'Spend half your practice time within 30 yd of the green.', putting: 'Practise lag putts from 20–40 ft and 4–8 footers in equal measure.' }[worst.k] };
+          short: 'Spend half your practice time within 30 yd of the green.', bunker: 'Spend 15 minutes of every practice in a greenside bunker: first get out every time, then land it on a towel.', putting: 'Practise lag putts from 20–40 ft and 4–8 footers in equal measure.' }[worst.k] };
     } else {
       focus = ok.slice().sort(function (x, y) { return y.lost - x.lost; })[0] || null;
       if (focus && focus.lost < 0.8) focus = null;
@@ -205,6 +219,10 @@
         var ch = F.filter(function (x) { return x.id === 'chips'; })[0];
         t.pic = ch ? { kind: 'bars', yours: ch.yours, par: ch.par, label: blName } : null;
         t.text = t.text || (ch ? 'Chips finished ' + Math.round(ch.yours) + ' ft away on average (' + blName + ': ' + Math.round(ch.par) + ' ft).' : plural(a.n, 'shot') + ' around the green.');
+      } else if (a.k === 'bunker') {
+        var bk = F.filter(function (x) { return x.id === 'bunker'; })[0];
+        t.pic = bk && bk.yours != null ? { kind: 'bars', yours: bk.yours, par: bk.par, label: blName } : null;
+        t.text = t.text || (bk && bk.yours != null ? 'Bunker shots finished ' + Math.round(bk.yours) + ' ft away on average (' + blName + ': ' + Math.round(bk.par) + ' ft).' : plural(a.n, 'bunker shot') + '.');
       } else {
         var pts = shotsOf(S).filter(function (s) { return s.cat === 'putting' && s.end.lie === 'green'; });
         var sh = pts.filter(function (s) { return depth(s.dir) === 'short'; }).length, lg = pts.filter(function (s) { return depth(s.dir) === 'long'; }).length;

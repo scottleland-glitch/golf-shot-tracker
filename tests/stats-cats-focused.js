@@ -4,7 +4,7 @@
 const { chromium } = require('playwright-core'); const assert = require('assert'); const { spawn } = require('child_process'); const fs = require('fs');
 const PORT = 8876, BASE = 'http://127.0.0.1:' + PORT + '/', OUT = process.env.SHOTS || '/workspace/golf-app/screenshots';
 const SEED = fs.readFileSync(__dirname + '/fixtures/stats-cats-rounds.js', 'utf8');
-const CATS = ['driver', 'approach', 'putting', 'chipping', 'scoring'];
+const CATS = ['driver', 'approach', 'putting', 'chipping', 'bunker', 'scoring']; // v157: + Bunker
 (async () => {
   const srv = spawn('python3', ['-m', 'http.server', String(PORT), '--bind', '127.0.0.1'], { cwd: '/workspace/golf-app', stdio: 'ignore' });
   await new Promise(r => setTimeout(r, 1500)); const errors = [], outside = [];
@@ -24,7 +24,7 @@ const CATS = ['driver', 'approach', 'putting', 'chipping', 'scoring'];
 
   // 1. five categories in order, all closed; a thin-bordered header row each with a chevron and a short summary
   assert.deepStrictEqual(await state(), CATS.map(c => [c, 'false', true]));
-  assert.deepStrictEqual(await page.$$eval('.stcath b', e => e.map(x => x.textContent)), ['Driver', 'Approach', 'Putting', 'Chipping', 'Scoring']);
+  assert.deepStrictEqual(await page.$$eval('.stcath b', e => e.map(x => x.textContent)), ['Driver', 'Approach', 'Putting', 'Chipping', 'Bunker', 'Scoring']);
   assert.match(await page.textContent('#stcatsum-driver'), /^OTT [+\-]?\d\.\d\d · FW \d+%$/);
   assert.match(await page.textContent('#stcatsum-putting'), /^PUTT [+\-]?\d\.\d\d$/);
   assert.ok(await page.$('#stcat-driver .stcatc'));
@@ -38,9 +38,9 @@ const CATS = ['driver', 'approach', 'putting', 'chipping', 'scoring'];
   await toggle('driver'); assert.deepStrictEqual((await state())[0], ['driver', 'true', false]); assert.ok(await page.isVisible('#drivechart'));
   await toggle('driver'); assert.deepStrictEqual((await state())[0], ['driver', 'false', true]);
   await toggle('putting'); await toggle('chipping'); await page.click('#strange [data-v="5"]');
-  assert.deepStrictEqual((await state()).map(s => s[1]), ['false', 'false', 'true', 'true', 'false'], 'kept after Last 5');
+  assert.deepStrictEqual((await state()).map(s => s[1]), ['false', 'false', 'true', 'true', 'false', 'false'], 'kept after Last 5');
   await page.click('#strange [data-v="all"]'); await toggle('chipping');
-  await page.click('.topbar [data-act="home"]'); await goStats(); assert.deepStrictEqual((await state()).map(s => s[1]), ['false', 'false', 'false', 'false', 'false'], 'fresh visit starts closed');
+  await page.click('.topbar [data-act="home"]'); await goStats(); assert.deepStrictEqual((await state()).map(s => s[1]), ['false', 'false', 'false', 'false', 'false', 'false'], 'fresh visit starts closed');
 
   // hand counts from the saved rounds (finished rounds only) with the app's own sg.js helpers
   const H = await page.evaluate(() => { const L = window.__golf.rounds().filter(r => r.player === 'Scott' && r.id !== 'c7').sort((a, b) => a.date.localeCompare(b.date));
@@ -88,12 +88,12 @@ const CATS = ['driver', 'approach', 'putting', 'chipping', 'scoring'];
 
   // 6. Chipping: ARG, by lie (bunker / rough / fairway) and by distance (up to 10 / 10-20 / 20-30 yd); c3 has no bunker shot -> no point
   await toggle('chipping');
-  assert.deepStrictEqual(await page.$$eval('#stcatb-chipping .stgraph', e => e.map(x => x.id)), ['st-arg', 'st-chbrk', 'st-chsand', 'st-chrough', 'st-chfairway', 'st-chc10', 'st-chc20', 'st-chc30']);
-  for (const [g, k] of [['chipLie', 'sand'], ['chipLie', 'rough'], ['chipLie', 'fairway'], ['chipDist', 'c10'], ['chipDist', 'c20'], ['chipDist', 'c30']]) {
+  assert.deepStrictEqual(await page.$$eval('#stcatb-chipping .stgraph', e => e.map(x => x.id)), ['st-arg', 'st-chbrk', 'st-chrough', 'st-chfairway', 'st-chc10', 'st-chc20', 'st-chc30']); // v157: bunker shots moved to the Bunker section
+  for (const [g, k] of [['chipLie', 'rough'], ['chipLie', 'fairway'], ['chipDist', 'c10'], ['chipDist', 'c20'], ['chipDist', 'c30']]) {
     assert.strictEqual(await page.textContent('#ch' + k + 'val'), 'Avg ' + fmtSG(W(g, k, H)), k);
     assert.strictEqual(await page.$$eval('#ch' + k + 'chart circle.stdot', e => e.length), 6, k + ' dots (v129)');
   }
-  assert.match(await page.textContent('#st-chsand .stnote'), /off the green from 30 yd and in – the same shots as the ARG total/);
+  assert.match(await page.textContent('#st-chrough .stnote'), /off the green from 30 yd and in – the same shots as the ARG total/);
   assert.doesNotMatch(await page.textContent('#stcatb-chipping'), /ARG ends at 20|count as Approach/, 'one 30-yd cutoff (v125): no 20 yd note');
   // the distance bands are exactly the ARG shots: per round, n and SG add up to the round's ARG
   for (const p of D.all) { const n = ['c10', 'c20', 'c30'].reduce((t, k) => t + p.b.chipDist[k].n, 0), g = ['c10', 'c20', 'c30'].reduce((t, k) => t + p.b.chipDist[k].sg, 0);
@@ -111,7 +111,7 @@ const CATS = ['driver', 'approach', 'putting', 'chipping', 'scoring'];
   assert.deepStrictEqual(await page.$$eval('#strange button[aria-pressed="true"]', e => e.map(x => x.dataset.v)), ['sel']);
   assert.strictEqual(await page.getAttribute('#stcmp', 'aria-pressed'), 'true'); assert.strictEqual(await page.getAttribute('#stcmp2', 'aria-pressed'), 'true');
   assert.strictEqual(await page.$('#stparcur'), null);
-  assert.strictEqual((await state())[4][1], 'true', 'Scoring stays open');
+  assert.strictEqual((await state()).find(x => x[0] === 'scoring')[1], 'true', 'Scoring stays open');
   assert.match(await page.textContent('#stparleg'), /This round\s*All rounds/);
   // the open round is first in the chooser, marked, picked
   const first = await page.$eval('#strounds .stri', e => [e.dataset.id, e.classList.contains('sel'), e.textContent]);

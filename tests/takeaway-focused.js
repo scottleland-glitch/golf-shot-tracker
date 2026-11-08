@@ -28,8 +28,8 @@ today.holes.forEach(h => { for (let k = 1; k < h.rows.length; k++) if (h.rows[k 
     };
     // 1. first round
     await open([Object.assign(ARC.round(), { player: 'Scott' })], 'arc78');
-    assert.strictEqual(await page.textContent('#tkready'), '0/4 ready');
-    assert.deepStrictEqual(await page.$$eval('.tkb u', us => us.map(u => u.style.width)), ['0%', '0%', '0%', '0%']);
+    assert.strictEqual(await page.textContent('#tkready'), '0/5 ready');
+    assert.deepStrictEqual(await page.$$eval('.tkb u', us => us.map(u => u.style.width)), ['0%', '0%', '0%', '0%', '0%']);
     assert.strictEqual(await page.textContent('#tkheadline'), 'Approach play cost you the most.');
     assert.match(await page.textContent('#tkfocus h3'), /Wedge distance control/);
     assert.match(await page.textContent('#tkbasis'), /^Compared with the PGA Tour average – still learning your approach play \(0%\)$/);
@@ -40,7 +40,7 @@ today.holes.forEach(h => { for (let k = 1; k < h.rows.length; k++) if (h.rows[k 
     ok('first round: empty bars, compares with PGA Tour and says so, sits above Quick view');
     // 2. with history
     await open(hist.concat([today]), 'today');
-    assert.strictEqual(await page.textContent('#tkready'), '4/4 ready');
+    assert.strictEqual(await page.textContent('#tkready'), '4/5 ready');
     assert.strictEqual(await page.$$eval('.tkb.ready', x => x.length), 4);
     assert.strictEqual(await page.textContent('#tkheadline'), 'Putting cost you the most.');
     assert.match(await page.textContent('#tklede'), /^You lost \d\.\d more strokes on the greens than you usually do\.$/);
@@ -57,7 +57,7 @@ today.holes.forEach(h => { for (let k = 1; k < h.rows.length; k++) if (h.rows[k 
     ok('with 6 earlier rounds: 4/4 ready, putting vs your normal, cause = speed, strip opens and closes');
     // a later round does not change an earlier round's takeaway (only rounds before it count)
     await open(hist.concat([today]), 'h0');
-    assert.strictEqual(await page.textContent('#tkready'), '0/4 ready');
+    assert.strictEqual(await page.textContent('#tkready'), '0/5 ready');
     ok('an old round is judged on the rounds before it');
     assert.deepStrictEqual(errors, [], 'no page errors'); console.log('PASS takeaway-focused');
   } finally { await b.close(); srv.kill(); }

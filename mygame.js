@@ -1,4 +1,4 @@
-// v141 My Game: the shape of a golfer's game as a six-spoke chart (like Hevy's muscle distribution).
+// v141 My Game: the shape of a golfer's game as a spoke chart (like Hevy's muscle distribution). v157: seven spokes (+ Bunker).
 // Spokes = strokes gained per 18 holes in six skills; every shot lands in exactly one, so the six add up to the total:
 //   Driving (par 4/5 tee shots) · Irons 100+ (approach from over 100 yd) · Wedges (approach 30-100 yd) ·
 //   Chipping (around the green, 30 yd and in) · Lag putts (10 ft and over) · Short putts (under 10 ft).
@@ -12,6 +12,7 @@
     { k: 'irons', name: 'Irons 100+', need: 15, span: 5, test: function (s) { return s.cat === 'approach' && s.start.lie !== 'green' && s.start.dist > 100; } },
     { k: 'wedges', name: 'Wedges', need: 10, span: 3, test: function (s) { return s.cat === 'approach' && !(s.start.lie !== 'green' && s.start.dist > 100); } },
     { k: 'chip', name: 'Chipping', need: 12, span: 3, test: function (s) { return s.cat === 'short'; } },
+    { k: 'bunker', name: 'Bunker', need: 6, span: 3, test: function (s) { return s.cat === 'bunker'; } }, // v157: greenside bunker shots (50 yd and in)
     { k: 'lag', name: 'Lag putts', need: 20, span: 2.5, test: function (s) { return s.cat === 'putting' && s.start.dist >= 10; } },
     { k: 'short', name: 'Short putts', need: 25, span: 2.5, test: function (s) { return s.cat === 'putting' && s.start.dist < 10; } }
   ];
@@ -125,7 +126,8 @@
     drive: ['Distance control', 'Mechanics'],
     irons: ['Distance control', 'Mechanics'],
     wedges: ['Distance control', 'Mechanics'],
-    chip: ['Green-side chipping', 'Pitching', 'Bunker shots'],
+    chip: ['Green-side chipping', 'Pitching'],
+    bunker: ['Bunker shots', 'Distance control'], // v157: own skill; older chip / "Bunker shots" logs are read as Bunker
     lag: ['Lag putting', 'Putting speed control'],
     short: ['Short putts', 'Start line / gate drill']
   };
@@ -133,7 +135,8 @@
   function validPractice(list) {
     return (Array.isArray(list) ? list : []).filter(function (e) {
       return e && typeof e.id === 'string' && e.id && SPOKE_KEYS.indexOf(e.spoke) >= 0 && typeof e.date === 'string' && !isNaN(Date.parse(e.date)) && Number(e.min) > 0 && Number(e.min) <= 600; })
-      .map(function (e) { return { id: e.id, date: e.date, player: String(e.player || ''), spoke: e.spoke, focus: String(e.focus || '').slice(0, 60), min: Math.round(Number(e.min)) }; });
+      .map(function (e) { var f = String(e.focus || '').slice(0, 60);
+        return { id: e.id, date: e.date, player: String(e.player || ''), spoke: e.spoke === 'chip' && f === 'Bunker shots' ? 'bunker' : e.spoke, focus: f, min: Math.round(Number(e.min)) }; });
   }
   // Union by id: entries already on the phone stay as they are.
   function mergePractice(existing, incoming) {
@@ -195,7 +198,7 @@
     scm: { h: 7, who: 'scratch men' }, scw: { h: 7, who: 'scratch women' } };
   var CLUB_AVG_H = 3; // average club golfer (Golf Insider study of 257 golfers)
   // How elite players split it: ~40% full swing, ~60% short game and putting (LPGA player reports: 60–75% short game / putting).
-  var PRAC_SPLIT = { drive: 0.12, irons: 0.14, wedges: 0.14, chip: 0.2, lag: 0.18, short: 0.22 };
+  var PRAC_SPLIT = { drive: 0.12, irons: 0.14, wedges: 0.14, chip: 0.14, bunker: 0.06, lag: 0.18, short: 0.22 }; // v157: Bunker split off chipping
   function practiceBench(bl) { var b = PRAC_BENCH[bl] || PRAC_BENCH.pga; return { id: PRAC_BENCH[bl] ? bl : 'pga', h: b.h, who: b.who,
     spokes: SPOKES.map(function (s) { return { k: s.k, wk: b.h * 60 * PRAC_SPLIT[s.k] }; }) }; }
   // Level (minutes a week) per skill on the day `at`, from every session on or before it.
@@ -259,10 +262,10 @@
   // The practice a round takeaway's "Work on next" points to: { spoke, focus }.
   var DRILL_FOCUS = { puttspeed: ['lag', 'Putting speed control'], lag: ['lag', 'Lag putting'], puttline: ['short', 'Start line / gate drill'],
     wedges: ['wedges', 'Distance control'], irondepth: ['irons', 'Distance control'], ironline: ['irons', 'Mechanics'], teepen: ['drive', 'Mechanics'], teeside: ['drive', 'Mechanics'] };
-  var AREA_FOCUS = { tee: ['drive', 'Mechanics'], approach: ['irons', 'Distance control'], short: ['chip', 'Green-side chipping'], putting: ['lag', 'Lag putting'] };
+  var AREA_FOCUS = { tee: ['drive', 'Mechanics'], approach: ['irons', 'Distance control'], short: ['chip', 'Green-side chipping'], bunker: ['bunker', 'Bunker shots'], putting: ['lag', 'Lag putting'] };
   function drillFocus(f) {
     if (!f) return null;
-    var x = f.id === 'chips' ? ['chip', /bunker/i.test(f.title) ? 'Bunker shots' : 'Green-side chipping'] : DRILL_FOCUS[f.id] || AREA_FOCUS[f.area];
+    var x = f.id === 'chips' ? ['chip', 'Green-side chipping'] : f.id === 'bunker' ? ['bunker', 'Bunker shots'] : DRILL_FOCUS[f.id] || AREA_FOCUS[f.area];
     return x ? { spoke: x[0], focus: x[1] } : null;
   }
 

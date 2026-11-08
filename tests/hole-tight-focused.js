@@ -43,14 +43,14 @@ const YDS = [349, 512, 165, 401, 377, 142, 530, 365, 388, 372, 158, 545, 380, 41
     // ---- 2. 3 shots: 2 tight lines + the active entry row with its own header
     assert.deepStrictEqual(await lines(), [['1', '197 yd', 'Driver', 'Tee → Rough', '-0.31'], ['2', '147 yd', '7i', 'Rough → Green', '+0.45']]);
     assert.strictEqual(await page.textContent('#thead'), '#HitClubLocSG');
-    assert.deepStrictEqual(await page.$$eval('.srow[data-k]', e => e.map(x => x.getAttribute('data-k'))), ['2'], 'only the last shot has entry cells');
-    assert.match(await page.textContent('#shead'), /^#Dist to pinLocDirP$/); assert.strictEqual(await page.$$eval('#shead', e => e.length), 1);
+    assert.deepStrictEqual(await page.$$eval('.shotcard[data-k]', e => e.map(x => x.getAttribute('data-k'))), ['2'], 'only the last shot has entry cells');
+    assert.strictEqual(await page.$$eval('#shotcard', e => e.length), 1, 'v157: one shot card'); assert.match(await page.textContent('#shotcard'), /Shot 3/);
     assert.strictEqual(await page.$$eval('.sinfo', e => e.filter(x => x.textContent.trim()).length), 0, 'no repeated "Off the tee · hit …" text');
     assert.match(await css('.sgchip.neg', 'backgroundColor'), /rgba\(214, 90, 100/); assert.match(await css('.sgchip.pos', 'backgroundColor'), /rgba\(76, 175, 110/);
     const T = await page.$eval('.tline', e => { const c = getComputedStyle(e); return [e.getBoundingClientRect().height, parseFloat(c.fontSize), +c.fontWeight]; });
     assert.ok(T[0] <= 36 && T[1] <= 14 && T[2] <= 400, 'tight light lines ' + T);
-    const E = await page.$$eval('.srow[data-k="2"] input, .srow[data-k="2"] select, .srow[data-k="2"] button', e => e.map(x => Math.round(x.getBoundingClientRect().height)));
-    assert.ok(E.every(h => h >= 36 && h <= 40), 'entry cells 36-40 px ' + E);
+    const E = await page.$$eval('#shotcard input, #shotcard select', e => e.map(x => Math.round(x.getBoundingClientRect().height)));
+    assert.ok(E.every(h => h >= 36 && h <= 56), 'v157 card: entry cells 36-56 px ' + E);
     for (const s of ['.addshot', '.finish', '#micbtn']) { const v = await page.$eval(s, e => [e.getBoundingClientRect().height, parseFloat(getComputedStyle(e).fontSize), +getComputedStyle(e).fontWeight]); assert.ok(v[0] >= 36 && v[0] <= 46 && v[1] <= 15 && v[2] <= 500, s + ' compact ' + v); }
     assert.ok(await vis('.finish'), 'Finish hole on screen without scrolling');
     await shot('hole-3shots-' + TAG);
@@ -64,20 +64,20 @@ const YDS = [349, 512, 165, 401, 377, 142, 530, 365, 388, 372, 158, 545, 380, 41
     ok('new shot: line above shows "–" until the next distance / lie are entered, then fills in');
     // ---- 4. tap a line to edit it; the others stay tight; every control still works
     await page.click('.tline[data-k="0"]'); await page.waitForSelector('input[data-row="0"]');
-    assert.deepStrictEqual(await page.$$eval('.srow[data-k]', e => e.map(x => x.getAttribute('data-k'))), ['0']); assert.match(await page.textContent('#shead'), /^#Dist to pinLoc$/);
+    assert.deepStrictEqual(await page.$$eval('.shotcard[data-k]', e => e.map(x => x.getAttribute('data-k'))), ['0']);
     assert.ok(await page.$('input[data-f="layup"][data-k="0"]'), 'Layup box on shot 1');
     await page.selectOption('select[data-f="club"][data-k="0"]', '3W');
     await shot('hole-reedit-' + TAG);
     await page.click('.tline[data-k="1"]'); await page.waitForSelector('input[data-row="1"]'); L = await lines(); assert.strictEqual(L[0][2], '3W', 'club change shows on the line');
     await page.click('[data-act="pen"][data-k="1"]'); await page.click('[data-act="dirpick"][data-k="1"]'); await page.click('.dirgrid [data-act="setdir"][data-v="left"]');
     await page.click('.tline[data-k="3"]'); L = await lines(); assert.strictEqual(L[0][3], 'Tee → Rough+1', 'penalty of shot 1 shows on its line, no miss arrow ' + L[0][3]); assert.strictEqual(await page.$('.tline .tarr'), null);
-    await page.check('input[data-f="holeout"][data-k="3"]'); await page.click('[data-act="finish"]'); await page.waitForSelector('.hole-done');
-    L = await lines(); assert.strictEqual(L.length, 4); assert.deepStrictEqual(L[3].slice(1, 4), ['3 ft', 'Putter', 'Green → Holed']); assert.strictEqual(await page.$('.srow[data-k]'), null, 'finished: all tight');
-    await page.click('[data-act="reopen"]'); assert.deepStrictEqual(await page.$$eval('.srow[data-k]', e => e.map(x => x.getAttribute('data-k'))), ['3']);
-    await page.click('.tline[data-k="2"]'); await page.click('[data-act="del"][data-k="2"]'); assert.strictEqual(await page.$$eval('.tline, .srow[data-k]', e => e.length), 3, 'delete still works');
+    await page.click('[data-act="fin"][data-v="in"][data-k="3"]'); await page.click('[data-act="finish"]'); await page.waitForSelector('.hole-done');
+    L = await lines(); assert.strictEqual(L.length, 4); assert.deepStrictEqual(L[3].slice(1, 4), ['3 ft', 'Putter', 'Green → Holed']); assert.strictEqual(await page.$('.shotcard[data-k]'), null, 'finished: all tight');
+    await page.click('[data-act="reopen"]'); assert.deepStrictEqual(await page.$$eval('.shotcard[data-k]', e => e.map(x => x.getAttribute('data-k'))), ['3']);
+    await page.click('.tline[data-k="2"]'); await page.click('[data-act="del"][data-k="2"]'); assert.strictEqual(await page.$$eval('.tline, .shotcard[data-k]', e => e.length), 3, 'delete still works');
     ok('tap a line → full cells for that shot (club, Layup, P, Dir, delete, Hole out all work); the line updates; finished hole is all lines');
     // ---- 5. one shot (hole 2) and a par 3 (hole 3)
-    await go(2); assert.strictEqual(await head(), 'Hole 2 512 yd Par 5 SI 3'); assert.strictEqual(await page.$('#thead'), null); assert.strictEqual(await page.$$eval('.srow[data-k]', e => e.length), 1);
+    await go(2); assert.strictEqual(await head(), 'Hole 2 512 yd Par 5 SI 3'); assert.strictEqual(await page.$('#thead'), null); assert.strictEqual(await page.$$eval('.shotcard[data-k]', e => e.length), 1);
     await shot('hole-1shot-' + TAG); ok('hole 2, first shot: only the entry row (no tight lines yet)');
     await go(3); assert.strictEqual(await head(), 'Hole 3 165 yd Par 3 SI 15'); assert.strictEqual(await page.$('input[data-f="layup"]'), null, 'no Layup on a par 3');
     await page.selectOption('select[data-f="club"][data-k="0"]', '7i'); await page.click('[data-act="addShot"]'); assert.strictEqual((await lines())[0][3], 'Tee → –', 'to stays – until the next lie is chosen'); await page.selectOption('select[data-f="loc"][data-k="1"]', 'green'); await page.fill('input[data-row="1"]', '20');

@@ -29,7 +29,7 @@ const SEED = fs.readFileSync(__dirname + '/fixtures/stats-rounds.js', 'utf8');
       const t = s => document.querySelector(s).textContent.trim(), tot = c => t('#scorecard tr.' + c + ' td.sum.tot');
       const putts = [...document.querySelectorAll('#scorecard tr.sputts td:not(.sum)')].map(td => +td.textContent.trim());
       const qv = k => document.querySelector('.qv[data-q="' + k + '"] small').textContent.trim();
-      return { score: +t('#rs-score'), toPar: t('#rs-topar'), putts: +t('#rs-putts'), sg: { tot: tot('sgtot'), ott: tot('sgott'), app: tot('sgapp'), arg: tot('sgarg'), putt: tot('sgputt') },
+      return { score: +t('#rs-score'), toPar: t('#rs-topar'), putts: +t('#rs-putts'), sg: { tot: tot('sgtot'), ott: tot('sgott'), app: tot('sgapp'), arg: tot('sgarg'), bnk: tot('sgbnk'), putt: tot('sgputt') },
         fw: qv('fw'), gir: qv('gir'), two: putts.filter(p => p === 2).length, three: putts.filter(p => p >= 3).length };
     });
     await page.click('.topbar [data-act="history"]');
@@ -48,7 +48,7 @@ const SEED = fs.readFileSync(__dirname + '/fixtures/stats-rounds.js', 'utf8');
   const fmtSG = v => { const s = (Math.round(v * 100) / 100).toFixed(2); return (v > 0.004 ? '+' : '') + (s === '-0.00' ? '0.00' : s); };
   const tp = n => n === 0 ? 'E' : n > 0 ? '+' + n : String(n), frac = s => { const m = /^(\d+) \/ (\d+)/.exec(s); return +m[2] ? 100 * m[1] / m[2] : null; };
   D.all.forEach(p => { const S = screen[p.id];
-    assert.deepStrictEqual(Object.fromEntries(Object.entries(p.sg).map(([k, v]) => [k, fmtSG(v)])), S.sg, 'SG = scorecard TOT column ' + p.id);
+    assert.deepStrictEqual(Object.fromEntries(Object.entries(p.sg).map(([k, v]) => [k, fmtSG(v)])), Object.assign({}, S.sg, { bnk: S.sg.bnk || '0.00' }), 'SG = scorecard TOT column ' + p.id); // v157: no bunker shots = blank on the card, 0 in the stats
     assert.deepStrictEqual([p.score, tp(p.toPar), p.putts, p.two, p.three], [S.score, S.toPar, S.putts, S.two, S.three], 'score / putts ' + p.id);
     assert.ok(Math.abs(p.fir - frac(S.fw)) < 1e-9 && Math.abs(p.gir - frac(S.gir)) < 1e-9, 'FIR / GIR = Quick view ' + p.id); });
   // putts made inside 10 ft, recounted here from the raw putt list (every putt starting 10 ft or closer)
@@ -63,7 +63,7 @@ const SEED = fs.readFileSync(__dirname + '/fixtures/stats-rounds.js', 'utf8');
     // v125: grouped in categories – Driver, Approach, Putting, Chipping, Scoring
     // (the first card is the drive box chart: 'Driver distance' or 'Drive distance', checked in stats-cats-focused)
     ['Off the tee (OTT)', 'Fairways hit', 'Approach (APP)', 'Greens in regulation (GIR)', 'Approach proximity', 'Putting (PUTT)', 'Where putting strokes go', '1st putt under 5 ft', '1st putt 5–10 ft', '1st putt 10–25 ft', '1st putt over 25 ft',
-      '1st putts made under 5 ft', 'Around the green (ARG)', 'Where chipping strokes go', 'From the bunker', 'From the rough', 'From the fairway', 'Up to 10 yd', '10–20 yd', '20–30 yd', 'Total (TOT)', 'Par 3 scores', 'Par 4 scores', 'Par 5 scores']);
+      '1st putts made under 5 ft', 'Around the green (ARG)', 'Where chipping strokes go', 'From the rough', 'From the fairway', 'Up to 10 yd', '10–20 yd', '20–30 yd', 'Bunker (BNK)', 'Sand saves', 'Out of the bunker first time', 'Bunker shot proximity', 'Total (TOT)', 'Par 3 scores', 'Par 4 scores', 'Par 5 scores']);
   assert.strictEqual(await page.$('#stcmp'), null, 'no compare switch on All rounds');
   const dots = c => page.$$eval('#' + c + 'chart circle.stdot', e => e.length);
   for (const k of ['tot', 'ott', 'app', 'arg', 'putt', 'fir', 'gir']) { assert.strictEqual(await dots(k), 7, k); assert.ok(await page.$('#' + k + 'avg'), k + ' average line'); }

@@ -48,7 +48,7 @@
   var ARROW = { '': '–', long: '↑', longright: '↗', right: '→', shortright: '↘', short: '↓', shortleft: '↙', left: '←', longleft: '↖' };
   var DIR_GRID = [['longleft', 'long', 'longright'], ['left', '', 'right'], ['shortleft', 'short', 'shortright']];
   function dirName(d) { return d ? SG.DIR_NAME[d] : 'No direction'; }
-  var CAT_NAME = { tee: 'Off the tee', approach: 'Approach', short: 'Short game', putting: 'Putting' };
+  var CAT_NAME = { tee: 'Off the tee', approach: 'Approach', short: 'Short game', bunker: 'Bunker', putting: 'Putting' };
 
   var rounds = load();
   (function () { var n = playerName(), ch = false; if (n) rounds.forEach(function (r) { if (!r.player) { r.player = n; ch = true; } }); if (ch) localStorage.setItem(KEY, JSON.stringify(rounds)); })(); // rounds belong to this phone's player
@@ -330,8 +330,8 @@
   }
   // four "How well Strokewise knows your game" bars, one row; returns the next y
   function pdfKnowBars(doc, H, P, x, y, w) {
-    H.font(9.5); H.ink(90); H.T('How well Strokewise knows your game · ' + P.readyCount + '/4 ready', x, y); H.ink(); y += 10;
-    var gap = 12, bw = (w - 3 * gap) / 4;
+    H.font(9.5); H.ink(90); H.T('How well Strokewise knows your game · ' + P.readyCount + '/' + INSIGHTS.AREAS.length + ' ready', x, y); H.ink(); y += 10;
+    var NA = INSIGHTS.AREAS.length, gap = 10, bw = (w - (NA - 1) * gap) / NA;
     INSIGHTS.AREAS.forEach(function (a, i) { var p = P[a.k], bx = x + i * (bw + gap);
       H.font(8); H.ink(p.ready ? 30 : 90); H.T(a.short + (p.ready ? ' - ready' : ' ' + Math.round(p.frac * 100) + '%'), bx, y + 8); H.ink();
       doc.setFillColor(226, 231, 226); doc.roundedRect(bx, y + 12, bw, 5, 2.5, 2.5, 'F');
@@ -580,16 +580,16 @@
       // ---- Page 3: strokes gained ----
       doc.addPage(); y = header('Strokes gained – compared with ' + blName(R.bl));
       heading('By category', M, y); y += 16;
-      y = table([['Category', 'Shots', 'SG']].concat(['tee', 'approach', 'short', 'putting'].map(function (k) { return [CAT_NAME[k], String(S.cats[k].n), fmtSG(S.cats[k].sg)]; })).concat([['Total', '', fmtSG(S.sgTotal)]]), M, y, [260, 90, 90]) + 16;
+      y = table([['Category', 'Shots', 'SG']].concat(['tee', 'approach', 'short', 'bunker', 'putting'].map(function (k) { return [CAT_NAME[k], String(S.cats[k].n), fmtSG(S.cats[k].sg)]; })).concat([['Total', '', fmtSG(S.sgTotal)]]), M, y, [260, 90, 90]) + 16;
       heading('By distance', M, y); y += 16;
       var dist = [['From', 'Shots', 'SG', 'Avg to pin after']];
-      [['Approach', SG.APPR_BUCKETS.map(function (b) { return b.id; })], ['Short game', [SG.SHORT_BUCKET]], ['Putting', ['0-5 ft', '5-15 ft', '15-30 ft', '30+ ft']]].forEach(function (g) {
+      [['Approach', SG.APPR_BUCKETS.map(function (b) { return b.id; })], ['Short game', [SG.SHORT_BUCKET]], ['Bunker', [SG.BUNKER_BUCKET]], ['Putting', ['0-5 ft', '5-15 ft', '15-30 ft', '30+ ft']]].forEach(function (g) {
         dist.push([g[0], '', '', '']); g[1].forEach(function (b) { var c = S.buckets[b]; dist.push([b, String(c.n), c.n ? fmtSG(c.sg) : '-', g[0] === 'Approach' ? (c.proxN ? Math.round(c.proxFt) + ' ft' : '-') : '']); }); });
-      y = table(dist, M, y, [260, 90, 90, 100], { group: function (row) { return row[1] === '' && /^(Approach|Short game|Putting)$/.test(row[0]); }, cont: 'Strokes gained (continued)' });
-      y = note('Approach = shots from more than 30 yd off the green (par-3 tee shots included); 30-60 = over 30 up to under 60 yd, other ranges include the lower number. Short game = off the green from 30 yd and in. Avg to pin after = feet on the green, yards x 3 off it, 0 if holed; penalty/OB shots left out.', M, y + 6) + 12;
+      y = table(dist, M, y, [260, 90, 90, 100], { group: function (row) { return row[1] === '' && /^(Approach|Short game|Bunker|Putting)$/.test(row[0]); }, cont: 'Strokes gained (continued)' });
+      y = note('Approach = shots from more than 30 yd off the green (par-3 tee shots included); 30-60 = over 30 up to under 60 yd, other ranges include the lower number. Short game = off the green from 30 yd and in (not sand). Bunker = from a greenside bunker, 50 yd and in; fairway bunkers count as approach. Avg to pin after = feet on the green, yards x 3 off it, 0 if holed; penalty/OB shots left out.', M, y + 6) + 12;
       heading('Same round vs every baseline', M, y); y += 16;
-      y = table([['Baseline', 'Tee', 'Approach', 'Short', 'Putting', 'Total']].concat(SG.BASELINES.map(function (b) { var X = SG.summarize(r, b.id);
-        return [b.name + (b.status === 'estimated' ? ' (est.)' : '') + (b.id === R.bl ? '  <' : ''), fmtSG(X.cats.tee.sg), fmtSG(X.cats.approach.sg), fmtSG(X.cats.short.sg), fmtSG(X.cats.putting.sg), fmtSG(X.sgTotal)]; })), M, y, [190, 70, 70, 70, 70, 70]);
+      y = table([['Baseline', 'Tee', 'Approach', 'Short', 'Bunker', 'Putting', 'Total']].concat(SG.BASELINES.map(function (b) { var X = SG.summarize(r, b.id);
+        return [b.name + (b.status === 'estimated' ? ' (est.)' : '') + (b.id === R.bl ? '  <' : ''), fmtSG(X.cats.tee.sg), fmtSG(X.cats.approach.sg), fmtSG(X.cats.short.sg), fmtSG(X.cats.bunker.sg), fmtSG(X.cats.putting.sg), fmtSG(X.sgTotal)]; })), M, y, [160, 62, 62, 62, 62, 62, 70]);
       y = note('< = the baseline this report uses. (est.) = estimated baseline (no published table).', M, y + 6);
       // ---- v137: the Stats categories (all rounds, this round dashed on the par curves), each followed by this round's maps ----
       var segs = SG.pinSegments(pinDataRound()), multi = savedRounds().length > 1, BOT = PH - M - 14, GAP = 12, MCW = (PW - 2 * M - GAP) / 2, PAD = 8;
@@ -690,7 +690,7 @@
   function statsPdfData(opts) {
     opts = opts || {}; var OR = opts.round || null;
     var keep = { stOpen: view.stOpen, stSel: view.stSel, stPmB: view.stPmB, pdf: view.pdf, stMode: view.stMode, stCmp: view.stCmp, stPlayer: view.stPlayer };
-    view.stOpen = { driver: true, approach: true, putting: true, chipping: true, scoring: true, pmiss: true }; view.stSel = null; view.pdf = null;
+    view.stOpen = { driver: true, approach: true, putting: true, chipping: true, bunker: true, scoring: true, pmiss: true }; view.stSel = null; view.pdf = null;
     if (OR) { view.stMode = 'all'; view.stCmp = false; if (OR.player) view.stPlayer = OR.player; } // the round PDF always shows every finished round
     var box = document.createElement('div'); box.style.cssText = 'position:fixed;left:-10000px;top:0;width:390px';
     var tx = function (e) { return e ? SG.pdfSafe(e.textContent.replace(/\s+/g, ' ')) : ''; };
@@ -1024,7 +1024,8 @@
     ['tot', 'Total (TOT)', '#34495e', 'Every shot on the round’s finished holes.'],
     ['ott', 'Off the tee (OTT)', '#1f73c9', 'Tee shots on par 4s and 5s.'],
     ['app', 'Approach (APP)', '#2e9d4f', 'Shots from more than 30 yd that are not tee shots on par 4s and 5s (par-3 tee shots count here).'],
-    ['arg', 'Around the green (ARG)', '#e8871e', 'Shots from 30 yd and in that are not on the green.'],
+    ['arg', 'Around the green (ARG)', '#e8871e', 'Shots from 30 yd and in that are not on the green (bunker shots have their own line).'],
+    ['bnk', 'Bunker (BNK)', '#c9a227', 'Shots from a greenside bunker, 50 yd and in. Fairway bunker shots count as approach.'],
     ['putt', 'Putting (PUTT)', '#7c4dcc', 'Every stroke from the green.']];
   var ST_PCT = [ // id, title, colour, help
     ['fir', 'Fairways hit', '#1f73c9', 'Tee shots on par 4s and 5s that finished in the fairway (layups left out). A round with no par 4s or 5s has no point.'],
@@ -1033,7 +1034,7 @@
   var ST_NAMES = ['Eagle', 'Birdie', 'Par', 'Bogey', 'Double', 'Triple'];
   var ST_ROWS = [ // label, value of one round, decimals, kind
     ['Strokes gained – TOT', function (p) { return p.sg.tot; }, 2, 'sg'], ['Off the tee (OTT)', function (p) { return p.sg.ott; }, 2, 'sg'],
-    ['Approach (APP)', function (p) { return p.sg.app; }, 2, 'sg'], ['Around the green (ARG)', function (p) { return p.sg.arg; }, 2, 'sg'],
+    ['Approach (APP)', function (p) { return p.sg.app; }, 2, 'sg'], ['Around the green (ARG)', function (p) { return p.sg.arg; }, 2, 'sg'], ['Bunker (BNK)', function (p) { return p.sg.bnk; }, 2, 'sg'],
     ['Putting (PUTT)', function (p) { return p.sg.putt; }, 2, 'sg'], ['Score', function (p) { return p.score; }, 1], ['To par', function (p) { return p.toPar; }, 1, 'par'],
     ['Putts per round', function (p) { return p.putts; }, 1], ['Putts per GIR hole', function (p) { return p.ppg; }, 2], ['Fairways hit', function (p) { return p.fir; }, 0, 'pct'],
     ['GIR', function (p) { return p.gir; }, 0, 'pct'], ['Putts made inside 10 ft', function (p) { return p.p10; }, 0, 'pct'],
@@ -1048,7 +1049,7 @@
     S.holes.forEach(function (a, i) { var par = Number((r.holes[i] || {}).par); if (!a || !a.done || !dist[par]) return;
       dist[par][Math.max(0, Math.min(5, a.strokes - par + 2))]++; parN[par].n++; parN[par].s += a.strokes; });
     return { id: r.id, date: r.date, course: r.course || 'Round', bl: bl, holes: S.holesDone, score: S.strokes, toPar: S.toPar, putts: S.putts,
-      sg: { tot: sgOf('Tot'), ott: parN[4].n + parN[5].n ? sgOf('OTT') : null, arg: sgOf('ARG'), app: sgOf('APP'), putt: sgOf('Putt') },
+      sg: { tot: sgOf('Tot'), ott: parN[4].n + parN[5].n ? sgOf('OTT') : null, arg: sgOf('ARG'), bnk: sgOf('BNK'), app: sgOf('APP'), putt: sgOf('Putt') },
       fir: S.fwTotal ? 100 * S.fwHit / S.fwTotal : null, gir: S.girHoles ? 100 * S.gir / S.girHoles : null, p10: p10.pct, p10n: p10.attempts, p10m: p10.made,
       two: first.filter(function (p) { return p.holePutts === 2; }).length, three: SG.threePutts(S.puttList).three,
       ppg: girH.length ? girH.reduce(function (t, a) { return t + a.putts; }, 0) / girH.length : null, dist: dist, parN: parN,
@@ -1334,10 +1335,22 @@
           stPmissSub(D); },
         [['PUTT', function (p) { return p.sg.putt; }]]],
       ['chipping', 'Chipping', function () { var lc = { sand: '#d4a017', rough: '#3f8f3a', fairway: '#6cbf43' }, dc = ['#f0a040', '#e8871e', '#c96a0e'],
-          hc = ' Strokes gained on these shots, added up per round. The Around the green shots: off the green from ' + SG.SHORT_MAX_YD + ' yd and in – the same shots as the ARG total.';
+          hc = ' Strokes gained on these shots, added up per round. The Around the green shots: off the green from ' + SG.SHORT_MAX_YD + ' yd and in – the same shots as the ARG total (greenside bunker shots are in Bunker).';
         return sgT('arg') + brk('chbrk', 'Where chipping strokes go', function (p) { return p.sg.arg; }, 'chipDist', SG.CHIP_BANDS) + '<p class="stgrp">By lie</p>' + SG.CHIP_LIES.map(function (L) { return bT('ch' + L.id, 'chipLie', L.id, 'From the ' + L.name.toLowerCase(), L.name, lc[L.id], L.name + (L.id === 'rough' ? ' (incl. deep rough)' : '') + '.' + hc, 'shots'); }).join('') +
           '<p class="stgrp">By distance</p>' + SG.CHIP_BANDS.map(function (b, i) { return bT('ch' + b.id, 'chipDist', b.id, b.name.replace(/^0/, 'Up to ').replace('Up to –', 'Up to '), b.name, dc[i], (i ? 'Over ' + b.lo + ' up to ' + b.hi + ' yd' : '10 yd and in') + ', any lie.' + hc, 'shots'); }).join(''); },
         [['ARG', function (p) { return p.sg.arg; }]]],
+      // v157 Bunker: greenside bunker shots (50 yd and in) – strokes gained, sand saves, how close they finished
+      ['bunker', 'Bunker', function () {
+          return sgT('bnk') + stTrend('bnksave', D, function (p) { var b = p.b.bunker; return b.tries ? 100 * b.saves / b.tries : null; }, { title: 'Sand saves', short: 'Sand saves', color: '#c9a227', pct: true, unit: 'holes',
+              help: 'Holes where you were in a greenside bunker: the share finished in 2 strokes or fewer from there (out and in, or holed from the sand), with no penalty.',
+              avg: function (L) { var n = 0, m = 0; L.forEach(function (p) { n += p.b.bunker.tries; m += p.b.bunker.saves; }); return n ? 100 * m / n : null; }, nOf: function (p) { return p.b.bunker.tries; } }) +
+            stTrend('bnkout', D, function (p) { var b = p.b.bunker; return b.n ? 100 * b.outN / b.n : null; }, { title: 'Out of the bunker first time', short: 'Out first time', color: '#a8841f', pct: true, unit: 'shots',
+              help: 'Greenside bunker shots that got out of the sand (no second shot from the bunker, no penalty).',
+              avg: function (L) { var n = 0, m = 0; L.forEach(function (p) { n += p.b.bunker.n; m += p.b.bunker.outN; }); return n ? 100 * m / n : null; }, nOf: function (p) { return p.b.bunker.n; } }) +
+            stTrend('bnkleave', D, function (p) { var b = p.b.bunker; return b.leaveN ? b.leaveFt / b.leaveN : null; }, { title: 'Bunker shot proximity', short: 'Proximity', color: '#8a6d14', ft: true, unit: 'shots',
+              help: 'How far from the hole greenside bunker shots that reached the green finished (0 when holed). Lower is better.',
+              avg: function (L) { var n = 0, t = 0; L.forEach(function (p) { n += p.b.bunker.leaveN; t += p.b.bunker.leaveFt; }); return n ? t / n : null; }, nOf: function (p) { return p.b.bunker.leaveN; } }); },
+        [['BNK', function (p) { return p.sg.bnk; }], ['Saves', function (p) { var b = p.b.bunker; return b.tries ? 100 * b.saves / b.tries : null; }, 'pct']]],
       ['scoring', 'Scoring', function () { return sgT('tot') + stParBar(D) + [3, 4, 5].map(function (par) { return stDist(par, D); }).join(''); },
         [['TOT', function (p) { return p.sg.tot; }], ['Score', function (p) { return p.score; }, 'n']]]];
     var op = view.stOpen || (view.stOpen = {});
@@ -1892,7 +1905,7 @@
   // v146 How well Strokewise knows your game: one bar per spoke for the time frame shown (gold while learning, green when solid)
   function mgKnowHTML(D) {
     var sp = D.cur.spokes, ready = sp.filter(function (x) { return x.solid; }).length, tick = Math.round(100 / MYGAME.STRONG);
-    return '<div class="mgknow" id="mgknow"><span class="mgkh"><span>How well Strokewise knows your game</span><b id="mgready">' + ready + '/6 ready</b></span><span class="mgkbars">' +
+    return '<div class="mgknow" id="mgknow"><span class="mgkh"><span>How well Strokewise knows your game</span><b id="mgready">' + ready + '/' + MYGAME.SPOKES.length + ' ready</b></span><span class="mgkbars">' +
       sp.map(function (x) { var pct = Math.round(x.conf * 100), word = x.strong ? 'strong' : x.solid ? 'ready' : x.n ? 'learning' : 'no shots';
         return '<span class="mgkb ' + (x.strong ? 'strong' : x.solid ? 'ready' : 'learn') + '" data-spoke="' + x.k + '" title="' + esc(x.name + ': ' + x.n + ' shots') + '"><em>' + esc(x.name) + '</em>' +
           '<i><u style="width:' + pct + '%"></u><s style="left:' + tick + '%"></s></i><small>' + word + (x.strong ? '' : ' · ' + pct + '%') + '</small></span>'; }).join('') +
@@ -1925,7 +1938,7 @@
       tile('putts', 'Putts / round', T.putts, Q && Q.putts, n1, -1) + tile('gir', 'Greens in regulation', T.gir, Q && Q.gir, pc, 1) + '</div>';
     h += practiceCardHTML(who, D);
     h += '<div class="tiprow" id="mginfo">' + tipBtn('mginfo', 'i', 'About My Game') + tipLbl('mginfo', 'How My Game works') + tipText('mginfo',
-      'Each spoke is strokes gained per 18 holes in one skill: Driving (par 4 and 5 tee shots), Irons 100+ (approach shots from over 100 yd), Wedges (30–100 yd), Chipping (30 yd and in), Lag putts (10 ft and over) and Short putts (under 10 ft). The six add up to your total. Further out is better; the dashed line is the ' + esc(D.baselineName) + ' average. The gray shape is the same length of time before this one. A hollow point is still learning: it needs ' + MYGAME.MIN_ROUNDS + ' rounds and enough shots in the period.') + '</div>';
+      'Each spoke is strokes gained per 18 holes in one skill: Driving (par 4 and 5 tee shots), Irons 100+ (approach shots from over 100 yd), Wedges (30–100 yd), Chipping (30 yd and in), Bunker (greenside bunkers, 50 yd and in), Lag putts (10 ft and over) and Short putts (under 10 ft). The six add up to your total. Further out is better; the dashed line is the ' + esc(D.baselineName) + ' average. The gray shape is the same length of time before this one. A hollow point is still learning: it needs ' + MYGAME.MIN_ROUNDS + ' rounds and enough shots in the period.') + '</div>';
     return h + '</div>';
   }
   // ---------- v142 practice: log minutes per skill, see where practice time goes ----------
@@ -2569,7 +2582,8 @@
     // v115: finished shots are one tight line (# · Hit · Club · Loc · SG); only the shot being entered has the entry cells + its header
     var act = fin ? -1 : activeRow(h), thead = false;
     h.rows.forEach(function (row, k) {
-      if (k === act) { out += '<div class="srow shead" id="shead"><span class="c-n">#</span><span class="c-d">Dist to pin</span><span class="c-l">Loc</span><span class="c-x">' + (k ? 'Dir' : '') + '</span><span class="c-p">' + (k ? 'P' : '') + '</span><span class="c-del"></span></div>' + rowHTML(h, a, row, k, fin); return; }
+      if (k === act) { out += shotCardHTML(h, a, row, k); return; }
+      if (k === act + 1 && k === h.rows.length - 1 && blank0(row.dist) && row.loc !== 'ob' && !SG.isRetee(row) && !SG.isHoled(row, k)) return; // v157: the next shot is waiting – its card comes with Next shot // v157: one card per shot – From · Club · Finished
       if (!thead) { thead = true; out += '<div class="thead" id="thead" aria-hidden="true"><span>#</span><span>Hit</span><span>Club</span><span>Loc</span><span>SG</span></div>'; }
       out += tightHTML(h, a, k, fin);
     });
@@ -2582,7 +2596,6 @@
       out += '<button class="big frostbtn" data-act="reopen">✎ Edit this hole</button>';
     } else {
       var last = h.rows[h.rows.length - 1];
-      if (!SG.isHoled(last, h.rows.length - 1)) out += '<button class="addshot big" data-act="addShot">Add Shot ⊕</button>';
       out += '<button class="finish big" data-act="finish"' + (a.complete && h.par ? '' : ' disabled') + '>✓ Finish hole</button>';
       out += '<div id="hint" class="hint">' + hintText(h, a) + '</div>';
     }
@@ -2593,7 +2606,8 @@
     out += '<button class="big rpbtn frostbtn" data-act="replay" data-v="' + view.hole + '">▶ Hole replay</button>';
     out += '<div class="row sub"><button class="txt frostbtn" data-act="home">Home</button><button class="txt frostbtn" data-act="summary">Scorecard &amp; stats</button></div>' +
       '<button class="danger discard frostdanger" data-act="discard" data-id="' + esc(r.id) + '">🗑 Discard round</button>';
-    out += '<p class="help muted">Each row is ONE stroke. Dist = how far from the pin you hit it (yards; feet on the green). Loc = where the ball was. ' +
+    out += '<p class="help muted">One card per shot. <b>From</b> = where you hit it from and how far it was to the pin (yards; feet on the green) – filled in from the shot before. <b>Club</b>. <b>Finished</b> = where the ball came to rest and which way it missed, as you see it from the ball (Long = past the pin, Short = toward you). The app works out how far each shot went from the distances. Hazard: pick Drop (+1, play from the drop) or Re-tee (+1, play again from the same spot). OB = +1 and play again from the same spot. Score = shots + penalties.</p>';
+    if (false) out += '<p class="help muted">Each row is ONE stroke. Dist = how far from the pin you hit it (yards; feet on the green). Loc = where the ball was. ' +
       'The shot that went in: tick "Hole out" on its row – its Loc (e.g. Rough) stays, so strokes gained counts it from there. Dir = where the shot before ended vs its target (8 ways: Short = toward you, Long = past it, Left, Right, and the corners). For an approach that missed the green, pick where it missed the green; if it found the green, pick where it stopped vs the hole. ' +
       'P = penalty stroke (+1), e.g. a drop. "OB re-hit" = +1 and you hit again from the same spot. Score = rows + penalties.</p>';
     if (view.dirk != null && h.rows[view.dirk] && !fin) out += dirSheetHTML(h, view.dirk);
@@ -2744,7 +2758,8 @@
       else if (putt) hit = (s || nDist) && row.dist !== '' ? row.dist + ' ft' : '';
       else if (s && s.hit != null) hit = s.hit + ' yd';
       else if (nDist && row.dist !== '') { var y = function (j) { var d = SG.distOf(rows, j); return SG.rowUnit(rows, j) === 'ft' ? d / 3 : d; }; var hy = Math.round(y(k) - y(k + 1)); hit = hy > 0 ? hy + ' yd' : ''; }
-      if (nx && nx.loc) { loc = nx.loc === 'ob' ? 'OB' : nx.loc === 'holed' ? 'Green' : END_NAME[SG.lieOf(rows, k + 1)] || LOC_SHORT[nx.loc] || ''; pen = !!nx.pen || nx.loc === 'ob'; }
+      if (s && s.retee) hit = '';
+      if (nx && nx.loc) { loc = nx.loc === 'ob' ? 'OB' : nx.loc === 'hazard' ? 'Hazard' + (nx.retee ? ' · re-tee' : nx.pen ? ' · drop' : '') : nx.loc === 'holed' ? 'Green' : END_NAME[SG.lieOf(rows, k + 1)] || LOC_SHORT[nx.loc] || ''; pen = !!nx.pen || nx.loc === 'ob'; }
     }
     var club = putt ? 'Putter' : row.club ? clubShort(row.club) : '';
     // v115: every line reads "from → to" – from = this shot's own lie, to = where it finished (the next shot's lie); no miss arrow
@@ -2797,6 +2812,88 @@
     }
     return out;
   }
+
+  // ---------- v157 (Scott, redesign 1 + 3): one card per shot ----------
+  // From (this row: lie + distance to the pin, filled in by the shot before) · Club · Finished (the NEXT row: where it came to rest,
+  // which way it missed, penalties – Hazard asks Drop or Re-tee) · Next shot. The saved rows are the same as before.
+  var FIN_OFF = [['fairway', 'Fairway'], ['rough', 'Rough'], ['bunker', 'Bunker'], ['green', 'Green'], ['deep', 'Deep rough'], ['trees', 'Trees'], ['hazard', 'Hazard'], ['ob', 'OB']];
+  var FROM_LOCS = [['fairway', 'Fairway'], ['rough', 'Rough'], ['deep', 'Deep rough'], ['bunker', 'Bunker'], ['green', 'Green'], ['trees', 'Trees'], ['hazard', 'Hazard']];
+  function finOf(h, k) { // what the "Finished" chips show for shot k
+    var row = h.rows[k], nx = h.rows[k + 1];
+    if (SG.isHoled(row, k) || (k === 0 && row.loc === 'holedx')) return 'in';
+    if (!nx || !nx.loc) return '';
+    return nx.loc === 'holed' ? 'green' : nx.loc === 'holedx' ? 'in' : nx.loc;
+  }
+  function shotCardHTML(h, a, row, k) {
+    var rows = h.rows, nx = rows[k + 1], n = k + 1, lie = SG.lieOf(rows, k), green = lie === 'green', bad = a.bad === k, fin = finOf(h, k);
+    var replay = k > 0 && (row.loc === 'ob' || SG.isRetee(row));
+    var out = '<div class="shotcard' + (bad ? ' bad' : '') + (view.vflash && view.vflash.indexOf(k) >= 0 ? ' vflash' : '') + '" data-k="' + k + '" id="shotcard">' +
+      '<div class="sc-head"><button class="sc-n" data-act="menu" data-k="' + k + '" aria-label="Shot ' + n + ' options">Shot ' + n + ' <small>⋯</small></button>' +
+      (k > 0 ? '<button class="del" data-act="del" data-k="' + k + '" aria-label="Delete shot ' + n + '">⌫</button>' : '') + '</div>';
+    // FROM
+    out += '<div class="sc-sec"><span class="sc-lbl">From</span><div class="sc-from">';
+    if (k === 0) out += '<span class="sc-lie">Tee</span>';
+    else if (replay) out += '<span class="sc-lie">' + (row.loc === 'ob' ? 'Same spot – after OB' : 'Same spot – re-tee after the hazard') + ' <i class="tpen">+1</i></span>';
+    else out += '<select class="sc-liesel" data-f="loc" data-k="' + k + '" aria-label="Shot ' + n + ' from">' + (row.loc ? '' : '<option value="" selected>Where from?</option>') +
+      FROM_LOCS.concat(row.loc === 'holed' ? [['holed', 'Green']] : row.loc === 'holedx' ? [['holedx', 'In the hole']] : []).map(function (l) { return '<option value="' + l[0] + '"' + (row.loc === l[0] ? ' selected' : '') + '>' + l[1] + '</option>'; }).join('') + '</select>';
+    if (replay) out += '<span class="sc-dist obtxt">' + prevDist(h, k) + ' to the pin</span>';
+    else out += '<label class="sc-dist"><input type="text" inputmode="numeric" pattern="[0-9]*" maxlength="3" data-row="' + k + '" value="' + esc(row.dist) + '" aria-label="Shot ' + n + ' distance to the pin" placeholder="' + (k === 0 ? 'length' : 'to pin') + '">' +
+      '<i class="u" data-unit="' + k + '">' + SG.rowUnit(rows, k) + '</i></label>';
+    out += '</div>';
+    if (k > 0 && !replay) { var dv0 = SG.normDir(row.dir); // how the shot before finished – editable here too
+      out += '<div class="sc-came"><button class="dirbtn sm' + (dv0 ? ' on' : '') + '" data-act="dirpick" data-k="' + k + '" data-dir="' + dv0 + '" aria-label="Shot ' + k + ' finished: ' + dirName(dv0) + '">' + ARROW[dv0] + '</button><span>' + (dv0 ? 'Shot ' + k + ' missed ' + SG.DIR_NAME[dv0].toLowerCase() : 'Shot ' + k + ': no miss direction') + '</span>' +
+        '<button class="pen sm' + (row.pen ? ' on' : '') + '" data-act="pen" data-k="' + k + '" aria-label="Penalty before shot ' + n + '">' + (row.pen ? '+1' : '+1?') + '</button></div>'; }
+    out += '</div>';
+    // CLUB
+    var dis = '';
+    if (!green && row.loc !== 'holed' && wLadderFor(row)) out += '<div class="sc-sec sc-clubsec">' + ladderRowHTML(h, k, row, n, dis, '') + '</div>';
+    else if (!green && row.loc !== 'holed') out += '<div class="sc-sec sc-clubsec"><div class="clubrow" data-club="' + k + '"><label class="clublbl"><span class="sc-lbl">Club</span><select data-f="club" data-k="' + k + '" aria-label="Shot ' + n + ' club"><option value=""' + (row.club ? '' : ' selected') + '>–</option>' +
+        clubChoices(row.club).map(function (c) { return '<option value="' + esc(c.code) + '"' + (row.club === c.code ? ' selected' : '') + '>' + esc(c.label) + '</option>'; }).join('') + '</select></label>' +
+        (k === 0 && Number(h.par) !== 3 ? '<label class="layup"><input type="checkbox" data-f="layup" data-k="0"' + (row.layup ? ' checked' : '') + '> Layup <small>(not in SG)</small></label>' : '') + '</div></div>';
+    else out += '<div class="sc-sec sc-clubsec"><div class="clubrow putter" data-club="' + k + '"><span class="sc-lbl">Club</span><small>Putter</small></div></div>';
+    // FINISHED
+    var chips = green ? [['green', 'Missed – still on the green'], ['in', 'In the hole']] : FIN_OFF.concat([['in', k === 0 ? 'In the hole (ace!)' : 'In the hole']]);
+    out += '<div class="sc-sec"><span class="sc-lbl">Finished</span><div class="finchips" role="group" aria-label="Where shot ' + n + ' finished">' + chips.map(function (c) {
+      return '<button type="button" class="finchip' + (c[0] === 'in' || green ? ' in' : '') + (fin === c[0] ? ' sel' : '') + '" data-act="fin" data-k="' + k + '" data-v="' + c[0] + '" aria-pressed="' + (fin === c[0]) + '">' + c[1] + '</button>'; }).join('') + '</div>';
+    if (fin && fin !== 'in' && nx) {
+      var dv = SG.normDir(nx.dir), ob = nx.loc === 'ob';
+      out += '<div class="sc-miss"><button class="dirbtn' + (dv ? ' on' : '') + '" data-act="dirpick" data-k="' + (k + 1) + '" data-dir="' + dv + '" aria-label="Shot ' + n + ' missed: ' + dirName(dv) + '">' + ARROW[dv] + '</button>' +
+        '<span class="sc-misstxt">' + (dv ? 'Missed ' + SG.DIR_NAME[dv].toLowerCase() : ob ? '<b>Which side?</b> Left or right' : (green ? 'Which way did it miss?' : 'Which way did it miss? <small>(optional)</small>')) + '</span>';
+      if (ob) out += '<i class="tpen">+1</i>';
+      else if (nx.loc !== 'hazard') out += '<button class="pen' + (nx.pen ? ' on' : '') + '" data-act="pen" data-k="' + (k + 1) + '" aria-label="Penalty after shot ' + n + '">' + (nx.pen ? '+1' : '+1?') + '</button>';
+      out += '</div>';
+      if (nx.loc === 'hazard') { // redesign 3: Drop or Re-tee (only for Hazard)
+        var hz = view.hzPend === (k + 1) + ':' + view.hole ? '' : SG.isRetee(nx) ? 'retee' : nx.pen ? 'drop' : 'play';
+        out += '<div class="hzpick" id="hzpick" role="group" aria-label="Hazard: drop or re-tee"><span class="hzq">Into the hazard – then?</span>' +
+          [['drop', 'Drop', '+1, play from the drop'], ['retee', k === 0 ? 'Re-tee' : 'Replay', '+1, again from the same spot']].map(function (o) {
+            return '<button type="button" class="hzopt' + (hz === o[0] ? ' sel' : '') + '" data-act="hz" data-k="' + (k + 1) + '" data-v="' + o[0] + '"><b>' + o[1] + '</b><small>' + o[2] + '</small></button>'; }).join('') +
+          '<button type="button" class="hzplay' + (hz === 'play' ? ' sel' : '') + '" data-act="hz" data-k="' + (k + 1) + '" data-v="play">Played it from the hazard (no penalty)</button></div>';
+      }
+    }
+    out += '</div>';
+    out += '<div class="sinfo" data-info="' + k + '">' + infoHTML(a.shots[k]) + '</div>';
+    if (fin !== 'in') out += '<button class="addshot big" data-act="' + (nx ? 'nextshot' : 'addShot') + '" data-k="' + k + '">' + (k + 1 < rows.length - 1 ? 'Shot ' + (k + 2) + ' ›' : 'Next shot ›') + '</button>';
+    if (view.menu === k) out += '<div class="rowmenu">' + (k > 0 ? '<button data-act="insBefore" data-k="' + k + '">Insert shot above</button>' : '') +
+        '<button data-act="insAfter" data-k="' + k + '">Insert shot below</button><button data-act="menu" data-k="' + k + '">Close</button></div>';
+    return out + '</div>';
+  }
+  // "Finished" chip: writes the NEXT row (its lie), adding it when this is the last shot; "In the hole" holes this shot out.
+  function setFinish(h, k, v) {
+    var rows = h.rows, cur = rows[k];
+    if (v === 'in') {
+      if (k === 0) { if (rows.length > 1 && !confirm('An ace? The shots after it will be deleted.')) return; rows.splice(1); cur.loc = 'holedx'; delete cur.layup; view.edk = null; save(); render(); return; }
+      view.edk = null; setHoleOut(h, k, true); return; // one tick per hole; asks before deleting shots after it
+    }
+    if (cur.loc === 'holed') cur.loc = 'green'; if (k === 0 && cur.loc === 'holedx') cur.loc = 'tee'; delete cur.holeOut;
+    var nx = rows[k + 1]; if (!nx) { nx = { loc: '', dist: '', dir: '', pen: false }; rows.push(nx); }
+    var was = nx.loc;
+    if (v === 'green' && was === 'holed') { /* the next putt went in: keep it */ }
+    else if (v === 'ob') { nx.loc = 'ob'; nx.dist = ''; nx.pen = false; delete nx.retee; if (nx.dir === 'short' || nx.dir === 'long') nx.dir = ''; }
+    else if (v === 'hazard') { if (was !== 'hazard') { nx.loc = 'hazard'; nx.pen = false; delete nx.retee; view.hzPend = (k + 1) + ':' + view.hole; } }
+    else { var held = was === 'holed', wasRe = !!nx.retee; nx.loc = v; delete nx.retee; if (held) nx.holeOut = true; if (was === 'ob' || wasRe) { nx.dist = ''; nx.pen = false; } }
+    if (was === 'hazard' && v !== 'hazard') { nx.pen = false; view.hzPend = null; }
+    view.edk = { h: view.hole, k: k }; view.menu = null; save(); render();
+  }
   function infoHTML(s) {
     if (!s) return '';
     var info = s.end.lie === 'holed' ? ' · in the hole!' : s.ob ? ' · went OB' : (s.start.lie === 'green' ? ' · missed' : ' · hit ' + s.hit + ' yd');
@@ -2814,10 +2911,10 @@
     var n = a.bad != null ? a.bad + 1 : h.rows.length, row = h.rows[n - 1] || {};
     var holed = SG.isHoled(row, n - 1);
     switch (a.problem) {
-      case 'dist': return n === 1 ? 'Missing: hole length in row 1.' : 'Missing: distance in row ' + n + (holed ? ' (how far was the putt/shot that went in?)' : '') + '.';
-      case 'loc': return 'Missing: location in row ' + n + '.';
-      case 'after': return 'Shot ' + (n - 1) + ' went in – delete the rows after it.';
-      case 'last': return 'Not finished: tap Add Shot for the next shot, or tick “Hole out” on the shot that went in.';
+      case 'dist': return n === 1 ? 'Next: the hole length on shot 1.' : 'Next: shot ' + n + '’s distance to the pin' + (holed ? ' (how far was the shot that went in?)' : '') + '.';
+      case 'loc': return 'Next: where shot ' + (n - 1) + ' finished.';
+      case 'after': return 'Shot ' + (n - 1) + ' went in – delete the shots after it.';
+      case 'last': return 'Not finished: pick where the shot finished, or In the hole.';
     }
     return '';
   }
@@ -2835,12 +2932,12 @@
   // Everything the scorecard shows for one finished hole (null = not finished yet -> blank column).
   function scHole(h, a) {
     if (!a || !a.done) return null;
-    var par = Number(h.par) || 0, sh = a.shots, cat = { tee: null, approach: null, short: null, putting: null };
+    var par = Number(h.par) || 0, sh = a.shots, cat = { tee: null, approach: null, short: null, bunker: null, putting: null };
     sh.forEach(function (x) { cat[x.cat] = (cat[x.cat] || 0) + x.sg; });
     var putts = sh.filter(function (x) { return x.start.lie === 'green'; }), t0 = sh[0];
     var lastP = putts.length && putts[putts.length - 1].end.lie === 'holed' ? putts[putts.length - 1] : null;
     // up and down: missed the green in regulation, then a short-game shot (off the green, within 30 yd) – made if holed in 2 or fewer from there
-    var k = -1; if (!a.gir) for (var j = 0; j < sh.length; j++) if (sh[j].cat === 'short') { k = j; break; }
+    var k = -1; if (!a.gir) for (var j = 0; j < sh.length; j++) if (sh[j].cat === 'short' || sh[j].cat === 'bunker') { k = j; break; } // v157: bunker shots count for up & down / sandies
     var ud = null, sandy = null;
     if (k >= 0) {
       var left = sh.slice(k).reduce(function (t, x) { return t + 1 + x.penStrokes; }, 0);
@@ -2886,6 +2983,7 @@
     };
     sgRow('Tot', 'sgtot', function (d) { return d.sg; }); sgRow('OTT', 'sgott', function (d) { return d.cat.tee; });
     sgRow('APP', 'sgapp', function (d) { return d.cat.approach; }); sgRow('ARG', 'sgarg', function (d) { return d.cat.short; });
+    sgRow('BNK', 'sgbnk', function (d) { return d.cat.bunker; });
     sgRow('Putt', 'sgputt', function (d) { return d.cat.putting; });
     gname = 'stats';
     R('Putts', 'sputts', function (i, d) { return N(d ? d.putts : ''); }, function (L) { return N(L.length ? sum(L.map(function (d) { return d.putts; })) : ''); });
@@ -2984,7 +3082,7 @@
       return '<div><span>' + a.name + '</span><b' + (p.ready ? ' class="ok"' : '') + '>' + (p.ready ? 'Ready ✓' : p.n + ' of ' + p.need + ' ' + p.unit + (p.roundsLeft ? ' · about ' + p.roundsLeft + ' more round' + (p.roundsLeft === 1 ? '' : 's') : '')) + '</b></div>'; }).join('') +
       '<p>Suggestions compare each area with <b>your</b> normal once it has enough shots from your rounds (last ' + INSIGHTS.NORM_ROUNDS + '). Until then they compare with the ' + esc(T.baselineName || SG.baseline(blOf(r)).name) + ' average.</p></div>' : '';
     var out = '<section class="takeaway" id="takeaway"><button class="tkstrip frost" id="tkstrip" data-act="tkknow" aria-expanded="' + open + '">' +
-      '<span class="tkst-h"><span>How well Strokewise knows your game</span><b id="tkready">' + P.readyCount + '/4 ready</b></span><span class="tkbars">' + bars + '</span></button>' + rows;
+      '<span class="tkst-h"><span>How well Strokewise knows your game</span><b id="tkready">' + P.readyCount + '/' + INSIGHTS.AREAS.length + ' ready</b></span><span class="tkbars">' + bars + '</span></button>' + rows;
     if (!T.ok) return out + '<p class="tknote frost">' + esc(T.reason) + '</p></section>';
     out += '<div class="tkhead frost"><span class="tkeye">Round takeaway</span><h3 id="tkheadline">' + esc(T.headline) + '</h3>' + (T.lede ? '<p id="tklede">' + esc(T.lede) + '</p>' : '') + '</div>';
     var F = T.focus;
@@ -3062,12 +3160,12 @@
       (B.status === 'estimated' ? ' – <b>estimated</b> baseline (no published table; see About the numbers)' : ' – published PGA Tour data (Broadie)') +
       '. Plus = better, minus = strokes lost. Changing this recalculates the whole round and is saved with it.</p></div>';
     out += '<table><tr><th>Category</th><th class="num">Shots</th><th class="num">SG</th></tr>';
-    ['tee', 'approach', 'short', 'putting'].forEach(function (k) {
+    ['tee', 'approach', 'short', 'bunker', 'putting'].forEach(function (k) {
       var c = S.cats[k];
       out += '<tr><td>' + CAT_NAME[k] + '</td><td class="num">' + c.n + '</td><td class="num ' + sgCls(c.sg) + '">' + fmtSG(c.sg) + '</td></tr>';
     });
     out += '</table>' + compareHTML(r, bl) + '<h3>By distance</h3><table id="bydist"><tr><th>From</th><th class="num">Shots</th><th class="num">SG</th><th class="num">Avg to pin after</th></tr>';
-    var groups = [['Approach', SG.APPR_BUCKETS.map(function (b) { return b.id; })], ['Short game', [SG.SHORT_BUCKET]], ['Putting', ['0-5 ft', '5-15 ft', '15-30 ft', '30+ ft']]], pex = 0;
+    var groups = [['Approach', SG.APPR_BUCKETS.map(function (b) { return b.id; })], ['Short game', [SG.SHORT_BUCKET]], ['Bunker', [SG.BUNKER_BUCKET]], ['Putting', ['0-5 ft', '5-15 ft', '15-30 ft', '30+ ft']]], pex = 0;
     groups.forEach(function (g) {
       out += '<tr><td colspan="4" style="background:#eee"><b>' + g[0] + '</b></td></tr>';
       g[1].forEach(function (b) {
@@ -3099,9 +3197,9 @@
     return out;
   }
   function compareHTML(r, bl) {
-    var cats = ['tee', 'approach', 'short', 'putting'];
+    var cats = ['tee', 'approach', 'short', 'bunker', 'putting'];
     var out = '<h3>Same round vs every baseline</h3><p class="help muted">Strokes gained by category. Tap a row to use it.</p>' +
-      '<table class="cmp" id="cmp"><tr><th>Baseline</th><th class="num">Tee</th><th class="num">App</th><th class="num">Short</th><th class="num">Putt</th><th class="num">Total</th></tr>';
+      '<table class="cmp" id="cmp"><tr><th>Baseline</th><th class="num">Tee</th><th class="num">App</th><th class="num">Short</th><th class="num">Sand</th><th class="num">Putt</th><th class="num">Total</th></tr>';
     SG.BASELINES.forEach(function (b) {
       var S = SG.summarize(r, b.id);
       out += '<tr data-act="setbl" data-v="' + b.id + '" class="' + (b.id === bl ? 'cur' : '') + '"><td>' + esc(b.name) + (b.status === 'estimated' ? '<sup>est</sup>' : '') + '</td>' +
@@ -3854,7 +3952,7 @@
       x.S.proxList.forEach(function (m) { var k = cmpBucket(m.from); if (b[k]) { b[k].girN++; if (m.hit) b[k].gir++; } }); });
     return { b: b, keys: keys, n: set.length };
   }
-  var CMP_CATS = [['tee', 'Off the tee'], ['approach', 'Approach'], ['short', 'Around green'], ['putting', 'Putting']];
+  var CMP_CATS = [['tee', 'Off the tee'], ['approach', 'Approach'], ['short', 'Around green'], ['bunker', 'Bunker'], ['putting', 'Putting']];
   function cmpAvg(L, f) { return L.length ? L.reduce(function (a, x) { return a + f(x); }, 0) / L.length : 0; }
   // v136: four category tiles – strokes gained per round, worst minus best (minus = what the worst rounds lose there); the biggest loss is highlighted
   function cmpCatHTML(C) {
@@ -3907,8 +4005,8 @@
     return h + '</div>';
   }
   // ---------- Hole replay (app only): bird's-eye drawing of one hole with every shot chained ----------
-  var RPC = { tee: '#1565e0', approach: '#6a1b9a', short: '#ef6c00', putting: '#fff' };
-  var RPN = { tee: 'Tee shot', approach: 'Approach', short: 'Short game', putting: 'Putt' };
+  var RPC = { tee: '#1565e0', approach: '#6a1b9a', short: '#ef6c00', bunker: '#b8860b', putting: '#fff' };
+  var RPN = { tee: 'Tee shot', approach: 'Approach', short: 'Short game', bunker: 'Bunker shot', putting: 'Putt' };
   function replaySVG(h, hi) {
     var A = SG.analyzeHole(h, 'pga'), shots = A.shots || [], yd = Number(SG.holeYards(h)) || Number((h.rows[0] || {}).dist) || 400;
     var A0 = (SG.analyzeHole(h, 'pga').shots || []).some(function (x) { return x.cat === 'putting'; }), K = 1.15, W = 360, cx = 180, top = 40, gY = top + 50, H = Math.round(gY + yd * K + 34), teeY = gY + yd * K, GR = 26;
@@ -3940,9 +4038,9 @@
     o += '<ellipse cx="' + (cx + 52) + '" cy="' + f1(gY + 6) + '" rx="14" ry="9" fill="#ecd27e" stroke="#c9a94f"/><ellipse cx="' + (cx - 50) + '" cy="' + f1(gY + 30) + '" rx="12" ry="8" fill="#ecd27e" stroke="#c9a94f"/>' +
       (yd > 300 ? '<ellipse cx="' + (cx + 62) + '" cy="' + f1(gY + yd * K * 0.45) + '" rx="16" ry="9" fill="#ecd27e" stroke="#c9a94f"/>' : '') +
       '<circle cx="' + cx + '" cy="' + gY + '" r="' + GR + '" fill="#8fd66f" stroke="#e8f8e0" stroke-width="2"/>' +
-      '<rect x="' + (cx - 16) + '" y="' + f1(teeY - 6) + '" width="32" height="14" rx="4" fill="#c9f2b8" stroke="#fff" stroke-width="2"/><text x="' + (cx + 20) + '" y="' + f1(teeY + 5) + '" font-size="10" font-weight="900" fill="#fff">TEE · ' + yd + ' yd</text>';
+      '<rect x="' + (cx - 16) + '" y="' + f1(teeY - 6) + '" width="32" height="14" rx="4" fill="#c9f2b8" stroke="#fff" stroke-width="2"/><text x="' + cx + '" y="' + f1(teeY + 22) + '" text-anchor="middle" font-size="10" font-weight="900" fill="#fff">TEE · ' + yd + ' yd</text>';
     // chain
-    var cur = [cx, teeY], tr = '', marks = '', labs = '', boxes = [], putts = [], labQ = [], minY = 0;
+    var cur = [cx, teeY], tr = '', marks = '', ends = '', starts = [], putts0 = false, labs = '', boxes = [], putts = [], labQ = [], minY = 0;
     var lbl = function (x, y, t, col) { var w = t.length * 5.8 + 6;
       var c = [[10, 4], [-10 - w, 4], [-w / 2, -10], [-w / 2, 18], [12, 16], [-12 - w, 16]].filter(function (q) { var b = [x + q[0], y + q[1] - 10, x + q[0] + w, y + q[1] + 2]; return b[0] > 24 && b[2] < W - 24 && b[1] > minY - 30 && !boxes.some(function (z) { return b[0] < z[2] && b[2] > z[0] && b[1] < z[3] && b[3] > z[1]; }); })[0];
       if (!c) return ''; var b = [x + c[0], y + c[1] - 10, x + c[0] + w, y + c[1] + 2]; boxes.push(b);
@@ -3951,26 +4049,32 @@
       var cat = s.cat || 'approach', col = RPC[cat] || '#333';
       if (cat === 'putting') putts.push(s);
       var endLie = s.ob ? 'ob' : s.end.lie === 'holed' ? 'holed' : s.loc === 'hazard' ? 'hazard' : s.end.lie;
-      var e = s.ob ? [s.side === 'R' || /right$/.test(s.dir) ? W - 11 : 11, Math.max(cur[1] - 140, gY)] : place(s.end.dist, endLie, s.dir, i, s.ang);
+      var e = s.ob ? [s.side === 'R' || /right$/.test(s.dir) ? W - 11 : 11, Math.max(cur[1] - 140, gY)]
+        : s.retee ? [Math.max(30, Math.min(W - 30, cur[0] + (/right$/.test(s.dir) ? 46 : /left$/.test(s.dir) ? -46 : 0))), Math.max(gY, cur[1] - 60)] : place(s.end.dist, endLie, s.dir, i, s.ang);
       var mx = (cur[0] + e[0]) / 2 + (e[1] - cur[1]) * 0.08, my = (cur[1] + e[1]) / 2 - (e[0] - cur[0]) * 0.08;
-      if (cat !== 'putting') tr += '<path class="rptr" data-cat="' + cat + '" data-n="' + s.n + '" d="M' + f1(cur[0]) + ' ' + f1(cur[1]) + ' Q' + f1(mx) + ' ' + f1(my) + ' ' + f1(e[0]) + ' ' + f1(e[1]) + '" fill="none" stroke="#fff" stroke-width="5" stroke-opacity=".7"' + (s.ob ? ' stroke-dasharray="6 4"' : '') + '/>' +
-        '<path d="M' + f1(cur[0]) + ' ' + f1(cur[1]) + ' Q' + f1(mx) + ' ' + f1(my) + ' ' + f1(e[0]) + ' ' + f1(e[1]) + '" fill="none" stroke="' + col + '" stroke-width="2.8"' + (s.ob ? ' stroke-dasharray="6 4"' : '') + '/>';
+      if (cat !== 'putting') tr += '<path class="rptr" data-cat="' + cat + '" data-n="' + s.n + '" d="M' + f1(cur[0]) + ' ' + f1(cur[1]) + ' Q' + f1(mx) + ' ' + f1(my) + ' ' + f1(e[0]) + ' ' + f1(e[1]) + '" fill="none" stroke="#fff" stroke-width="5" stroke-opacity=".7"' + (s.ob || s.retee ? ' stroke-dasharray="6 4"' : '') + '/>' +
+        '<path d=""M' + f1(cur[0]) + ' ' + f1(cur[1]) + ' Q' + f1(mx) + ' ' + f1(my) + ' ' + f1(e[0]) + ' ' + f1(e[1]) + '" fill="none" stroke="' + col + '" stroke-width="2.8"' + (s.ob || s.retee ? ' stroke-dasharray="6 4"' : '') + '/>';
+      // v157 (Scott): the shot number sits where the shot was hit (1 on the tee), like the shot card – Shot 1 from the Tee;
+      // a small ball shows where it finished. A replay after OB / re-tee is nudged aside so both numbers show.
+      var sp = cur.slice(); while (starts.some(function (q) { return Math.hypot(q[0] - sp[0], q[1] - sp[1]) < 14; })) sp[0] += sp[0] > W - 60 ? -18 : 18;
+      if (cat === 'putting' && !putts0) { putts0 = true; marks += '<g class="rpputt0" data-n="' + s.n + '" data-cat="putting"><circle cx="' + f1(sp[0]) + '" cy="' + f1(sp[1]) + '" r="7" fill="#fff" stroke="#222" stroke-width="1.5"/><text x="' + f1(sp[0]) + '" y="' + f1(sp[1] + 3.5) + '" text-anchor="middle" font-size="9" font-weight="900" fill="#111">' + s.n + '</text></g>'; starts.push(sp); }
       if (cat !== 'putting') {
-        marks += '<g class="rpshot" data-n="' + s.n + '" data-cat="' + cat + '" data-lie="' + endLie + '"><circle cx="' + f1(e[0]) + '" cy="' + f1(e[1]) + '" r="8" fill="' + col + '" stroke="#fff" stroke-width="2"/><text x="' + f1(e[0]) + '" y="' + f1(e[1] + 3.5) + '" text-anchor="middle" font-size="10" font-weight="900" fill="#fff">' + s.n + '</text></g>';
-        boxes.push([e[0] - 9, e[1] - 9, e[0] + 9, e[1] + 9]);
-        var t = endLie === 'holed' ? 'holed!' : s.ob ? 'OB +' + s.penStrokes : endLie === 'green' ? s.end.dist + ' ft' : s.end.dist + ' yd' + (endLie && endLie !== 'fairway' ? ' ' + ({ rough: 'rough', deep: 'deep rough', sand: 'bunker', hazard: 'hazard', recovery: 'trees' }[endLie] || '') : '');
+        if (endLie !== 'holed') ends += '<circle class="rpball" data-n="' + s.n + '" cx="' + f1(e[0]) + '" cy="' + f1(e[1]) + '" r="3.6" fill="#fff" stroke="#333" stroke-width="1"/>';
+        marks += '<g class="rpshot" data-n="' + s.n + '" data-cat="' + cat + '" data-lie="' + endLie + '" data-x="' + f1(sp[0]) + '" data-y="' + f1(sp[1]) + '"><circle cx="' + f1(sp[0]) + '" cy="' + f1(sp[1]) + '" r="8" fill="' + col + '" stroke="#fff" stroke-width="2"/><text x="' + f1(sp[0]) + '" y="' + f1(sp[1] + 3.5) + '" text-anchor="middle" font-size="10" font-weight="900" fill="#fff">' + s.n + '</text></g>';
+        boxes.push([sp[0] - 9, sp[1] - 9, sp[0] + 9, sp[1] + 9]); starts.push(sp);
+        var t = endLie === 'holed' ? 'holed!' : s.ob ? 'OB +' + s.penStrokes : s.retee ? 'hazard – re-tee' : endLie === 'green' ? s.end.dist + ' ft' : s.end.dist + ' yd' + (endLie && endLie !== 'fairway' ? ' ' + ({ rough: 'rough', deep: 'deep rough', sand: 'bunker', hazard: 'hazard', recovery: 'trees' }[endLie] || '') : '');
         if (s.club) t = s.club + ' → ' + t;
         if (s.layup) t += ' (layup)';
-        if (s.penStrokes && !s.ob) t += ' +' + s.penStrokes + ' pen';
-        labQ.push([e[0], e[1], t.trim(), s.penStrokes ? '#c00' : '#111']);
+        if (s.penStrokes && !s.ob) t += ' +' + s.penStrokes + (s.retee ? '' : ' pen');
+        labQ.push([sp[0], sp[1], t.trim(), s.penStrokes ? '#c00' : '#111']);
         if (s.penStrokes) marks += '<path class="rppen" d="M' + f1(e[0] + 7) + ' ' + f1(e[1] - 14) + ' l8 8 m0 -8 l-8 8" stroke="#e0102a" stroke-width="3"/>';
       }
       if (cat !== 'putting') minY = Math.min(minY, e[1] - 14);
-      cur = s.ob ? cur : e; // OB: replay from the same spot
+      cur = s.ob || s.retee ? cur : e; // OB / hazard re-tee: replay from the same spot
     });
     // v156: labels go down only after every shot's dot, so no label sits on a later shot
     boxes.push([pin[0] - 4, pin[1] - 22, pin[0] + 14, pin[1] + 4]); labQ.forEach(function (q) { labs += lbl(q[0], q[1], q[2], q[3]); });
-    o += tr + '<line x1="' + f1(pin[0]) + '" y1="' + f1(pin[1]) + '" x2="' + f1(pin[0]) + '" y2="' + f1(pin[1] - 18) + '" stroke="#000" stroke-width="2"/><path d="M' + f1(pin[0]) + ' ' + f1(pin[1] - 18) + ' l10 3.5 l-10 3.5z" fill="#d0213a"/><circle cx="' + f1(pin[0]) + '" cy="' + f1(pin[1]) + '" r="3" fill="#000"/>' + marks + labs;
+    o += tr + '<line x1="' + f1(pin[0]) + '" y1="' + f1(pin[1]) + '" x2="' + f1(pin[0]) + '" y2="' + f1(pin[1] - 18) + '" stroke="#000" stroke-width="2"/><path d="M' + f1(pin[0]) + ' ' + f1(pin[1] - 18) + ' l10 3.5 l-10 3.5z" fill="#d0213a"/><circle cx="' + f1(pin[0]) + '" cy="' + f1(pin[1]) + '" r="3" fill="#000"/>' + ends + marks + labs;
     // tap target over the green (opens the enlarged green view)
     o += '<g class="rpgreen" data-act="rpgreen" role="button" aria-label="Open enlarged green"><circle cx="' + cx + '" cy="' + gY + '" r="' + (GR + 22) + '" fill="#fff" fill-opacity="0"/></g>' +
       '';
@@ -3982,10 +4086,11 @@
     G += '<text x="' + ix + '" y="' + (Hg - 8) + '" text-anchor="middle" font-size="10" fill="#fff" font-weight="800">▼ front of green</text>';
     if (putts.length) {
       var prev = shots[i0 - 1], sd0 = prev ? prev.dir : '', s0 = pt(ix, iy, (Number(putts[0].start.dist) || 0) * PK, prev && prev.ang != null ? prev.ang : sd0 ? SG.DIR_ANGLE[sd0] : 270);
-      if (prev) { var pc2 = RPC[prev.cat] || '#333', fx = Math.max(20, Math.min(Wg - 20, ix + (s0[0] - ix) * 0.4)), fy = Hg - 22;
-        G += '<path id="rparrive" d="M' + f1(fx) + ' ' + fy + ' Q' + f1((fx + s0[0]) / 2 + 20) + ' ' + f1((fy + s0[1]) / 2) + ' ' + f1(s0[0]) + ' ' + f1(s0[1]) + '" fill="none" stroke="' + pc2 + '" stroke-width="3" stroke-dasharray="7 4"/>' +
+      if (prev) { // v157 (Scott): the shot onto the green comes in from where it was played – pin-high right = 3 o'clock, not always the front
+        var fa = prev.fromAng != null ? prev.fromAng : 270, fp = pt(ix, iy, IR + 26, fa), pc2 = RPC[prev.cat] || '#333', fx = Math.max(20, Math.min(Wg - 20, fp[0])), fy = Math.max(20, Math.min(Hg - 22, fp[1]));
+        G += '<path id="rparrive" d="M' + f1(fx) + ' ' + fy + ' Q' + f1((fx + s0[0]) / 2 + (fy - s0[1]) * 0.15) + ' ' + f1((fy + s0[1]) / 2 + (s0[0] - fx) * 0.15) + ' ' + f1(s0[0]) + ' ' + f1(s0[1]) + '" fill="none" stroke="' + pc2 + '" stroke-width="3" stroke-dasharray="7 4"/>' +
           '<circle cx="' + f1(fx) + '" cy="' + fy + '" r="9" fill="' + pc2 + '" stroke="#fff" stroke-width="2"/><text x="' + f1(fx) + '" y="' + (fy + 4) + '" text-anchor="middle" font-size="10" font-weight="900" fill="#fff">' + prev.n + '</text>' +
-          '<text x="' + f1(fx + 13) + '" y="' + (fy + 4) + '" font-size="10" font-weight="900" fill="#fff">' + '<tspan id="rparrlbl">' + esc((RPN[prev.cat] || 'Shot') + (SG.arrivalDepth(prev.dir, putts[0].start.dist) ? ' ' + SG.arrivalDepth(prev.dir, putts[0].start.dist) : '')) + '</tspan></text>'; }
+          '<text x="' + f1(fx > Wg / 2 ? fx - 13 : fx + 13) + '" y="' + f1(fy + (fy < 30 ? 18 : 4)) + '"' + (fx > Wg / 2 ? ' text-anchor="end"' : '') + ' font-size="10" font-weight="900" fill="#fff" stroke="#2f5f22" stroke-width="3" paint-order="stroke">' + '<tspan id="rparrlbl">' + esc((RPN[prev.cat] || 'Shot') + (SG.arrivalDepth(prev.dir, putts[0].start.dist) ? ' ' + SG.arrivalDepth(prev.dir, putts[0].start.dist) : '')) + '</tspan></text>'; }
       var pp = s0, fin = '', st0 = [];
       putts.forEach(function (p, k) {
         var st = pp, holed = p.end.lie === 'holed', nr = h.rows[p.n] || {}, ed = nr.dir || p.dir || '';
@@ -4009,7 +4114,7 @@
       '<div class="seg rpnav"><button data-act="rphole" data-v="' + (hi - 1) + '"' + (hi > 0 ? '' : ' disabled') + ' aria-label="Previous hole">‹ ' + (hi > 0 ? 'Hole ' + hi : 'Hole') + '</button><span class="rpinfo" id="rpinfo">Par ' + h.par + ' · ' + R.yd + ' yd · ' +
       (A.complete ? A.strokes + ' (' + toPar(A.strokes - h.par) + ')' : (A.shots || []).length + ' shots so far') + '</span><button data-act="rphole" data-v="' + (hi + 1) + '"' + (hi < n - 1 ? '' : ' disabled') + ' aria-label="Next hole">Hole ' + (hi + 2) + ' ›</button></div>' +
       (!(A.shots || []).length ? '<p class="notice">No shots entered on this hole yet.</p>' : view.rpGreen ? '<div class="row"><button class="big" data-act="rpgreenback" id="rpgreenback">‹ Back to hole</button></div><h3>Hole ' + (hi + 1) + ' – on the green</h3>' + R.green + (R.nPutts ? '' : '<p class="notice">No putts on this hole.</p>') + '<p class="help">Drawn to true scale in feet (rings every few ft). White = putts: numbered ball = where each putt started, small white ball + ft = where a missed putt finished, dashed white line = the putt that went in; black dot = the cup. The coloured dashed line is the shot that arrived on the green.</p>' : '<p class="rptap" id="rptapnote">Tap the green for a closer look at the putts</p>' + R.svg) +
-      '<div class="legend" id="rplegend">' + ['tee', 'approach', 'short', 'putting'].map(function (k) { return '<span><i class="ln" style="background:' + RPC[k] + (k === 'putting' ? ';outline:1px solid #333' : '') + '"></i><i class="dot num" style="background:' + RPC[k] + (k === 'putting' ? ';color:#111;border:1px solid #333' : '') + '">1</i>' + RPN[k] + '</span>'; }).join('') +
+      '<div class="legend" id="rplegend">' + ['tee', 'approach', 'short', 'bunker', 'putting'].map(function (k) { return '<span><i class="ln" style="background:' + RPC[k] + (k === 'putting' ? ';outline:1px solid #333' : '') + '"></i><i class="dot num" style="background:' + RPC[k] + (k === 'putting' ? ';color:#111;border:1px solid #333' : '') + '">1</i>' + RPN[k] + '</span>'; }).join('') +
       '<span>Putts are white; in the green close-up the black dot is the cup.</span><span><b style="color:#e0102a">✕</b>Penalty (label shows the penalty strokes); dashed line = OB, replayed from the same spot</span><span>Number = shot; label = distance left (yd off the green, ft on it) and lie. Tap the green to see the putts.</span></div>' +
       '<p class="help muted">A generic drawing, roughly to scale by hole length (straight hole, tee at the bottom, green at the top, pin at its set spot – centre if none). Positions come from your distances to the pin and the direction / lie entered, so they are approximate.</p></div>';
   }
@@ -4785,7 +4890,16 @@
       case 'par': h.par = +v; view.parEdit = null; save(); break;
       case 'paredit': view.parEdit = view.parEdit === view.hole ? null : view.hole; break;
       case 'rowedit': view.edk = { h: view.hole, k: k }; view.menu = null; view.dirk = null; break; // v115: tap a tight line to edit that shot
+      case 'fin': setFinish(h, k, v); return;
+      case 'hz': { var hr = h.rows[k]; if (!hr) return; view.hzPend = null;
+        if (v === 'retee') { hr.retee = true; hr.pen = true; hr.dist = ''; } else if (v === 'drop') { delete hr.retee; hr.pen = true; } else { delete hr.retee; hr.pen = false; }
+        save(); break; }
+      case 'nextshot': {
+        if (view.hzPend === (k + 1) + ':' + view.hole) { toast('Into the hazard – Drop or Re-tee?'); return; }
+        var n2 = k + 1; view.edk = n2 < h.rows.length - 1 ? { h: view.hole, k: n2 } : null; view.menu = null; render();
+        if (h.rows[n2] && h.rows[n2].loc !== 'ob' && !SG.isRetee(h.rows[n2]) && blank0(h.rows[n2].dist)) focusDist(n2); return; }
       case 'addShot': {
+        if (view.hzPend && +view.hzPend.split(':')[1] === view.hole) { toast('Into the hazard – Drop or Re-tee?'); return; }
         var a = SG.analyzeHole(h);
         if (a.bad != null) { toast(hintText(h, a)); var bk = a.bad; render(); focusDist(bk); return; }
         h.rows.push(newRow(h, h.rows.length - 1)); save(); view.menu = null; view.edk = null; render();

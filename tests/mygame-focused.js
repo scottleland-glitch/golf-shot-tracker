@@ -38,8 +38,8 @@ for (let i = 0; i < 12; i++) {
     assert.ok(await page.$('.mgtile[data-t="score"] em.up'), 'a lower score is shown as better');
     assert.strictEqual(await page.evaluate(() => document.documentElement.scrollWidth <= 390), true, 'no sideways scroll');
     await page.screenshot({ path: OUT + 'mygame-page.png', fullPage: true });
-    assert.strictEqual(await page.$$eval('#mgknow .mgkb', x => x.length), 6, 'six knowledge bars');
-    assert.match(await page.textContent('#mgready'), /^\d\/6 ready$/);
+    assert.strictEqual(await page.$$eval('#mgknow .mgkb', x => x.length), 7, 'seven knowledge bars (v157: + Bunker)');
+    assert.match(await page.textContent('#mgready'), /^\d\/7 ready$/);
     ok('page: headline, three shapes, tiles with change, six knowledge bars');
     await page.click('#mgperiod [data-v="all"]');
     assert.match(await page.textContent('.title span'), /12 rounds/); assert.strictEqual(await page.$('#mygame .rprev'), null, 'all time has no previous shape');
@@ -47,7 +47,7 @@ for (let i = 0; i < 12; i++) {
     await page.click('#mgperiod [data-v="30d"]'); assert.match(await page.textContent('.title span'), /3 rounds/);
     const learn = await page.$$eval('#mgknow .mgkb.learn', x => x.length), rings = await page.$$eval('#mygame .rlearn', x => x.length);
     assert.strictEqual(rings, await page.$$eval('#mgknow .mgkb.learn', x => x.filter(e => !/no shots/.test(e.textContent)).length), 'a gold ring for every learning skill with shots');
-    if (learn) assert.match(await page.textContent('.mglegend'), /Still learning/);
+    if (rings) assert.match(await page.textContent('.mglegend'), /Still learning/); // v157: a skill with no shots yet (e.g. Bunker) has no point, so no legend for it
     ok('time frames: All time 12 rounds (no previous), 30 days 3 rounds');
     await page.selectOption('#mgbl', 'pga'); assert.match(await page.textContent('.mglegend'), /PGA Tour/);
     ok('Compared with changes the benchmark');

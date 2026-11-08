@@ -22,7 +22,7 @@ test('first round: compares with the baseline, nothing about the golfer known ye
   assert.strictEqual(t.focus.title, 'Wedge distance control');
   assert.strictEqual(t.focus.basis.mine, false);
   assert.match(t.focus.basis.text, /still learning your approach play \(0%\)/);
-  assert.deepStrictEqual(I.AREAS.map((a) => t.progress[a.k].frac), [0, 0, 0, 0]);
+  assert.deepStrictEqual(I.AREAS.map((a) => t.progress[a.k].frac), [0, 0, 0, 0, 0]); // v157: + Bunker
   assert.deepStrictEqual(t.tiles.map((x) => x.k), ['tee', 'approach', 'short', 'putting']);
   assert.deepStrictEqual(t.good, ['1 birdie', 'no penalties', 'no 3-putts']);
 });

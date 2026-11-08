@@ -9,7 +9,7 @@ function chipBetter(r) { r.holes.forEach((h) => { const rows = h.rows, k = rows.
 
 test('the six spokes split every shot once and add up to total strokes gained', () => {
   const r = ARC.round(), S = SG.summarize(r, 'pga'), sh = M.shape([r], SG, 'pga');
-  assert.deepStrictEqual(sh.spokes.map((s) => s.k), ['drive', 'irons', 'wedges', 'chip', 'lag', 'short']);
+  assert.deepStrictEqual(sh.spokes.map((s) => s.k), ['drive', 'irons', 'wedges', 'chip', 'bunker', 'lag', 'short']); // v157: + Bunker
   const n = sh.spokes.reduce((t, s) => t + s.n, 0), cats = Object.values(S.cats).reduce((t, c) => t + c.n, 0);
   assert.strictEqual(n, cats, 'every shot counted once');
   assert.ok(Math.abs(sh.spokes.reduce((t, s) => t + s.value, 0) - S.sgTotal) < 1e-9, 'adds up to the total');
@@ -48,9 +48,9 @@ test('chart: further out is better, the benchmark sits on the dashed ring, learn
   assert.ok(M.radius(sp, 1, 100) > M.radius(sp, 0, 100) && M.radius(sp, -2, 100) < M.radius(sp, 0, 100));
   const svg = M.radarSVG(M.shape([ARC.round()], SG, 'pga'), null, {});
   assert.match(svg, /class="rbench"/); assert.match(svg, /class="rcur"/); assert.doesNotMatch(svg, /class="rprev"/);
-  assert.strictEqual((svg.match(/class="rlearn"/g) || []).length, 6, 'six gold learning rings');
+  assert.strictEqual((svg.match(/class="rlearn"/g) || []).length, M.shape([ARC.round()], SG, 'pga').spokes.filter((s) => s.n).length, 'a gold learning ring on every spoke with shots (v157: this round has no bunker shots)');
   assert.match(svg, />learning</);
-  const sh1 = M.shape([ARC.round()], SG, 'pga'); assert.ok(sh1.spokes.every((s) => s.conf > 0 && s.conf < 1 && !s.strong), 'one round: some confidence, none strong');
+  const sh1 = M.shape([ARC.round()], SG, 'pga'); assert.ok(sh1.spokes.every((s) => s.conf >= 0 && s.conf < 1 && !s.strong) && sh1.spokes.filter((s) => s.n).every((s) => s.conf > 0), 'one round: some confidence where there are shots, none strong');
 });
 
 test('practice: minutes per skill and focus, sessions by day, the period before', () => {
@@ -90,7 +90,8 @@ test('strokes lost vs practice time names the biggest gap', () => {
 
 test('Log this drill points each Work on next at a practice focus', () => {
   assert.deepStrictEqual(M.drillFocus({ id: 'puttspeed', area: 'putting' }), { spoke: 'lag', focus: 'Putting speed control' });
-  assert.deepStrictEqual(M.drillFocus({ id: 'chips', area: 'short', title: 'Greenside bunker play' }), { spoke: 'chip', focus: 'Bunker shots' });
+  assert.deepStrictEqual(M.drillFocus({ id: 'chips', area: 'short', title: 'Chip distance control' }), { spoke: 'chip', focus: 'Green-side chipping' });
+  assert.deepStrictEqual(M.drillFocus({ id: 'bunker', area: 'bunker', title: 'Getting out of greenside bunkers' }), { spoke: 'bunker', focus: 'Bunker shots' }); // v157
   assert.deepStrictEqual(M.drillFocus({ id: 'area', area: 'approach' }), { spoke: 'irons', focus: 'Distance control' });
   assert.deepStrictEqual(M.drillFocus({ id: 'teeside', area: 'tee' }), { spoke: 'drive', focus: 'Mechanics' });
   ['drive', 'irons', 'wedges'].forEach((k) => assert.deepStrictEqual(M.FOCUS[k], ['Distance control', 'Mechanics'], 'club practice: ' + k));

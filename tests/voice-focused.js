@@ -112,13 +112,13 @@ const SPY = () => { window.__recs = 0; class Spy { constructor() { window.__recs
   const clean = async () => { await page.evaluate(() => { const t = document.getElementById('toast'); if (t) t.className = ''; }); await page.waitForTimeout(300); };
   const shot = async name => { await clean(); await page.screenshot({ path: OUT + name + '.png' }); };
   const rowsOf = i => page.evaluate(i => JSON.parse(localStorage.getItem('golfsg.rounds.v1'))[0].holes[i].rows, i);
-  // the button: "Say it", inline beside the stroke count above Add Shot, covering nothing
+  // the button: "Say it", inline beside the stroke count, covering nothing (v157: Next shot is inside the shot card)
   await page.waitForSelector('#micbtn'); assert.strictEqual((await page.textContent('#micbtn')).trim(), 'Say it');
   await page.$eval('#micbtn', e => e.scrollIntoView({ block: 'center' })); await page.waitForTimeout(200);
   const box = s => page.$eval(s, e => { const r = e.getBoundingClientRect(); return { l: r.left, r: r.right, t: r.top, b: r.bottom, h: r.height, pos: getComputedStyle(e).position }; });
   const mic = await box('#micbtn'), add = await box('.addshot'), fin = await box('.finish');
   const hit = (a, c) => a.l < c.r && c.l < a.r && a.t < c.b && c.t < a.b;
-  assert.ok(mic.h >= 36 && mic.pos !== 'fixed' && mic.b <= add.t && !hit(mic, add) && !hit(mic, fin), 'inline, covers nothing ' + JSON.stringify({ mic, add, fin }));
+  assert.ok(mic.h >= 36 && mic.pos !== 'fixed' && !hit(mic, add) && !hit(mic, fin), 'inline, covers nothing ' + JSON.stringify({ mic, add, fin }));
   assert.ok(await page.$eval('#micbtn', e => !!e.closest('.countrow')));
   await shot('voice-button');
   // one tap: box opens and the field is focused inside the same tap (so iOS raises the keyboard)

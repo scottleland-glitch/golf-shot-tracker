@@ -23,16 +23,20 @@ let passed = 0; const ok = (m) => { passed++; console.log('  ✓', m); };
   page.on('dialog', d => d.accept());
   const act = async (a, v) => { if ((a === 'history' || a === 'archive') && await page.$('#plusbtn') && !await page.$('#plusmenu')) await page.click('#plusbtn'); // Rounds + Settings live in the + menu on Home
     else if (['backup', 'csvall', 'about', 'discard', 'editname'].includes(a) && await page.$('#plusbtn')) { await page.click('#plusbtn'); await page.click('#plusmenu [data-act="archive"]'); } // data tools live on Settings (v102)
+    if (a === 'addShot' && !(await page.$('[data-act="addShot"]')) && await page.$('[data-act="nextshot"]')) a = 'nextshot';
     return page.locator(v == null ? `[data-act="${a}"]` : `[data-act="${a}"][data-v="${v}"]`).first().click(); };
   // v115: only the active shot has entry cells; earlier shots are tight lines – tap one to open it
-  const open = async k => { if (await page.$(`button.tline[data-k="${k}"]`)) { await page.click(`button.tline[data-k="${k}"]`); await page.waitForSelector(`input[data-row="${k}"]`); } };
-  const actK = async (a, k) => { await open(k); return page.locator(`[data-act="${a}"][data-k="${k}"]`).first().click(); };
+  const open = async k => { if (await page.$(`button.tline[data-k="${k}"]`)) { await page.click(`button.tline[data-k="${k}"]`); await page.waitForSelector(`.shotcard[data-k="${k}"]`); } };
+  const actK = async (a, k) => { if (!(await page.$(`[data-act="${a}"][data-k="${k}"]`))) await open(k); if (!(await page.$(`[data-act="${a}"][data-k="${k}"]`))) await open(k - 1); return page.locator(`[data-act="${a}"][data-k="${k}"]`).first().click(); };
   const dist = async (k, v) => { await open(k); return page.fill(`input[data-row="${k}"]`, String(v)); };
-  const loc = async (k, v) => { await open(k); return page.selectOption(`select[data-f="loc"][data-k="${k}"]`, v); };
+  // v157: shot card – "holed" = In the hole on that shot; OB etc. = where the previous shot finished
+  const loc = async (k, v) => { if (v === 'holed') { await open(k); return page.click(`[data-act="fin"][data-v="in"][data-k="${k}"]`); }
+    await open(k); if (await page.$(`select[data-f="loc"][data-k="${k}"] option[value="${v}"]`)) return page.selectOption(`select[data-f="loc"][data-k="${k}"]`, v);
+    await open(k - 1); return page.click(`[data-act="fin"][data-v="${v}"][data-k="${k - 1}"]`); };
   const setPar = async v => { if (!(await page.$('#parpick'))) await page.click('#hpar'); await act('par', v); }; // v115: no card par → tap "Par 4 ✎", pick 3/4/5
   const OLD = { L: 'left', R: 'right', S: 'short', O: 'long' };
   const dir = async (k, v) => { await actK('dirpick', k); await page.locator(`.sheet [data-act="setdir"][data-v="${OLD[v] || v}"]`).click(); };
-  const rows = () => page.locator('.srow[data-k]').count();
+  const rows = () => page.locator('.tline[data-k], .shotcard[data-k]').count();
   const doneText = () => page.textContent('.hole-done');
   const hideToast = () => page.evaluate(() => { document.getElementById('toast').className = ''; });
   const noOverflow = async (label) => { const w = await page.evaluate(() => document.documentElement.scrollWidth); assert.ok(w <= 390, label + ' overflow ' + w); };
@@ -84,7 +88,7 @@ let passed = 0; const ok = (m) => { passed++; console.log('  ✓', m); };
   await open(1); assert.strictEqual(await page.getAttribute('[data-act="dirpick"][data-k="1"]', 'data-dir'), 'left');
   assert.strictEqual(await page.textContent('[data-act="dirpick"][data-k="1"]'), '←'); ok('row direction shows as ← (Left) (tap the shot line to open it)');
   assert.match(await count(), /^4 strokes/); ok("Scott's saved hole (365 Tee, 100 F L, 6 G, In the hole) counts 4 strokes");
-  assert.ok(await finishDisabled()); assert.match(await hint(), /Missing: distance in row 4/);
+  assert.ok(await finishDisabled()); assert.match(await hint(), /Next: shot 4’s distance to the pin/);
   assert.match(await header(), /No holes finished/); ok('…and stays unfinished (Finish disabled, "Missing: distance in row 4"), not in totals');
   assert.ok(!/Holed|in the hole/.test(await page.textContent('.tline[data-k="2"]')), 'the 6 ft putt is not marked holed'); ok('6 ft putt is NOT shown as holed');
   await hideToast(); await page.screenshot({ path: `${SHOTS}/10-finish-disabled.png` });
@@ -110,7 +114,7 @@ let passed = 0; const ok = (m) => { passed++; console.log('  ✓', m); };
   await dist(0, 365);
   await act('addShot'); assert.ok(await page.evaluate(() => document.activeElement.getAttribute('data-row') === '1')); ok('Add Shot adds row 2 and focuses its distance');
   await dist(1, 130);
-  await act('addShot'); assert.match(await page.textContent('#toast'), /location in row 2/); ok('Add Shot asks for missing location');
+  await act('addShot'); assert.match(await page.textContent('#toast'), /where shot 1 finished/); ok('Add Shot asks for missing location');
   await loc(1, 'fairway');
   await act('addShot'); assert.strictEqual(await page.textContent('.tline[data-k="0"] .t-h'), '235 yd'); await actK('del', 2); ok('row 1 info: hit 235 yd (365 - 130)');
   await act('addShot'); await loc(2, 'green'); await dist(2, 15);
@@ -118,7 +122,7 @@ let passed = 0; const ok = (m) => { passed++; console.log('  ✓', m); };
   await act('addShot');
   assert.strictEqual(await page.$eval('select[data-f="loc"][data-k="3"]', e => e.value), 'green'); ok('row after green defaults to Green');
   await dist(3, 3);
-  assert.ok(await finishDisabled()); assert.match(await hint(), /Not finished: tap Add Shot for the next shot, or tick “Hole out”/); ok('Finish disabled until last row is In the hole');
+  assert.ok(await finishDisabled()); assert.match(await hint(), /Not finished: pick where the shot finished, or In the hole/); ok('Finish disabled until last row is In the hole');
   await loc(3, 'holed');
   assert.strictEqual(await page.locator('.hole-done').count(), 0); assert.ok(!(await finishDisabled()));
   ok('choosing In the hole does NOT auto-finish; Finish becomes active');
@@ -182,8 +186,7 @@ let passed = 0; const ok = (m) => { passed++; console.log('  ✓', m); };
   await page.locator('[data-act="next"].big').click();
   await setPar(5); await dist(0, 520);
   await act('addShot'); await loc(1, 'ob'); await dir(1, 'R');
-  assert.match(await page.textContent('.srow[data-k="1"]'), /520 yd/);
-  assert.match(await page.getAttribute('[data-act="pen"][data-k="1"]', 'class'), /on/); ok('OB re-hit row: same 520 yd spot, +1 automatic');
+  await open(1); assert.match(await page.textContent('.shotcard[data-k="1"]'), /Same spot – after OB \+1.*520 yd to the pin/); // v157 card ok('OB re-hit row: same 520 yd spot, +1 automatic');
   await act('addShot'); await dist(2, 250); await loc(2, 'hazard'); await actK('pen', 2); await dir(2, 'L');
   await act('addShot'); await dist(3, 90); await loc(3, 'fairway');
   await act('addShot'); await dist(4, 8); await loc(4, 'green');
@@ -191,8 +194,8 @@ let passed = 0; const ok = (m) => { passed++; console.log('  ✓', m); };
   assert.match(await count(), /6 strokes \+ 2 penalty strokes = 8/); ok('count line: 6 strokes + 2 penalty strokes = 8');
   // a row after In the hole blocks Finish
   await actK('menu', 5); await actK('insAfter', 5);
-  assert.ok(await finishDisabled()); assert.match(await hint(), /delete the rows after it/); ok('rows after In the hole block Finish');
-  await actK('del', 6);
+  assert.ok(await finishDisabled()); assert.match(await hint(), /shot 7’s distance to the pin \(how far was the shot that went in\?\)/); ok('v157: a shot inserted after the holed one becomes the one that went in – Finish waits for its distance');
+  await actK('del', 6); await loc(5, 'holed');
   await act('finish');
   assert.match(await page.textContent('.hole-done'), /Score 8 \(\+3\)/); ok('hole 3 with OB + hazard drop = 8 (+3)');
   await page.screenshot({ path: `${SHOTS}/9-hole-ob-hazard.png`, fullPage: true });
@@ -202,12 +205,13 @@ let passed = 0; const ok = (m) => { passed++; console.log('  ✓', m); };
 
   // Summary
   await page.locator('[data-act="summary"]').first().click();
+  if (!(await page.$('#sumbl'))) await page.click('[data-act="sgtoggle"]'); // strokes-gained section is folded by default
   const sum = await page.evaluate(() => SG.summarize(window.__golf.rounds()[0]));
   assert.strictEqual(sum.baseline, 'd1m'); assert.strictEqual(await page.$eval('#sumbl', e => e.value), 'd1m');
   assert.match(await page.textContent('#blnote'), /D1 college men – estimated/); ok('summary shows the baseline in use (D1 college men, estimated)');
   assert.strictEqual(sum.strokes, 16); assert.strictEqual(sum.par, 12); assert.strictEqual(sum.penalties, 2);
   assert.strictEqual(sum.putts, 6); assert.strictEqual(sum.fwHit, 1); assert.strictEqual(sum.fwTotal, 2);
-  assert.strictEqual(await page.textContent('#rs-score'), '16'); assert.strictEqual(await page.textContent('#rs-topar'), '+4'); ok('summary: 16 (+4) = 4 + 4 + 8, 2 penalties, 6 putts, FW 1/2');
+  assert.match(await page.textContent('#rs-score'), /^16(thru 3)?$/); assert.strictEqual(await page.textContent('#rs-topar'), '+4'); ok('summary: 16 (+4) = 4 + 4 + 8, 2 penalties, 6 putts, FW 1/2');
   const card = await page.$$eval('#scorecard tr.sscore td:not(.sum)', tds => tds.map(e => [e.textContent, (e.querySelector('.mk') || {}).getAttribute ? e.querySelector('.mk').getAttribute('data-mark') : '']));
   assert.deepStrictEqual(card.slice(0, 3), [['4', 'par'], ['4', 'bogey'], ['8', 'double']]); assert.ok(card.slice(3).every(c => c[0] === '' && c[1] === ''), 'unfinished holes blank');
   assert.strictEqual(await page.textContent('#scorecard tr.sscore td.sum.out'), '16'); assert.strictEqual(await page.textContent('#scorecard tr.shole td.sum.out'), 'OUT');

@@ -43,7 +43,7 @@ const BASE = process.env.BASE_URL || 'http://127.0.0.1:8776/', OUT = '/workspace
   assert.deepStrictEqual(T.secs, ['Approach · yd', 'Around green · yd', 'Putting · 1st putt']);
   assert.ok(T.from.includes('100–130') && T.from.includes('0–5’') && T.from.includes('30’+'), T.from.join(' '));
   assert.match(T.apSmall, /^\d+’ · \d+%$/, 'approach rows: avg ft · GIR'); assert.deepStrictEqual(T.over, [], 'nothing cut off'); assert.ok(T.w <= 390, 'fits the phone width');
-  assert.deepStrictEqual(T.tiles.map(t => t[0]), ['tee', 'approach', 'short', 'putting']); assert.strictEqual(T.tiles.filter(t => t[1]).length, 1, 'one biggest loss highlighted');
+  assert.deepStrictEqual(T.tiles.map(t => t[0]), ['tee', 'approach', 'short', 'bunker', 'putting']); // v157: + Bunker assert.strictEqual(T.tiles.filter(t => t[1]).length, 1, 'one biggest loss highlighted');
   assert.match(T.lead, /^Worst rounds average \d+ more strokes?\./); assert.ok(T.cards[0].includes('gbcard') && T.cards[1].includes('gwcard'));
   const diffSum = gap.reduce((a, g) => a + parseFloat(g[1].replace('−', '-')), 0); assert.ok(diffSum < 0, 'worst rounds lose strokes overall ' + diffSum);
   await page.screenshot({ path: OUT + 'best-worst-clean.png' }); await page.screenshot({ path: OUT + 'best-worst-clean-full.png', fullPage: true });

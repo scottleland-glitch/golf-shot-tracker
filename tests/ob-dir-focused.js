@@ -16,20 +16,20 @@ const R = { v: 3, dv: 2, id: 'obt', date: '2026-11-07T17:00:00.000Z', course: 'T
     await page.evaluate(r => { localStorage.clear(); localStorage.setItem('golfsg.player.v1', 'Scott'); localStorage.setItem('golfsg.nameasked.v1', '1');
       localStorage.setItem('golfsg.rounds.v1', JSON.stringify([r])); localStorage.setItem('golfsg.current.v1', r.id); }, R);
     await page.reload(); await page.waitForSelector('#home'); await page.click('#resumepill');
-    await page.waitForSelector('select[data-f="loc"][data-k="1"]');
+    await page.waitForSelector('.shotcard[data-k="1"]'); await page.click('.tline[data-k="0"]'); await page.waitForSelector('.shotcard[data-k="0"]'); // v157: shot 1's card – Finished + which way it missed
     const stored = () => page.evaluate(() => JSON.parse(localStorage.getItem('golfsg.rounds.v1'))[0].holes[0].rows[1]);
     // rough: all 8 directions on
     await page.click('[data-act="dirpick"][data-k="1"]'); assert.strictEqual(await page.$$eval('.dirgrid button:disabled', e => e.length), 0); assert.strictEqual(await page.$('#dirobnote'), null);
     await page.click('.sheet [data-act="dirclose"]'); ok('rough: all directions available');
     // switch to OB: the stored "short" is cleared, Short / Long are off, corners and sides stay
-    await page.selectOption('select[data-f="loc"][data-k="1"]', 'ob'); assert.strictEqual((await stored()).dir, '');
+    await page.click('[data-act="fin"][data-v="ob"][data-k="0"]'); assert.strictEqual((await stored()).dir, '');
     await page.click('[data-act="dirpick"][data-k="1"]');
     assert.deepStrictEqual(await page.$$eval('.dirgrid button:disabled', e => e.map(x => x.dataset.v).sort()), ['long', 'short']);
     assert.ok(await page.$('#dirobnote'));
     await page.click('.sheet [data-act="setdir"][data-v="shortleft"]'); assert.strictEqual((await stored()).dir, 'shortleft');
     ok('OB: short cleared, Short/Long off with a note, Short-left still works');
     // penalty area: all 8 again
-    await page.selectOption('select[data-f="loc"][data-k="1"]', 'hazard'); await page.click('[data-act="dirpick"][data-k="1"]');
+    await page.click('[data-act="fin"][data-v="hazard"][data-k="0"]'); await page.click('[data-act="dirpick"][data-k="1"]');
     assert.strictEqual(await page.$$eval('.dirgrid button:disabled', e => e.length), 0); await page.click('.sheet [data-act="setdir"][data-v="short"]');
     assert.strictEqual((await stored()).dir, 'short'); ok('penalty area: Short still allowed');
     assert.deepStrictEqual(errors, []); console.log('PASS ob-dir-focused');

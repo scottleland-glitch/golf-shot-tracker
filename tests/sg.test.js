@@ -68,7 +68,7 @@ test('par 3 tee shot = approach; short game within 30 yd', () => {
     { lie: 'sand', dist: 15, side: 'L', pen: 'none' },
     { lie: 'green', dist: 4, pen: 'none' },
     { lie: 'holed', dist: 0, pen: 'none' }] });
-  assert.deepStrictEqual(a.shots.map(s => s.cat), ['approach', 'short', 'putting']);
+  assert.deepStrictEqual(a.shots.map(s => s.cat), ['approach', 'bunker', 'putting']); // v157: greenside sand = Bunker
   assert.strictEqual(a.shots[0].bucket, '160-200 yd');
   assert.strictEqual(a.fairway, null);
   assert.strictEqual(a.gir, false);
@@ -796,10 +796,10 @@ test('v125 stats: SG by first-putt distance and by short-game lie / distance', (
   near(B.putt.f5.sg, sgOf(1, onG) + sgOf(5, onG), '5-10 ft = all putts on holes whose 1st putt was 7 and 9.9 ft');
   near(B.putt.f10.sg, sgOf(3, onG) + sgOf(4, onG), '10-25 ft: 25 (included) and 10 (included)');
   near(B.putt.o25.sg, sgOf(2, onG), 'over 25 ft');
-  assert.deepStrictEqual(['sand', 'rough', 'fairway'].map(k => B.chipLie[k].n), [1, 2, 1]);
-  near(B.chipLie.sand.sg, A[0].shots[1].sg, 'bunker'); near(B.chipLie.rough.sg, A[1].shots[1].sg + A[5].shots[2].sg, 'rough + deep rough');
-  assert.deepStrictEqual(['c10', 'c20', 'c30'].map(k => B.chipDist[k].n), [1, 2, 2]);
-  near(B.chipDist.c20.sg, A[0].shots[1].sg + A[4].shots[1].sg, '10-20 yd incl. the recovery shot');
+  assert.deepStrictEqual(['rough', 'fairway'].map(k => B.chipLie[k].n), [2, 1]); // v157: bunker shots are their own area now
+  assert.strictEqual(B.bunker.n, 1); near(B.bunker.sg, A[0].shots[1].sg, 'bunker'); assert.deepStrictEqual([B.bunker.tries, B.bunker.saves], [1, 1], 'out of the sand to 4 ft and in = a sand save'); near(B.chipLie.rough.sg, A[1].shots[1].sg + A[5].shots[2].sg, 'rough + deep rough');
+  assert.deepStrictEqual(['c10', 'c20', 'c30'].map(k => B.chipDist[k].n), [1, 1, 2]); // v157: the 15 yd bunker shot is a Bunker shot now
+  near(B.chipDist.c20.sg, A[4].shots[1].sg, '10-20 yd: the recovery shot');
   assert.strictEqual(SG.chipBand(10), 'c10'); assert.strictEqual(SG.chipBand(10.5), 'c20'); assert.strictEqual(SG.chipBand(30), 'c30'); assert.strictEqual(SG.chipBand(30.5), null);
   assert.strictEqual(SG.puttBand(4.9), 'u5'); assert.strictEqual(SG.puttBand(5), 'f5'); assert.strictEqual(SG.puttBand(25), 'f10'); assert.strictEqual(SG.puttBand(25.1), 'o25');
   assert.strictEqual(SG.CHIP_MAX_YD, 30); assert.strictEqual(SG.SHORT_MAX_YD, 30);
@@ -872,4 +872,14 @@ test('distance hit adds when the ball goes long (v156)', () => {
   assert.strictEqual(hit([R(380, 'tee'), R(150, 'fairway'), R(20, 'holedx', 'left')], 1), 151, 'pin high left by the green = straight line');
   assert.strictEqual(hit([R(400, 'tee'), R(150, 'holedx', 'left')], 0), 250, 'a missed fairway keeps the forward distance');
   assert.strictEqual(hit([R(380, 'tee'), R(100, 'holedx')], 1), 100, 'holed out from the fairway = the full distance');
+});
+
+test('v157 (Scott): pin-high right, chip long -> finishes left of the pin (9 o\'clock on the map), chip played from 3 o\'clock', () => {
+  const R = (d, l, x) => Object.assign({ dist: d, loc: l, dir: '', pen: false }, x || {});
+  const a = SG.analyzeHole({ par: 4, rows: [R(380, 'tee'), R(150, 'fairway'), R(20, 'rough', { dir: 'right' }), R(15, 'green', { dir: 'long' }), R(2, 'green', { dir: 'left' }), R(1, 'green', { holeOut: true })] }, 'pga');
+  const chip = a.shots[2];
+  assert.strictEqual(chip.fromAng, 0, 'played from the right of the pin (3 o\'clock)');
+  assert.strictEqual(chip.ang, 180, 'long from the golfer = past the pin on the far side = left of the pin on the map');
+  assert.strictEqual(a.shots[3].fromAng, 180, 'first putt starts from there');
+  assert.strictEqual(a.shots[3].ang, 90, 'putt missed left (golfer\'s view from 9 o\'clock) = toward the back of the green');
 });

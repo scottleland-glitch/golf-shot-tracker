@@ -26,8 +26,8 @@
       dateText: isNaN(d) ? '' : d.toLocaleDateString(opts.locale || undefined, { month: 'short', day: 'numeric', year: 'numeric' }),
       holes: S.holesDone, strokes: S.strokes, toPar: S.toPar,
       baseline: opts.baselineName || '',
-      sg: { ott: S.cats.tee.sg, app: S.cats.approach.sg, arg: S.cats.short.sg, putt: S.cats.putting.sg, total: S.sgTotal,
-        nOtt: S.cats.tee.n, nApp: S.cats.approach.n, nArg: S.cats.short.n, nPutt: S.cats.putting.n },
+      sg: { ott: S.cats.tee.sg, app: S.cats.approach.sg, arg: S.cats.short.sg, bnk: (S.cats.bunker || {}).sg || 0, putt: S.cats.putting.sg, total: S.sgTotal,
+        nOtt: S.cats.tee.n, nApp: S.cats.approach.n, nArg: S.cats.short.n, nBnk: (S.cats.bunker || {}).n || 0, nPutt: S.cats.putting.n },
       fw: { hit: S.fwHit, total: S.fwTotal, pct: pct(S.fwHit, S.fwTotal) },
       gir: { hit: S.gir, total: S.girHoles, pct: pct(S.gir, S.girHoles) },
       putting: {
@@ -140,8 +140,8 @@
     label(ctx, 'Strokes gained', M + 44, y0 + 66);
     if (d.baseline) { ctx.save(); ctx.font = font(26, 400); ctx.fillStyle = MUTED; ctx.textAlign = 'right'; ctx.fillText('vs ' + d.baseline, M + CW - 44, y0 + 66); ctx.restore(); }
     // v133 all four categories: off the tee, approach, around the green, putting
-    var cols = [['Off the tee', d.sg.ott, d.sg.nOtt], ['Approach', d.sg.app, d.sg.nApp], ['Around green', d.sg.arg, d.sg.nArg], ['Putting', d.sg.putt, d.sg.nPutt]];
-    var inX = M + 28, cw = (CW - 56) / 4;
+    var cols = [['Off the tee', d.sg.ott, d.sg.nOtt], ['Approach', d.sg.app, d.sg.nApp], ['Chipping', d.sg.arg, d.sg.nArg], ['Bunker', d.sg.bnk || 0, d.sg.nBnk || 0], ['Putting', d.sg.putt, d.sg.nPutt]];
+    var inX = M + 28, cw = (CW - 56) / cols.length;
     cols.forEach(function (c, i) {
       var cx = inX + cw * i + cw / 2;
       if (i) { ctx.save(); ctx.strokeStyle = 'rgba(255,255,255,0.12)'; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(inX + cw * i, y0 + 110); ctx.lineTo(inX + cw * i, y0 + 250); ctx.stroke(); ctx.restore(); }
@@ -196,7 +196,7 @@
     var w2 = list.filter(function (d) { return d.putting.avg2nd != null; }), n2 = w2.reduce(function (t, d) { return t + d.putting.n2nd; }, 0);
     return { kind: 'stats', rounds: n, player: opts.player || '', range: opts.range || '', dateText: opts.dateText || '', baseline: opts.baselineName || '',
       strokes: av(function (d) { return d.strokes; }), toPar: av(function (d) { return d.toPar; }),
-      sg: { ott: av(function (d) { return d.sg.ott; }), app: av(function (d) { return d.sg.app; }), arg: av(function (d) { return d.sg.arg; }), putt: av(function (d) { return d.sg.putt; }), total: av(function (d) { return d.sg.total; }) },
+      sg: { ott: av(function (d) { return d.sg.ott; }), app: av(function (d) { return d.sg.app; }), arg: av(function (d) { return d.sg.arg; }), bnk: av(function (d) { return d.sg.bnk || 0; }), putt: av(function (d) { return d.sg.putt; }), total: av(function (d) { return d.sg.total; }) },
       fw: { hit: fwH, total: fwT, pct: pct(fwH, fwT) }, gir: { hit: gH, total: gT, pct: pct(gH, gT) },
       putting: { putts: av(function (d) { return d.putting.putts; }), onePutts: av(function (d) { return d.putting.onePutts; }), threePutts: av(function (d) { return d.putting.threePutts; }),
         avg2nd: n2 ? Math.round(10 * w2.reduce(function (t, d) { return t + d.putting.avg2nd * d.putting.n2nd; }, 0) / n2) / 10 : null,
@@ -226,8 +226,8 @@
       var y0 = 600, ph = 268; panel(ctx, M, y0, CW, ph);
       label(ctx, st ? 'Strokes gained per round' : 'Strokes gained', M + 44, y0 + 60);
       if (d.baseline) { ctx.save(); ctx.font = font(25, 400); ctx.fillStyle = MUTED; ctx.textAlign = 'right'; ctx.fillText('vs ' + d.baseline, M + CW - 44, y0 + 60); ctx.restore(); }
-      var cols = [['Off the tee', d.sg.ott, d.sg.nOtt], ['Approach', d.sg.app, d.sg.nApp], ['Around green', d.sg.arg, d.sg.nArg], ['Putting', d.sg.putt, d.sg.nPutt]];
-      var inX = M + 28, cw = (CW - 56) / 4;
+      var cols = [['Off the tee', d.sg.ott, d.sg.nOtt], ['Approach', d.sg.app, d.sg.nApp], ['Chipping', d.sg.arg, d.sg.nArg], ['Bunker', d.sg.bnk || 0, d.sg.nBnk || 0], ['Putting', d.sg.putt, d.sg.nPutt]];
+      var inX = M + 28, cw = (CW - 56) / cols.length;
       cols.forEach(function (c, i) {
         var cx = inX + cw * i + cw / 2;
         if (i) { ctx.save(); ctx.strokeStyle = 'rgba(255,255,255,0.12)'; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(inX + cw * i, y0 + 96); ctx.lineTo(inX + cw * i, y0 + 230); ctx.stroke(); ctx.restore(); }

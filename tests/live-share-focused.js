@@ -140,11 +140,11 @@ function rig(o) {
   const ups = reqs.filter(r => r.method === 'PUT'); assert.ok(ups.length >= 2 && ups.length <= 3, 'debounced updates: ' + ups.length);
   assert.deepStrictEqual(ups[ups.length - 1].body.h[3].shots.slice(-1), ['18|green']);
   // offline → note → catch up
-  netDown = true; await ctx.setOffline(true); await page.click('[data-act="addShot"]'); await page.fill('input[data-row="3"]', '2'); await page.selectOption('select[data-f="loc"][data-k="3"]', 'holed');
+  netDown = true; await ctx.setOffline(true); await page.click('[data-act="addShot"]'); await page.fill('input[data-row="3"]', '2'); await page.click('[data-act="fin"][data-v="in"][data-k="3"]'); // v157 card: In the hole
   await page.waitForSelector('#livenote', { timeout: 6000 }); assert.match(await page.textContent('#livenote'), /Waiting for signal – will catch up/);
   const nBefore = reqs.length; netDown = false; await ctx.setOffline(false); await page.evaluate(() => window.dispatchEvent(new Event('online')));
   await page.waitForFunction(() => !document.getElementById('livenote')); const last = reqs[reqs.length - 1];
-  assert.ok(reqs.length > nBefore && last.body.h[3].shots.slice(-1)[0] === '2|holed', 'caught up');
+  assert.ok(reqs.length > nBefore && (p => p[0] === '2' && (p[1] === 'holed' || p[6] === '1'))(String(last.body.h[3].shots.slice(-1)[0]).split('|')), 'caught up ' + last.body.h[3].shots.slice(-1)[0]); // v157: In the hole = holeOut flag
   // finish round → fin flag sent
   await page.click('[data-act="finish"]'); await page.waitForTimeout(1800); assert.strictEqual(reqs[reqs.length - 1].body.h[3].sc, 4);
   // stop sharing → DELETE

@@ -40,27 +40,27 @@ const ok = m => console.log('ok - ' + m);
       old: document.querySelectorAll('#card-front, #card-back').length }));
     assert.deepStrictEqual(one, { cards: 1, tables: 1, scards: 1, old: 0 }); ok('a single scorecard card (no Front 9 / Back 9 tables)');
     const T = await table(), lbl = T.map(r => r[0]);
-    assert.deepStrictEqual(lbl, ['Hole', 'Par', 'Length', 'Score', 'Tot', 'OTT', 'APP', 'ARG', 'Putt', 'Putts', 'GIR', 'Club', 'FIR', 'Drive dist', '1st putt', 'Last putt', 'Up & down', 'Sandies', 'Recovery']);
+    assert.deepStrictEqual(lbl, ['Hole', 'Par', 'Length', 'Score', 'Tot', 'OTT', 'APP', 'ARG', 'BNK', 'Putt', 'Putts', 'GIR', 'Club', 'FIR', 'Drive dist', '1st putt', 'Last putt', 'Up & down', 'Sandies', 'Recovery']);
     assert.ok(!lbl.some(l => /scott/i.test(l)), 'no name row'); ok('row labels in order: ' + lbl.join(' · ') + ' (no player-name row)');
     const row = l => T.find(r => r[0] === l).slice(1), col = i => Object.fromEntries(T.map(r => [r[0], r[1 + i]]));
     assert.deepStrictEqual(row('Hole'), [...Array(18)].map((x, i) => String(i + 1)).concat(['OUT', 'IN', 'TOT'])); ok('columns: holes 1-18, then OUT · IN · TOT');
-    assert.strictEqual(await P.locator('#scorecard th[scope="row"]').count(), 19);
+    assert.strictEqual(await P.locator('#scorecard th[scope="row"]').count(), 20); // v157: + BNK row
 
     // ---------- 2. values ----------
-    assert.deepStrictEqual(col(0), { Hole: '1', Par: '4', Length: '340', Score: '5', Tot: '-1.14', OTT: '-0.01', APP: '-0.61', ARG: '-0.41', Putt: '-0.11', Putts: '2', GIR: '✗', Club: 'DR', FIR: '✓',
+    assert.deepStrictEqual(col(0), { Hole: '1', Par: '4', Length: '340', Score: '5', Tot: '-1.14', OTT: '-0.01', APP: '-0.61', ARG: '', BNK: '-0.41', Putt: '-0.11', /* v157: hole 1's short-game shot was from a greenside bunker */ Putts: '2', GIR: '✗', Club: 'DR', FIR: '✓',
       'Drive dist': '215', '1st putt': '22', 'Last putt': '2', 'Up & down': '✗', Sandies: '✗', Recovery: '' });
-    assert.deepStrictEqual(col(1), { Hole: '2', Par: '4', Length: '320', Score: '4', Tot: '-0.21', OTT: '-1.00', APP: '+0.81', ARG: '', Putt: '-0.01', Putts: '2', GIR: '✓', Club: '', FIR: '✗',
+    assert.deepStrictEqual(col(1), { Hole: '2', Par: '4', Length: '320', Score: '4', Tot: '-0.21', OTT: '-1.00', APP: '+0.81', ARG: '', BNK: '', Putt: '-0.01', Putts: '2', GIR: '✓', Club: '', FIR: '✗',
       'Drive dist': '215', '1st putt': '31', 'Last putt': '2', 'Up & down': '', Sandies: '', Recovery: '✓' });
-    assert.deepStrictEqual(col(2), { Hole: '3', Par: '3', Length: '140', Score: '3', Tot: '-0.03', OTT: '', APP: '+0.17', ARG: '', Putt: '-0.20', Putts: '2', GIR: '✓', Club: '8I', FIR: '–',
+    assert.deepStrictEqual(col(2), { Hole: '3', Par: '3', Length: '140', Score: '3', Tot: '-0.03', OTT: '', APP: '+0.17', ARG: '', BNK: '', Putt: '-0.20', Putts: '2', GIR: '✓', Club: '8I', FIR: '–',
       'Drive dist': '', '1st putt': '16', 'Last putt': '2', 'Up & down': '', Sandies: '', Recovery: '' });
-    assert.deepStrictEqual(col(7), { Hole: '8', Par: '4', Length: '300', Score: '4', Tot: '-0.29', OTT: '-0.37', APP: '-0.38', ARG: '+0.34', Putt: '+0.13', Putts: '1', GIR: '✗', Club: '', FIR: '✗',
+    assert.deepStrictEqual(col(7), { Hole: '8', Par: '4', Length: '300', Score: '4', Tot: '-0.29', OTT: '-0.37', APP: '-0.38', ARG: '+0.34', BNK: '', Putt: '+0.13', Putts: '1', GIR: '✗', Club: '', FIR: '✗',
       'Drive dist': '180', '1st putt': '4', 'Last putt': '4', 'Up & down': '✓', Sandies: '', Recovery: '' });
     assert.deepStrictEqual([col(14).Score, col(14).Tot, col(14).GIR, col(12).Score], ['3', '+0.71', '✓', '6']);
     ok('hole 1: bogey 5, SG −1.14 (OTT −0.01, APP −0.61, ARG −0.41, PUTT −0.11), 2 putts, missed green, Driver, fairway, 215 yd drive, 22 ft then 2 ft, bunker chip not saved');
     ok('hole 2: par, tee shot in the trees (OTT −1.00, FIR ✗) but recovered for par; hole 3: par 3 with an 8 iron, FIR dash; hole 8: chip + 4 ft putt = up & down ✓');
     assert.deepStrictEqual([col(18), col(19), col(20)].map(c => [c.Par, c.Length, c.Score, c.Tot, c.Putts, c.GIR, c.FIR, c.Club]),
       [['36', '2800', '39', '-5.80', '16', '4/9', '4/7', ''], ['36', '2731', '39', '-6.03', '15', '3/9', '4/7', ''], ['72', '5531', '78', '-11.82', '31', '7/18', '8/14', '']]);
-    assert.deepStrictEqual(['Drive dist', '1st putt', 'Last putt', 'Up & down', 'Sandies', 'Recovery', 'OTT', 'APP', 'ARG', 'Putt'].map(k => col(20)[k]), ['216', '19.6', '3.4', '4/11', '0/1', '1/1', '-2.97', '-5.94', '-3.35', '+0.43']);
+    assert.deepStrictEqual(['Drive dist', '1st putt', 'Last putt', 'Up & down', 'Sandies', 'Recovery', 'OTT', 'APP', 'ARG', 'BNK', 'Putt'].map(k => col(20)[k]), ['216', '19.6', '3.4', '4/11', '0/1', '1/1', '-2.97', '-5.94', '-2.93', '-0.41', '+0.43']); // v157: ARG + BNK = the old -3.35
     // cross-check against the strokes-gained engine
     const eng = await P.evaluate(() => { const r = window.__golf.rounds().find(x => x.id === 'arc78'), S = SG.summarize(r); return { tot: S.sgTotal, c: S.cats, strokes: S.strokes, putts: S.putts, gir: S.gir, fw: [S.fwHit, S.fwTotal] }; });
     const f2 = v => { const t = (Math.round(v * 100) / 100).toFixed(2); return (v > 0.004 ? '+' : '') + (t === '-0.00' ? '0.00' : t); };

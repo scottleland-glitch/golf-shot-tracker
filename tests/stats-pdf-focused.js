@@ -5,7 +5,7 @@
 const { chromium } = require('playwright-core'); const assert = require('assert'); const { spawn, execSync } = require('child_process'); const fs = require('fs');
 const PORT = 8878, BASE = 'http://127.0.0.1:' + PORT + '/', OUT = process.env.SHOTS || '/workspace/golf-app/screenshots', TMP = '/tmp/stats-pdf-test';
 const SEED = fs.readFileSync(__dirname + '/fixtures/putt-miss-rounds.js', 'utf8');
-const CATS = ['driver', 'approach', 'putting', 'chipping', 'scoring'];
+const CATS = ['driver', 'approach', 'putting', 'chipping', 'bunker', 'scoring']; // v157: + Bunker
 (async () => {
   fs.mkdirSync(TMP, { recursive: true });
   const srv = spawn('python3', ['-m', 'http.server', String(PORT), '--bind', '127.0.0.1'], { cwd: '/workspace/golf-app', stdio: 'ignore' });

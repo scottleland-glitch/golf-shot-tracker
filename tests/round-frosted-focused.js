@@ -30,8 +30,8 @@ const BASE = 'http://127.0.0.1:8797/', OUT = '/workspace/golf-app/screenshots/',
   assert.match(await page.textContent('#pinbtn'), /Pin: back left/i);
   await page.click('.tline[data-k="1"]'); await page.selectOption('select[data-f="club"][data-k="1"]', '6i'); assert.strictEqual(await page.$eval('select[data-f="club"][data-k="1"]', e => e.value), '6i');
   await page.click('[data-act="pen"][data-k="1"]'); assert.strictEqual(await page.$eval('[data-act="pen"][data-k="1"]', e => e.classList.contains('on')), false);
-  await page.click('[data-act="addShot"]'); assert.strictEqual(await page.locator('.tline, .srow[data-k]').count(), 5); assert.strictEqual(await page.locator('.srow[data-k]').count(), 1);
-  await page.fill('input[data-row="4"]', '3'); await page.selectOption('select[data-f="loc"][data-k="4"]', 'holed'); await page.locator('input[data-row="4"]').blur();
+  await page.click('.tline[data-k="3"]'); await page.click('[data-act="addShot"]'); assert.strictEqual(await page.locator('.tline, .shotcard[data-k]').count(), 5); assert.strictEqual(await page.locator('.shotcard[data-k]').count(), 1); // v157 shot card
+  await page.fill('input[data-row="4"]', '3'); await page.locator('input[data-row="4"]').blur(); await page.click('[data-act="fin"][data-v="in"][data-k="4"]');
   await page.click('[data-act="finish"]'); await page.waitForSelector('.hole-done'); assert.match(await page.textContent('.hole-done'), /Score 5/);
   await page.evaluate(() => window.scrollTo(0, 0)); await shot('finished');
   await page.click('[data-act="replay"]'); await page.waitForSelector('[data-act="rpclose"]'); await page.waitForTimeout(600); await shot('replay'); await page.click('[data-act="rpclose"] >> nth=0');
