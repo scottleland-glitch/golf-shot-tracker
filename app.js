@@ -2941,7 +2941,7 @@
     var svg = function (body, label) { return '<svg class="tkpic" viewBox="0 0 140 70" role="img" aria-label="' + esc(label) + '">' + body + '</svg>'; };
     var dots = function (n, cx, cy, col) { var o = ''; for (var i = 0; i < Math.min(n, 8); i++) o += '<circle cx="' + (cx + (i % 4 - 1.5) * 9) + '" cy="' + (cy + Math.floor(i / 4) * 9) + '" r="3.6" fill="' + col + '"/>'; return o; };
     if (p.kind === 'tee') { // v151: fairway shows "7/14" and any miss with no side gets its own line, so the picture adds up
-      var ns = p.noSide ? (p.noSide === p.noSidePen ? p.noSide + ' penalty' + (p.noSide === 1 ? '' : 's') : p.noSide + ' miss' + (p.noSide === 1 ? '' : 'es')) + ' · no side' : '';
+      var ns = p.noSide ? (p.noSide === p.noSideOB ? p.noSide + ' OB' : p.noSide === p.noSidePen ? p.noSide + ' penalty' + (p.noSide === 1 ? '' : 's') : p.noSide + ' miss' + (p.noSide === 1 ? '' : 'es')) + ' · no left/right' : '';
       var tsv = '<svg class="tkpic" viewBox="0 0 140 ' + (ns ? 82 : 70) + '" role="img" aria-label="' + esc('Tee shots: ' + p.left + ' left, ' + p.fw + ' of ' + p.of + ' fairways, ' + p.right + ' right' + (ns ? ', ' + ns : '')) + '">';
       return tsv + '<rect x="44" y="6" width="52" height="52" rx="20" fill="rgba(31,157,85,.16)"/>' +
         '<text x="70" y="39" class="tkn tks" fill="#1f7a44">' + p.fw + '/' + p.of + '</text><text x="20" y="39" class="tkn" fill="' + (p.left > p.right ? '#c0442f' : '#3f5a48') + '">' + p.left + '</text>' +

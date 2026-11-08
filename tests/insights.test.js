@@ -90,3 +90,13 @@ test('tee tile numbers add up; a miss with no direction is named', () => {
   const full = I.build(copy('ok'), [], SG, {}).tiles.find(t => t.k === 'tee');
   assert.strictEqual(full.pic.noSide, 0); assert.doesNotMatch(full.text, /Not in/);
 });
+
+// v152: an OB tee shot marked "short" (Paradise Valley hole 5) – counted, and named as OB with the direction that was entered
+test('OB tee shot with only short/long entered is named, numbers add up', () => {
+  const r = copy('ob'); const h = r.holes.find(x => x.par > 3 && x.rows[1] && x.rows[1].loc !== 'fairway');
+  h.rows.splice(1, 0, { loc: 'ob', dist: '', dir: 'short', pen: false });
+  const S = SG.summarize(r), T = I.build(r, [], SG, {}).tiles.find(t => t.k === 'tee');
+  assert.strictEqual(T.pic.left + T.pic.fw + T.pic.right + T.pic.noSide, S.fwTotal);
+  assert.strictEqual(T.pic.noSideOB, 1);
+  assert.match(T.text, new RegExp('hole ' + (r.holes.indexOf(h) + 1) + ' \\(OB, went short\\)'));
+});

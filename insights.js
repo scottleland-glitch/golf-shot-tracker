@@ -190,10 +190,11 @@
         // v149: only missed fairways (par-3 tee shots have no fairway); a miss with no left/right entered is counted and said, so the numbers add up
         var miss = S.teeMap.filter(function (x) { return x.fairway === false; }), sided = miss.filter(function (x) { return !x.layup && (x.side === 'L' || x.side === 'R'); });
         var lN = sided.filter(function (x) { return x.side === 'L'; }).length, rN = sided.length - lN, rest = miss.filter(function (x) { return sided.indexOf(x) < 0; });
-        t.pic = { kind: 'tee', left: lN, fw: S.fwHit, of: S.fwTotal, right: rN, noSide: rest.length, noSidePen: rest.filter(function (x) { return x.pen && !x.layup; }).length };
+        t.pic = { kind: 'tee', left: lN, fw: S.fwHit, of: S.fwTotal, right: rN, noSide: rest.length, noSidePen: rest.filter(function (x) { return x.pen && !x.layup; }).length, noSideOB: rest.filter(function (x) { return x.kind === 'ob' && !x.layup; }).length };
         t.text = t.text || S.fwHit + ' of ' + S.fwTotal + ' fairways.';
         if (rest.length) { // say what the misses not shown left or right were, by hole, so the numbers add up
-          var G = {}; rest.forEach(function (x) { var w = x.layup ? 'layup' : x.pen ? 'penalty, no direction entered' : 'no direction entered'; (G[w] = G[w] || []).push(x.hole); });
+          var G = {}; rest.forEach(function (x) { var what = x.layup ? 'layup' : x.kind === 'ob' ? 'OB' : x.pen ? 'penalty' : '', dir = x.dir ? 'went ' + String(x.dir).replace(/([a-z])(left|right)$/, '$1 $2') : 'no direction entered';
+            var w = what === 'layup' ? what : (what ? what + ', ' : '') + dir; (G[w] = G[w] || []).push(x.hole); });
           t.text += ' Not in left/right: ' + Object.keys(G).map(function (w) { return 'hole' + (G[w].length > 1 ? 's ' : ' ') + G[w].join(', ') + ' (' + w + ')'; }).join('; ') + '.';
         }
       } else if (a.k === 'approach') {

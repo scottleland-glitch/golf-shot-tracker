@@ -1,4 +1,5 @@
 // Offline support: cache the whole app on install, serve cache-first.
+// v152: Off the tee – a miss with no left/right is named as it was entered ("1 OB · no left/right", "hole 5 (OB, went short)").
 // v151: Round takeaway, Off the tee picture – fairway shows 7/14 and a red line for misses with no side (e.g. "1 penalty · no side"), so the picture adds up.
 // v150: the version shown in Settings now comes from sg.js (cached with the rest of the code), not config.js (network-first), so it can't show a newer number than the code running.
 // v149: Round takeaway – Off the tee left / fairway / right now adds up; misses with no direction (or penalty, layup) are named by hole.
@@ -44,7 +45,7 @@
 // v113: "Courses near me" (near.js). The course finder list (data/us-courses.json, ~1.0 MB, ~0.28 MB gzipped) is NOT in this cache:
 // the app downloads it on first use into its own cache 'pinhigh-courselist-v1', which a new version keeps (so no re-download).
 // GolfCore scorecards (through the Pin High relay, pinhigh-golfcore.pinhigh.workers.dev) go straight to the network; the app saves each picked course with the saved courses.
-const CACHE = 'golf-sg-v151';
+const CACHE = 'golf-sg-v152';
 const ASSETS = ['./', './img/home-bg.webp', './img/oriole.webp', './index.html', './styles.css', './sg.js', './birdie.js', './voice.js', './courses.js', './near.js', './bag.js', './wedges.js', './live.js', './share.js', './story.js', './insights.js', './mygame.js', './gdrive.js', './app.js', './config.js', './vendor/jspdf.umd.min.js',
   './manifest.webmanifest', './icons/apple-touch-icon.png', './icons/icon-192.png',
   './icons/icon-512.png', './icons/icon-512-maskable.png'];

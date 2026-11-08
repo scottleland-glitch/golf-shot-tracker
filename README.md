@@ -125,6 +125,7 @@ v148: "Log this drill" on Round stats no longer leads to a dead end – My Game 
 v149: Round takeaway, Off the tee: left + fairway + right now always adds up to the fairway total. Par-3 tee shots no longer count as left/right misses, and any miss with no direction entered (or a penalty / layup) is named by hole under the picture.
 v150: the version line in Settings now tells the truth. It used to come from config.js, which is always fetched fresh, so it could show the new version while the phone was still running the old code. It now comes from sg.js (VERSION), which updates together with the rest of the code. The version lives in sg.js now, not config.js.
 v151: Off the tee picture on the Round takeaway now adds up on its own: the fairway count shows as 7/14 (like greens 9/18), and a red line underneath counts any miss with no left/right ("1 penalty · no side").
+v152: an OB / penalty tee shot marked only short or long is named that way ("1 OB · no left/right", "hole 5 (OB, went short)") instead of "no direction entered".
 learning, light green = ready (the tick mark), dark green = strong (3x the shots ready needs). Learning points on the
 chart are gold rings with a gold "learning" label.
 Headline: the biggest change vs the period before, else what costs the most. Tiles: average 18-hole score, strokes
