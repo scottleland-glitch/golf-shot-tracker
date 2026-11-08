@@ -151,6 +151,7 @@
     else if (view.screen === 'courses') el.innerHTML = coursesHTML();
     else if (view.screen === 'bag') el.innerHTML = bagHTML();
     else if (view.screen === 'help') el.innerHTML = helpHTML(); // v128
+    else if (view.screen === 'mygame') el.innerHTML = myGameHTML(); // v141
     else if (view.screen === 'profile') { view.screen = 'archive'; el.innerHTML = archiveHTML(); } // v102: old Profile → Settings
     else if (view.screen === 'wedges') el.innerHTML = wedgesHTML();
     else if (view.screen === 'birdie') { view.bzD = null; el.innerHTML = birdieHTML(); }
@@ -1731,6 +1732,7 @@
       '<button class="glass plusbtn" id="plusbtn" data-act="plus" aria-label="Menu: new round, rounds, stats, my bag, settings or help" aria-expanded="' + !!view.hmenu + '">+</button>' +
 ''; // v89: no Player row on Home (kept clean) – it lives in the New round sheet
     var bot = '';
+    bot += mgHomeCardHTML(); // v141 My Game card
     if (cur) { var S = SG.summarize(cur); bot += '<button class="glass pill" id="resumepill" data-act="resume">Resume round<small>' + (cur.course ? esc(cur.course) + ' · ' : '') + S.holesDone + ' holes done</small></button>'; }
     // v102: no Archive pill – that page is Settings in the + menu
     h += '<div class="home-bottom">' + bot + '</div><div class="appver homever" id="homever" aria-label="App version">' + esc(APP_VER) + '</div>';
@@ -1743,6 +1745,54 @@
       else h += '<button class="sheet-item" role="menuitem" data-act="newform">New round</button><button class="sheet-item" role="menuitem" data-act="history">Rounds</button><button class="sheet-item" role="menuitem" data-act="stats">Stats</button><button class="sheet-item" role="menuitem" data-act="bag">My Bag</button><button class="sheet-item" role="menuitem" data-act="archive">Settings</button><button class="sheet-item" role="menuitem" data-act="help">Help</button>';
       h += '</div>';
     }
+    return h + '</div>';
+  }
+  // ---------- v141 My Game (mygame.js): the six-spoke shape of a golfer's game, by time frame ----------
+  // a player's finished rounds (all holes done, not the round in progress) – the same test Stats uses
+  function finishedRoundsOf(who) {
+    var cur = localStorage.getItem(CUR);
+    return savedRounds().filter(function (r) { return samePlayer(r.player || playerName(), who); }).filter(function (r) {
+      var S = SG.summarize(r); return S.holesDone === r.holes.length && r.holes.length > 0 && r.id !== cur; });
+  }
+  function mgPlayers() { var o = {}; savedRounds().forEach(function (r) { var n = r.player || playerName(); if (n) o[n] = 1; }); if (playerName()) o[playerName()] = 1; return Object.keys(o).sort(); }
+  function mgWho() { var names = mgPlayers(); if (!view.mgPlayer || names.indexOf(view.mgPlayer) < 0) view.mgPlayer = playerName() || names[0] || ''; return view.mgPlayer; }
+  function mgData(who, periodId) {
+    var list = finishedRoundsOf(who), newest = list.slice().sort(function (a, b) { return String(b.date || '').localeCompare(String(a.date || '')); })[0];
+    var bl = view.mgBl || blOf(newest);
+    return MYGAME.build(list, SG, { period: periodId || view.mgPeriod || '3m', baseline: bl, baselineName: SG.baseline(bl).name });
+  }
+  function mgHomeCardHTML() {
+    var who = playerName(); if (!who || !finishedRoundsOf(who).length) return '';
+    var D; try { D = mgData(who); } catch (e) { return ''; }
+    return '<button class="glass mgcard" id="mgcard" data-act="mygame" aria-label="My Game: ' + esc(D.headline) + '">' +
+      '<span class="mgmini">' + MYGAME.radarSVG(D.cur, null, { R: 34, labels: false, aria: 'Game shape' }) + '</span>' +
+      '<span class="mgtxt"><b>My Game</b><span>' + esc(D.headline) + '</span><small>' + esc(D.period.name) + ' · ' + D.cur.rounds + ' round' + (D.cur.rounds === 1 ? '' : 's') + '</small></span><i aria-hidden="true">›</i></button>';
+  }
+  function myGameHTML() {
+    var names = mgPlayers(), who = mgWho(), D = mgData(who), P = D.period;
+    var h = '<div class="frostpage theme-sky mygamepage" id="mygame"><div class="topbar frost"><button class="txt frostbtn" data-act="home">‹ Home</button><div class="title"><b>My Game</b><span>' +
+      (who ? esc(who) + ' · ' : '') + D.cur.rounds + ' round' + (D.cur.rounds === 1 ? '' : 's') + '</span></div><span class="tbspace"></span></div>';
+    if (names.length > 1) h += '<div class="hchips" id="mgchips" role="group" aria-label="Player">' + names.map(function (nm) {
+      var on = nm === who; return '<button class="frostchip' + (on ? ' sel' : '') + '" data-act="mgplayer" data-v="' + esc(nm) + '" aria-pressed="' + on + '">' + esc(nm) + '</button>'; }).join('') + '</div>';
+    h += '<div class="stseg mgseg" id="mgperiod" role="group" aria-label="Time frame">' + MYGAME.PERIODS.map(function (x) {
+      var on = x.id === P.id; return '<button class="' + (on ? 'sel' : '') + '" data-act="mgperiod" data-v="' + x.id + '" aria-pressed="' + on + '">' + x.name.replace('Last ', '') + '</button>'; }).join('') + '</div>';
+    h += '<div class="mgchart frost"><h2 id="mghead">' + esc(D.headline) + '</h2><p id="mglede">' + esc(D.lede) + '</p>' +
+      MYGAME.radarSVG(D.cur, D.prev, { R: 96, aria: 'Game shape, ' + P.name }) +
+      '<div class="mglegend"><span><i class="lc"></i>' + esc(P.name) + '</span>' + (D.prev ? '<span><i class="lp"></i>' + (P.id === '1y' ? 'Year before' : 'Previous ' + esc(P.short)) + '</span>' : '') +
+      '<span><i class="lb"></i>' + esc(D.baselineName) + '</span></div>' +
+      '<label class="mgbl">Compared with ' + blSelect('mgbl', D.baseline) + '</label></div>';
+    var T = D.cur.tiles, Q = D.prev && D.prev.tiles;
+    var tile = function (id, label, v, pv, f, better) {
+      var ch = '';
+      if (v != null && pv != null) { var d = v - pv, good = better > 0 ? d > 0 : d < 0, tiny = Math.abs(d) < (id === 'gir' ? 0.5 : 0.05);
+        ch = '<em class="' + (tiny ? '' : good ? 'up' : 'down') + '">' + (tiny ? '→ same as ' + f(pv) : (d > 0 ? '↑ ' : '↓ ') + f(Math.abs(d), true) + ' from ' + f(pv)) + '</em>'; }
+      else if (v != null && D.prev === null && P.id !== 'all') ch = '<em>no rounds before</em>';
+      return '<div class="mgtile frost" data-t="' + id + '"><span>' + label + '</span><b>' + (v == null ? '–' : f(v)) + '</b>' + ch + '</div>'; };
+    var n1 = function (v) { return (Math.round(v * 10) / 10).toFixed(1); }, sgf = function (v, abs) { return abs ? n1(v) : MYGAME.fmt(v); }, pc = function (v) { return Math.round(v) + '%'; };
+    h += '<div class="mgtiles" id="mgtiles">' + tile('score', 'Avg score (18 holes)', T.score, Q && Q.score, n1, -1) + tile('sg', 'Strokes gained / round', T.sg, Q && Q.sg, sgf, 1) +
+      tile('putts', 'Putts / round', T.putts, Q && Q.putts, n1, -1) + tile('gir', 'Greens in regulation', T.gir, Q && Q.gir, pc, 1) + '</div>';
+    h += '<div class="tiprow" id="mginfo">' + tipBtn('mginfo', 'i', 'About My Game') + tipLbl('mginfo', 'How My Game works') + tipText('mginfo',
+      'Each spoke is strokes gained per 18 holes in one skill: Driving (par 4 and 5 tee shots), Irons 100+ (approach shots from over 100 yd), Wedges (30–100 yd), Chipping (30 yd and in), Lag putts (10 ft and over) and Short putts (under 10 ft). The six add up to your total. Further out is better; the dashed line is the ' + esc(D.baselineName) + ' average. The gray shape is the same length of time before this one. A hollow point is still learning: it needs ' + MYGAME.MIN_ROUNDS + ' rounds and enough shots in the period.') + '</div>';
     return h + '</div>';
   }
   function archiveHTML() {
@@ -4444,6 +4494,9 @@
       case 'wedges': view.hmenu = null; view.screen = 'wedges'; view.wOpen = null; view.wOther = null; view.wEdit = false; view.wFull = null; view.wFlight = 'high'; render(); window.scrollTo(0, 0); return;
       case 'wact': wAct(v, b); return;
       case 'help': view.hmenu = null; view.screen = 'help'; render(); window.scrollTo(0, 0); return; // v128
+      case 'mygame': view.hmenu = null; view.screen = 'mygame'; render(); window.scrollTo(0, 0); return; // v141
+      case 'mgperiod': view.mgPeriod = v; render(); return;
+      case 'mgplayer': view.mgPlayer = v; render(); return;
       case 'bag': view.hmenu = null; view.screen = 'bag'; view.bagAdd = null; view.bagEdit = null; view.bagCondOpen = false; render(); window.scrollTo(0, 0); return;
       case 'bagact': bagAct(v, b); return;
       case 'ncourse': { var cc = courseById(b.getAttribute('data-id')); view.crsOpen = false;
@@ -4535,6 +4588,7 @@
     }
     var t = ev.target, f = t.getAttribute('data-f'); if (!f) return;
     if (f === 'proxbench') { var mvb = document.getElementById('mapview'), stb = mvb ? mvb.scrollTop : 0; view.proxBench = t.value; render(); var mvb2 = document.getElementById('mapview'); if (mvb2) mvb2.scrollTop = stb; return; } // v124: this view only
+    if (f === 'baseline' && t.id === 'mgbl') { view.mgBl = t.value; render(); return; } // v141 My Game: compare with (this page only)
     if (f === 'baseline') { if (t.id === 'sumbl') setBaseline(t.value); else if (t.id === 'stbl') { view.stBl = t.value || ''; view.stSel = null; render(); } return; }
     var h = round().holes[view.hole], k = +t.getAttribute('data-k'), row = h.rows[k];
     if (f === 'loc') {

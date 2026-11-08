@@ -94,6 +94,17 @@ tiles (Birdies made · Holed inside N' = birdies if every putt inside the slider
 thin style as the other maps – red balls = birdies made, blue = inside the slider (would be birdies), white = outside, blue dashed ring = slider.
 Putts made table with thin solid blue bars.
 
+## My Game (v141)
+A "My Game" card on Home (once the phone's player has a finished round) opens a page with the shape of their game
+(`mygame.js`), like Hevy's muscle chart: six spokes of strokes gained per 18 holes – Driving (par 4/5 tee shots),
+Irons 100+ (approach from over 100 yd), Wedges (30–100 yd), Chipping (30 yd and in), Lag putts (10 ft+), Short putts
+(under 10 ft). Every shot is in exactly one spoke, so the six add up to the total. Further out = better; the dashed ring
+is the chosen baseline (each spoke has its own scale). Time frames: 30 days, 3 months (default), year, all time; the gray
+shape is the same length of time before. A spoke with fewer than 2 rounds or too few shots is hollow ("learning 40%").
+Headline: the biggest change vs the period before, else what costs the most. Tiles: average 18-hole score, strokes
+gained / round, putts / round, GIR, with change. Player chips when the phone has more than one player.
+Tests: `node --test tests/mygame.test.js`, `node tests/mygame-focused.js`.
+
 ## Round takeaway (v140)
 Round stats opens with a plain-words takeaway under the score (`insights.js`, fixed rules, no AI – every claim comes from real shots):
 - **How well Strokewise knows your game**: four bars (TEE, APP, ARG, PUTT). An area is "ready" once the golfer's earlier

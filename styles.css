@@ -2054,3 +2054,32 @@ html body .roundpage.holepage .srow.shead .c-n { height: auto; min-height: 0; bo
 .tkgood { margin: 0; padding: 10px 14px; font-size: 14px; border-radius: 16px; }
 .tkgood b { color: #1f7a44; }
 .tknote { margin: 0; padding: 10px 14px; font-size: 14px; border-radius: 16px; color: var(--frost-ink-soft); }
+
+/* v141 My Game: Home card + page (six-spoke game shape by time frame) */
+.home .mgcard { display: flex; align-items: center; gap: 12px; width: min(350px, calc(100vw - 32px)); padding: 10px 16px 10px 10px; border-radius: 22px;
+  color: #fff; text-align: left; font: inherit; cursor: pointer; }
+.home .mgcard .mgmini { flex: none; width: 84px; height: 84px; display: grid; place-items: center; background: rgba(255, 255, 255, .82); border-radius: 18px; }
+.home .mgcard .mgmini svg { width: 80px; height: 80px; }
+.home .mgcard .mgtxt { flex: 1; min-width: 0; display: grid; gap: 1px; text-shadow: 0 1px 6px rgba(0, 0, 0, .35); }
+.home .mgcard .mgtxt b { font-size: 17px; letter-spacing: .02em; }
+.home .mgcard .mgtxt span { font-size: 15px; line-height: 1.25; }
+.home .mgcard .mgtxt small { font-size: 12px; opacity: .9; }
+.home .mgcard > i { font-style: normal; font-size: 26px; opacity: .85; }
+.mygamepage .mgseg { margin: 12px 0 0; }
+.mgchart { margin-top: 12px; padding: 14px 10px 12px; }
+.mgchart h2 { margin: 0 6px 2px !important; font-size: 21px !important; font-weight: 700 !important; }
+.mgchart > p { margin: 0 6px 4px; font-size: 14px; color: var(--frost-ink-soft); }
+.mgchart .radar { display: block; width: 100%; height: auto; }
+.mglegend { display: flex; flex-wrap: wrap; justify-content: center; gap: 6px 14px; font-size: 13px; color: var(--frost-ink-soft); }
+.mglegend i { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 5px; vertical-align: -1px; }
+.mglegend .lc { background: #1f9d55; } .mglegend .lp { background: #8a9a8f; } .mglegend .lb { border: 1.5px dashed #17301f; }
+.mgbl { display: flex; align-items: center; justify-content: center; gap: 8px; margin-top: 8px; font-size: 13px; color: var(--frost-ink-soft); white-space: nowrap; }
+.mgbl select { min-width: 0; flex: 0 1 auto; }
+.mgbl select { min-height: 36px; font-size: 14px; }
+.mgtiles { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 12px; }
+.mgtile { padding: 12px 14px; border-radius: 18px; }
+.mgtile span { display: block; font-size: 13px; color: var(--frost-ink-soft); }
+.mgtile b { display: block; font-size: 27px; font-weight: 600; line-height: 1.2; }
+.mgtile em { font-style: normal; font-size: 13px; font-weight: 600; color: var(--frost-ink-soft); }
+.mgtile em.up { color: #1f7a44; } .mgtile em.down { color: #c0442f; }
+.mygamepage #mginfo { margin-top: 12px; }
