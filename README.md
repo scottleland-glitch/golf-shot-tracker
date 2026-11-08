@@ -25,6 +25,17 @@ Every Shot Counts Table 3.10). The other five are ESTIMATED: per-round gaps from
 Player Quality ladder, then spread over the PGA table. Full sources, method and caveats: in-app
 "About the numbers" and the BASELINES comment in `sg.js`.
 
+## Directions are read from the player (v156)
+Beta-test bugs 1–3. A Dir on any shot after the tee is read the way the golfer sees it – along the line from where the ball lay to the
+pin: Long = past the hole, Short = same side and closer, Left / Right as the player faces the hole. SG.analyzeHole gives each shot
+`ang` = where it finished around the pin in the map frame (90 = long side, 270 = toward the tee), chained from the spot before;
+more than 45 yd from the pin (NEAR_YD) a Dir means a missed fairway, so the next shot is seen as coming straight up the hole.
+puttList entries carry the putt's start `ang`. Used by the hole replay, its green close-up and the putt maps (puttPlace).
+Distance hit (`hit`): long adds, short subtracts, a left / right finish within 45 yd = straight line (law of cosines); further out
+left / right keeps the forward distance. Strokes gained is unchanged (it only uses distances to the pin).
+Hole replay: "Tap the green" hint is a line above the map; the map grows upward to fit shots that went long; labels are placed after
+every shot dot.
+
 ## Directions and maps (v5)
 Dir = where the previous shot ended vs its target, 8 ways (Short = toward you, Long, Left, Right,
 Short left/right, Long left/right), picked from a 3x3 grid. Old L/R/S/O saves become Left/Right/Short/Long.

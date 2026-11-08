@@ -845,3 +845,31 @@ test('v127 avg 2nd putt: next putt length after a missed 1st putt that stayed on
   assert.deepStrictEqual(SG.puttMissGrid(L, 'all').second, { n: 3, avg: 9.5 / 3 });
   assert.deepStrictEqual(SG.puttMissGrid(L, 'u5').second, { n: 0, avg: null });
 });
+
+// v156 – Scott's beta bugs 1 + 3: a Dir is read along the player's line to the pin, not from the tee.
+// Rows as the app stores them: the last row is the spot the hole was finished FROM ('holed' on the green, 'holedx' off it).
+test('directions follow the line from the ball to the pin (v156)', () => {
+  const R = (dist, loc, dir) => ({ dist, loc, dir: dir || '', pen: false });
+  const ang = rows => SG.analyzeHole({ par: 4, finished: true, rows }, 'pga').shots.map(s => s.ang);
+  // 20 ft pin high left (9 o'clock = 180), putt 10 ft long -> past the hole (3 o'clock = 0), then 5 ft short -> same side (0)
+  assert.deepStrictEqual(ang([R(380, 'tee'), R(100, 'fairway'), R(20, 'green', 'left'), R(10, 'green', 'long'), R(5, 'holed', 'short')]).slice(1, 4), [180, 0, 0]);
+  // from the left side a miss left goes toward 12 o'clock (90); from the right side a miss left goes toward 6 o'clock (270)
+  assert.strictEqual(ang([R(380, 'tee'), R(100, 'fairway'), R(20, 'green', 'left'), R(4, 'holed', 'left')])[2], 90);
+  assert.strictEqual(ang([R(380, 'tee'), R(100, 'fairway'), R(20, 'green', 'right'), R(4, 'holed', 'left')])[2], 270);
+  // a chip from pin high left in the rough that goes long finishes at 3 o'clock
+  assert.strictEqual(ang([R(380, 'tee'), R(100, 'fairway'), R(15, 'rough', 'left'), R(8, 'holed', 'long')])[2], 0);
+  // from straight in front nothing changes: long = 12 o'clock (90)
+  assert.strictEqual(ang([R(380, 'tee'), R(100, 'fairway'), R(20, 'holed', 'long')])[1], 90);
+  // putt map start spots use the true spot: the 2nd putt starts at 3 o'clock
+  const S = SG.summarize({ v: 3, dv: 2, id: 'x', holes: [{ par: 4, finished: true, rows: [R(380, 'tee'), R(100, 'fairway'), R(20, 'green', 'left'), R(10, 'holed', 'long')] }] }, 'pga');
+  assert.strictEqual(S.holesDone, 1); assert.deepStrictEqual(S.puttList.map(p => p.ang), [180, 0]);
+});
+test('distance hit adds when the ball goes long (v156)', () => {
+  const R = (dist, loc, dir) => ({ dist, loc, dir: dir || '', pen: false });
+  const hit = (rows, k) => SG.analyzeHole({ par: 4, finished: true, rows }, 'pga').shots[k].hit;
+  assert.strictEqual(hit([R(380, 'tee'), R(100, 'fairway'), R(20, 'holedx', 'long')], 1), 120, '100 yd, 20 long = 120 hit');
+  assert.strictEqual(hit([R(380, 'tee'), R(100, 'fairway'), R(20, 'holedx', 'short')], 1), 80, '100 yd, 20 short = 80 hit');
+  assert.strictEqual(hit([R(380, 'tee'), R(150, 'fairway'), R(20, 'holedx', 'left')], 1), 151, 'pin high left by the green = straight line');
+  assert.strictEqual(hit([R(400, 'tee'), R(150, 'holedx', 'left')], 0), 250, 'a missed fairway keeps the forward distance');
+  assert.strictEqual(hit([R(380, 'tee'), R(100, 'holedx')], 1), 100, 'holed out from the fairway = the full distance');
+});

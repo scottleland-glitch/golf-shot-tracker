@@ -2160,3 +2160,6 @@ html body .roundpage.holepage .holetop .livebtn { min-height: 36px; }
 .prchart .prhow { margin: 10px 4px 0; font-size: 13px; color: #3f5a48; }
 .prchart .prhow summary { font-weight: 600; cursor: pointer; min-height: 32px; display: flex; align-items: center; }
 .prchart .prhow p { margin: 6px 0 0; line-height: 1.45; }
+
+/* v156: replay hint sits above the map, never over a shot */
+#replayview .rptap { margin: 2px 0 6px; font-size: 13px; color: #4a5866; text-align: center; }

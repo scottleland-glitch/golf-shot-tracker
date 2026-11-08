@@ -240,6 +240,7 @@
     return rows;
   }
 
+  var NEAR_YD = 45; // within this many yards of the pin a Dir is a spot around the pin (matches the hole replay)
   function toYards(lie, dist) {
     if (lie === 'holed') return 0;
     return lie === 'green' ? dist / 3 : dist;
@@ -341,6 +342,7 @@
     var out = [];
     var start = { lie: 'tee', dist: Number(hole.yards) || 0 };
     var shots = hole.shots || [];
+    var prevAng = 270; // v156: angle of the ball around the pin before this shot (270 = straight back toward the tee)
     for (var i = 0; i < shots.length; i++) {
       var s = shots[i];
       var pen = s.pen || 'none';
@@ -361,13 +363,23 @@
       } else {
         cat = 'short'; bucket = SHORT_BUCKET;
       }
+      // v156 (Scott's beta bugs 1 + 3): a shot's Dir is read the way the player sees it – along the line from the ball to the pin.
+      // ang = where the ball finished around the pin, in the usual map frame (90 = long side of the green, 270 = toward the tee):
+      // the player's line is rotated by where the ball lay before (prevAng). Far from the green (> NEAR_YD) a Dir means a missed
+      // fairway, not a spot around the pin, so the next shot is seen as coming straight up the hole again.
+      var hd = normDir(s.dir || s.side), rel = DIR_ANGLE[hd], ya = toYards(start.lie, start.dist), yb = toYards(end.lie, end.dist);
+      var nearEnd = end.lie === 'green' || (end.lie !== 'holed' && yb <= NEAR_YD), ang = null;
+      if (pen !== 'ob' && end.lie !== 'holed') { ang = (((rel == null ? 270 : rel) + prevAng + 90) % 360 + 360) % 360; }
+      // distance hit: long adds (it went past the pin), short subtracts, a left / right finish by the green = straight line
       var hit = pen === 'ob' ? null
-        : Math.round(toYards(start.lie, start.dist) - toYards(end.lie, end.dist));
+        : rel != null && (/^long/.test(hd) || nearEnd) ? Math.round(Math.sqrt(Math.max(0, ya * ya + yb * yb + 2 * ya * yb * Math.sin(rel * Math.PI / 180))))
+        : Math.round(ya - yb);
       out.push({
         n: i + 1, start: start, end: end, pen: pen, penStrokes: penStrokes,
         side: s.side || dirSide(normDir(s.dir)), dir: normDir(s.dir || s.side), ob: !!s.ob, loc: s.loc || (pen === 'ob' ? 'ob' : s.lie), hk: s.hk, eStart: eStart, eEnd: eEnd, sg: sg,
-        cat: cat, bucket: bucket, hit: hit, club: clubOf(raw[i])
+        cat: cat, bucket: bucket, hit: hit, club: clubOf(raw[i]), ang: ang
       });
+      if (pen !== 'ob' && end.lie !== 'holed') prevAng = nearEnd ? ang : 270;
       // Layup tee shot: its strokes gained is left out entirely (0 toward Off the tee and the total; not counted as a tee shot).
       if (i === 0 && cat === 'tee' && raw[0] && raw[0].layup) { var L0 = out[out.length - 1]; L0.layup = true; L0.sgRaw = sg; L0.sg = 0; }
       start = end;
@@ -500,7 +512,7 @@
       var pn = 0;
       a.shots.forEach(function (r, k) {
         if (r.start.lie !== 'green') return; pn++;
-        S.puttList.push({ hole: hi + 1, n: pn, ft: r.start.dist, made: r.end.lie === 'holed', dir: k > 0 ? a.shots[k - 1].dir : '',
+        S.puttList.push({ hole: hi + 1, n: pn, ft: r.start.dist, made: r.end.lie === 'holed', dir: k > 0 ? a.shots[k - 1].dir : '', ang: k > 0 && a.shots[k - 1].dir ? a.shots[k - 1].ang : null,
           endFt: r.end.lie === 'holed' ? 0 : r.end.lie === 'green' ? r.end.dist : r.end.dist * 3, endDir: r.end.lie === 'holed' ? '' : (r.dir || ''), endLie: r.end.lie });
       });
       for (var q = S.puttList.length - pn; q < S.puttList.length; q++) S.puttList[q].holePutts = pn; // putts the hole ended with
@@ -678,7 +690,7 @@
   function puttPlace(list, sc, cx, cy, R, minD) {
     minD = minD || 15; var nd = list.filter(function (p) { return !p.dir; }).length, ndi = 0, out = [];
     list.forEach(function (p) {
-      var r0 = puttRadius(p.ft, sc, R), a0 = p.dir ? DIR_ANGLE[p.dir] : 110 + 360 * (ndi++) / Math.max(1, nd), best = null;
+      var r0 = puttRadius(p.ft, sc, R), a0 = p.dir ? (p.ang != null ? p.ang : DIR_ANGLE[p.dir]) : 110 + 360 * (ndi++) / Math.max(1, nd), best = null;
       for (var k = 0; k < 240 && !best; k++) {
         var step = Math.ceil(k / 2) * (k % 2 ? 1 : -1), r = Math.max(4, r0 + Math.floor(k / 12) * 3), a = a0 + step * Math.max(6, (minD / Math.max(r, 8)) * 57.3),
           t = a * Math.PI / 180, x = cx + r * Math.cos(t), y = cy - r * Math.sin(t);
