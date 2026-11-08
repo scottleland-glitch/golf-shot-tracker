@@ -39,8 +39,11 @@ for (let i = 0; i < 6; i++) rounds.push(Object.assign(ARC.round(), { id: 'g' + i
     const saved = await page.evaluate(() => JSON.parse(localStorage.getItem('golfsg.practice.v1')));
     assert.strictEqual(saved.length, 3); assert.ok(saved.every(e => e.player === 'Scott' && /T12:00:00$/.test(e.date)));
     assert.deepStrictEqual(saved.map(e => e.focus + ' ' + e.min).sort(), ['Green-side chipping 30', 'Lag putting 20', 'Putting speed control 10']);
-    assert.strictEqual(await page.textContent('#prhead'), '1 h in 1 session');
-    assert.match(await page.textContent('#prlede'), /^Most time: chipping \(50%\)\.$/);
+    // v155: the card shows the practice LEVEL (42-day decaying average) against the benchmark; 1 h today ≈ 10 min a week
+    assert.strictEqual(await page.textContent('#prhead'), 'Practice level: 10 min a week');
+    assert.match(await page.textContent('#prlede'), /average about \d+ h a week – you are at (under 1|\d+)% of that\. This week’s pace .* is building it up\.$/);
+    assert.strictEqual(await page.textContent('#prlogged'), 'Last 3 months: 1 h in 1 session logged.');
+    assert.ok(await page.$('#prcard .pbench'), 'benchmark ring drawn');
     assert.ok(await page.$('#prcard .pcur'), 'practice shape drawn');
     assert.strictEqual(await page.$$eval('#prlist .pritem', x => x.length), 3);
     ok('saved per player; My Practice: 1 h in 1 session, chipping 50%, 3 recent entries');

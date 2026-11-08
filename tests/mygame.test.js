@@ -97,3 +97,30 @@ test('Log this drill points each Work on next at a practice focus', () => {
   Object.values(M.FOCUS).forEach((list) => assert.ok(list.length >= 2));
   ['puttspeed', 'lag', 'puttline', 'wedges', 'irondepth', 'ironline', 'teepen', 'teeside'].forEach((id) => { const x = M.drillFocus({ id }); assert.ok(M.FOCUS[x.spoke].includes(x.focus), id); });
 });
+
+// v155 practice level: a 42-day decaying average in minutes a week, measured against the benchmark group's practice
+test('practice level builds slowly, fades, and is measured against the benchmark', () => {
+  const at = new Date(2026, 10, 7, 20).getTime();
+  const ld = (n) => { const x = new Date(at - n * day); return x.getFullYear() + '-' + String(x.getMonth() + 1).padStart(2, '0') + '-' + String(x.getDate()).padStart(2, '0') + 'T12:00:00'; };
+  // one 45-minute wedge session does not fill the chart
+  const one = M.practiceLevel([{ id: 'a', date: ld(0), spoke: 'wedges', min: 45 }], at, M.TAU, 'd1w').spokes.find((s) => s.k === 'wedges');
+  assert.ok(one.wk > 7 && one.wk < 8, '45 min ≈ 7.5 min a week of level: ' + one.wk); assert.ok(one.frac < 0.05);
+  // D1 wedge target = 20 h × 14%
+  assert.strictEqual(Math.round(one.target), 168);
+  // practising at the target every day for 3 months gets close (~88%); 6 weeks ~63%
+  const steady = (days) => Array.from({ length: days }, (_, i) => ({ id: 'w' + i, date: ld(i), spoke: 'wedges', min: 168 / 7 }));
+  const f90 = M.practiceLevel(steady(90), at, M.TAU, 'd1w').spokes.find((s) => s.k === 'wedges').frac;
+  const f42 = M.practiceLevel(steady(42), at, M.TAU, 'd1w').spokes.find((s) => s.k === 'wedges').frac;
+  assert.ok(f90 > 0.86 && f90 < 0.9, '3 months ≈ 88%: ' + f90); assert.ok(f42 > 0.61 && f42 < 0.65, '6 weeks ≈ 63%: ' + f42);
+  // stop for 4 weeks: about half is left
+  const later = M.practiceLevel(steady(90), at + 29 * day, M.TAU, 'd1w').spokes.find((s) => s.k === 'wedges').frac;
+  assert.ok(Math.abs(later / f90 - 0.5) < 0.03, 'halves in ~29 days: ' + later / f90);
+  // benchmark follows the baseline; unknown falls back to PGA Tour
+  assert.strictEqual(M.practiceBench('scw').h, 7); assert.strictEqual(M.practiceBench('nope').id, 'pga');
+  const T = M.practiceLevelText([{ id: 'a', date: ld(0), spoke: 'wedges', min: 45 }], { now: at, bl: 'd1w', period: '3m' });
+  assert.strictEqual(T.headline, 'Practice level: 7 min a week');
+  assert.strictEqual(T.lede, 'D1 college women average about 20 h a week – you are at 1% of that.');
+  assert.match(T.trend, /building it up/);
+  assert.match(M.practiceLevelSVG(T.level, T.prev), /class="pbench"/);
+  assert.strictEqual(M.practiceLevelText([], { now: at, bl: 'd1w' }).headline, 'No practice level yet');
+});

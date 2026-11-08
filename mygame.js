@@ -182,6 +182,66 @@
     return o + '</svg>';
   }
 
+  // ---------- v155 practice LEVEL: builds with each session, fades without practice, measured against the benchmark group ----------
+  // Training-load science: chronic load is an exponentially weighted moving average of daily load (Banister fitness-fatigue model;
+  // Williams et al. 2017 EWMA; TrainingPeaks CTL). Chronic time constant 42 days: each day the level moves 1/42 of the way to that
+  // day's practice, so a steady habit is ~63% built after 6 weeks and ~88% after 3 months, and a stopped habit halves in ~29 days.
+  // Acute (this week's pace) uses 7 days. Level = minutes per week, per skill.
+  var TAU = 42, TAU_ACUTE = 7;
+  // Average practice (hours a week, not counting rounds) of each benchmark group. Estimates from published sources – see README v155.
+  var PRAC_BENCH = {
+    pga: { h: 25, who: 'PGA Tour players' }, lpga: { h: 25, who: 'LPGA Tour players' },
+    d1m: { h: 20, who: 'D1 college men' }, d1w: { h: 20, who: 'D1 college women' },
+    scm: { h: 7, who: 'scratch men' }, scw: { h: 7, who: 'scratch women' } };
+  var CLUB_AVG_H = 3; // average club golfer (Golf Insider study of 257 golfers)
+  // How elite players split it: ~40% full swing, ~60% short game and putting (LPGA player reports: 60–75% short game / putting).
+  var PRAC_SPLIT = { drive: 0.12, irons: 0.14, wedges: 0.14, chip: 0.2, lag: 0.18, short: 0.22 };
+  function practiceBench(bl) { var b = PRAC_BENCH[bl] || PRAC_BENCH.pga; return { id: PRAC_BENCH[bl] ? bl : 'pga', h: b.h, who: b.who,
+    spokes: SPOKES.map(function (s) { return { k: s.k, wk: b.h * 60 * PRAC_SPLIT[s.k] }; }) }; }
+  // Level (minutes a week) per skill on the day `at`, from every session on or before it.
+  function practiceLevel(logs, at, tau, bl) {
+    tau = tau || TAU; var t = at == null ? Date.now() : +at, a = 1 - Math.exp(-1 / tau), by = {}, B = practiceBench(bl);
+    SPOKES.forEach(function (s) { by[s.k] = 0; });
+    validPractice(logs).forEach(function (e) { var te = Date.parse(e.date); if (!(te <= t + DAY / 2)) return;
+      var d = Math.max(0, Math.round((t - te) / DAY)); by[e.spoke] += e.min * a * Math.exp(-d / tau); });
+    var spokes = SPOKES.map(function (s, i) { var wk = by[s.k] * 7, target = B.spokes[i].wk; return { k: s.k, name: s.name, wk: wk, target: target, frac: target ? wk / target : 0 }; });
+    var wk = spokes.reduce(function (x, s) { return x + s.wk; }, 0);
+    return { wk: wk, frac: wk / (B.h * 60), bench: B, spokes: spokes };
+  }
+  // Level radar: the outer ring is the benchmark group's average for that skill; rings at 25 / 50 / 75 / 100 %.
+  // Radius = sqrt(share of the benchmark) so early practice is visible (4% draws at 20% of the radius) while the ring still means 100%.
+  function practiceLevelSVG(cur, prev, opts) {
+    opts = opts || {};
+    var R = opts.R || 96, pad = 76, w = 2 * (R + pad), h = 2 * R + 72, CAP = 1.15;
+    var o = '<svg class="radar prlevel" viewBox="' + (-w / 2) + ' ' + (-R - 36) + ' ' + w + ' ' + h + '" role="img" aria-label="' + esc(opts.aria || 'Practice level by skill') + '">';
+    var poly = function (rs) { return rs.map(function (r, i) { return pt(i, r).join(','); }).join(' '); };
+    for (var k = 1; k <= 3; k++) o += '<polygon points="' + poly(SPOKES.map(function () { return R * Math.sqrt(k / 4); })) + '" fill="none" stroke="rgba(23,48,31,.15)"/>';
+    o += '<polygon class="pbench" points="' + poly(SPOKES.map(function () { return R; })) + '" fill="none" stroke="#17301f" stroke-width="1.5" stroke-dasharray="4 4"/>';
+    SPOKES.forEach(function (s, i) { var e = pt(i, R); o += '<line x1="0" y1="0" x2="' + e[0] + '" y2="' + e[1] + '" stroke="rgba(23,48,31,.15)"/>'; });
+    var rs = function (L) { return L.spokes.map(function (s) { return Math.max(R * 0.03, R * Math.sqrt(Math.min(CAP, s.frac))); }); };
+    if (prev && prev.wk >= 1) o += '<polygon class="pprev" points="' + poly(rs(prev)) + '" fill="rgba(138,154,143,.22)" stroke="#8a9a8f" stroke-width="2"/>';
+    if (cur.wk >= 1) { var cr = rs(cur); o += '<polygon class="pcur" points="' + poly(cr) + '" fill="rgba(47,111,201,.25)" stroke="#2f6fc9" stroke-width="2.5"/>';
+      cur.spokes.forEach(function (s, i) { if (s.wk < 1) return; var q = pt(i, cr[i]); o += '<circle cx="' + q[0] + '" cy="' + q[1] + '" r="4" fill="#2f6fc9"/>'; }); }
+    cur.spokes.forEach(function (s, i) {
+      var q = pt(i, R + 20), anchor = Math.abs(q[0]) < 10 ? 'middle' : q[0] > 0 ? 'start' : 'end';
+      o += '<text x="' + q[0] + '" y="' + (q[1] - 2) + '" text-anchor="' + anchor + '" font-size="12.5" font-weight="600" fill="#17301f">' + esc(s.name) + '</text>';
+      o += '<text class="plv" x="' + q[0] + '" y="' + (q[1] + 13) + '" text-anchor="' + anchor + '" font-size="11.5" fill="#3f5a48">' + (s.wk >= 1 ? esc(hm(s.wk)) + '/wk' : '–') + '</text>';
+    });
+    return o + '</svg>';
+  }
+  // What the level card says: level now, vs the benchmark, and whether this week is building it up or letting it fade.
+  function practiceLevelText(logs, opts) {
+    opts = opts || {}; var now = opts.now == null ? Date.now() : +opts.now, p = period(opts.period);
+    var L = practiceLevel(logs, now, TAU, opts.bl), A = practiceLevel(logs, now, TAU_ACUTE, opts.bl), P = p.days ? practiceLevel(logs, now - p.days * DAY, TAU, opts.bl) : null;
+    var pc = Math.round(L.frac * 100), lvl = L.wk >= 1 ? hm(L.wk) + ' a week' : 'nothing yet';
+    var headline = L.wk >= 1 ? 'Practice level: ' + lvl : 'No practice level yet';
+    var lede = L.bench.who.charAt(0).toUpperCase() + L.bench.who.slice(1) + ' average about ' + L.bench.h + ' h a week' + (L.wk >= 1 ? ' – you are at ' + (pc < 1 ? 'under 1' : pc) + '% of that.' : '.');
+    var trend = '';
+    if (L.wk >= 1) { var r = A.wk / L.wk;
+      trend = r >= 1.3 ? 'This week’s pace (' + hm(A.wk) + ' a week) is building it up.' : r <= 0.7 ? 'Quieter week – your level is fading (' + hm(A.wk) + ' a week pace).' : 'This week’s pace is holding it steady.'; }
+    return { level: L, acute: A, prev: P && P.wk >= 1 ? P : null, headline: headline, lede: lede, trend: trend, clubH: CLUB_AVG_H };
+  }
+
   // ---------- v143 strokes lost vs practice time ----------
   // Share of the strokes lost (spokes below the benchmark) next to share of practice time, per spoke.
   // The headline names the biggest gap: a skill that costs a lot of strokes but gets little practice.
@@ -207,7 +267,8 @@
   }
 
   var FOCUS_HINT = { Mechanics: 'takeaway, swing plane, weight transfer…' };
-  var API = { STRONG: STRONG, FOCUS: FOCUS, FOCUS_HINT: FOCUS_HINT, validPractice: validPractice, mergePractice: mergePractice, practiceShape: practiceShape, practiceBuild: practiceBuild, practiceSVG: practiceSVG,
+  var API = { TAU: TAU, TAU_ACUTE: TAU_ACUTE, PRAC_BENCH: PRAC_BENCH, PRAC_SPLIT: PRAC_SPLIT, CLUB_AVG_H: CLUB_AVG_H, practiceBench: practiceBench, practiceLevel: practiceLevel, practiceLevelSVG: practiceLevelSVG, practiceLevelText: practiceLevelText,
+    STRONG: STRONG, FOCUS: FOCUS, FOCUS_HINT: FOCUS_HINT, validPractice: validPractice, mergePractice: mergePractice, practiceShape: practiceShape, practiceBuild: practiceBuild, practiceSVG: practiceSVG,
     practiceVsGame: practiceVsGame, drillFocus: drillFocus, hm: hm,
     SPOKES: SPOKES, PERIODS: PERIODS, MIN_ROUNDS: MIN_ROUNDS, period: period, windows: windows, shape: shape, build: build, radarSVG: radarSVG, radius: radius, fmt: fmt, RING: RING };
   if (typeof module !== 'undefined' && module.exports) module.exports = API; else root.MYGAME = API;

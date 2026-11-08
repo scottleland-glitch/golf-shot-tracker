@@ -2154,3 +2154,9 @@ html body .roundpage.holepage .srow.shead .c-n { height: auto; min-height: 0; bo
 .holetop .livebar { margin: 0; }
 html body .roundpage.holepage .holetop .holeback { min-height: 36px; padding: 4px 16px; border-radius: 999px; font-size: 15px; font-weight: 600; }
 html body .roundpage.holepage .holetop .livebtn { min-height: 36px; }
+
+/* v155: practice level card */
+.prchart .prlog { margin: 6px 4px 0; font-size: 13px; color: #4a5865; text-align: center; }
+.prchart .prhow { margin: 10px 4px 0; font-size: 13px; color: #3f5a48; }
+.prchart .prhow summary { font-weight: 600; cursor: pointer; min-height: 32px; display: flex; align-items: center; }
+.prchart .prhow p { margin: 6px 0 0; line-height: 1.45; }

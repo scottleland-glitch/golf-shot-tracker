@@ -395,12 +395,13 @@
       var back = doc.getCurrentPageInfo().pageNumber; doc.setPage(pg); doc.addImage(im.data, 'JPEG', M + (W - gw) / 2, gy, gw, gh); doc.setPage(back);
       // ---- My Practice ----
       doc.addPage(); var y2 = H.header('My Practice – ' + P.name);
-      y2 = pdfLines(doc, H, PB.headline, M, y2, W, 17, 25, 21) + 2;
-      y2 = pdfLines(doc, H, PB.lede, M, y2, W, 11, 80, 14.5) + 8;
+      var LT = MYGAME.practiceLevelText(logs, { period: P.id, bl: D.baseline }); // v155: practice level vs the benchmark group
+      y2 = pdfLines(doc, H, SG.pdfSafe(LT.headline), M, y2, W, 17, 25, 21) + 2;
+      y2 = pdfLines(doc, H, SG.pdfSafe(LT.lede + (LT.trend ? ' ' + LT.trend : '') + ' ' + P.name + ': ' + (PB.cur.total ? PB.headline + ' logged.' : 'nothing logged.')), M, y2, W, 11, 80, 14.5) + 8;
       var jobs = [];
-      if (PB.cur.total || PB.prev) { var py = y2, pw = 300, ph = pw * 264 / 344, pp = doc.getCurrentPageInfo().pageNumber; y2 += ph + 8;
-        jobs.push(radarPng(MYGAME.practiceSVG(PB.cur, PB.prev, { R: 96 })).then(function (im2) { var b2 = doc.getCurrentPageInfo().pageNumber; doc.setPage(pp); doc.addImage(im2.data, 'JPEG', M + (W - pw) / 2, py, pw, ph); doc.setPage(b2); }));
-        H.font(8.5); H.ink(100); H.T('Blue = ' + P.name.toLowerCase() + (PB.prev ? ' · gray = ' + (P.id === '1y' ? 'the year before' : 'the previous ' + P.short) : '') + ' · the busiest skill reaches the edge', M + W / 2, y2, { align: 'center' }); H.ink(); y2 += 18; }
+      if (LT.level.wk >= 1 || LT.prev) { var py = y2, pw = 300, ph = pw * 264 / 344, pp = doc.getCurrentPageInfo().pageNumber; y2 += ph + 8;
+        jobs.push(radarPng(MYGAME.practiceLevelSVG(LT.level, LT.prev, { R: 96 })).then(function (im2) { var b2 = doc.getCurrentPageInfo().pageNumber; doc.setPage(pp); doc.addImage(im2.data, 'JPEG', M + (W - pw) / 2, py, pw, ph); doc.setPage(b2); }));
+        H.font(8.5); H.ink(100); H.T(SG.pdfSafe('Blue = your practice level now (minutes a week, builds over ~6 weeks, fades without practice)' + (LT.prev ? ' · gray = ' + (P.id === '1y' ? 'a year ago' : P.id === '30d' ? '30 days ago' : '3 months ago') : '') + ' · dashed ring = ' + LT.level.bench.who + ' avg (~' + LT.level.bench.h + ' h a week)'), M + W / 2, y2, { align: 'center', maxWidth: W }); H.ink(); y2 += 26; }
       var V = MYGAME.practiceVsGame(D.cur, PB.cur);
       if (V) {
         H.font(12.5); H.ink(30); H.T('Strokes lost vs practice time', M, y2); y2 += 16;
@@ -1977,9 +1978,17 @@
   }
   function practiceCardHTML(who, D) {
     var logs = practiceOf(who), PB = MYGAME.practiceBuild(logs, { period: D.period.id }), P = PB.period;
-    var o = '<div class="mgchart prchart frost" id="prcard"><span class="tkeye">My Practice</span><h2 id="prhead">' + esc(PB.headline) + '</h2><p id="prlede">' + esc(PB.lede) + '</p>';
-    if (PB.cur.total || PB.prev) o += MYGAME.practiceSVG(PB.cur, PB.prev, { R: 96, aria: 'Practice time by skill, ' + P.name }) +
-      '<div class="mglegend"><span><i class="lpc"></i>' + esc(P.name) + '</span>' + (PB.prev ? '<span><i class="lp"></i>' + (P.id === '1y' ? 'Year before' : 'Previous ' + esc(P.short)) + '</span>' : '') + '</div>';
+    // v155: the chart is your practice LEVEL (builds with each session, fades without practice) against your benchmark group's average
+    var LT = MYGAME.practiceLevelText(logs, { period: P.id, bl: D.baseline }), ago = P.id === '30d' ? '30 days ago' : P.id === '3m' ? '3 months ago' : P.id === '1y' ? 'a year ago' : '';
+    var o = '<div class="mgchart prchart frost" id="prcard"><span class="tkeye">My Practice</span><h2 id="prhead">' + esc(LT.headline) + '</h2><p id="prlede">' + esc(LT.lede) + (LT.trend ? ' ' + esc(LT.trend) : '') + '</p>';
+    o += MYGAME.practiceLevelSVG(LT.level, LT.prev, { R: 96, aria: 'Practice level by skill, against ' + LT.level.bench.who }) +
+      '<div class="mglegend"><span><i class="lpc"></i>Your level now</span>' + (LT.prev && ago ? '<span><i class="lp"></i>' + ago + '</span>' : '') +
+      '<span><i class="lb"></i>' + esc(LT.level.bench.who.charAt(0).toUpperCase() + LT.level.bench.who.slice(1)) + ' avg</span></div>' +
+      '<p class="prlog" id="prlogged">' + esc(P.name) + ': ' + (PB.cur.total ? esc(PB.headline) + ' logged' : 'nothing logged') + '.</p>' +
+      '<details class="prhow" id="prhow"><summary>How the level works</summary><p>Each session adds to your level and it fades when you stop – the same way sports scientists track training load ' +
+      '(a 42-day average). Practise steadily and it is about two-thirds built after 6 weeks and nearly full after 3 months; stop and it halves in about 4 weeks.</p>' +
+      '<p>The dashed ring is what ' + esc(LT.level.bench.who) + ' practise, about ' + LT.level.bench.h + ' h a week, split 40% full swing and 60% short game and putting. ' +
+      'The average club golfer practises about ' + LT.clubH + ' h a week.</p><p>Skill fades much more slowly than the habit: studies find about half of a learned skill’s gains are lost only after 6–12 months without use.</p></details>';
     o += '</div>';
     var V = MYGAME.practiceVsGame(D.cur, PB.cur);
     if (V) o += '<div class="mgchart prvs frost" id="prvs"><span class="tkeye">Strokes lost vs practice time</span><h2 id="prvshead">' + esc(V.headline) + '</h2><p id="prvslede">' + esc(V.lede) + '</p>' +
