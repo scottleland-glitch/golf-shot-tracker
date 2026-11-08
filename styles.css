@@ -2147,3 +2147,4 @@ html body .roundpage.holepage .srow.shead .c-n { height: auto; min-height: 0; bo
 .rpclegend i { display: inline-block; width: 22px; height: 0; margin-right: 6px; vertical-align: middle; }
 .rpclegend .rpcsolid { height: 3px; border-radius: 2px; background: linear-gradient(90deg, #1f73c9 0 33%, #2e9d4f 33% 66%, #e8871e 66%); }
 .rpclegend .rpcdash { border-top: 2px dashed #1f2d38; }
+.dirgrid button:disabled { opacity: .32; background: #f1f3f4; } /* v153: Short / Long off for out of bounds */

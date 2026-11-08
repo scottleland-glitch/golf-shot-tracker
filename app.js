@@ -2688,12 +2688,14 @@
     toast('Shot ' + (res.k + 1) + ' saved');
   }
   function dirSheetHTML(h, k) {
-    var cur = SG.normDir(h.rows[k].dir), prevLie = SG.lieOf(h.rows, k - 1), prevGreen = prevLie === 'green';
+    var cur = SG.normDir(h.rows[k].dir), prevLie = SG.lieOf(h.rows, k - 1), prevGreen = prevLie === 'green', ob = h.rows[k].loc === 'ob'; // v153
     var out = '<div class="sheet-bg" data-act="dirclose"></div><div class="sheet frostsheet" role="dialog" aria-label="Pick direction">' +
       '<h3>Shot ' + k + ' ended…</h3><p class="help">' + (prevGreen ? 'Where the putt finished vs the hole.' :
-        'Missed the green? Where vs the green. On the green? Where vs the hole.') + ' <b>Short = toward you.</b></p><div class="dirgrid">';
+        'Missed the green? Where vs the green. On the green? Where vs the hole.') + ' <b>Short = toward you.</b>' +
+      (ob ? '<br><b id="dirobnote">Out of bounds: pick a side</b> – left or right (or a corner), so it counts in your miss pattern.' : '') + '</p><div class="dirgrid">';
     DIR_GRID.forEach(function (rw) { rw.forEach(function (d) {
-      out += '<button data-act="setdir" data-v="' + d + '" class="' + (d === cur ? 'sel' : '') + (d ? '' : ' none') + '"><span>' + (d ? ARROW[d] : '⊘') + '</span>' + (d ? SG.DIR_NAME[d] : 'None') + '</button>';
+      var off = ob && (d === 'short' || d === 'long');
+      out += '<button data-act="setdir" data-v="' + d + '" class="' + (d === cur ? 'sel' : '') + (d ? '' : ' none') + '"' + (off ? ' disabled aria-disabled="true" title="Out of bounds goes left or right"' : '') + '><span>' + (d ? ARROW[d] : '⊘') + '</span>' + (d ? SG.DIR_NAME[d] : 'None') + '</button>';
     }); });
     return out + '</div><button class="big frostbtn" data-act="dirclose">Cancel</button></div>';
   }
@@ -4741,7 +4743,7 @@
       case 'vcancel': dictStop(); view.voice = null; render(); return;
       case 'dirpick': view.dirk = k; view.menu = null; break;
       case 'dirclose': view.dirk = null; break;
-      case 'setdir': h.rows[view.dirk].dir = v || ''; view.dirk = null; save(); break;
+      case 'setdir': if (h.rows[view.dirk].loc === 'ob' && (v === 'short' || v === 'long')) return; h.rows[view.dirk].dir = v || ''; view.dirk = null; save(); break;
       case 'csvall': exportCSV(rounds, fileName(null)); return;
       case 'csv': exportCSV([r], fileName(r)); return;
       case 'delRound':
@@ -4814,7 +4816,7 @@
     if (f === 'loc') {
       var v = t.value, was = row.loc;
       row.loc = v;
-      if (v === 'ob') { row.dist = ''; row.pen = false; }
+      if (v === 'ob') { row.dist = ''; row.pen = false; if (row.dir === 'short' || row.dir === 'long') row.dir = ''; } // v153: OB needs a side
       if (was === 'ob' && v !== 'ob') row.dist = '';
       if (v === 'holed' || v === 'holedx') delete row.holeOut; // already "in the hole"
       save(); render();
