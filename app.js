@@ -1153,7 +1153,7 @@
     var fl = !!D.flip, A = fl ? sum(D.all) : sum(D.shown), Z = fl ? sum(D.shown) : sum(D.all), cmp = fl || D.cmp, col = ST_PAR[par], id = 'par' + par;
     var who = fl ? 'these rounds' : D.mode === 'sel' ? 'this round' : D.mode === '5' ? 'the last 5 rounds' : 'these rounds';
     var h = '<div class="stcard stgraph stdistcard" id="st-' + id + '"><div class="sth"><span>Par ' + par + ' scores</span><span class="stv" id="' + id + 'val">' +
-      (fl ? (A.n ? 'all <em>' + A.avg.toFixed(2) + '</em>' : '') + (Z.n ? ' · this round <em>' + Z.avg.toFixed(2) + '</em>' : '') :
+      (fl ? (A.n ? (D.allTag || 'all') + ' <em>' + A.avg.toFixed(2) + '</em>' : '') + (Z.n ? ' · this round <em>' + Z.avg.toFixed(2) + '</em>' : '') :
       (A.n ? 'avg <em>' + A.avg.toFixed(2) + '</em>' + (cmp && Z.n ? ' · all <em>' + Z.avg.toFixed(2) + '</em>' : '') : '')) + '</span></div>';
     if (!A.n) return h + '<p class="stfew" id="' + id + 'none">No par ' + par + ' holes in ' + who + ' yet.</p></div>';
     var pc = function (S) { return S.c.map(function (x) { return S.n ? 100 * x / S.n : 0; }); }, pa = pc(A), pz = cmp && Z.n ? pc(Z) : null;
@@ -1173,7 +1173,7 @@
     P.forEach(function (q, i) { s += '<circle class="stdot" data-b="' + i + '" cx="' + stF(q[0]) + '" cy="' + stF(q[1]) + '" r="3" fill="' + col + '"/><text class="stval" data-b="' + i + '" x="' + stF(q[0]) + '" y="' + stF(Math.max(9, q[1] - 9)) + '" text-anchor="middle">' + Math.round(pa[i]) + '%</text>'; });
     if (pz && fl) s += zDraw; // round PDF: this round's dashed line on top of the all-rounds colour
     s += '</svg>';
-    return h + s + '<p class="stn" id="' + id + 'n">' + (fl ? 'all rounds: ' + A.n + ' hole' + (A.n === 1 ? '' : 's') + ' (colour) · this round: ' + Z.n + ' (dashed)' : 'n = ' + A.n + ' hole' + (A.n === 1 ? '' : 's') + (cmp ? ' · all rounds: ' + Z.n + ' holes (grey dashed)' : '')) + '</p>' +
+    return h + s + '<p class="stn" id="' + id + 'n">' + (fl ? (D.allName || 'all rounds') + ': ' + A.n + ' hole' + (A.n === 1 ? '' : 's') + ' (colour) · this round: ' + Z.n + ' (dashed)' : 'n = ' + A.n + ' hole' + (A.n === 1 ? '' : 's') + (cmp ? ' · all rounds: ' + Z.n + ' holes (grey dashed)' : '')) + '</p>' +
       '<p class="stnote">Share of finished par-' + par + ' holes at each score (number of strokes underneath). Eagle includes anything better (hole-in-one, albatross); Triple includes anything worse.</p></div>';
   }
   // v125: drive distance box chart on the Stats page (the Club performance box plot): the rounds shown (blue) and, with Compare, all rounds (grey).
@@ -3012,6 +3012,19 @@
       stx('pen', 'Penalty strokes', S.penalties, stat('Penalty strokes', S.penalties) + note('Penalty strokes added this round (OB, water, unplayable…).')) +
       stx('teelr', 'Tee misses L / R', S.teeLeft + ' / ' + S.teeRight, stat('Tee misses L / R', S.teeLeft + ' / ' + S.teeRight) + note('Par-4 and par-5 tee shots that missed the fairway left / right.')) + '</div>'; // v106: Missed greens L / R and short / long rows removed (data still kept: S.apprLeft/Right/Short/Over)
   }
+  // v147: par 3 / 4 / 5 scoring curves on Round stats – the player's other finished rounds in colour, this round dashed
+  function roundParCurvesHTML(r, bl, S) {
+    if (!S.holesDone) return '';
+    var who = r.player || '', cur = localStorage.getItem(CUR);
+    var others = savedRounds().filter(function (x) { return x.id !== r.id && x.id !== cur && (x.player || '') === who; }).filter(function (x) {
+      var T = SG.summarize(x); return x.holes.length > 0 && T.holesDone === x.holes.length; });
+    var me = statsRound(r, bl || ''), n = others.length, D = n
+      ? { mode: 'all', shown: [me], all: others.map(function (x) { return statsRound(x, bl || ''); }), flip: true, allTag: 'avg', allName: 'your average' }
+      : { mode: 'sel', shown: [me], all: [me] };
+    var leg = n ? '<p class="rpclegend" id="rpclegend"><span><i class="rpcsolid"></i>Your average · ' + n + ' other round' + (n === 1 ? '' : 's') + '</span><span><i class="rpcdash"></i>This round</span></p>'
+      : '<p class="help muted" id="rpclegend">Finish more rounds to see your average here; this round is shown on its own for now.</p>';
+    return '<div id="rpcurves" class="statspage rpcurves"><h3>Scoring by par</h3>' + leg + [3, 4, 5].map(function (par) { return stDist(par, D); }).join('') + '</div>';
+  }
   function summaryHTML() {
     var r = round(), bl = blOf(r), S = SG.summarize(r, bl);
     var out = '<div class="topbar frost">' + (view.from === 'history' ? '<button class="txt frostbtn" data-act="history">‹ Rounds</button>' : '<button class="txt frostbtn" data-act="backHole">‹ Round</button>') + '<div class="title"><b>Round stats</b><span>' +
@@ -3045,7 +3058,7 @@
       'Short game = off the green from 30 yd and in. Ranges include the lower number (60–100 = 60 to under 100 yd); 30–60 = over 30 up to under 60 yd. ' +
       'Avg to pin after = how far from the hole the ball finished: feet on the green, yards × 3 off it, 0 if holed' +
       (pex ? '; <b>' + pex + '</b> approach shot' + (pex === 1 ? '' : 's') + ' with a penalty or OB left out of that average' : '; shots with a penalty or OB are left out of it') + '.</p>';
-    var sgPart = out; out = main + '<h2>Stats</h2>' + statTilesHTML(S);
+    var sgPart = out; out = main + '<h2>Stats</h2>' + statTilesHTML(S) + roundParCurvesHTML(r, bl, S);
     out += (S.holesDone ? '<button class="primary big storybtn" data-act="story" id="storybtn" style="margin-top:16px">📸 Share to Instagram / TikTok<small>a one-page story picture of this round</small></button>' + storyHTML() : '');
     out += '<button class="primary big" data-act="pdf" style="margin-top:16px">📄 Make PDF report</button>' + pdfHTML();
     out += '<button class="big" data-act="csv">Export this round (CSV)</button>';
