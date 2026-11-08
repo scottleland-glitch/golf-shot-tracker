@@ -127,6 +127,7 @@ v150: the version line in Settings now tells the truth. It used to come from con
 v151: Off the tee picture on the Round takeaway now adds up on its own: the fairway count shows as 7/14 (like greens 9/18), and a red line underneath counts any miss with no left/right ("1 penalty · no side").
 v152: an OB / penalty tee shot marked only short or long is named that way ("1 OB · no left/right", "hole 5 (OB, went short)") instead of "no direction entered".
 v153: Out of bounds needs a side. On an OB row the direction picker greys out Short and Long (left, right and the four corners stay) with a note, and changing a row to OB clears a plain short/long. Penalty areas still allow all eight (water short is common).
+v154: When you review a hole (from the Round stats scorecard, or any round that is not the one in progress) a "‹ Round stats" button sits beside Share live and takes you back to Round stats where you left it.
 learning, light green = ready (the tick mark), dark green = strong (3x the shots ready needs). Learning points on the
 chart are gold rings with a gold "learning" label.
 Headline: the biggest change vs the period before, else what costs the most. Tiles: average 18-hole score, strokes

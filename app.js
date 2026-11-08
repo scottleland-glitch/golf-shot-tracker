@@ -2549,7 +2549,9 @@
       '<div class="title"><b>' + (r.course ? esc(r.course) : 'Round') + '</b><span>' +
       (S.holesDone ? 'Total ' + S.strokes + ' (' + toPar(S.toPar) + ') thru ' + S.holesDone : 'No holes finished yet') + '<br>SG vs ' + esc(blName(blOf(r))) + '</span></div>' +
       '<button class="frostbtn" data-act="next" aria-label="Next hole"' + (view.hole === 17 ? ' disabled' : '') + '>›</button></div>';
-    out += liveBarHTML(r);
+    // v154: reviewing a hole (opened from Round stats, or a round that is not the one in progress) → an obvious way back
+    var reviewing = !!view.holeFrom || (r.id !== localStorage.getItem(CUR) && !view.preview);
+    out += reviewing ? '<div class="holetop">' + '<button class="frostbtn holeback" data-act="holeback" id="holeback">‹ Round stats</button>' + liveBarHTML(r) + '</div>' : liveBarHTML(r);
 
     out += '<div class="holecard frostcard' + (fin ? ' fin' : '') + '">' + holeHeadHTML(r, h, fin);
     var pin = SG.normPin(h.pin);
@@ -4599,8 +4601,8 @@
       case 'livesend': if (live && r) liveSend(r); return;
       case 'livecopy': if (live && r) liveCopy(live.info(r.id).link); return;
       case 'livestop': if (!live || !r || !confirm('Stop sharing? The link will stop showing this round.')) return; live.stop(r.id); view.liveCard = false; toast('Sharing stopped'); render(); return;
-      case 'new': view.from = null; view.hmenu = null; view.newBl = null; newRound(((document.getElementById('course') || {}).value || '').trim()); return;
-      case 'resume': view.from = null; view.roundId = localStorage.getItem(CUR); goHole(firstOpenHole(round()), true); return;
+      case 'new': view.from = null; view.holeFrom = null; view.hmenu = null; view.newBl = null; newRound(((document.getElementById('course') || {}).value || '').trim()); return;
+      case 'resume': view.from = null; view.holeFrom = null; view.roundId = localStorage.getItem(CUR); goHole(firstOpenHole(round()), true); return;
       case 'open': view.pdf = null; view.addr = null; view.send = null; view.mv = null; view.roundId = b.getAttribute('data-id'); view.from = view.screen === 'history' ? 'history' : null; view.screen = 'summary'; view.map = null; render(); window.scrollTo(0, 0); return;
       case 'home': view.screen = 'home'; view.from = null; view.hmenu = null; view.mgBack = null; break;
       case 'archive': view.screen = 'archive'; view.hmenu = null; render(); window.scrollTo(0, 0); return;
@@ -4760,7 +4762,9 @@
         }
         view.screen = 'summary'; if (gdOn && gdState.pending) gdSoon(300); render(); window.scrollTo(0, 0); return;
       case 'backHole': goHole(view.hole); return;
-      case 'goHole': goHole(+b.getAttribute('data-i')); return;
+      case 'holeback': { var hf = view.holeFrom; view.holeFrom = null; view.screen = 'summary'; render(); // v154: back to Round stats, where you left it
+        window.scrollTo(0, hf && hf.y ? hf.y : 0); return; }
+      case 'goHole': view.holeFrom = view.screen === 'summary' ? { y: window.scrollY } : null; goHole(+b.getAttribute('data-i')); return; // v154: remember the way back
       case 'prev': goHole(view.hole - 1); return;
       case 'next': goHole(view.hole + 1, true); return;
       case 'par': h.par = +v; view.parEdit = null; save(); break;

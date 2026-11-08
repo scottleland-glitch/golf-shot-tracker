@@ -2148,3 +2148,9 @@ html body .roundpage.holepage .srow.shead .c-n { height: auto; min-height: 0; bo
 .rpclegend .rpcsolid { height: 3px; border-radius: 2px; background: linear-gradient(90deg, #1f73c9 0 33%, #2e9d4f 33% 66%, #e8871e 66%); }
 .rpclegend .rpcdash { border-top: 2px dashed #1f2d38; }
 .dirgrid button:disabled { opacity: .32; background: #f1f3f4; } /* v153: Short / Long off for out of bounds */
+
+/* v154: ‹ Round stats on a reviewed hole, beside Share live */
+.holetop { display: flex; align-items: center; justify-content: center; gap: 10px; flex-wrap: wrap; margin: -2px 0 8px; }
+.holetop .livebar { margin: 0; }
+html body .roundpage.holepage .holetop .holeback { min-height: 36px; padding: 4px 16px; border-radius: 999px; font-size: 15px; font-weight: 600; }
+html body .roundpage.holepage .holetop .livebtn { min-height: 36px; }
