@@ -94,6 +94,20 @@ tiles (Birdies made · Holed inside N' = birdies if every putt inside the slider
 thin style as the other maps – red balls = birdies made, blue = inside the slider (would be birdies), white = outside, blue dashed ring = slider.
 Putts made table with thin solid blue bars.
 
+## Round takeaway (v140)
+Round stats opens with a plain-words takeaway under the score (`insights.js`, fixed rules, no AI – every claim comes from real shots):
+- **How well Strokewise knows your game**: four bars (TEE, APP, ARG, PUTT). An area is "ready" once the golfer's earlier
+  rounds (last 20, played before this one) hold 50 drives / 60 approach shots / 40 chips / 100 putts. Tap for the counts.
+- **Headline**: the area that cost the most. A ready area is compared with the golfer's own normal (their strokes gained
+  per hole × holes played); an area still filling is compared with the round's baseline – and the text says which.
+- **Work on next**: the biggest cause inside that area, only when there are enough shots and a clear lean (70%+):
+  putting speed (misses from 15 ft+ short vs long), lag putting, short putt start line (4–15 ft left vs right), chip
+  distance (left vs what a baseline player leaves from the same spots), wedges 40–110 yd, approaches over 110 yd, driver
+  misses and tee penalties. With a one-line drill.
+- **Area tiles** with strokes gained ("usually …" once ready), a small picture and one line; **Went well** (up to 3).
+Needs 6 finished holes. Direction checks only show when misses were tagged. Tests: `node --test tests/insights.test.js`,
+`node tests/takeaway-focused.js`. Planned next: the full ring on the profile that becomes the golfer's "game shape".
+
 ## Story picture (v131)
 Round stats → "📸 Share to Instagram / TikTok" draws a 1080 x 1920 picture of the round on the phone (`story.js`):
 course, date, tees, player, score and to par; strokes gained off the tee, approach, around the green and putting (v133: all four, vs the round's

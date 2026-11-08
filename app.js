@@ -2679,6 +2679,57 @@
       '<tr><td class="big" id="rs-score">' + (n ? tScore : '–') + (n && !all ? '<small id="rs-thru">thru ' + n + '</small>' : '') + '</td><td class="big" id="rs-topar">' + (n ? toPar(tScore - parDone) : '–') +
       '</td><td id="rs-yds">' + (tYds || '–') + '</td><td id="rs-putts">' + (n ? tPutts : '–') + '</td></tr></table>';
   }
+  // ---------- v140 Round takeaway (insights.js) ----------
+  // The golfer's other finished rounds played before this one, newest first: what was known about their game then.
+  function takeawayHistory(r) {
+    var who = r.player || playerName(), when = String(r.date || '');
+    return savedRounds().filter(function (x) { return x.id !== r.id && samePlayer(x.player || playerName(), who) && String(x.date || '') <= when; })
+      .sort(function (a, b) { return String(b.date || '').localeCompare(String(a.date || '')); });
+  }
+  function tkPic(p) {
+    if (!p) return '';
+    var svg = function (body, label) { return '<svg class="tkpic" viewBox="0 0 140 70" role="img" aria-label="' + esc(label) + '">' + body + '</svg>'; };
+    var dots = function (n, cx, cy, col) { var o = ''; for (var i = 0; i < Math.min(n, 8); i++) o += '<circle cx="' + (cx + (i % 4 - 1.5) * 9) + '" cy="' + (cy + Math.floor(i / 4) * 9) + '" r="3.6" fill="' + col + '"/>'; return o; };
+    if (p.kind === 'tee') return svg('<rect x="48" y="6" width="44" height="52" rx="20" fill="rgba(31,157,85,.16)"/>' +
+      '<text x="70" y="39" class="tkn" fill="#1f7a44">' + p.fw + '</text><text x="22" y="39" class="tkn" fill="' + (p.left > p.right ? '#c0442f' : '#3f5a48') + '">' + p.left + '</text>' +
+      '<text x="118" y="39" class="tkn" fill="' + (p.right > p.left ? '#c0442f' : '#3f5a48') + '">' + p.right + '</text><text x="70" y="68" class="tkl">left · fairway · right</text>',
+      'Tee shots: ' + p.left + ' left, ' + p.fw + ' fairway, ' + p.right + ' right');
+    if (p.kind === 'approach') return svg('<ellipse cx="70" cy="30" rx="26" ry="15" fill="rgba(31,157,85,.16)"/><text x="70" y="35" class="tkn tks" fill="#1f7a44">' + p.gir + '/' + p.of + '</text>' +
+      '<text x="70" y="9" class="tkm">' + p.long + ' long</text><text x="70" y="57" class="tkm">' + p.short + ' short</text><text x="21" y="34" class="tkm">' + p.left + ' left</text><text x="119" y="34" class="tkm">' + p.right + ' right</text>' +
+      '<text x="70" y="69" class="tkl">greens hit · misses</text>', 'Greens ' + p.gir + ' of ' + p.of + '; misses ' + p.short + ' short, ' + p.long + ' long, ' + p.left + ' left, ' + p.right + ' right');
+    if (p.kind === 'bars') { var mx = Math.max(p.yours, p.par, 1), w = function (v) { return Math.max(4, Math.round(84 * v / mx)); };
+      return svg('<text x="0" y="20" class="tkm tkla">You</text><rect x="38" y="11" width="' + w(p.yours) + '" height="12" rx="6" fill="' + (p.yours > p.par + 3 ? '#e2705c' : '#2f9a5c') + '"/>' +
+        '<text x="0" y="46" class="tkm tkla">Avg</text><rect x="38" y="37" width="' + w(p.par) + '" height="12" rx="6" fill="#8fbf9f"/>' +
+        '<text x="' + (42 + w(p.yours)) + '" y="21" class="tkm tkla">' + Math.round(p.yours) + ' ft</text><text x="' + (42 + w(p.par)) + '" y="47" class="tkm tkla">' + Math.round(p.par) + ' ft</text>' +
+        '<text x="70" y="68" class="tkl">left from the hole</text>', 'Chips left ' + Math.round(p.yours) + ' ft on average, ' + p.label + ' ' + Math.round(p.par) + ' ft'); }
+    if (p.kind === 'putts') return svg('<circle cx="70" cy="26" r="4" fill="#17301f"/><line x1="70" y1="26" x2="70" y2="2" stroke="rgba(23,48,31,.25)" stroke-dasharray="3 3"/>' +
+      dots(p.long, 70, 10, '#c8962e') + dots(p.short, 70, 40, '#e2705c') + '<text x="70" y="68" class="tkl">' + p.short + ' short · ' + p.long + ' long</text>', 'Missed putts: ' + p.short + ' short, ' + p.long + ' long');
+    if (p.kind === 'counts') return svg('<text x="40" y="36" class="tkn" fill="#1f7a44">' + p.one + '</text><text x="100" y="36" class="tkn" fill="' + (p.three ? '#c0442f' : '#3f5a48') + '">' + p.three + '</text>' +
+      '<text x="40" y="56" class="tkl">1-putts</text><text x="100" y="56" class="tkl">3-putts</text>', p.one + ' one-putts, ' + p.three + ' three-putts');
+    return '';
+  }
+  function takeawayHTML(r) {
+    var T; try { T = INSIGHTS.build(r, takeawayHistory(r), SG, { baselineName: SG.baseline(blOf(r)).name }); } catch (e) { return ''; }
+    var P = T.progress, open = !!view.tkKnow;
+    var bars = INSIGHTS.AREAS.map(function (a) { var p = P[a.k];
+      return '<span class="tkb' + (p.ready ? ' ready' : '') + '" data-area="' + a.k + '"><em>' + a.short + '</em><i><u style="width:' + Math.round(p.frac * 100) + '%"></u></i></span>'; }).join('');
+    var rows = open ? '<div class="tkrows" id="tkrows">' + INSIGHTS.AREAS.map(function (a) { var p = P[a.k];
+      return '<div><span>' + a.name + '</span><b' + (p.ready ? ' class="ok"' : '') + '>' + (p.ready ? 'Ready ✓' : p.n + ' of ' + p.need + ' ' + p.unit + (p.roundsLeft ? ' · about ' + p.roundsLeft + ' more round' + (p.roundsLeft === 1 ? '' : 's') : '')) + '</b></div>'; }).join('') +
+      '<p>Suggestions compare each area with <b>your</b> normal once it has enough shots from your rounds (last ' + INSIGHTS.NORM_ROUNDS + '). Until then they compare with the ' + esc(T.baselineName || SG.baseline(blOf(r)).name) + ' average.</p></div>' : '';
+    var out = '<section class="takeaway" id="takeaway"><button class="tkstrip frost" id="tkstrip" data-act="tkknow" aria-expanded="' + open + '">' +
+      '<span class="tkst-h"><span>How well Strokewise knows your game</span><b id="tkready">' + P.readyCount + '/4 ready</b></span><span class="tkbars">' + bars + '</span></button>' + rows;
+    if (!T.ok) return out + '<p class="tknote frost">' + esc(T.reason) + '</p></section>';
+    out += '<div class="tkhead frost"><span class="tkeye">Round takeaway</span><h3 id="tkheadline">' + esc(T.headline) + '</h3>' + (T.lede ? '<p id="tklede">' + esc(T.lede) + '</p>' : '') + '</div>';
+    var F = T.focus;
+    if (F) out += '<div class="tkfocus" id="tkfocus"><span class="tktag">Work on next</span><h3>' + esc(F.title) + '</h3><p>' + esc(F.text) + '</p>' +
+      '<p class="tkbasis' + (F.basis.mine ? ' mine' : '') + '" id="tkbasis">' + (F.basis.mine ? '✓ ' : '') + esc(F.basis.text) + '</p>' +
+      '<p class="tkdrill"><b>Try:</b> ' + esc(F.drill) + '</p></div>';
+    out += '<div class="tktiles" id="tktiles">' + T.tiles.map(function (t) {
+      return '<div class="tktile frost" data-area="' + t.k + '"><span class="tkth">' + esc(t.name) + '</span><span class="tksg ' + sgCls(t.sg) + '">' + fmtSG(t.sg) + ' SG</span>' +
+        (t.norm != null ? '<small class="tkusual">usually ' + fmtSG(t.norm) + '</small>' : '') + tkPic(t.pic) + '<p>' + esc(t.text) + '</p></div>'; }).join('') + '</div>';
+    if (T.good.length) out += '<p class="tkgood frost" id="tkgood"><b>Went well:</b> ' + esc(T.good.join(', ')) + '.</p>';
+    return out + '</section>';
+  }
   // v96 Quick view: Fairways / GIR / Putts with the strokes gained of their category (Off the tee / Approach / Putting)
   function quickViewHTML(S) {
     var pct = function (a, b) { return b ? Math.round(a / b * 100) + '%' : '–'; };
@@ -2720,7 +2771,7 @@
     var out = '<div class="topbar frost">' + (view.from === 'history' ? '<button class="txt frostbtn" data-act="history">‹ Rounds</button>' : '<button class="txt frostbtn" data-act="backHole">‹ Round</button>') + '<div class="title"><b>Round stats</b><span>' +
       new Date(r.date).toLocaleDateString() + (r.course ? ' · ' + esc(r.course) : '') + '</span></div><button class="txt frostbtn" data-act="home">Home</button></div>';
     if (view.stxRound !== r.id) { view.stx = {}; view.stxRound = r.id; } // tiles start collapsed for each round
-    out += rsTopHTML(r, S) + quickViewHTML(S);
+    out += rsTopHTML(r, S) + takeawayHTML(r) + quickViewHTML(S);
     out += scorecardHTML(r, S) + '<button class="big rpbtn" data-act="replay" data-v="0" id="sumreplay">▶ Hole replay (hole by hole)</button>' +
       (S.holesDone ? '<button class="big rpbtn bzbtn" data-act="bzopen" data-v="round" id="sumbz">🎯 Scoring chances</button>' : '');
     var B = SG.baseline(bl), main = out; out = '';
@@ -4357,6 +4408,7 @@
       case 'pinclear': h.pin = ''; save(); render(); return;
       case 'proxb': { var mv0 = document.getElementById('mapview'), st0 = mv0 ? mv0.scrollTop : 0; view.proxB = v; render(); var mv1 = document.getElementById('mapview'); if (mv1) mv1.scrollTop = st0; return; }
       case 'proxlie': { var mvl = document.getElementById('mapview'), stl = mvl ? mvl.scrollTop : 0; view.proxLie = v; render(); var mvl2 = document.getElementById('mapview'); if (mvl2) mvl2.scrollTop = stl; return; }
+      case 'tkknow': view.tkKnow = !view.tkKnow; render(); return;
       case 'stx': view.stx = view.stx || {}; view.stx[b.getAttribute('data-v')] = !view.stx[b.getAttribute('data-v')]; render(); return;
       case 'sendopen': sendOpen(); return;
       case 'mvstart': case 'mvall': case 'mvone': case 'mvtoggle': case 'mvcancel': case 'mvsheet': case 'mvclose': case 'mvcustom': case 'mvpick': case 'mvnew': case 'mvyes': mvAct(act, b); return;
