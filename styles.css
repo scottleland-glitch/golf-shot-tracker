@@ -2086,7 +2086,7 @@ html body .roundpage.holepage .srow.shead .c-n { height: auto; min-height: 0; bo
 
 /* v142 practice: log sheet, practice chart, strokes lost vs practice time, recent list */
 .mygamepage .prbtn { margin-top: 12px; }
-.prsheet { margin-top: 12px; padding: 14px; border-radius: 22px; }
+.prsheet { margin-top: 12px; padding: 14px; border-radius: 22px; scroll-margin-top: calc(env(safe-area-inset-top) + 96px); } /* opens below the sticky top bar */
 .prhead { display: flex; justify-content: space-between; align-items: baseline; }
 .prhead b { font-size: 19px; } .prhead span { font-size: 13px; color: var(--frost-ink-soft); }
 .prdate { display: flex; align-items: center; gap: 10px; margin: 8px 0 6px; font-size: 14px; color: var(--frost-ink-soft); }
