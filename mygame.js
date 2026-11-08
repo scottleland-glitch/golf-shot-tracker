@@ -115,6 +115,95 @@
     return o + '</svg>';
   }
 
-  var API = { SPOKES: SPOKES, PERIODS: PERIODS, MIN_ROUNDS: MIN_ROUNDS, period: period, windows: windows, shape: shape, build: build, radarSVG: radarSVG, radius: radius, fmt: fmt, RING: RING };
+  // ---------- v142 practice: minutes per skill, logged by focus ----------
+  // Each log entry: { id, date: 'YYYY-MM-DDT12:00:00' (local), player, spoke, focus, min }.
+  var FOCUS = {
+    drive: ['Driver', 'Fairway woods & hybrids'],
+    irons: ['Iron play', 'Distance control', 'Start line'],
+    wedges: ['Wedge distances', 'Partial swings'],
+    chip: ['Green-side chipping', 'Pitching', 'Bunker shots'],
+    lag: ['Lag putting', 'Putting speed control'],
+    short: ['Short putts', 'Start line / gate drill']
+  };
+  var SPOKE_KEYS = SPOKES.map(function (s) { return s.k; });
+  function validPractice(list) {
+    return (Array.isArray(list) ? list : []).filter(function (e) {
+      return e && typeof e.id === 'string' && e.id && SPOKE_KEYS.indexOf(e.spoke) >= 0 && typeof e.date === 'string' && !isNaN(Date.parse(e.date)) && Number(e.min) > 0 && Number(e.min) <= 600; })
+      .map(function (e) { return { id: e.id, date: e.date, player: String(e.player || ''), spoke: e.spoke, focus: String(e.focus || '').slice(0, 60), min: Math.round(Number(e.min)) }; });
+  }
+  // Union by id: entries already on the phone stay as they are.
+  function mergePractice(existing, incoming) {
+    var have = {}, out = validPractice(existing); out.forEach(function (e) { have[e.id] = 1; });
+    var added = 0; validPractice(incoming).forEach(function (e) { if (!have[e.id]) { have[e.id] = 1; out.push(e); added++; } });
+    return { practice: out, added: added };
+  }
+  // Minutes per spoke (and per focus) in a [from, to) window; sessions = distinct days.
+  function practiceShape(logs, w) {
+    var by = {}, foc = {}, days = {}, total = 0;
+    SPOKES.forEach(function (s) { by[s.k] = 0; foc[s.k] = {}; });
+    validPractice(logs).forEach(function (e) { var t = Date.parse(e.date); if (!(t >= w[0] && t < w[1])) return;
+      by[e.spoke] += e.min; total += e.min; days[e.date.slice(0, 10)] = 1; var f = e.focus || 'Other'; foc[e.spoke][f] = (foc[e.spoke][f] || 0) + e.min; });
+    return { total: total, sessions: Object.keys(days).length,
+      spokes: SPOKES.map(function (s) { return { k: s.k, name: s.name, min: by[s.k], share: total ? by[s.k] / total : 0, focus: foc[s.k] }; }) };
+  }
+  function hm(min) { min = Math.round(min); var h = Math.floor(min / 60), m = min % 60; return h ? h + ' h' + (m ? ' ' + m + ' min' : '') : m + ' min'; }
+  function practiceBuild(logs, opts) {
+    opts = opts || {};
+    var p = period(opts.period), W = windows(p.id, opts.now), cur = practiceShape(logs, W.cur), prev = W.prev ? practiceShape(logs, W.prev) : null;
+    if (prev && !prev.total) prev = null;
+    var top = cur.spokes.slice().sort(function (a, b) { return b.min - a.min; })[0];
+    return { period: p, cur: cur, prev: prev,
+      headline: cur.total ? hm(cur.total) + ' in ' + cur.sessions + ' session' + (cur.sessions === 1 ? '' : 's') : 'No practice logged yet',
+      lede: cur.total ? 'Most time: ' + top.name.toLowerCase() + ' (' + Math.round(top.share * 100) + '%).' + (prev ? ' ' + hm(prev.total) + ' in the ' + (p.id === '1y' ? 'year before' : 'previous ' + p.short) + '.' : '')
+        : 'Log time on each skill after you practice – it fills this chart.' };
+  }
+  // Practice chart: spoke length = share of practice time (the busiest spoke reaches the edge).
+  function practiceSVG(cur, prev, opts) {
+    opts = opts || {};
+    var R = opts.R || 96, pad = 76, w = 2 * (R + pad), h = 2 * R + 72;
+    var max = Math.max.apply(null, cur.spokes.map(function (s) { return s.min; }).concat(prev ? prev.spokes.map(function (s) { return s.min; }) : [], [1]));
+    var o = '<svg class="radar" viewBox="' + (-w / 2) + ' ' + (-R - 36) + ' ' + w + ' ' + h + '" role="img" aria-label="' + esc(opts.aria || 'Practice time by skill') + '">';
+    var poly = function (rs) { return rs.map(function (r, i) { return pt(i, r).join(','); }).join(' '); };
+    for (var k = 1; k <= 4; k++) o += '<polygon points="' + poly(SPOKES.map(function () { return R * k / 4; })) + '" fill="none" stroke="rgba(23,48,31,.15)"/>';
+    SPOKES.forEach(function (s, i) { var e = pt(i, R); o += '<line x1="0" y1="0" x2="' + e[0] + '" y2="' + e[1] + '" stroke="rgba(23,48,31,.15)"/>'; });
+    var rs = function (S) { return S.spokes.map(function (s) { return Math.max(R * 0.04, R * s.min / max); }); };
+    if (prev) o += '<polygon class="pprev" points="' + poly(rs(prev)) + '" fill="rgba(138,154,143,.22)" stroke="#8a9a8f" stroke-width="2"/>';
+    if (cur.total) { var cr = rs(cur); o += '<polygon class="pcur" points="' + poly(cr) + '" fill="rgba(47,111,201,.25)" stroke="#2f6fc9" stroke-width="2.5"/>';
+      cur.spokes.forEach(function (s, i) { if (!s.min) return; var q = pt(i, cr[i]); o += '<circle cx="' + q[0] + '" cy="' + q[1] + '" r="4" fill="#2f6fc9"/>'; }); }
+    cur.spokes.forEach(function (s, i) {
+      var q = pt(i, R + 20), anchor = Math.abs(q[0]) < 10 ? 'middle' : q[0] > 0 ? 'start' : 'end';
+      o += '<text x="' + q[0] + '" y="' + (q[1] - 2) + '" text-anchor="' + anchor + '" font-size="12.5" font-weight="600" fill="#17301f">' + esc(s.name) + '</text>';
+      o += '<text x="' + q[0] + '" y="' + (q[1] + 13) + '" text-anchor="' + anchor + '" font-size="11.5" fill="#3f5a48">' + (s.min ? esc(hm(s.min)) : '–') + '</text>';
+    });
+    return o + '</svg>';
+  }
+
+  // ---------- v143 strokes lost vs practice time ----------
+  // Share of the strokes lost (spokes below the benchmark) next to share of practice time, per spoke.
+  // The headline names the biggest gap: a skill that costs a lot of strokes but gets little practice.
+  function practiceVsGame(game, prac) {
+    var lost = game.spokes.map(function (s) { return s.value != null && s.value < 0 ? -s.value : 0; }), L = lost.reduce(function (t, x) { return t + x; }, 0);
+    if (!L || !prac.total) return null;
+    var rows = SPOKES.map(function (sp, i) { return { k: sp.k, name: sp.name, lostShare: lost[i] / L, timeShare: prac.spokes[i].share, lost: lost[i], min: prac.spokes[i].min }; });
+    var gap = rows.slice().sort(function (a, b) { return (b.lostShare - b.timeShare) - (a.lostShare - a.timeShare); })[0];
+    var pc = function (v) { return Math.round(v * 100) + '%'; }, headline, lede;
+    if (gap.lostShare - gap.timeShare >= 0.15) { headline = 'Practice more ' + gap.name.toLowerCase();
+      lede = gap.name + ' is ' + pc(gap.lostShare) + ' of your lost strokes but ' + pc(gap.timeShare) + ' of your practice.'; }
+    else { headline = 'Your practice matches your game'; lede = 'Time on each skill is close to where your strokes go.'; }
+    return { rows: rows, gap: gap, headline: headline, lede: lede };
+  }
+  // The practice a round takeaway's "Work on next" points to: { spoke, focus }.
+  var DRILL_FOCUS = { puttspeed: ['lag', 'Putting speed control'], lag: ['lag', 'Lag putting'], puttline: ['short', 'Start line / gate drill'],
+    wedges: ['wedges', 'Wedge distances'], irondepth: ['irons', 'Distance control'], ironline: ['irons', 'Start line'], teepen: ['drive', 'Driver'], teeside: ['drive', 'Driver'] };
+  var AREA_FOCUS = { tee: ['drive', 'Driver'], approach: ['irons', 'Iron play'], short: ['chip', 'Green-side chipping'], putting: ['lag', 'Lag putting'] };
+  function drillFocus(f) {
+    if (!f) return null;
+    var x = f.id === 'chips' ? ['chip', /bunker/i.test(f.title) ? 'Bunker shots' : 'Green-side chipping'] : DRILL_FOCUS[f.id] || AREA_FOCUS[f.area];
+    return x ? { spoke: x[0], focus: x[1] } : null;
+  }
+
+  var API = { FOCUS: FOCUS, validPractice: validPractice, mergePractice: mergePractice, practiceShape: practiceShape, practiceBuild: practiceBuild, practiceSVG: practiceSVG,
+    practiceVsGame: practiceVsGame, drillFocus: drillFocus, hm: hm,
+    SPOKES: SPOKES, PERIODS: PERIODS, MIN_ROUNDS: MIN_ROUNDS, period: period, windows: windows, shape: shape, build: build, radarSVG: radarSVG, radius: radius, fmt: fmt, RING: RING };
   if (typeof module !== 'undefined' && module.exports) module.exports = API; else root.MYGAME = API;
 })(this);

@@ -94,6 +94,16 @@ tiles (Birdies made · Holed inside N' = birdies if every putt inside the slider
 thin style as the other maps – red balls = birdies made, blue = inside the slider (would be birdies), white = outside, blue dashed ring = slider.
 Putts made table with thin solid blue bars.
 
+## Practice (v142)
++ menu › **Log practice** (or ＋ Log practice on My Game): pick a day, open a skill and add minutes in 5-minute steps per
+focus (e.g. Chipping › Green-side chipping 30, Lag putts › Lag putting 20 and Putting speed control 10), then Save.
+Entries `{ id, date, player, spoke, focus, min }` live in `golfsg.practice.v1` and ride along in the backup file and in
+each player's Google Drive backup (restore adds new entries only). My Game shows **My Practice** (time per skill as a
+chart, same time frames, the period before in gray), **Strokes lost vs practice time** (share of strokes lost next to
+share of practice time per skill; the biggest gap is named, e.g. "Practice more irons 100+"), and recent entries (× to
+remove). A round's **Work on next** has **Log this drill**, which opens the log with that focus at 15 min.
+Tests: `node --test tests/mygame.test.js`, `node tests/practice-focused.js`.
+
 ## My Game (v141)
 A "My Game" card on Home (once the phone's player has a finished round) opens a page with the shape of their game
 (`mygame.js`), like Hevy's muscle chart: six spokes of strokes gained per 18 holes – Driving (par 4/5 tee shots),

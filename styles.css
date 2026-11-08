@@ -2083,3 +2083,39 @@ html body .roundpage.holepage .srow.shead .c-n { height: auto; min-height: 0; bo
 .mgtile em { font-style: normal; font-size: 13px; font-weight: 600; color: var(--frost-ink-soft); }
 .mgtile em.up { color: #1f7a44; } .mgtile em.down { color: #c0442f; }
 .mygamepage #mginfo { margin-top: 12px; }
+
+/* v142 practice: log sheet, practice chart, strokes lost vs practice time, recent list */
+.mygamepage .prbtn { margin-top: 12px; }
+.prsheet { margin-top: 12px; padding: 14px; border-radius: 22px; }
+.prhead { display: flex; justify-content: space-between; align-items: baseline; }
+.prhead b { font-size: 19px; } .prhead span { font-size: 13px; color: var(--frost-ink-soft); }
+.prdate { display: flex; align-items: center; gap: 10px; margin: 8px 0 6px; font-size: 14px; color: var(--frost-ink-soft); }
+.prdate input { min-height: 40px; font-size: 16px; }
+.prspoke { border-top: 1px solid rgba(23, 48, 31, .12); }
+.prsh { display: flex; align-items: center; gap: 10px; width: 100%; min-height: 48px; padding: 0 2px; background: none; border: 0; font: inherit; color: var(--frost-ink); text-align: left; }
+.prsh span { flex: 1; font-weight: 600; } .prsh b { color: #2f6fc9; font-weight: 600; } .prsh i { font-style: normal; color: var(--frost-ink-soft); width: 14px; }
+.prrow { display: grid; grid-template-columns: 1fr 44px 74px 44px; align-items: center; gap: 6px; padding: 2px 0 8px 10px; }
+.prrow span { font-size: 15px; color: var(--frost-ink-soft); } .prrow.on span { color: var(--frost-ink); font-weight: 500; }
+.prstep { width: 44px; height: 44px; min-height: 44px; padding: 0; border-radius: 50%; border: 1px solid rgba(23, 48, 31, .2); background: rgba(255, 255, 255, .75); font-size: 22px; line-height: 1; color: var(--frost-ink); }
+.prstep:disabled { opacity: .35; }
+.prval { text-align: center; font-size: 19px; font-weight: 600; } .prval small { font-size: 12px; font-weight: 400; color: var(--frost-ink-soft); }
+.prfoot { display: flex; align-items: center; gap: 10px; margin-top: 10px; padding-top: 10px; border-top: 1px solid rgba(23, 48, 31, .12); }
+.prfoot span { flex: 1; font-size: 14px; color: var(--frost-ink-soft); }
+.prfoot .primary { min-height: 44px; padding: 0 22px; border-radius: 999px; width: auto; margin: 0; }
+.prfoot .txt { min-height: 44px; }
+.prchart .tkeye, .prvs .tkeye, .prlist .tkeye { margin: 0 6px 2px; }
+.mglegend .lpc { background: #2f6fc9; } .mglegend .lls { background: #e2705c; }
+.prbars { display: grid; gap: 10px; margin: 8px 6px 10px; }
+.prbar { display: grid; grid-template-columns: 92px 1fr 38px; grid-template-rows: auto auto; column-gap: 8px; row-gap: 3px; align-items: center; font-size: 13px; }
+.prbar span { grid-row: 1 / 3; font-weight: 600; } .prbar.gap span { color: #c0442f; }
+.prbar i { display: block; height: 8px; border-radius: 4px; background: rgba(23, 48, 31, .1); overflow: hidden; }
+.prbar u { display: block; height: 100%; border-radius: 4px; text-decoration: none; }
+.prbar .bl u { background: #e2705c; } .prbar .bt u { background: #2f6fc9; }
+.prbar em { font-style: normal; text-align: right; color: var(--frost-ink-soft); font-size: 12px; }
+.prlist { margin-top: 12px; padding: 12px 14px 6px; border-radius: 22px; }
+.pritem { display: flex; align-items: center; gap: 10px; padding: 8px 0; border-top: 1px solid rgba(23, 48, 31, .1); }
+.pritem span { flex: 1; display: grid; } .pritem span b { font-size: 15px; font-weight: 600; } .pritem span small { font-size: 12px; color: var(--frost-ink-soft); }
+.pritem em { font-size: 15px; }
+.tkfocus .prdrill { margin-top: 10px; min-height: 44px; width: 100%; border-radius: 999px; border: 1px solid rgba(255, 255, 255, .35); background: rgba(255, 255, 255, .14); color: #fff; font: inherit; font-weight: 600; }
+.pritem em { font-style: normal; font-weight: 600; }
+.prx { width: 36px; height: 36px; min-height: 36px; padding: 0; border-radius: 50%; border: 0; background: rgba(23, 48, 31, .08); color: var(--frost-ink-soft); font-size: 18px; }

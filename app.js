@@ -20,6 +20,11 @@
   function bag() { try { return BAG.norm(JSON.parse(localStorage.getItem(BGK) || 'null')); } catch (e) { return BAG.blank(); } }
   function saveBag(b, quiet) { b.updated = new Date().toISOString(); localStorage.setItem(BGK, JSON.stringify(BAG.norm(b))); if (!quiet) backupDirty(3000); else backupDirty(20000); }
   function bagForBackup() { var b = bag(); return b.clubs.length ? b : null; }
+  // v142 practice log: [{ id, date, player, spoke, focus, min }] – minutes per skill, per player, in the backups
+  var PRK = 'golfsg.practice.v1';
+  function practice() { try { return MYGAME.validPractice(JSON.parse(localStorage.getItem(PRK) || '[]')); } catch (e) { return []; } }
+  function savePractice(list) { localStorage.setItem(PRK, JSON.stringify(list)); backupDirty(3000); }
+  function practiceOf(who) { return practice().filter(function (e) { return samePlayer(e.player || playerName(), who); }); }
   // v93 Wedges: chart of 40–110 yd (wedges.js), stored on the phone and in backups
   var WGK = 'golfsg.wedges.v1';
   function wedges() { try { return WEDGES.norm(JSON.parse(localStorage.getItem(WGK) || 'null')); } catch (e) { return WEDGES.blank(); } }
@@ -1405,7 +1410,7 @@
   function backupDone() { localStorage.setItem(BK, new Date().toISOString()); var nO = ownRounds().filter(function (x) { return !SG.roundEmpty(x); }).length; view.notice = { text: 'Backup ready: ' + nO + ' round' + (nO === 1 ? '' : 's') + ' for ' + playerName() + ' saved.' }; if (view.screen === 'home' || view.screen === 'archive') render(); }
   function backupRounds() {
     if (!playerName()) { askName('Enter your player name first – it goes in the backup file name.'); return; }
-    var name = 'golf-rounds-' + GDX.slug(playerName()) + '-' + localDay(new Date()) + '.json', json = JSON.stringify(SG.makeBackup(rounds.filter(function (x) { return !SG.roundEmpty(x); }), null, playerName(), courses(), bagForBackup(), wedgesForBackup()), null, 1), file;
+    var name = 'golf-rounds-' + GDX.slug(playerName()) + '-' + localDay(new Date()) + '.json', json = JSON.stringify(SG.makeBackup(rounds.filter(function (x) { return !SG.roundEmpty(x); }), null, playerName(), courses(), bagForBackup(), wedgesForBackup(), practice()), null, 1), file;
     try { file = new File([json], name, { type: 'application/json' }); } catch (e) { file = null; }
     if (file && navigator.canShare && navigator.canShare({ files: [file] })) {
       navigator.share({ files: [file] }).then(backupDone).catch(function (e) {
@@ -1424,7 +1429,8 @@
     if (bp) P.rounds.forEach(function (r) { if (!r.player) r.player = bp; }); // label rounds with the backup's player
     if (only) { P.rounds = P.rounds.filter(function (r) { return samePlayer(r.player || bp, only); }); if (!samePlayer(only, playerName())) { P.bag = null; P.wedges = null; } } // Google Drive: just that player
     P.rounds.sort(function (a, b) { return new Date(b.date) - new Date(a.date); });
-    view.restore = { rounds: P.rounds, sel: {}, player: bp, courses: P.courses || [], bag: P.bag || null, wedges: P.wedges || null }; view.preview = null; view.screen = 'restorepick'; render(); window.scrollTo(0, 0);
+    view.restore = { rounds: P.rounds, sel: {}, player: bp, courses: P.courses || [], bag: P.bag || null, wedges: P.wedges || null,
+      practice: (P.practice || []).filter(function (e) { return !only || samePlayer(e.player || bp, only); }) }; view.preview = null; view.screen = 'restorepick'; render(); window.scrollTo(0, 0);
   }
   // ---------- v101 Google Drive restore: every round in that player's backup, tick the ones to bring back ----------
   function gdListOpen(text, who, label) {
@@ -1434,7 +1440,7 @@
     var items = GDX.restoreList(raw, who, rounds), sel = {}, mine = samePlayer(who, playerName());
     items.forEach(function (it) { if (it.status === 'new') sel[it.round.id] = true; }); // missing rounds start ticked
     view.restore = { gd: { player: who, label: label }, items: items, rounds: items.map(function (it) { return it.round; }), sel: sel, player: who,
-      courses: P.courses || [], bag: mine ? P.bag || null : null, wedges: mine ? P.wedges || null : null };
+      courses: P.courses || [], bag: mine ? P.bag || null : null, wedges: mine ? P.wedges || null : null, practice: P.practice || [] };
     view.preview = null; view.screen = 'restorepick'; render(); window.scrollTo(0, 0);
   }
   function gdlItem(id) { return ((view.restore && view.restore.items) || []).filter(function (it) { return it.round.id === id; })[0]; }
@@ -1445,6 +1451,7 @@
     if (nc) o += '<p class="help muted" id="rpcourses">⛳ ' + nc + ' saved course' + (nc === 1 ? '' : 's') + ' come along (new or newer ones only).</p>';
     if (nb) o += '<p class="help muted" id="rpbag">🏌️ My Bag (' + nb + ' club' + (nb === 1 ? '' : 's') + ') comes along if this phone’s bag is empty or older.</p>';
     if (R.wedges && WEDGES.count(R.wedges)) o += '<p class="help muted" id="rpwedges">🎯 Wedges chart (' + nws + ' yardage' + (nws === 1 ? '' : 's') + ') comes along if this phone’s chart is empty or older.</p>';
+    var npr = (R.practice || []).length; if (npr) o += '<p class="help muted" id="rppractice">⏱ ' + npr + ' practice entr' + (npr === 1 ? 'y' : 'ies') + ' come along (new ones only).</p>'; // v142
     return o;
   }
   function gdListHTML() {
@@ -1468,12 +1475,14 @@
     });
     if (!I.length) o += '<p class="help muted" id="gdlempty">No rounds in this backup.</p>';
     o += '</div>' + restoreExtrasNotes(R);
-    var extra = [(R.courses || []).length ? 'courses' : '', R.bag && R.bag.clubs && R.bag.clubs.length ? 'bag' : '', R.wedges && WEDGES.count(R.wedges) ? 'wedges' : ''].filter(Boolean);
+    var extra = [(R.courses || []).length ? 'courses' : '', R.bag && R.bag.clubs && R.bag.clubs.length ? 'bag' : '', R.wedges && WEDGES.count(R.wedges) ? 'wedges' : '', (R.practice || []).length ? 'practice' : ''].filter(Boolean);
     o += '<p class="muted gdlnote">They go into Rounds under ' + esc(G.player) + '. Nothing on this phone is deleted, and a newer copy on this phone is never replaced.</p>';
     return o + '<div class="gdlbar" id="gdlbar"><span class="gdlcount" id="gdlcount">' + nSel + ' selected</span><button class="gdlgo" data-act="rpgo" id="rpgo"' + (nSel || extra.length ? '' : ' disabled') + '>' +
       (nSel || !extra.length ? 'Restore ' + nRounds(nSel) : 'Restore ' + extra.join(' &amp; ')) + '</button></div></div>';
   }
+  function restorePractice(R, parts) { if (!R.practice || !R.practice.length) return; var PM = MYGAME.mergePractice(practice(), R.practice); if (PM.added) { localStorage.setItem(PRK, JSON.stringify(PM.practice)); parts.push(PM.added + ' practice entr' + (PM.added === 1 ? 'y' : 'ies')); } } // v142
   function restoreExtras(R, parts) {
+    restorePractice(R, parts);
     if (R.courses && R.courses.length) { var CM = COURSES.mergeCourses(courses(), R.courses); saveCourses(CM.courses); if (CM.added || CM.updated) parts.push((CM.added + CM.updated) + ' course' + (CM.added + CM.updated === 1 ? '' : 's')); }
     if (R.bag) { var BM = BAG.mergeBag(bag(), R.bag); if (BM.changed) { localStorage.setItem(BGK, JSON.stringify(BM.bag)); parts.push('My Bag (' + BM.bag.clubs.length + ' clubs)'); } }
     if (R.wedges) { var WM = WEDGES.mergeWedges(wedges(), R.wedges); if (WM.changed) { localStorage.setItem(WGK, JSON.stringify(WM.wedges)); var nlo = WEDGES.filled(WM.wedges, 'low'); parts.push('Wedges (' + WEDGES.filled(WM.wedges) + ' yardages' + (nlo ? ' · ' + nlo + ' Low flight' : '') + ')'); } }
@@ -1529,7 +1538,7 @@
       ').\n\nOK = replace with the backup version\nCancel = keep the phone\'s version');
     var M = SG.mergeRounds(rounds, P.rounds, replace);
     localStorage.setItem(KEY, JSON.stringify(M.rounds)); rounds = load(); if (M.added || M.replaced) backupDirty(3000); // uploads only this player's rounds
-    var parts = [M.added + ' added'];
+    var parts = [M.added + ' added']; restorePractice(R, parts);
     if (R.courses && R.courses.length) { var CM = COURSES.mergeCourses(courses(), R.courses); saveCourses(CM.courses); if (CM.added || CM.updated) parts.push((CM.added + CM.updated) + ' course' + (CM.added + CM.updated === 1 ? '' : 's')); }
     if (R.bag) { var BM = BAG.mergeBag(bag(), R.bag); if (BM.changed) { localStorage.setItem(BGK, JSON.stringify(BM.bag)); parts.push('My Bag (' + BM.bag.clubs.length + ' clubs)'); } }
     if (R.wedges) { var WM = WEDGES.mergeWedges(wedges(), R.wedges); if (WM.changed) { localStorage.setItem(WGK, JSON.stringify(WM.wedges)); var nlo = WEDGES.filled(WM.wedges, 'low'); parts.push('Wedges (' + WEDGES.filled(WM.wedges) + ' yardages' + (nlo ? ' · ' + nlo + ' Low flight' : '') + ')'); } }
@@ -1560,12 +1569,12 @@
   function gdFiles() {
     var me = playerName(), g = {}, order = [];
     function grp(p) { var n = GDX.folderName(p), k = n.toLowerCase(); if (!GDX.slug(n)) return null; if (!g[k]) { g[k] = { player: n, rounds: [] }; order.push(k); } return g[k]; }
-    if (me && (bagForBackup() || wedgesForBackup() || ownRounds().length)) grp(me);
+    if (me && (bagForBackup() || wedgesForBackup() || ownRounds().length || practiceOf(me).length)) grp(me);
     rounds.forEach(function (r) { if (SG.roundEmpty(r)) return; var G = grp(r.player || me); if (G) G.rounds.push(r); });
     GDX.movedFrom(rounds).forEach(function (m) { m.from.forEach(function (f) { var k = GDX.folderName(f).toLowerCase(); if (GDX.slug(f) && !g[k]) { g[k] = { player: GDX.folderName(f), rounds: [], dropOnly: true }; order.push(k); } }); }); // v99: tidy a moved round out of its old player's file
     return order.map(function (k) {
       var G = g[k], mine = samePlayer(G.player, me);
-      return { player: G.player, dropOnly: !!G.dropOnly, backup: SG.makeBackup(G.rounds, null, G.player, courses(), mine ? bagForBackup() : null, mine ? wedgesForBackup() : null) };
+      return { player: G.player, dropOnly: !!G.dropOnly, backup: SG.makeBackup(G.rounds, null, G.player, courses(), mine ? bagForBackup() : null, mine ? wedgesForBackup() : null, practiceOf(G.player)) };
     });
   }
   function gdSync() {
@@ -1742,7 +1751,7 @@
       if (view.hmenu === 'new') h += '<div class="sheet-h">New round</div>' + newCourseHTML() +
         '<label class="lbl" for="newbl">Compare my shots against</label>' + blSelect('newbl', view.newBl || 'pga') + newPlayerHTML() +
         '<button class="sheet-go" data-act="new">Start round</button><button class="sheet-item muted" data-act="plus">Back</button>';
-      else h += '<button class="sheet-item" role="menuitem" data-act="newform">New round</button><button class="sheet-item" role="menuitem" data-act="history">Rounds</button><button class="sheet-item" role="menuitem" data-act="stats">Stats</button><button class="sheet-item" role="menuitem" data-act="bag">My Bag</button><button class="sheet-item" role="menuitem" data-act="archive">Settings</button><button class="sheet-item" role="menuitem" data-act="help">Help</button>';
+      else h += '<button class="sheet-item" role="menuitem" data-act="newform">New round</button><button class="sheet-item" role="menuitem" data-act="history">Rounds</button><button class="sheet-item" role="menuitem" data-act="stats">Stats</button><button class="sheet-item" role="menuitem" data-act="mygame">My Game</button><button class="sheet-item" role="menuitem" data-act="prlog">Log practice</button><button class="sheet-item" role="menuitem" data-act="bag">My Bag</button><button class="sheet-item" role="menuitem" data-act="archive">Settings</button><button class="sheet-item" role="menuitem" data-act="help">Help</button>';
       h += '</div>';
     }
     return h + '</div>';
@@ -1762,7 +1771,7 @@
     return MYGAME.build(list, SG, { period: periodId || view.mgPeriod || '3m', baseline: bl, baselineName: SG.baseline(bl).name });
   }
   function mgHomeCardHTML() {
-    var who = playerName(); if (!who || !finishedRoundsOf(who).length) return '';
+    var who = playerName(); if (!who || (!finishedRoundsOf(who).length && !practiceOf(who).length)) return '';
     var D; try { D = mgData(who); } catch (e) { return ''; }
     return '<button class="glass mgcard" id="mgcard" data-act="mygame" aria-label="My Game: ' + esc(D.headline) + '">' +
       '<span class="mgmini">' + MYGAME.radarSVG(D.cur, null, { R: 34, labels: false, aria: 'Game shape' }) + '</span>' +
@@ -1776,6 +1785,7 @@
       var on = nm === who; return '<button class="frostchip' + (on ? ' sel' : '') + '" data-act="mgplayer" data-v="' + esc(nm) + '" aria-pressed="' + on + '">' + esc(nm) + '</button>'; }).join('') + '</div>';
     h += '<div class="stseg mgseg" id="mgperiod" role="group" aria-label="Time frame">' + MYGAME.PERIODS.map(function (x) {
       var on = x.id === P.id; return '<button class="' + (on ? 'sel' : '') + '" data-act="mgperiod" data-v="' + x.id + '" aria-pressed="' + on + '">' + x.name.replace('Last ', '') + '</button>'; }).join('') + '</div>';
+    h += '<button class="primary big prbtn" data-act="prlog" id="prlogbtn">＋ Log practice</button>' + prSheetHTML(who);
     h += '<div class="mgchart frost"><h2 id="mghead">' + esc(D.headline) + '</h2><p id="mglede">' + esc(D.lede) + '</p>' +
       MYGAME.radarSVG(D.cur, D.prev, { R: 96, aria: 'Game shape, ' + P.name }) +
       '<div class="mglegend"><span><i class="lc"></i>' + esc(P.name) + '</span>' + (D.prev ? '<span><i class="lp"></i>' + (P.id === '1y' ? 'Year before' : 'Previous ' + esc(P.short)) + '</span>' : '') +
@@ -1791,9 +1801,73 @@
     var n1 = function (v) { return (Math.round(v * 10) / 10).toFixed(1); }, sgf = function (v, abs) { return abs ? n1(v) : MYGAME.fmt(v); }, pc = function (v) { return Math.round(v) + '%'; };
     h += '<div class="mgtiles" id="mgtiles">' + tile('score', 'Avg score (18 holes)', T.score, Q && Q.score, n1, -1) + tile('sg', 'Strokes gained / round', T.sg, Q && Q.sg, sgf, 1) +
       tile('putts', 'Putts / round', T.putts, Q && Q.putts, n1, -1) + tile('gir', 'Greens in regulation', T.gir, Q && Q.gir, pc, 1) + '</div>';
+    h += practiceCardHTML(who, D);
     h += '<div class="tiprow" id="mginfo">' + tipBtn('mginfo', 'i', 'About My Game') + tipLbl('mginfo', 'How My Game works') + tipText('mginfo',
       'Each spoke is strokes gained per 18 holes in one skill: Driving (par 4 and 5 tee shots), Irons 100+ (approach shots from over 100 yd), Wedges (30–100 yd), Chipping (30 yd and in), Lag putts (10 ft and over) and Short putts (under 10 ft). The six add up to your total. Further out is better; the dashed line is the ' + esc(D.baselineName) + ' average. The gray shape is the same length of time before this one. A hollow point is still learning: it needs ' + MYGAME.MIN_ROUNDS + ' rounds and enough shots in the period.') + '</div>';
     return h + '</div>';
+  }
+  // ---------- v142 practice: log minutes per skill, see where practice time goes ----------
+  function localDayISO(d) { d = d || new Date(); return d.getFullYear() + '-' + ('0' + (d.getMonth() + 1)).slice(-2) + '-' + ('0' + d.getDate()).slice(-2); }
+  // open the log sheet; preset = { spoke, focus, min } fills one row (Log this drill)
+  function prOpen(preset) {
+    view.prLog = { date: localDayISO(), mins: {}, open: {} };
+    if (preset) { view.prLog.mins[preset.spoke + '|' + preset.focus] = preset.min || 15; view.prLog.open[preset.spoke] = true; }
+    view.hmenu = null; view.screen = 'mygame'; render();
+    var el = document.getElementById('prsheet'); if (el && el.scrollIntoView) el.scrollIntoView({ block: 'start' });
+  }
+  function prSheetHTML(who) {
+    var L = view.prLog; if (!L) return '';
+    var total = 0; Object.keys(L.mins).forEach(function (k) { total += L.mins[k] || 0; });
+    var o = '<div class="prsheet frost" id="prsheet"><div class="prhead"><b>Log practice</b><span>' + esc(who || '') + '</span></div>' +
+      '<label class="prdate">Day <input type="date" id="prdate" value="' + esc(L.date) + '" max="' + localDayISO() + '"></label>';
+    MYGAME.SPOKES.forEach(function (sp) {
+      var foc = MYGAME.FOCUS[sp.k], sub = 0; foc.forEach(function (f) { sub += L.mins[sp.k + '|' + f] || 0; });
+      var open = !!L.open[sp.k];
+      o += '<div class="prspoke' + (open ? ' open' : '') + '" data-spoke="' + sp.k + '"><button class="prsh" data-act="prspoke" data-v="' + sp.k + '" aria-expanded="' + open + '"><span>' + esc(sp.name) + '</span><b>' + (sub ? MYGAME.hm(sub) : '') + '</b><i aria-hidden="true">' + (open ? '⌄' : '›') + '</i></button>';
+      if (open) o += foc.map(function (f) { var key = sp.k + '|' + f, m = L.mins[key] || 0;
+        return '<div class="prrow' + (m ? ' on' : '') + '"><span>' + esc(f) + '</span><button class="prstep" data-act="prmin" data-v="' + esc(key) + '" data-k="-5" aria-label="5 minutes less ' + esc(f) + '"' + (m ? '' : ' disabled') + '>−</button>' +
+          '<b class="prval">' + m + '<small> min</small></b><button class="prstep" data-act="prmin" data-v="' + esc(key) + '" data-k="5" aria-label="5 minutes more ' + esc(f) + '">+</button></div>'; }).join('');
+      o += '</div>';
+    });
+    return o + '<div class="prfoot"><span id="prtotal">' + (total ? 'Total ' + MYGAME.hm(total) : 'Tap a skill, then + to add minutes') + '</span>' +
+      '<button class="txt" data-act="prcancel">Cancel</button><button class="primary" data-act="prsave" id="prsave"' + (total ? '' : ' disabled') + '>Save</button></div></div>';
+  }
+  function prAct(act, v, k, b) {
+    var L = view.prLog;
+    if (act === 'prlog') { prOpen(null); return; }
+    if (act === 'prdrill') { var q = String(v || '').split('|'); view.mgPlayer = (b && b.getAttribute('data-who')) || view.mgPlayer; prOpen({ spoke: q[0], focus: q.slice(1).join('|'), min: 15 }); return; }
+    if (act === 'prcancel') { view.prLog = null; render(); return; }
+    if (act === 'prdel') { savePractice(practice().filter(function (e) { return e.id !== v; })); toast('Practice entry removed'); render(); return; }
+    if (!L) return;
+    if (act === 'prspoke') { L.open[v] = !L.open[v]; render(); return; }
+    if (act === 'prmin') { L.mins[v] = Math.max(0, Math.min(240, (L.mins[v] || 0) + k)); render(); return; }
+    if (act === 'prsave') {
+      var who = view.mgPlayer || playerName(), stamp = Date.now().toString(36), list = practice(), n = 0, tot = 0;
+      Object.keys(L.mins).forEach(function (key) { var m = L.mins[key]; if (!m) return; var parts = key.split('|');
+        list.push({ id: 'pr-' + stamp + '-' + (n++), date: L.date + 'T12:00:00', player: who, spoke: parts[0], focus: parts.slice(1).join('|'), min: m }); tot += m; });
+      if (!n) return;
+      savePractice(list); view.prLog = null; render(); toast('Saved ' + MYGAME.hm(tot) + ' of practice'); return;
+    }
+  }
+  function practiceCardHTML(who, D) {
+    var logs = practiceOf(who), PB = MYGAME.practiceBuild(logs, { period: D.period.id }), P = PB.period;
+    var o = '<div class="mgchart prchart frost" id="prcard"><span class="tkeye">My Practice</span><h2 id="prhead">' + esc(PB.headline) + '</h2><p id="prlede">' + esc(PB.lede) + '</p>';
+    if (PB.cur.total || PB.prev) o += MYGAME.practiceSVG(PB.cur, PB.prev, { R: 96, aria: 'Practice time by skill, ' + P.name }) +
+      '<div class="mglegend"><span><i class="lpc"></i>' + esc(P.name) + '</span>' + (PB.prev ? '<span><i class="lp"></i>' + (P.id === '1y' ? 'Year before' : 'Previous ' + esc(P.short)) + '</span>' : '') + '</div>';
+    o += '</div>';
+    var V = MYGAME.practiceVsGame(D.cur, PB.cur);
+    if (V) o += '<div class="mgchart prvs frost" id="prvs"><span class="tkeye">Strokes lost vs practice time</span><h2 id="prvshead">' + esc(V.headline) + '</h2><p id="prvslede">' + esc(V.lede) + '</p>' +
+      '<div class="prbars">' + V.rows.map(function (r) {
+        return '<div class="prbar' + (r.k === V.gap.k && V.gap.lostShare - V.gap.timeShare >= 0.15 ? ' gap' : '') + '" data-spoke="' + r.k + '"><span>' + esc(r.name) + '</span>' +
+          '<i class="bl"><u style="width:' + Math.round(r.lostShare * 100) + '%"></u></i><em>' + Math.round(r.lostShare * 100) + '%</em>' +
+          '<i class="bt"><u style="width:' + Math.round(r.timeShare * 100) + '%"></u></i><em>' + Math.round(r.timeShare * 100) + '%</em></div>'; }).join('') +
+      '</div><div class="mglegend"><span><i class="lls"></i>Share of strokes lost</span><span><i class="lpc"></i>Share of practice time</span></div></div>';
+    var recent = logs.slice().sort(function (a, b) { return b.date.localeCompare(a.date) || b.id.localeCompare(a.id); }).slice(0, 6);
+    if (recent.length) o += '<div class="prlist frost" id="prlist"><span class="tkeye">Recent practice</span>' + recent.map(function (e) {
+      var sp = MYGAME.SPOKES.filter(function (x) { return x.k === e.spoke; })[0];
+      return '<div class="pritem"><span><b>' + esc(e.focus || sp.name) + '</b><small>' + esc(new Date(Date.parse(e.date)).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })) + ' · ' + esc(sp.name) + '</small></span><em>' + MYGAME.hm(e.min) + '</em>' +
+        '<button class="prx" data-act="prdel" data-v="' + esc(e.id) + '" aria-label="Remove ' + esc(e.focus || sp.name) + ' ' + e.min + ' min">×</button></div>'; }).join('') + '</div>';
+    return o;
   }
   function archiveHTML() {
     var cur = rounds.filter(function (r) { return r.id === localStorage.getItem(CUR); })[0], nSaved = savedRounds().length;
@@ -2773,7 +2847,8 @@
     var F = T.focus;
     if (F) out += '<div class="tkfocus" id="tkfocus"><span class="tktag">Work on next</span><h3>' + esc(F.title) + '</h3><p>' + esc(F.text) + '</p>' +
       '<p class="tkbasis' + (F.basis.mine ? ' mine' : '') + '" id="tkbasis">' + (F.basis.mine ? '✓ ' : '') + esc(F.basis.text) + '</p>' +
-      '<p class="tkdrill"><b>Try:</b> ' + esc(F.drill) + '</p></div>';
+      '<p class="tkdrill"><b>Try:</b> ' + esc(F.drill) + '</p>' + (function () { var x = MYGAME.drillFocus(F); // v143 Log this drill → practice log, filled in
+        return x ? '<button class="prdrill" id="prdrill" data-act="prdrill" data-v="' + esc(x.spoke + '|' + x.focus) + '" data-who="' + esc(r.player || playerName()) + '">⏱ Log this drill · ' + esc(x.focus) + '</button>' : ''; })() + '</div>';
     out += '<div class="tktiles" id="tktiles">' + T.tiles.map(function (t) {
       return '<div class="tktile frost" data-area="' + t.k + '"><span class="tkth">' + esc(t.name) + '</span><span class="tksg ' + sgCls(t.sg) + '">' + fmtSG(t.sg) + ' SG</span>' +
         (t.norm != null ? '<small class="tkusual">usually ' + fmtSG(t.norm) + '</small>' : '') + tkPic(t.pic) + '<p>' + esc(t.text) + '</p></div>'; }).join('') + '</div>';
@@ -4494,8 +4569,9 @@
       case 'wedges': view.hmenu = null; view.screen = 'wedges'; view.wOpen = null; view.wOther = null; view.wEdit = false; view.wFull = null; view.wFlight = 'high'; render(); window.scrollTo(0, 0); return;
       case 'wact': wAct(v, b); return;
       case 'help': view.hmenu = null; view.screen = 'help'; render(); window.scrollTo(0, 0); return; // v128
-      case 'mygame': view.hmenu = null; view.screen = 'mygame'; render(); window.scrollTo(0, 0); return; // v141
+      case 'mygame': view.hmenu = null; view.prLog = null; view.screen = 'mygame'; render(); window.scrollTo(0, 0); return; // v141
       case 'mgperiod': view.mgPeriod = v; render(); return;
+      case 'prlog': case 'prcancel': case 'prdel': case 'prspoke': case 'prmin': case 'prsave': case 'prdrill': prAct(act, v, k, b); return;
       case 'mgplayer': view.mgPlayer = v; render(); return;
       case 'bag': view.hmenu = null; view.screen = 'bag'; view.bagAdd = null; view.bagEdit = null; view.bagCondOpen = false; render(); window.scrollTo(0, 0); return;
       case 'bagact': bagAct(v, b); return;
@@ -4625,6 +4701,7 @@
   document.addEventListener('input', function (ev) { if (ev.target && ev.target.id === 'bzslider') bzUpdate(+ev.target.value); if (ev.target && ev.target.id === 'course') view.newName = ev.target.value;
     if (ev.target && ev.target.id === 'nearq' && view.near) { view.near.q = ev.target.value; var nr = document.getElementById('nearres'), html = nearResHTML(); if (nr) nr.outerHTML = html || '<span id="nearres"></span>'; else ev.target.insertAdjacentHTML('afterend', html); } });
   document.addEventListener('change', function (ev) { if (ev.target && ev.target.id === 'newbl') view.newBl = ev.target.value; });
+  document.addEventListener('change', function (ev) { if (ev.target && ev.target.id === 'prdate' && view.prLog && /^\d{4}-\d\d-\d\d$/.test(ev.target.value)) view.prLog.date = ev.target.value; }); // v142
   document.addEventListener('keydown', function (ev) { if (ev.key === 'Enter' && ev.target && ev.target.id === 'pname' && !ev.isComposing) { ev.preventDefault(); setName(ev.target.value); } });
   document.addEventListener('input', function (ev) {
     if (!ev.target || ev.target.id !== 'clusr') return;

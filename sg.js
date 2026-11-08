@@ -705,10 +705,11 @@
   /* ===================== BACKUP / RESTORE ===================== */
   // Backup file: { app: 'golf-shot-tracker', kind: 'rounds-backup', version: 1, exported: ISO, rounds: [...] }
   function hasWedges(w) { var ok = function (o) { return !!(o && typeof o === 'object' && !Array.isArray(o) && Object.keys(o).length); }; return !!(w && (ok(w.rows) || ok(w.low))); } // v94: High (rows) or Low (low) flight
-  function makeBackup(rounds, now, player, courses, bag, wedges) {
+  function makeBackup(rounds, now, player, courses, bag, wedges, practice) {
     var o = { app: 'golf-shot-tracker', kind: 'rounds-backup', version: 1, exported: (now || new Date()).toISOString(), count: rounds.length, rounds: rounds };
     if (player) o.player = player; if (courses && courses.length) o.courses = courses; if (bag && Array.isArray(bag.clubs) && bag.clubs.length) o.bag = bag;
-    if (hasWedges(wedges)) o.wedges = wedges; return o; // v93 wedge chart
+    if (hasWedges(wedges)) o.wedges = wedges; // v93 wedge chart
+    if (Array.isArray(practice) && practice.length) o.practice = practice; return o; // v142 practice log
   }
   // Accepts a backup object (or a bare array of rounds). Returns {rounds} or {error}.
   function parseBackup(data) {
@@ -716,11 +717,12 @@
     var crs = data && !Array.isArray(data) && Array.isArray(data.courses) ? data.courses.filter(function (c) { return c && typeof c.id === 'string' && Array.isArray(c.tees); }) : [];
     var bag = data && !Array.isArray(data) && data.bag && Array.isArray(data.bag.clubs) && data.bag.clubs.length ? data.bag : null; // v92 My Bag
     var wedges = data && !Array.isArray(data) && hasWedges(data.wedges) ? data.wedges : null; // v93 wedge chart
-    var list = Array.isArray(data) ? data : data && Array.isArray(data.rounds) ? data.rounds : crs.length || bag || wedges ? [] : null;
+    var practice = data && !Array.isArray(data) && Array.isArray(data.practice) ? data.practice.filter(function (e) { return e && typeof e.id === 'string' && typeof e.spoke === 'string' && Number(e.min) > 0; }) : []; // v142
+    var list = Array.isArray(data) ? data : data && Array.isArray(data.rounds) ? data.rounds : crs.length || bag || wedges || practice.length ? [] : null;
     if (!list) return { error: 'That file is not a golf backup (no rounds in it).' };
     var ok = list.filter(function (r) { return r && typeof r.id === 'string' && r.id && Array.isArray(r.holes); });
     if (list.length && !ok.length) return { error: 'That file is not a golf backup (the rounds in it are not readable).' };
-    var res = { rounds: ok, skipped: list.length - ok.length, courses: crs }; if (bag) res.bag = bag; if (wedges) res.wedges = wedges; return res;
+    var res = { rounds: ok, skipped: list.length - ok.length, courses: crs }; if (bag) res.bag = bag; if (wedges) res.wedges = wedges; if (practice.length) res.practice = practice; return res;
   }
   /**
    * Merge backup rounds into the phone's rounds by id. New ids are added, identical rounds are left
