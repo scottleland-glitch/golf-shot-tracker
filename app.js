@@ -316,6 +316,114 @@
     var bl = blOf(r), S = SG.summarize(r, bl), tp = SG.threePutts(S.puttList);
     return { r: r, bl: bl, S: S, three: tp };
   }
+  // ---------- v144 PDF pages: Round takeaway (round report), My Game + My Practice (stats report) ----------
+  // H = { M, PW, PH, font(sz), ink(g), T(text, x, y, opts), header(title) → y }. Light type, the app's colours.
+  function pdfWrap(doc, H, t, w, sz) { H.font(sz); return doc.splitTextToSize(SG.pdfSafe(t), w); }
+  function pdfLines(doc, H, t, x, y, w, sz, g, lh) { var L = pdfWrap(doc, H, t, w, sz); H.ink(g); L.forEach(function (s, i) { H.T(s, x, y + i * (lh || sz * 1.3)); }); H.ink(); return y + L.length * (lh || sz * 1.3); }
+  function pdfRGB(hex) { var v = parseInt(hex.slice(1), 16); return [(v >> 16) & 255, (v >> 8) & 255, v & 255]; }
+  function pdfSgColor(doc, v) { var c = v > 0.004 ? [31, 122, 68] : v < -0.004 ? [192, 68, 47] : [60, 60, 60]; doc.setTextColor(c[0], c[1], c[2]); }
+  // the radar SVGs use a viewBox centred on 0,0 – move it to 0,0 for svgToPng
+  function radarPng(svg) {
+    var m = /viewBox="([-\d.]+) ([-\d.]+) ([\d.]+) ([\d.]+)"/.exec(svg); if (!m) return svgToPng(svg, 3);
+    var out = svg.replace(m[0], 'viewBox="0 0 ' + m[3] + ' ' + m[4] + '"').replace(/(<svg[^>]*>)/, '$1<g transform="translate(' + (-m[1]) + ',' + (-m[2]) + ')">').replace(/<\/svg>$/, '</g></svg>');
+    return svgToPng(out, 3);
+  }
+  // four "How well Strokewise knows your game" bars, one row; returns the next y
+  function pdfKnowBars(doc, H, P, x, y, w) {
+    H.font(9.5); H.ink(90); H.T('How well Strokewise knows your game · ' + P.readyCount + '/4 ready', x, y); H.ink(); y += 10;
+    var gap = 12, bw = (w - 3 * gap) / 4;
+    INSIGHTS.AREAS.forEach(function (a, i) { var p = P[a.k], bx = x + i * (bw + gap);
+      H.font(8); H.ink(p.ready ? 30 : 90); H.T(a.short + (p.ready ? ' - ready' : ' ' + Math.round(p.frac * 100) + '%'), bx, y + 8); H.ink();
+      doc.setFillColor(226, 231, 226); doc.roundedRect(bx, y + 12, bw, 5, 2.5, 2.5, 'F');
+      var c = p.ready ? [31, 157, 85] : [200, 150, 46]; if (p.frac > 0) { doc.setFillColor(c[0], c[1], c[2]); doc.roundedRect(bx, y + 12, Math.max(5, bw * p.frac), 5, 2.5, 2.5, 'F'); } });
+    return y + 30;
+  }
+  function pdfTakeawayPage(doc, H, r) {
+    var T = INSIGHTS.build(r, takeawayHistory(r), SG, { baselineName: SG.baseline(blOf(r)).name }), M = H.M, W = H.PW - 2 * M, y = H.header('Round takeaway');
+    y = pdfKnowBars(doc, H, T.progress, M, y, W) + 6;
+    if (!T.ok) { pdfLines(doc, H, T.reason, M, y, W, 11, 60); return; }
+    y = pdfLines(doc, H, T.headline, M, y + 6, W, 17, 25, 21) + 2;
+    if (T.lede) y = pdfLines(doc, H, T.lede, M, y, W, 11, 80, 14.5) + 10;
+    var F = T.focus;
+    if (F) { // the dark green Work on next box
+      var pad = 14, iw = W - 2 * pad, tl = pdfWrap(doc, H, F.title, iw, 15), xl = pdfWrap(doc, H, F.text, iw, 10.5), bl = pdfWrap(doc, H, F.basis.text, iw, 9), dl = pdfWrap(doc, H, 'Try: ' + F.drill, iw - 16, 10);
+      var bh = pad + 12 + tl.length * 18 + 4 + xl.length * 13.5 + 4 + bl.length * 11.5 + 10 + dl.length * 13 + 14 + pad;
+      doc.setFillColor(16, 59, 36); doc.roundedRect(M, y, W, bh, 10, 10, 'F');
+      var yy = y + pad + 8; H.font(8.5); doc.setTextColor(244, 210, 138); H.T('WORK ON NEXT', M + pad, yy); yy += 6;
+      H.font(15); doc.setTextColor(255); tl.forEach(function (s) { yy += 18; H.T(s, M + pad, yy); }); yy += 4;
+      H.font(10.5); doc.setTextColor(230, 236, 232); xl.forEach(function (s) { yy += 13.5; H.T(s, M + pad, yy); }); yy += 4;
+      H.font(9); doc.setTextColor(F.basis.mine ? 159 : 200, F.basis.mine ? 224 : 210, F.basis.mine ? 181 : 204); bl.forEach(function (s) { yy += 11.5; H.T(s, M + pad, yy); }); yy += 10;
+      doc.setFillColor(40, 82, 58); doc.roundedRect(M + pad, yy, iw, dl.length * 13 + 12, 6, 6, 'F');
+      H.font(10); doc.setTextColor(255); dl.forEach(function (s, i) { H.T(s, M + pad + 8, yy + 15 + i * 13); }); H.ink();
+      y += bh + 16;
+    }
+    // the four areas, two per row
+    var cw = (W - 12) / 2;
+    for (var i = 0; i < T.tiles.length; i += 2) {
+      var row = T.tiles.slice(i, i + 2), hs = row.map(function (t) { return 34 + pdfWrap(doc, H, t.text, cw - 20, 9.5).length * 12.5 + 10; }), rh = Math.max.apply(null, hs);
+      row.forEach(function (t, k) { var x = M + k * (cw + 12);
+        doc.setDrawColor(214, 220, 226); doc.setLineWidth(0.6); doc.roundedRect(x, y, cw, rh, 6, 6, 'S'); doc.setDrawColor(0);
+        H.font(11); H.ink(30); H.T(t.name, x + 10, y + 17); H.font(10); pdfSgColor(doc, t.sg); H.T(fmtSG(t.sg) + ' SG', x + cw - 10, y + 17, { align: 'right' });
+        if (t.norm != null) { H.font(8); H.ink(110); H.T('usually ' + fmtSG(t.norm), x + cw - 10, y + 28, { align: 'right' }); }
+        H.ink(); pdfLines(doc, H, t.text, x + 10, y + 42, cw - 20, 9.5, 70, 12.5); });
+      y += rh + 10;
+    }
+    if (T.good.length) { y += 4; H.font(10.5); doc.setTextColor(31, 122, 68); H.T('Went well:', M, y); H.ink(); pdfLines(doc, H, T.good.join(', ') + '.', M + 58, y, W - 58, 10.5, 50); }
+  }
+  // My Game + My Practice pages for the stats report (the player's chosen My Game time frame)
+  function pdfMyGamePages(doc, H, who) {
+    if (!who) return Promise.resolve();
+    var D = mgData(who), P = D.period, M = H.M, W = H.PW - 2 * M, logs = practiceOf(who), PB = MYGAME.practiceBuild(logs, { period: P.id });
+    if (!D.cur.rounds && !PB.cur.total) return Promise.resolve();
+    doc.addPage(); var y = H.header('My Game – ' + P.name);
+    H.font(10); H.ink(90); H.T(who + ' · ' + D.cur.rounds + ' round' + (D.cur.rounds === 1 ? '' : 's') + ' · compared with ' + D.baselineName + (D.prev ? ' · gray = ' + (P.id === '1y' ? 'the year before' : 'the previous ' + P.short) : ''), M, y); H.ink(); y += 22;
+    y = pdfLines(doc, H, D.headline, M, y, W, 17, 25, 21) + 2;
+    y = pdfLines(doc, H, D.lede, M, y, W, 11, 80, 14.5) + 8;
+    var gy = y, gw = 380, gh = gw * 264 / 344, pg = doc.getCurrentPageInfo().pageNumber; y += gh + 10;
+    var Tn = D.cur.tiles, Q = D.prev && D.prev.tiles, n1 = function (v) { return (Math.round(v * 10) / 10).toFixed(1); };
+    var tiles = [['Avg score (18 holes)', Tn.score, Q && Q.score, n1, -1], ['Strokes gained / round', Tn.sg, Q && Q.sg, function (v) { return MYGAME.fmt(v); }, 1],
+      ['Putts / round', Tn.putts, Q && Q.putts, n1, -1], ['Greens in regulation', Tn.gir, Q && Q.gir, function (v) { return Math.round(v) + '%'; }, 1]], tw = (W - 3 * 10) / 4;
+    tiles.forEach(function (t, i) { var x = M + i * (tw + 10);
+      doc.setDrawColor(214, 220, 226); doc.setLineWidth(0.6); doc.roundedRect(x, y, tw, 62, 6, 6, 'S'); doc.setDrawColor(0);
+      H.font(8.5); H.ink(100); H.T(t[0], x + 8, y + 15); H.font(18); H.ink(25); H.T(t[1] == null ? '-' : t[3](t[1]), x + 8, y + 37);
+      if (t[1] != null && t[2] != null) { var d = t[1] - t[2], good = t[4] > 0 ? d > 0 : d < 0, tiny = Math.abs(d) < 0.05; H.font(8.5);
+        if (tiny) H.ink(100); else if (good) doc.setTextColor(31, 122, 68); else doc.setTextColor(192, 68, 47);
+        H.T(tiny ? 'same as before' : (d > 0 ? 'up ' : 'down ') + t[3](Math.abs(d)).replace(/^\+/, '') + ' from ' + t[3](t[2]), x + 8, y + 53); } H.ink(); });
+    y += 76;
+    y = pdfLines(doc, H, 'Each spoke is strokes gained per 18 holes in one skill: Driving (par 4 and 5 tee shots), Irons 100+ (approach shots from over 100 yd), Wedges (30-100 yd), Chipping (30 yd and in), Lag putts (10 ft and over), Short putts (under 10 ft). The six add up to the total. Further out = better; the dashed line is the ' + D.baselineName + ' average. A hollow point is still learning.', M, y, W, 8.5, 110, 10.8);
+    return radarPng(MYGAME.radarSVG(D.cur, D.prev, { R: 96 })).then(function (im) {
+      var back = doc.getCurrentPageInfo().pageNumber; doc.setPage(pg); doc.addImage(im.data, 'JPEG', M + (W - gw) / 2, gy, gw, gh); doc.setPage(back);
+      // ---- My Practice ----
+      doc.addPage(); var y2 = H.header('My Practice – ' + P.name);
+      y2 = pdfLines(doc, H, PB.headline, M, y2, W, 17, 25, 21) + 2;
+      y2 = pdfLines(doc, H, PB.lede, M, y2, W, 11, 80, 14.5) + 8;
+      var jobs = [];
+      if (PB.cur.total || PB.prev) { var py = y2, pw = 300, ph = pw * 264 / 344, pp = doc.getCurrentPageInfo().pageNumber; y2 += ph + 8;
+        jobs.push(radarPng(MYGAME.practiceSVG(PB.cur, PB.prev, { R: 96 })).then(function (im2) { var b2 = doc.getCurrentPageInfo().pageNumber; doc.setPage(pp); doc.addImage(im2.data, 'JPEG', M + (W - pw) / 2, py, pw, ph); doc.setPage(b2); }));
+        H.font(8.5); H.ink(100); H.T('Blue = ' + P.name.toLowerCase() + (PB.prev ? ' · gray = ' + (P.id === '1y' ? 'the year before' : 'the previous ' + P.short) : '') + ' · the busiest skill reaches the edge', M + W / 2, y2, { align: 'center' }); H.ink(); y2 += 18; }
+      var V = MYGAME.practiceVsGame(D.cur, PB.cur);
+      if (V) {
+        H.font(12.5); H.ink(30); H.T('Strokes lost vs practice time', M, y2); y2 += 16;
+        y2 = pdfLines(doc, H, V.headline + ' – ' + V.lede, M, y2, W, 10, 70, 13) + 8;
+        var lx = M + 110, bw = W - 110 - 44;
+        V.rows.forEach(function (rw) {
+          var gapRow = rw.k === V.gap.k && V.gap.lostShare - V.gap.timeShare >= 0.15; H.font(9.5); if (gapRow) doc.setTextColor(192, 68, 47); else H.ink(40); H.T(rw.name, M, y2 + 9); H.ink();
+          [[rw.lostShare, [226, 112, 92]], [rw.timeShare, [47, 111, 201]]].forEach(function (b, j) { var by = y2 + j * 10;
+            doc.setFillColor(232, 236, 232); doc.roundedRect(lx, by, bw, 6, 3, 3, 'F'); if (b[0] > 0) { doc.setFillColor(b[1][0], b[1][1], b[1][2]); doc.roundedRect(lx, by, Math.max(6, bw * b[0]), 6, 3, 3, 'F'); }
+            H.font(8); H.ink(100); H.T(Math.round(b[0] * 100) + '%', M + W, by + 6, { align: 'right' }); H.ink(); });
+          y2 += 26; });
+        H.font(8.5); doc.setTextColor(226, 112, 92); H.T('Share of strokes lost', lx, y2 + 2); doc.setTextColor(47, 111, 201); H.T('Share of practice time', lx + 130, y2 + 2); H.ink(); y2 += 20;
+      }
+      var recent = logs.filter(function (e) { var t = Date.parse(e.date), w = MYGAME.windows(P.id).cur; return t >= w[0] && t < w[1]; }).sort(function (a, b) { return b.date.localeCompare(a.date) || b.id.localeCompare(a.id); }).slice(0, 12);
+      if (recent.length && y2 < H.PH - 140) {
+        H.font(12.5); H.ink(30); H.T('Practice log', M, y2); y2 += 16;
+        recent.forEach(function (e) { if (y2 > H.PH - 60) return; var sp = MYGAME.SPOKES.filter(function (x) { return x.k === e.spoke; })[0];
+          H.font(9.5); H.ink(50); H.T(new Date(Date.parse(e.date)).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }), M, y2); H.T(e.focus || sp.name, M + 60, y2); H.ink(110); H.T(sp.name, M + 280, y2);
+          H.ink(40); H.T(MYGAME.hm(e.min), M + W, y2, { align: 'right' }); H.ink(); doc.setDrawColor(230); doc.setLineWidth(0.4); doc.line(M, y2 + 5, M + W, y2 + 5); doc.setDrawColor(0); y2 += 16; });
+      }
+      return Promise.all(jobs);
+    });
+  }
   function makeReport() {
     var r = round(); if (!r) return Promise.reject(new Error('No round'));
     var R = reportData(r), S = R.S, P = SG.pdfSafe, player = playerName() || r.player || '', dateTxt = new Date(r.date).toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' });
@@ -421,6 +529,8 @@
       srows.push(['3-putt holes', R.three.three + ' of ' + R.three.holes]);
       y = table([['Stat', 'This round']].concat(srows), M, y, [300, 240], { align: ['left', 'right'] }) + 6;
       y = note('Proximity = average distance from the hole after approach shots. 1st putts made inside 10 ft = first putts from 10 ft and in that went in. Lag putts = first putts over 10 ft that finished inside 3 ft.', M, y + 4);
+      // ---- v144: Round takeaway page ----
+      doc.addPage(); pdfTakeawayPage(doc, { M: M, PW: PW, PH: PH, font: font, ink: ink, T: T, header: header }, r);
       // ---- Page 2: the scorecard (the same numbers as the on-screen card: scorecardData) ----
       doc.addPage(); y = header('Scorecard – strokes gained vs ' + blName(R.bl));
       var D = scorecardData(r, S), SCG = D.rows.map(function (row) { return [row.lbl]; }), nG = D.groups.length;
@@ -783,7 +893,8 @@
       ink(); y = (function () { var L = wrap(R.tableNote, PW - 2 * M, 8.5); ink(110); doc.text(L, M, y + 4); ink(); return y + 4 + L.length * 10.6 + 10; })();
       // ---- v137: the five categories, each starting on its own page (shared with the round PDF) ----
       var K = { M: M, PW: PW, BOT: BOT, font: font, ink: ink, T: T, wrap: wrap, header: header, IMGS: IMGS, CARDS: CARDS };
-      var chain = pdfStatsCats(doc, R.cats, K);
+      var SPI = statsPlayerInfo(), mgWhoPdf = view.stPlayer && view.stPlayer !== '~none' ? view.stPlayer : SPI.multi ? '' : playerName(); // v144 My Game + My Practice pages (one player only)
+      var chain = pdfMyGamePages(doc, { M: M, PW: PW, PH: PH, font: font, ink: ink, T: T, header: header }, mgWhoPdf).then(function () { return pdfStatsCats(doc, R.cats, K); });
       return chain.then(function () {
         var n = doc.getNumberOfPages();
         for (var i = 2; i <= n; i++) { doc.setPage(i); font(8); doc.setTextColor(130); T('Page ' + i + ' of ' + n, PW - M, PH - 18, { align: 'right' }); doc.setTextColor(0); }

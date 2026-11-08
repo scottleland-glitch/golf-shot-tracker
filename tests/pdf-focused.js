@@ -84,7 +84,11 @@ const BASE = process.env.BASE_URL || 'http://127.0.0.1:8766/', OUT = process.env
   });
   assert.ok(checked >= 30, 'header/number columns checked ' + checked);
   // the strokes gained tables: number columns right-aligned with their header
-  const sgTabs = lay.tables.filter(tb => tb.p === 4);
+  // v144: page 3 is the Round takeaway (headline, Work on next, the four areas), so the SG page is page 5
+  const tk = lay.text.filter(t => t.p === 3).map(t => t.t).join(' | ');
+  assert.match(tk, /Round takeaway/); assert.match(tk, /How well Strokewise knows your game · \d\/4 ready/); assert.match(tk, /WORK ON NEXT/);
+  assert.match(tk, /Off the tee/); assert.match(tk, /Putting/);
+  const sgTabs = lay.tables.filter(tb => tb.p === 5);
   assert.ok(sgTabs.length === 3, 'SG page tables ' + sgTabs.length);
   assert.deepStrictEqual(sgTabs.map(tb => tb.cols.map(c => c.align)), [['left', 'right', 'right'], ['left', 'right', 'right', 'right'], ['left', 'right', 'right', 'right', 'right', 'right']]);
   // v109: the PDF scorecard shows exactly what the on-screen scorecard shows (same scorecardData)

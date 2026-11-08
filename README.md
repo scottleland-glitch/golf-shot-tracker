@@ -94,6 +94,12 @@ tiles (Birdies made · Holed inside N' = birdies if every putt inside the slider
 thin style as the other maps – red balls = birdies made, blue = inside the slider (would be birdies), white = outside, blue dashed ring = slider.
 Putts made table with thin solid blue bars.
 
+## In the PDFs (v144)
+Round report: page 3 is **Round takeaway** (the four "how well Strokewise knows your game" bars, headline, the Work on
+next box with its drill, the four areas with "usually", Went well). Stats report (one player shown): after the summary,
+**My Game – <time frame>** (the six-spoke chart, headline, the four change tiles) and **My Practice – <time frame>**
+(practice chart, strokes lost vs practice time bars, practice log). The time frame is the one picked on My Game.
+
 ## Practice (v142)
 + menu › **Log practice** (or ＋ Log practice on My Game): pick a day, open a skill and add minutes in 5-minute steps per
 focus (e.g. Chipping › Green-side chipping 30, Lag putts › Lag putting 20 and Putting speed control 10), then Save.

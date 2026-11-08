@@ -1,4 +1,5 @@
 // Offline support: cache the whole app on install, serve cache-first.
+// v144: PDFs – the round report has a Round takeaway page; the stats report has My Game and My Practice pages.
 // v143: the Log practice sheet opens below the sticky top bar (title and day were hidden behind it).
 // v142: Practice – + menu › Log practice (minutes per skill and focus), My Practice chart, strokes lost vs practice time, Log this drill on a round; My Game in the + menu.
 // v141: My Game (mygame.js) – six-spoke game shape on Home (card) and its own page, with 30 days / 3 months / year / all time and the period before.
@@ -36,7 +37,7 @@
 // v113: "Courses near me" (near.js). The course finder list (data/us-courses.json, ~1.0 MB, ~0.28 MB gzipped) is NOT in this cache:
 // the app downloads it on first use into its own cache 'pinhigh-courselist-v1', which a new version keeps (so no re-download).
 // GolfCore scorecards (through the Pin High relay, pinhigh-golfcore.pinhigh.workers.dev) go straight to the network; the app saves each picked course with the saved courses.
-const CACHE = 'golf-sg-v143';
+const CACHE = 'golf-sg-v144';
 const ASSETS = ['./', './img/home-bg.webp', './img/oriole.webp', './index.html', './styles.css', './sg.js', './birdie.js', './voice.js', './courses.js', './near.js', './bag.js', './wedges.js', './live.js', './share.js', './story.js', './insights.js', './mygame.js', './gdrive.js', './app.js', './config.js', './vendor/jspdf.umd.min.js',
   './manifest.webmanifest', './icons/apple-touch-icon.png', './icons/icon-192.png',
   './icons/icon-512.png', './icons/icon-512-maskable.png'];
