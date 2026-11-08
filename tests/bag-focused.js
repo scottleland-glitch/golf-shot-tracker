@@ -62,7 +62,7 @@ const pct = (a, b) => (a / b - 1) * 100;
     await page.reload(); await page.waitForSelector('#home');
     assert.strictEqual(await page.$('[data-act="bag"]'), null, 'nothing new on the clean home screen');
     await page.click('#plusbtn'); await page.waitForSelector('#plusmenu');
-    assert.deepStrictEqual(await page.$$eval('#plusmenu .sheet-item', e => e.map(x => x.textContent)), ['New round', 'Rounds', 'Stats', 'My Bag', 'Settings', 'Help'], 'My Bag has its own + menu item (v102)');
+    assert.deepStrictEqual(await page.$$eval('#plusmenu .sheet-item', e => e.map(x => x.textContent)), ['New round', 'Rounds', 'Stats', 'My Game', 'Log practice', 'My Bag', 'Settings', 'Help'] /* v140+: My Game and Log practice added */, 'My Bag has its own + menu item (v102)');
     await page.click('#plusmenu [data-act="bag"]'); await page.waitForSelector('#bagempty');
     assert.strictEqual(await page.getAttribute('#segbag', 'aria-selected'), 'true', 'opens on the Bag tab'); assert.strictEqual(await page.textContent('.topbar .txt'), '‹ Home');
     await shot('bag-empty');

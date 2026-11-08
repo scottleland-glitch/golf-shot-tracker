@@ -30,7 +30,7 @@ const srv = http.createServer((q, s) => {
   assert.ok(await P.evaluate(() => !!navigator.serviceWorker.controller), 'service worker controls the page');
   await P.click('#plusbtn'); await P.waitForSelector('#plusmenu');
   const menu = await P.$$eval('#plusmenu button', e => e.map(x => [x.textContent, x.dataset.act]));
-  assert.deepStrictEqual(menu, [['New round', 'newform'], ['Rounds', 'history'], ['Stats', 'stats'], ['My Bag', 'bag'], ['Settings', 'archive'], ['Help', 'help']]);
+  assert.deepStrictEqual(menu, [['New round', 'newform'], ['Rounds', 'history'], ['Stats', 'stats'], ['My Game', 'mygame'], ['Log practice', 'prlog'], ['My Bag', 'bag'], ['Settings', 'archive'], ['Help', 'help']] /* v140+: My Game and Log practice added */);
   await P.waitForTimeout(400); await P.screenshot({ path: OUT + 'help-plus-menu-v128.png' });
   await P.click('#plusmenu [data-act="help"]'); await P.waitForSelector('#helppage');
   assert.strictEqual(await P.textContent('.topbar .title b'), 'Help');

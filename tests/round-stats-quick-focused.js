@@ -39,8 +39,9 @@ const OUT = '/workspace/golf-app/screenshots/', PORT = 8833, BASE = 'http://127.
   assert.deepStrictEqual(qv.map(q => [q.id, q.l, q.v]), [['fw', 'Fairways', Math.round(exp.fw[0] / exp.fw[1] * 100) + '%'], ['gir', 'GIR', Math.round(exp.gir[0] / exp.gir[1] * 100) + '%'], ['putts', 'Putts', '31']]);
   assert.deepStrictEqual(qv.map(q => q.sg.replace(/\s*SG$/, '')), [fmt(exp.tee), fmt(exp.appr), fmt(exp.putt)], 'SG: off the tee / approach / putting');
   assert.deepStrictEqual(qv.map(q => q.cls.replace('qvsg', '').trim()), [cls(exp.tee), cls(exp.appr), cls(exp.putt)]);
-  const qvTop = await page.evaluate(() => document.getElementById('quickview').getBoundingClientRect().top - document.getElementById('rs-top').getBoundingClientRect().bottom);
-  assert.ok(qvTop >= 0 && qvTop < 60, 'Quick view directly under the box ' + qvTop);
+  // v140+: the round Takeaway card sits between the score box and Quick view – Quick view comes right after whichever is last
+  const qvTop = await page.evaluate(() => { const tk = document.querySelector('#rs-top ~ .takeaway'), above = tk || document.getElementById('rs-top'); return document.getElementById('quickview').getBoundingClientRect().top - above.getBoundingClientRect().bottom; });
+  assert.ok(qvTop >= 0 && qvTop < 60, 'Quick view directly under the box (or the Takeaway card) ' + qvTop);
   console.log('  quick view: ' + qv.map(q => q.l + ' ' + q.v + ' (' + q.sg + ')').join(' · '));
   await page.screenshot({ path: OUT + 'round-stats-top.png' });
   // ---- legend smaller + lighter
