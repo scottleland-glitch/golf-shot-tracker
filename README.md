@@ -121,6 +121,7 @@ is the chosen baseline (each spoke has its own scale). Time frames: 30 days, 3 m
 shape is the same length of time before. A spoke with fewer than 2 rounds or too few shots is hollow ("learning 40%").
 v146: under the chart, "How well Strokewise knows your game" – one bar per spoke for the time frame shown: gold =
 v147: Round stats has "Scoring by par" – par 3, 4 and 5 scoring curves with your average over your other finished rounds in colour and this round dashed on top. With no other rounds yet it shows this round on its own.
+v148: "Log this drill" on Round stats no longer leads to a dead end – My Game shows ‹ Round, and Save or Cancel take you straight back to the round.
 learning, light green = ready (the tick mark), dark green = strong (3x the shots ready needs). Learning points on the
 chart are gold rings with a gold "learning" label.
 Headline: the biggest change vs the period before, else what costs the most. Tiles: average 18-hole score, strokes

@@ -1,4 +1,5 @@
 // Offline support: cache the whole app on install, serve cache-first.
+// v148: "Log this drill" from a round – My Game shows ‹ Round, and Save / Cancel go back to the round (no dead end).
 // v147: Round stats – par 3 / 4 / 5 scoring curves: your other finished rounds in colour, this round dashed.
 // v146: My Game – six "How well Strokewise knows your game" bars under the chart (learning, ready, strong); learning points are gold rings.
 // v145: My Game – ＋ Log in the top bar; club practice (Driving, Irons 100+, Wedges) is Distance control or Mechanics.
@@ -40,7 +41,7 @@
 // v113: "Courses near me" (near.js). The course finder list (data/us-courses.json, ~1.0 MB, ~0.28 MB gzipped) is NOT in this cache:
 // the app downloads it on first use into its own cache 'pinhigh-courselist-v1', which a new version keeps (so no re-download).
 // GolfCore scorecards (through the Pin High relay, pinhigh-golfcore.pinhigh.workers.dev) go straight to the network; the app saves each picked course with the saved courses.
-const CACHE = 'golf-sg-v147';
+const CACHE = 'golf-sg-v148';
 const ASSETS = ['./', './img/home-bg.webp', './img/oriole.webp', './index.html', './styles.css', './sg.js', './birdie.js', './voice.js', './courses.js', './near.js', './bag.js', './wedges.js', './live.js', './share.js', './story.js', './insights.js', './mygame.js', './gdrive.js', './app.js', './config.js', './vendor/jspdf.umd.min.js',
   './manifest.webmanifest', './icons/apple-touch-icon.png', './icons/icon-192.png',
   './icons/icon-512.png', './icons/icon-512-maskable.png'];

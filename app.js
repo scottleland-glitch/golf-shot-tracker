@@ -1899,7 +1899,7 @@
   }
   function myGameHTML() {
     var names = mgPlayers(), who = mgWho(), D = mgData(who), P = D.period;
-    var h = '<div class="frostpage theme-sky mygamepage" id="mygame"><div class="topbar frost"><button class="txt frostbtn" data-act="home">‹ Home</button><div class="title"><b>My Game</b><span>' +
+    var h = '<div class="frostpage theme-sky mygamepage" id="mygame"><div class="topbar frost">' + (view.mgBack ? '<button class="txt frostbtn" data-act="mgback" id="mgback">‹ Round</button>' : '<button class="txt frostbtn" data-act="home">‹ Home</button>') + '<div class="title"><b>My Game</b><span>' +
       (who ? esc(who) + ' · ' : '') + D.cur.rounds + ' round' + (D.cur.rounds === 1 ? '' : 's') + '</span></div><button class="txt frostbtn mglogtop" data-act="prlog" id="prlogtop" aria-label="Log practice">＋ Log</button></div>';
     if (names.length > 1) h += '<div class="hchips" id="mgchips" role="group" aria-label="Player">' + names.map(function (nm) {
       var on = nm === who; return '<button class="frostchip' + (on ? ' sel' : '') + '" data-act="mgplayer" data-v="' + esc(nm) + '" aria-pressed="' + on + '">' + esc(nm) + '</button>'; }).join('') + '</div>';
@@ -1953,11 +1953,16 @@
     return o + '<div class="prfoot"><span id="prtotal">' + (total ? 'Total ' + MYGAME.hm(total) : 'Tap a skill, then + to add minutes') + '</span>' +
       '<button class="txt" data-act="prcancel">Cancel</button><button class="primary" data-act="prsave" id="prsave"' + (total ? '' : ' disabled') + '>Save</button></div></div>';
   }
+  // v148: My Game opened from a round's "Log this drill" leads back to that round (‹ Round, Save and Cancel all return there)
+  function mgBackToRound() {
+    var B = view.mgBack; view.mgBack = null; view.prLog = null; if (B && B.rid) view.roundId = B.rid; view.screen = 'summary'; render();
+    var el = document.getElementById('takeaway'); if (el && el.scrollIntoView) el.scrollIntoView({ block: 'start' }); else window.scrollTo(0, 0);
+  }
   function prAct(act, v, k, b) {
     var L = view.prLog;
     if (act === 'prlog') { prOpen(null); return; }
-    if (act === 'prdrill') { var q = String(v || '').split('|'); view.mgPlayer = (b && b.getAttribute('data-who')) || view.mgPlayer; prOpen({ spoke: q[0], focus: q.slice(1).join('|'), min: 15 }); return; }
-    if (act === 'prcancel') { view.prLog = null; render(); return; }
+    if (act === 'prdrill') { var q = String(v || '').split('|'); view.mgPlayer = (b && b.getAttribute('data-who')) || view.mgPlayer; view.mgBack = { rid: view.roundId }; prOpen({ spoke: q[0], focus: q.slice(1).join('|'), min: 15 }); return; }
+    if (act === 'prcancel') { view.prLog = null; if (view.mgBack) { mgBackToRound(); return; } render(); return; }
     if (act === 'prdel') { savePractice(practice().filter(function (e) { return e.id !== v; })); toast('Practice entry removed'); render(); return; }
     if (!L) return;
     if (act === 'prspoke') { L.open[v] = !L.open[v]; render(); return; }
@@ -1967,7 +1972,7 @@
       Object.keys(L.mins).forEach(function (key) { var m = L.mins[key]; if (!m) return; var parts = key.split('|');
         list.push({ id: 'pr-' + stamp + '-' + (n++), date: L.date + 'T12:00:00', player: who, spoke: parts[0], focus: parts.slice(1).join('|'), min: m }); tot += m; });
       if (!n) return;
-      savePractice(list); view.prLog = null; render(); toast('Saved ' + MYGAME.hm(tot) + ' of practice'); return;
+      savePractice(list); view.prLog = null; if (view.mgBack) mgBackToRound(); else render(); toast('Saved ' + MYGAME.hm(tot) + ' of practice'); return;
     }
   }
   function practiceCardHTML(who, D) {
@@ -4591,7 +4596,7 @@
       case 'new': view.from = null; view.hmenu = null; view.newBl = null; newRound(((document.getElementById('course') || {}).value || '').trim()); return;
       case 'resume': view.from = null; view.roundId = localStorage.getItem(CUR); goHole(firstOpenHole(round()), true); return;
       case 'open': view.pdf = null; view.addr = null; view.send = null; view.mv = null; view.roundId = b.getAttribute('data-id'); view.from = view.screen === 'history' ? 'history' : null; view.screen = 'summary'; view.map = null; render(); window.scrollTo(0, 0); return;
-      case 'home': view.screen = 'home'; view.from = null; view.hmenu = null; break;
+      case 'home': view.screen = 'home'; view.from = null; view.hmenu = null; view.mgBack = null; break;
       case 'archive': view.screen = 'archive'; view.hmenu = null; render(); window.scrollTo(0, 0); return;
       case 'plus': view.hmenu = view.hmenu ? (view.hmenu === 'new' ? 'menu' : null) : 'menu'; render(); return;
       case 'newform': view.hmenu = 'new'; render(); var ci = document.getElementById('course'); if (ci) ci.focus(); return;
@@ -4703,8 +4708,9 @@
       case 'wedges': view.hmenu = null; view.screen = 'wedges'; view.wOpen = null; view.wOther = null; view.wEdit = false; view.wFull = null; view.wFlight = 'high'; render(); window.scrollTo(0, 0); return;
       case 'wact': wAct(v, b); return;
       case 'help': view.hmenu = null; view.screen = 'help'; render(); window.scrollTo(0, 0); return; // v128
-      case 'mygame': view.hmenu = null; view.prLog = null; view.screen = 'mygame'; render(); window.scrollTo(0, 0); return; // v141
+      case 'mygame': view.hmenu = null; view.prLog = null; view.mgBack = null; view.screen = 'mygame'; render(); window.scrollTo(0, 0); return; // v141
       case 'mgperiod': view.mgPeriod = v; render(); return;
+      case 'mgback': mgBackToRound(); return;
       case 'prlog': case 'prcancel': case 'prdel': case 'prspoke': case 'prmin': case 'prsave': case 'prdrill': prAct(act, v, k, b); return;
       case 'mgplayer': view.mgPlayer = v; render(); return;
       case 'bag': view.hmenu = null; view.screen = 'bag'; view.bagAdd = null; view.bagEdit = null; view.bagCondOpen = false; render(); window.scrollTo(0, 0); return;
