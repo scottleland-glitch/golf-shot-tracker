@@ -1891,7 +1891,7 @@
   function myGameHTML() {
     var names = mgPlayers(), who = mgWho(), D = mgData(who), P = D.period;
     var h = '<div class="frostpage theme-sky mygamepage" id="mygame"><div class="topbar frost"><button class="txt frostbtn" data-act="home">‹ Home</button><div class="title"><b>My Game</b><span>' +
-      (who ? esc(who) + ' · ' : '') + D.cur.rounds + ' round' + (D.cur.rounds === 1 ? '' : 's') + '</span></div><span class="tbspace"></span></div>';
+      (who ? esc(who) + ' · ' : '') + D.cur.rounds + ' round' + (D.cur.rounds === 1 ? '' : 's') + '</span></div><button class="txt frostbtn mglogtop" data-act="prlog" id="prlogtop" aria-label="Log practice">＋ Log</button></div>';
     if (names.length > 1) h += '<div class="hchips" id="mgchips" role="group" aria-label="Player">' + names.map(function (nm) {
       var on = nm === who; return '<button class="frostchip' + (on ? ' sel' : '') + '" data-act="mgplayer" data-v="' + esc(nm) + '" aria-pressed="' + on + '">' + esc(nm) + '</button>'; }).join('') + '</div>';
     h += '<div class="stseg mgseg" id="mgperiod" role="group" aria-label="Time frame">' + MYGAME.PERIODS.map(function (x) {
@@ -1936,7 +1936,7 @@
       var open = !!L.open[sp.k];
       o += '<div class="prspoke' + (open ? ' open' : '') + '" data-spoke="' + sp.k + '"><button class="prsh" data-act="prspoke" data-v="' + sp.k + '" aria-expanded="' + open + '"><span>' + esc(sp.name) + '</span><b>' + (sub ? MYGAME.hm(sub) : '') + '</b><i aria-hidden="true">' + (open ? '⌄' : '›') + '</i></button>';
       if (open) o += foc.map(function (f) { var key = sp.k + '|' + f, m = L.mins[key] || 0;
-        return '<div class="prrow' + (m ? ' on' : '') + '"><span>' + esc(f) + '</span><button class="prstep" data-act="prmin" data-v="' + esc(key) + '" data-k="-5" aria-label="5 minutes less ' + esc(f) + '"' + (m ? '' : ' disabled') + '>−</button>' +
+        return '<div class="prrow' + (m ? ' on' : '') + '"><span>' + esc(f) + (MYGAME.FOCUS_HINT[f] ? '<small>' + esc(MYGAME.FOCUS_HINT[f]) + '</small>' : '') + '</span><button class="prstep" data-act="prmin" data-v="' + esc(key) + '" data-k="-5" aria-label="5 minutes less ' + esc(f) + '"' + (m ? '' : ' disabled') + '>−</button>' +
           '<b class="prval">' + m + '<small> min</small></b><button class="prstep" data-act="prmin" data-v="' + esc(key) + '" data-k="5" aria-label="5 minutes more ' + esc(f) + '">+</button></div>'; }).join('');
       o += '</div>';
     });

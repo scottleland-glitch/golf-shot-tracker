@@ -117,10 +117,11 @@
 
   // ---------- v142 practice: minutes per skill, logged by focus ----------
   // Each log entry: { id, date: 'YYYY-MM-DDT12:00:00' (local), player, spoke, focus, min }.
+  // v145 club practice is Distance control or Mechanics (takeaway, swing plane, weight transfer ...).
   var FOCUS = {
-    drive: ['Driver', 'Fairway woods & hybrids'],
-    irons: ['Iron play', 'Distance control', 'Start line'],
-    wedges: ['Wedge distances', 'Partial swings'],
+    drive: ['Distance control', 'Mechanics'],
+    irons: ['Distance control', 'Mechanics'],
+    wedges: ['Distance control', 'Mechanics'],
     chip: ['Green-side chipping', 'Pitching', 'Bunker shots'],
     lag: ['Lag putting', 'Putting speed control'],
     short: ['Short putts', 'Start line / gate drill']
@@ -194,15 +195,16 @@
   }
   // The practice a round takeaway's "Work on next" points to: { spoke, focus }.
   var DRILL_FOCUS = { puttspeed: ['lag', 'Putting speed control'], lag: ['lag', 'Lag putting'], puttline: ['short', 'Start line / gate drill'],
-    wedges: ['wedges', 'Wedge distances'], irondepth: ['irons', 'Distance control'], ironline: ['irons', 'Start line'], teepen: ['drive', 'Driver'], teeside: ['drive', 'Driver'] };
-  var AREA_FOCUS = { tee: ['drive', 'Driver'], approach: ['irons', 'Iron play'], short: ['chip', 'Green-side chipping'], putting: ['lag', 'Lag putting'] };
+    wedges: ['wedges', 'Distance control'], irondepth: ['irons', 'Distance control'], ironline: ['irons', 'Mechanics'], teepen: ['drive', 'Mechanics'], teeside: ['drive', 'Mechanics'] };
+  var AREA_FOCUS = { tee: ['drive', 'Mechanics'], approach: ['irons', 'Distance control'], short: ['chip', 'Green-side chipping'], putting: ['lag', 'Lag putting'] };
   function drillFocus(f) {
     if (!f) return null;
     var x = f.id === 'chips' ? ['chip', /bunker/i.test(f.title) ? 'Bunker shots' : 'Green-side chipping'] : DRILL_FOCUS[f.id] || AREA_FOCUS[f.area];
     return x ? { spoke: x[0], focus: x[1] } : null;
   }
 
-  var API = { FOCUS: FOCUS, validPractice: validPractice, mergePractice: mergePractice, practiceShape: practiceShape, practiceBuild: practiceBuild, practiceSVG: practiceSVG,
+  var FOCUS_HINT = { Mechanics: 'takeaway, swing plane, weight transfer…' };
+  var API = { FOCUS: FOCUS, FOCUS_HINT: FOCUS_HINT, validPractice: validPractice, mergePractice: mergePractice, practiceShape: practiceShape, practiceBuild: practiceBuild, practiceSVG: practiceSVG,
     practiceVsGame: practiceVsGame, drillFocus: drillFocus, hm: hm,
     SPOKES: SPOKES, PERIODS: PERIODS, MIN_ROUNDS: MIN_ROUNDS, period: period, windows: windows, shape: shape, build: build, radarSVG: radarSVG, radius: radius, fmt: fmt, RING: RING };
   if (typeof module !== 'undefined' && module.exports) module.exports = API; else root.MYGAME = API;

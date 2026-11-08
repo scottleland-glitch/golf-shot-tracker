@@ -90,7 +90,9 @@ test('strokes lost vs practice time names the biggest gap', () => {
 test('Log this drill points each Work on next at a practice focus', () => {
   assert.deepStrictEqual(M.drillFocus({ id: 'puttspeed', area: 'putting' }), { spoke: 'lag', focus: 'Putting speed control' });
   assert.deepStrictEqual(M.drillFocus({ id: 'chips', area: 'short', title: 'Greenside bunker play' }), { spoke: 'chip', focus: 'Bunker shots' });
-  assert.deepStrictEqual(M.drillFocus({ id: 'area', area: 'approach' }), { spoke: 'irons', focus: 'Iron play' });
+  assert.deepStrictEqual(M.drillFocus({ id: 'area', area: 'approach' }), { spoke: 'irons', focus: 'Distance control' });
+  assert.deepStrictEqual(M.drillFocus({ id: 'teeside', area: 'tee' }), { spoke: 'drive', focus: 'Mechanics' });
+  ['drive', 'irons', 'wedges'].forEach((k) => assert.deepStrictEqual(M.FOCUS[k], ['Distance control', 'Mechanics'], 'club practice: ' + k));
   Object.values(M.FOCUS).forEach((list) => assert.ok(list.length >= 2));
   ['puttspeed', 'lag', 'puttline', 'wedges', 'irondepth', 'ironline', 'teepen', 'teeside'].forEach((id) => { const x = M.drillFocus({ id }); assert.ok(M.FOCUS[x.spoke].includes(x.focus), id); });
 });

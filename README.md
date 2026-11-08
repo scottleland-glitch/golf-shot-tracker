@@ -103,6 +103,8 @@ next box with its drill, the four areas with "usually", Went well). Stats report
 ## Practice (v142)
 + menu › **Log practice** (or ＋ Log practice on My Game): pick a day, open a skill and add minutes in 5-minute steps per
 focus (e.g. Chipping › Green-side chipping 30, Lag putts › Lag putting 20 and Putting speed control 10), then Save.
+v145: Driving, Irons 100+ and Wedges have just Distance control and Mechanics (takeaway, swing plane, weight transfer ...);
+My Game also has ＋ Log in its top bar.
 Entries `{ id, date, player, spoke, focus, min }` live in `golfsg.practice.v1` and ride along in the backup file and in
 each player's Google Drive backup (restore adds new entries only). My Game shows **My Practice** (time per skill as a
 chart, same time frames, the period before in gray), **Strokes lost vs practice time** (share of strokes lost next to

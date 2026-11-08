@@ -2119,3 +2119,7 @@ html body .roundpage.holepage .srow.shead .c-n { height: auto; min-height: 0; bo
 .tkfocus .prdrill { margin-top: 10px; min-height: 44px; width: 100%; border-radius: 999px; border: 1px solid rgba(255, 255, 255, .35); background: rgba(255, 255, 255, .14); color: #fff; font: inherit; font-weight: 600; }
 .pritem em { font-style: normal; font-weight: 600; }
 .prx { width: 36px; height: 36px; min-height: 36px; padding: 0; border-radius: 50%; border: 0; background: rgba(23, 48, 31, .08); color: var(--frost-ink-soft); font-size: 18px; }
+
+/* v145 My Game: + Log in the top bar (always in reach); a hint under Mechanics */
+.mygamepage .mglogtop { white-space: nowrap; }
+.prrow span small { display: block; font-size: 12px; font-weight: 400; color: var(--frost-ink-soft); }

@@ -19,6 +19,14 @@ for (let i = 0; i < 6; i++) rounds.push(Object.assign(ARC.round(), { id: 'g' + i
     await page.reload(); await page.waitForSelector('#home');
     await page.click('#plusbtn'); assert.ok(await page.$('#plusmenu [data-act="mygame"]') && await page.$('#plusmenu [data-act="prlog"]'), '+ menu has My Game and Log practice');
     await page.click('#plusmenu [data-act="prlog"]'); await page.waitForSelector('#prsheet');
+    assert.ok(await page.$('#prlogtop'), '+ Log in the My Game top bar'); await page.click('[data-act="prcancel"]'); assert.strictEqual(await page.$('#prsheet'), null);
+    await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight)); await page.click('#prlogtop'); await page.waitForSelector('#prsheet');
+    const bar = await page.evaluate(() => [document.querySelector('#mygame .topbar').getBoundingClientRect().bottom, document.querySelector('.prhead').getBoundingClientRect().top]);
+    assert.ok(bar[1] >= bar[0], 'sheet title below the top bar ' + bar);
+    await page.click('[data-act="prspoke"][data-v="irons"]');
+    assert.deepStrictEqual(await page.$$eval('.prspoke[data-spoke="irons"] .prrow > span', x => x.map(e => e.childNodes[0].textContent)), ['Distance control', 'Mechanics']);
+    assert.deepStrictEqual(await page.$$eval('.prspoke[data-spoke="irons"] .prrow > span small', x => x.map(e => e.textContent)), ['takeaway, swing plane, weight transfer…'], 'hint under Mechanics only');
+    await page.click('[data-act="prspoke"][data-v="irons"]');
     assert.match(await page.textContent('#prtotal'), /Tap a skill/); assert.ok(await page.$eval('#prsave', x => x.disabled));
     const plus = async (key, n) => { for (let i = 0; i < n; i++) await page.click(`[data-act="prmin"][data-v="${key}"][data-k="5"]`); };
     await page.click('[data-act="prspoke"][data-v="chip"]'); await plus('chip|Green-side chipping', 6);
