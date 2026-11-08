@@ -2606,7 +2606,7 @@
     out += '<button class="big rpbtn frostbtn" data-act="replay" data-v="' + view.hole + '">▶ Hole replay</button>';
     out += '<div class="row sub"><button class="txt frostbtn" data-act="home">Home</button><button class="txt frostbtn" data-act="summary">Scorecard &amp; stats</button></div>' +
       '<button class="danger discard frostdanger" data-act="discard" data-id="' + esc(r.id) + '">🗑 Discard round</button>';
-    out += '<p class="help muted">One card per shot. <b>From</b> = where you hit it from and how far it was to the pin (yards; feet on the green) – filled in from the shot before. <b>Club</b>. <b>Finished</b> = where the ball came to rest and which way it missed, as you see it from the ball (Long = past the pin, Short = toward you). The app works out how far each shot went from the distances. Hazard: pick Drop (+1, play from the drop) or Re-tee (+1, play again from the same spot). OB = +1 and play again from the same spot. <b>Penalty +1</b> is for any other penalty stroke – an unplayable lie, a lost ball, another drop (tap ? next to it for more). Score = shots + penalties.</p>';
+    out += '<p class="help muted">One card per shot. <b>From</b> = where you hit it from and how far it was to the pin (yards; feet on the green) – filled in from the shot before. <b>Club</b>. <b>Finished</b> = where the ball came to rest, and its <b>Direction</b> as you see it from the ball (Long = past the pin, Short = toward you). The app works out how far each shot went from the distances. Hazard: pick Drop (+1, play from the drop) or Re-tee (+1, play again from the same spot). OB = +1 and play again from the same spot. <b>Penalty +1</b> is for any other penalty stroke – an unplayable lie, a lost ball, another drop (tap ? next to it for more). Score = shots + penalties.</p>';
     if (false) out += '<p class="help muted">Each row is ONE stroke. Dist = how far from the pin you hit it (yards; feet on the green). Loc = where the ball was. ' +
       'The shot that went in: tick "Hole out" on its row – its Loc (e.g. Rough) stays, so strokes gained counts it from there. Dir = where the shot before ended vs its target (8 ways: Short = toward you, Long = past it, Left, Right, and the corners). For an approach that missed the green, pick where it missed the green; if it found the green, pick where it stopped vs the hole. ' +
       'P = penalty stroke (+1), e.g. a drop. "OB re-hit" = +1 and you hit again from the same spot. Score = rows + penalties.</p>';
@@ -2828,7 +2828,7 @@
   // labelled "Penalty +1" toggle (unplayable, lost ball, a drop – OB and the hazard add theirs on their own)
   function missBtn(k, dv, ask, opt, who) {
     return '<button class="dirbtn misspill' + (dv ? ' on' : '') + '" data-act="dirpick" data-k="' + k + '" data-dir="' + dv + '" aria-label="' + esc(ask) + ' ' + dirName(dv) + '"><span class="mparr">' + (dv ? ARROW[dv] : '➚') + '</span>' +
-      '<span class="mptxt">' + (dv ? (who ? who + ' missed' : 'Missed') + ' <b>' + SG.DIR_NAME[dv].toLowerCase() + '</b>' : esc(ask) + (opt ? ' <small>(optional)</small>' : '')) + '</span><span class="mpgo">' + (dv ? 'change' : 'pick') + '</span></button>';
+      '<span class="mptxt">' + (dv ? (who ? who + ': ' : 'Direction: ') + '<b>' + SG.DIR_NAME[dv] + '</b>' : esc(ask) + (opt ? ' <small>(optional)</small>' : '')) + '</span></button>';
   }
   function penBtn(k, on, lbl) {
     return '<span class="penwrap"><button class="pen penpill' + (on ? ' on' : '') + '" data-act="pen" data-k="' + k + '" aria-pressed="' + !!on + '" aria-label="' + esc(lbl) + '">' + (on ? '✓ Penalty +1' : 'Penalty +1') + '</button>' +
@@ -2858,7 +2858,7 @@
       '<i class="u" data-unit="' + k + '">' + SG.rowUnit(rows, k) + '</i></label>';
     out += '</div>';
     if (k > 0 && !replay) { var dv0 = SG.normDir(row.dir); // how the shot before finished – editable here too
-      out += '<div class="sc-came">' + missBtn(k, dv0, 'Shot ' + k + ' miss direction', false, 'Shot ' + k) + penBtn(k, row.pen, 'Penalty before shot ' + n) + '</div>' + penNote(k, row.pen); }
+      out += '<div class="sc-came">' + missBtn(k, dv0, 'Shot ' + k + ' direction', false, 'Shot ' + k) + penBtn(k, row.pen, 'Penalty before shot ' + n) + '</div>' + penNote(k, row.pen); }
     out += '</div>';
     // CLUB
     var dis = '';
@@ -2873,7 +2873,7 @@
       return '<button type="button" class="finchip' + (c[0] === 'in' ? ' in' : '') + (fin === c[0] ? ' sel' : '') + '" data-act="fin" data-k="' + k + '" data-v="' + c[0] + '" aria-pressed="' + (fin === c[0]) + '">' + c[1] + '</button>'; }).join('') + '</div>';
     if (fin && fin !== 'in' && nx) {
       var dv = SG.normDir(nx.dir), ob = nx.loc === 'ob';
-      out += '<div class="sc-miss">' + missBtn(k + 1, dv, ob ? 'Which side went OB?' : 'Which way did it miss?', !ob && !green);
+      out += '<div class="sc-miss">' + missBtn(k + 1, dv, ob ? 'Direction (which side?)' : 'Direction', false);
       if (ob) out += '<i class="tpen">+1</i>';
       else if (nx.loc !== 'hazard') out += penBtn(k + 1, nx.pen, 'Penalty after shot ' + n);
       out += '</div>' + (!ob && nx.loc !== 'hazard' ? penNote(k + 1, nx.pen) : '');

@@ -27,7 +27,7 @@ Player Quality ladder, then spread over the PGA table. Full sources, method and 
 
 ## Shot card tweaks (v158)
 Every shot's distance box says "to pin" (shot 1 too). A putt can finish anywhere, so the Finished list is the same on the green
-(Fairway … OB, In the hole). The miss direction is one wide labelled button ("Which way did it miss?" → "Missed right · change"),
+(Fairway … OB, In the hole). The direction is one wide labelled button ("Direction" → "Direction: right · change" – not always a miss),
 and the old "+1?" is a labelled "Penalty +1" toggle for unplayable / lost ball / other drops (OB and hazards add theirs on their own).
 A "?" beside it explains what it is for; when it is on, a note under it says a stroke was added and when to use it.
 

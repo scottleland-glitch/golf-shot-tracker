@@ -2225,3 +2225,16 @@ html body .roundpage .shotcard .penpill.on { background: #b8505a; border-color: 
 html body .roundpage .shotcard .peninfo { width: 30px; min-width: 30px; height: auto; min-height: 46px; padding: 0; border-radius: 12px; border: 1px solid #c9d2db; background: #fff;
   color: #4a5a68; font-size: 15px; font-weight: 800; box-shadow: none; }
 .shotcard .pennote { margin: 8px 0 0; padding: 9px 11px; border-radius: 12px; background: #fbf1f2; border: 1px solid #ecc9cd; color: #4a2a2e; font-size: 13px; line-height: 1.4; }
+.shotcard .misspill .mplbl { display: block; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; color: #4a7fd0; }
+.shotcard .misspill.on .mptxt b { font-size: 16px; }
+/* v159 (Scott): a smaller Direction button */
+html body .roundpage .shotcard .misspill { flex: 0 0 auto; gap: 6px; min-height: 38px; padding: 4px 14px 4px 10px; border-radius: 19px; font-size: 14px; white-space: nowrap; }
+.shotcard .misspill .mparr { font-size: 17px; min-width: 16px; }
+.shotcard .misspill .mptxt { flex: 0 0 auto; }
+.shotcard .misspill.on .mptxt b { font-size: 14px; }
+html body .roundpage .shotcard .penpill, html body .roundpage .shotcard .peninfo { min-height: 38px; border-radius: 19px; }
+html body .roundpage .shotcard .peninfo { width: 30px; min-width: 30px; }
+.shotcard .sc-came, .shotcard .sc-miss { align-items: center; }
+.shotcard .sc-miss .penwrap, .shotcard .sc-came .penwrap { margin-left: auto; }
+html body .roundpage .shotcard .misspill:not(.on) { border: 1.5px solid #4a7fd0; background: #eef4ff; }
+.shotcard .sc-came, .shotcard .sc-miss { flex-wrap: wrap; }
