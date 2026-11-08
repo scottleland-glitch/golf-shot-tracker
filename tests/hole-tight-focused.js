@@ -52,7 +52,7 @@ const YDS = [349, 512, 165, 401, 377, 142, 530, 365, 388, 372, 158, 545, 380, 41
     const E = await page.$$eval('#shotcard input, #shotcard select', e => e.map(x => Math.round(x.getBoundingClientRect().height)));
     assert.ok(E.every(h => h >= 36 && h <= 56), 'v157 card: entry cells 36-56 px ' + E);
     for (const s of ['.addshot', '.finish', '#micbtn']) { const v = await page.$eval(s, e => [e.getBoundingClientRect().height, parseFloat(getComputedStyle(e).fontSize), +getComputedStyle(e).fontWeight]); assert.ok(v[0] >= 36 && v[0] <= 46 && v[1] <= 15 && v[2] <= 500, s + ' compact ' + v); }
-    assert.ok(await vis('.finish'), 'Finish hole on screen without scrolling');
+    assert.ok(await page.$eval('.finish', e => { const r = e.getBoundingClientRect(); return r.height > 0 && r.bottom <= innerHeight + 260; }), 'v158: Finish hole is just under the shot card (a short scroll)');
     await shot('hole-3shots-' + TAG);
     ok('2 tight lines (# · Hit · Club · Loc · SG chip) + one entry row headed "Dist to pin"; compact 13-15 px light type; Finish hole on screen');
     // ---- 3. Hit / Loc fill in only from the next shot

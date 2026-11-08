@@ -25,6 +25,12 @@ Every Shot Counts Table 3.10). The other five are ESTIMATED: per-round gaps from
 Player Quality ladder, then spread over the PGA table. Full sources, method and caveats: in-app
 "About the numbers" and the BASELINES comment in `sg.js`.
 
+## Shot card tweaks (v158)
+Every shot's distance box says "to pin" (shot 1 too). A putt can finish anywhere, so the Finished list is the same on the green
+(Fairway … OB, In the hole). The miss direction is one wide labelled button ("Which way did it miss?" → "Missed right · change"),
+and the old "+1?" is a labelled "Penalty +1" toggle for unplayable / lost ball / other drops (OB and hazards add theirs on their own).
+A "?" beside it explains what it is for; when it is on, a note under it says a stroke was added and when to use it.
+
 ## Shot card, greenside bunkers, hazard re-tee (v157)
 Hole entry is one card per shot: FROM (lie + distance to the pin, pre-filled from where the last shot finished), CLUB, FINISHED
 (Fairway / Rough / Bunker / Green / Deep rough / Trees / Hazard / OB / In the hole; on the green: Missed or In the hole), then

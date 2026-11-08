@@ -2204,3 +2204,24 @@ html body .roundpage.holepage .holetop .livebtn { min-height: 36px; }
 .hzplay.sel { color: #1f73c9; font-weight: 600 !important; text-decoration: none; }
 .shotcard .sinfo { margin: 6px 0 2px; }
 .shotcard .addshot { margin: 8px 0 0; }
+
+/* v157b: miss direction + penalty, easy to find */
+.shotcard .sc-came, .shotcard .sc-miss { display: flex; align-items: stretch; gap: 8px; margin-top: 10px; }
+html body .roundpage .shotcard .misspill { flex: 1; justify-content: flex-start; display: flex; align-items: center; gap: 10px; width: auto; height: auto; min-height: 46px; padding: 6px 12px; border-radius: 14px;
+  border: 1.5px solid #4a7fd0; background: #eef4ff; color: #1d3f73; font-size: 15px; font-weight: 600; text-align: left; box-shadow: none; }
+.shotcard .misspill .mparr { font-size: 22px; line-height: 1; min-width: 22px; text-align: center; }
+.shotcard .misspill .mptxt { flex: 1; text-align: left; line-height: 1.25; }
+.shotcard .misspill .mpgo { white-space: nowrap; }
+.shotcard .misspill .mptxt small { color: #6b7f99; font-weight: 400; }
+.shotcard .misspill .mpgo { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; color: #4a7fd0; }
+html body .roundpage .shotcard .misspill.on { background: #dfeaff; border-color: #2f64b5; color: #10264a; }
+html body .roundpage .shotcard .penpill { flex: 0 0 auto; width: auto; min-width: 0; height: auto; min-height: 46px; padding: 6px 12px; border-radius: 14px; border: 1.5px solid #c9a3a8; background: #fff;
+  color: #8a3b44; font-size: 13px; font-weight: 700; white-space: nowrap; box-shadow: none; }
+html body .roundpage .shotcard .penpill.on { background: #b8505a; border-color: #b8505a; color: #fff; }
+.shotcard .sc-came .misspill .mparr, .shotcard .sc-came .misspill .mpgo { flex: 0 0 auto; }
+
+/* v158: what Penalty +1 is */
+.shotcard .penwrap { display: flex; align-items: stretch; gap: 4px; flex: 0 0 auto; }
+html body .roundpage .shotcard .peninfo { width: 30px; min-width: 30px; height: auto; min-height: 46px; padding: 0; border-radius: 12px; border: 1px solid #c9d2db; background: #fff;
+  color: #4a5a68; font-size: 15px; font-weight: 800; box-shadow: none; }
+.shotcard .pennote { margin: 8px 0 0; padding: 9px 11px; border-radius: 12px; background: #fbf1f2; border: 1px solid #ecc9cd; color: #4a2a2e; font-size: 13px; line-height: 1.4; }
