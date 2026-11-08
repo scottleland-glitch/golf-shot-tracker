@@ -48,8 +48,9 @@ test('chart: further out is better, the benchmark sits on the dashed ring, learn
   assert.ok(M.radius(sp, 1, 100) > M.radius(sp, 0, 100) && M.radius(sp, -2, 100) < M.radius(sp, 0, 100));
   const svg = M.radarSVG(M.shape([ARC.round()], SG, 'pga'), null, {});
   assert.match(svg, /class="rbench"/); assert.match(svg, /class="rcur"/); assert.doesNotMatch(svg, /class="rprev"/);
-  assert.strictEqual((svg.match(/fill="#fff"/g) || []).length, 6, 'six hollow points');
-  assert.match(svg, /learning 50%/);
+  assert.strictEqual((svg.match(/class="rlearn"/g) || []).length, 6, 'six gold learning rings');
+  assert.match(svg, />learning</);
+  const sh1 = M.shape([ARC.round()], SG, 'pga'); assert.ok(sh1.spokes.every((s) => s.conf > 0 && s.conf < 1 && !s.strong), 'one round: some confidence, none strong');
 });
 
 test('practice: minutes per skill and focus, sessions by day, the period before', () => {

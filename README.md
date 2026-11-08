@@ -119,6 +119,9 @@ Irons 100+ (approach from over 100 yd), Wedges (30–100 yd), Chipping (30 yd an
 (under 10 ft). Every shot is in exactly one spoke, so the six add up to the total. Further out = better; the dashed ring
 is the chosen baseline (each spoke has its own scale). Time frames: 30 days, 3 months (default), year, all time; the gray
 shape is the same length of time before. A spoke with fewer than 2 rounds or too few shots is hollow ("learning 40%").
+v146: under the chart, "How well Strokewise knows your game" – one bar per spoke for the time frame shown: gold =
+learning, light green = ready (the tick mark), dark green = strong (3x the shots ready needs). Learning points on the
+chart are gold rings with a gold "learning" label.
 Headline: the biggest change vs the period before, else what costs the most. Tiles: average 18-hole score, strokes
 gained / round, putts / round, GIR, with change. Player chips when the phone has more than one player.
 Tests: `node --test tests/mygame.test.js`, `node tests/mygame-focused.js`.

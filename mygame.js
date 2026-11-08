@@ -21,7 +21,7 @@
     { id: '1y', name: 'Year', short: 'year', days: 365 },
     { id: 'all', name: 'All time', short: 'all time', days: null }
   ];
-  var DAY = 86400000, MIN_ROUNDS = 2;
+  var DAY = 86400000, MIN_ROUNDS = 2, STRONG = 3;
   function period(id) { return PERIODS.filter(function (p) { return p.id === id; })[0] || PERIODS[1]; }
   // [from, to) in ms for the period and the one before it (all time has none before it).
   function windows(id, now) {
@@ -50,8 +50,9 @@
       rounds: rounds, holes: holes,
       spokes: SPOKES.map(function (s) {
         var a = acc[s.k], solid = a.n >= s.need && rounds >= MIN_ROUNDS;
+        // conf (v146): confidence keeps building past "ready" – full ("strong") at STRONG x the shots ready needs
         return { k: s.k, name: s.name, n: a.n, need: s.need, value: a.n ? per(a.sg) : null, solid: solid,
-          frac: Math.min(1, Math.min(a.n / s.need, rounds / MIN_ROUNDS)) };
+          frac: Math.min(1, Math.min(a.n / s.need, rounds / MIN_ROUNDS)), conf: Math.min(1, a.n / (s.need * STRONG)), strong: solid && a.n >= s.need * STRONG };
       }),
       tiles: {
         score: strokes18.length ? strokes18.reduce(function (t, x) { return t + x; }, 0) / strokes18.length : null,
@@ -105,12 +106,14 @@
     var cr = rs(cur);
     if (cur.spokes.some(function (s) { return s.value != null; })) o += '<polygon class="rcur" points="' + poly(cr) + '" fill="rgba(31,157,85,.28)" stroke="' + C.cur + '" stroke-width="2.5"/>';
     cur.spokes.forEach(function (s, i) { if (s.value == null) return; var q = pt(i, cr[i]);
-      o += '<circle cx="' + q[0] + '" cy="' + q[1] + '" r="' + (lab ? 4 : 3) + '" fill="' + (s.solid ? C.cur : '#fff') + '" stroke="' + C.cur + '" stroke-width="2"/>'; });
+      // v146 a skill still learning: a gold ring (same gold as its bar), so it stands out from the solid green points
+      o += s.solid ? '<circle cx="' + q[0] + '" cy="' + q[1] + '" r="' + (lab ? 4 : 3) + '" fill="' + C.cur + '" stroke="' + C.cur + '" stroke-width="2"/>'
+        : '<circle class="rlearn" cx="' + q[0] + '" cy="' + q[1] + '" r="' + (lab ? 5.5 : 3.5) + '" fill="#fff" stroke="#c8962e" stroke-width="' + (lab ? 3 : 2) + '"/>'; });
     if (lab) cur.spokes.forEach(function (s, i) {
       var q = pt(i, R + 20), anchor = Math.abs(q[0]) < 10 ? 'middle' : q[0] > 0 ? 'start' : 'end', d = prev && s.solid && prev.spokes[i].solid ? s.value - prev.spokes[i].value : null;
       o += '<text x="' + q[0] + '" y="' + (q[1] - 2) + '" text-anchor="' + anchor + '" font-size="12.5" font-weight="600" fill="' + C.ink + '">' + esc(s.name) + '</text>';
-      var sub = s.value == null ? 'no shots yet' : !s.solid ? 'learning ' + Math.round(s.frac * 100) + '%' : fmt(s.value) + (d != null && Math.abs(d) >= 0.25 ? (d > 0 ? ' ▲' : ' ▼') : '');
-      o += '<text x="' + q[0] + '" y="' + (q[1] + 13) + '" text-anchor="' + anchor + '" font-size="11.5" fill="' + (d != null && d >= 0.25 ? C.up : d != null && d <= -0.25 ? C.down : C.soft) + '"' + (s.solid ? '' : ' font-style="italic"') + '>' + esc(sub) + '</text>';
+      var sub = s.value == null ? 'no shots yet' : !s.solid ? 'learning' : fmt(s.value) + (d != null && Math.abs(d) >= 0.25 ? (d > 0 ? ' ▲' : ' ▼') : '');
+      o += '<text x="' + q[0] + '" y="' + (q[1] + 13) + '" text-anchor="' + anchor + '" font-size="11.5" fill="' + (!s.solid ? '#a8771a' : d != null && d >= 0.25 ? C.up : d != null && d <= -0.25 ? C.down : C.soft) + '"' + (s.solid ? '' : ' font-style="italic"') + '>' + esc(sub) + '</text>';
     });
     return o + '</svg>';
   }
@@ -204,7 +207,7 @@
   }
 
   var FOCUS_HINT = { Mechanics: 'takeaway, swing plane, weight transfer…' };
-  var API = { FOCUS: FOCUS, FOCUS_HINT: FOCUS_HINT, validPractice: validPractice, mergePractice: mergePractice, practiceShape: practiceShape, practiceBuild: practiceBuild, practiceSVG: practiceSVG,
+  var API = { STRONG: STRONG, FOCUS: FOCUS, FOCUS_HINT: FOCUS_HINT, validPractice: validPractice, mergePractice: mergePractice, practiceShape: practiceShape, practiceBuild: practiceBuild, practiceSVG: practiceSVG,
     practiceVsGame: practiceVsGame, drillFocus: drillFocus, hm: hm,
     SPOKES: SPOKES, PERIODS: PERIODS, MIN_ROUNDS: MIN_ROUNDS, period: period, windows: windows, shape: shape, build: build, radarSVG: radarSVG, radius: radius, fmt: fmt, RING: RING };
   if (typeof module !== 'undefined' && module.exports) module.exports = API; else root.MYGAME = API;

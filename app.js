@@ -1888,6 +1888,15 @@
       '<span class="mgmini">' + MYGAME.radarSVG(D.cur, null, { R: 34, labels: false, aria: 'Game shape' }) + '</span>' +
       '<span class="mgtxt"><b>My Game</b><span>' + esc(D.headline) + '</span><small>' + esc(D.period.name) + ' · ' + D.cur.rounds + ' round' + (D.cur.rounds === 1 ? '' : 's') + '</small></span><i aria-hidden="true">›</i></button>';
   }
+  // v146 How well Strokewise knows your game: one bar per spoke for the time frame shown (gold while learning, green when solid)
+  function mgKnowHTML(D) {
+    var sp = D.cur.spokes, ready = sp.filter(function (x) { return x.solid; }).length, tick = Math.round(100 / MYGAME.STRONG);
+    return '<div class="mgknow" id="mgknow"><span class="mgkh"><span>How well Strokewise knows your game</span><b id="mgready">' + ready + '/6 ready</b></span><span class="mgkbars">' +
+      sp.map(function (x) { var pct = Math.round(x.conf * 100), word = x.strong ? 'strong' : x.solid ? 'ready' : x.n ? 'learning' : 'no shots';
+        return '<span class="mgkb ' + (x.strong ? 'strong' : x.solid ? 'ready' : 'learn') + '" data-spoke="' + x.k + '" title="' + esc(x.name + ': ' + x.n + ' shots') + '"><em>' + esc(x.name) + '</em>' +
+          '<i><u style="width:' + pct + '%"></u><s style="left:' + tick + '%"></s></i><small>' + word + (x.strong ? '' : ' · ' + pct + '%') + '</small></span>'; }).join('') +
+      '</span><span class="mgknote">The mark is where a skill is ready to trust; more shots make it stronger. Based on ' + esc(D.period.id === '1y' ? 'the last year' : D.period.id === 'all' ? 'all your rounds' : D.period.name.toLowerCase()) + '.</span></div>';
+  }
   function myGameHTML() {
     var names = mgPlayers(), who = mgWho(), D = mgData(who), P = D.period;
     var h = '<div class="frostpage theme-sky mygamepage" id="mygame"><div class="topbar frost"><button class="txt frostbtn" data-act="home">‹ Home</button><div class="title"><b>My Game</b><span>' +
@@ -1899,8 +1908,9 @@
     h += '<button class="primary big prbtn" data-act="prlog" id="prlogbtn">＋ Log practice</button>' + prSheetHTML(who);
     h += '<div class="mgchart frost"><h2 id="mghead">' + esc(D.headline) + '</h2><p id="mglede">' + esc(D.lede) + '</p>' +
       MYGAME.radarSVG(D.cur, D.prev, { R: 96, aria: 'Game shape, ' + P.name }) +
+      mgKnowHTML(D) +
       '<div class="mglegend"><span><i class="lc"></i>' + esc(P.name) + '</span>' + (D.prev ? '<span><i class="lp"></i>' + (P.id === '1y' ? 'Year before' : 'Previous ' + esc(P.short)) + '</span>' : '') +
-      '<span><i class="lb"></i>' + esc(D.baselineName) + '</span></div>' +
+      '<span><i class="lb"></i>' + esc(D.baselineName) + '</span>' + (D.cur.spokes.some(function (x) { return x.value != null && !x.solid; }) ? '<span><i class="ll"></i>Still learning</span>' : '') + '</div>' +
       '<label class="mgbl">Compared with ' + blSelect('mgbl', D.baseline) + '</label></div>';
     var T = D.cur.tiles, Q = D.prev && D.prev.tiles;
     var tile = function (id, label, v, pv, f, better) {

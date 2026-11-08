@@ -2123,3 +2123,19 @@ html body .roundpage.holepage .srow.shead .c-n { height: auto; min-height: 0; bo
 /* v145 My Game: + Log in the top bar (always in reach); a hint under Mechanics */
 .mygamepage .mglogtop { white-space: nowrap; }
 .prrow span small { display: block; font-size: 12px; font-weight: 400; color: var(--frost-ink-soft); }
+
+/* v146 My Game: six "how well we know your game" bars under the chart – gold learning, green ready, deep green strong; tick = ready */
+.mgknow { margin: 6px 6px 10px; padding: 10px 12px; border-radius: 16px; background: rgba(255, 255, 255, .45); }
+.mgkh { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; font-size: 12.5px; color: var(--frost-ink-soft); white-space: nowrap; }
+.mgkh span { overflow: hidden; text-overflow: ellipsis; } .mgkh b { color: var(--frost-ink); }
+.mgkbars { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px 12px; margin-top: 8px; }
+.mgkb { display: grid; gap: 3px; min-width: 0; }
+.mgkb em { font-style: normal; font-size: 11.5px; font-weight: 700; color: var(--frost-ink-soft); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.mgkb i { position: relative; display: block; height: 7px; border-radius: 4px; background: rgba(23, 48, 31, .12); }
+.mgkb u { display: block; height: 100%; border-radius: 4px; text-decoration: none; background: #c8962e; }
+.mgkb s { position: absolute; top: -2px; width: 2px; height: 11px; margin-left: -1px; background: rgba(23, 48, 31, .45); border-radius: 1px; }
+.mgkb.ready u { background: #4cb878; } .mgkb.strong u { background: #1f8a4c; }
+.mgkb.ready em, .mgkb.strong em { color: #1f7a44; }
+.mgkb small { font-size: 11px; color: var(--frost-ink-soft); } .mgkb.strong small { color: #1f7a44; font-weight: 600; }
+.mgknote { display: block; margin-top: 8px; font-size: 11.5px; color: var(--frost-ink-soft); }
+.mglegend .ll { background: #fff; border: 2.5px solid #c8962e; width: 8px; height: 8px; } /* v146 learning point */
