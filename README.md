@@ -122,6 +122,7 @@ shape is the same length of time before. A spoke with fewer than 2 rounds or too
 v146: under the chart, "How well Strokewise knows your game" – one bar per spoke for the time frame shown: gold =
 v147: Round stats has "Scoring by par" – par 3, 4 and 5 scoring curves with your average over your other finished rounds in colour and this round dashed on top. With no other rounds yet it shows this round on its own.
 v148: "Log this drill" on Round stats no longer leads to a dead end – My Game shows ‹ Round, and Save or Cancel take you straight back to the round.
+v149: Round takeaway, Off the tee: left + fairway + right now always adds up to the fairway total. Par-3 tee shots no longer count as left/right misses, and any miss with no direction entered (or a penalty / layup) is named by hole under the picture.
 learning, light green = ready (the tick mark), dark green = strong (3x the shots ready needs). Learning points on the
 chart are gold rings with a gold "learning" label.
 Headline: the biggest change vs the period before, else what costs the most. Tiles: average 18-hole score, strokes

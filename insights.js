@@ -187,9 +187,15 @@
       // the tile adds to the takeaway: it does not repeat the Work on next line
       var t = { k: a.k, name: a.name, sg: a.sg, norm: a.mine ? a.norm : null, text: f && f.qualifies && !(focus && f.text === focus.text) ? f.text : null };
       if (a.k === 'tee') {
-        var dm = S.teeMap.filter(function (x) { return !x.layup; });
-        t.pic = { kind: 'tee', left: dm.filter(function (x) { return !x.fairway && x.side === 'L'; }).length, fw: S.fwHit, right: dm.filter(function (x) { return !x.fairway && x.side === 'R'; }).length };
+        // v149: only missed fairways (par-3 tee shots have no fairway); a miss with no left/right entered is counted and said, so the numbers add up
+        var miss = S.teeMap.filter(function (x) { return x.fairway === false; }), sided = miss.filter(function (x) { return !x.layup && (x.side === 'L' || x.side === 'R'); });
+        var lN = sided.filter(function (x) { return x.side === 'L'; }).length, rN = sided.length - lN, rest = miss.filter(function (x) { return sided.indexOf(x) < 0; });
+        t.pic = { kind: 'tee', left: lN, fw: S.fwHit, right: rN, noSide: rest.length };
         t.text = t.text || S.fwHit + ' of ' + S.fwTotal + ' fairways.';
+        if (rest.length) { // say what the misses not shown left or right were, by hole, so the numbers add up
+          var G = {}; rest.forEach(function (x) { var w = x.layup ? 'layup' : x.pen ? 'penalty, no direction entered' : 'no direction entered'; (G[w] = G[w] || []).push(x.hole); });
+          t.text += ' Not in left/right: ' + Object.keys(G).map(function (w) { return 'hole' + (G[w].length > 1 ? 's ' : ' ') + G[w].join(', ') + ' (' + w + ')'; }).join('; ') + '.';
+        }
       } else if (a.k === 'approach') {
         var c = { short: 0, long: 0, left: 0, right: 0 }; S.apprMiss.forEach(function (m) { var d = depth(m.dir), s = side(m.dir); if (d) c[d]++; if (s) c[s]++; });
         t.pic = { kind: 'approach', gir: S.gir, of: S.girHoles, short: c.short, long: c.long, left: c.left, right: c.right };

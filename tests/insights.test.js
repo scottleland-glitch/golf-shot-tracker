@@ -79,3 +79,14 @@ test('too short a round has no takeaway yet', () => {
   const t = I.build(r, [], SG);
   assert.strictEqual(t.ok, false); assert.match(t.reason, /Finish 6 holes/);
 });
+
+// v149: the tee tile's left + fairway + right always adds up to the fairway total; misses with no side are named by hole
+test('tee tile numbers add up; a miss with no direction is named', () => {
+  const r = copy('fw'); const h = r.holes.find(x => x.par > 3 && x.rows[1] && x.rows[1].loc !== 'fairway'); h.rows[1].dir = '';
+  const S = SG.summarize(r), T = I.build(r, [], SG, {}).tiles.find(t => t.k === 'tee');
+  assert.strictEqual(T.pic.left + T.pic.fw + T.pic.right + T.pic.noSide, S.fwTotal);
+  assert.strictEqual(T.pic.noSide, 1);
+  assert.match(T.text, new RegExp('Not in left/right: hole ' + (r.holes.indexOf(h) + 1) + ' \\(no direction entered\\)\\.$'));
+  const full = I.build(copy('ok'), [], SG, {}).tiles.find(t => t.k === 'tee');
+  assert.strictEqual(full.pic.noSide, 0); assert.doesNotMatch(full.text, /Not in/);
+});
