@@ -1,18 +1,20 @@
 // v107: the app version is shown small and light at the bottom of Settings and Home. It comes from ONE constant
-// (appVersion in config.js) and must equal the service worker cache name in sw.js (golf-sg-<version>), so they can't drift.
+// (v150: VERSION in sg.js – a cached file, unlike config.js) and must equal the service worker cache name in sw.js (golf-sg-<version>), so they can't drift.
 // iPhone 390x844 @3x. Run: node tests/version-focused.js
 const { chromium } = require('playwright-core'); const assert = require('assert'); const { spawn } = require('child_process'); const fs = require('fs');
 const ROOT = __dirname + '/../', OUT = '/workspace/golf-app/screenshots/', PORT = 8844, BASE = 'http://127.0.0.1:' + PORT + '/';
 const ok = m => console.log('  ✓ ' + m);
 // ---- 1. files: one constant, same as the cache name
 const sw = fs.readFileSync(ROOT + 'sw.js', 'utf8'), cfg = fs.readFileSync(ROOT + 'config.js', 'utf8'), app = fs.readFileSync(ROOT + 'app.js', 'utf8');
-const swVer = (sw.match(/const CACHE = 'golf-sg-(v\d+)';/) || [])[1], cfgVers = cfg.match(/appVersion:\s*'(v\d+)'/g) || [];
-assert.ok(swVer, 'sw.js has a golf-sg-vN cache name'); assert.strictEqual(cfgVers.length, 1, 'exactly one appVersion in config.js');
+const sgSrc = fs.readFileSync(ROOT + 'sg.js', 'utf8');
+const swVer = (sw.match(/const CACHE = 'golf-sg-(v\d+)';/) || [])[1], cfgVers = sgSrc.match(/VERSION:\s*'(v\d+)'/g) || [];
+assert.ok(swVer, 'sw.js has a golf-sg-vN cache name'); assert.strictEqual(cfgVers.length, 1, 'exactly one VERSION in sg.js');
+assert.ok(!/appVersion/.test(cfg), 'no version in config.js (it is network-first, so it would show a version the phone is not running yet)');
 const cfgVer = cfgVers[0].match(/'(v\d+)'/)[1];
-assert.strictEqual(cfgVer, swVer, 'config.js appVersion (' + cfgVer + ') must equal the sw.js cache version (' + swVer + ')');
-assert.strictEqual(swVer, 'v149');
-assert.ok(!/(Pin High|Strokewise) v\d+/.test(app), 'no version typed into app.js – it reads GOLF_CONFIG.appVersion');
-ok('config.js appVersion ' + cfgVer + ' = sw.js cache golf-sg-' + swVer);
+assert.strictEqual(cfgVer, swVer, 'sg.js VERSION (' + cfgVer + ') must equal the sw.js cache version (' + swVer + ')');
+assert.strictEqual(swVer, 'v150');
+assert.ok(!/(Pin High|Strokewise) v\d+/.test(app), 'no version typed into app.js – it reads SG.VERSION');
+ok('sg.js VERSION ' + cfgVer + ' = sw.js cache golf-sg-' + swVer);
 (async () => {
   const srv = spawn('python3', ['-m', 'http.server', String(PORT), '--bind', '127.0.0.1'], { cwd: ROOT, stdio: 'ignore' });
   await new Promise(r => setTimeout(r, 1500)); const errors = [];
@@ -29,7 +31,7 @@ ok('config.js appVersion ' + cfgVer + ' = sw.js cache golf-sg-' + swVer);
     // ---- 2. Home: bottom, small, light grey, not covering anything
     const H = await look('#homever'); light(H, 'Home version');
     assert.ok(H.r.bottom <= 844 && H.r.top > 844 - 40, 'at the very bottom ' + JSON.stringify(H.r));
-    assert.strictEqual(await page.evaluate(() => GOLF_CONFIG.appVersion), swVer, 'running app reads the same constant');
+    assert.strictEqual(await page.evaluate(() => SG.VERSION), swVer, 'running app reads the same constant');
     ok('Home: "' + H.t + '" ' + H.fs + 'px weight ' + H.fw + ', ' + H.col + ', ' + Math.round(844 - H.r.bottom) + 'px from the bottom');
     await page.waitForTimeout(400); await page.screenshot({ path: OUT + 'version-home.png' });
     // resume pill still clear of the version line

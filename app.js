@@ -4,7 +4,7 @@
   // Family watching a shared round (?watch=<token>): a read-only live scorecard. Nothing below runs, so this phone's own rounds,
   // backups and settings are never read or changed by the viewer.
   var LIVE_DB = (window.GOLF_CONFIG || {}).liveDb || '';
-  var APP_VER = 'Strokewise ' + ((window.GOLF_CONFIG || {}).appVersion || ''); // v107: shown small at the bottom of Settings and Home
+  var APP_VER = 'Strokewise ' + (SG.VERSION || ''); // v107: shown small at the bottom of Settings and Home (v150: from sg.js, the code actually running)
   if (window.LIVE && LIVE.watchId(location.search)) {
     document.title = 'Strokewise · Live'; document.body.classList.add('lvbody');
     LIVE.startViewer(document.getElementById('app'), LIVE.watchId(location.search), { base: LIVE_DB, oriole: 'img/oriole.webp' });

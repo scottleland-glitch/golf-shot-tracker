@@ -1,4 +1,5 @@
 // Offline support: cache the whole app on install, serve cache-first.
+// v150: the version shown in Settings now comes from sg.js (cached with the rest of the code), not config.js (network-first), so it can't show a newer number than the code running.
 // v149: Round takeaway – Off the tee left / fairway / right now adds up; misses with no direction (or penalty, layup) are named by hole.
 // v148: "Log this drill" from a round – My Game shows ‹ Round, and Save / Cancel go back to the round (no dead end).
 // v147: Round stats – par 3 / 4 / 5 scoring curves: your other finished rounds in colour, this round dashed.
@@ -23,7 +24,7 @@
 // v110: Stats page (+ menu › Stats) – strokes gained, FIR / GIR / short putts over time, averages table.
 // v109: PDF report – columns line up (header over its numbers), nothing past the margins, light type, new scorecard page with all the SG rows.
 // v108: My Bag – "Use density altitude" (one slider + typed box, -3,000 to 12,000 ft) with a ? help card; carries from ISA density.
-// v107: app version shown small at the bottom of Settings and Home (from appVersion in config.js – must match this cache name).
+// v107: app version shown small at the bottom of Settings and Home (v150: from VERSION in sg.js – must match this cache name).
 // v106: lighter type everywhere – no large bold text (font sizes / weights only; PDF report unchanged).
 // v99: Change player – move saved rounds to another player (History select mode + round page), Drive files follow.
 // v98: Google Drive automatic backup + restore (gdrive.js), one folder per player, multi-phone merge.
@@ -42,7 +43,7 @@
 // v113: "Courses near me" (near.js). The course finder list (data/us-courses.json, ~1.0 MB, ~0.28 MB gzipped) is NOT in this cache:
 // the app downloads it on first use into its own cache 'pinhigh-courselist-v1', which a new version keeps (so no re-download).
 // GolfCore scorecards (through the Pin High relay, pinhigh-golfcore.pinhigh.workers.dev) go straight to the network; the app saves each picked course with the saved courses.
-const CACHE = 'golf-sg-v149';
+const CACHE = 'golf-sg-v150';
 const ASSETS = ['./', './img/home-bg.webp', './img/oriole.webp', './index.html', './styles.css', './sg.js', './birdie.js', './voice.js', './courses.js', './near.js', './bag.js', './wedges.js', './live.js', './share.js', './story.js', './insights.js', './mygame.js', './gdrive.js', './app.js', './config.js', './vendor/jspdf.umd.min.js',
   './manifest.webmanifest', './icons/apple-touch-icon.png', './icons/icon-192.png',
   './icons/icon-512.png', './icons/icon-512-maskable.png'];

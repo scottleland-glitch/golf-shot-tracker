@@ -1,8 +1,7 @@
 // Golf Shot Tracker – site configuration.
-// App version (v107): the ONE place the version lives. It must match the cache name in sw.js ('golf-sg-' + appVersion);
-// tests/version-focused.js fails if they ever differ.
+// v150: the app version moved to sg.js (VERSION). This file is always fetched fresh from the network, so a version here
+// showed the NEW number while the phone was still running the OLD code from its cache.
 window.GOLF_CONFIG = {
-  appVersion: 'v149',
   // Google Drive backup (v98): public OAuth client ID (no secret), scope drive.file only. Leave empty to hide it.
   googleClientId: '147433941741-g2jf349vhekia26agahu2b2j3ajd3rf1.apps.googleusercontent.com',
   // Live sharing: Firebase Realtime Database (free plan). Rounds are written only under /live/<secret token>.
