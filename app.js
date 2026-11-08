@@ -2940,10 +2940,14 @@
     if (!p) return '';
     var svg = function (body, label) { return '<svg class="tkpic" viewBox="0 0 140 70" role="img" aria-label="' + esc(label) + '">' + body + '</svg>'; };
     var dots = function (n, cx, cy, col) { var o = ''; for (var i = 0; i < Math.min(n, 8); i++) o += '<circle cx="' + (cx + (i % 4 - 1.5) * 9) + '" cy="' + (cy + Math.floor(i / 4) * 9) + '" r="3.6" fill="' + col + '"/>'; return o; };
-    if (p.kind === 'tee') return svg('<rect x="48" y="6" width="44" height="52" rx="20" fill="rgba(31,157,85,.16)"/>' +
-      '<text x="70" y="39" class="tkn" fill="#1f7a44">' + p.fw + '</text><text x="22" y="39" class="tkn" fill="' + (p.left > p.right ? '#c0442f' : '#3f5a48') + '">' + p.left + '</text>' +
-      '<text x="118" y="39" class="tkn" fill="' + (p.right > p.left ? '#c0442f' : '#3f5a48') + '">' + p.right + '</text><text x="70" y="68" class="tkl">left · fairway · right</text>',
-      'Tee shots: ' + p.left + ' left, ' + p.fw + ' fairway, ' + p.right + ' right');
+    if (p.kind === 'tee') { // v151: fairway shows "7/14" and any miss with no side gets its own line, so the picture adds up
+      var ns = p.noSide ? (p.noSide === p.noSidePen ? p.noSide + ' penalty' + (p.noSide === 1 ? '' : 's') : p.noSide + ' miss' + (p.noSide === 1 ? '' : 'es')) + ' · no side' : '';
+      var tsv = '<svg class="tkpic" viewBox="0 0 140 ' + (ns ? 82 : 70) + '" role="img" aria-label="' + esc('Tee shots: ' + p.left + ' left, ' + p.fw + ' of ' + p.of + ' fairways, ' + p.right + ' right' + (ns ? ', ' + ns : '')) + '">';
+      return tsv + '<rect x="44" y="6" width="52" height="52" rx="20" fill="rgba(31,157,85,.16)"/>' +
+        '<text x="70" y="39" class="tkn tks" fill="#1f7a44">' + p.fw + '/' + p.of + '</text><text x="20" y="39" class="tkn" fill="' + (p.left > p.right ? '#c0442f' : '#3f5a48') + '">' + p.left + '</text>' +
+        '<text x="120" y="39" class="tkn" fill="' + (p.right > p.left ? '#c0442f' : '#3f5a48') + '">' + p.right + '</text><text x="70" y="68" class="tkl">left · fairway · right</text>' +
+        (ns ? '<text x="70" y="80" class="tkl" fill="#c0442f" style="fill:#c0442f">' + ns + '</text>' : '') + '</svg>';
+    }
     if (p.kind === 'approach') return svg('<ellipse cx="70" cy="30" rx="26" ry="15" fill="rgba(31,157,85,.16)"/><text x="70" y="35" class="tkn tks" fill="#1f7a44">' + p.gir + '/' + p.of + '</text>' +
       '<text x="70" y="9" class="tkm">' + p.long + ' long</text><text x="70" y="57" class="tkm">' + p.short + ' short</text><text x="21" y="34" class="tkm">' + p.left + ' left</text><text x="119" y="34" class="tkm">' + p.right + ' right</text>' +
       '<text x="70" y="69" class="tkl">greens hit · misses</text>', 'Greens ' + p.gir + ' of ' + p.of + '; misses ' + p.short + ' short, ' + p.long + ' long, ' + p.left + ' left, ' + p.right + ' right');
