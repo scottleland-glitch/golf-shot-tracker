@@ -25,6 +25,11 @@ Every Shot Counts Table 3.10). The other five are ESTIMATED: per-round gaps from
 Player Quality ladder, then spread over the PGA table. Full sources, method and caveats: in-app
 "About the numbers" and the BASELINES comment in `sg.js`.
 
+## Replay labels (v160)
+Each shot's label sits with its number where it was hit, so it shows that shot: club · distance hit (the scorecard's HIT) →
+where it finished ("Driver · 267 yd", "63 yd → green"). v157 had left the old "distance left" text there, which read as the
+next shot's number, and a typo had dropped the coloured line from every tracer.
+
 ## Shot card tweaks (v158)
 Every shot's distance box says "to pin" (shot 1 too). A putt can finish anywhere, so the Finished list is the same on the green
 (Fairway … OB, In the hole). The direction is one wide labelled button ("Direction" → "Direction: right · change" – not always a miss),

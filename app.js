@@ -4068,7 +4068,7 @@
         : s.retee ? [Math.max(30, Math.min(W - 30, cur[0] + (/right$/.test(s.dir) ? 46 : /left$/.test(s.dir) ? -46 : 0))), Math.max(gY, cur[1] - 60)] : place(s.end.dist, endLie, s.dir, i, s.ang);
       var mx = (cur[0] + e[0]) / 2 + (e[1] - cur[1]) * 0.08, my = (cur[1] + e[1]) / 2 - (e[0] - cur[0]) * 0.08;
       if (cat !== 'putting') tr += '<path class="rptr" data-cat="' + cat + '" data-n="' + s.n + '" d="M' + f1(cur[0]) + ' ' + f1(cur[1]) + ' Q' + f1(mx) + ' ' + f1(my) + ' ' + f1(e[0]) + ' ' + f1(e[1]) + '" fill="none" stroke="#fff" stroke-width="5" stroke-opacity=".7"' + (s.ob || s.retee ? ' stroke-dasharray="6 4"' : '') + '/>' +
-        '<path d=""M' + f1(cur[0]) + ' ' + f1(cur[1]) + ' Q' + f1(mx) + ' ' + f1(my) + ' ' + f1(e[0]) + ' ' + f1(e[1]) + '" fill="none" stroke="' + col + '" stroke-width="2.8"' + (s.ob || s.retee ? ' stroke-dasharray="6 4"' : '') + '/>';
+        '<path d="M' + f1(cur[0]) + ' ' + f1(cur[1]) + ' Q' + f1(mx) + ' ' + f1(my) + ' ' + f1(e[0]) + ' ' + f1(e[1]) + '" fill="none" stroke="' + col + '" stroke-width="2.8"' + (s.ob || s.retee ? ' stroke-dasharray="6 4"' : '') + '/>';
       // v157 (Scott): the shot number sits where the shot was hit (1 on the tee), like the shot card – Shot 1 from the Tee;
       // a small ball shows where it finished. A replay after OB / re-tee is nudged aside so both numbers show.
       var sp = cur.slice(); while (starts.some(function (q) { return Math.hypot(q[0] - sp[0], q[1] - sp[1]) < 14; })) sp[0] += sp[0] > W - 60 ? -18 : 18;
@@ -4077,8 +4077,11 @@
         if (endLie !== 'holed') ends += '<circle class="rpball" data-n="' + s.n + '" cx="' + f1(e[0]) + '" cy="' + f1(e[1]) + '" r="3.6" fill="#fff" stroke="#333" stroke-width="1"/>';
         marks += '<g class="rpshot" data-n="' + s.n + '" data-cat="' + cat + '" data-lie="' + endLie + '" data-x="' + f1(sp[0]) + '" data-y="' + f1(sp[1]) + '"><circle cx="' + f1(sp[0]) + '" cy="' + f1(sp[1]) + '" r="8" fill="' + col + '" stroke="#fff" stroke-width="2"/><text x="' + f1(sp[0]) + '" y="' + f1(sp[1] + 3.5) + '" text-anchor="middle" font-size="10" font-weight="900" fill="#fff">' + s.n + '</text></g>';
         boxes.push([sp[0] - 9, sp[1] - 9, sp[0] + 9, sp[1] + 9]); starts.push(sp);
-        var t = endLie === 'holed' ? 'holed!' : s.ob ? 'OB +' + s.penStrokes : s.retee ? 'hazard – re-tee' : endLie === 'green' ? s.end.dist + ' ft' : s.end.dist + ' yd' + (endLie && endLie !== 'fairway' ? ' ' + ({ rough: 'rough', deep: 'deep rough', sand: 'bunker', hazard: 'hazard', recovery: 'trees' }[endLie] || '') : '');
-        if (s.club) t = s.club + ' → ' + t;
+        // v160 (Scott): the label sits with the number at the start, so it shows THIS shot – club and distance hit (same as the
+        // scorecard's HIT), then where it finished – not the distance left, which belongs to the next shot
+        var where = endLie === 'holed' ? 'holed!' : s.ob ? 'OB +' + s.penStrokes : s.retee ? 'hazard – re-tee' : ({ rough: 'rough', deep: 'deep rough', sand: 'bunker', hazard: 'hazard', recovery: 'trees', green: 'green' }[endLie] || '');
+        var t = (s.hit != null && !s.ob && !s.retee ? s.hit + ' yd' : '') + (where ? (s.hit != null && !s.ob && !s.retee ? ' → ' : '') + where : '');
+        if (s.club) t = s.club + (t ? ' · ' + t : '');
         if (s.layup) t += ' (layup)';
         if (s.penStrokes && !s.ob) t += ' +' + s.penStrokes + (s.retee ? '' : ' pen');
         labQ.push([sp[0], sp[1], t.trim(), s.penStrokes ? '#c00' : '#111']);
@@ -4105,7 +4108,7 @@
         var fa = prev.fromAng != null ? prev.fromAng : 270, fp = pt(ix, iy, IR + 26, fa), pc2 = RPC[prev.cat] || '#333', fx = Math.max(20, Math.min(Wg - 20, fp[0])), fy = Math.max(20, Math.min(Hg - 22, fp[1]));
         G += '<path id="rparrive" d="M' + f1(fx) + ' ' + fy + ' Q' + f1((fx + s0[0]) / 2 + (fy - s0[1]) * 0.15) + ' ' + f1((fy + s0[1]) / 2 + (s0[0] - fx) * 0.15) + ' ' + f1(s0[0]) + ' ' + f1(s0[1]) + '" fill="none" stroke="' + pc2 + '" stroke-width="3" stroke-dasharray="7 4"/>' +
           '<circle cx="' + f1(fx) + '" cy="' + fy + '" r="9" fill="' + pc2 + '" stroke="#fff" stroke-width="2"/><text x="' + f1(fx) + '" y="' + (fy + 4) + '" text-anchor="middle" font-size="10" font-weight="900" fill="#fff">' + prev.n + '</text>' +
-          '<text x="' + f1(fx > Wg / 2 ? fx - 13 : fx + 13) + '" y="' + f1(fy + (fy < 30 ? 18 : 4)) + '"' + (fx > Wg / 2 ? ' text-anchor="end"' : '') + ' font-size="10" font-weight="900" fill="#fff" stroke="#2f5f22" stroke-width="3" paint-order="stroke">' + '<tspan id="rparrlbl">' + esc((RPN[prev.cat] || 'Shot') + (SG.arrivalDepth(prev.dir, putts[0].start.dist) ? ' ' + SG.arrivalDepth(prev.dir, putts[0].start.dist) : '')) + '</tspan></text>'; }
+          '<text x="' + f1(fx > Wg / 2 ? fx - 13 : fx + 13) + '" y="' + f1(fy + (fy < 30 ? 18 : fy > Hg - 40 ? -14 : 4)) + '"' + (fx > Wg / 2 ? ' text-anchor="end"' : '') + ' font-size="10" font-weight="900" fill="#fff" stroke="#2f5f22" stroke-width="3" paint-order="stroke">' + '<tspan id="rparrlbl">' + esc((RPN[prev.cat] || 'Shot') + (prev.club ? ' · ' + prev.club : '') + (prev.hit != null && !prev.ob && !prev.retee ? ' · ' + prev.hit + ' yd' : '') + (SG.arrivalDepth(prev.dir, putts[0].start.dist) ? ' · ' + SG.arrivalDepth(prev.dir, putts[0].start.dist) : '')) + '</tspan></text>'; } // v160 (Scott): the yardage of the shot onto the green
       var pp = s0, fin = '', st0 = [];
       putts.forEach(function (p, k) {
         var st = pp, holed = p.end.lie === 'holed', nr = h.rows[p.n] || {}, ed = nr.dir || p.dir || '';

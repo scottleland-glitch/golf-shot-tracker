@@ -33,7 +33,7 @@ const BASE = process.env.BASE_URL || 'http://127.0.0.1:8771/', OUT = '/workspace
     assert.strictEqual(await page.locator('#rpgreenmap .rpputt').count(), nPutts, 'putts on zoomed green');
     assert.strictEqual(await page.locator('#rparrive').count(), 1, 'approach arrival drawn');
     assert.ok((await page.textContent('#rpgreenmap')).includes('▼ front of green') && !(await page.textContent('#rpgreenmap')).includes('toward the tee'));
-    assert.strictEqual(await page.textContent('#rparrlbl'), ['Bunker shot pin high', 'Approach short', 'Short game long'][i]); // v157: hole 1 ends with a greenside bunker shot; v125: hole 3's last shot off the green is from 20–30 yd = short game (30 yd cutoff)
+    assert.match(await page.textContent('#rparrlbl'), [/^Bunker shot · \d+ yd · pin high$/, /^Approach · \d+ yd · short$/, /^Short game · \d+ yd · long$/][i]); // v160: + the yardage of the shot onto the green // v157: hole 1 ends with a greenside bunker shot; v125: hole 3's last shot off the green is from 20–30 yd = short game (30 yd cutoff)
     assert.strictEqual(await page.locator('#rpgreenmap .rpfinish').count(), nPutts - 1, 'missed putts end at a white finish ball');
     assert.strictEqual(await page.locator('#rpgreenmap .rpputt.holed[stroke-dasharray]').count(), 1, 'holed putt dashed');
     assert.strictEqual(await page.locator('#rpgreenmap .rpcup').count(), 1);
@@ -43,7 +43,12 @@ const BASE = process.env.BASE_URL || 'http://127.0.0.1:8771/', OUT = '/workspace
     if (i === 0) await page.screenshot({ path: OUT + 'hole-replay-green-zoom.png' });
     await page.click('#rpgreenback'); await page.waitForSelector('#replaymap');
     assert.match(await page.textContent('#rpinfo'), new RegExp('Par ' + [4, 5, 4][i]));
-    if (i === 1) { const t = await page.$$eval('#replaymap .rplbl', e => e.map(x => x.textContent)); assert.ok(t.some(x => /^Driver → \d+ yd/.test(x)), t.join('|')); }
+    if (i === 1) { const t = await page.$$eval('#replaymap .rplbl', e => e.map(x => x.textContent)); assert.ok(t.some(x => /^Driver · \d+ yd/.test(x)), t.join('|'));
+      // v160 (Scott): labels show THIS shot's distance hit (same as the scorecard), not the distance left; every tracer is coloured
+      const hits = await page.evaluate(() => { const r = window.__golf.rounds()[0], a = SG.analyzeHole(r.holes[1], r.baseline); return a.shots.filter(s => s.cat !== 'putting' && s.hit != null && !s.ob && !s.retee).map(s => s.hit); });
+      for (const hv of hits) assert.ok(t.some(x => x.includes(hv + ' yd')), 'hit ' + hv + ' in ' + t.join('|'));
+      const col = await page.$$eval('#replaymap .rptr', e => e.map(p => { const n = p.nextElementSibling; return n && n.tagName === 'path' && n.getAttribute('d') === p.getAttribute('d') && n.getAttribute('stroke') !== '#fff'; }));
+      assert.ok(col.length && col.every(Boolean), 'coloured tracer under every white halo'); }
     if (i === 2) { assert.ok(await page.locator('#replaymap .rppen').count() >= 1, 'penalty marked'); assert.ok((await page.textContent('#replaymap')).includes('OB')); }
     // the last off-green shot sits near the pin when it reached the green
     await page.screenshot({ path: OUT + 'hole-replay-' + names[i] + '.png' });
