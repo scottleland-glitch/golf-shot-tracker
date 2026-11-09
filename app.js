@@ -25,6 +25,11 @@
   function practice() { try { return MYGAME.validPractice(JSON.parse(localStorage.getItem(PRK) || '[]')); } catch (e) { return []; } }
   function savePractice(list) { localStorage.setItem(PRK, JSON.stringify(list)); backupDirty(3000); }
   function practiceOf(who) { return practice().filter(function (e) { return samePlayer(e.player || playerName(), who); }); }
+  // v166 short game tests (shortgame.js): [{ id, date, player, baseline, cond, done, shots }] – per player, in the backups
+  var SGK = 'golfsg.sgtests.v1';
+  function sgTests() { try { return SGTEST.validTests(JSON.parse(localStorage.getItem(SGK) || '[]')); } catch (e) { return []; } }
+  function saveSgTests(list) { localStorage.setItem(SGK, JSON.stringify(list)); backupDirty(3000); }
+  function sgTestsOf(who) { return sgTests().filter(function (t) { return samePlayer(t.player || playerName(), who); }); }
   // v93 Wedges: chart of 40–110 yd (wedges.js), stored on the phone and in backups
   var WGK = 'golfsg.wedges.v1';
   function wedges() { try { return WEDGES.norm(JSON.parse(localStorage.getItem(WGK) || 'null')); } catch (e) { return WEDGES.blank(); } }
@@ -53,6 +58,11 @@
   var rounds = load();
   (function () { var n = playerName(), ch = false; if (n) rounds.forEach(function (r) { if (!r.player) { r.player = n; ch = true; } }); if (ch) localStorage.setItem(KEY, JSON.stringify(rounds)); })(); // rounds belong to this phone's player
   var view = { screen: 'home', roundId: localStorage.getItem(CUR), hole: 0, menu: null };
+  // v166 Short game test screens (shortgame-ui.js); the functions below are hoisted
+  var SGTUI = SGTEST.ui({ SG: SG, view: view, tests: sgTests, saveTests: saveSgTests, players: function () { return mgPlayers(); }, me: playerName, same: samePlayer,
+    baselineOf: function (who) { var l = finishedRoundsOf(who).slice().sort(function (a, b) { return String(b.date || '').localeCompare(String(a.date || '')); })[0]; return view.mgBl || blOf(l); },
+    render: function () { render(); }, toast: function (m) { toast(m); } });
+  document.addEventListener('keydown', function (ev) { if (view.screen === 'sgtest') SGTUI.key(ev); });
   // Live sharing (v87): one secret link per round; every save() pushes a fresh snapshot (debounced, queued while offline).
   var live = window.LIVE && LIVE_DB ? LIVE.publisher({ base: LIVE_DB, fetch: function (u, o) { return window.fetch(u, o); }, storage: localStorage, key: 'golfsg.live.v1',
     online: function () { return navigator.onLine !== false; }, onStatus: function () { liveRefresh(); },
@@ -158,6 +168,7 @@
     else if (view.screen === 'bag') el.innerHTML = bagHTML();
     else if (view.screen === 'help') el.innerHTML = helpHTML(); // v128
     else if (view.screen === 'mygame') el.innerHTML = myGameHTML(); // v141
+    else if (view.screen === 'sgtest') el.innerHTML = SGTUI.html(); // v166
     else if (view.screen === 'profile') { view.screen = 'archive'; el.innerHTML = archiveHTML(); } // v102: old Profile → Settings
     else if (view.screen === 'wedges') el.innerHTML = wedgesHTML();
     else if (view.screen === 'birdie') { view.bzD = null; el.innerHTML = birdieHTML(); }
@@ -1578,7 +1589,7 @@
   function backupDone() { localStorage.setItem(BK, new Date().toISOString()); var nO = ownRounds().filter(function (x) { return !SG.roundEmpty(x); }).length; view.notice = { text: 'Backup ready: ' + nO + ' round' + (nO === 1 ? '' : 's') + ' for ' + playerName() + ' saved.' }; if (view.screen === 'home' || view.screen === 'archive') render(); }
   function backupRounds() {
     if (!playerName()) { askName('Enter your player name first – it goes in the backup file name.'); return; }
-    var name = 'golf-rounds-' + GDX.slug(playerName()) + '-' + localDay(new Date()) + '.json', json = JSON.stringify(SG.makeBackup(rounds.filter(function (x) { return !SG.roundEmpty(x); }), null, playerName(), courses(), bagForBackup(), wedgesForBackup(), practice()), null, 1), file;
+    var name = 'golf-rounds-' + GDX.slug(playerName()) + '-' + localDay(new Date()) + '.json', json = JSON.stringify(SG.makeBackup(rounds.filter(function (x) { return !SG.roundEmpty(x); }), null, playerName(), courses(), bagForBackup(), wedgesForBackup(), practice(), sgTests()), null, 1), file;
     try { file = new File([json], name, { type: 'application/json' }); } catch (e) { file = null; }
     if (file && navigator.canShare && navigator.canShare({ files: [file] })) {
       navigator.share({ files: [file] }).then(backupDone).catch(function (e) {
@@ -1648,7 +1659,9 @@
     return o + '<div class="gdlbar" id="gdlbar"><span class="gdlcount" id="gdlcount">' + nSel + ' selected</span><button class="gdlgo" data-act="rpgo" id="rpgo"' + (nSel || extra.length ? '' : ' disabled') + '>' +
       (nSel || !extra.length ? 'Restore ' + nRounds(nSel) : 'Restore ' + extra.join(' &amp; ')) + '</button></div></div>';
   }
-  function restorePractice(R, parts) { if (!R.practice || !R.practice.length) return; var PM = MYGAME.mergePractice(practice(), R.practice); if (PM.added) { localStorage.setItem(PRK, JSON.stringify(PM.practice)); parts.push(PM.added + ' practice entr' + (PM.added === 1 ? 'y' : 'ies')); } } // v142
+  function restorePractice(R, parts) {
+    if (R.sgtests && R.sgtests.length) { var TM = SGTEST.mergeTests(sgTests(), R.sgtests); if (TM.added) { localStorage.setItem(SGK, JSON.stringify(TM.tests)); parts.push(TM.added + ' short game test' + (TM.added === 1 ? '' : 's')); } } // v166
+    if (!R.practice || !R.practice.length) return; var PM = MYGAME.mergePractice(practice(), R.practice); if (PM.added) { localStorage.setItem(PRK, JSON.stringify(PM.practice)); parts.push(PM.added + ' practice entr' + (PM.added === 1 ? 'y' : 'ies')); } } // v142
   function restoreExtras(R, parts) {
     restorePractice(R, parts);
     if (R.courses && R.courses.length) { var CM = COURSES.mergeCourses(courses(), R.courses); saveCourses(CM.courses); if (CM.added || CM.updated) parts.push((CM.added + CM.updated) + ' course' + (CM.added + CM.updated === 1 ? '' : 's')); }
@@ -1737,12 +1750,12 @@
   function gdFiles() {
     var me = playerName(), g = {}, order = [];
     function grp(p) { var n = GDX.folderName(p), k = n.toLowerCase(); if (!GDX.slug(n)) return null; if (!g[k]) { g[k] = { player: n, rounds: [] }; order.push(k); } return g[k]; }
-    if (me && (bagForBackup() || wedgesForBackup() || ownRounds().length || practiceOf(me).length)) grp(me);
+    if (me && (bagForBackup() || wedgesForBackup() || ownRounds().length || practiceOf(me).length || sgTestsOf(me).length)) grp(me);
     rounds.forEach(function (r) { if (SG.roundEmpty(r)) return; var G = grp(r.player || me); if (G) G.rounds.push(r); });
     GDX.movedFrom(rounds).forEach(function (m) { m.from.forEach(function (f) { var k = GDX.folderName(f).toLowerCase(); if (GDX.slug(f) && !g[k]) { g[k] = { player: GDX.folderName(f), rounds: [], dropOnly: true }; order.push(k); } }); }); // v99: tidy a moved round out of its old player's file
     return order.map(function (k) {
       var G = g[k], mine = samePlayer(G.player, me);
-      return { player: G.player, dropOnly: !!G.dropOnly, backup: SG.makeBackup(G.rounds, null, G.player, courses(), mine ? bagForBackup() : null, mine ? wedgesForBackup() : null, practiceOf(G.player)) };
+      return { player: G.player, dropOnly: !!G.dropOnly, backup: SG.makeBackup(G.rounds, null, G.player, courses(), mine ? bagForBackup() : null, mine ? wedgesForBackup() : null, practiceOf(G.player), sgTestsOf(G.player)) };
     });
   }
   function gdSync() {
@@ -1926,7 +1939,7 @@
       if (view.hmenu === 'new') h += '<div class="sheet-h">New round</div>' + newCourseHTML() +
         playPickHTML('newplay', view.newPlay || lastPlay(), 'This round is') + '<label class="lbl" for="newbl">Compare my shots against</label>' + blSelect('newbl', view.newBl || 'pga') + newPlayerHTML() +
         '<button class="sheet-go" data-act="new">Start round</button><button class="sheet-item muted" data-act="plus">Back</button>';
-      else h += '<button class="sheet-item" role="menuitem" data-act="newform">New round</button><button class="sheet-item" role="menuitem" data-act="history">Rounds</button><button class="sheet-item" role="menuitem" data-act="stats">Stats</button><button class="sheet-item" role="menuitem" data-act="mygame">My Game</button><button class="sheet-item" role="menuitem" data-act="prlog">Log practice</button><button class="sheet-item" role="menuitem" data-act="bag">My Bag</button><button class="sheet-item" role="menuitem" data-act="archive">Settings</button><button class="sheet-item" role="menuitem" data-act="help">Help</button>';
+      else h += '<button class="sheet-item" role="menuitem" data-act="newform">New round</button><button class="sheet-item" role="menuitem" data-act="history">Rounds</button><button class="sheet-item" role="menuitem" data-act="stats">Stats</button><button class="sheet-item" role="menuitem" data-act="mygame">My Game</button><button class="sheet-item" role="menuitem" data-act="prlog">Log practice</button><button class="sheet-item" role="menuitem" data-act="sgtopen">Short game test</button><button class="sheet-item" role="menuitem" data-act="bag">My Bag</button><button class="sheet-item" role="menuitem" data-act="archive">Settings</button><button class="sheet-item" role="menuitem" data-act="help">Help</button>';
       h += '</div>';
     }
     return h + '</div>';
@@ -1976,6 +1989,7 @@
       '<div class="mglegend"><span><i class="lc"></i>' + esc(P.name) + '</span>' + (D.prev ? '<span><i class="lp"></i>' + (P.id === '1y' ? 'Year before' : 'Previous ' + esc(P.short)) + '</span>' : '') +
       '<span><i class="lb"></i>' + esc(D.baselineName) + '</span>' + (D.cur.spokes.some(function (x) { return x.value != null && !x.solid; }) ? '<span><i class="ll"></i>Still learning</span>' : '') + '</div>' +
       '<label class="mgbl">Compared with ' + blSelect('mgbl', D.baseline) + '</label></div>';
+    h += SGTUI.cardHTML(who); // v166 the monthly short game test
     var T = D.cur.tiles, Q = D.prev && D.prev.tiles;
     var tile = function (id, label, v, pv, f, better) {
       var ch = '';
@@ -4840,6 +4854,7 @@
     var b = ev.target.closest('[data-act]'); if (!b || b.disabled) return;
     var act = b.getAttribute('data-act'), v = b.getAttribute('data-v'), k = +b.getAttribute('data-k');
     var r = round(), h = r && r.holes[view.hole];
+    if (/^sgt/.test(act)) { SGTUI.act(act, v, b); return; } // v166 short game test
     switch (act) {
       case 'liveshare': if (!live || !r) return; live.start(r.id); view.liveCard = true; render(); liveSend(r); return;
       case 'livecard': view.liveCard = true; render(); return;
