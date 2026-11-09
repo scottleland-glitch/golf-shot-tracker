@@ -48,7 +48,16 @@ today.holes.forEach(h => { for (let k = 1; k < h.rows.length; k++) if (h.rows[k 
     assert.match(await page.textContent('#tkfocus'), /13 of 13 missed putts from 15 ft and over finished short\./);
     assert.strictEqual(await page.textContent('#tkbasis'), '✓ Compared with your normal (last 6 rounds)');
     assert.strictEqual(await page.$$eval('.tkusual', x => x.length), 4);
-    assert.match(await page.textContent('.tktile[data-area="putting"]'), /13 short · 0 long/);
+    // v163: the putting tile shows Where putting strokes go – SG by first-putt distance, bars add up to the putting SG
+    const pb = await page.$$eval('.tktile[data-area="putting"] #tkbrk .tkbrow', e => e.map(x => +x.querySelector('.tkbv').textContent));
+    assert.strictEqual(pb.length, 4); const psg = +(await page.textContent('.tktile[data-area="putting"] .tksg')).replace(' SG', '');
+    assert.ok(Math.abs(pb.reduce((a, x) => a + x, 0) - psg) < 0.03, pb + ' vs ' + psg);
+    // v163: the Approach tile has proximity bars like chipping (You vs the benchmark), not a second GIR line
+    const ap = await page.$eval('.tktile[data-area="approach"]', e => ({ bars: e.querySelectorAll('svg.tkpic').length, lbl: (e.querySelector('.tkbl') || {}).textContent, p: e.querySelector('p').textContent }));
+    assert.strictEqual(ap.bars, 2); assert.ok(['PGA', 'D1', 'LPGA', 'Scratch'].includes(ap.lbl), ap.lbl); assert.doesNotMatch(ap.p, /greens in regulation/);
+    // v163: Where putting strokes go under the round's strokes gained
+    if (!(await page.$('#rspm'))) await page.click('[data-act="sgtoggle"]'); await page.waitForSelector('#rspm #st-rsptbrk');
+    assert.strictEqual(await page.$$eval('#rspm .stbrow', e => e.length), 4); assert.match(await page.textContent('#rspm .stv'), /Total/);
     assert.strictEqual(await page.$('#tkrows'), null);
     await page.click('#tkstrip'); await page.waitForSelector('#tkrows');
     assert.match(await page.textContent('#tkrows'), /Putting\s*Ready ✓/);

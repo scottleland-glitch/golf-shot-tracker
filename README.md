@@ -25,6 +25,24 @@ Every Shot Counts Table 3.10). The other five are ESTIMATED: per-round gaps from
 Player Quality ladder, then spread over the PGA table. Full sources, method and caveats: in-app
 "About the numbers" and the BASELINES comment in `sg.js`.
 
+## Round takeaway: approach proximity, where putting strokes go (v163)
+Approach tile: the GIR count stays in its picture; under it, You vs benchmark bars of approach proximity (how far approaches
+finished, vs the benchmark's leave from the same spots – like the chipping bars) and that line in words. Putting tile: a small
+"Where putting strokes go" – strokes gained by first-putt distance (under 5, 5–10, 10–25, over 25 ft), adding up to the tile's SG.
+Round stats → Strokes gained: the full "Where putting strokes go" card for the round, as on the Stats page.
+
+## Practice and tournament rounds (v162)
+Each round is tagged `round.play = 'practice' | 'tournament'`: picked on the New round sheet (remembers the last pick,
+`golfsg.play.v1`), changeable on Round stats → Round type, and shown as 🏆 in the round list. Older rounds stay untagged
+and My Game says how many to tag. My Game → **My Playing**: holes played per type in the time frame as two bars (9 holes =
+½ round; the busiest bar is full; a dashed marker shows the previous period). **Tournament vs practice** (`MYGAME.kindCompare`,
+at least 2 finished rounds of each – falls back to all time when the time frame has too few): per-18 score, strokes gained and
+SG by area side by side, the area that drops most in tournaments highlighted and named.
+
+## Benchmark bar label (v161)
+On the round takeaway, the second bar under Around the green / Bunker is the benchmark's leave from the same spots, so it is
+labelled with the benchmark (D1, PGA, LPGA, Scratch) – "Avg" read as the golfer's own average.
+
 ## Replay labels (v160)
 Each shot's label sits with its number where it was hit, so it shows that shot: club · distance hit (the scorecard's HIT) →
 where it finished ("Driver · 267 yd", "63 yd → green"). v157 had left the old "distance left" text there, which read as the

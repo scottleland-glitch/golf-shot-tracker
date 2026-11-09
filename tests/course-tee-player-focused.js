@@ -127,7 +127,7 @@ const Y = (b) => Array.from({ length: 18 }, (_, i) => b + i * 7), P = [4, 4, 3, 
   // New round sheet: Course, Compare my shots against, then Player with the current name
   const openNew = async () => { await page.click('#plusbtn'); await page.click('[data-act="newform"]'); await page.waitForSelector('#nplayer'); };
   await openNew();
-  const order = await page.$$eval('#plusmenu .lbl', e => e.map(x => x.textContent.trim())); assert.deepStrictEqual(order, ['Course', 'Compare my shots against', 'Player']);
+  const order = await page.$$eval('#plusmenu .lbl', e => e.map(x => x.textContent.trim())); assert.deepStrictEqual(order, ['Course', 'This round is', 'Compare my shots against', 'Player']);
   assert.strictEqual(await page.textContent('#npname'), 'Quincy'); assert.match(await page.textContent('#nplayer'), /Quincy\s*Change/);
   const nb = await page.$eval('#nplayer', e => e.getBoundingClientRect().toJSON()), bl = await page.$eval('#newbl', e => e.getBoundingClientRect().toJSON());
   assert.ok(nb.top >= bl.bottom - 1 && nb.right <= 393, 'Player row under the benchmark ' + JSON.stringify([nb, bl]));

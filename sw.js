@@ -1,4 +1,7 @@
 // Offline support: cache the whole app on install, serve cache-first.
+// v163: round takeaway – approach proximity bars vs the benchmark, Where putting strokes go in the putting tile and under the round's SG.
+// v162: rounds tagged Practice / Tournament; My Game Playing bars (holes per type, last-period marker) + tournament vs practice comparison.
+// v161: round takeaway chip/bunker bars label the benchmark (D1, PGA, LPGA, Scratch) instead of "Avg".
 // v160: replay labels show each shot's club + distance hit (as the scorecard), not the distance left; coloured tracers back.
 // v159: the direction button just says "Direction" (a shot's direction isn't always a miss).
 // v158: shot card – "to pin" on every shot, the full Finished list on the green too, labelled miss-direction and Penalty +1 buttons.
@@ -53,7 +56,7 @@
 // v113: "Courses near me" (near.js). The course finder list (data/us-courses.json, ~1.0 MB, ~0.28 MB gzipped) is NOT in this cache:
 // the app downloads it on first use into its own cache 'pinhigh-courselist-v1', which a new version keeps (so no re-download).
 // GolfCore scorecards (through the Pin High relay, pinhigh-golfcore.pinhigh.workers.dev) go straight to the network; the app saves each picked course with the saved courses.
-const CACHE = 'golf-sg-v160';
+const CACHE = 'golf-sg-v163';
 const ASSETS = ['./', './img/home-bg.webp', './img/oriole.webp', './index.html', './styles.css', './sg.js', './birdie.js', './voice.js', './courses.js', './near.js', './bag.js', './wedges.js', './live.js', './share.js', './story.js', './insights.js', './mygame.js', './gdrive.js', './app.js', './config.js', './vendor/jspdf.umd.min.js',
   './manifest.webmanifest', './icons/apple-touch-icon.png', './icons/icon-192.png',
   './icons/icon-512.png', './icons/icon-512-maskable.png'];

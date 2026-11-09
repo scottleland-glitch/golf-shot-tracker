@@ -33,6 +33,8 @@
     return out;
   }
   // How far from the hole a shot finished, in feet (null for a penalty / OB).
+  // v161 (Scott): the benchmark bar is labelled with the benchmark, not "Avg" (it read as the golfer's own average)
+  var BL_SHORT = { pga: 'PGA', lpga: 'LPGA', d1m: 'D1', d1w: 'D1', scm: 'Scratch', scw: 'Scratch' };
   function leaveFt(s) {
     if (s.ob || s.penStrokes > 0) return null;
     if (s.end.lie === 'holed') return 0;
@@ -214,14 +216,20 @@
       } else if (a.k === 'approach') {
         var c = { short: 0, long: 0, left: 0, right: 0 }; S.apprMiss.forEach(function (m) { var d = depth(m.dir), s = side(m.dir); if (d) c[d]++; if (s) c[s]++; });
         t.pic = { kind: 'approach', gir: S.gir, of: S.girHoles, short: c.short, long: c.long, left: c.left, right: c.right };
-        t.text = t.text || S.gir + ' of ' + S.girHoles + ' greens in regulation.';
+        // v163 (Scott): the GIR count is already in the picture – the line is approach proximity vs the benchmark from the same spots,
+        // drawn like the chipping bars
+        var ap = shotsOf(S).filter(function (x) { return x.cat === 'approach' && !x.layup && leaveFt(x) != null; });
+        if (ap.length) { var aY = sum(ap, leaveFt) / ap.length, aP = sum(ap, function (x) { return parLeaveFt(SG, x, bl); }) / ap.length;
+          t.bars = { kind: 'bars', yours: aY, par: aP, label: blName, short: BL_SHORT[bl] || 'Avg', what: 'Approaches' };
+          if (!t.text) t.text = 'Approaches finished ' + Math.round(aY) + ' ft away on average (' + blName + ': ' + Math.round(aP) + ' ft).'; }
+        else t.text = t.text || S.gir + ' of ' + S.girHoles + ' greens in regulation.';
       } else if (a.k === 'short') {
         var ch = F.filter(function (x) { return x.id === 'chips'; })[0];
-        t.pic = ch ? { kind: 'bars', yours: ch.yours, par: ch.par, label: blName } : null;
+        t.pic = ch ? { kind: 'bars', yours: ch.yours, par: ch.par, label: blName, short: BL_SHORT[bl] || 'Avg' } : null;
         t.text = t.text || (ch ? 'Chips finished ' + Math.round(ch.yours) + ' ft away on average (' + blName + ': ' + Math.round(ch.par) + ' ft).' : plural(a.n, 'shot') + ' around the green.');
       } else if (a.k === 'bunker') {
         var bk = F.filter(function (x) { return x.id === 'bunker'; })[0];
-        t.pic = bk && bk.yours != null ? { kind: 'bars', yours: bk.yours, par: bk.par, label: blName } : null;
+        t.pic = bk && bk.yours != null ? { kind: 'bars', yours: bk.yours, par: bk.par, label: blName, short: BL_SHORT[bl] || 'Avg' } : null;
         t.text = t.text || (bk && bk.yours != null ? 'Bunker shots finished ' + Math.round(bk.yours) + ' ft away on average (' + blName + ': ' + Math.round(bk.par) + ' ft).' : plural(a.n, 'bunker shot') + '.');
       } else {
         var pts = shotsOf(S).filter(function (s) { return s.cat === 'putting' && s.end.lie === 'green'; });

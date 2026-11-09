@@ -269,10 +269,68 @@
     return x ? { spoke: x[0], focus: x[1] } : null;
   }
 
+  // ---------- v162 Playing: practice rounds vs tournament rounds (Scott) ----------
+  // A round's type lives on round.play: 'practice' | 'tournament' (untagged = older rounds, before v162).
+  var PLAY_KINDS = [{ k: 'practice', name: 'Practice rounds', short: 'Practice' }, { k: 'tournament', name: 'Tournament rounds', short: 'Tournament' }];
+  function playOf(r) { return r && (r.play === 'practice' || r.play === 'tournament') ? r.play : ''; }
+  function inWin(r, w) { var t = +new Date(r.date); return w && t >= w[0] && t < w[1]; }
+  // holes played (any round, finished or not) per type in a window – 9 holes = half a round
+  function playTally(rounds, SG, w) {
+    var o = { practice: { holes: 0, rounds: 0 }, tournament: { holes: 0, rounds: 0 }, '': { holes: 0, rounds: 0 } };
+    rounds.forEach(function (r) { if (!inWin(r, w)) return; var n = SG.summarize(r).holesDone; if (!n) return; var t = o[playOf(r)]; t.holes += n; t.rounds++; });
+    return o;
+  }
+  function holesText(h) { var r = h / 18, whole = Math.floor(r + 1e-9), half = r - whole >= 0.5 - 1e-9;
+    var rt = (whole || !half ? whole : '') + (half ? '½' : ''); return rt + ' round' + (r > 1 ? 's' : '') + ' · ' + h + ' hole' + (h === 1 ? '' : 's'); }
+  function playingBuild(rounds, SG, opts) {
+    opts = opts || {};
+    var p = period(opts.period), W = windows(p.id, opts.now), cur = playTally(rounds, SG, W.cur), prev = W.prev ? playTally(rounds, SG, W.prev) : null;
+    var tot = cur.practice.holes + cur.tournament.holes, ptot = prev ? prev.practice.holes + prev.tournament.holes : 0;
+    var max = Math.max(1, cur.practice.holes, cur.tournament.holes, prev ? prev.practice.holes : 0, prev ? prev.tournament.holes : 0);
+    var since = p.id === '1y' ? 'the year before' : 'the previous ' + p.short;
+    return { period: p, cur: cur, prev: prev && ptot ? prev : null, max: max, untagged: cur[''],
+      rows: PLAY_KINDS.map(function (K) { var c = cur[K.k], q = prev && ptot ? prev[K.k] : null;
+        return { k: K.k, name: K.name, short: K.short, holes: c.holes, rounds: c.rounds, prevHoles: q ? q.holes : null, text: c.holes ? holesText(c.holes) : 'none yet',
+          frac: c.holes / max, prevFrac: q ? q.holes / max : null }; }),
+      headline: tot ? holesText(tot) + ' played' : 'No tagged rounds yet',
+      lede: tot ? (cur.tournament.holes ? Math.round(100 * cur.tournament.holes / tot) + '% of it in tournaments.' : 'All practice rounds so far.') + (ptot ? ' ' + holesText(ptot).split(' · ')[1] + ' in ' + since + '.' : '')
+        : 'Pick Practice or Tournament when you start a round – each one fills these bars.' };
+  }
+  // Tournament vs practice: per-18 score and strokes gained by area. Needs MIN_EACH finished rounds of each type.
+  var MIN_EACH = 2, CMP_AREAS = [['tee', 'Off the tee'], ['approach', 'Approach'], ['short', 'Around the green'], ['bunker', 'Bunker'], ['putting', 'Putting']];
+  function kindAvg(list, SG, bl) {
+    if (!list.length) return null;
+    var a = { score: 0, toPar: 0, sg: 0, cats: {} }; CMP_AREAS.forEach(function (c) { a.cats[c[0]] = 0; });
+    list.forEach(function (r) { var S = SG.summarize(r, bl), k = 18 / S.holesDone; a.score += S.strokes * k; a.toPar += S.toPar * k; a.sg += S.sgTotal * k;
+      CMP_AREAS.forEach(function (c) { a.cats[c[0]] += ((S.cats[c[0]] || {}).sg || 0) * k; }); });
+    var n = list.length; a.score /= n; a.toPar /= n; a.sg /= n; CMP_AREAS.forEach(function (c) { a.cats[c[0]] /= n; }); a.n = n; return a;
+  }
+  function kindCompare(rounds, SG, opts) {
+    opts = opts || {}; var bl = opts.baseline || 'pga';
+    var fin = rounds.filter(function (r) { var S = SG.summarize(r, bl); return S.holesDone && S.holesDone === r.holes.length; });
+    if (opts.period) { var W = windows(opts.period, opts.now); fin = fin.filter(function (r) { return inWin(r, W.cur); }); }
+    var P = fin.filter(function (r) { return playOf(r) === 'practice'; }), T = fin.filter(function (r) { return playOf(r) === 'tournament'; });
+    var out = { nP: P.length, nT: T.length, need: MIN_EACH, ready: P.length >= MIN_EACH && T.length >= MIN_EACH };
+    if (!out.ready) { out.headline = 'Tournament vs practice'; out.lede = 'Finish at least ' + MIN_EACH + ' tagged rounds of each to compare – you have ' + P.length + ' practice and ' + T.length + ' tournament.'; return out; }
+    var a = kindAvg(P, SG, bl), b = kindAvg(T, SG, bl);
+    out.practice = a; out.tournament = b; out.early = P.length < STRONG || T.length < STRONG;
+    out.rows = CMP_AREAS.map(function (c) { return { k: c[0], name: c[1], practice: a.cats[c[0]], tournament: b.cats[c[0]], diff: b.cats[c[0]] - a.cats[c[0]] }; });
+    var ds = b.score - a.score, worst = out.rows.slice().sort(function (x, y) { return x.diff - y.diff; })[0], best = out.rows.slice().sort(function (x, y) { return y.diff - x.diff; })[0];
+    out.headline = Math.abs(ds) < 0.5 ? 'You score about the same in tournaments' : 'Tournament rounds average ' + Math.abs(ds).toFixed(1) + (ds > 0 ? ' higher' : ' lower');
+    var bits = [];
+    if (worst.diff <= -0.3) bits.push('The biggest drop is ' + worst.name.toLowerCase() + ': ' + Math.abs(worst.diff).toFixed(1) + ' strokes worse per round than in practice rounds.');
+    if (best.diff >= 0.3) bits.push(best.name + ' holds up best – ' + best.diff.toFixed(1) + ' better in tournaments.');
+    if (!bits.length) bits.push('No area changes by more than about a third of a stroke – the game travels well.');
+    out.lede = bits.join(' ') + (out.early ? ' Early read – it firms up after ' + STRONG + ' of each.' : '');
+    out.worst = worst.diff <= -0.3 ? worst.k : null;
+    return out;
+  }
+
   var FOCUS_HINT = { Mechanics: 'takeaway, swing plane, weight transfer…' };
   var API = { TAU: TAU, TAU_ACUTE: TAU_ACUTE, PRAC_BENCH: PRAC_BENCH, PRAC_SPLIT: PRAC_SPLIT, CLUB_AVG_H: CLUB_AVG_H, practiceBench: practiceBench, practiceLevel: practiceLevel, practiceLevelSVG: practiceLevelSVG, practiceLevelText: practiceLevelText,
     STRONG: STRONG, FOCUS: FOCUS, FOCUS_HINT: FOCUS_HINT, validPractice: validPractice, mergePractice: mergePractice, practiceShape: practiceShape, practiceBuild: practiceBuild, practiceSVG: practiceSVG,
     practiceVsGame: practiceVsGame, drillFocus: drillFocus, hm: hm,
+    PLAY_KINDS: PLAY_KINDS, playOf: playOf, playTally: playTally, playingBuild: playingBuild, kindCompare: kindCompare, holesText: holesText, MIN_EACH: MIN_EACH, CMP_AREAS: CMP_AREAS,
     SPOKES: SPOKES, PERIODS: PERIODS, MIN_ROUNDS: MIN_ROUNDS, period: period, windows: windows, shape: shape, build: build, radarSVG: radarSVG, radius: radius, fmt: fmt, RING: RING };
   if (typeof module !== 'undefined' && module.exports) module.exports = API; else root.MYGAME = API;
 })(this);

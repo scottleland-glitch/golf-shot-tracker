@@ -125,3 +125,33 @@ test('practice level builds slowly, fades, and is measured against the benchmark
   assert.match(M.practiceLevelSVG(T.level, T.prev), /class="pbench"/);
   assert.strictEqual(M.practiceLevelText([], { now: at, bl: 'd1w' }).headline, 'No practice level yet');
 });
+
+// ---------- v162 Playing: practice vs tournament rounds ----------
+test('v162 playing: holes per round type fill the bars, 9 holes = half a round, last period kept for the marker', () => {
+  const nine = (r) => { r.holes = r.holes.slice(0, 9); return r; };
+  const rs = [at('p1', 3, { play: 'practice' }), nine(at('p2', 8, { play: 'practice' })), at('t1', 12, { play: 'tournament' }), at('u1', 5), at('p0', 40, { play: 'practice' }), at('t0', 50, { play: 'tournament' })];
+  const P = M.playingBuild(rs, SG, { period: '30d', now: NOW });
+  const row = (k) => P.rows.find((x) => x.k === k);
+  assert.strictEqual(row('practice').holes, 27); assert.strictEqual(row('practice').text, '1½ rounds · 27 holes');
+  assert.strictEqual(row('tournament').holes, 18); assert.strictEqual(row('tournament').text, '1 round · 18 holes');
+  assert.deepStrictEqual(P.untagged, { holes: 18, rounds: 1 }, 'older untagged rounds are counted apart, not guessed');
+  assert.strictEqual(row('practice').prevHoles, 18); assert.strictEqual(row('tournament').prevHoles, 18);
+  assert.strictEqual(row('practice').frac, 1, 'the busiest bar is full'); assert.ok(Math.abs(row('tournament').frac - 18 / 27) < 1e-9);
+  assert.strictEqual(P.headline, '2½ rounds · 45 holes played'); assert.match(P.lede, /^40% of it in tournaments\. 36 holes in the previous 30 days\.$/);
+  assert.strictEqual(M.playOf({ play: 'junk' }), '');
+  const E = M.playingBuild([], SG, { period: '30d', now: NOW }); assert.strictEqual(E.headline, 'No tagged rounds yet'); assert.strictEqual(E.prev, null);
+});
+test('v162 tournament vs practice: per-18 score and SG by area, worst area named, needs 2 of each', () => {
+  const worsePutting = (r) => { r.holes.forEach((h) => { const k = h.rows.findIndex((x) => x.loc === 'holed'); if (k > 0) h.rows.splice(k, 0, { dist: 4, loc: 'green', dir: '', pen: false }); }); return r; };
+  let C = M.kindCompare([at('p1', 3, { play: 'practice' }), at('t1', 4, { play: 'tournament' })], SG, { baseline: 'pga' });
+  assert.strictEqual(C.ready, false); assert.match(C.lede, /at least 2 tagged rounds of each to compare – you have 1 practice and 1 tournament/);
+  const rs = [at('p1', 3, { play: 'practice' }), at('p2', 6, { play: 'practice' }), worsePutting(at('t1', 4, { play: 'tournament' })), worsePutting(at('t2', 9, { play: 'tournament' }))];
+  C = M.kindCompare(rs, SG, { baseline: 'pga' });
+  assert.strictEqual(C.ready, true); assert.strictEqual(C.early, true);
+  const holedRows = ARC.round().holes.filter((h) => h.rows.some((x) => x.loc === 'holed')).length;
+  assert.ok(Math.abs(C.tournament.score - C.practice.score - holedRows) < 1e-9, 'one extra putt per holed-out hole');
+  const put = C.rows.find((x) => x.k === 'putting'); assert.ok(put.diff < -0.3); assert.strictEqual(C.worst, 'putting');
+  assert.ok(Math.abs(C.rows.find((x) => x.k === 'tee').diff) < 1e-9, 'tee shots unchanged');
+  assert.match(C.headline, /^Tournament rounds average \d+\.\d higher$/); assert.match(C.lede, /biggest drop is putting/);
+  const sumCats = C.rows.reduce((a, x) => a + x.tournament, 0); assert.ok(Math.abs(sumCats - C.tournament.sg) < 1e-6, 'areas add up to the total');
+});

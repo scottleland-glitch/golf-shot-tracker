@@ -113,6 +113,7 @@
   function newRound(course) {
     var sel = document.getElementById('newbl');
     var r = { v: 3, dv: 2, id: 'r' + Date.now(), date: new Date().toISOString(), course: course || '', player: playerName(), baseline: sel ? sel.value : 'pga', holes: [] };
+    r.play = view.newPlay || lastPlay(); try { localStorage.setItem(PLAYK, r.play); } catch (e) {} view.newPlay = null;
     for (var i = 0; i < 18; i++) r.holes.push(emptyHole());
     var nc = view.newC && courseById(view.newC.id), tee = view.newC && view.newC.tee;
     if (!nc && course) { nc = courses().filter(function (c) { return c.name.trim().toLowerCase() === course.toLowerCase(); })[0]; tee = null; } // typed a saved course's name
@@ -1010,7 +1011,7 @@
         '<span class="hholes' + (unf ? ' unf' : '') + '" title="' + (unf ? S.holesDone + ' of ' + nH + ' holes – unfinished' : nH + ' holes') + '">' + (unf ? S.holesDone : nH) + '</span>' +
         '<span class="hdate"><b>' + ('0' + (d.getMonth() + 1)).slice(-2) + '/' + ('0' + d.getDate()).slice(-2) + '</b><small>' + d.getFullYear() + '</small></span>' +
         '<span class="hpar"><b>' + (S.holesDone ? toPar(S.toPar) : '–') + '</b><small class="' + sgCls(S.sgTotal) + '">' + (S.holesDone ? fmtSG(S.sgTotal) : '') + '</small></span>' +
-        '<span class="hmain"><b>' + esc(r.course || 'Round') + '</b><small>' + (unf ? '<i class="hunf">Unfinished</i>' + (sub ? ' · ' : '') : '') + (sub || (unf ? '' : '&nbsp;')) + '</small></span></button>' +
+        '<span class="hmain"><b>' + esc(r.course || 'Round') + '</b><small>' + (MYGAME.playOf(r) === 'tournament' ? '<i class="htour" title="Tournament round">🏆 Tournament</i>' + (unf || sub ? ' · ' : '') : '') + (unf ? '<i class="hunf">Unfinished</i>' + (sub ? ' · ' : '') : '') + (sub || (unf ? '' : '&nbsp;')) + '</small></span></button>' +
         (M ? '' : '<button class="hdel" data-act="delHist" data-id="' + r.id + '" aria-label="Delete round ' + esc(lbl) + '"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 7h14M10 7V5h4v2M7 7l1 12h8l1-12"/></svg></button>') + '</div>';
     });
     return h + '</div>' + (view.addr ? addSheetHTML() : '') + (M ? mvBarHTML() : '') + (view.mv && view.mv.from === 'history' && view.mv.sheet ? mvSheetHTML() : '') + '</div>';
@@ -1850,6 +1851,13 @@
       '<button class="sheet-item muted" data-act="' + (first ? 'nameskip' : 'namecancel') + '">' + (first ? 'Not now' : 'Cancel') + '</button></div>';
   }
   // v89: Player row in the New round sheet (under Course + benchmark). One name per phone; Change edits inline, setName confirms a change.
+  // v162 (Scott): every round is a Practice or a Tournament round – My Game counts and compares them
+  var PLAYK = 'golfsg.play.v1';
+  function lastPlay() { try { var v = localStorage.getItem(PLAYK); return v === 'tournament' ? v : 'practice'; } catch (e) { return 'practice'; } }
+  function playPickHTML(act, cur, label, id) {
+    return '<div class="playpick" id="' + (id || act) + '" role="group" aria-label="' + esc(label) + '"><span class="lbl">' + esc(label) + '</span><div class="playseg">' +
+      MYGAME.PLAY_KINDS.map(function (K) { var on = cur === K.k; return '<button type="button" class="' + (on ? 'sel' : '') + '" data-act="' + act + '" data-v="' + K.k + '" aria-pressed="' + on + '">' + (K.k === 'tournament' ? '🏆 ' : '⛳ ') + K.short + '</button>'; }).join('') + '</div></div>';
+  }
   function newPlayerHTML() {
     var n = playerName();
     if (!view.newPEdit) return '<span class="lbl" id="nplbl">Player</span>' + (n
@@ -1874,7 +1882,7 @@
     else if (view.hmenu) {
       h += '<div class="sheet-back" data-act="menuclose"></div><div class="hsheet glass" id="plusmenu" role="menu">';
       if (view.hmenu === 'new') h += '<div class="sheet-h">New round</div>' + newCourseHTML() +
-        '<label class="lbl" for="newbl">Compare my shots against</label>' + blSelect('newbl', view.newBl || 'pga') + newPlayerHTML() +
+        playPickHTML('newplay', view.newPlay || lastPlay(), 'This round is') + '<label class="lbl" for="newbl">Compare my shots against</label>' + blSelect('newbl', view.newBl || 'pga') + newPlayerHTML() +
         '<button class="sheet-go" data-act="new">Start round</button><button class="sheet-item muted" data-act="plus">Back</button>';
       else h += '<button class="sheet-item" role="menuitem" data-act="newform">New round</button><button class="sheet-item" role="menuitem" data-act="history">Rounds</button><button class="sheet-item" role="menuitem" data-act="stats">Stats</button><button class="sheet-item" role="menuitem" data-act="mygame">My Game</button><button class="sheet-item" role="menuitem" data-act="prlog">Log practice</button><button class="sheet-item" role="menuitem" data-act="bag">My Bag</button><button class="sheet-item" role="menuitem" data-act="archive">Settings</button><button class="sheet-item" role="menuitem" data-act="help">Help</button>';
       h += '</div>';
@@ -1937,6 +1945,7 @@
     h += '<div class="mgtiles" id="mgtiles">' + tile('score', 'Avg score (18 holes)', T.score, Q && Q.score, n1, -1) + tile('sg', 'Strokes gained / round', T.sg, Q && Q.sg, sgf, 1) +
       tile('putts', 'Putts / round', T.putts, Q && Q.putts, n1, -1) + tile('gir', 'Greens in regulation', T.gir, Q && Q.gir, pc, 1) + '</div>';
     h += practiceCardHTML(who, D);
+    h += playingCardHTML(who, D);
     h += '<div class="tiprow" id="mginfo">' + tipBtn('mginfo', 'i', 'About My Game') + tipLbl('mginfo', 'How My Game works') + tipText('mginfo',
       'Each spoke is strokes gained per 18 holes in one skill: Driving (par 4 and 5 tee shots), Irons 100+ (approach shots from over 100 yd), Wedges (30–100 yd), Chipping (30 yd and in), Bunker (greenside bunkers, 50 yd and in), Lag putts (10 ft and over) and Short putts (under 10 ft). The six add up to your total. Further out is better; the dashed line is the ' + esc(D.baselineName) + ' average. The gray shape is the same length of time before this one. A hollow point is still learning: it needs ' + MYGAME.MIN_ROUNDS + ' rounds and enough shots in the period.') + '</div>';
     return h + '</div>';
@@ -1988,6 +1997,35 @@
       if (!n) return;
       savePractice(list); view.prLog = null; if (view.mgBack) mgBackToRound(); else render(); toast('Saved ' + MYGAME.hm(tot) + ' of practice'); return;
     }
+  }
+  // v162 (Scott): the playing side of My Game – holes played per round type filling up like the practice chart, then
+  // how tournament rounds compare with practice rounds
+  function playingCardHTML(who, D) {
+    var all = savedRounds().filter(function (r) { return samePlayer(r.player || playerName(), who); });
+    var PB = MYGAME.playingBuild(all, SG, { period: D.period.id }), P = PB.period, ago = P.id === '1y' ? 'Year before' : 'Previous ' + P.short;
+    var o = '<div class="mgchart plchart frost" id="plcard"><span class="tkeye">My Playing</span><h2 id="plhead">' + esc(PB.headline) + '</h2><p id="pllede">' + esc(PB.lede) + '</p><div class="plbars" id="plbars">';
+    PB.rows.forEach(function (x) {
+      o += '<div class="plrow" data-k="' + x.k + '"><div class="pltop"><b>' + (x.k === 'tournament' ? '🏆 ' : '⛳ ') + esc(x.name) + '</b><span>' + esc(x.text) + '</span></div>' +
+        '<div class="pltrack" role="img" aria-label="' + esc(x.name + ': ' + x.text + (x.prevHoles != null ? '; ' + ago + ': ' + x.prevHoles + ' holes' : '')) + '"><i class="plfill" style="width:' + (100 * x.frac).toFixed(1) + '%"></i>' +
+        (x.prevFrac != null ? '<i class="plprev" style="left:' + (100 * x.prevFrac).toFixed(1) + '%" title="' + esc(ago) + ': ' + x.prevHoles + ' holes"></i>' : '') + '</div></div>';
+    });
+    o += '</div>';
+    if (PB.prev) o += '<div class="mglegend"><span><i class="plsw"></i>' + esc(P.name) + '</span><span><i class="plpv"></i>' + esc(ago) + '</span></div>';
+    if (PB.untagged.holes) o += '<p class="plnote" id="pluntag">' + PB.untagged.rounds + ' older round' + (PB.untagged.rounds === 1 ? ' isn’t' : 's aren’t') + ' tagged – open ' + (PB.untagged.rounds === 1 ? 'it' : 'each one') + ' and pick Practice or Tournament under Round type.</p>';
+    o += '</div>';
+    // tournament vs practice – this time frame, or all time while there aren't enough rounds in it
+    var fin = finishedRoundsOf(who), C = MYGAME.kindCompare(fin, SG, { baseline: D.baseline, period: P.id }), allT = false;
+    if (!C.ready && P.id !== 'all') { var C2 = MYGAME.kindCompare(fin, SG, { baseline: D.baseline }); if (C2.ready) { C = C2; allT = true; } }
+    o += '<div class="mgchart plcmp frost" id="plcmp"><span class="tkeye">Tournament vs practice' + (allT ? ' · all time' : '') + '</span><h2 id="plcmphead">' + esc(C.headline) + '</h2><p id="plcmplede">' + esc(C.lede) + '</p>';
+    if (C.ready) {
+      var f1s = function (v) { return (Math.round(v * 10) / 10).toFixed(1); };
+      o += '<table class="plcmpt" id="plcmpt"><thead><tr><th></th><th>⛳ Practice<small>' + C.nP + ' round' + (C.nP === 1 ? '' : 's') + '</small></th><th>🏆 Tournament<small>' + C.nT + ' round' + (C.nT === 1 ? '' : 's') + '</small></th><th>Diff</th></tr></thead><tbody>' +
+        '<tr class="plscore"><th>Avg score</th><td>' + f1s(C.practice.score) + '</td><td>' + f1s(C.tournament.score) + '</td><td class="' + (C.tournament.score - C.practice.score > 0.4 ? 'neg' : C.tournament.score - C.practice.score < -0.4 ? 'pos' : '') + '">' + (C.tournament.score - C.practice.score >= 0 ? '+' : '−') + f1s(Math.abs(C.tournament.score - C.practice.score)) + '</td></tr>' +
+        '<tr class="plsg"><th>Strokes gained</th><td>' + MYGAME.fmt(C.practice.sg) + '</td><td>' + MYGAME.fmt(C.tournament.sg) + '</td><td class="' + sgCls(C.tournament.sg - C.practice.sg) + '">' + MYGAME.fmt(C.tournament.sg - C.practice.sg) + '</td></tr>' +
+        C.rows.map(function (x) { return '<tr data-k="' + x.k + '"' + (C.worst === x.k ? ' class="plworst"' : '') + '><th>' + esc(x.name) + '</th><td>' + MYGAME.fmt(x.practice) + '</td><td>' + MYGAME.fmt(x.tournament) + '</td><td class="' + sgCls(x.diff) + '">' + MYGAME.fmt(x.diff) + '</td></tr>'; }).join('') +
+        '</tbody></table><p class="plnote">Per 18 holes, strokes gained against ' + esc(D.baselineName) + '. Diff = tournament minus practice: red means worse in tournaments.</p>';
+    }
+    return o + '</div>';
   }
   function practiceCardHTML(who, D) {
     var logs = practiceOf(who), PB = MYGAME.practiceBuild(logs, { period: D.period.id }), P = PB.period;
@@ -3062,6 +3100,16 @@
     return savedRounds().filter(function (x) { return x.id !== r.id && samePlayer(x.player || playerName(), who) && String(x.date || '') <= when; })
       .sort(function (a, b) { return String(b.date || '').localeCompare(String(a.date || '')); });
   }
+  // v163 (Scott): the Stats page's "Where putting strokes go" – strokes gained by first-putt distance – small, for the round's putting tile
+  function tkPuttBrk(r) {
+    var p = statsRound(r), rows = SG.FP_BANDS.map(function (b) { return { name: b.name, v: p.b.putt[b.id].sg, n: p.b.putt[b.id].n }; });
+    if (!rows.some(function (x) { return x.n; })) return '';
+    var mx = Math.max.apply(null, rows.map(function (x) { return Math.abs(x.v || 0); }).concat([0.01])), rh = 17, L = 44, R = 32, bw = 140 - L - R, H = rows.length * rh + 2;
+    return '<svg class="tkpic tkbrk" id="tkbrk" viewBox="0 0 140 ' + H + '" role="img" aria-label="' + esc('Putting strokes by first-putt distance: ' + rows.map(function (x) { return x.name + ' ' + fmtSG(x.v); }).join(', ')) + '">' +
+      rows.map(function (x, i) { var y = i * rh, w = Math.max(x.v ? 2 : 0, Math.round(Math.abs(x.v) / mx * bw));
+        return '<g class="tkbrow" data-k="' + esc(x.name) + '"><text class="tkl tkbn" text-anchor="start" x="0" y="' + (y + 11) + '">' + esc(x.name.replace('Under ', '<').replace('Over ', '>')) + '</text><rect x="' + L + '" y="' + (y + 4) + '" width="' + bw + '" height="9" rx="4.5" fill="rgba(120,140,160,.2)"/>' +
+          '<rect x="' + L + '" y="' + (y + 4) + '" width="' + w + '" height="9" rx="4.5" fill="' + (x.v < 0 ? '#c9604f' : '#3f9a5f') + '"/><text class="tkl tkbv" x="139" y="' + (y + 11) + '" text-anchor="end">' + fmtSG(x.v) + '</text></g>'; }).join('') + '</svg>';
+  }
   function tkPic(p) {
     if (!p) return '';
     var svg = function (body, label) { return '<svg class="tkpic" viewBox="0 0 140 70" role="img" aria-label="' + esc(label) + '">' + body + '</svg>'; };
@@ -3077,10 +3125,10 @@
     if (p.kind === 'approach') return svg('<ellipse cx="70" cy="30" rx="26" ry="15" fill="rgba(31,157,85,.16)"/><text x="70" y="35" class="tkn tks" fill="#1f7a44">' + p.gir + '/' + p.of + '</text>' +
       '<text x="70" y="9" class="tkm">' + p.long + ' long</text><text x="70" y="57" class="tkm">' + p.short + ' short</text><text x="21" y="34" class="tkm">' + p.left + ' left</text><text x="119" y="34" class="tkm">' + p.right + ' right</text>' +
       '<text x="70" y="69" class="tkl">greens hit · misses</text>', 'Greens ' + p.gir + ' of ' + p.of + '; misses ' + p.short + ' short, ' + p.long + ' long, ' + p.left + ' left, ' + p.right + ' right');
-    if (p.kind === 'bars') { var mx = Math.max(p.yours, p.par, 1), w = function (v) { return Math.max(4, Math.round(84 * v / mx)); };
-      return svg('<text x="0" y="20" class="tkm tkla">You</text><rect x="38" y="11" width="' + w(p.yours) + '" height="12" rx="6" fill="' + (p.yours > p.par + 3 ? '#e2705c' : '#2f9a5c') + '"/>' +
-        '<text x="0" y="46" class="tkm tkla">Avg</text><rect x="38" y="37" width="' + w(p.par) + '" height="12" rx="6" fill="#8fbf9f"/>' +
-        '<text x="' + (42 + w(p.yours)) + '" y="21" class="tkm tkla">' + Math.round(p.yours) + ' ft</text><text x="' + (42 + w(p.par)) + '" y="47" class="tkm tkla">' + Math.round(p.par) + ' ft</text>' +
+    if (p.kind === 'bars') { var bs = p.short || 'Avg', x0 = bs.length > 4 ? 50 : 38, mx = Math.max(p.yours, p.par, 1), w = function (v) { return Math.max(4, Math.round((122 - x0) * v / mx)); };
+      return svg('<text x="0" y="20" class="tkm tkla">You</text><rect x="' + x0 + '" y="11" width="' + w(p.yours) + '" height="12" rx="6" fill="' + (p.yours > p.par + 3 ? '#e2705c' : '#2f9a5c') + '"/>' +
+        '<text x="0" y="46" class="tkm tkla tkbl">' + esc(bs) + '</text><rect x="' + x0 + '" y="37" width="' + w(p.par) + '" height="12" rx="6" fill="#8fbf9f"/>' +
+        '<text x="' + (x0 + 4 + w(p.yours)) + '" y="21" class="tkm tkla">' + Math.round(p.yours) + ' ft</text><text x="' + (x0 + 4 + w(p.par)) + '" y="47" class="tkm tkla">' + Math.round(p.par) + ' ft</text>' +
         '<text x="70" y="68" class="tkl">left from the hole</text>', 'Chips left ' + Math.round(p.yours) + ' ft on average, ' + p.label + ' ' + Math.round(p.par) + ' ft'); }
     if (p.kind === 'putts') return svg('<circle cx="70" cy="26" r="4" fill="#17301f"/><line x1="70" y1="26" x2="70" y2="2" stroke="rgba(23,48,31,.25)" stroke-dasharray="3 3"/>' +
       dots(p.long, 70, 10, '#c8962e') + dots(p.short, 70, 40, '#e2705c') + '<text x="70" y="68" class="tkl">' + p.short + ' short · ' + p.long + ' long</text>', 'Missed putts: ' + p.short + ' short, ' + p.long + ' long');
@@ -3107,7 +3155,7 @@
         return x ? '<button class="prdrill" id="prdrill" data-act="prdrill" data-v="' + esc(x.spoke + '|' + x.focus) + '" data-who="' + esc(r.player || playerName()) + '">⏱ Log this drill · ' + esc(x.focus) + '</button>' : ''; })() + '</div>';
     out += '<div class="tktiles" id="tktiles">' + T.tiles.map(function (t) {
       return '<div class="tktile frost" data-area="' + t.k + '"><span class="tkth">' + esc(t.name) + '</span><span class="tksg ' + sgCls(t.sg) + '">' + fmtSG(t.sg) + ' SG</span>' +
-        (t.norm != null ? '<small class="tkusual">usually ' + fmtSG(t.norm) + '</small>' : '') + tkPic(t.pic) + '<p>' + esc(t.text) + '</p></div>'; }).join('') + '</div>';
+        (t.norm != null ? '<small class="tkusual">usually ' + fmtSG(t.norm) + '</small>' : '') + (t.k === 'putting' ? tkPuttBrk(r) || tkPic(t.pic) : tkPic(t.pic)) + (t.bars ? tkPic(t.bars) : '') + '<p>' + esc(t.text) + '</p></div>'; }).join('') + '</div>';
     if (T.good.length) out += '<p class="tkgood frost" id="tkgood"><b>Went well:</b> ' + esc(T.good.join(', ')) + '.</p>';
     return out + '</section>';
   }
@@ -3160,12 +3208,24 @@
       : '<p class="help muted" id="rpclegend">Finish more rounds to see your average here; this round is shown on its own for now.</p>';
     return '<div id="rpcurves" class="statspage rpcurves"><h3>Scoring by par</h3>' + leg + [3, 4, 5].map(function (par) { return stDist(par, D); }).join('') + '</div>';
   }
+  // v163 (Scott): the Stats page's "Where putting strokes go" card for this round, under its strokes gained
+  function rsPuttBrkHTML(r) {
+    var p = statsRound(r), rows = SG.FP_BANDS.map(function (b) { return { name: b.name, v: p.b.putt[b.id].sg, n: p.b.putt[b.id].n }; });
+    if (!rows.some(function (x) { return x.n; })) return '';
+    var T = p.sg.putt, mx = Math.max.apply(null, rows.map(function (x) { return Math.abs(x.v || 0); }).concat([0.01])), worst = rows.filter(function (x) { return x.v < -0.005; }).sort(function (a, b) { return a.v - b.v; })[0];
+    var W = 358, rh = 28, L = 80, R = 52, bw = W - L - R, H = rows.length * rh + 6;
+    var svg = '<svg class="stchart stbrksvg" id="rsptbrkchart" viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="Where putting strokes go">' + rows.map(function (x, i) { var y = 3 + i * rh, w = Math.max(x.v ? 3 : 0, Math.round(Math.abs(x.v || 0) / mx * bw));
+      return '<g class="stbrow" data-k="' + esc(x.name) + '"><text class="stbl" x="0" y="' + (y + 17) + '">' + esc(x.name) + '</text><rect class="stbbg" x="' + L + '" y="' + (y + 5) + '" width="' + bw + '" height="14" rx="7"/>' +
+        '<rect class="stbbar ' + (x.v < 0 ? 'neg' : 'pos') + '" x="' + L + '" y="' + (y + 5) + '" width="' + w + '" height="14" rx="7"/><text class="stbv" x="' + W + '" y="' + (y + 17) + '" text-anchor="end">' + fmtSG(x.v || 0) + '</text></g>'; }).join('') + '</svg>';
+    return '<div class="rspm" id="rspm"><div class="stcard stgraph stbrk" id="st-rsptbrk"><div class="sth"><span>Where putting strokes go</span><span class="stv">Total <em>' + fmtSG(T) + '</em></span></div>' + svg +
+      '<p class="stnote">Strokes gained (+) or lost (-) this round, by 1st putt distance. The bars add up to the putting total' + (worst ? '. Biggest leak: ' + esc(worst.name) + ' (' + fmtSG(worst.v) + ').' : '.') + '</p></div></div>';
+  }
   function summaryHTML() {
     var r = round(), bl = blOf(r), S = SG.summarize(r, bl);
     var out = '<div class="topbar frost">' + (view.from === 'history' ? '<button class="txt frostbtn" data-act="history">‹ Rounds</button>' : '<button class="txt frostbtn" data-act="backHole">‹ Round</button>') + '<div class="title"><b>Round stats</b><span>' +
       new Date(r.date).toLocaleDateString() + (r.course ? ' · ' + esc(r.course) : '') + '</span></div><button class="txt frostbtn" data-act="home">Home</button></div>';
     if (view.stxRound !== r.id) { view.stx = {}; view.stxRound = r.id; } // tiles start collapsed for each round
-    out += rsTopHTML(r, S) + takeawayHTML(r) + quickViewHTML(S);
+    out += rsTopHTML(r, S) + playPickHTML('rplay', MYGAME.playOf(r), 'Round type', 'rplay') + takeawayHTML(r) + quickViewHTML(S);
     out += scorecardHTML(r, S) + '<button class="big rpbtn" data-act="replay" data-v="0" id="sumreplay">▶ Hole replay (hole by hole)</button>' +
       (S.holesDone ? '<button class="big rpbtn bzbtn" data-act="bzopen" data-v="round" id="sumbz">🎯 Scoring chances</button>' : '');
     var B = SG.baseline(bl), main = out; out = '';
@@ -3179,7 +3239,7 @@
       var c = S.cats[k];
       out += '<tr><td>' + CAT_NAME[k] + '</td><td class="num">' + c.n + '</td><td class="num ' + sgCls(c.sg) + '">' + fmtSG(c.sg) + '</td></tr>';
     });
-    out += '</table>' + compareHTML(r, bl) + '<h3>By distance</h3><table id="bydist"><tr><th>From</th><th class="num">Shots</th><th class="num">SG</th><th class="num">Avg to pin after</th></tr>';
+    out += '</table>' + rsPuttBrkHTML(r) + compareHTML(r, bl) + '<h3>By distance</h3><table id="bydist"><tr><th>From</th><th class="num">Shots</th><th class="num">SG</th><th class="num">Avg to pin after</th></tr>';
     var groups = [['Approach', SG.APPR_BUCKETS.map(function (b) { return b.id; })], ['Short game', [SG.SHORT_BUCKET]], ['Bunker', [SG.BUNKER_BUCKET]], ['Putting', ['0-5 ft', '5-15 ft', '15-30 ft', '30+ ft']]], pex = 0;
     groups.forEach(function (g) {
       out += '<tr><td colspan="4" style="background:#eee"><b>' + g[0] + '</b></td></tr>';
@@ -4739,6 +4799,8 @@
       case 'livesend': if (live && r) liveSend(r); return;
       case 'livecopy': if (live && r) liveCopy(live.info(r.id).link); return;
       case 'livestop': if (!live || !r || !confirm('Stop sharing? The link will stop showing this round.')) return; live.stop(r.id); view.liveCard = false; toast('Sharing stopped'); render(); return;
+      case 'newplay': view.newPlay = v; [].forEach.call(document.querySelectorAll('[data-act="newplay"]'), function (x) { var on = x.getAttribute('data-v') === v; x.classList.toggle('sel', on); x.setAttribute('aria-pressed', on); }); return; // no re-render: keeps a typed course name
+      case 'rplay': { var rp = round(); if (rp) { rp.play = v; save(); toast(v === 'tournament' ? 'Tagged as a tournament round' : 'Tagged as a practice round'); render(); } return; }
       case 'new': view.from = null; view.holeFrom = null; view.hmenu = null; view.newBl = null; newRound(((document.getElementById('course') || {}).value || '').trim()); return;
       case 'resume': view.from = null; view.holeFrom = null; view.roundId = localStorage.getItem(CUR); goHole(firstOpenHole(round()), true); return;
       case 'open': view.pdf = null; view.addr = null; view.send = null; view.mv = null; view.roundId = b.getAttribute('data-id'); view.from = view.screen === 'history' ? 'history' : null; view.screen = 'summary'; view.map = null; render(); window.scrollTo(0, 0); return;

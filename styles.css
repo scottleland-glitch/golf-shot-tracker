@@ -2238,3 +2238,96 @@ html body .roundpage .shotcard .peninfo { width: 30px; min-width: 30px; }
 .shotcard .sc-miss .penwrap, .shotcard .sc-came .penwrap { margin-left: auto; }
 html body .roundpage .shotcard .misspill:not(.on) { border: 1.5px solid #4a7fd0; background: #eef4ff; }
 .shotcard .sc-came, .shotcard .sc-miss { flex-wrap: wrap; }
+
+/* v162: round type (Practice / Tournament) + My Game Playing */
+.playpick { margin: 10px 0 4px; }
+.playpick .lbl { display: block; margin-bottom: 6px; }
+.playseg { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; padding: 4px; border-radius: 16px; background: rgba(255,255,255,.45); border: 1px solid rgba(120,140,160,.25); }
+html body .playseg button { min-height: 42px; border-radius: 12px; border: 0; background: transparent; color: #2b3a48; font-size: 15px; font-weight: 600; box-shadow: none; }
+html body .playseg button.sel { background: #fff; color: #10233a; box-shadow: 0 1px 4px rgba(20,40,70,.18); }
+.summarypage #rplay, #rplay { margin: 12px 0; }
+.htour { font-style: normal; font-size: .85em; margin-left: 2px; }
+.plchart .plbars { display: grid; gap: 14px; margin: 14px 0 6px; }
+.plrow .pltop { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; margin-bottom: 6px; }
+.plrow .pltop b { font-size: 15px; }
+.plrow .pltop span { font-size: 13px; color: #4b5d6e; white-space: nowrap; }
+.pltrack { position: relative; height: 16px; border-radius: 8px; background: rgba(120,140,160,.18); }
+.plfill { position: absolute; left: 0; top: 0; bottom: 0; border-radius: 8px; background: linear-gradient(90deg, #3d8b5f, #56b07c); min-width: 0; }
+.plrow[data-k="tournament"] .plfill { background: linear-gradient(90deg, #b58a1e, #d9ac38); }
+.plprev { position: absolute; top: -4px; bottom: -4px; width: 0; border-left: 2px dashed #23384d; margin-left: -1px; }
+.plchart .mglegend .plsw { display: inline-block; width: 18px; height: 8px; border-radius: 4px; background: #56b07c; margin-right: 6px; }
+.plchart .mglegend .plpv { display: inline-block; width: 0; height: 12px; border-left: 2px dashed #23384d; margin: 0 8px 0 4px; vertical-align: -2px; }
+.plnote { font-size: 13px; color: #4b5d6e; margin: 10px 0 0; line-height: 1.4; }
+.plcmpt { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 14px; }
+.plcmpt th, .plcmpt td { padding: 7px 4px; text-align: right; border-bottom: 1px solid rgba(120,140,160,.22); }
+.plcmpt tbody th { text-align: left; font-weight: 600; }
+.plcmpt thead th { font-size: 12px; font-weight: 700; color: #3c4f61; vertical-align: bottom; }
+.plcmpt thead th small { display: block; font-weight: 400; color: #6a7b8b; }
+.plcmpt tr.plscore td, .plcmpt tr.plsg td { font-weight: 700; }
+.plcmpt tr.plworst { background: rgba(214,96,80,.10); }
+.plcmpt td.neg { color: #b8402f; } .plcmpt td.pos { color: #1f7a44; }
+.htour { font-style: normal; font-weight: 600; color: #8a6a12; }
+
+/* v163: putting tile mini grid, approach proximity bars */
+.tktile .tkpic + .tkpic { margin-top: 6px; }
+.rspm { margin: 14px 0; }
+
+/* v163: the Stats page putt-miss card, reused on Round stats (same look) */
+.rspm .stcard { background: rgba(255, 255, 255, .8); border: 1px solid rgba(23, 48, 31, .08); border-radius: 20px; padding: 12px 10px 10px; margin: 0 0 12px; }
+.rspm .sth { font-size: 16px; font-weight: 400; color: #23313d; margin: 0 4px 8px; }
+.rspm .stnote { font-size: 11.5px; font-weight: 300; line-height: 1.4; color: #6a7783; margin: 8px 4px 0; }
+.rspm .stnone p:first-child { font-size: 16px; font-weight: 300; margin: 6px 4px; color: #2b3944; }
+.rspm svg.stchart { display: block; width: 100%; height: auto; overflow: visible; touch-action: manipulation; }
+.rspm .sthit { fill: transparent; cursor: pointer; }
+.rspm .stgraph .sth { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; font-size: 15px; margin-bottom: 4px; }
+.rspm .stgraph .sth .stv { font-size: 12.5px; font-weight: 300; color: #5c6a76; white-space: nowrap; }
+.rspm .stgraph .sth .stv em { font-style: normal; font-weight: 400; color: #23313d; }
+.rspm .stdot.sthl { stroke-width: 2; }
+.rspm .stval { font-size: 10.5px; font-weight: 400; fill: #3f4e5b; }
+.rspm .stn { margin: 2px 4px 0; font-size: 11.5px; font-weight: 400; color: #5c6a76; text-align: center; }
+.rspm .stfew { margin: 4px 4px 0; font-size: 12.5px; font-weight: 300; color: #6a7783; }
+.rspm .stcatb > .stcard { margin-top: 6px; }
+.rspm .stgraph .sth > span:first-child { font-weight: 500; }
+.rspm .stsubb > .stcard { margin: 6px 0 0; }
+.rspm .stpmchips { display: flex; flex-wrap: wrap; gap: 4px; margin: 8px 2px 0; }
+.rspm .stpmchip { min-height: 32px; padding: 0 10px; border-radius: 999px; border: 1px solid rgba(23, 48, 31, .14); background: #fff; box-shadow: none; transform: none;
+  font-size: 12px !important; font-weight: 400 !important; color: #33424f; }
+.rspm .stpmchip.sel { background: #3b82c4; border-color: #2f6ea8; color: #fff; }
+.rspm .stpmgreen { fill: #fff; }
+.rspm .stpmedgebox { fill: none; stroke: #aab4bd; stroke-width: 1; }
+.rspm .stpmline { stroke: #d3d9de; stroke-width: 1; }
+.rspm .stpmedge { font-size: 10px; font-weight: 500; letter-spacing: .06em; fill: #5f6c78; }
+.rspm .stpmname { font-size: 10px; font-weight: 400; fill: #5f6c78; }
+.rspm .stpmn { font-size: 16px; font-weight: 600; fill: #23313d; }
+.rspm .stpmn.zero { fill: #a3adb6; font-weight: 400; }
+.rspm .stpmhole .stpmn { font-size: 12px; font-weight: 500; }
+.rspm .stpmp { font-size: 11px; font-weight: 500; fill: #4a5763; }
+.rspm .stpmall { font-size: 9.5px; font-weight: 400; fill: #8f9aa5; }
+.rspm .stpmnodir { color: #7b8792; font-weight: 300; }
+.rspm .stn .infobtn.infoin span { width: 18px; height: 18px; font: italic 400 11px/17px Georgia, serif; border-color: #b3bdc6; color: #5c6a76; }
+.rspm .stn .infobtn.infoin[aria-expanded="true"] span { background: #345; color: #fff; }
+.rspm .stn .st2nd b { font-weight: 500; }
+.rspm .stn .st2nd { white-space: nowrap; }
+.rspm .stbrk .sth { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; font-size: 15px; margin-bottom: 4px; }
+.rspm .stbrk .sth .stv { font-size: 12.5px; font-weight: 300; color: #5c6a76; white-space: nowrap; }
+.rspm .stbrk .sth .stv em { font-style: normal; font-weight: 400; color: #23313d; }
+.rspm .stcard { background: #fff; }
+
+/* v163: Where putting strokes go on Round stats + the putting tile */
+.rspm .stbar { display: flex; gap: 8px; align-items: center; margin: 0 0 6px; }
+.rspm select.stbl { flex: 1; min-width: 0; height: 38px; padding: 0 10px; border-radius: 999px; border: 1px solid rgba(23, 48, 31, .12); background: rgba(255, 255, 255, .72);
+  font: inherit; font-size: 13.5px; font-weight: 400; color: #33424f; -webkit-appearance: none; appearance: none; text-overflow: ellipsis; }
+.rspm .stbar { flex-wrap: wrap; }
+.rspm .stsec.stsecsg select.stbl { flex: 0 1 auto; max-width: 62%; height: 36px; font-size: 13px !important; }
+.rspm .stbox .stboxlab { font-size: 11px; fill: #3f4e5b; }
+.rspm .stbrk .stbv { font-size: 13.5px; font-weight: 400; fill: #23313d; }
+.rspm .stbrk .stbbg { fill: rgba(0, 0, 0, .06); }
+.rspm .stbrk .stbbar.neg { fill: #d2584c; }
+.rspm .stbrk .stbbar.pos { fill: #3f9a55; }
+.rspm .stbrk .sth { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; font-size: 15px; margin-bottom: 4px; }
+.rspm .stbrk .sth .stv { font-size: 12.5px; font-weight: 300; color: #5c6a76; white-space: nowrap; }
+.rspm .stbrk .sth .stv em { font-style: normal; font-weight: 400; color: #23313d; }
+.tkbrk .tkbn, .tkbrk .tkbv { font-size: 9.5px; font-weight: 700; fill: #3c4f61; }
+.rspm .stbrk .stbl { font-size: 13.5px; font-weight: 400; fill: #23313d; }
+.rspm .stbrk .stbbar.pos { fill: #3f9a55; }
+.tkbrk .tkbn { text-anchor: start; } .tkbrk .tkbv { text-anchor: end; }
