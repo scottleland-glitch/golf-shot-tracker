@@ -339,37 +339,70 @@
       var c = p.ready ? [31, 157, 85] : [200, 150, 46]; if (p.frac > 0) { doc.setFillColor(c[0], c[1], c[2]); doc.roundedRect(bx, y + 12, Math.max(5, bw * p.frac), 5, 2.5, 2.5, 'F'); } });
     return y + 30;
   }
+  // v165 Round takeaway = the verdict page: where the strokes went, is that normal for you, is anything slipping,
+  // what to practise and what to ask a coach. One bar per area: grey band = your normal range, dot = this round.
+  var PDF_TONE = { bad: { dot: [192, 68, 47], bg: [250, 228, 223], tx: [140, 45, 30] }, warn: { dot: [40, 40, 40], bg: [250, 238, 214], tx: [125, 85, 10] },
+    good: { dot: [31, 122, 68], bg: [223, 240, 229], tx: [22, 92, 50] }, none: { dot: [40, 40, 40], bg: [236, 239, 236], tx: [85, 90, 85] } };
   function pdfTakeawayPage(doc, H, r) {
     var T = INSIGHTS.build(r, takeawayHistory(r), SG, { baselineName: SG.baseline(blOf(r)).name }), M = H.M, W = H.PW - 2 * M, y = H.header('Round takeaway');
-    y = pdfKnowBars(doc, H, T.progress, M, y, W) + 6;
-    if (!T.ok) { pdfLines(doc, H, T.reason, M, y, W, 11, 60); return; }
-    y = pdfLines(doc, H, T.headline, M, y + 6, W, 17, 25, 21) + 2;
-    if (T.lede) y = pdfLines(doc, H, T.lede, M, y, W, 11, 80, 14.5) + 10;
-    var F = T.focus;
-    if (F) { // the dark green Work on next box
-      var pad = 14, iw = W - 2 * pad, tl = pdfWrap(doc, H, F.title, iw, 15), xl = pdfWrap(doc, H, F.text, iw, 10.5), bl = pdfWrap(doc, H, F.basis.text, iw, 9), dl = pdfWrap(doc, H, 'Try: ' + F.drill, iw - 16, 10);
-      var bh = pad + 12 + tl.length * 18 + 4 + xl.length * 13.5 + 4 + bl.length * 11.5 + 10 + dl.length * 13 + 14 + pad;
-      doc.setFillColor(16, 59, 36); doc.roundedRect(M, y, W, bh, 10, 10, 'F');
-      var yy = y + pad + 8; H.font(8.5); doc.setTextColor(244, 210, 138); H.T('WORK ON NEXT', M + pad, yy); yy += 6;
-      H.font(15); doc.setTextColor(255); tl.forEach(function (s) { yy += 18; H.T(s, M + pad, yy); }); yy += 4;
-      H.font(10.5); doc.setTextColor(230, 236, 232); xl.forEach(function (s) { yy += 13.5; H.T(s, M + pad, yy); }); yy += 4;
-      H.font(9); doc.setTextColor(F.basis.mine ? 159 : 200, F.basis.mine ? 224 : 210, F.basis.mine ? 181 : 204); bl.forEach(function (s) { yy += 11.5; H.T(s, M + pad, yy); }); yy += 10;
-      doc.setFillColor(40, 82, 58); doc.roundedRect(M + pad, yy, iw, dl.length * 13 + 12, 6, 6, 'F');
-      H.font(10); doc.setTextColor(255); dl.forEach(function (s, i) { H.T(s, M + pad + 8, yy + 15 + i * 13); }); H.ink();
-      y += bh + 16;
-    }
-    // the four areas, two per row
-    var cw = (W - 12) / 2;
-    for (var i = 0; i < T.tiles.length; i += 2) {
-      var row = T.tiles.slice(i, i + 2), hs = row.map(function (t) { return 34 + pdfWrap(doc, H, t.text, cw - 20, 9.5).length * 12.5 + 10; }), rh = Math.max.apply(null, hs);
-      row.forEach(function (t, k) { var x = M + k * (cw + 12);
-        doc.setDrawColor(214, 220, 226); doc.setLineWidth(0.6); doc.roundedRect(x, y, cw, rh, 6, 6, 'S'); doc.setDrawColor(0);
-        H.font(11); H.ink(30); H.T(t.name, x + 10, y + 17); H.font(10); pdfSgColor(doc, t.sg); H.T(fmtSG(t.sg) + ' SG', x + cw - 10, y + 17, { align: 'right' });
-        if (t.norm != null) { H.font(8); H.ink(110); H.T('usually ' + fmtSG(t.norm), x + cw - 10, y + 28, { align: 'right' }); }
-        H.ink(); pdfLines(doc, H, t.text, x + 10, y + 42, cw - 20, 9.5, 70, 12.5); });
-      y += rh + 10;
-    }
-    if (T.good.length) { y += 4; H.font(10.5); doc.setTextColor(31, 122, 68); H.T('Went well:', M, y); H.ink(); pdfLines(doc, H, T.good.join(', ') + '.', M + 58, y, W - 58, 10.5, 50); }
+    if (!T.ok) { y = pdfKnowBars(doc, H, T.progress, M, y, W) + 6; pdfLines(doc, H, T.reason, M, y, W, 11, 60); return T; }
+    var V = T.verdict;
+    y = pdfLines(doc, H, V.headline || T.headline, M, y + 6, W, 17, 25, 21) + 2;
+    var sub = V.headline ? V.sub : T.lede; if (sub) y = pdfLines(doc, H, sub, M, y, W, 11, 80, 14.5);
+    y += 12;
+    // legend + axis words
+    var NX = M, BX = M + 132, BW = 226, any = V.rows.some(function (v) { return v.known; });
+    H.font(8); H.ink(110);
+    if (any) { doc.setFillColor(205, 211, 205); doc.roundedRect(NX, y - 6, 20, 7, 3.5, 3.5, 'F'); H.T('your normal range', NX + 25, y); }
+    doc.setFillColor(40, 40, 40); doc.circle(NX + (any ? 104 : 4), y - 2.6, 3.2, 'F'); H.T('this round', NX + (any ? 111 : 11), y);
+    if (V.rows.some(function (v) { return !v.known; })) H.T((any ? 'Still learning = ' : 'Still learning your game: ') + 'compared with the ' + T.baselineName + ' average until you have a few more rounds', NX + (any ? 170 : 70), y);
+    y += 14;
+    H.T('worse', BX, y); H.T(any ? 'your average' : T.baselineName + ' average', BX + BW / 2, y, { align: 'center' }); H.T('better', BX + BW, y, { align: 'right' }); H.ink(); y += 8;
+    // one scale for every row, centred on the golfer's average (or the benchmark while still learning)
+    var R = 1; V.rows.forEach(function (v) { var c = v.known ? v.avg : 0; R = Math.max(R, Math.abs(v.value - c), v.known ? Math.abs(v.lo - c) : 0, v.known ? Math.abs(v.hi - c) : 0); }); R *= 1.12;
+    V.rows.forEach(function (v) {
+      var c = v.known ? v.avg : 0, X = function (q) { return BX + BW / 2 + Math.max(-1, Math.min(1, (q - c) / R)) * BW / 2; }, tone = PDF_TONE[v.tone] || PDF_TONE.none;
+      doc.setDrawColor(228); doc.setLineWidth(0.4); doc.line(M, y, M + W, y); doc.setDrawColor(0);
+      H.font(11.5); H.ink(30); H.T(v.name, NX, y + 19); H.ink();
+      doc.setFillColor(241, 243, 241); doc.roundedRect(BX, y + 11, BW, 9, 4.5, 4.5, 'F');
+      if (v.known) { var x0 = X(v.lo), x1 = Math.max(X(v.hi), x0 + 9); doc.setFillColor(205, 211, 205); doc.roundedRect(x0, y + 11, x1 - x0, 9, 4.5, 4.5, 'F'); }
+      doc.setDrawColor(150); doc.setLineWidth(0.6); doc.line(BX + BW / 2, y + 8, BX + BW / 2, y + 23); doc.setDrawColor(0);
+      doc.setFillColor(tone.dot[0], tone.dot[1], tone.dot[2]); doc.setDrawColor(255); doc.setLineWidth(1.4); doc.circle(X(v.value), y + 15.5, 5.6, 'FD'); doc.setDrawColor(0);
+      H.font(8.5); var lab = SG.pdfSafe(v.label), lw = doc.getTextWidth(lab) + 14;
+      doc.setFillColor(tone.bg[0], tone.bg[1], tone.bg[2]); doc.roundedRect(M + W - lw, y + 8, lw, 15, 7.5, 7.5, 'F');
+      doc.setTextColor(tone.tx[0], tone.tx[1], tone.tx[2]); H.T(lab, M + W - lw / 2, y + 18.6, { align: 'center' }); H.ink();
+      y = !v.known || (v.status === 'normal' && !(v.trend && v.trend.dir !== 'steady')) ? y + 31 : pdfLines(doc, H, v.text, NX, y + 37, W, 9, 95, 11.5) + 1; // a plain normal (or still-learning) row needs no sentence
+    });
+    doc.setDrawColor(228); doc.setLineWidth(0.4); doc.line(M, y, M + W, y); doc.setDrawColor(0); y += 14;
+    // Practice this week: the dark green box
+    var BOT = H.PH - M - 14, pad = 14, iw = W - 2 * pad, coachN = V.coach.length, items = V.plan.map(function (p, i) { return { t: pdfWrap(doc, H, (i + 1) + '. ' + p.title, iw, 12), s: pdfWrap(doc, H, (V.plan.length > 1 ? 'About ' + p.share + '% of your practice time' : 'Most of your practice time') + ' - ' + p.why, iw - 14, 9.5), d: pdfWrap(doc, H, p.drill, iw - 14, 9.5) }; });
+    var none = items.length ? null : pdfWrap(doc, H, 'Nothing needs extra work this week. Keep your normal practice mix.', iw, 11);
+    var planH = function () { return pad + 10 + (none ? none.length * 14 + 6 : items.reduce(function (t, it) { return t + it.t.length * 16 + 1 + (it.s.length + it.d.length) * 12.5 + 7; }, 0)) + pad - 6; };
+    var mkCoach = function () { return V.coach.slice(0, coachN).map(function (c) { return { t: pdfWrap(doc, H, c.text, iw, 10.5), a: pdfWrap(doc, H, c.ask, iw - 14, 9.5) }; }); }, cl = mkCoach();
+    var coachH = function () { return pad + 10 + (cl.length ? cl.reduce(function (t, c) { return t + c.t.length * 13.5 + c.a.length * 12 + 7; }, 0) : 2 * 13.5 + 4) + pad - 6; };
+    // keep it to one page: first the drills of the 2nd and 3rd practice items go, then the 3rd coach note
+    var fits = function () { return y + planH() + 12 + coachH() + 18 + (T.good.length ? 16 : 0) <= BOT; };
+    for (var q = items.length - 1; q >= 1 && !fits(); q--) items[q].d = [];
+    if (!fits() && coachN > 2) { coachN = 2; cl = mkCoach(); }
+    var bh = planH();
+    doc.setFillColor(16, 59, 36); doc.roundedRect(M, y, W, bh, 10, 10, 'F');
+    var yy = y + pad + 8; H.font(8.5); doc.setTextColor(244, 210, 138); H.T('PRACTICE THIS WEEK', M + pad, yy); yy += 4;
+    if (none) { H.font(11); doc.setTextColor(255); none.forEach(function (s) { yy += 14; H.T(s, M + pad, yy); }); }
+    items.forEach(function (it) { yy += 1; H.font(12); doc.setTextColor(255); it.t.forEach(function (s) { yy += 16; H.T(s, M + pad, yy); });
+      H.font(9.5); doc.setTextColor(244, 210, 138); it.s.forEach(function (s) { yy += 12.5; H.T(s, M + pad + 14, yy); });
+      doc.setTextColor(200, 220, 207); it.d.forEach(function (s) { yy += 12.5; H.T(s, M + pad + 14, yy); }); yy += 7; });
+    H.ink(); y += bh + 12;
+    // Ask your coach: repeated miss patterns over the last few rounds
+    var cnone = cl.length ? null : pdfWrap(doc, H, 'No repeated miss pattern over your last ' + V.poolRounds + ' round' + (V.poolRounds === 1 ? '' : 's') + '. Patterns show up when you enter where the misses went.', iw, 10.5);
+    var ch = pad + 10 + (cnone ? cnone.length * 13.5 + 4 : cl.reduce(function (t, c) { return t + c.t.length * 13.5 + c.a.length * 12 + 7; }, 0)) + pad - 6;
+    doc.setDrawColor(196, 204, 198); doc.setLineWidth(0.8); doc.roundedRect(M, y, W, ch, 10, 10, 'S'); doc.setDrawColor(0);
+    yy = y + pad + 8; H.font(8.5); H.ink(110); H.T('ASK YOUR COACH', M + pad, yy); yy += 2;
+    if (cnone) { H.font(10.5); H.ink(70); cnone.forEach(function (s) { yy += 13.5; H.T(s, M + pad, yy); }); }
+    cl.forEach(function (c) { H.font(10.5); H.ink(30); c.t.forEach(function (s) { yy += 13.5; H.T(s, M + pad, yy); }); H.font(9.5); H.ink(100); c.a.forEach(function (s) { yy += 12; H.T(s, M + pad + 14, yy); }); yy += 7; });
+    H.ink(); y += ch + 18;
+    if (T.good.length && y <= BOT) { H.font(10.5); doc.setTextColor(31, 122, 68); H.T('Went well:', M, y); H.ink(); y = pdfLines(doc, H, T.good.join(', ') + '.', M + 58, y, W - 58, 10.5, 50) + 10; }
+    if (y + 34 <= BOT) pdfKnowBars(doc, H, T.progress, M, Math.max(y + 4, BOT - 40), W); // how well Strokewise knows your game, when there is room
+    return T;
   }
   // My Game + My Practice pages for the stats report (the player's chosen My Game time frame)
   function pdfMyGamePages(doc, H, who) {
@@ -512,10 +545,13 @@
           if (++col >= cols) { col = 0; y0 += rowH; rowH = 0; } });
         return y0 + rowH + 14;
       };
+      // ---- v165: page 2 is the Round takeaway (the verdict); the tables moved to the back as "The numbers" ----
+      var TK = pdfTakeawayPage(doc, { M: M, PW: PW, PH: PH, font: font, ink: ink, T: T, header: header }, r);
+      var numbers = function () {
       // ---- Page 1: round summary + round stats (the same rows as the Round stats screen) ----
       var grab = function (html) { var d = document.createElement('div'); d.innerHTML = html; return d; };
       var tx = function (el) { return el ? el.textContent.replace(/\s+/g, ' ').trim() : ''; };
-      y = header('Round summary');
+      doc.addPage(); y = header('The numbers – round summary');
       font(12); ink(30); T((player || 'Player') + ' – ' + (r.course || 'Round'), M, y); font(10); ink(100); T(dateTxt + ' · compared with ' + blName(R.bl), M, y + 16); ink(); y += 40;
       var top = grab(rsTopHTML(r, S)), thr = top.querySelector('#rs-thru'), topV = [].map.call(top.querySelectorAll('td'), function (td) {
         var c = td.cloneNode(true), s = c.querySelector('small'); if (s) s.remove(); return tx(c) + (td === (thr && thr.parentNode) ? ' (' + tx(thr) + ')' : ''); });
@@ -531,10 +567,8 @@
       srows.push(['3-putt holes', R.three.three + ' of ' + R.three.holes]);
       y = table([['Stat', 'This round']].concat(srows), M, y, [300, 240], { align: ['left', 'right'] }) + 6;
       y = note('Proximity = average distance from the hole after approach shots. 1st putts made inside 10 ft = first putts from 10 ft and in that went in. Lag putts = first putts over 10 ft that finished inside 3 ft.', M, y + 4);
-      // ---- v144: Round takeaway page ----
-      doc.addPage(); pdfTakeawayPage(doc, { M: M, PW: PW, PH: PH, font: font, ink: ink, T: T, header: header }, r);
       // ---- Page 2: the scorecard (the same numbers as the on-screen card: scorecardData) ----
-      doc.addPage(); y = header('Scorecard – strokes gained vs ' + blName(R.bl));
+      doc.addPage(); y = header('The numbers – scorecard, strokes gained vs ' + blName(R.bl));
       var D = scorecardData(r, S), SCG = D.rows.map(function (row) { return [row.lbl]; }), nG = D.groups.length;
       var halves = D.n > 9 ? [['Front 9', D.idx.filter(function (i) { return i < 9; }), [0]], ['Back 9', D.idx.filter(function (i) { return i >= 9; }), D.groups.map(function (g, k) { return k; }).slice(1)]]
         : [['Front 9', D.idx, D.groups.map(function (g, k) { return k; })]];
@@ -579,19 +613,21 @@
       ynAt(true, M + 8, y - 3); ink(90); T('yes', M + 16, y); ynAt(false, M + 46, y - 3); ink(90); T('no', M + 54, y);
       y = note('Strokes gained rows (Tot, OTT = off the tee, APP = approach, ARG = around the green, Putt) compare each hole with ' + blName(R.bl) + ': green = strokes gained, red = strokes lost. – = not a par 4 or 5. Blank = hole not finished. Drive dist in yards; 1st / last putt in feet. OUT / IN / TOT add up the holes (averages for drive and putt lengths, made / chances for the yes / no rows).', M + 80, y, PW - 2 * M - 80);
       // ---- Page 3: strokes gained ----
-      doc.addPage(); y = header('Strokes gained – compared with ' + blName(R.bl));
+      doc.addPage(); y = header('The numbers – strokes gained vs ' + blName(R.bl));
       heading('By category', M, y); y += 16;
       y = table([['Category', 'Shots', 'SG']].concat(['tee', 'approach', 'short', 'bunker', 'putting'].map(function (k) { return [CAT_NAME[k], String(S.cats[k].n), fmtSG(S.cats[k].sg)]; })).concat([['Total', '', fmtSG(S.sgTotal)]]), M, y, [260, 90, 90]) + 16;
       heading('By distance', M, y); y += 16;
       var dist = [['From', 'Shots', 'SG', 'Avg to pin after']];
       [['Approach', SG.APPR_BUCKETS.map(function (b) { return b.id; })], ['Short game', [SG.SHORT_BUCKET]], ['Bunker', [SG.BUNKER_BUCKET]], ['Putting', ['0-5 ft', '5-15 ft', '15-30 ft', '30+ ft']]].forEach(function (g) {
         dist.push([g[0], '', '', '']); g[1].forEach(function (b) { var c = S.buckets[b]; dist.push([b, String(c.n), c.n ? fmtSG(c.sg) : '-', g[0] === 'Approach' ? (c.proxN ? Math.round(c.proxFt) + ' ft' : '-') : '']); }); });
-      y = table(dist, M, y, [260, 90, 90, 100], { group: function (row) { return row[1] === '' && /^(Approach|Short game|Bunker|Putting)$/.test(row[0]); }, cont: 'Strokes gained (continued)' });
+      y = table(dist, M, y, [260, 90, 90, 100], { group: function (row) { return row[1] === '' && /^(Approach|Short game|Bunker|Putting)$/.test(row[0]); }, cont: 'The numbers – strokes gained (continued)' });
       y = note('Approach = shots from more than 30 yd off the green (par-3 tee shots included); 30-60 = over 30 up to under 60 yd, other ranges include the lower number. Short game = off the green from 30 yd and in (not sand). Bunker = from a greenside bunker, 50 yd and in; fairway bunkers count as approach. Avg to pin after = feet on the green, yards x 3 off it, 0 if holed; penalty/OB shots left out.', M, y + 6) + 12;
       heading('Same round vs every baseline', M, y); y += 16;
       y = table([['Baseline', 'Tee', 'Approach', 'Short', 'Bunker', 'Putting', 'Total']].concat(SG.BASELINES.map(function (b) { var X = SG.summarize(r, b.id);
         return [b.name + (b.status === 'estimated' ? ' (est.)' : '') + (b.id === R.bl ? '  <' : ''), fmtSG(X.cats.tee.sg), fmtSG(X.cats.approach.sg), fmtSG(X.cats.short.sg), fmtSG(X.cats.bunker.sg), fmtSG(X.cats.putting.sg), fmtSG(X.sgTotal)]; })), M, y, [160, 62, 62, 62, 62, 62, 70]);
       y = note('< = the baseline this report uses. (est.) = estimated baseline (no published table).', M, y + 6);
+        return SCG;
+      };
       // ---- v137: the Stats categories (all rounds, this round dashed on the par curves), each followed by this round's maps ----
       var segs = SG.pinSegments(pinDataRound()), multi = savedRounds().length > 1, BOT = PH - M - 14, GAP = 12, MCW = (PW - 2 * M - GAP) / 2, PAD = 8;
       var wrap = function (t, w, sz) { font(sz); return doc.splitTextToSize(P(t), w); };
@@ -625,7 +661,7 @@
       };
       // build one card from an on-screen map (kind, view extras) or an all-rounds heat map
       var fromMap = function (title, kind, extra, facts0) { var mp = mapForReport(kind, extra); if (!mp.svg) return null;
-        var facts = (facts0 || []).concat(mp.lines.filter(function (L) { return L.t && L.b; }).map(function (L) { return L.t; }).slice(0, 2)), small = mp.lines.filter(function (L) { return L.t && !L.b; }).map(function (L) { return L.t.replace(/\s+\|\s+/g, ' · '); }).concat(mp.lines.filter(function (L) { return L.table; }).map(function (L) { return squash(L.table); })).filter(Boolean);
+        var facts = (facts0 || []).concat(mp.lines.filter(function (L) { return L.t && L.b; }).map(function (L) { return L.t; }).slice(0, 2)), small = mp.lines.filter(function (L) { return L.t && !L.b; }).map(function (L) { return L.t.replace(/\s+\|\s+/g, ' · '); }).filter(Boolean).slice(0, 1); // v165: no squeezed tables on the map cards (too many numbers); one short line stays
         if (kind === 'putt') small = small.map(function (t) { return t.replace(/^Distance \(Putts · Made · Make %\): /, 'Made by distance: '); });
         return { title: title, svg: mp.svg, facts: facts.concat(small), legend: shortLeg(mp.legend) }; };
       var fromHeat = function (title, kind) { if (!multi) return null; var hm = heatReport(kind); if (!hm.svg) return null;
@@ -642,12 +678,17 @@
         }); });
         return q;
       };
-      var section = function (title, note) { K.newPage(title); if (note) { font(10); ink(90); T(note, M, K.y - 2); ink(); K.y += 16; } };
+      // v165: each "this round" section opens with one sentence that says what the pictures show (the takeaway's line for that area)
+      var section = function (title, note, area) { K.newPage(title);
+        var tile = area && TK && TK.ok ? TK.tiles.filter(function (t) { return t.k === area; })[0] : null, row = tile && TK.verdict.rows.filter(function (v) { return v.k === area; })[0];
+        var say = tile && tile.text ? tile.text.split(' Not in left/right:')[0] + (row && row.known ? ' ' + (row.status === 'low' ? 'Worse than usual for you.' : row.status === 'high' ? 'Better than usual for you.' : 'Normal for you.') : '') : '';
+        if (say) { font(12.5); var L = doc.splitTextToSize(P(say), PW - 2 * M); ink(25); L.forEach(function (ln, i) { T(ln, M, K.y + 2 + i * 16); }); ink(); K.y += L.length * 16 + 6; }
+        if (note) { font(10); ink(90); T(note, M, K.y - 2); ink(); K.y += 16; } };
       var pd = pmissData(false);
       var AFTER = {
-        driver: function () { section('Driver – this round', 'Tee shots on par 4s and 5s' + (multi ? ', with all your rounds beside it' : ''));
+        driver: function () { section('Driver – this round', 'Tee shots on par 4s and 5s' + (multi ? ', with all your rounds beside it' : ''), 'tee');
           return placeRows([fromMap('Tee shots – this round', 'fw'), fromHeat('Tee shots – all rounds', 'fw')], 'Driver – this round'); },
-        approach: function () { section('Approach – this round', gsum.length ? gsum.length + ' distance group' + (gsum.length === 1 ? '' : 's') + ' · ' + plist.length + ' approaches' : '');
+        approach: function () { section('Approach – this round', gsum.length ? gsum.length + ' distance group' + (gsum.length === 1 ? '' : 's') + ' · ' + plist.length + ' approaches' : '', 'approach');
           if (gsum.length) { K.y = table([['Group', 'Shots', 'Greens hit', 'Avg ft - greens hit', 'Avg ft - all']].concat(gsum.map(function (x) { var Q = x.P;
             return [x.g.name, String(Q.n), Q.hits + '/' + Q.n + ' (' + Math.round(Q.hitPct) + '%)', Q.avgHitFt == null ? '-' : Math.round(Q.avgHitFt) + ' ft', Q.avgAllFt == null ? '-' : Math.round(Q.avgAllFt) + ' ft']; })), M, K.y + 4, [130, 60, 110, 120, 120], { fs: 8.5, rh: 13 }) + 12; }
           var cards = [fromMap('Greens in regulation', 'gir'), fromMap('Approach misses', 'miss')];
@@ -657,7 +698,7 @@
           if (segs.length) cards.push({ full: true, cap: 360, title: 'Pin location', svg: pinReportSVG(segs), facts: [squash([['Pin', 'Holes', 'GIR', 'Avg ft (GIR)']].concat(segs.map(function (s0) { return [s0.name, String(s0.holes), s0.gir + '/' + s0.holes, s0.avgHitFt == null ? '-' : Math.round(s0.avgHitFt) + ' ft']; })))],
             legend: [{ k: 'dot', c: '#ffffff', b: '#000', t: 'Green hit' }, { k: 'dot', c: '#e0102a', b: '#000', t: 'Missed green' }, { k: 'pin', t: 'Pin' }, { k: 'dring', t: '20 ft' }] });
           return placeRows(cards, 'Approach – this round'); },
-        putting: function () { section('Putting – this round', S.putts + ' putts · ' + R.three.three + ' three-putt hole' + (R.three.three === 1 ? '' : 's'));
+        putting: function () { section('Putting – this round', S.putts + ' putts · ' + R.three.three + ' three-putt hole' + (R.three.three === 1 ? '' : 's'), 'putting');
           var cards = [fromMap('1st putts', 'putt', { puttN: '1' }), fromMap('2nd putts', 'putt', { puttN: '2' })];
           SG.PMISS_GROUPS.filter(function (g) { return pd.counts[g.id]; }).reverse().forEach(function (g) { cards.push(fromMap('1st putts made inside 10 ft – ' + g.name, 'pmiss', { pmG: g.id })); });
           cards.forEach(function (c) { if (c) c.cap = c.cap2 || 200; });
@@ -666,6 +707,7 @@
       var K = { M: M, PW: PW, BOT: BOT, font: font, ink: ink, T: T, wrap: wrap, header: header, imgScale: 2, after: function (id) { return AFTER[id] ? AFTER[id]() : null; } };
       var chain = pdfStatsCats(doc, statsPdfData({ round: r }).cats, K);
       return chain.then(function () {
+        var SCG = numbers();
         var n = doc.getNumberOfPages();
         for (var i = 2; i <= n; i++) { doc.setPage(i); font(8); doc.setTextColor(130); T('Page ' + i + ' of ' + n, PW - M, PH - 18, { align: 'right' }); doc.setTextColor(0); }
         return { blob: new Blob([doc.output('arraybuffer')], { type: 'application/pdf' }), pages: n, name: SG.reportFileName(r.course, player, r.date),

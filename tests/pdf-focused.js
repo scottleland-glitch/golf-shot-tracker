@@ -51,11 +51,11 @@ const BASE = process.env.BASE_URL || 'http://127.0.0.1:8766/', OUT = process.env
   const pmg = await page.evaluate(() => { const S = SG.summarize(window.__golf.rounds()[0], 'pga'); return SG.PMISS_GROUPS.filter(g => SG.pmissList(S.puttList).some(p => SG.pmissGroup(p.ft) === g.id)).map(g => g.name.replace('\u2013', '-')); });
   assert.ok(groups.length >= 2, groups); assert.ok(pmg.length >= 1, pmg); assert.ok(pages >= 14, 'pages ' + pages); // v137: cover + summary + scorecard + SG + the five Stats categories, each with this round's maps
   const txt = execSync('pdftotext -layout ' + f + ' -').toString();
-  ['Round summary', 'Scott', 'Lakeridge', 'Quick view', 'Round stats', '1st putts made inside 10 ft', 'Lag putts (>10 ft)', 'Scorecard', 'Front 9', 'Back 9', 'Drive dist', 'Up & down', 'Sandies', 'Recovery', 'OTT', 'APP', 'ARG', 'Greens in regulation', 'By category', 'By distance', 'Avg to pin after', 'vs every baseline',
+  ['The numbers - round summary', 'Scott', 'Lakeridge', 'Quick view', 'Round stats', '1st putts made inside 10 ft', 'Lag putts (>10 ft)', 'The numbers - scorecard', 'Front 9', 'Back 9', 'Drive dist', 'Up & down', 'Sandies', 'Recovery', 'OTT', 'APP', 'ARG', 'Greens in regulation', 'By category', 'By distance', 'Avg to pin after', 'vs every baseline',
     'Driver - this round', 'Tee shots - this round', 'Approach - this round', 'Approach misses', 'Pin location', 'Back left', 'Avg ft - greens hit', 'Putting - this round', '1st putts', '2nd putts',
     'Off the tee (OTT)', 'Fairways hit', 'Chipping', 'Scoring', 'Par 3 scores', 'This round (dashed)', 'all rounds vs this round'.toUpperCase()].forEach(s => assert.ok(txt.includes(s), 'missing ' + s));
   // v111: page 1 Round stats rows – whole percent next to the fractions (Fairways, GIR, 1st putts made inside 10 ft, Lag putts) – v112: in brackets, e.g. 9 / 12 (75%); none on Pin location / Putts / Tee misses L / R
-  { const p1 = execSync('pdftotext -f 2 -l 2 -layout ' + f + ' -').toString(), ln = k => (p1.split('\n').find(l => l.trim().startsWith(k)) || '').trim();
+  { const p1 = execSync('pdftotext -f ' + (pages - 2) + ' -l ' + (pages - 2) + ' -layout ' + f + ' -').toString(), ln = k => (p1.split('\n').find(l => l.trim().startsWith(k)) || '').trim();
     const S1 = await page.evaluate(() => { const S = SG.summarize(window.__golf.rounds()[0], 'pga'), PM = SG.pmissList(S.puttList), L = SG.lagStats(S.puttList); return { fw: [S.fwHit, S.fwTotal], gir: [S.gir, S.girHoles], pm: [PM.filter(p => p.made).length, PM.length], lag: [L.inside, L.attempts] }; });
     const pc = a => a[1] ? ' (' + Math.round(100 * a[0] / a[1]) + '%)' : '';
     assert.ok(ln('Fairways hit').endsWith(S1.fw.join(' / ') + pc(S1.fw)), ln('Fairways hit')); assert.ok(ln('Greens in regulation').endsWith(S1.gir.join(' / ') + pc(S1.gir)), ln('Greens in regulation'));
@@ -84,11 +84,12 @@ const BASE = process.env.BASE_URL || 'http://127.0.0.1:8766/', OUT = process.env
   });
   assert.ok(checked >= 30, 'header/number columns checked ' + checked);
   // the strokes gained tables: number columns right-aligned with their header
-  // v144: page 3 is the Round takeaway (headline, Work on next, the four areas), so the SG page is page 5
-  const tk = lay.text.filter(t => t.p === 3).map(t => t.t).join(' | ');
-  assert.match(tk, /Round takeaway/); assert.match(tk, /How well Strokewise knows your game · \d\/5 ready/); assert.match(tk, /WORK ON NEXT/);
+  // v165: page 2 is the Round takeaway (the verdict: one bar per area, Practice this week, Ask your coach); the tables are the last three pages ("The numbers")
+  const tk = lay.text.filter(t => t.p === 2).map(t => t.t).join(' | ');
+  assert.match(tk, /Round takeaway/); assert.match(tk, /How well Strokewise knows your game · \d\/5 ready/); assert.match(tk, /PRACTICE THIS WEEK/); assert.match(tk, /ASK YOUR COACH/); assert.match(tk, /this round/);
   assert.match(tk, /Off the tee/); assert.match(tk, /Putting/);
-  const sgTabs = lay.tables.filter(tb => tb.p === 5);
+  const sgTabs = lay.tables.filter(tb => tb.p === pages);
+  assert.match(execSync('pdftotext -f 3 -l 3 -layout ' + f + ' -').toString(), /Driver/, 'graphs come right after the takeaway');
   assert.ok(sgTabs.length === 3, 'SG page tables ' + sgTabs.length);
   assert.deepStrictEqual(sgTabs.map(tb => tb.cols.map(c => c.align)), [['left', 'right', 'right'], ['left', 'right', 'right', 'right'], ['left', 'right', 'right', 'right', 'right', 'right', 'right']]); // v157: + Bunker column
   // v109: the PDF scorecard shows exactly what the on-screen scorecard shows (same scorecardData)

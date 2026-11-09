@@ -25,6 +25,25 @@ Every Shot Counts Table 3.10). The other five are ESTIMATED: per-round gaps from
 Player Quality ladder, then spread over the PGA table. Full sources, method and caveats: in-app
 "About the numbers" and the BASELINES comment in `sg.js`.
 
+## Round PDF: the verdict page first, the numbers last (v165)
+The round PDF now answers four questions on page 2 and leaves the tables for the back.
+- **Page 2 – Round takeaway.** One bar per area (Off the tee, Approach, Around the green, Bunker, Putting): the grey band is
+  your normal range (the middle 80% of your last 20 rounds, needs 8), the dot is this round, the centre line your average. Each
+  row gets a label – Normal / Worse than usual / Better than usual, plus steady / slipping / improving – and a sentence only
+  when something is off. Then **Practice this week** (up to three items with a share of practice time and a drill),
+  **Ask your coach** (miss patterns that repeat over the last 5 rounds, or a slide with no clear pattern), Went well, and the
+  "How well Strokewise knows your game" bars when there is room. Areas without enough history show "Still learning" and are
+  compared with the benchmark.
+- **Trend** = this round and the 4 before it against the rounds before those (needs 5 earlier rounds). It counts only when the
+  average moved 0.4 strokes or more, more than the noise, and the middle recent round moved too – one bad round is an off day.
+- **Order:** cover, Round takeaway, the Stats categories with this round's maps, then **The numbers** (round summary,
+  scorecard, strokes gained tables) as the last three pages.
+- Each "this round" section (Driver, Approach, Putting) opens with one sentence and "Normal for you" / "Worse than usual for
+  you". The squeezed one-line tables are off the map cards.
+- Engine: `INSIGHTS.build(...).verdict` = `{ ready, headline, sub, rows, plan, coach }` (insights.js: `areaVerdict`,
+  `patterns`, `verdict`). The on-screen Round takeaway is unchanged. Tests: `node --test tests/insights.test.js`,
+  `node tests/pdf-focused.js`.
+
 ## My Playing season histogram (v164)
 My Playing shows rounds per month for the last 12 months as 3-D columns, a little offset so none hides another (tournament
 in front, practice behind, untagged grey at the back; 9 holes = ½), with last year's monthly totals as a thin grey line.
