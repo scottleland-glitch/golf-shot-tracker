@@ -100,3 +100,42 @@ test('OB tee shot with only short/long entered is named, numbers add up', () => 
   assert.strictEqual(T.pic.noSideOB, 1);
   assert.match(T.text, new RegExp('hole ' + (r.holes.indexOf(h) + 1) + ' \\(OB, went short\\)'));
 });
+
+// ---------- v164 the verdict: normal range, trend, practice plan, coach notes ----------
+test('areaVerdict: range needs 8 rounds; outside the middle 80% is unusual', () => {
+  const vals = [0.5, -0.5, 0.2, -0.2, 0.4, -0.4, 0.1, -0.1, 0.3, -0.3];
+  assert.equal(I.areaVerdict(-1, vals.slice(0, 7)).status, null);
+  const low = I.areaVerdict(-2.5, vals); assert.equal(low.status, 'low'); assert.equal(low.worseThan, 10);
+  assert.equal(I.areaVerdict(0.1, vals).status, 'normal'); assert.equal(I.areaVerdict(2, vals).status, 'high');
+});
+test('areaVerdict: one bad round is not a trend, several are', () => {
+  const flat = Array.from({ length: 12 }, (_, i) => (i % 2 ? 0.2 : -0.2));
+  assert.equal(I.areaVerdict(-4, flat).trend.dir, 'steady');
+  const slide = [-1.5, -1.2, -1.8, -1.4].concat(flat.slice(0, 8));
+  const t = I.areaVerdict(-1.6, slide).trend; assert.equal(t.dir, 'slipping'); assert.ok(t.diff < -1);
+  assert.equal(I.areaVerdict(1.6, [1.5, 1.2, 1.8, 1.4].concat(flat.slice(0, 8))).trend.dir, 'improving');
+});
+test('verdict: not ready without enough rounds; a normal round reads as normal', () => {
+  assert.equal(I.build(copy('r'), history(3), SG).verdict.ready, false);
+  const V = I.build(copy('r'), history(12), SG).verdict;
+  assert.equal(V.ready, true); assert.equal(V.headline, 'A normal round for you.'); assert.equal(V.plan.length, 0);
+  V.rows.filter((v) => v.known).forEach((v) => { assert.equal(v.status, 'normal'); assert.equal(v.trend.dir, 'steady'); });
+});
+test('verdict: an off day on the greens is called an off day and still tops the practice plan', () => {
+  const V = I.build(threePutts(copy('r'), [0, 2, 4, 6, 8]), history(12), SG).verdict, p = V.rows.find((v) => v.k === 'putting');
+  assert.equal(p.status, 'low'); assert.equal(p.trend.dir, 'steady'); assert.equal(p.worseThan, 12);
+  assert.match(V.headline, /^Putting cost you [\d.]+ more strokes than usual - an off day, not a trend\.$/);
+  assert.equal(V.plan[0].area, 'putting'); assert.equal(V.plan[0].share, 100);
+});
+test('verdict: bad putting four rounds running is slipping', () => {
+  const hist = history(12).map((r, i) => (i < 4 ? threePutts(r, [0, 2, 4, 6, 8]) : r));
+  const V = I.build(threePutts(copy('r'), [0, 2, 4, 6, 8]), hist, SG).verdict, p = V.rows.find((v) => v.k === 'putting');
+  assert.equal(p.trend.dir, 'slipping'); assert.match(V.headline, /putting is slipping|it has been slipping/);
+  assert.equal(V.plan[0].area, 'putting'); assert.equal(V.plan[0].why, 'slipping');
+  assert.ok(V.coach.some((c) => c.area === 'putting'), JSON.stringify(V.coach));
+});
+test('patterns: a one-way miss over several rounds becomes a coach note', () => {
+  const rounds = [copy('a'), copy('b'), copy('c')].map((r) => tagPutts(r, 'short')), sums = rounds.map((r) => SG.summarize(r, 'pga'));
+  const P = I.patterns(sums, SG, 'pga'), sp = P.find((x) => x.id === 'puttspeed');
+  assert.ok(sp, JSON.stringify(P)); assert.equal(sp.dir, 'finished short'); assert.match(sp.text, /over your last 3 rounds\.$/);
+});

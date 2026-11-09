@@ -152,6 +152,120 @@
     return F;
   }
 
+
+  // ---------- v165 the verdict: is this normal for you, is it slipping, what to practise, what to ask a coach ----------
+  // Everything is in strokes for a round of this length (per-hole strokes gained x the holes finished), so rounds of
+  // 9 and 18 holes compare fairly. vals = the golfer's other rounds, newest first.
+  var RANGE_MIN = 8, RECENT = 5, EARLIER_MIN = 5, TREND_MIN = 0.4, POOL = 5;
+  function pct(sorted, p) { var i = (sorted.length - 1) * p, lo = Math.floor(i), hi = Math.ceil(i); return sorted[lo] + (sorted[hi] - sorted[lo]) * (i - lo); }
+  function mean(a) { return a.length ? sum(a, function (v) { return v; }) / a.length : 0; }
+  function sd(a) { if (a.length < 2) return 0; var m = mean(a); return Math.sqrt(sum(a, function (v) { return (v - m) * (v - m); }) / (a.length - 1)); }
+  // One area: value = this round, vals = other rounds (newest first). Range = the middle 80% of the other rounds.
+  function areaVerdict(value, vals) {
+    var out = { value: value, rounds: vals.length, status: null, trend: null };
+    if (vals.length >= RANGE_MIN) {
+      var srt = vals.slice().sort(function (a, b) { return a - b; });
+      out.avg = mean(vals); out.lo = pct(srt, 0.1); out.hi = pct(srt, 0.9);
+      out.worseThan = vals.filter(function (v) { return value < v; }).length; out.betterThan = vals.filter(function (v) { return value > v; }).length;
+      out.status = value < out.lo ? 'low' : value > out.hi ? 'high' : 'normal';
+    }
+    // Trend: this round + the 4 before it against the rounds before those. It has to beat both a fixed size and the noise.
+    var recent = [value].concat(vals.slice(0, RECENT - 1)), earlier = vals.slice(RECENT - 1);
+    if (recent.length === RECENT && earlier.length >= EARLIER_MIN) {
+      var em = mean(earlier), diff = mean(recent) - em, se = sd(earlier) * Math.sqrt(1 / recent.length + 1 / earlier.length);
+      // the middle recent round has to show it too, so one very bad (or very good) round is not a trend
+      var mid = pct(recent.slice().sort(function (x, y) { return x - y; }), 0.5) - em, sameSide = diff < 0 ? mid <= -TREND_MIN * 0.75 : mid >= TREND_MIN * 0.75;
+      out.trend = { diff: diff, recent: recent.length, earlier: earlier.length, dir: Math.abs(diff) >= TREND_MIN && Math.abs(diff) >= se && sameSide ? (diff < 0 ? 'slipping' : 'improving') : 'steady' };
+    }
+    return out;
+  }
+  // Miss patterns over the last few rounds together (this round + up to 4 before): the things a coach can fix.
+  function patterns(sumsList, SG, bl) {
+    var shots = [], tees = [];
+    sumsList.forEach(function (S) { shots = shots.concat(shotsOf(S)); tees = tees.concat(S.teeMap || []); });
+    var N = sumsList.length, over = N > 1 ? 'over your last ' + N + ' rounds' : 'this round', k = N > 1 ? 2 : 1, out = [];
+    var add = function (area, id, list, a, b, wa, wb, what, min, ask) {
+      var na = list.filter(a).length, nb = list.filter(b).length, L = lean(na, nb, min * k); if (!L) return;
+      out.push({ area: area, id: id, n: L.n, of: L.of, dir: L.which ? wb : wa, lost: lost(list),
+        text: L.n + ' of ' + L.of + ' ' + what + ' ' + (L.which ? wb : wa) + ' ' + over + '.', ask: ask[L.which] });
+    };
+    var putts = shots.filter(function (s) { return s.cat === 'putting' && s.end.lie === 'green'; });
+    var isD = function (d) { return function (s) { return depth(s.dir) === d; }; }, isS = function (d) { return function (s) { return side(s.dir) === d; }; };
+    add('putting', 'puttspeed', putts.filter(function (s) { return s.start.dist >= 15; }), isD('short'), isD('long'), 'finished short', 'finished long', 'missed putts from 15 ft and over', 4,
+      ['Speed, not line: check stroke length and tempo on long putts.', 'Speed, not line: check for a hit at the ball on long putts.']);
+    add('putting', 'puttline', putts.filter(function (s) { return s.start.dist >= 4 && s.start.dist < 15; }), isS('left'), isS('right'), 'missed left', 'missed right', 'missed putts from 4-15 ft', 4,
+      ['Start line: check aim and face angle at impact.', 'Start line: check aim and face angle at impact.']);
+    var appr = shots.filter(function (s) { return s.cat === 'approach' && s.start.lie !== 'green' && s.end.lie !== 'green' && s.end.lie !== 'holed'; });
+    var wed = appr.filter(function (s) { return s.start.dist >= 40 && s.start.dist <= 110; }), iron = appr.filter(function (s) { return s.start.dist > 110; });
+    add('approach', 'wedgedist', wed, isD('short'), isD('long'), 'finished short', 'finished long', 'missed greens from 40-110 yd', 3,
+      ['Wedge distances: check carry numbers and contact.', 'Wedge distances: check carry numbers and swing length.']);
+    add('approach', 'irondist', iron, isD('short'), isD('long'), 'finished short', 'finished long', 'missed greens from over 110 yd', 3,
+      ['Check contact and club choice: are the yardages real carry numbers?', 'Check club choice and yardages.']);
+    add('approach', 'ironside', iron, isS('left'), isS('right'), 'missed left', 'missed right', 'missed greens from over 110 yd', 3,
+      ['One-way miss: check face and path at impact, and alignment.', 'One-way miss: check face and path at impact, and alignment.']);
+    var dm = tees.filter(function (t) { return t.fairway === false && !t.layup; });
+    var tl = lean(dm.filter(function (t) { return t.side === 'L'; }).length, dm.filter(function (t) { return t.side === 'R'; }).length, 3 * k);
+    if (tl) out.push({ area: 'tee', id: 'teeside', n: tl.n, of: tl.of, dir: tl.which ? 'right' : 'left', lost: lost(shots.filter(function (s) { return s.cat === 'tee'; })),
+      text: tl.n + ' of ' + tl.of + ' missed fairways went ' + (tl.which ? 'right' : 'left') + ' ' + over + '.', ask: 'One-way miss with the driver: check face and path, and where you aim.' });
+    return out.sort(function (x, y) { return y.lost - x.lost; });
+  }
+  var SHARE = { 1: [100], 2: [60, 40], 3: [50, 30, 20] };
+  var AREA_DRILL = { tee: 'Hit drivers at a narrow target on the range and track where the misses go.', approach: 'Practise your most common approach distances and track how close you finish.',
+    short: 'Spend half your practice time within 30 yd of the green.', bunker: 'Spend 15 minutes of every practice in a greenside bunker: first get out every time, then land it on a towel.',
+    putting: 'Practise lag putts from 20-40 ft and 4-8 footers in equal measure.' };
+  // S = this round's summary, hist = summaries of the other rounds (newest first), areas / F = build()'s areas and checks.
+  function verdict(S, hist, areas, F, SG, bl, blName, P) {
+    var rows = areas.map(function (a) {
+      var vals = hist.filter(function (H) { return H.holesDone >= MIN_HOLES && H.cats[a.k].n > 0; }).map(function (H) { return H.cats[a.k].sg / H.holesDone * S.holesDone; });
+      var v = P[a.k].ready ? areaVerdict(a.sg, vals) : { value: a.sg, rounds: vals.length, status: null, trend: null };
+      v.k = a.k; v.name = a.name; v.word = a.word; v.known = v.status != null; v.frac = P[a.k].frac; v.delta = v.known ? a.sg - v.avg : a.sg;
+      var tr = v.trend && v.trend.dir;
+      v.label = !v.known ? 'Still learning' : (v.status === 'low' ? 'Worse than usual' : v.status === 'high' ? 'Better than usual' : 'Normal') + (tr && tr !== 'steady' ? ' - ' + tr : v.status === 'normal' && tr ? ' - steady' : '');
+      v.tone = !v.known ? 'none' : v.status === 'low' ? 'bad' : tr === 'slipping' ? 'warn' : v.status === 'high' || tr === 'improving' ? 'good' : 'none';
+      var bits = [];
+      if (!v.known) bits.push(r1(a.sg) + ' strokes ' + (a.sg < 0 ? 'lost' : 'gained') + ' against the ' + blName + ' average. Your own normal range shows after a few more rounds (' + Math.round(v.frac * 100) + '% there).');
+      else {
+        if (v.status === 'low') bits.push('Worse than ' + v.worseThan + ' of your last ' + v.rounds + ' rounds (' + r1(v.delta) + ' strokes below your average).');
+        else if (v.status === 'high') bits.push('Better than ' + v.betterThan + ' of your last ' + v.rounds + ' rounds (' + r1(v.delta) + ' strokes above your average).');
+        else bits.push('Inside your normal range.');
+        if (tr === 'slipping') bits.push('Your last ' + v.trend.recent + ' rounds average ' + r1(v.trend.diff) + ' strokes worse than the ' + v.trend.earlier + ' before.');
+        else if (tr === 'improving') bits.push('Your last ' + v.trend.recent + ' rounds average ' + r1(v.trend.diff) + ' strokes better than the ' + v.trend.earlier + ' before.');
+        else if (v.status === 'low') bits.push(tr ? 'No trend: this looks like an off day.' : 'Too few rounds to say if it is a trend.');
+      }
+      v.text = bits.join(' ');
+      // how much practice it earns: a slide over several rounds counts in full, an off day inside a steady trend counts half
+      v.need = (tr === 'slipping' ? -v.trend.diff : 0) + Math.max(0, -v.delta) * (!v.known || v.status === 'low' ? (tr === 'steady' ? 0.5 : 1) : 0.25);
+      return v;
+    });
+    var known = rows.filter(function (v) { return v.known; });
+    var low = rows.filter(function (v) { return v.status === 'low'; }).sort(function (x, y) { return x.delta - y.delta; }), slip = rows.filter(function (v) { return v.trend && v.trend.dir === 'slipping'; }).sort(function (x, y) { return x.trend.diff - y.trend.diff; });
+    var headline, sub;
+    if (!known.length) { headline = null; sub = null; } // not enough history yet: build() keeps its own headline
+    else if (low.length) {
+      var w = low[0], sl = w.trend && w.trend.dir === 'slipping';
+      headline = cap(w.word) + ' cost you ' + r1(w.delta) + ' more strokes than usual' + (sl ? ', and it has been slipping.' : w.trend ? ' - an off day, not a trend.' : '.');
+      var rest = rows.filter(function (v) { return v !== w; }), restBad = rest.filter(function (v) { return v.status === 'low' || (v.trend && v.trend.dir === 'slipping'); });
+      sub = restBad.length ? 'Also watch ' + restBad.map(function (v) { return v.word; }).join(' and ') + '.' : 'Everything else was a normal day for you' + (rest.some(function (v) { return v.status === 'high'; }) ? ' or better.' : '.');
+    } else if (slip.length) {
+      headline = 'A normal round for you, but ' + slip[0].word + ' is slipping.';
+      sub = 'Nothing was unusual today. ' + cap(slip[0].word) + ' has cost ' + r1(slip[0].trend.diff) + ' more strokes a round over your last ' + slip[0].trend.recent + ' rounds.';
+    } else if (known.some(function (v) { return v.status === 'high'; })) {
+      var b = known.slice().sort(function (x, y) { return y.delta - x.delta; })[0];
+      headline = 'A good day: ' + b.word + ' was ' + r1(b.delta) + ' strokes better than usual.'; sub = 'No part of your game is slipping.';
+    } else { headline = 'A normal round for you.'; sub = 'Every part of your game was inside its usual range, and nothing is slipping.'; }
+    // Practice this week: up to three areas, biggest need first, with a share of practice time.
+    var pick = function (k) { return F.filter(function (f) { return f.area === k && f.qualifies && f.lost >= 0.3; }).sort(function (x, y) { return y.lost - x.lost; })[0]; };
+    var top = rows.filter(function (v) { return v.need >= 0.3; }).sort(function (x, y) { return y.need - x.need; }).slice(0, 3), sh = SHARE[top.length] || [];
+    var plan = top.map(function (v, i) { var f = pick(v.k), tr = v.trend && v.trend.dir;
+      return { area: v.k, title: f ? f.title : cap(v.word), share: sh[i], drill: f ? f.drill : AREA_DRILL[v.k],
+        why: tr === 'slipping' ? 'slipping' : !v.known ? 'below the ' + blName + ' average' : v.status === 'low' ? (tr === 'steady' ? 'off day' : 'worse than usual') : 'a little below your average' }; });
+    // Ask your coach: repeated miss patterns, then any slide with no clear pattern behind it.
+    var pool = [S].concat(hist.slice(0, POOL - 1)), pats = patterns(pool, SG, bl), coach = pats.slice(0, 3).map(function (p) { return { area: p.area, id: p.id, text: p.text, ask: p.ask }; });
+    slip.forEach(function (v) { if (coach.length < 3 && !pats.some(function (p) { return p.area === v.k; }))
+      coach.push({ area: v.k, id: 'slide', text: cap(v.word) + ' has slipped ' + r1(v.trend.diff) + ' strokes a round over your last ' + v.trend.recent + ' rounds, with no clear miss pattern.', ask: 'Worth a look before it becomes a habit.' }); });
+    return { ready: known.length > 0, headline: headline, sub: sub, rows: rows, plan: plan, coach: coach, poolRounds: pool.length };
+  }
+
   // ---------- the takeaway ----------
   // round: the round; history: the golfer's OTHER finished rounds, newest first; opts: { baselineName }.
   function build(round, history, SG, opts) {
@@ -250,9 +364,12 @@
     if (threes === 0 && S.holesDone >= 9) good.push('no 3-putts');
     if (S.fwTotal >= 6 && S.fwHit / S.fwTotal >= 0.6) good.push(S.fwHit + ' of ' + S.fwTotal + ' fairways');
     if (S.girHoles >= 9 && S.gir / S.girHoles >= 0.5) good.push(S.gir + ' of ' + S.girHoles + ' greens');
-    return { ok: true, headline: headline, lede: lede, focus: focus, tiles: tiles, good: good.slice(0, 3), progress: P, baselineName: blName, checks: F };
+    // v165: normal range, trend, practice plan and coach notes
+    var hist = (history || []).slice(0, NORM_ROUNDS).map(function (r) { return SG.summarize(r, bl); }).filter(function (H) { return H.holesDone > 0; });
+    var V = verdict(S, hist, areas, F, SG, bl, blName, P);
+    return { ok: true, headline: headline, lede: lede, focus: focus, tiles: tiles, good: good.slice(0, 3), progress: P, baselineName: blName, checks: F, verdict: V };
   }
 
-  var API = { AREAS: AREAS, NORM_ROUNDS: NORM_ROUNDS, MIN_HOLES: MIN_HOLES, build: build, progress: progress, checks: checks, parLeaveFt: parLeaveFt, leaveFt: leaveFt };
+  var API = { AREAS: AREAS, NORM_ROUNDS: NORM_ROUNDS, MIN_HOLES: MIN_HOLES, build: build, progress: progress, checks: checks, areaVerdict: areaVerdict, patterns: patterns, parLeaveFt: parLeaveFt, leaveFt: leaveFt };
   if (typeof module !== 'undefined' && module.exports) module.exports = API; else root.INSIGHTS = API;
 })(this);
