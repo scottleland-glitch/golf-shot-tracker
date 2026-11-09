@@ -2000,18 +2000,24 @@
   }
   // v162 (Scott): the playing side of My Game – holes played per round type filling up like the practice chart, then
   // how tournament rounds compare with practice rounds
+  // v164 (Scott): the benchmark is opt-in – no pressure to play more unless you ask for the comparison (remembered on this phone)
+  function plBenchOn() { try { return localStorage.getItem('golfsg.plbench.v1') === '1'; } catch (e) { return false; } }
   function playingCardHTML(who, D) {
     var all = savedRounds().filter(function (r) { return samePlayer(r.player || playerName(), who); });
-    var PB = MYGAME.playingBuild(all, SG, { period: D.period.id }), P = PB.period, ago = P.id === '1y' ? 'Year before' : 'Previous ' + P.short;
-    var o = '<div class="mgchart plchart frost" id="plcard"><span class="tkeye">My Playing</span><h2 id="plhead">' + esc(PB.headline) + '</h2><p id="pllede">' + esc(PB.lede) + '</p><div class="plbars" id="plbars">';
-    PB.rows.forEach(function (x) {
-      o += '<div class="plrow" data-k="' + x.k + '"><div class="pltop"><b>' + (x.k === 'tournament' ? '🏆 ' : '⛳ ') + esc(x.name) + '</b><span>' + esc(x.text) + '</span></div>' +
-        '<div class="pltrack" role="img" aria-label="' + esc(x.name + ': ' + x.text + (x.prevHoles != null ? '; ' + ago + ': ' + x.prevHoles + ' holes' : '')) + '"><i class="plfill" style="width:' + (100 * x.frac).toFixed(1) + '%"></i>' +
-        (x.prevFrac != null ? '<i class="plprev" style="left:' + (100 * x.prevFrac).toFixed(1) + '%" title="' + esc(ago) + ': ' + x.prevHoles + ' holes"></i>' : '') + '</div></div>';
-    });
-    o += '</div>';
-    if (PB.prev) o += '<div class="mglegend"><span><i class="plsw"></i>' + esc(P.name) + '</span><span><i class="plpv"></i>' + esc(ago) + '</span></div>';
-    if (PB.untagged.holes) o += '<p class="plnote" id="pluntag">' + PB.untagged.rounds + ' older round' + (PB.untagged.rounds === 1 ? ' isn’t' : 's aren’t') + ' tagged – open ' + (PB.untagged.rounds === 1 ? 'it' : 'each one') + ' and pick Practice or Tournament under Round type.</p>';
+    // v164 (Scott): a season histogram – rounds per month for the last 12 months in front of a typical season for the benchmark
+    // group (pale columns), last year's months as dashed outlines once there is a year of rounds
+    var wb = plBenchOn(), SN = MYGAME.seasonBuild(all, SG, { baseline: D.baseline, bench: wb }), Bn = SN.bench, P = D.period;
+    var o = '<div class="mgchart plchart frost" id="plcard"><span class="tkeye">My Playing · last 12 months</span><h2 id="plhead">' + esc(SN.headline) + '</h2><p id="pllede">' + esc(SN.lede) + '</p>' +
+      MYGAME.seasonSVG(SN) + '<button class="plbtog' + (wb ? ' on' : '') + '" id="plbtog" data-act="plbench" aria-pressed="' + wb + '"><i aria-hidden="true"></i>Compare with ' + esc(Bn.who) + '</button>' + '<p class="plmonth" id="plmonth">' + esc(SN.month) + '</p>' +
+      '<div class="mglegend plleg"><span><i class="lg-t"></i>Tournament</span><span><i class="lg-p"></i>Practice</span>' + (SN.untagged ? '<span><i class="lg-u"></i>Not tagged</span>' : '') +
+      (wb ? '<span><i class="lg-b"></i>' + esc(Bn.who.charAt(0).toUpperCase() + Bn.who.slice(1)) + ' (tournament rounds)</span>' : '') + (SN.hasPrev ? '<span><i class="lg-l"></i>Year before</span>' : '') + '</div>';
+    var un = all.filter(function (r) { return !MYGAME.playOf(r) && SG.summarize(r).holesDone; }).length;
+    if (un) o += '<p class="plnote" id="pluntag">' + un + ' older round' + (un === 1 ? ' isn’t' : 's aren’t') + ' tagged – open ' + (un === 1 ? 'it' : 'each one') + ' and pick Practice or Tournament under Round type.</p>';
+    if (wb) o += '<details class="prhow" id="plhow"><summary>Where the benchmark comes from</summary><p>The pale columns are the tournament rounds a typical player in your benchmark group plays each month, ' +
+      'built from ' + esc(Bn.src) + ' – about ' + Math.round(Bn.perYear) + ' a year. Your tournament rounds sit at the bottom of each column so you can compare them straight across; practice rounds stack on top. ' +
+      'Practice rounds have no benchmark – no one publishes how many practice rounds players play – so compare those with your own year before.</p>' +
+      '<p>Sources: PGA Tour and LPGA Tour 2026 schedules (The Golf News Net); NCAA Division I 24 competition days (Clippd); about 19.5 college rounds a year for D1 women and 17.8 for D1 men (Mikkel Bjerch-Andresen, “71 scorecards”); ' +
+      'USGA player-development guidance of 8–12 multi-round events a year for top amateurs. College columns count college events only, not summer amateur events.</p></details>';
     o += '</div>';
     // tournament vs practice – this time frame, or all time while there aren't enough rounds in it
     var fin = finishedRoundsOf(who), C = MYGAME.kindCompare(fin, SG, { baseline: D.baseline, period: P.id }), allT = false;
@@ -4799,6 +4805,7 @@
       case 'livesend': if (live && r) liveSend(r); return;
       case 'livecopy': if (live && r) liveCopy(live.info(r.id).link); return;
       case 'livestop': if (!live || !r || !confirm('Stop sharing? The link will stop showing this round.')) return; live.stop(r.id); view.liveCard = false; toast('Sharing stopped'); render(); return;
+      case 'plbench': try { localStorage.setItem('golfsg.plbench.v1', plBenchOn() ? '0' : '1'); } catch (e) {} render(); return;
       case 'newplay': view.newPlay = v; [].forEach.call(document.querySelectorAll('[data-act="newplay"]'), function (x) { var on = x.getAttribute('data-v') === v; x.classList.toggle('sel', on); x.setAttribute('aria-pressed', on); }); return; // no re-render: keeps a typed course name
       case 'rplay': { var rp = round(); if (rp) { rp.play = v; save(); toast(v === 'tournament' ? 'Tagged as a tournament round' : 'Tagged as a practice round'); render(); } return; }
       case 'new': view.from = null; view.holeFrom = null; view.hmenu = null; view.newBl = null; newRound(((document.getElementById('course') || {}).value || '').trim()); return;

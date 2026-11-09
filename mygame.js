@@ -296,6 +296,83 @@
       lede: tot ? (cur.tournament.holes ? Math.round(100 * cur.tournament.holes / tot) + '% of it in tournaments.' : 'All practice rounds so far.') + (ptot ? ' ' + holesText(ptot).split(' · ')[1] + ' in ' + since + '.' : '')
         : 'Pick Practice or Tournament when you start a round – each one fills these bars.' };
   }
+  // ---------- v164 Season histogram (Scott): rounds per month over the last 12 months, against each benchmark's season ----------
+  // Tournament rounds an average player in each benchmark group plays per month (Jan..Dec). Built from published schedules and counts:
+  //  · PGA Tour: 2026 schedule, events by start month (Jan 4, Feb 4, Mar 5, Apr 5, May 5, Jun 5, Jul 6, Aug 4, Sep 2, Oct 5, Nov 2, Dec 0 –
+  //    The Golf News Net); an average player makes about 23 starts × ~3.2 rounds (cuts) ≈ 74 rounds a year, spread like the schedule.
+  //  · LPGA Tour: 2026 schedule (Jan 1, Feb 2, Mar 3, Apr 4, May 3, Jun 4, Jul 3, Aug 3, Sep 1, Oct 4, Nov 3 – The Golf News Net);
+  //    about 20 starts × ~3.3 rounds ≈ 66 rounds a year, spread like the schedule.
+  //  · D1 college: NCAA Division I teams get 24 regular-season competition days plus conference, Regionals and Nationals (Clippd);
+  //    a D1 woman plays about 19.5 competitive rounds a year, a D1 man about 17.8 (Mikkel Bjerch-Andresen, "71 scorecards");
+  //    fall Sep–Nov, spring Feb–May with the postseason in Apr–May (Duke women: 4 fall + 4 spring events – Duke Chronicle).
+  //    College events only – summer amateur events are not in it.
+  //  · Scratch amateurs: USGA player-development guidance – 8–12 multi-round tournaments a year, no more than 20 (USGA ADM
+  //    training & competition chart); 10 events × ~2.5 rounds = 25 rounds over the Apr–Oct amateur season, most in summer.
+  function spread(total, w) { var t = w.reduce(function (a, x) { return a + x; }, 0); return w.map(function (x) { return total * x / t; }); }
+  var SEASON_BENCH = {
+    pga: { who: 'PGA Tour players', perYear: 74, months: spread(74, [4, 4, 5, 5, 5, 5, 6, 4, 2, 5, 2, 0]), src: 'the 2026 PGA Tour schedule and about 23 starts a year' },
+    lpga: { who: 'LPGA Tour players', perYear: 66, months: spread(66, [1, 2, 3, 4, 3, 4, 3, 3, 1, 4, 3, 0]), src: 'the 2026 LPGA Tour schedule and about 20 starts a year' },
+    d1w: { who: 'D1 college women', perYear: 19.5, months: [0, 2, 3.5, 4, 1, 0, 0, 0, 3, 4.5, 1.5, 0], src: 'NCAA Division I rules and published counts (about 19.5 college rounds a year)' },
+    d1m: { who: 'D1 college men', perYear: 17.8, months: [0, 2.5, 3.5, 3, 0.8, 0, 0, 0, 2.5, 4, 1.5, 0], src: 'NCAA Division I rules and published counts (about 17.8 college rounds a year)' },
+    scm: { who: 'scratch amateurs', perYear: 25, months: spread(25, [0, 0, 0, 2, 3, 5, 5, 5, 3, 2, 0, 0]), src: 'USGA guidance of 8–12 multi-round events a year' },
+    scw: { who: 'scratch amateurs', perYear: 25, months: spread(25, [0, 0, 0, 2, 3, 5, 5, 5, 3, 2, 0, 0]), src: 'USGA guidance of 8–12 multi-round events a year' }
+  };
+  var MON = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  // months: the last 12 calendar months ending with the current one; rounds = holes / 18 (9 holes = ½), by round type
+  function seasonBuild(rounds, SG, opts) {
+    opts = opts || {}; var now = new Date(opts.now == null ? Date.now() : +opts.now), B = SEASON_BENCH[opts.baseline] || SEASON_BENCH.pga;
+    var key = function (d) { return d.getFullYear() * 12 + d.getMonth(); }, k0 = key(now) - 11, by = {};
+    rounds.forEach(function (r) { var d = new Date(r.date), k = key(d); if (k < k0 - 12 || k > key(now)) return; var n = SG.summarize(r).holesDone; if (!n) return;
+      var o = by[k] = by[k] || { practice: 0, tournament: 0, '': 0 }; o[playOf(r)] += n / 18; });
+    var months = [], hadPrev = false;
+    for (var k = k0; k <= key(now); k++) { var o = by[k] || { practice: 0, tournament: 0, '': 0 }, q = by[k - 12], mi = ((k % 12) + 12) % 12;
+      if (q) hadPrev = true;
+      months.push({ key: k, m: mi, label: MON[mi], year: Math.floor(k / 12), practice: o.practice, tournament: o.tournament, untagged: o[''], total: o.practice + o.tournament + o[''],
+        prev: q ? q.practice + q.tournament + q[''] : 0, bench: B.months[mi] }); }
+    var sum = function (f) { return months.reduce(function (a, x) { return a + f(x); }, 0); };
+    var T = sum(function (x) { return x.tournament; }), P = sum(function (x) { return x.practice; }), U = sum(function (x) { return x.untagged; }), BY = sum(function (x) { return x.bench; });
+    var cur = months[months.length - 1], prevYear = sum(function (x) { return x.prev; });
+    var rt = function (v) { var w = Math.floor(v + 1e-9), h = v - w >= 0.5 - 1e-9; return (w || !h ? w : '') + (h ? '½' : ''); };
+    var out = { bench: B, months: months, tournament: T, practice: P, untagged: U, benchYear: BY, hasPrev: hadPrev, prevYear: prevYear };
+    var withB = !!opts.bench; out.withBench = withB;
+    out.max = Math.max(1, Math.max.apply(null, months.map(function (x) { return Math.max(x.total, withB ? x.bench : 0, x.prev); })));
+    var all = T + P + U;
+    out.headline = all ? rt(all) + ' round' + (all === 1 ? '' : 's') + ' in the last 12 months' : 'No rounds in the last 12 months';
+    out.lede = all ? rt(T) + ' tournament, ' + rt(P) + ' practice' + (U ? ', ' + rt(U) + ' not tagged' : '') + '.' + (hadPrev ? ' ' + rt(prevYear) + ' in the 12 months before.' : '') +
+      (withB ? ' ' + cap(B.who) + ' play about ' + Math.round(BY) + ' tournament rounds a year.' : '') : 'Each round you play adds to its month.';
+    out.month = 'This month (' + cur.label + '): ' + rt(cur.tournament) + ' tournament' + (cur.practice ? ' + ' + rt(cur.practice) + ' practice' : '') + (withB ? ' · ' + B.who + ' about ' + (Math.round(cur.bench * 2) / 2) : '') + (hadPrev ? ' · last ' + cur.label + ' ' + rt(cur.prev) : '');
+    return out;
+  }
+  function cap(t) { return t.charAt(0).toUpperCase() + t.slice(1); }
+  // v164b (Scott): 3-D columns, a little offset – tournament in front, practice just behind (and untagged behind that) so a taller
+  // column never hides a shorter one; the benchmark is a dashed line, last year a thin grey line
+  function seasonSVG(S, opts) {
+    opts = opts || {}; var W = 340, H = 204, L = 24, B0 = 170, top = 18, cw = (W - L - 12) / 12, sc = (B0 - top) / S.max, o = '';
+    var y = function (v) { return B0 - v * sc; }, step = S.max > 8 ? 2 : 1, f = function (v) { return v.toFixed(1); };
+    var DX = 7.5, DY = 4.5, bw = cw * 0.4, LAY = [['tournament', '#c99a2b', '#e2bd5e', '#9c761c'], ['practice', '#4fa874', '#7cc79a', '#357f53'], ['untagged', '#a9b6c2', '#c9d3dc', '#83919e']];
+    var nL = S.untagged ? 3 : 2;
+    o += '<svg class="plseason" id="plseason" viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="' + esc('Rounds per month, last 12 months: ' + S.months.map(function (x) { return x.label + ' ' + x.tournament + ' tournament, ' + x.practice + ' practice'; }).join('; ')) + '">';
+    for (var g = 0; g <= S.max + 1e-9; g += step) o += '<line x1="' + L + '" x2="' + W + '" y1="' + f(y(g)) + '" y2="' + f(y(g)) + '" class="plgrid"/><text x="' + (L - 5) + '" y="' + f(y(g) + 3.5) + '" text-anchor="end" class="plax">' + g + '</text>';
+    var cx = function (i) { return L + 4 + i * cw + cw / 2; };
+    S.months.forEach(function (x, i) {
+      for (var l = nL - 1; l >= 0; l--) { var Z = LAY[l], v = x[Z[0]]; if (!v) continue;
+        var x0 = cx(i) - bw / 2 - (nL - 1) * DX / 2 + l * DX, base = B0 - l * DY, h = v * sc, yt = base - h, d = 3.4;
+        o += '<g class="plcube" data-k="' + Z[0] + '" data-m="' + i + '" data-v="' + v + '">' +
+          '<path d="M' + f(x0 + bw) + ' ' + f(yt) + ' l' + d + ' ' + (-d * 0.8) + ' v' + f(h) + ' l' + (-d) + ' ' + (d * 0.8) + 'z" fill="' + Z[3] + '"/>' +
+          '<path d="M' + f(x0) + ' ' + f(yt) + ' l' + d + ' ' + (-d * 0.8) + ' h' + f(bw) + ' l' + (-d) + ' ' + (d * 0.8) + 'z" fill="' + Z[2] + '"/>' +
+          '<rect x="' + f(x0) + '" y="' + f(yt) + '" width="' + f(bw) + '" height="' + f(h) + '" fill="' + Z[1] + '"/></g>'; }
+      o += '<text x="' + f(cx(i)) + '" y="' + (B0 + 13) + '" text-anchor="middle" class="plax' + (i === 11 ? ' now' : '') + '">' + x.label.charAt(0) + '</text>' +
+        (x.m === 0 || i === 0 ? '<text x="' + f(cx(i)) + '" y="' + (B0 + 25) + '" text-anchor="middle" class="plyr">' + x.year + '</text>' : '');
+    });
+    o += '<line x1="' + L + '" x2="' + W + '" y1="' + B0 + '" y2="' + B0 + '" class="plbase"/>';
+    var line = function (key, cls) { var pts = S.months.map(function (x, i) { return f(cx(i)) + ',' + f(y(x[key])); }).join(' ');
+      return '<polyline class="' + cls + '" points="' + pts + '"/>' + S.months.map(function (x, i) { return '<circle class="' + cls + 'd" cx="' + f(cx(i)) + '" cy="' + f(y(x[key])) + '" r="2.4"/>'; }).join(''); };
+    if (S.hasPrev) o += line('prev', 'plprevl');
+    if (S.withBench) o += line('bench', 'plbenchl');
+    return o + '</svg>';
+  }
+
+
   // Tournament vs practice: per-18 score and strokes gained by area. Needs MIN_EACH finished rounds of each type.
   var MIN_EACH = 2, CMP_AREAS = [['tee', 'Off the tee'], ['approach', 'Approach'], ['short', 'Around the green'], ['bunker', 'Bunker'], ['putting', 'Putting']];
   function kindAvg(list, SG, bl) {
@@ -330,7 +407,7 @@
   var API = { TAU: TAU, TAU_ACUTE: TAU_ACUTE, PRAC_BENCH: PRAC_BENCH, PRAC_SPLIT: PRAC_SPLIT, CLUB_AVG_H: CLUB_AVG_H, practiceBench: practiceBench, practiceLevel: practiceLevel, practiceLevelSVG: practiceLevelSVG, practiceLevelText: practiceLevelText,
     STRONG: STRONG, FOCUS: FOCUS, FOCUS_HINT: FOCUS_HINT, validPractice: validPractice, mergePractice: mergePractice, practiceShape: practiceShape, practiceBuild: practiceBuild, practiceSVG: practiceSVG,
     practiceVsGame: practiceVsGame, drillFocus: drillFocus, hm: hm,
-    PLAY_KINDS: PLAY_KINDS, playOf: playOf, playTally: playTally, playingBuild: playingBuild, kindCompare: kindCompare, holesText: holesText, MIN_EACH: MIN_EACH, CMP_AREAS: CMP_AREAS,
+    SEASON_BENCH: SEASON_BENCH, seasonBuild: seasonBuild, seasonSVG: seasonSVG,     PLAY_KINDS: PLAY_KINDS, playOf: playOf, playTally: playTally, playingBuild: playingBuild, kindCompare: kindCompare, holesText: holesText, MIN_EACH: MIN_EACH, CMP_AREAS: CMP_AREAS,
     SPOKES: SPOKES, PERIODS: PERIODS, MIN_ROUNDS: MIN_ROUNDS, period: period, windows: windows, shape: shape, build: build, radarSVG: radarSVG, radius: radius, fmt: fmt, RING: RING };
   if (typeof module !== 'undefined' && module.exports) module.exports = API; else root.MYGAME = API;
 })(this);

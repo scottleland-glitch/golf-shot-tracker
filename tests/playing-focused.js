@@ -21,21 +21,25 @@ const rounds = [at('p1', 2, 'practice'), nine(at('p2', 6, 'practice')), extraPut
     await page.goto(BASE + '?x=' + Date.now());
     await page.evaluate(rs => { localStorage.clear(); localStorage.setItem('golfsg.player.v1', 'Scott'); localStorage.setItem('golfsg.nameasked.v1', '1'); localStorage.setItem('golfsg.rounds.v1', JSON.stringify(rs)); }, rounds);
     await page.reload(); await page.waitForSelector('#home');
-    // My Game – 30 days
-    await page.click('[data-act="mygame"]'); await page.waitForSelector('#plcard'); await page.click('[data-act="mgperiod"][data-v="30d"]'); await page.waitForSelector('#plcard');
-    assert.strictEqual(await page.textContent('#plhead'), '3½ rounds · 63 holes played');
-    assert.match(await page.textContent('#pllede'), /^57% of it in tournaments\. 18 holes in the previous 30 days\.$/);
-    const bar = k => page.$eval('.plrow[data-k="' + k + '"]', e => ({ t: e.querySelector('.pltop span').textContent, w: parseFloat(e.querySelector('.plfill').style.width), p: e.querySelector('.plprev') ? parseFloat(e.querySelector('.plprev').style.left) : null }));
-    const P = await bar('practice'), T = await bar('tournament');
-    assert.strictEqual(P.t, '1½ rounds · 27 holes'); assert.strictEqual(T.t, '2 rounds · 36 holes');
-    assert.strictEqual(T.w, 100); assert.ok(Math.abs(P.w - 75) < 0.1); assert.ok(Math.abs(P.p - 50) < 0.1, 'last period marker at 18 of 36'); assert.strictEqual(T.p, 0);
-    ok('bars: holes per type, 9 holes = ½ round, busiest bar full, last-period marker');
+    // My Game – v164 season histogram: last 12 months by month, benchmark only when asked for
+    await page.click('[data-act="mygame"]'); await page.waitForSelector('#plseason'); await page.click('[data-act="mgperiod"][data-v="30d"]'); await page.waitForSelector('#plseason');
+    assert.strictEqual(await page.textContent('#plhead'), '5½ rounds in the last 12 months');
+    assert.match(await page.textContent('#pllede'), /^2 tournament, 2½ practice, 1 not tagged\.$/);
+    assert.strictEqual(await page.$$eval('#plseason .plbenchl', e => e.length), 0, 'no benchmark until asked'); assert.strictEqual(await page.getAttribute('#plbtog', 'aria-pressed'), 'false');
+    const cubes = await page.$$eval('#plseason .plcube', e => e.map(x => [x.getAttribute('data-k'), +x.getAttribute('data-v')]));
+    const tot = k => cubes.filter(c => c[0] === k).reduce((a, c) => a + c[1], 0);
+    assert.deepStrictEqual([tot('tournament'), tot('practice'), tot('untagged')], [2, 2.5, 1], '3-D columns side by side per type, not stacked');
+    assert.strictEqual(await page.$$eval('#plseason .plax', e => e.filter(x => /^[A-Z]$/.test(x.textContent)).length), 12, '12 month columns');
+    await page.click('#plbtog'); await page.waitForSelector('#plbtog.on');
+    assert.strictEqual(await page.$$eval('#plseason .plbenchl', e => e.length), 1, 'benchmark season as a line'); assert.match(await page.textContent('#pllede'), /PGA Tour players play about 74 tournament rounds a year/);
+    assert.ok(await page.$('#plhow')); await page.reload(); await page.click('[data-act="mygame"]'); await page.waitForSelector('#plbtog.on'); ok('benchmark comparison is opt-in and remembered');
+    await page.click('#plbtog'); await page.waitForSelector('#plbtog:not(.on)');
+    ok('season histogram: rounds per month by type, 9 holes = ½');
     assert.match(await page.textContent('#pluntag'), /1 older round isn’t tagged/); ok('untagged rounds are pointed out, not guessed');
     assert.match(await page.textContent('#plcmphead'), /^Tournament rounds average \d+\.\d higher$/); assert.match(await page.textContent('#plcmplede'), /biggest drop is putting.*Early read/);
     assert.ok(await page.$('#plcmpt tr.plworst[data-k="putting"]'), 'putting row highlighted');
-    assert.match(await page.textContent('#plcmpt thead'), /Practice\s*2 rounds.*Tournament\s*2 rounds/); ok('tournament vs practice: score, SG by area, worst area named');
+    assert.match(await page.textContent('#plcmpt thead'), /Practice\s*3 rounds.*Tournament\s*2 rounds/); ok('tournament vs practice: score, SG by area, worst area named');
     const box = await page.locator('#plcmp').boundingBox(); assert.ok(box.x >= 0 && box.x + box.width <= 390, 'comparison fits the phone');
-    await page.$eval('#plcard', e => e.scrollIntoView()); await page.screenshot({ path: OUT + 'v162-playing.png' });
     // Round list tag + Round type on Round stats
     await page.click('[data-act="home"]'); if (await page.$('#plusbtn')) await page.click('#plusbtn'); await page.click('[data-act="history"]');
     assert.strictEqual(await page.$$eval('#histlist .htour', e => e.length), 2, 'trophy on the two tournament rounds');

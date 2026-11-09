@@ -155,3 +155,19 @@ test('v162 tournament vs practice: per-18 score and SG by area, worst area named
   assert.match(C.headline, /^Tournament rounds average \d+\.\d higher$/); assert.match(C.lede, /biggest drop is putting/);
   const sumCats = C.rows.reduce((a, x) => a + x.tournament, 0); assert.ok(Math.abs(sumCats - C.tournament.sg) < 1e-6, 'areas add up to the total');
 });
+
+test('v164 season histogram: last 12 months by month and type, benchmark only when asked, year before kept', () => {
+  const nine = (r) => { r.holes = r.holes.slice(0, 9); return r; };
+  const now = Date.parse('2026-11-15T20:00:00Z'), on = (id, ymd, play) => Object.assign(ARC.round(), { id, date: ymd + 'T18:00:00Z' }, play ? { play } : {});
+  const rs = [on('a', '2026-11-03', 'tournament'), nine(on('b', '2026-11-05', 'practice')), on('c', '2026-10-10', 'tournament'), on('d', '2025-12-02'), on('e', '2025-11-20', 'tournament'), on('f', '2025-10-01', 'practice')];
+  let S = M.seasonBuild(rs, SG, { now, baseline: 'd1w' });
+  assert.strictEqual(S.months.length, 12); assert.deepStrictEqual([S.months[0].label, S.months[11].label], ['Dec', 'Nov']);
+  const nov = S.months[11]; assert.deepStrictEqual([nov.tournament, nov.practice, nov.prev], [1, 0.5, 1], 'Nov: 1 tournament, ½ practice, last Nov 1');
+  assert.strictEqual(S.months[10].prev, 1, 'last Oct'); assert.strictEqual(S.months[0].untagged, 1);
+  assert.strictEqual(S.headline, '3½ rounds in the last 12 months'); assert.strictEqual(S.withBench, false); assert.doesNotMatch(S.lede + S.month, /college/);
+  S = M.seasonBuild(rs, SG, { now, baseline: 'd1w', bench: true });
+  assert.match(S.lede, /D1 college women play about 20 tournament rounds a year/); assert.ok(Math.abs(S.months.reduce((a, x) => a + x.bench, 0) - 19.5) < 1e-9);
+  ['pga', 'lpga', 'd1m', 'd1w', 'scm', 'scw'].forEach((b) => { const B = M.SEASON_BENCH[b]; assert.strictEqual(B.months.length, 12);
+    assert.ok(Math.abs(B.months.reduce((a, x) => a + x, 0) - B.perYear) < 1e-9, b + ' months add up to the year'); });
+  assert.ok(M.SEASON_BENCH.d1w.months[0] === 0 && M.SEASON_BENCH.d1w.months[5] === 0, 'college: no events in January or June');
+});

@@ -25,6 +25,14 @@ Every Shot Counts Table 3.10). The other five are ESTIMATED: per-round gaps from
 Player Quality ladder, then spread over the PGA table. Full sources, method and caveats: in-app
 "About the numbers" and the BASELINES comment in `sg.js`.
 
+## My Playing season histogram (v164)
+My Playing shows rounds per month for the last 12 months as 3-D columns, a little offset so none hides another (tournament
+in front, practice behind, untagged grey at the back; 9 holes = ½), with last year's monthly totals as a thin grey line.
+"Compare with …" (off by default, remembered on the phone) adds a dashed line: a typical season of tournament rounds for the
+benchmark group – `MYGAME.SEASON_BENCH`, built from the 2026 PGA Tour and LPGA
+Tour schedules, NCAA D1 competition rules and published per-player round counts, and USGA development guidance for top
+amateurs. Practice rounds have no benchmark (no published data).
+
 ## Round takeaway: approach proximity, where putting strokes go (v163)
 Approach tile: the GIR count stays in its picture; under it, You vs benchmark bars of approach proximity (how far approaches
 finished, vs the benchmark's leave from the same spots – like the chipping bars) and that line in words. Putting tile: a small
