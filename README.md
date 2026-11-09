@@ -25,6 +25,36 @@ Every Shot Counts Table 3.10). The other five are ESTIMATED: per-round gaps from
 Player Quality ladder, then spread over the PGA table. Full sources, method and caveats: in-app
 "About the numbers" and the BASELINES comment in `sg.js`.
 
+## Short game test (v166)
+My Game › **Short game test** (also in the + menu): a fixed monthly check-up, about an hour, 73 shots over 10 stations.
+The same test every time, so a skill that starts to slip shows up test over test.
+- **Putting** – Lag putts (3 each from 30, 40, 50 ft: feet left + short / level / past) · Speed ladder (first ball past a 6 ft
+  line, every ball past the one before, ends on a ball that comes up short or runs past 30 ft; balls counted, 3 attempts) ·
+  Short putts (four lines of tees at 3, 5, 7, 9 ft around a hole on a 1-2 degree slope: uphill, downhill, breaks left,
+  breaks right; 16 putts, made or where it missed; the station shows the diagram with the tee to putt from).
+- **Chipping** – 5 each: short chips (10 yd), long chips (25 yd), flop over a bunker (15 yd), from rough (15 yd). Feet left.
+- **Bunker** – 5 short (10 yd), 5 long (25 yd). Feet left, or Still in sand / Over the green.
+- **Wedges** – 3 each from 30, 45, 60, 80, 100 yd. Feet left + where it finished (3 x 3 grid).
+- Exact feet everywhere (0 = holed). Saved after every shot, so a test can be left and carried on later, or finished with
+  stations skipped. Greens (slow / medium / fast) and wind are noted at the start.
+- **Scoring:** every shot is strokes gained against the player's benchmark (same tables as the rounds), so the benchmark is
+  level on every station; an over-the-green bunker shot is scored as a 10 yd shot from rough, one left in the sand as a lost
+  stroke. Skills are shown in plain units: feet left, putts made, balls. The ladder has no benchmark: its spoke is measured
+  against the player's own best.
+- **Result:** headline, an overall spider (Putting, Chipping, Bunker, Wedges: benchmark outline, this test filled, your
+  average dashed from the third test), Practice this month (up to 3 with a drill), Ask your coach (patterns: lag putts
+  short or past, uphill vs downhill, one break weaker, high / low misses, bunker shots over the green, wedge direction and
+  the weakest wedge distance), then a card per category – spider (wedges: a bar per distance with the benchmark mark, and
+  a miss map) and one small line graph per skill, a dot per test, up = better, band = your usual range. Tap a skill for
+  the full graph with dates and numbers.
+- **Down** = worse than your usual (average of up to 6 earlier tests) by more than the skill's wobble (20% of the feet, 2
+  putts, 1.5 balls). **Slipping** = two drops in a row. First test = starting point, compared with the benchmark only.
+- Stored in `golfsg.sgtests.v1` (`{ id, date, player, baseline, cond, done, shots }`), per player, in the backup file and
+  each player's Google Drive backup (`sgtests`; restore adds new tests only). My Game shows the card and when the next
+  test is due (30 days).
+- Code: `shortgame.js` (engine + pictures, pure), `shortgame-ui.js` (screens), glue in app.js (`SGTUI`).
+  Tests: `node --test tests/shortgame.test.js`, `node tests/shortgame-focused.js`.
+
 ## Round PDF: the verdict page first, the numbers last (v165)
 The round PDF now answers four questions on page 2 and leaves the tables for the back.
 - **Page 2 – Round takeaway.** One bar per area (Off the tee, Approach, Around the green, Bunker, Putting): the grey band is
