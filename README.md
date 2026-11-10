@@ -25,6 +25,10 @@ Every Shot Counts Table 3.10). The other five are ESTIMATED: per-round gaps from
 Player Quality ladder, then spread over the PGA table. Full sources, method and caveats: in-app
 "About the numbers" and the BASELINES comment in `sg.js`.
 
+## Speed ladder labels (v171)
+- The flat / uphill / downhill speed spokes show the ladder as the raw count it is – "13 balls · goal 16" (goal = best
+  ladder on that slope + 3) – instead of "13 of 16 balls", which read like 13 good out of 16 putted.
+
 ## Short game fixes (v170)
 - **Slope ladders:** tests saved by v168 had no `sl` flag, so v169 showed their uphill / downhill ladders as "not tested".
   Tests are now stored as `v: 3` with `sl` for sure; a `v: 2` test (or one dated after v168 went out) is read as sloped;

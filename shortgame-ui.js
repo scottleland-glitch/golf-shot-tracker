@@ -43,7 +43,7 @@
     function puttSpidersHTML(A) {
       var X = A.cur.extra, G = speedGoals(A), SB = A.cur.skills.speed.bySlope || [{ k: 'flat', name: 'Flat', n: null }, { k: 'up', name: 'Uphill', n: null }, { k: 'down', name: 'Downhill', n: null }];
       var lag = X.lag.byDist.map(function (d) { return { name: 'Lag ' + d.dist, index: d.n ? d.index : null, sub: d.n ? '' : 'not tested', tone: d.sg == null ? '' : d.sg <= -0.15 ? 'bad' : d.sg >= 0.15 ? 'good' : '' }; });
-      var spd = SB.map(function (x) { var g = G[x.k]; return { name: x.name + ' speed', index: x.n == null ? null : Math.max(10, Math.min(130, 100 * x.n / g)), sub: x.n == null ? 'not tested' : x.n + ' of ' + g + ' balls' }; });
+      var spd = SB.map(function (x) { var g = G[x.k]; return { name: x.name + ' speed', index: x.n == null ? null : Math.max(10, Math.min(130, 100 * x.n / g)), sub: x.n == null ? 'not tested' : x.n + ' ball' + (x.n === 1 ? '' : 's') + ' · goal ' + g }; }); // v171 (Scott): a raw count, not x of y
       var lines = X.lines.map(function (l) { return { name: l.name, index: l.n ? l.index : null, sub: l.n ? l.made + ' of ' + l.n : 'not tested', tone: l.sg == null ? '' : l.sg <= -0.1 ? 'bad' : l.sg >= 0.1 ? 'good' : '' }; });
       return '<div class="sgtpsp" id="sgtpsplag"><p class="sgteyebrow">Lag and speed</p>' + T.spiderSVG(lag.concat(spd), { R: 70, padX: 112, aria: 'Lag and speed shape' }) +
         '<p class="sgtnote">The ring is ' + esc(A.blName) + ' for the lag putts, and your goal for the speed ladders: your best ladder on that slope + ' + SPEED_GOAL_PLUS + ' balls.</p></div>' +

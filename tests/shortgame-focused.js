@@ -80,7 +80,7 @@ function make(id, date, q) { const t = T.blank(id, date, 'Scott', 'scm');
   // v168: putting = lag & speed (6 spokes) + short putts (4 lines)
   const sp = await page.evaluate(() => ['#sgtpsplag', '#sgtpspshort'].map(id => [...document.querySelectorAll(id + ' svg text')].filter(x => x.getAttribute('font-weight') === '600').map(x => x.textContent)));
   assert.deepStrictEqual(sp, [['Lag 30', 'Lag 40', 'Lag 50', 'Flat speed', 'Uphill speed', 'Downhill speed'], ['Uphill', 'Breaks right', 'Downhill', 'Breaks left']]);
-  assert.match(await page.textContent('#sgtpsplag'), /4 of 12 balls/, 'downhill ladder 4 against its best (9, in August) + 3'); assert.equal(await page.locator('#sgtwbars .sgtwb').count(), 5);
+  await page.locator('#sgtpsplag').screenshot({ path: OUT + '/12s-lag-speed.png' }); assert.match(await page.textContent('#sgtpsplag'), /4 balls · goal 12/, 'downhill ladder 4 against its best (9, in August) + 3'); assert.equal(await page.locator('#sgtwbars .sgtwb').count(), 5);
   // v168 (Scott): way off her own usual gets a warning with the pattern – downhill 1 of 4, all three misses long
   const wtxt = await page.textContent('#sgtwarn-putting'); assert.match(wtxt, /Downhill putts: 1 of 4 made/); assert.match(wtxt, /All 3 missed long/); assert.match(wtxt, /Way off your usual/); assert.match(wtxt, /Usually 3\.3 of 4 · last 3 tests/); // against her own usual, not the benchmark
   await page.locator('#sgtwarn-putting').scrollIntoViewIfNeeded(); await shot('12w-putting-warning');
