@@ -37,16 +37,19 @@
         k: sk.k, full: sk.name, val: s.value == null ? '' : T.fmtVal(sk, s), usual: s.value == null ? '' : rowSub(A, sk), tag: rowTag(c) }; }); }
     // v176 (Scott): every spider gets bars under it – one row per spoke: your average (grey), this test (green, red when down)
     // and a mark for the benchmark (or the ladder goal). Same scale as the spider, so further right is always better.
+    // v177 (Scott): the bar's colour is how close it is to the benchmark mark – green within ~0.1 strokes a shot (90%+ of the way),
+    // amber 0.1–0.25 behind (75–90%), red further back. Down / Slipping (against your own usual) stay as the tags.
+    function tierOf(ix) { return ix == null ? '' : ix >= 90 ? 'g' : ix >= 75 ? 'a' : 'r'; }
     function barX(ix) { return Math.max(2, Math.min(100, (ix - 10) / 120 * 100)); }
     function barsHTML(spokes, benchName, id) {
       var any = spokes.some(function (x) { return x.index != null; }); if (!any) return '';
       var hasAvg = spokes.some(function (x) { return x.avg != null; });
       return '<div class="sgtbars"' + (id ? ' id="' + id + '"' : '') + '>' + spokes.map(function (x) {
         var tap = !!x.k, tag = x.tag ? '<em class="' + (x.tone || '') + '">' + esc(x.tag) + '</em>' : '';
-        var lab = '<span class="sgtbl"><b>' + esc(x.full || x.name) + tag + '</b><span class="' + (x.tone || '') + '">' + esc(x.index == null ? 'not tested' : x.val || x.sub || '') + '</span>' + (x.usual ? '<small>' + esc(x.usual) + '</small>' : '') + '</span>';
-        var trk = '<span class="sgtbt">' + (x.avg != null ? '<i class="avg" style="width:' + barX(x.avg).toFixed(1) + '%"></i>' : '') + (x.index != null ? '<i class="cur ' + (x.tone || '') + '" style="width:' + barX(x.index).toFixed(1) + '%"></i>' : '') + '<s style="left:' + barX(100).toFixed(1) + '%"></s></span>';
+        var lab = '<span class="sgtbl"><b>' + esc(x.full || x.name) + tag + '</b><span class="v' + tierOf(x.index) + '">' + esc(x.index == null ? 'not tested' : x.val || x.sub || '') + '</span>' + (x.usual ? '<small>' + esc(x.usual) + '</small>' : '') + '</span>';
+        var trk = '<span class="sgtbt">' + (x.avg != null ? '<i class="avg" style="width:' + barX(x.avg).toFixed(1) + '%"></i>' : '') + (x.index != null ? '<i class="cur t' + tierOf(x.index) + '" style="width:' + barX(x.index).toFixed(1) + '%"></i>' : '') + '<s style="left:' + barX(100).toFixed(1) + '%"></s></span>';
         return tap ? '<button class="sgtbr" data-act="sgtrow" data-v="' + x.k + '">' + lab + trk + '</button>' : '<div class="sgtbr">' + lab + trk + '</div>'; }).join('') +
-        '<p class="sgtbkey"><span><i class="k1"></i>This test</span>' + (hasAvg ? '<span><i class="k2"></i>Your average</span>' : '') + '<span><i class="k3"></i>' + esc(benchName) + '</span><span>further right is better</span></p></div>';
+        '<p class="sgtbkey"><span><i class="k1 tg"></i><i class="k1 ta"></i><i class="k1 tr"></i>This test</span>' + (hasAvg ? '<span><i class="k2"></i>Your average</span>' : '') + '<span><i class="k3"></i>' + esc(benchName) + '</span><span>further right is better</span></p></div>';
     }
     // a spoke's history from the earlier tests (newest first, up to six): f(score) → number | null
     function histOf(A, f) { return (A.ps || []).map(f).filter(function (v) { return v != null; }).slice(0, 6); }
@@ -185,11 +188,11 @@
       var A = analysed(done[0], who), P = puttSpokes(A), bn = blShort(A.bl), ftS = function (v) { return (v < 10 ? v.toFixed(1) : String(Math.round(v))) + ' ft'; };
       var cats = T.CATS.map(function (c) { var x = A.cur.cats[c.k], skills = T.SKILLS.filter(function (sk) { return sk.cat === c.k; });
         var any = skills.some(function (sk) { return A.cur.skills[sk.k].value != null; });
-        var bar = function (L) { return L.map(function (x) { return { name: x.full || x.name, val: x.index == null ? 'not tested' : x.val || x.sub || '', usual: x.usual || '', index: x.index, avg: x.avg, tone: x.tone || '', tag: x.tag || '' }; }); };
+        var bar = function (L) { return L.map(function (x) { return { name: x.full || x.name, val: x.index == null ? 'not tested' : x.val || x.sub || '', usual: x.usual || '', index: x.index, avg: x.avg, tone: x.tone || '', tier: tierOf(x.index), tag: x.tag || '' }; }); };
         var pics = !any ? [] : c.k === 'putting' ? [{ title: 'Lag and speed', svg: T.spiderSVG(P.lag, { R: 70, padX: 112 }), bars: bar(P.lag) }, { title: 'Short and breaking putts', svg: T.spiderSVG(P.lines, { R: 70 }), bars: bar(P.lines) }]
           : c.k === 'wedge' ? [] : [{ title: '', svg: T.spiderSVG(catSpokes(A, c.k), { R: 70 }), bars: bar(catSpokes(A, c.k)) }];
         var wbars = null; if (c.k === 'wedge' && any) { var WX = A.cur.extra.wedge; wbars = WX.byDist.map(function (d, i) { var h = histOf(A, function (q) { var z = q.extra.wedge.byDist[i]; return z && z.n ? z.ft : null; }), u = h.length >= 2 ? meanOf(h) : null;
-          return { d: d.dist, ft: d.ft, usual: u, bench: d.bench, tone: d.ft != null && u != null ? (d.ft > u + Math.max(2, 0.25 * u) ? 'bad' : d.ft < u - Math.max(2, 0.25 * u) ? 'good' : '') : '' }; }); }
+          return { d: d.dist, ft: d.ft, usual: u, bench: d.bench, tier: tierOf(d.n && d.sg != null ? 100 + d.sg * 100 : null), tone: d.ft != null && u != null ? (d.ft > u + Math.max(2, 0.25 * u) ? 'bad' : d.ft < u - Math.max(2, 0.25 * u) ? 'good' : '') : '' }; }); }
         var rows = skills.filter(function (sk) { return A.cur.skills[sk.k].value != null; }).map(function (sk) { var cc = A.cmp.skills[sk.k]; return { name: sk.name, value: T.fmtVal(sk, A.cur.skills[sk.k]), sub: rowSub(A, sk), tag: rowTag(cc), tone: toneOf(cc) }; });
         var warn = (A.cmp.warn || []).filter(function (w) { return w.cat === c.k; }).map(function (w) {
           return { title: w.title, sub: w.vs === 'own' ? 'Usually ' + (w.unit === 'made' ? fmtUsual(w.usual) + ' of ' + (w.usualOf || w.of) : ftS(w.usual) + ' away') + ' · last ' + w.tests + ' tests'
@@ -199,7 +202,7 @@
         if (c.k === 'bunker' && any) { var B = A.cur.extra.bunker; notes.push(B.over + ' of ' + B.n + ' flew the green · ' + B.sand + ' stayed in the sand.'); }
         return { k: c.k, name: c.name, any: any, sg: x.sg, pics: pics, rows: rows, wbars: wbars, warn: warn, notes: notes }; });
       return { date: A.test.date, tests: done.length, headline: A.I.headline, sub: A.I.sub, blName: A.blName, cond: [A.test.cond.green ? A.test.cond.green + ' greens' : '', A.test.cond.wind].filter(Boolean).join(', '),
-        overall: T.spiderSVG(overallSpokes(A), { R: 92 }), overallBars: overallSpokes(A).map(function (x) { return { name: x.name, val: x.index == null ? 'not tested' : x.val, usual: x.usual, index: x.index, avg: x.avg, tone: x.tone, tag: '' }; }), blShort: blShort(A.bl), hasAvg: A.cmp.cats.putting.avgIndex != null, entered: T.entered(A.test), total: T.totalOf(A.test),
+        overall: T.spiderSVG(overallSpokes(A), { R: 92 }), overallBars: overallSpokes(A).map(function (x) { return { name: x.name, val: x.index == null ? 'not tested' : x.val, usual: x.usual, index: x.index, avg: x.avg, tone: x.tone, tier: tierOf(x.index), tag: '' }; }), blShort: blShort(A.bl), hasAvg: A.cmp.cats.putting.avgIndex != null, entered: T.entered(A.test), total: T.totalOf(A.test),
         plan: A.I.plan.map(function (p) { return { title: p.title, why: p.why, drill: p.drill }; }), coach: A.I.coach.map(function (c) { return { text: c.text, ask: c.ask }; }), cats: cats };
     }
     // v176 (Scott): what the latest test found in each area, for the course vs test card. A way-off check names the spot
@@ -246,8 +249,8 @@
       var W = A.cur.extra.wedge, us = W.byDist.map(function (d, i) { var h = histOf(A, function (q) { var z = q.extra.wedge.byDist[i]; return z && z.n ? z.ft : null; }); return h.length >= 2 ? meanOf(h) : null; });
       var max = 1.1 * Math.max.apply(null, W.byDist.map(function (d, i) { return Math.max(d.ft || 0, d.bench, us[i] || 0); }).concat([10]));
       var o = '<div class="sgtwbars" id="sgtwbars">' + W.byDist.map(function (d, i) { var bad = d.ft != null && us[i] != null && d.ft > us[i] + Math.max(2, 0.25 * us[i]), good = d.ft != null && us[i] != null && d.ft < us[i] - Math.max(2, 0.25 * us[i]);
-        return '<div class="sgtwb' + (bad ? ' bad' : good ? ' good' : '') + '"><span>' + d.dist + ' yd</span><i>' + (us[i] != null ? '<em style="width:' + (100 * us[i] / max).toFixed(1) + '%"></em>' : '') + '<u style="width:' + (d.ft == null ? 0 : (100 * d.ft / max).toFixed(1)) + '%"></u><s style="left:' + (100 * d.bench / max).toFixed(1) + '%"></s></i><b>' + (d.ft == null ? '–' : r1(d.ft) + ' ft') + '</b></div>'; }).join('') +
-        '<p class="sgtbkey"><span><i class="k1"></i>This test, ft away</span>' + (us.some(function (x) { return x != null; }) ? '<span><i class="k2"></i>Your average</span>' : '') + '<span><i class="k3"></i>' + esc(blShort(A.bl)) + ' level</span><span>shorter is better</span></p></div>';
+        return '<div class="sgtwb t' + tierOf(d.n && d.sg != null ? 100 + d.sg * 100 : null) + (bad ? ' bad' : good ? ' good' : '') + '"><span>' + d.dist + ' yd</span><i>' + (us[i] != null ? '<em style="width:' + (100 * us[i] / max).toFixed(1) + '%"></em>' : '') + '<u style="width:' + (d.ft == null ? 0 : (100 * d.ft / max).toFixed(1)) + '%"></u><s style="left:' + (100 * d.bench / max).toFixed(1) + '%"></s></i><b class="v' + tierOf(d.n && d.sg != null ? 100 + d.sg * 100 : null) + '">' + (d.ft == null ? '–' : r1(d.ft) + ' ft') + '</b></div>'; }).join('') +
+        '<p class="sgtbkey"><span><i class="k1 tg"></i><i class="k1 ta"></i><i class="k1 tr"></i>This test, ft away</span>' + (us.some(function (x) { return x != null; }) ? '<span><i class="k2"></i>Your average</span>' : '') + '<span><i class="k3"></i>' + esc(blShort(A.bl)) + ' level</span><span>shorter is better</span></p></div>';
       var cell = function (v, lab) { return '<span class="' + (v ? 'on' : '') + '"><b>' + v + '</b>' + lab + '</span>'; };
       if (W.n) o += '<div class="sgtmiss" id="sgtmiss"><p class="sgteyebrow">Where the wedges finished</p><div class="sgtmgrid"><span></span>' + cell(W.long, 'long') + '<span></span>' + cell(W.left, 'left') + '<span class="pin">hole</span>' + cell(W.right, 'right') + '<span></span>' + cell(W.short, 'short') + '<span></span></div></div>';
       return o;

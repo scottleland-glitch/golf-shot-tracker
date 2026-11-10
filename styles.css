@@ -2614,3 +2614,8 @@ html body .mgcvt .cvtv { color: #1f6b3a; } html body .mgcvt .cvtv.bad { color: #
 .mgblcard .mgbl { display: flex; align-items: center; gap: 10px; font-weight: 600; flex-wrap: wrap; }
 .mgblcard button.primary { width: 100%; margin-top: 10px; }
 .bangon::after { content: "!"; display: inline-flex; align-items: center; justify-content: center; width: 18px; height: 18px; border-radius: 9px; background: #d0342c; color: #fff; font-style: normal; font-weight: 800; font-size: 12px; line-height: 1; margin-left: 7px; vertical-align: 2px; }
+/* v177 (Scott): bar colour = how close to the benchmark mark: green (90%+), amber (75–90%), red (further back) */
+.sgtbt i.cur.tg, .sgtwb.tg u { background: #1f9d55 !important; } .sgtbt i.cur.ta, .sgtwb.ta u { background: #e0a82e !important; } .sgtbt i.cur.tr, .sgtwb.tr u { background: #d0604f !important; }
+.sgtbkey i.k1 { width: 6px !important; margin-right: 2px !important; } .sgtbkey i.k1.tr { margin-right: 6px !important; }
+.sgtbkey i.k1.tg { background: #1f9d55; } .sgtbkey i.k1.ta { background: #e0a82e; } .sgtbkey i.k1.tr { background: #d0604f; }
+.sgtbl > span.vg, .sgtwb b.vg { color: #1f6b3a !important; } .sgtbl > span.va, .sgtwb b.va { color: #a06e0a !important; } .sgtbl > span.vr, .sgtwb b.vr { color: #b0473f !important; }

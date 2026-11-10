@@ -25,6 +25,12 @@ Every Shot Counts Table 3.10). The other five are ESTIMATED: per-round gaps from
 Player Quality ladder, then spread over the PGA table. Full sources, method and caveats: in-app
 "About the numbers" and the BASELINES comment in `sg.js`.
 
+## Bar colours (v177)
+- Each "this test" bar (and its value) is coloured by how close it is to the benchmark mark, on the spider's scale:
+  green within ~0.1 strokes a shot (index 90+), amber 0.1–0.25 behind (75–90), red further back. Speed ladders use the
+  same cut-offs against their goal; wedge yardages use their strokes gained. Down / Slipping / Improving tags still
+  compare with the player's own usual. Same colours in the game report PDF.
+
 ## Bars, course vs test, one benchmark (v176)
 - **Bars under every spider** on the test result (overall, lag & speed, short putts, chipping, bunker): your average
   (blue, from two earlier tests), this test (green, red when down) and the benchmark mark (or the ladder goal) – further

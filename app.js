@@ -988,6 +988,8 @@
   function grFileName(who, iso) { var d = new Date(iso), p = function (n) { return (n < 10 ? '0' : '') + n; }, w = function (x) { return String(x || '').replace(/[^A-Za-z0-9]+/g, '-').replace(/^-|-$/g, ''); };
     return ['Strokewise-Game-Report', w(who), d.getFullYear() + '-' + p(d.getMonth() + 1) + '-' + p(d.getDate())].filter(Boolean).join('-') + '.pdf'; }
   function svgAspect(svg) { var m = /viewBox="[-\d.]+ [-\d.]+ ([\d.]+) ([\d.]+)"/.exec(svg); return m ? +m[2] / +m[1] : 1; }
+  var TIER_TXT = { g: [31, 107, 58], a: [160, 110, 10], r: [176, 71, 63] };
+  var TIER_RGB = { g: [31, 157, 85], a: [224, 168, 46], r: [208, 96, 79] }; // v177 bar colours: near the benchmark / behind / well behind
   function makeGameReport(who, parts) {
     if (!who) return Promise.reject(new Error('Pick a player first'));
     parts = parts || GR_PRESET.coach;
@@ -1017,15 +1019,15 @@
       var barRows = function (L, x, yy, w) { var lw = Math.min(150, w * 0.42), tx = x + lw + 6, tw = w - lw - 6;
         L.forEach(function (r) { font(9.5); ink(30); var nm = P(r.name); T(nm, x, yy + 9);
           if (r.tag) { var nw = doc.getTextWidth(nm); font(7.5); tone(r.tone); T(r.tag.toUpperCase(), x + nw + 5, yy + 9); }
-          font(8.5); if (r.index == null) ink(130); else tone(r.tone); var vv = P(r.val || ''); T(vv, x, yy + 20); var vw = doc.getTextWidth(vv);
+          font(8.5); if (r.index == null) ink(130); else { var tc = TIER_TXT[r.tier] || [31, 107, 58]; doc.setTextColor(tc[0], tc[1], tc[2]); } var vv = P(r.val || ''); T(vv, x, yy + 20); var vw = doc.getTextWidth(vv);
           if (r.usual) { font(7.5); ink(125); var us = P(r.usual); if (vw + 6 + doc.getTextWidth(us) <= lw) T(us, x + vw + 6, yy + 20); }
           ink(); if (r.avg != null) { doc.setFillColor(74, 127, 208); doc.roundedRect(tx, yy + 5, tw * bx(r.avg), 4, 2, 2, 'F'); }
-          if (r.index != null) { var c = r.tone === 'bad' ? [208, 96, 79] : [31, 157, 85]; doc.setFillColor(c[0], c[1], c[2]); doc.roundedRect(tx, yy + 11, tw * bx(r.index), 6, 3, 3, 'F'); }
+          if (r.index != null) { var c = TIER_RGB[r.tier] || [31, 157, 85]; doc.setFillColor(c[0], c[1], c[2]); doc.roundedRect(tx, yy + 11, tw * bx(r.index), 6, 3, 3, 'F'); }
           doc.setDrawColor(29, 42, 36); doc.setLineWidth(1.4); doc.line(tx + tw * bx(100), yy + 2, tx + tw * bx(100), yy + 20); doc.setDrawColor(0);
           doc.setDrawColor(232); doc.setLineWidth(0.4); doc.line(x, yy + 25, x + w, yy + 25); doc.setDrawColor(0); yy += 28; });
         return yy; };
       var barKey = function (x, yy, w, hasAvg, bench, word) { font(7.5); var cx = x;
-        doc.setFillColor(31, 157, 85); doc.roundedRect(cx, yy - 5, 12, 5, 2, 2, 'F'); ink(100); T('This test', cx + 15, yy); cx += 60;
+        [TIER_RGB.g, TIER_RGB.a, TIER_RGB.r].forEach(function (c, k) { doc.setFillColor(c[0], c[1], c[2]); doc.roundedRect(cx + k * 6, yy - 5, 5, 5, 1, 1, 'F'); }); ink(100); T('This test', cx + 21, yy); cx += 66;
         if (hasAvg) { doc.setFillColor(74, 127, 208); doc.roundedRect(cx, yy - 5, 12, 5, 2, 2, 'F'); T('Your average', cx + 15, yy); cx += 72; }
         doc.setDrawColor(29, 42, 36); doc.setLineWidth(1.4); doc.line(cx + 2, yy - 7, cx + 2, yy + 1); doc.setDrawColor(0); T(bench, cx + 7, yy); cx += 12 + doc.getTextWidth(P(bench)) + 10;
         if (cx + doc.getTextWidth(word) <= x + w) T(word, cx, yy); ink(); return yy + 12; };
@@ -1080,9 +1082,9 @@
             if (c.wbars) { var wm = 1.1 * Math.max.apply(null, c.wbars.map(function (d) { return Math.max(d.ft || 0, d.bench, d.usual || 0); }).concat([10])), wx = M + 50, ww = W - 50 - 56; need(c.wbars.length * 20 + 30);
               c.wbars.forEach(function (d) { font(10); ink(30); T(d.d + ' yd', M + 4, y + 11);
                 if (d.usual != null) { doc.setFillColor(74, 127, 208); doc.roundedRect(wx, y + 2, ww * d.usual / wm, 4, 2, 2, 'F'); }
-                if (d.ft != null) { var c2 = d.tone === 'bad' ? [208, 96, 79] : [31, 157, 85]; doc.setFillColor(c2[0], c2[1], c2[2]); doc.roundedRect(wx, y + 8, ww * d.ft / wm, 6, 3, 3, 'F'); }
+                if (d.ft != null) { var c2 = TIER_RGB[d.tier] || [31, 157, 85]; doc.setFillColor(c2[0], c2[1], c2[2]); doc.roundedRect(wx, y + 8, ww * d.ft / wm, 6, 3, 3, 'F'); }
                 doc.setDrawColor(29, 42, 36); doc.setLineWidth(1.4); doc.line(wx + ww * d.bench / wm, y, wx + ww * d.bench / wm, y + 16); doc.setDrawColor(0);
-                font(10); tone(d.tone); T(d.ft == null ? '–' : (d.ft < 10 ? d.ft.toFixed(1) : String(Math.round(d.ft))) + ' ft', M + W - 4, y + 12, { align: 'right' }); ink(); y += 20; });
+                font(10); var tw2 = TIER_TXT[d.tier] || [31, 107, 58]; doc.setTextColor(tw2[0], tw2[1], tw2[2]); T(d.ft == null ? '–' : (d.ft < 10 ? d.ft.toFixed(1) : String(Math.round(d.ft))) + ' ft', M + W - 4, y + 12, { align: 'right' }); ink(); y += 20; });
               y = barKey(M + 4, y + 8, W, c.wbars.some(function (d) { return d.usual != null; }), TR.blShort + ' level', 'feet away – shorter is better') + 4; }
             c.notes.forEach(function (t) { need(28); y = lines(t, M + 4, y + 6, W - 8, 9.5, 70, 12.5) + 2; });
             c.warn.forEach(function (w) { var L = pdfWrap(doc, H, w.why, W - 28, 9.5), h = 34 + (w.sub ? 0 : -12) + L.length * 12.5; need(h + 8); y += 4;

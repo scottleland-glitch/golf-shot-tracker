@@ -78,7 +78,7 @@ function make(id, date, q) { const t = T.blank(id, date, 'Scott', 'scm');
   for (let i = 0; i < 15; i++) { await type(Math.round(W[i].dist * (W[i].dist === 60 ? 0.42 : 0.2))); if (i === 2) await shot('11-wedge-entry', true); await page.click('[data-act="sgtsave"][data-v="dir:' + ['short', 'shortleft', 'short', 'left', 'long'][i % 5] + '"]'); }
   await page.waitForSelector('#sgtfinish'); await page.click('#sgtfinish'); await page.waitForSelector('#sgtresult');
   await shot('12-result', true);
-  for (const c of ['chipping', 'wedge']) await page.locator('#sgtcat-' + c).screenshot({ path: OUT + '/12c-' + c + '.png' }); // v176 bars under the spiders
+  await page.locator('#sgtpsplag').screenshot({ path: OUT + '/12c-lag.png' }); for (const c of ['chipping', 'wedge']) await page.locator('#sgtcat-' + c).screenshot({ path: OUT + '/12c-' + c + '.png' }); // v176 bars under the spiders
   assert.strictEqual(await page.locator('#sgtbars-chipping .sgtbr').count(), 5); assert.ok(await page.$('#sgtbars-all') && await page.$('#sgtbars-lag') && await page.$('#sgtbars-short'));
   const ud = await page.textContent('#sgtud'); assert.match(ud, /40%/); assert.match(ud, /about 0\.6 strokes/); await page.locator('#sgtud').scrollIntoViewIfNeeded(); await shot('12u-updown-result');
   await page.click('[data-act="sgtrow"][data-v="lag"]'); await page.locator('.sgtbig').scrollIntoViewIfNeeded(); await shot('13-row-open');
