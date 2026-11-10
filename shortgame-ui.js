@@ -18,19 +18,39 @@
     function mine(who) { return env.tests().filter(function (t) { return env.same(t.player || env.me(), who); }).sort(function (a, b) { return String(b.date).localeCompare(String(a.date)); }); }
     function byId(id) { return env.tests().filter(function (t) { return t.id === id; })[0]; }
     function put(test) { var all = env.tests(), i = all.map(function (t) { return t.id; }).indexOf(test.id); if (i < 0) all.push(test); else all[i] = test; env.saveTests(all); }
-    function blFor(test, who) { return SG.baseline(test.baseline || env.baselineOf(who)).id; }
+    function blFor(test, who) { return SG.baseline(env.baselineOf(who) || test.baseline).id; } // v177: always the player's benchmark now, so tests, rounds and reports agree
     // a finished test with the ones before it: { test, cur, cmp, I }
-    function analysed(test, who) {
-      var bl = blFor(test, who), prev = mine(who).filter(function (t) { return t.done && t.id !== test.id && String(t.date) < String(test.date); });
+    function analysed(test, who, blOver) {
+      var bl = blOver ? SG.baseline(blOver).id : blFor(test, who), prev = mine(who).filter(function (t) { return t.done && t.id !== test.id && String(t.date) < String(test.date); });
       var cur = T.score(test, SG, bl), ps = prev.map(function (t) { return T.score(t, SG, bl); }), cmp = T.compare(cur, ps);
-      return { test: test, cur: cur, cmp: cmp, I: T.interpret(cur, cmp), prev: prev, bl: bl, blName: SG.baseline(bl).name };
+      return { test: test, cur: cur, cmp: cmp, I: T.interpret(cur, cmp), prev: prev, ps: ps, bl: bl, blName: SG.baseline(bl).name };
     }
     function shortVal(sk, s) { return s.value == null ? '' : sk.unit === 'ft' ? r1(s.value) + ' ft' : sk.unit === 'balls' ? r1(s.value) + ' balls' : s.value + '/' + (s.of || sk.of); }
     function toneOf(c) { return c.trend === 'slipping' || c.status === 'worse' ? 'bad' : c.trend === 'improving' || c.status === 'better' ? 'good' : ''; }
-    function overallSpokes(A) { return T.CATS.map(function (c) { var x = A.cur.cats[c.k]; return { name: c.name, index: x.index, avg: A.cmp.cats[c.k].avgIndex, sub: x.sg == null ? 'not tested' : (x.sg >= 0 ? '+' : '') + x.sg.toFixed(2) + ' a shot' }; }); }
+    var sgTxt = function (v) { return (v >= 0 ? '+' : '') + v.toFixed(2); };
+    function overallSpokes(A) { return T.CATS.map(function (c) { var x = A.cur.cats[c.k], av = A.cmp.cats[c.k].avgIndex;
+      return { name: c.name, index: x.index, avg: av, sub: x.sg == null ? 'not tested' : sgTxt(x.sg) + ' a shot', val: x.sg == null ? '' : sgTxt(x.sg) + ' a shot', usual: av == null ? '' : 'usually ' + sgTxt((av - 100) / 100),
+        tone: av == null || x.index == null ? '' : x.index <= av - 15 ? 'bad' : x.index >= av + 15 ? 'good' : '' }; }); }
     function catSpokes(A, cat) { return T.SKILLS.filter(function (sk) { return sk.cat === cat; }).map(function (sk) { var s = A.cur.skills[sk.k], c = A.cmp.skills[sk.k];
       return { name: sk.name.replace('Flop over a bunker', 'Flop').replace('Chips from rough', 'Rough').replace(' bunker', '').replace('Bunker shots on the green', 'On green').replace(' proximity', '').replace('Breaking putts', 'Breaking').replace('Speed ladder', 'Speed'),
-        index: T.indexOf(A.cur, A.cmp, sk.k), avg: A.cmp.avgIndex[sk.k], sub: shortVal(sk, s), tone: toneOf(c) }; }); }
+        index: T.indexOf(A.cur, A.cmp, sk.k), avg: A.cmp.avgIndex[sk.k], sub: shortVal(sk, s), tone: toneOf(c) || (c.usual == null && T.indexOf(A.cur, A.cmp, sk.k) != null && T.indexOf(A.cur, A.cmp, sk.k) < 85 ? 'bad' : ''), // no usual yet: red when well below the benchmark
+        k: sk.k, full: sk.name, val: s.value == null ? '' : T.fmtVal(sk, s), usual: s.value == null ? '' : rowSub(A, sk), tag: rowTag(c) }; }); }
+    // v176 (Scott): every spider gets bars under it – one row per spoke: your average (grey), this test (green, red when down)
+    // and a mark for the benchmark (or the ladder goal). Same scale as the spider, so further right is always better.
+    function barX(ix) { return Math.max(2, Math.min(100, (ix - 10) / 120 * 100)); }
+    function barsHTML(spokes, benchName, id) {
+      var any = spokes.some(function (x) { return x.index != null; }); if (!any) return '';
+      var hasAvg = spokes.some(function (x) { return x.avg != null; });
+      return '<div class="sgtbars"' + (id ? ' id="' + id + '"' : '') + '>' + spokes.map(function (x) {
+        var tap = !!x.k, tag = x.tag ? '<em class="' + (x.tone || '') + '">' + esc(x.tag) + '</em>' : '';
+        var lab = '<span class="sgtbl"><b>' + esc(x.full || x.name) + tag + '</b><span class="' + (x.tone || '') + '">' + esc(x.index == null ? 'not tested' : x.val || x.sub || '') + '</span>' + (x.usual ? '<small>' + esc(x.usual) + '</small>' : '') + '</span>';
+        var trk = '<span class="sgtbt">' + (x.avg != null ? '<i class="avg" style="width:' + barX(x.avg).toFixed(1) + '%"></i>' : '') + (x.index != null ? '<i class="cur ' + (x.tone || '') + '" style="width:' + barX(x.index).toFixed(1) + '%"></i>' : '') + '<s style="left:' + barX(100).toFixed(1) + '%"></s></span>';
+        return tap ? '<button class="sgtbr" data-act="sgtrow" data-v="' + x.k + '">' + lab + trk + '</button>' : '<div class="sgtbr">' + lab + trk + '</div>'; }).join('') +
+        '<p class="sgtbkey"><span><i class="k1"></i>This test</span>' + (hasAvg ? '<span><i class="k2"></i>Your average</span>' : '') + '<span><i class="k3"></i>' + esc(benchName) + '</span><span>further right is better</span></p></div>';
+    }
+    // a spoke's history from the earlier tests (newest first, up to six): f(score) → number | null
+    function histOf(A, f) { return (A.ps || []).map(f).filter(function (v) { return v != null; }).slice(0, 6); }
+    function meanOf(a) { return a.length ? a.reduce(function (t, v) { return t + v; }, 0) / a.length : null; }
     // v168: short benchmark names for the narrow result rows ("D1 college women 5 ft" ran off the tile)
     function fmtUsual(v) { return (Math.round(v * 10) / 10).toFixed(1).replace(/\.0$/, ''); }
     function blShort(bl) { return { pga: 'PGA Tour', lpga: 'LPGA', d1m: 'D1', d1w: 'D1', scm: 'Scratch', scw: 'Scratch' }[bl] || 'Benchmark'; }
@@ -42,15 +62,22 @@
       return { flat: best.flat + SPEED_GOAL_PLUS, up: best.up + SPEED_GOAL_PLUS, down: best.down + SPEED_GOAL_PLUS }; }
     function puttSpidersHTML(A) { var P = puttSpokes(A);
       return '<div class="sgtpsp" id="sgtpsplag"><p class="sgteyebrow">Lag and speed</p>' + T.spiderSVG(P.lag, { R: 70, padX: 112, aria: 'Lag and speed shape' }) +
-        '<p class="sgtnote">The ring is ' + esc(A.blName) + ' for the lag putts, and your goal for the speed ladders: your best ladder on that slope + ' + SPEED_GOAL_PLUS + ' balls.</p></div>' +
+        barsHTML(P.lag, blShort(A.bl) + ' level · ladder goal', 'sgtbars-lag') + '<p class="sgtnote">The mark is ' + esc(A.blName) + ' for the lag putts, and your goal for the speed ladders: your best ladder on that slope + ' + SPEED_GOAL_PLUS + ' balls.</p></div>' +
         '<div class="sgtpsp" id="sgtpspshort"><p class="sgteyebrow">Short and breaking putts</p>' + T.spiderSVG(P.lines, { R: 70, aria: 'Short putts shape' }) +
-        '<p class="sgtnote">Putts made from 3, 5, 7 and 9 ft on each line. The ring is ' + esc(A.blName) + '.</p></div>';
+        barsHTML(P.lines, blShort(A.bl) + ' level', 'sgtbars-short') + '<p class="sgtnote">Putts made from 3, 5, 7 and 9 ft on each line.</p></div>';
     }
     function puttSpokes(A) {
       var X = A.cur.extra, G = speedGoals(A), SB = A.cur.skills.speed.bySlope || [{ k: 'flat', name: 'Flat', n: null }, { k: 'up', name: 'Uphill', n: null }, { k: 'down', name: 'Downhill', n: null }];
-      var lag = X.lag.byDist.map(function (d) { return { name: 'Lag ' + d.dist, index: d.n ? d.index : null, sub: d.n ? '' : 'not tested', tone: d.sg == null ? '' : d.sg <= -0.15 ? 'bad' : d.sg >= 0.15 ? 'good' : '' }; });
-      var spd = SB.map(function (x) { var g = G[x.k]; return { name: x.name + ' speed', index: x.n == null ? null : Math.max(10, Math.min(130, 100 * x.n / g)), sub: x.n == null ? 'not tested' : x.n + ' ball' + (x.n === 1 ? '' : 's') + ' · goal ' + g }; }); // v171 (Scott): a raw count, not x of y
-      var lines = X.lines.map(function (l) { return { name: l.name, index: l.n ? l.index : null, sub: l.n ? l.made + ' of ' + l.n : 'not tested', tone: l.sg == null ? '' : l.sg <= -0.1 ? 'bad' : l.sg >= 0.1 ? 'good' : '' }; });
+      var avg2 = function (a) { return a.length >= 2 ? meanOf(a) : null; }; // the average shape (and grey bar) needs two earlier tests, as elsewhere
+      var lag = X.lag.byDist.map(function (d, i) { var hi = histOf(A, function (q) { var z = q.extra.lag.byDist[i]; return z && z.n ? z.index : null; }), hf = histOf(A, function (q) { var z = q.extra.lag.byDist[i]; return z && z.n ? z.ft : null; });
+        return { name: 'Lag ' + d.dist, full: 'Lag from ' + d.dist + ' ft', index: d.n ? d.index : null, avg: avg2(hi), sub: d.n ? '' : 'not tested', val: d.n ? r1(d.ft) + ' ft away' : '', usual: hf.length ? (hf.length > 1 ? 'usually ' : 'last time ') + r1(meanOf(hf)) + ' ft' : '',
+          tone: d.sg == null ? '' : d.sg <= -0.15 ? 'bad' : d.sg >= 0.15 ? 'good' : '' }; });
+      var spd = SB.map(function (x) { var g = G[x.k], hn = histOf(A, function (q) { var z = (q.skills.speed.bySlope || []).filter(function (y) { return y.k === x.k; })[0]; return z && z.n != null ? z.n : null; });
+        return { name: x.name + ' speed', full: x.name + ' ladder', index: x.n == null ? null : Math.max(10, Math.min(130, 100 * x.n / g)), avg: hn.length >= 2 ? Math.max(10, Math.min(130, 100 * meanOf(hn) / g)) : null,
+          sub: x.n == null ? 'not tested' : x.n + ' ball' + (x.n === 1 ? '' : 's') + ' · goal ' + g, val: x.n == null ? '' : x.n + ' ball' + (x.n === 1 ? '' : 's') + ' · goal ' + g, usual: hn.length ? (hn.length > 1 ? 'usually ' : 'last time ') + r1(meanOf(hn)) : '', tone: x.n == null || !hn.length ? '' : x.n <= meanOf(hn) - 1.5 ? 'bad' : x.n >= meanOf(hn) + 1.5 ? 'good' : '' }; }); // v171 (Scott): a raw count, not x of y
+      var lines = X.lines.map(function (l, i) { var hi = histOf(A, function (q) { var z = q.extra.lines[i]; return z && z.n ? z.index : null; }), hm = histOf(A, function (q) { var z = q.extra.lines[i]; return z && z.n ? z.made : null; });
+        return { name: l.name, full: l.name + ' putts', index: l.n ? l.index : null, avg: avg2(hi), sub: l.n ? l.made + ' of ' + l.n : 'not tested', val: l.n ? l.made + ' of ' + l.n + ' made' : '', usual: hm.length ? (hm.length > 1 ? 'usually ' : 'last time ') + fmtUsual(meanOf(hm)) : '',
+          tone: l.sg == null ? '' : l.sg <= -0.1 ? 'bad' : l.sg >= 0.1 ? 'good' : '' }; });
       return { lag: lag.concat(spd), lines: lines };
     }
     function top(left, title, sub, right) { return '<div class="topbar frost">' + left + '<div class="title"><b>' + esc(title) + '</b><span>' + esc(sub || '') + '</span></div>' + (right || '<span class="sgtsp"></span>') + '</div>'; }
@@ -158,20 +185,40 @@
       var A = analysed(done[0], who), P = puttSpokes(A), bn = blShort(A.bl), ftS = function (v) { return (v < 10 ? v.toFixed(1) : String(Math.round(v))) + ' ft'; };
       var cats = T.CATS.map(function (c) { var x = A.cur.cats[c.k], skills = T.SKILLS.filter(function (sk) { return sk.cat === c.k; });
         var any = skills.some(function (sk) { return A.cur.skills[sk.k].value != null; });
-        var pics = !any ? [] : c.k === 'putting' ? [{ title: 'Lag and speed', svg: T.spiderSVG(P.lag, { R: 70, padX: 112 }) }, { title: 'Short and breaking putts', svg: T.spiderSVG(P.lines, { R: 70 }) }]
-          : c.k === 'wedge' ? [] : [{ title: '', svg: T.spiderSVG(catSpokes(A, c.k), { R: 70 }) }];
+        var bar = function (L) { return L.map(function (x) { return { name: x.full || x.name, val: x.index == null ? 'not tested' : x.val || x.sub || '', usual: x.usual || '', index: x.index, avg: x.avg, tone: x.tone || '', tag: x.tag || '' }; }); };
+        var pics = !any ? [] : c.k === 'putting' ? [{ title: 'Lag and speed', svg: T.spiderSVG(P.lag, { R: 70, padX: 112 }), bars: bar(P.lag) }, { title: 'Short and breaking putts', svg: T.spiderSVG(P.lines, { R: 70 }), bars: bar(P.lines) }]
+          : c.k === 'wedge' ? [] : [{ title: '', svg: T.spiderSVG(catSpokes(A, c.k), { R: 70 }), bars: bar(catSpokes(A, c.k)) }];
+        var wbars = null; if (c.k === 'wedge' && any) { var WX = A.cur.extra.wedge; wbars = WX.byDist.map(function (d, i) { var h = histOf(A, function (q) { var z = q.extra.wedge.byDist[i]; return z && z.n ? z.ft : null; }), u = h.length >= 2 ? meanOf(h) : null;
+          return { d: d.dist, ft: d.ft, usual: u, bench: d.bench, tone: d.ft != null && u != null ? (d.ft > u + Math.max(2, 0.25 * u) ? 'bad' : d.ft < u - Math.max(2, 0.25 * u) ? 'good' : '') : '' }; }); }
         var rows = skills.filter(function (sk) { return A.cur.skills[sk.k].value != null; }).map(function (sk) { var cc = A.cmp.skills[sk.k]; return { name: sk.name, value: T.fmtVal(sk, A.cur.skills[sk.k]), sub: rowSub(A, sk), tag: rowTag(cc), tone: toneOf(cc) }; });
         var warn = (A.cmp.warn || []).filter(function (w) { return w.cat === c.k; }).map(function (w) {
           return { title: w.title, sub: w.vs === 'own' ? 'Usually ' + (w.unit === 'made' ? fmtUsual(w.usual) + ' of ' + (w.usualOf || w.of) : ftS(w.usual) + ' away') + ' · last ' + w.tests + ' tests'
             : w.bench == null ? '' : (w.unit === 'made' ? bn + ' players make about ' + w.bench : 'Level with ' + bn + ': about ' + ftS(w.bench)) + ' · no usual of your own yet', why: w.why || '' }; });
         var notes = [], u = A.cur.skills.updown;
-        if (c.k === 'chipping' && u.value != null) notes.push('Up and down ' + Math.round(u.rate * 100) + '% (' + u.value + ' of ' + u.of + ', ' + bn + ' about ' + Math.round(u.benchRate * 100) + '%): every missed green costs about ' + r1(u.cost) + ' strokes.');
+        if (c.k === 'chipping' && u.value != null) notes.push('Up and down ' + Math.round(u.rate * 100) + '% (' + bn + ' about ' + Math.round(u.benchRate * 100) + '%) – each missed green costs about ' + r1(u.cost) + ' strokes.');
         if (c.k === 'bunker' && any) { var B = A.cur.extra.bunker; notes.push(B.over + ' of ' + B.n + ' flew the green · ' + B.sand + ' stayed in the sand.'); }
-        if (c.k === 'wedge' && any) notes.push(A.cur.extra.wedge.byDist.filter(function (d) { return d.n; }).map(function (d) { return d.dist + ' yd ' + r1(d.ft) + ' ft (' + bn + ' ' + Math.round(d.bench) + ')'; }).join(' · '));
-        return { k: c.k, name: c.name, any: any, sg: x.sg, pics: pics, rows: rows, warn: warn, notes: notes }; });
+        return { k: c.k, name: c.name, any: any, sg: x.sg, pics: pics, rows: rows, wbars: wbars, warn: warn, notes: notes }; });
       return { date: A.test.date, tests: done.length, headline: A.I.headline, sub: A.I.sub, blName: A.blName, cond: [A.test.cond.green ? A.test.cond.green + ' greens' : '', A.test.cond.wind].filter(Boolean).join(', '),
-        overall: T.spiderSVG(overallSpokes(A), { R: 92 }), hasAvg: A.cmp.cats.putting.avgIndex != null, entered: T.entered(A.test), total: T.totalOf(A.test),
+        overall: T.spiderSVG(overallSpokes(A), { R: 92 }), overallBars: overallSpokes(A).map(function (x) { return { name: x.name, val: x.index == null ? 'not tested' : x.val, usual: x.usual, index: x.index, avg: x.avg, tone: x.tone, tag: '' }; }), blShort: blShort(A.bl), hasAvg: A.cmp.cats.putting.avgIndex != null, entered: T.entered(A.test), total: T.totalOf(A.test),
         plan: A.I.plan.map(function (p) { return { title: p.title, why: p.why, drill: p.drill }; }), coach: A.I.coach.map(function (c) { return { text: c.text, ask: c.ask }; }), cats: cats };
+    }
+    // v176 (Scott): what the latest test found in each area, for the course vs test card. A way-off check names the spot
+    // ("Downhill putts: 1 of 4 made"); otherwise the skill that is down (or, with no history yet, furthest below the benchmark).
+    var AREA_SKILLS = { putting: ['lag', 'speed', 'short', 'brk'], chipping: ['chipShort', 'chipLong', 'flop', 'rough', 'updown'], bunker: ['bkShort', 'bkLong', 'bkOn'], wedge: ['wedge'] };
+    // bl: score the test against the same benchmark as the rounds it is compared with (v176 fix: they could differ)
+    function testFlags(who, bl) {
+      var done = mine(who).filter(function (t) { return t.done; }); if (!done.length) return null;
+      var A = analysed(done[0], who, bl), out = { date: A.test.date, areas: {}, cats: {} }, ftS = function (v) { return (v < 10 ? v.toFixed(1) : String(Math.round(v))) + ' ft'; };
+      Object.keys(AREA_SKILLS).forEach(function (cat) {
+        var cx = A.cur.cats[cat]; out.cats[cat] = { sg: cx.sg, index: cx.index,
+          worst: AREA_SKILLS[cat].map(function (k) { var v = A.cur.skills[k]; return v.value == null ? null : { name: T.SKILL[k].name, val: T.fmtVal(T.SKILL[k], v), ix: T.indexOf(A.cur, A.cmp, k) }; }).filter(function (x) { return x && x.ix != null; }).sort(function (a, b) { return a.ix - b.ix; })[0] || null };
+        var w = (A.cmp.warn || []).filter(function (x) { return x.cat === cat; }).sort(function (a, b) { return a.sg - b.sg; })[0];
+        if (w) { out.areas[cat] = { name: w.title.split(':')[0], val: w.title.split(': ')[1] || '', usual: w.vs === 'own' ? 'usually ' + (w.unit === 'made' ? fmtUsual(w.usual) : ftS(w.usual)) : '' }; return; }
+        var L = AREA_SKILLS[cat].map(function (k) { var sk = T.SKILL[k], v = A.cur.skills[k], c = A.cmp.skills[k]; return v.value == null ? null : { sk: sk, v: v, c: c, ix: T.indexOf(A.cur, A.cmp, k) }; }).filter(Boolean);
+        var down = L.filter(function (x) { return x.c.status === 'worse' || x.c.trend === 'slipping'; }).sort(function (a, b) { return (a.ix || 100) - (b.ix || 100); })[0]
+          || L.filter(function (x) { return x.c.usual == null && x.ix != null && x.ix < 85; }).sort(function (a, b) { return a.ix - b.ix; })[0];
+        out.areas[cat] = down ? { name: down.sk.name, val: T.fmtVal(down.sk, down.v), usual: down.c.usual != null ? 'usually ' + T.fmtNum(down.sk, down.c.usual) : '' } : null; });
+      return out;
     }
     function rowHTML(A, sk, open) {
       var s = A.cur.skills[sk.k], c = A.cmp.skills[sk.k], dates = A.prev.slice(0, 11).reverse().filter(function (t, n) { return true; }).map(function (t) { return dShort(t.date); });
@@ -195,9 +242,12 @@
         (pct < 80 ? ' At ' + (pct + 20) + '% it would be ' + r1(Math.max(0, u.cost - 0.2)) + '.' : '') + '</p></div>';
     }
     function wedgeHTML(A) {
-      var W = A.cur.extra.wedge, max = Math.max.apply(null, W.byDist.map(function (d) { return Math.max(d.ft || 0, d.bench); }).concat([10]));
-      var o = '<div class="sgtwbars" id="sgtwbars">' + W.byDist.map(function (d) { return '<div class="sgtwb"><span>' + d.dist + ' yd</span><i><u style="width:' + (d.ft == null ? 0 : Math.round(100 * d.ft / max)) + '%"></u><s style="left:' + Math.round(100 * d.bench / max) + '%"></s></i><b>' + (d.ft == null ? '–' : r1(d.ft) + ' ft') + '</b></div>'; }).join('') +
-        '<p class="sgtnote">Bar = feet away on average (shorter is better). The mark is ' + esc(A.blName) + ' level.</p></div>';
+      // v176 (Scott): a bar per yardage – this test, your average (grey, from two earlier tests), and the benchmark mark
+      var W = A.cur.extra.wedge, us = W.byDist.map(function (d, i) { var h = histOf(A, function (q) { var z = q.extra.wedge.byDist[i]; return z && z.n ? z.ft : null; }); return h.length >= 2 ? meanOf(h) : null; });
+      var max = 1.1 * Math.max.apply(null, W.byDist.map(function (d, i) { return Math.max(d.ft || 0, d.bench, us[i] || 0); }).concat([10]));
+      var o = '<div class="sgtwbars" id="sgtwbars">' + W.byDist.map(function (d, i) { var bad = d.ft != null && us[i] != null && d.ft > us[i] + Math.max(2, 0.25 * us[i]), good = d.ft != null && us[i] != null && d.ft < us[i] - Math.max(2, 0.25 * us[i]);
+        return '<div class="sgtwb' + (bad ? ' bad' : good ? ' good' : '') + '"><span>' + d.dist + ' yd</span><i>' + (us[i] != null ? '<em style="width:' + (100 * us[i] / max).toFixed(1) + '%"></em>' : '') + '<u style="width:' + (d.ft == null ? 0 : (100 * d.ft / max).toFixed(1)) + '%"></u><s style="left:' + (100 * d.bench / max).toFixed(1) + '%"></s></i><b>' + (d.ft == null ? '–' : r1(d.ft) + ' ft') + '</b></div>'; }).join('') +
+        '<p class="sgtbkey"><span><i class="k1"></i>This test, ft away</span>' + (us.some(function (x) { return x != null; }) ? '<span><i class="k2"></i>Your average</span>' : '') + '<span><i class="k3"></i>' + esc(blShort(A.bl)) + ' level</span><span>shorter is better</span></p></div>';
       var cell = function (v, lab) { return '<span class="' + (v ? 'on' : '') + '"><b>' + v + '</b>' + lab + '</span>'; };
       if (W.n) o += '<div class="sgtmiss" id="sgtmiss"><p class="sgteyebrow">Where the wedges finished</p><div class="sgtmgrid"><span></span>' + cell(W.long, 'long') + '<span></span>' + cell(W.left, 'left') + '<span class="pin">hole</span>' + cell(W.right, 'right') + '<span></span>' + cell(W.short, 'short') + '<span></span></div></div>';
       return o;
@@ -208,7 +258,7 @@
       var h = '<div class="frostpage theme-sky sgtpage sgtres" id="sgtresult">' + top('<button class="txt frostbtn" data-act="sgthub" id="sgthubbtn">‹ Tests</button>', 'Test result', dLong(test.date));
       h += '<div class="sgtcard frost" id="sgtverdict"><h2 id="sgthead">' + esc(I.headline) + '</h2><p id="sgtsub">' + esc(I.sub) + '</p>' +
         '<p class="sgtnote">' + esc(s.who ? s.who + ' · ' : '') + esc('compared with ' + A.blName) + (cond ? ' · ' + esc(cond) : '') + (n < T.totalOf(test) ? ' · ' + n + ' of ' + T.totalOf(test) + ' shots entered' : '') + '</p>' +
-        T.spiderSVG(overallSpokes(A), { aria: 'Short game shape' }) + T.spiderKey(A.cmp.cats.putting.avgIndex != null, A.blName) +
+        T.spiderSVG(overallSpokes(A), { aria: 'Short game shape' }) + T.spiderKey(A.cmp.cats.putting.avgIndex != null, A.blName) + barsHTML(overallSpokes(A), blShort(A.bl) + ' level', 'sgtbars-all') +
         '<p class="sgtnote">Each spoke is strokes gained per shot against ' + esc(A.blName) + ': on the line is level, inside it is losing strokes.' + (A.cmp.tests < 2 ? ' Your average appears as a dashed shape from your third test.' : '') + '</p></div>';
       if (I.plan.length) h += '<div class="sgtcard sgtplan" id="sgtplan"><p class="sgteyebrow">Practice this month</p>' + I.plan.map(function (p, k) { return '<div><b>' + (k + 1) + '. ' + esc(p.title) + '</b><em>' + esc(p.why) + '</em><span>' + esc(p.drill) + '</span></div>'; }).join('') + '</div>';
       if (I.coach.length) h += '<div class="sgtcard frost sgtcoach" id="sgtcoach"><p class="sgteyebrow">Ask your coach</p>' + I.coach.map(function (c) { return '<div><b>' + esc(c.text) + '</b><span>' + esc(c.ask) + '</span></div>'; }).join('') + '</div>';
@@ -218,7 +268,7 @@
         if (!any) h += '<p class="sgtnote">Not tested this time.</p>';
         else if (c.k === 'wedge') h += wedgeHTML(A);
         else if (c.k === 'putting') h += puttSpidersHTML(A);
-        else h += T.spiderSVG(catSpokes(A, c.k), { R: 70, aria: c.name + ' shape' });
+        else h += T.spiderSVG(catSpokes(A, c.k), { R: 70, aria: c.name + ' shape' }) + barsHTML(catSpokes(A, c.k), blShort(A.bl) + ' level', 'sgtbars-' + c.k);
         // v168 (Scott): way off YOUR usual (the benchmark only until there are two earlier tests to make a usual)
         var W = (A.cmp.warn || []).filter(function (w) { return w.cat === c.k; }), bn = blShort(A.cur.baseline);
         var ftS = function (v) { return (v < 10 ? v.toFixed(1) : String(Math.round(v))) + ' ft'; };
@@ -229,7 +279,9 @@
         if (c.k === 'putting' && any) { var X = A.cur.extra; h += '<p class="sgtnote">By distance: ' + esc(X.byDist.filter(function (d) { return d.n; }).map(function (d) { return d.dist + ' ft ' + d.made + '/' + d.n; }).join(' · ')) + '</p>'; }
         if (c.k === 'chipping') h += upDownHTML(A);
         if (c.k === 'bunker' && any) { var B = A.cur.extra.bunker; h += '<p class="sgtnote' + (B.over >= 2 ? ' bad' : '') + '" id="sgtover">' + B.over + ' of ' + B.n + ' flew the green · ' + B.sand + ' stayed in the sand</p>'; }
-        h += '<div class="sgtrows">' + skills.map(function (sk) { return rowHTML(A, sk, s.open === sk.k); }).join('') + '</div></div>';
+        if (c.k === 'putting' || c.k === 'wedge') h += '<div class="sgtrows">' + skills.map(function (sk) { return rowHTML(A, sk, s.open === sk.k); }).join('') + '</div>';
+        else if (s.open && skills.some(function (sk) { return sk.k === s.open; })) { var osk = skills.filter(function (sk) { return sk.k === s.open; })[0]; h += '<div class="sgtrows">' + rowHTML(A, osk, true) + '</div>'; } // the tapped bar's history
+        h += '</div>';
       });
       h += '<p class="sgtnote sgtfootnote">Tap a skill to see every test. A skill is marked Down when it is worse than your usual by more than its normal wobble, and Slipping when it has dropped two tests in a row.</p>';
       if (!test.done || n < T.totalOf(test)) h += '<button class="frostbtn big" data-act="sgtresume" data-v="' + esc(test.id) + '">Add the missing shots</button>';
@@ -362,6 +414,6 @@
     function finish(test) { var s = S(); test.done = true; put(test); s.mode = 'result'; s.id = test.id; s.open = null; env.toast('Test saved'); env.render(); window.scrollTo(0, 0); }
     // Enter in the feet box = Save on the stations that have a plain Save
     function key(ev) { if (ev.key !== 'Enter' || !ev.target || ev.target.id !== 'sgtft') return; var s = S(), st = T.STATIONS[s.st]; if (st && (st.kind === 'leave' || st.kind === 'bunker')) { ev.preventDefault(); act('sgtsave', ''); } }
-    return { html: html, act: act, cardHTML: cardHTML, key: key, reportData: reportData };
+    return { html: html, act: act, cardHTML: cardHTML, key: key, reportData: reportData, testFlags: testFlags };
   };
 })(this);

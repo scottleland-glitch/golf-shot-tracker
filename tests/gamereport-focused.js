@@ -28,7 +28,27 @@ function make(id, date, q) { const t = T.blank(id, date, 'Scott', 'd1w');
   page.on('request', q => { const u = new URL(q.url()); if (!/^(127\.0\.0\.1|localhost)$/.test(u.hostname) && !/^(data|blob):/.test(q.url())) outside.push(q.url()); });
   await page.goto('http://127.0.0.1:' + PORT + '/?x=' + now);
   await page.evaluate(({ R, TS, PR }) => { localStorage.setItem('golfsg.player.v1', 'Scott'); localStorage.setItem('golfsg.rounds.v1', JSON.stringify(R)); localStorage.setItem('golfsg.sgtests.v1', JSON.stringify(TS)); localStorage.setItem('golfsg.practice.v1', JSON.stringify(PR)); }, { R: rounds, TS: tests, PR: practice });
-  await page.reload(); await page.waitForSelector('#plusbtn'); await page.click('#plusbtn'); await page.click('.sheet-item[data-act="mygame"]'); await page.waitForSelector('#mygame');
+  await page.reload(); await page.waitForSelector('#plusbtn');
+  // v178: no benchmark set yet – a red "!" on the Home card and beside My Game in the + menu, and a red card at the top of My Game
+  assert.ok(await page.$('#mgcard .bangon'), 'Home card'); await page.click('#plusbtn'); assert.ok(await page.$('.sheet-item.bangon[data-act="mygame"]'), '+ menu');
+  await page.click('.sheet-item[data-act="mygame"]'); await page.waitForSelector('#mygame');
+  assert.ok(await page.$('#mgblcard.unset #mgblok')); await page.screenshot({ path: OUT + '/gr-bench-unset.png' });
+  const order = await page.$$eval('#mygame > *', e => e.map(x => x.id || x.className)); assert.ok(order.indexOf('mgblcard') < order.indexOf('mgperiod'), 'at the top');
+  await page.click('#mgblok'); await page.waitForSelector('#mgblcard:not(.unset)'); assert.ok(!(await page.$('#mgblok')));
+  // v177: My benchmark – one for the player, carried everywhere. Rounds are PGA Tour, so My Game starts there; switching offers to move every round too.
+  assert.strictEqual(await page.$eval('#mgbl', e => e.value), 'pga'); assert.match(await page.textContent('.mgbl'), /My benchmark/);
+  await page.selectOption('#mgbl', 'd1w'); await page.waitForFunction(() => document.querySelector('#mgbl').value === 'd1w');
+  const st = await page.evaluate(() => ({ my: JSON.parse(localStorage.getItem('golfsg.mybench.v1')), bls: JSON.parse(localStorage.getItem('golfsg.rounds.v1')).map(r => r.baseline) }));
+  assert.deepStrictEqual(st.my, { Scott: 'd1w' }); assert.deepStrictEqual([...new Set(st.bls)], ['d1w'], 'the rounds moved to D1 women too (confirm accepted)');
+  await page.selectOption('#mgbl', 'pga'); await page.waitForFunction(() => document.querySelector('#mgbl').value === 'pga');
+
+  await page.click('#mgrounds [data-v="r3"]'); await page.waitForSelector('#mgrounds [data-v="r3"][aria-pressed="true"]');
+  assert.match(await page.textContent('#mygame .title span'), /3 rounds/); assert.match(await page.textContent('#mgcvt .mgeye'), /Last 3 rounds/);
+  assert.match(await page.textContent('#mgcvt .mgcvth'), /cost you [\d.]+ strokes over the 3 rounds\./);
+  await page.locator('#mgcvt').scrollIntoViewIfNeeded(); await page.screenshot({ path: OUT + '/gr-cvt.png' });
+  assert.match(await page.textContent('#mgcvt [data-k="putting"]'), /fine in both · test: downhill putts down on your usual|test below the benchmark/, 'putting gains on the course (+0.4); the test only notes the downhill slip');
+  assert.ok((await page.$$('#mgcvt .cvtr')).length === 4);
+  await page.click('#mgperiod [data-v="3m"]');
   // 1. the button and the sheet: coach preset ticks everything
   assert.match(await page.textContent('#grbtn'), /Make a game report/); await page.click('#grbtn'); await page.waitForSelector('#grsheet');
   assert.deepStrictEqual(await page.$$eval('#grparts .grpart', e => e.map(b => b.getAttribute('aria-pressed'))), ['true', 'true', 'true', 'true']);
@@ -39,9 +59,9 @@ function make(id, date, q) { const t = T.blank(id, date, 'Scott', 'd1w');
   const f = OUT + '/game-report-coach.pdf'; fs.writeFileSync(f, Buffer.from(C.b));
   const info = execSync('pdfinfo ' + f).toString(); assert.ok(/Page size:\s+612 x 792/.test(info), info); assert.strictEqual(+/Pages:\s+(\d+)/.exec(info)[1], C.pages);
   const all = C.L.text.map(t => t.t).join('\n');
-  for (const s of ['Game report', 'MY GAME', 'SHORT GAME TEST', 'PRACTICE PLAN', 'My Game - ', 'My Practice - ', 'Short game test - ', 'Practice plan', 'Up and down', 'Practice this month', 'Lag proximity'])
+  for (const s of ['Game report', 'MY GAME', 'SHORT GAME TEST', 'PRACTICE PLAN', 'My Game - ', 'My Practice - ', 'Short game test - ', 'Practice plan', 'Up and down', 'Practice this month', 'Lag from 30 ft', 'THE COURSE VS THE TEST', '30 yd'])
     assert.ok(all.includes(s), 'coach report has ' + s);
-  assert.match(all, /Downhill putts: 1 of 4 made/, 'the way-off warning is in the report'); assert.match(all, /Up and down 40% \(4 of 10/);
+  assert.match(all, /Downhill putts: 1 of 4 made/, 'the way-off warning is in the report'); assert.match(all, /Up and down 40% \(PGA Tour about 59%\)/, 'v177: the test is scored against the player\'s benchmark');
   const off = C.L.text.filter(t => t.x1 > C.L.PW - C.L.M + 1 || t.x0 < C.L.M - 1 || t.y > C.L.PH - 10); assert.deepStrictEqual(off, [], 'all text inside the margins');
   if (process.env.SHOTS) execSync('pdftoppm -r 60 -png ' + f + ' ' + OUT + '/gr-coach');
   await page.screenshot({ path: OUT + '/gr-ready.png' });

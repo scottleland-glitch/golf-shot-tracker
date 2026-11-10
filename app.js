@@ -60,7 +60,7 @@
   var view = { screen: 'home', roundId: localStorage.getItem(CUR), hole: 0, menu: null };
   // v166 Short game test screens (shortgame-ui.js); the functions below are hoisted
   var SGTUI = SGTEST.ui({ SG: SG, view: view, tests: sgTests, saveTests: saveSgTests, players: function () { return mgPlayers(); }, me: playerName, same: samePlayer,
-    baselineOf: function (who) { var l = finishedRoundsOf(who).slice().sort(function (a, b) { return String(b.date || '').localeCompare(String(a.date || '')); })[0]; return view.mgBl || blOf(l); },
+    baselineOf: function (who) { return myBench(who); }, // v177: the player's benchmark (tests are scored against it, whatever they were taken with)
     render: function () { render(); }, toast: function (m) { toast(m); } });
   document.addEventListener('keydown', function (ev) { if (view.screen === 'sgtest') SGTUI.key(ev); });
   // Live sharing (v87): one secret link per round; every save() pushes a fresh snapshot (debounced, queued while offline).
@@ -101,6 +101,23 @@
     return rs;
   }
   function blOf(r) { return SG.baseline(r && r.baseline).id; }
+  // ---------- v177 (Scott): one benchmark per player, carried across the whole app ----------
+  // Set on My Game ("My benchmark"). New rounds, My Game, the short game test, the course vs test card and the reports use it.
+  // Until it is set it is the benchmark most of the player's rounds use (else PGA Tour). A page that is showing anything
+  // else says so, with a one-tap way back.
+  var MYBLK = 'golfsg.mybench.v1';
+  function myBenchMap() { try { var o = JSON.parse(localStorage.getItem(MYBLK) || '{}'); return o && typeof o === 'object' ? o : {}; } catch (e) { return {}; } }
+  function myBench(who) { who = who || playerName() || ''; var m = myBenchMap(), k = Object.keys(m).filter(function (n) { return samePlayer(n, who); })[0];
+    if (k && SG.BASELINES.some(function (b) { return b.id === m[k]; })) return m[k];
+    var c = {}; savedRounds().filter(function (r) { return samePlayer(r.player || playerName(), who); }).forEach(function (r) { var b = blOf(r); c[b] = (c[b] || 0) + 1; });
+    return Object.keys(c).sort(function (a, b) { return c[b] - c[a]; })[0] || 'pga'; }
+  // v178 (Scott): has the player picked their benchmark yet? Until then My Game wears a red "!" (+ menu, Home card)
+  function benchSet(who) { who = who || playerName() || ''; var m = myBenchMap(); return Object.keys(m).some(function (n) { return samePlayer(n, who); }); }
+  function benchBang() { return benchSet(playerName()) ? '' : ' bangon'; } // a class: the "!" is drawn by CSS, so the label text stays "My Game"
+  function setMyBench(who, id) { var m = myBenchMap(); Object.keys(m).forEach(function (n) { if (samePlayer(n, who)) delete m[n]; }); m[who] = id; try { localStorage.setItem(MYBLK, JSON.stringify(m)); } catch (e) {} }
+  // the note a page shows when it is not using the player's benchmark
+  function notMineHTML(shown, who, act) { var mb = myBench(who); if (!shown || shown === mb) return '';
+    return '<p class="blwarn" data-bl="' + esc(shown) + '">Compared with ' + esc(blName(shown)) + ' – not your benchmark (' + esc(blName(mb)) + '). <button class="txt" data-act="' + act + '" data-v="' + esc(mb) + '">Use ' + esc(blName(mb)) + '</button></p>'; }
   function blName(id) { return SG.baseline(id).name; }
   function blLabel(id) { var b = SG.baseline(id); return b.name + (b.status === 'estimated' ? ' (estimated)' : ''); }
   function AH(h) { return SG.analyzeHole(h, blOf(round())); }
@@ -122,7 +139,7 @@
   function emptyHole() { return { par: 4, finished: false, rows: [{ loc: 'tee', dist: '', dir: '', pen: false }] }; }
   function newRound(course) {
     var sel = document.getElementById('newbl');
-    var r = { v: 3, dv: 2, id: 'r' + Date.now(), date: new Date().toISOString(), course: course || '', player: playerName(), baseline: sel ? sel.value : 'pga', holes: [] };
+    var r = { v: 3, dv: 2, id: 'r' + Date.now(), date: new Date().toISOString(), course: course || '', player: playerName(), baseline: sel ? sel.value : myBench(playerName()), holes: [] };
     r.play = view.newPlay || lastPlay(); try { localStorage.setItem(PLAYK, r.play); } catch (e) {} view.newPlay = null;
     for (var i = 0; i < 18; i++) r.holes.push(emptyHole());
     var nc = view.newC && courseById(view.newC.id), tee = view.newC && view.newC.tee;
@@ -419,7 +436,7 @@
   // v175: parts { game, practice } – the My Game report can leave either page out (the Stats PDF has both)
   function pdfMyGamePages(doc, H, who, parts) {
     if (!who) return Promise.resolve();
-    var D = mgData(who), P = D.period, M = H.M, W = H.PW - 2 * M, logs = practiceOf(who), PB = MYGAME.practiceBuild(logs, { period: P.id });
+    var D = mgData(who), P = D.period, M = H.M, W = H.PW - 2 * M, logs = practiceOf(who), PB = MYGAME.practiceBuild(logs, { period: P });
     var doGame = !parts || parts.game !== false, doPrac = !parts || parts.practice !== false;
     if (!D.cur.rounds && !PB.cur.total) return Promise.resolve();
     if (doGame) {
@@ -445,7 +462,7 @@
       if (!doPrac) return null;
       // ---- My Practice ----
       doc.addPage(); var y2 = H.header('My Practice – ' + P.name);
-      var LT = MYGAME.practiceLevelText(logs, { period: P.id, bl: D.baseline }); // v155: practice level vs the benchmark group
+      var LT = MYGAME.practiceLevelText(logs, { period: P, bl: D.baseline }); // v155: practice level vs the benchmark group
       y2 = pdfLines(doc, H, SG.pdfSafe(LT.headline), M, y2, W, 17, 25, 21) + 2;
       y2 = pdfLines(doc, H, SG.pdfSafe(LT.lede + (LT.trend ? ' ' + LT.trend : '') + ' ' + P.name + ': ' + (PB.cur.total ? PB.headline + ' logged.' : 'nothing logged.')), M, y2, W, 11, 80, 14.5) + 8;
       var jobs = [];
@@ -467,7 +484,7 @@
           y2 += 26; });
         H.font(8.5); doc.setTextColor(226, 112, 92); H.T('Share of strokes lost', lx, y2 + 2); doc.setTextColor(47, 111, 201); H.T('Share of practice time', lx + 130, y2 + 2); H.ink(); y2 += 20;
       }
-      var recent = logs.filter(function (e) { var t = Date.parse(e.date), w = MYGAME.windows(P.id).cur; return t >= w[0] && t < w[1]; }).sort(function (a, b) { return b.date.localeCompare(a.date) || b.id.localeCompare(a.id); }).slice(0, 12);
+      var recent = logs.filter(function (e) { var t = Date.parse(e.date), w = MYGAME.windows(P).cur; return t >= w[0] && t < w[1]; }).sort(function (a, b) { return b.date.localeCompare(a.date) || b.id.localeCompare(a.id); }).slice(0, 12);
       if (recent.length && y2 < H.PH - 140) {
         H.font(12.5); H.ink(30); H.T('Practice log', M, y2); y2 += 16;
         recent.forEach(function (e) { if (y2 > H.PH - 60) return; var sp = MYGAME.SPOKES.filter(function (x) { return x.k === e.spoke; })[0];
@@ -759,7 +776,7 @@
       var D = statsData(); box.innerHTML = statsHTML(); document.body.appendChild(box);
       var pg = box.querySelector('.statspage'), extra = document.createElement('div'); pg.appendChild(extra);
       // v137: Stats PDF = the page's own all-rounds par curves; round PDF = all rounds in colour with THIS round dashed
-      var last = stLastRound(D), DL = OR ? { mode: 'all', shown: [statsRound(OR, view.stBl || '')], all: D.all, flip: true } : null;
+      var last = stLastRound(D), DL = OR ? { mode: 'all', shown: [statsRound(OR, stBlNow())], all: D.all, flip: true } : null;
       extra.innerHTML = '<div id="pdfpm">' + (OR ? stPmissCard(D, 'all') : PM_BANDS.map(function (b) { return stPmissCard(D, b.id); }).join('')) + '</div>' +
         '<div id="pdfpar">' + (DL ? [3, 4, 5].map(function (par) { return stDist(par, DL); }).join('') : '') + '</div>';
       var card = function (el) {
@@ -787,7 +804,7 @@
       });
       var tbl = pg.querySelector('#sttable'), rows = tbl ? [].slice.call(tbl.rows).map(function (r) { return [].slice.call(r.cells).map(tx); }) : [];
       var mode = D.mode, rangeName = mode === 'sel' ? 'Selected round' : mode === '5' ? 'Last 5' : mode === 'pick' ? stPickName(D.shown) : 'All rounds';
-      var bl = view.stBl ? blLabel(view.stBl) : 'each round’s own benchmark';
+      var bl = stBlNow() ? blLabel(stBlNow()) : 'each round’s own benchmark';
       var who = (pg.querySelector('.topbar .title span') || {}).textContent || '';
       return { D: D, cats: cats, table: rows, tableNote: tx(pg.querySelector('#sttablecard .stnote')), shown: tx(pg.querySelector('#stshown')), range: rangeName, cmp: D.cmp,
         baseline: SG.pdfSafe(bl), player: SG.pdfSafe(who.split(' · ').length > 1 ? who.split(' · ')[0] : ''),
@@ -833,9 +850,9 @@
   function roundCover(r) { var bl = blOf(r), S = SG.summarize(r, bl); return STORY.coverImage(STORY.data(r, S, { baselineName: SG.baseline(bl).name, player: r.player || playerName() }), COVER_BG); }
   function statsCover(R, dateTxt) {
     var ids = {}; R.D.shown.forEach(function (p) { ids[p.id] = 1; });
-    var list = savedRounds().filter(function (r) { return ids[r.id]; }).map(function (r) { var bl = view.stBl || blOf(r); return STORY.data(r, SG.summarize(r, bl), {}); });
+    var list = savedRounds().filter(function (r) { return ids[r.id]; }).map(function (r) { var bl = stBlNow() || blOf(r); return STORY.data(r, SG.summarize(r, bl), {}); });
     var f = R.D.shown[0], l = R.D.shown[R.D.shown.length - 1], span = f && l ? (f === l ? stDate(f.date) : stDate(f.date) + ' – ' + stDate(l.date)) : '';
-    return STORY.coverImage(STORY.combine(list, { player: R.player, range: R.range === 'Selected round' ? '' : R.range, dateText: span, baselineName: view.stBl ? blLabel(view.stBl) : '', total: R.D.mode === 'pick' && list.length > 1 }), COVER_BG);
+    return STORY.coverImage(STORY.combine(list, { player: R.player, range: R.range === 'Selected round' ? '' : R.range, dateText: span, baselineName: stBlNow() ? blLabel(stBlNow()) : '', total: R.D.mode === 'pick' && list.length > 1 }), COVER_BG);
   }
   // v137: the Stats categories as PDF pages – every category starts on a new page (no category runs into the next), graphs two per row,
   // a row never split by a page end. Used by the Stats PDF and the round PDF. K = page kit; K.after(catId) adds pages after a category
@@ -974,7 +991,7 @@
   function makeGameReport(who, parts) {
     if (!who) return Promise.reject(new Error('Pick a player first'));
     parts = parts || GR_PRESET.coach;
-    var D = mgData(who), PER = D.period, logs = practiceOf(who), LT = MYGAME.practiceLevelText(logs, { period: PER.id, bl: D.baseline }), PB = MYGAME.practiceBuild(logs, { period: PER.id });
+    var D = mgData(who), PER = D.period, logs = practiceOf(who), LT = MYGAME.practiceLevelText(logs, { period: PER, bl: D.baseline }), PB = MYGAME.practiceBuild(logs, { period: PER });
     var TR = SGTUI.reportData(who), V = MYGAME.practiceVsGame(D.cur, PB.cur), now = new Date(), P = SG.pdfSafe;
     var dateTxt = now.toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' }), dLong = function (iso) { return new Date(iso).toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' }); };
     if (parts.test && !TR) parts = Object.assign({}, parts, { test: false });
@@ -995,6 +1012,23 @@
       var need = function (h) { if (y + h > BOT) { doc.addPage(); y = header(pageTitle + ' (continued)'); } };
       var pic = function (svg, x, yy, w) { var h = w * svgAspect(svg), pg = doc.getCurrentPageInfo().pageNumber;
         jobs.push(radarPng(svg).then(function (im) { var b = doc.getCurrentPageInfo().pageNumber; doc.setPage(pg); doc.addImage(im.data, 'JPEG', x, yy, w, h); doc.setPage(b); })); return h; };
+      // v176 (Scott): pictures over words – the bars that sit under each spider: grey = your average, green / red = this test, a mark = the benchmark
+      var bx = function (ix) { return Math.max(0.02, Math.min(1, (ix - 10) / 120)); }, tone = function (t) { if (t === 'bad') red(); else if (t === 'good') green(); else doc.setTextColor(31, 107, 58); };
+      var barRows = function (L, x, yy, w) { var lw = Math.min(150, w * 0.42), tx = x + lw + 6, tw = w - lw - 6;
+        L.forEach(function (r) { font(9.5); ink(30); var nm = P(r.name); T(nm, x, yy + 9);
+          if (r.tag) { var nw = doc.getTextWidth(nm); font(7.5); tone(r.tone); T(r.tag.toUpperCase(), x + nw + 5, yy + 9); }
+          font(8.5); if (r.index == null) ink(130); else tone(r.tone); var vv = P(r.val || ''); T(vv, x, yy + 20); var vw = doc.getTextWidth(vv);
+          if (r.usual) { font(7.5); ink(125); var us = P(r.usual); if (vw + 6 + doc.getTextWidth(us) <= lw) T(us, x + vw + 6, yy + 20); }
+          ink(); if (r.avg != null) { doc.setFillColor(74, 127, 208); doc.roundedRect(tx, yy + 5, tw * bx(r.avg), 4, 2, 2, 'F'); }
+          if (r.index != null) { var c = r.tone === 'bad' ? [208, 96, 79] : [31, 157, 85]; doc.setFillColor(c[0], c[1], c[2]); doc.roundedRect(tx, yy + 11, tw * bx(r.index), 6, 3, 3, 'F'); }
+          doc.setDrawColor(29, 42, 36); doc.setLineWidth(1.4); doc.line(tx + tw * bx(100), yy + 2, tx + tw * bx(100), yy + 20); doc.setDrawColor(0);
+          doc.setDrawColor(232); doc.setLineWidth(0.4); doc.line(x, yy + 25, x + w, yy + 25); doc.setDrawColor(0); yy += 28; });
+        return yy; };
+      var barKey = function (x, yy, w, hasAvg, bench, word) { font(7.5); var cx = x;
+        doc.setFillColor(31, 157, 85); doc.roundedRect(cx, yy - 5, 12, 5, 2, 2, 'F'); ink(100); T('This test', cx + 15, yy); cx += 60;
+        if (hasAvg) { doc.setFillColor(74, 127, 208); doc.roundedRect(cx, yy - 5, 12, 5, 2, 2, 'F'); T('Your average', cx + 15, yy); cx += 72; }
+        doc.setDrawColor(29, 42, 36); doc.setLineWidth(1.4); doc.line(cx + 2, yy - 7, cx + 2, yy + 1); doc.setDrawColor(0); T(bench, cx + 7, yy); cx += 12 + doc.getTextWidth(P(bench)) + 10;
+        if (cx + doc.getTextWidth(word) <= x + w) T(word, cx, yy); ink(); return yy + 12; };
       // ---- page 1: the summary ----
       y = header('Game report');
       font(22); ink(25); T(who, M, y + 6); y += 26;
@@ -1005,6 +1039,21 @@
       var n1 = function (v) { return (Math.round(v * 10) / 10).toFixed(1); }, Tn = D.cur.tiles;
       if (parts.game && D.cur.rounds) box('My Game', D.headline, D.cur.rounds + ' round' + (D.cur.rounds === 1 ? '' : 's') + ' · avg score ' + (Tn.score == null ? '–' : n1(Tn.score)) + ' · strokes gained ' + (Tn.sg == null ? '–' : MYGAME.fmt(Tn.sg)) + ' a round · putts ' + (Tn.putts == null ? '–' : n1(Tn.putts)) + ' · greens ' + (Tn.gir == null ? '–' : Math.round(Tn.gir) + '%') + '.');
       if (parts.test && TR) box('Short game test · ' + dLong(TR.date), TR.headline, TR.sub);
+      var CV = parts.game && parts.test && TR ? courseVsTest(who, D) : null;
+      if (CV) { var ch = 52 + pdfWrap(doc, H, CV.head + ' ' + CV.tail, W - 28, 12.5).length * 15 + CV.rows.length * 30; need(ch + 10);
+        doc.setDrawColor(214, 220, 226); doc.setLineWidth(0.6); doc.roundedRect(M, y, W, ch, 8, 8, 'S'); doc.setDrawColor(0);
+        font(8.5); ink(120); T(('The course vs the test · ' + PER.name).toUpperCase(), M + 14, y + 17);
+        var cy = lines(CV.head + ' ' + CV.tail, M + 14, y + 34, W - 28, 12.5, 25, 15) + 4, mx = Math.max(2.5, Math.max.apply(null, CV.rows.map(function (r) { return Math.abs(r.perRound || 0); }))), dx = M + 100, dw = W - 100 - 60, mid = dx + dw / 2;
+        CV.rows.forEach(function (r) { var v = r.perRound; font(10); ink(30); T(r.name, M + 14, cy + 9);
+          doc.setFillColor(236, 240, 237); doc.roundedRect(dx, cy + 2, dw, 9, 4, 4, 'F');
+          if (v != null) { var bw = Math.min(dw / 2, Math.abs(v) / mx * dw / 2); if (v < 0) { doc.setFillColor(208, 96, 79); doc.roundedRect(mid - bw, cy + 3.5, bw, 6, 3, 3, 'F'); } else { doc.setFillColor(31, 157, 85); doc.roundedRect(mid, cy + 3.5, bw, 6, 3, 3, 'F'); } }
+          doc.setDrawColor(29, 42, 36); doc.setLineWidth(1.4); doc.line(mid, cy, mid, cy + 13); doc.setDrawColor(0);
+          font(10); if (v != null && v <= CVT_LOSS) red(); else ink(40); T(v == null ? '–' : MYGAME.fmt(v), M + W - 14, cy + 10, { align: 'right' });
+          var f = r.flag; font(8.5);
+          if (r.state === 'agree') { red(); T('Test agrees' + (f ? ': ' + f.name + (f.val ? ' ' + f.val : '') + (f.usual ? ' (' + f.usual + ')' : '') : ''), dx, cy + 23); }
+          else { ink(120); T(r.state === 'course' ? 'Test at the benchmark – a course problem: lies, choices, nerves' : r.state === 'test' ? 'Test below the benchmark' + (f ? ' (' + f.name.toLowerCase() + ')' : '') + ' – not costing you on the course yet' : r.state === 'none' ? 'No shots in these rounds' : r.state === 'slip' ? 'Fine in both · test: ' + r.down.name.toLowerCase() + ' down on your usual' : 'Fine in both', dx, cy + 23); }
+          ink(); cy += 30; });
+        y += ch + 10; }
       if (parts.practice) box('Practice', LT.headline, LT.lede + (V ? ' ' + V.headline + '.' : ''));
       if (parts.plan && TR && TR.plan.length) box('Practice plan', TR.plan.map(function (p0, k) { return (k + 1) + '. ' + p0.title; }).join('   '), 'From the short game test of ' + dLong(TR.date) + '. Drills on the plan page.');
       font(8.5); ink(120); y = lines('Strokes gained compares every shot with what a ' + D.baselineName + ' player averages from the same spot: 0 is level, negative is strokes lost. It is a high bar – the goal, not a pass mark.', M, y + 6, W, 8.5, 120, 11);
@@ -1015,17 +1064,26 @@
           doc.addPage(); pageTitle = 'Short game test – ' + dLong(TR.date); y = header(pageTitle);
           font(10); ink(90); T(['Test ' + TR.tests + (TR.tests === 1 ? ' (the starting point)' : ''), 'compared with ' + TR.blName, TR.cond, TR.entered < TR.total ? TR.entered + ' of ' + TR.total + ' shots' : ''].filter(Boolean).join(' · '), M, y); y += 22;
           y = lines(TR.headline, M, y, W, 16, 25, 20) + 2; y = lines(TR.sub, M, y, W, 10.5, 80, 14) + 6;
-          var ow = 290; y += pic(TR.overall, M + (W - ow) / 2, y, ow) + 14; // (the pictures go on last, over the page: leave clear space under them)
-          font(8.5); ink(110); T('Solid ring = ' + TR.blName + ' · green = this test' + (TR.hasAvg ? ' · dashed = your average' : '') + ' · each spoke is strokes gained per shot', M + W / 2, y, { align: 'center' }); ink(); y += 20;
+          var ow = 250; y += pic(TR.overall, M + (W - ow) / 2, y, ow) + 12; // (the pictures go on last, over the page: leave clear space under them)
+          y = barRows(TR.overallBars, M + 60, y, W - 120); y = barKey(M + 60, y + 6, W - 120, TR.hasAvg, TR.blShort + ' level', 'strokes gained a shot') + 10;
           TR.cats.forEach(function (c) { if (!c.any) return;
-            need(c.pics.length ? 150 : 50); font(13); ink(25); T(c.name, M, y); if (c.sg != null) { font(10); if (c.sg < -0.004) red(); else if (c.sg > 0.004) green(); else ink(60); T((c.sg >= 0 ? '+' : '') + c.sg.toFixed(2) + ' strokes a shot', M + W, y, { align: 'right' }); ink(); }
+            var bph = c.pics.length ? Math.max.apply(null, c.pics.map(function (q) { return (c.pics.length === 2 ? (W - 16) / 2 : 250) * svgAspect(q.svg) + (q.bars || []).length * 28; })) + 76 : c.wbars ? c.wbars.length * 20 + 50 : 50;
+            need(Math.min(bph + 24, BOT - 90)); font(13); ink(25); T(c.name, M, y); // the heading moves with its pictures if (c.sg != null) { font(10); if (c.sg < -0.004) red(); else if (c.sg > 0.004) green(); else ink(60); T((c.sg >= 0 ? '+' : '') + c.sg.toFixed(2) + ' strokes a shot', M + W, y, { align: 'right' }); ink(); }
             doc.setDrawColor(225); doc.setLineWidth(0.5); doc.line(M, y + 6, M + W, y + 6); doc.setDrawColor(0); y += 16;
             if (c.pics.length) { var pw = c.pics.length === 2 ? (W - 16) / 2 : 250, ph = Math.max.apply(null, c.pics.map(function (q) { return pw * svgAspect(q.svg); })); need(ph + 18);
-              c.pics.forEach(function (q, k) { var x = c.pics.length === 2 ? M + k * (pw + 16) : M + (W - pw) / 2; if (q.title) { font(8.5); ink(110); T(q.title.toUpperCase(), x + pw / 2, y + 8, { align: 'center' }); ink(); } pic(q.svg, x, y + (q.title ? 12 : 0), pw); });
-              y += ph + (c.pics.some(function (q) { return q.title; }) ? 26 : 14); }
-            c.rows.forEach(function (r) { need(18); font(10); ink(35); T(r.name, M + 4, y); font(10); ink(25); T(r.value, M + 300, y, { align: 'right' }); font(9); ink(110); T(r.sub, M + 312, y);
-              if (r.tag) { font(9); if (r.tone === 'bad') red(); else if (r.tone === 'good') green(); else ink(90); T(r.tag, M + W - 4, y, { align: 'right' }); ink(); }
-              doc.setDrawColor(236); doc.setLineWidth(0.4); doc.line(M, y + 5, M + W, y + 5); doc.setDrawColor(0); y += 16; });
+              var bh = Math.max.apply(null, c.pics.map(function (q) { return (q.bars || []).length * 28; })); need(ph + bh + 60);
+              var y0 = y, two = c.pics.length === 2, ends = [];
+              c.pics.forEach(function (q, k) { var x = two ? M + k * (pw + 16) : M + (W - pw) / 2; if (q.title) { font(8.5); ink(110); T(q.title.toUpperCase(), x + pw / 2, y0 + 8, { align: 'center' }); ink(); } pic(q.svg, x, y0 + (q.title ? 12 : 0), pw);
+                var bxL = two ? x : M + 60, bw = two ? pw : W - 120; ends.push(barRows(q.bars || [], bxL, y0 + ph + (q.title ? 26 : 14), bw)); });
+              y = Math.max.apply(null, ends); var hasAvg = c.pics.some(function (q) { return (q.bars || []).some(function (b) { return b.avg != null; }); });
+              y = barKey(two ? M : M + 60, y + 6, two ? W : W - 120, hasAvg, TR.blShort + (c.k === 'putting' ? ' level · ladder goal' : ' level'), 'further right is better') + 6; }
+            if (c.wbars) { var wm = 1.1 * Math.max.apply(null, c.wbars.map(function (d) { return Math.max(d.ft || 0, d.bench, d.usual || 0); }).concat([10])), wx = M + 50, ww = W - 50 - 56; need(c.wbars.length * 20 + 30);
+              c.wbars.forEach(function (d) { font(10); ink(30); T(d.d + ' yd', M + 4, y + 11);
+                if (d.usual != null) { doc.setFillColor(74, 127, 208); doc.roundedRect(wx, y + 2, ww * d.usual / wm, 4, 2, 2, 'F'); }
+                if (d.ft != null) { var c2 = d.tone === 'bad' ? [208, 96, 79] : [31, 157, 85]; doc.setFillColor(c2[0], c2[1], c2[2]); doc.roundedRect(wx, y + 8, ww * d.ft / wm, 6, 3, 3, 'F'); }
+                doc.setDrawColor(29, 42, 36); doc.setLineWidth(1.4); doc.line(wx + ww * d.bench / wm, y, wx + ww * d.bench / wm, y + 16); doc.setDrawColor(0);
+                font(10); tone(d.tone); T(d.ft == null ? '–' : (d.ft < 10 ? d.ft.toFixed(1) : String(Math.round(d.ft))) + ' ft', M + W - 4, y + 12, { align: 'right' }); ink(); y += 20; });
+              y = barKey(M + 4, y + 8, W, c.wbars.some(function (d) { return d.usual != null; }), TR.blShort + ' level', 'feet away – shorter is better') + 4; }
             c.notes.forEach(function (t) { need(28); y = lines(t, M + 4, y + 6, W - 8, 9.5, 70, 12.5) + 2; });
             c.warn.forEach(function (w) { var L = pdfWrap(doc, H, w.why, W - 28, 9.5), h = 34 + (w.sub ? 0 : -12) + L.length * 12.5; need(h + 8); y += 4;
               doc.setFillColor(255, 233, 228); doc.setDrawColor(192, 68, 47); doc.setLineWidth(0.8); doc.roundedRect(M, y, W, h, 6, 6, 'FD'); doc.setDrawColor(0);
@@ -1132,6 +1190,10 @@
   function savedRounds() { return rounds.filter(function (r) { return !SG.roundEmpty(r); }); }
   function playersIn() { var o = {}; savedRounds().forEach(function (r) { if (r.player) o[r.player] = (o[r.player] || 0) + 1; }); return o; }
   // v168 (Scott): one look for picking the benchmark – Stats, Rounds and a round all show "Strokes gained [vs benchmark ▾]"
+  // v177: Stats and Rounds start on the player's benchmark (they used to start on "each round's own"); a pick here lasts for the visit
+  function stWho() { return view.stPlayer && view.stPlayer !== '~none' ? view.stPlayer : playerName(); }
+  function stBlNow() { return view.stBl == null ? myBench(stWho()) : view.stBl; }
+  function histBlNow() { return view.histBl == null ? myBench(view.histPlayer && view.histPlayer !== '~none' ? view.histPlayer : playerName()) : view.histBl; }
   function bmRowHTML(id, cur, allLabel, note) {
     return '<div class="bmwrap"><div class="stsec stsecsg bmrow" id="' + id + 'row"><span class="stsect">Strokes gained</span><select id="' + id + '" class="stbl" data-f="baseline" aria-label="Benchmark – compare against">' +
       (allLabel ? '<option value="">' + esc(allLabel) + '</option>' : '') + SG.BASELINES.map(function (b) { return '<option value="' + b.id + '"' + (cur === b.id ? ' selected' : '') + '>' + esc(blLabel(b.id)) + '</option>'; }).join('') + '</select></div>' +
@@ -1153,14 +1215,14 @@
       h += '<div class="histtools htools" id="histtools">' + tool('addround', 'addopen', '📥', 'Add a round') +
         (list.length ? tool('chgplayer', 'mvstart', '👤', 'Change player') : '') +
         (list.length >= 2 ? tool('cmpopen', 'compare', '⚖', 'Best vs worst') : '') + '</div>';
-      if (list.length) h += bmRowHTML('histbl', view.histBl || '', 'Each round’s benchmark');
+      if (list.length) h += bmRowHTML('histbl', histBlNow(), 'Each round’s benchmark') + notMineHTML(histBlNow(), view.histPlayer && view.histPlayer !== '~none' ? view.histPlayer : playerName(), 'blminehist');
     }
     if (!list.length) h += '<p class="muted frostnote">No rounds yet. Start one from Home.</p>';
     else h += '<div class="hhead" id="hhead" aria-hidden="true">' + (M ? '<span class="hcchk"></span>' : '') + '<span class="hc1">Score</span><span class="hc2">Holes</span><span class="hc3">Date</span><span class="hc4">To par<br>SG</span><span class="hc5">Course</span>' + (M ? '' : '<span class="hc6"></span>') + '</div>';
     var curId = localStorage.getItem(CUR);
     h += '<div id="histlist" class="hlist">';
     list.forEach(function (r) {
-      var S = SG.summarize(r, view.histBl || undefined), on = M && M.ids[r.id], d = new Date(r.date), nH = r.holes.length, unf = S.holesDone < nH || r.id === curId;
+      var S = SG.summarize(r, histBlNow() || undefined), on = M && M.ids[r.id], d = new Date(r.date), nH = r.holes.length, unf = S.holesDone < nH || r.id === curId;
       var pp = S.holesDone ? S.toPar * 18 / S.holesDone : null, tint = pp == null ? 'none' : pp < -0.5 ? 'under' : pp <= 18.5 ? 'even' : 'over';
       var sub = [r.tee, r.player].filter(Boolean).map(esc).join(' · ');
       var lbl = d.toLocaleDateString() + (r.course ? ' ' + r.course : '');
@@ -1233,7 +1295,7 @@
     var list = savedRounds().filter(function (r) { return !who || (who === '~none' ? !r.player : r.player === who); }).filter(function (r) {
       var S = SG.summarize(r), ok = S.holesDone === r.holes.length && r.holes.length > 0 && r.id !== cur; if (!ok) unf++; return ok; })
       .sort(function (a, b) { return String(a.date || '').localeCompare(String(b.date || '')); });
-    var all = list.map(function (r) { return statsRound(r, view.stBl || ''); }), mode = view.stMode || 'all', selIdx = -1;
+    var all = list.map(function (r) { return statsRound(r, stBlNow()); }), mode = view.stMode || 'all', selIdx = -1;
     var openOK = function (id) { return id && id === (view.roundId || cur) && savedRounds().some(function (r) { return r.id === id && SG.summarize(r).holesDone; }); };
     if (mode === 'sel') { all.forEach(function (p, i) { if (p.id === view.stRid) selIdx = i; }); if (selIdx < 0 && all.length && !openOK(view.stRid)) { selIdx = all.length - 1; view.stRid = all[selIdx].id; } } // default: newest round
     var avg = function (L) { var o = { n: L.length }; ST_ROWS.forEach(function (d) { o[d[0]] = SG.trendAvg(L.map(d[1])); }); return o; };
@@ -1241,7 +1303,7 @@
     var openId = view.roundId || cur, openR = openId ? list.filter(function (r) { return r.id === openId; })[0] : null, openP = null;
     if (openR) openP = all.filter(function (p) { return p.id === openId; })[0];
     else if (openId) { var oR = savedRounds().filter(function (r) { return r.id === openId && (!who || (who === '~none' ? !r.player : r.player === who)); })[0];
-      if (oR && SG.summarize(oR).holesDone) { openP = statsRound(oR, view.stBl || ''); openP.open = true; } }
+      if (oR && SG.summarize(oR).holesDone) { openP = statsRound(oR, stBlNow()); openP.open = true; } }
     var selX = mode === 'sel' && openP && openP.open && view.stRid === openId ? openP : null;
     if (selX) selIdx = -1; else if (mode === 'sel' && selIdx < 0 && all.length) { selIdx = all.length - 1; view.stRid = all[selIdx].id; }
     // v165 (Scott): 'pick' = any rounds you tick – e.g. the three rounds of a 54-hole tournament – reviewed and PDF'd together
@@ -1486,7 +1548,7 @@
     if (mode !== 'all') h += '<div class="stbar"><button class="stcmp' + (D.cmp ? ' on' : '') + '" id="stcmp" data-act="stcmp" aria-pressed="' + D.cmp + '"><i aria-hidden="true"></i>Compare to all rounds</button></div>';
     h += '<p class="stsub" id="stshown">' + (mode === 'pick' ? esc(stPickLine(shown)) : mode === 'sel' && D.sel ? esc(stDate(D.sel.date)) + ' · ' + esc(D.sel.course) + ' · ' + D.sel.score + ' (' + toPar(D.sel.toPar) + ')' + (D.sel.open ? ' · ' + D.sel.holes + ' holes so far' : '') :
       (mode === '5' ? 'Last ' + shown.length + ' of ' : '') + all.length + ' finished round' + (all.length === 1 ? '' : 's') + ' · ' + esc(stDate(shown[0].date)) + (shown.length > 1 ? ' – ' + esc(stDate(shown[shown.length - 1].date)) : '')) + '</p>';
-    h += bmRowHTML('stbl', view.stBl || '', 'Each round’s benchmark', 'Benchmark: plus = strokes gained, minus = strokes lost, compared with ' + esc(view.stBl ? blLabel(view.stBl) : 'each round’s own benchmark') + '.').replace('id="stblnote"', 'id="stsgnote"');
+    h += bmRowHTML('stbl', stBlNow(), 'Each round’s benchmark', 'Benchmark: plus = strokes gained, minus = strokes lost, compared with ' + esc(stBlNow() ? blLabel(stBlNow()) : 'each round’s own benchmark') + '.').replace('id="stblnote"', 'id="stsgnote"'); h += notMineHTML(stBlNow(), stWho(), 'blminest'); // v177
     // v125: graphs grouped in collapsible categories (tap a header; open / closed is kept while the page is open)
     var sgT = function (k) { var c = ST_SG.filter(function (x) { return x[0] === k; })[0]; return stTrend(k, D, function (p) { return p.sg[k]; }, { title: c[1], short: c[1].replace(/ \(.*\)$/, ''), color: c[2], help: c[3] }); };
     var pctT = function (k) { var c = ST_PCT.filter(function (x) { return x[0] === k; })[0]; return stTrend(k, D, function (p) { return p[k]; }, { title: c[1], short: c[1].replace(/ \(.*\)$/, ''), color: c[2], help: c[3], pct: true }); };
@@ -2068,9 +2130,9 @@
     else if (view.hmenu) {
       h += '<div class="sheet-back" data-act="menuclose"></div><div class="hsheet glass" id="plusmenu" role="menu">';
       if (view.hmenu === 'new') h += '<div class="sheet-h">New round</div>' + newCourseHTML() +
-        playPickHTML('newplay', view.newPlay || lastPlay(), 'This round is') + '<label class="lbl" for="newbl">Compare my shots against</label>' + blSelect('newbl', view.newBl || 'pga') + newPlayerHTML() +
+        playPickHTML('newplay', view.newPlay || lastPlay(), 'This round is') + '<label class="lbl" for="newbl">Compare my shots against</label>' + blSelect('newbl', view.newBl || myBench(playerName())) + newPlayerHTML() +
         '<button class="sheet-go" data-act="new">Start round</button><button class="sheet-item muted" data-act="plus">Back</button>';
-      else h += '<button class="sheet-item" role="menuitem" data-act="newform">New round</button><button class="sheet-item" role="menuitem" data-act="history">Rounds</button><button class="sheet-item" role="menuitem" data-act="stats">Stats</button><button class="sheet-item" role="menuitem" data-act="mygame">My Game</button><button class="sheet-item" role="menuitem" data-act="prlog">Log practice</button><button class="sheet-item" role="menuitem" data-act="sgtopen">Short game test</button><button class="sheet-item" role="menuitem" data-act="bag">My Bag</button><button class="sheet-item" role="menuitem" data-act="archive">Settings</button><button class="sheet-item" role="menuitem" data-act="help">Help</button>';
+      else h += '<button class="sheet-item" role="menuitem" data-act="newform">New round</button><button class="sheet-item" role="menuitem" data-act="history">Rounds</button><button class="sheet-item" role="menuitem" data-act="stats">Stats</button><button class="sheet-item' + benchBang() + '" role="menuitem" data-act="mygame">My Game</button><button class="sheet-item" role="menuitem" data-act="prlog">Log practice</button><button class="sheet-item" role="menuitem" data-act="sgtopen">Short game test</button><button class="sheet-item" role="menuitem" data-act="bag">My Bag</button><button class="sheet-item" role="menuitem" data-act="archive">Settings</button><button class="sheet-item" role="menuitem" data-act="help">Help</button>';
       h += '</div>';
     }
     return h + '</div>';
@@ -2086,17 +2148,53 @@
   function mgWho() { var names = mgPlayers(); if (!view.mgPlayer || names.indexOf(view.mgPlayer) < 0) view.mgPlayer = playerName() || names[0] || ''; return view.mgPlayer; }
   function mgData(who, periodId) {
     var list = finishedRoundsOf(who), newest = list.slice().sort(function (a, b) { return String(b.date || '').localeCompare(String(a.date || '')); })[0];
-    var bl = view.mgBl || blOf(newest);
-    return MYGAME.build(list, SG, { period: periodId || view.mgPeriod || '3m', baseline: bl, baselineName: SG.baseline(bl).name });
+    var bl = myBench(who); // v177: the player's benchmark (was: this page's pick, else the newest round's)
+    var pid = periodId || view.mgPeriod || '3m', per = /^r\d$/.test(pid) ? MYGAME.roundPeriod(+pid.slice(1), list) : pid; // v176: last 2 / 3 / 4 rounds
+    return MYGAME.build(list, SG, { period: per, baseline: bl, baselineName: SG.baseline(bl).name });
   }
   function mgHomeCardHTML() {
     var who = playerName(); if (!who || (!finishedRoundsOf(who).length && !practiceOf(who).length)) return '';
     var D; try { D = mgData(who); } catch (e) { return ''; }
     return '<button class="glass mgcard" id="mgcard" data-act="mygame" aria-label="My Game: ' + esc(D.headline) + '">' +
       '<span class="mgmini">' + MYGAME.radarSVG(D.cur, null, { R: 34, labels: false, aria: 'Game shape' }) + '</span>' +
-      '<span class="mgtxt"><b>My Game</b><span>' + esc(D.headline) + '</span><small>' + esc(D.period.name) + ' · ' + D.cur.rounds + ' round' + (D.cur.rounds === 1 ? '' : 's') + '</small></span><i aria-hidden="true">›</i></button>';
+      '<span class="mgtxt"><b class="' + benchBang() + '">My Game</b><span>' + esc(D.headline) + '</span><small>' + esc(D.period.name) + ' · ' + D.cur.rounds + ' round' + (D.cur.rounds === 1 ? '' : 's') + '</small></span><i aria-hidden="true">›</i></button>';
   }
   // v146 How well Strokewise knows your game: one bar per spoke for the time frame shown (gold while learning, green when solid)
+  // v176 (Scott): the course vs the test – what the rounds in My Game's time frame cost in each short-game area, and whether
+  // the latest short game test found the same leak. Strokes per round against the benchmark; total over the rounds for the headline.
+  var CVT = [{ k: 'putting', name: 'Putting', spokes: ['lag', 'short'] }, { k: 'chipping', name: 'Chipping', spokes: ['chip'] }, { k: 'bunker', name: 'Bunker', spokes: ['bunker'] }, { k: 'wedge', name: 'Wedges', spokes: ['wedges'] }];
+  var CVT_LOSS = -0.5; // strokes a round: below this an area is costing you
+  function courseVsTest(who, D) {
+    var F = SGTUI.testFlags(who, D.baseline); if (!F || !D.cur.rounds) return null;
+    var by = {}, r18 = D.cur.holes / 18; D.cur.spokes.forEach(function (x) { by[x.k] = x; });
+    var rows = CVT.map(function (a) { var sp = a.spokes.map(function (k) { return by[k]; }), n = sp.reduce(function (t, x) { return t + x.n; }, 0);
+      var v = n ? sp.reduce(function (t, x) { return t + (x.value || 0); }, 0) : null, lose = v != null && v <= CVT_LOSS, tc = F.cats[a.k] || {}, down = F.areas[a.k] || null;
+      // v176 (Scott): "agrees" only when the test also has this area below the benchmark – then name its weakest skill
+      var tlow = tc.sg != null && tc.sg <= -0.05, worst = tc.worst, f = tlow ? (down || (worst ? { name: worst.name, val: worst.val, usual: '' } : null)) : down;
+      return { k: a.k, name: a.name, perRound: v, total: v == null ? null : v * r18, flag: f, testSg: tc.sg, down: down,
+        state: v == null ? 'none' : lose && tlow ? 'agree' : lose ? 'course' : tlow ? 'test' : down ? 'slip' : 'ok' }; });
+    var worst = rows.filter(function (r) { return r.perRound != null && r.perRound <= CVT_LOSS; }).sort(function (a, b) { return a.total - b.total; })[0], head, tail = '';
+    var over = D.period.n ? 'over the ' + D.period.short : 'over ' + D.cur.rounds + ' round' + (D.cur.rounds === 1 ? '' : 's');
+    if (worst) { head = worst.name + ' cost you ' + Math.abs(worst.total).toFixed(1) + ' strokes ' + over + '.';
+      tail = worst.state === 'agree' ? 'The test found it too: ' + (worst.flag ? worst.flag.name.toLowerCase() : worst.name.toLowerCase()) + '.' : 'The test didn’t find it – look at lies, choices and nerves on the course.'; }
+    else head = 'No short-game area cost you more than half a stroke a round ' + over + '.';
+    return { rows: rows, head: head, tail: tail, worst: worst ? worst.k : null, testDate: F.date };
+  }
+  function cvtHTML(who, D) {
+    var C = courseVsTest(who, D); if (!C) return '';
+    var max = Math.max(2.5, Math.max.apply(null, C.rows.map(function (r) { return Math.abs(r.perRound || 0); })));
+    return '<div class="glass mgcvt" id="mgcvt"><p class="mgeye">The course vs the test · ' + esc(D.period.name) + ' · vs ' + esc(D.baselineName) + '</p>' +
+      '<p class="mgcvth">' + esc(C.head) + (C.tail ? ' <span class="' + (C.rows.filter(function (r) { return r.k === C.worst; })[0].state === 'agree' ? 'bad' : '') + '">' + esc(C.tail) + '</span>' : '') + '</p>' +
+      C.rows.map(function (r) { var v = r.perRound, w = v == null ? 0 : Math.min(50, Math.abs(v) / max * 50), f = r.flag;
+        var ts = r.testSg == null ? '' : ' (test ' + (r.testSg >= 0 ? '+' : '') + r.testSg.toFixed(2) + ' a shot)';
+        var note = r.state === 'none' ? '<small>no shots in these rounds</small>' : r.state === 'agree' ? '<em>✓ test agrees</em>' + (f ? esc(f.name) + ' <small>' + esc([f.val, f.usual].filter(Boolean).join(' · ')) + '</small>' : '<small>' + esc(ts) + '</small>')
+          : r.state === 'course' ? '<small>test at the benchmark' + esc(ts) + ' – a course problem: lies, choices, nerves</small>'
+          : r.state === 'test' ? '<em class="warn">test below the benchmark</em><small>' + esc((f ? f.name.toLowerCase() + ' · ' : '') + 'not costing you on the course yet') + '</small>'
+          : r.state === 'slip' ? '<small>fine in both · test: ' + esc(r.down.name.toLowerCase()) + ' down on your usual</small>' : '<small>fine in both</small>';
+        return '<div class="cvtr ' + r.state + '" data-k="' + r.k + '"><b>' + esc(r.name) + '</b><span class="cvtd"><s></s>' + (v == null ? '' : '<i class="' + (v < 0 ? 'neg' : 'pos') + '" style="' + (v < 0 ? 'right' : 'left') + ':50%;width:' + w.toFixed(1) + '%"></i>') + '</span>' +
+          '<span class="cvtv' + (v != null && v <= CVT_LOSS ? ' bad' : '') + '">' + (v == null ? '–' : MYGAME.fmt(v)) + '</span><span class="cvtn">' + note + '</span></div>'; }).join('') +
+      '<p class="mgknote">Bars: strokes a round on the course, left of the line = lost. Test of ' + esc(new Date(C.testDate).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })) + '.</p></div>';
+  }
   function mgKnowHTML(D) {
     var sp = D.cur.spokes, ready = sp.filter(function (x) { return x.solid; }).length, tick = Math.round(100 / MYGAME.STRONG);
     return '<div class="mgknow" id="mgknow"><span class="mgkh"><span>How well Strokewise knows your game</span><b id="mgready">' + ready + '/' + MYGAME.SPOKES.length + ' ready</b></span><span class="mgkbars">' +
@@ -2111,8 +2209,16 @@
       (who ? esc(who) + ' · ' : '') + D.cur.rounds + ' round' + (D.cur.rounds === 1 ? '' : 's') + '</span></div><button class="txt frostbtn mglogtop" data-act="prlog" id="prlogtop" aria-label="Log practice">＋ Log</button></div>';
     if (names.length > 1) h += '<div class="hchips" id="mgchips" role="group" aria-label="Player">' + names.map(function (nm) {
       var on = nm === who; return '<button class="frostchip' + (on ? ' sel' : '') + '" data-act="mgplayer" data-v="' + esc(nm) + '" aria-pressed="' + on + '">' + esc(nm) + '</button>'; }).join('') + '</div>';
+    // v178 (Scott): My benchmark at the top – red until it is set, with a one-tap "use this one"
+    var bset = benchSet(who);
+    h += '<div class="glass mgblcard' + (bset ? '' : ' unset') + '" id="mgblcard">' + (bset ? '' : '<p class="mgblt"><i class="bang" aria-hidden="true">!</i>Set ' + (samePlayer(who, playerName()) ? 'your' : esc(who) + '’s') + ' benchmark – who should every shot be compared with?</p>') +
+      '<label class="mgbl">My benchmark ' + blSelect('mgbl', D.baseline) + '</label>' + (bset ? '' : '<button class="primary" data-act="mgblok" data-v="' + esc(D.baseline) + '" id="mgblok">Use ' + esc(blName(D.baseline)) + '</button>') +
+      '<p class="help muted mgblhelp">Used everywhere: new rounds, My Game, the short game test and the reports.</p></div>';
     h += '<div class="stseg mgseg" id="mgperiod" role="group" aria-label="Time frame">' + MYGAME.PERIODS.map(function (x) {
-      var on = x.id === P.id; return '<button class="' + (on ? 'sel' : '') + '" data-act="mgperiod" data-v="' + x.id + '" aria-pressed="' + on + '">' + x.name.replace('Last ', '') + '</button>'; }).join('') + '</div>';
+      var on = x.id === P.id; return '<button class="' + (on ? 'sel' : '') + '" data-act="mgperiod" data-v="' + x.id + '" aria-pressed="' + on + '">' + x.name.replace('Last ', '') + '</button>'; }).join('') + '</div>' +
+      // v176 (Scott): or the last 2, 3 or 4 rounds – e.g. just a tournament
+      '<div class="stseg mgseg mgrseg" id="mgrounds" role="group" aria-label="Last rounds"><span>Last rounds</span>' + MYGAME.ROUND_COUNTS.map(function (n) { var on = P.id === 'r' + n;
+        return '<button class="' + (on ? 'sel' : '') + '" data-act="mgperiod" data-v="r' + n + '" aria-pressed="' + on + '">' + n + '</button>'; }).join('') + '</div>';
     h += '<button class="primary big prbtn" data-act="prlog" id="prlogbtn">＋ Log practice</button>' + prSheetHTML(who);
     h += '<button class="frostbtn big grbtn" data-act="grep" id="grbtn">📄 Make a game report</button>' + grSheetHTML() + (view.pdf && view.pdf.kind === 'game' ? pdfHTML() : ''); // v175
     h += '<div class="mgchart frost"><h2 id="mghead">' + esc(D.headline) + '</h2><p id="mglede">' + esc(D.lede) + '</p>' +
@@ -2120,8 +2226,9 @@
       mgKnowHTML(D) +
       '<div class="mglegend"><span><i class="lc"></i>' + esc(P.name) + '</span>' + (D.prev ? '<span><i class="lp"></i>' + (P.id === '1y' ? 'Year before' : 'Previous ' + esc(P.short)) + '</span>' : '') +
       '<span><i class="lb"></i>' + esc(D.baselineName) + '</span>' + (D.cur.spokes.some(function (x) { return x.value != null && !x.solid; }) ? '<span><i class="ll"></i>Still learning</span>' : '') + '</div>' +
-      '<label class="mgbl">Compared with ' + blSelect('mgbl', D.baseline) + '</label></div>';
+      '</div>';
     h += SGTUI.cardHTML(who); // v166 the monthly short game test
+    h += cvtHTML(who, D); // v176 the course vs the test
     var T = D.cur.tiles, Q = D.prev && D.prev.tiles;
     var tile = function (id, label, v, pv, f, better) {
       var ch = '';
@@ -2208,7 +2315,7 @@
       'USGA player-development guidance of 8–12 multi-round events a year for top amateurs. College columns count college events only, not summer amateur events.</p></details>';
     o += '</div>';
     // tournament vs practice – this time frame, or all time while there aren't enough rounds in it
-    var fin = finishedRoundsOf(who), C = MYGAME.kindCompare(fin, SG, { baseline: D.baseline, period: P.id }), allT = false;
+    var fin = finishedRoundsOf(who), C = MYGAME.kindCompare(fin, SG, { baseline: D.baseline, period: P }), allT = false;
     if (!C.ready && P.id !== 'all') { var C2 = MYGAME.kindCompare(fin, SG, { baseline: D.baseline }); if (C2.ready) { C = C2; allT = true; } }
     o += '<div class="mgchart plcmp frost" id="plcmp"><span class="tkeye">Tournament vs practice' + (allT ? ' · all time' : '') + '</span><h2 id="plcmphead">' + esc(C.headline) + '</h2><p id="plcmplede">' + esc(C.lede) + '</p>';
     if (C.ready) {
@@ -2222,9 +2329,9 @@
     return o + '</div>';
   }
   function practiceCardHTML(who, D) {
-    var logs = practiceOf(who), PB = MYGAME.practiceBuild(logs, { period: D.period.id }), P = PB.period;
+    var logs = practiceOf(who), PB = MYGAME.practiceBuild(logs, { period: D.period }), P = PB.period;
     // v155: the chart is your practice LEVEL (builds with each session, fades without practice) against your benchmark group's average
-    var LT = MYGAME.practiceLevelText(logs, { period: P.id, bl: D.baseline }), ago = P.id === '30d' ? '30 days ago' : P.id === '3m' ? '3 months ago' : P.id === '1y' ? 'a year ago' : '';
+    var LT = MYGAME.practiceLevelText(logs, { period: P, bl: D.baseline }), ago = P.id === '30d' ? '30 days ago' : P.id === '3m' ? '3 months ago' : P.id === '1y' ? 'a year ago' : '';
     var o = '<div class="mgchart prchart frost" id="prcard"><span class="tkeye">My Practice</span><h2 id="prhead">' + esc(LT.headline) + '</h2><p id="prlede">' + esc(LT.lede) + (LT.trend ? ' ' + esc(LT.trend) : '') + '</p>';
     o += MYGAME.practiceLevelSVG(LT.level, LT.prev, { R: 96, aria: 'Practice level by skill, against ' + LT.level.bench.who }) +
       '<div class="mglegend"><span><i class="lpc"></i>Your level now</span>' + (LT.prev && ago ? '<span><i class="lp"></i>' + ago + '</span>' : '') +
@@ -3421,7 +3528,7 @@
     if (view.stxRound !== r.id) { view.stx = {}; view.stxRound = r.id; } // tiles start collapsed for each round
     // v165 (Scott): Create PDF report at the top of Round stats – no scrolling to the bottom for it (its share sheet opens right here)
     out += '<div class="rsactions" id="rsactions"><button class="primary rspdftop" data-act="pdf" data-at="top" id="rspdftop">📄 Create PDF report</button>' + (view.pdfAt === 'top' ? pdfHTML() : '') + '</div>';
-    out += rsTopHTML(r, S) + bmRowHTML('sumbl', bl, '', 'Changing it recalculates the whole round and is saved with it.') + playPickHTML('rplay', MYGAME.playOf(r), 'Round type', 'rplay') + takeawayHTML(r) + quickViewHTML(S);
+    out += rsTopHTML(r, S) + bmRowHTML('sumbl', bl, '', 'Changing it recalculates the whole round and is saved with it.') + notMineHTML(bl, r.player || playerName(), 'blmineround') + playPickHTML('rplay', MYGAME.playOf(r), 'Round type', 'rplay') + takeawayHTML(r) + quickViewHTML(S);
     out += scorecardHTML(r, S) + '<button class="big rpbtn" data-act="replay" data-v="0" id="sumreplay">▶ Hole replay (hole by hole)</button>';
     var B = SG.baseline(bl), main = out; out = '';
     out += '<h2>Strokes gained: <span class="' + sgCls(S.sgTotal) + '" id="sgtotal">' + fmtSG(S.sgTotal) + '</span></h2>' +
@@ -4764,7 +4871,7 @@
     if (opts.nobench) out += '<text class="nobenchlab" id="nobenchlab" x="' + PX.cx + '" y="' + (PX.cy - PX.Rg + 17) + '" text-anchor="middle" font-size="10" fill="#3f4c58" stroke="#fff" stroke-width="2.5" paint-order="stroke">' + esc(opts.nobench) + '</text>';
     return out + benchRing(bucket, BID) + '</svg>';
   }
-  function proxBenchId() { var r = round() || savedRounds()[0]; return view.proxReport ? 'd1w' : view.proxBench || blOf(r); } // the PDF report keeps D1 women, as before // v124: picked on the page, else the open round's SG baseline
+  function proxBenchId() { var r = round() || savedRounds()[0]; return view.proxReport ? myBench(r && r.player) : view.proxBench || blOf(r); } // v177: the report uses the player's benchmark (was always D1 women) // the PDF report keeps D1 women, as before // v124: picked on the page, else the open round's SG baseline
   function proxHTML(all) {
     var D = proxData(), L = D.list, P = SG.proxStats(L), miss = L.filter(function (m) { return !m.hit; });
     // v121: distance chips in a 6-across grid (like the Club performance chips): All first, then 200 down to 40 (farther first, like the map)
@@ -5040,6 +5147,11 @@
       case 'gdlmissing': view.restore.items.forEach(function (it) { if (it.status === 'new') view.restore.sel[it.round.id] = true; }); render(); return;
       case 'gdlclear': view.restore.sel = {}; render(); return;
       case 'pdfclose': view.pdf = null; render(); return;
+      // v177: back to the player's benchmark from a page showing another one
+      case 'blmineround': setBaseline(v); return;
+      case 'mgblok': setMyBench(mgWho(), v); toast('Benchmark: ' + blName(v)); render(); return; // v178 keep the suggested one
+      case 'blminest': view.stBl = v; view.stSel = null; render(); return;
+      case 'blminehist': view.histBl = v; render(); return;
       // v175 My Game report
       case 'grep': view.grep = view.grep ? null : { preset: 'coach', parts: Object.assign({}, GR_PRESET.coach) }; view.pdf = null; render(); return;
       case 'grclose': view.grep = null; render(); return;
@@ -5231,7 +5343,10 @@
     }
     var t = ev.target, f = t.getAttribute('data-f'); if (!f) return;
     if (f === 'proxbench') { var mvb = document.getElementById('mapview'), stb = mvb ? mvb.scrollTop : 0; view.proxBench = t.value; render(); var mvb2 = document.getElementById('mapview'); if (mvb2) mvb2.scrollTop = stb; return; } // v124: this view only
-    if (f === 'baseline' && t.id === 'mgbl') { view.mgBl = t.value; render(); return; } // v141 My Game: compare with (this page only)
+    if (f === 'baseline' && t.id === 'mgbl') { var mw = mgWho(), old = myBench(mw); setMyBench(mw, t.value); // v177: the player's benchmark, everywhere
+      var odd = savedRounds().filter(function (r) { return samePlayer(r.player || playerName(), mw) && blOf(r) !== t.value; });
+      if (odd.length && window.confirm('Switch ' + (odd.length === 1 ? 'your other round' : 'all ' + odd.length + ' of ' + mw + '’s rounds that use another benchmark') + ' to ' + blName(t.value) + ' too? Then every round, total and report compares with the same players.')) { odd.forEach(function (r) { r.baseline = t.value; }); save(); }
+      toast('Benchmark: ' + blName(t.value)); if (old !== t.value) view.pdf = null; render(); return; }
     if (f === 'baseline') { if (t.id === 'sumbl') setBaseline(t.value); else if (t.id === 'stbl') { view.stBl = t.value || ''; view.stSel = null; render(); } else if (t.id === 'histbl') { view.histBl = t.value || ''; render(); } return; }
     var h = round().holes[view.hole], k = +t.getAttribute('data-k'), row = h.rows[k];
     if (f === 'loc') {

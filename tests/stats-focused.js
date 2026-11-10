@@ -38,6 +38,8 @@ const SEED = fs.readFileSync(__dirname + '/fixtures/stats-rounds.js', 'utf8');
 
   // 3. open Stats from the + menu
   await page.click('.topbar [data-act="home"]'); await page.click('#plusbtn'); await page.click('#plusmenu [data-act="stats"]'); await page.waitForSelector('#statspage');
+  // v176: Stats starts on the player's benchmark (the one most of Scott's rounds use, PGA Tour); these checks compare each round with its own scorecard, so pick that
+  assert.strictEqual(await page.$eval('#stbl', e => e.value), 'pga'); await page.selectOption('#stbl', ''); await page.waitForFunction(() => document.querySelector('#stbl').value === '');
   for (const c of ['driver', 'approach', 'putting', 'chipping', 'scoring']) await page.click('#stcat-' + c + ' .stcath'); // v125: open the categories
   assert.strictEqual(await page.$('#plusmenu'), null, 'menu closed');
   assert.match(await page.textContent('#statspage .topbar'), /‹ Home\s*Stats\s*Scott · 7 rounds/);

@@ -25,6 +25,22 @@ Every Shot Counts Table 3.10). The other five are ESTIMATED: per-round gaps from
 Player Quality ladder, then spread over the PGA table. Full sources, method and caveats: in-app
 "About the numbers" and the BASELINES comment in `sg.js`.
 
+## Bars, course vs test, one benchmark (v176)
+- **Bars under every spider** on the test result (overall, lag & speed, short putts, chipping, bunker): your average
+  (blue, from two earlier tests), this test (green, red when down) and the benchmark mark (or the ladder goal) – further
+  right is better. Chipping and bunker bars open the skill's history when tapped (they replace those rows). Wedges: a
+  bar per yardage with your average and the benchmark mark.
+- **Last rounds 2 · 3 · 4** on My Game (`MYGAME.roundPeriod`): the newest N finished rounds vs the N before – a tournament.
+- **The course vs the test** card on My Game (and on the report's summary page): what each short-game area cost per round
+  in the chosen rounds, against the benchmark, and whether the latest test found it ("✓ test agrees" only when the test
+  also has that area below the benchmark; otherwise "a course problem", or "test below the benchmark – not costing you yet").
+- **My benchmark** – one per player (`golfsg.mybench.v1`), at the top of My Game. New rounds, My Game, the short game test
+  (re-scored against it), the course vs test card, Stats and Rounds (as their starting pick), the game report and the
+  round PDF's proximity map all use it. Changing it offers to switch the player's other rounds too. A round, Stats or
+  Rounds showing another benchmark says so, with one tap back. Until it is set: a red "!" on My Game in the + menu and
+  on the Home card, and a red card at the top of My Game.
+- **Report:** the test pages are drawn with the same bars and wedge bars instead of text rows.
+
 ## My Game report (v175)
 - **📄 Make a game report** on My Game (under Log practice) opens a sheet: presets *For my coach – everything* and
   *For recruiting – results only* (no practice minutes, no plan), and four parts to tick on their own – My Game & stats,

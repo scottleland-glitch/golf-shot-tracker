@@ -171,3 +171,13 @@ test('v164 season histogram: last 12 months by month and type, benchmark only wh
     assert.ok(Math.abs(B.months.reduce((a, x) => a + x, 0) - B.perYear) < 1e-9, b + ' months add up to the year'); });
   assert.ok(M.SEASON_BENCH.d1w.months[0] === 0 && M.SEASON_BENCH.d1w.months[5] === 0, 'college: no events in January or June');
 });
+
+test('v176: last 2 / 3 / 4 rounds – the newest N finished rounds, and the N before them', () => {
+  const M = require('../mygame.js'), d = (n) => new Date(Date.UTC(2026, 10, 10) - n * 86400000).toISOString();
+  const R = [1, 2, 3, 10, 11, 12, 40].map((n, i) => ({ id: 'r' + i, date: d(n) }));
+  const P = M.roundPeriod(3, R), W = M.windows(P);
+  const inW = (w) => R.filter((r) => { const t = Date.parse(r.date); return t >= w[0] && t < w[1]; }).map((r) => r.id);
+  assert.deepStrictEqual(inW(W.cur), ['r0', 'r1', 'r2']); assert.deepStrictEqual(inW(W.prev), ['r3', 'r4', 'r5']);
+  assert.strictEqual(P.name, 'Last 3 rounds'); assert.strictEqual(M.period(P), P, 'a period object passes straight through');
+  assert.strictEqual(M.windows(M.roundPeriod(4, R.slice(0, 3))).prev, null, 'fewer rounds than N: no earlier window');
+});

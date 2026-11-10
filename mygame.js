@@ -23,10 +23,19 @@
     { id: 'all', name: 'All time', short: 'all time', days: null }
   ];
   var DAY = 86400000, MIN_ROUNDS = 2, STRONG = 3;
-  function period(id) { return PERIODS.filter(function (p) { return p.id === id; })[0] || PERIODS[1]; }
+  function period(id) { if (id && typeof id === 'object') return id; return PERIODS.filter(function (p) { return p.id === id; })[0] || PERIODS[1]; }
+  // v176 (Scott): "last 2 / 3 / 4 rounds" – e.g. just the rounds of a tournament. A period object carrying its own window:
+  // cur = from the Nth newest finished round on, prev = the N rounds before that. Pass it anywhere a period id goes.
+  var ROUND_COUNTS = [2, 3, 4];
+  function roundPeriod(n, rounds) {
+    var t = (rounds || []).map(function (r) { return Date.parse(r.date); }).filter(function (x) { return !isNaN(x); }).sort(function (a, b) { return b - a; });
+    var from = t.length ? t[Math.min(n, t.length) - 1] : Date.now(), pfrom = t.length > n ? t[Math.min(2 * n, t.length) - 1] : null;
+    return { id: 'r' + n, n: n, name: 'Last ' + n + ' rounds', short: n + ' rounds', days: null, win: { cur: [from, Infinity], prev: pfrom == null ? null : [pfrom, from] } };
+  }
   // [from, to) in ms for the period and the one before it (all time has none before it).
   function windows(id, now) {
     var p = period(id), t = now == null ? Date.now() : +now;
+    if (p.win) return p.win;
     if (!p.days) return { cur: [-Infinity, t + DAY], prev: null };
     return { cur: [t - p.days * DAY, t + DAY], prev: [t - 2 * p.days * DAY, t - p.days * DAY] };
   }
@@ -65,7 +74,7 @@
   // rounds: the golfer's finished rounds (any order). opts: { period, now, baseline, baselineName }.
   function build(rounds, SG, opts) {
     opts = opts || {};
-    var bl = SG.baseline(opts.baseline).id, blName = opts.baselineName || SG.baseline(bl).name, p = period(opts.period), W = windows(p.id, opts.now);
+    var bl = SG.baseline(opts.baseline).id, blName = opts.baselineName || SG.baseline(bl).name, p = period(opts.period), W = windows(p, opts.now);
     var cur = shape(rounds.filter(function (r) { return inWin(r, W.cur); }), SG, bl);
     var prev = W.prev ? shape(rounds.filter(function (r) { return inWin(r, W.prev); }), SG, bl) : null;
     if (prev && !prev.rounds) prev = null;
@@ -156,7 +165,7 @@
   function hm(min) { min = Math.round(min); var h = Math.floor(min / 60), m = min % 60; return h ? h + ' h' + (m ? ' ' + m + ' min' : '') : m + ' min'; }
   function practiceBuild(logs, opts) {
     opts = opts || {};
-    var p = period(opts.period), W = windows(p.id, opts.now), cur = practiceShape(logs, W.cur), prev = W.prev ? practiceShape(logs, W.prev) : null;
+    var p = period(opts.period), W = windows(p, opts.now), cur = practiceShape(logs, W.cur), prev = W.prev ? practiceShape(logs, W.prev) : null;
     if (prev && !prev.total) prev = null;
     var top = cur.spokes.slice().sort(function (a, b) { return b.min - a.min; })[0];
     return { period: p, cur: cur, prev: prev,
@@ -284,7 +293,7 @@
     var rt = (whole || !half ? whole : '') + (half ? '½' : ''); return rt + ' round' + (r > 1 ? 's' : '') + ' · ' + h + ' hole' + (h === 1 ? '' : 's'); }
   function playingBuild(rounds, SG, opts) {
     opts = opts || {};
-    var p = period(opts.period), W = windows(p.id, opts.now), cur = playTally(rounds, SG, W.cur), prev = W.prev ? playTally(rounds, SG, W.prev) : null;
+    var p = period(opts.period), W = windows(p, opts.now), cur = playTally(rounds, SG, W.cur), prev = W.prev ? playTally(rounds, SG, W.prev) : null;
     var tot = cur.practice.holes + cur.tournament.holes, ptot = prev ? prev.practice.holes + prev.tournament.holes : 0;
     var max = Math.max(1, cur.practice.holes, cur.tournament.holes, prev ? prev.practice.holes : 0, prev ? prev.tournament.holes : 0);
     var since = p.id === '1y' ? 'the year before' : 'the previous ' + p.short;
@@ -408,6 +417,6 @@
     STRONG: STRONG, FOCUS: FOCUS, FOCUS_HINT: FOCUS_HINT, validPractice: validPractice, mergePractice: mergePractice, practiceShape: practiceShape, practiceBuild: practiceBuild, practiceSVG: practiceSVG,
     practiceVsGame: practiceVsGame, drillFocus: drillFocus, hm: hm,
     SEASON_BENCH: SEASON_BENCH, seasonBuild: seasonBuild, seasonSVG: seasonSVG,     PLAY_KINDS: PLAY_KINDS, playOf: playOf, playTally: playTally, playingBuild: playingBuild, kindCompare: kindCompare, holesText: holesText, MIN_EACH: MIN_EACH, CMP_AREAS: CMP_AREAS,
-    SPOKES: SPOKES, PERIODS: PERIODS, MIN_ROUNDS: MIN_ROUNDS, period: period, windows: windows, shape: shape, build: build, radarSVG: radarSVG, radius: radius, fmt: fmt, RING: RING };
+    SPOKES: SPOKES, PERIODS: PERIODS, MIN_ROUNDS: MIN_ROUNDS, period: period, roundPeriod: roundPeriod, ROUND_COUNTS: ROUND_COUNTS, windows: windows, shape: shape, build: build, radarSVG: radarSVG, radius: radius, fmt: fmt, RING: RING };
   if (typeof module !== 'undefined' && module.exports) module.exports = API; else root.MYGAME = API;
 })(this);

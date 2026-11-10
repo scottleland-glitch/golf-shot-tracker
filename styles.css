@@ -2567,3 +2567,50 @@ html body .bmwrap .stnote.bmnote { font-size: 12.5px; line-height: 1.35; color: 
 .grpart.on i { background: #1f6b3a; border-color: #1f6b3a; }
 .grpart small { margin-left: auto; font-weight: 500; color: #7d8c84; font-size: 12px; }
 .grpart[disabled] { opacity: .55; }
+/* v176 (Scott): bars under every spider – your average (grey), this test (green / red), benchmark mark */
+.sgtbars { margin: 4px 0 8px; }
+.sgtbr { display: grid; grid-template-columns: minmax(0, 118px) 1fr; gap: 10px; align-items: center; width: 100%; padding: 7px 0; border: 0; border-top: 1px solid rgba(20,60,40,.08); background: none; text-align: left; font: inherit; color: inherit; }
+button.sgtbr { cursor: pointer; }
+.sgtbl b { display: block; font-size: 13.5px; font-weight: 600; color: #1d2a24; line-height: 1.25; }
+.sgtbl b em { font-style: normal; font-size: 11px; font-weight: 700; margin-left: 6px; color: #5c6b63; } .sgtbl b em.bad { color: #b0473f; } .sgtbl b em.good { color: #1f7a44; }
+.sgtbl > span { display: block; font-size: 13px; font-weight: 600; color: #1f6b3a; } .sgtbl > span.bad { color: #b0473f; }
+.sgtbl small { display: block; font-size: 11px; color: #6b7a72; }
+.sgtbt { position: relative; display: block; height: 22px; }
+.sgtbt i { position: absolute; left: 0; border-radius: 4px; } .sgtbt i.avg { top: 2px; height: 7px; background: #b9c4be; }
+.sgtbt i.cur { top: 11px; height: 9px; background: #1f9d55; } .sgtbt i.cur.bad { background: #d0604f; }
+.sgtbt s { position: absolute; top: -2px; bottom: -2px; width: 0; border-left: 2px solid #1d2a24; }
+.sgtbkey { display: flex; flex-wrap: wrap; gap: 4px 14px; font-size: 11px; color: #5c6b63; margin: 8px 0 0; }
+.sgtbkey i { display: inline-block; width: 14px; height: 7px; border-radius: 3px; margin-right: 5px; vertical-align: middle; }
+.sgtbkey .k1 { background: #1f9d55; } .sgtbkey .k2 { background: #b9c4be; } .sgtbkey .k3 { width: 0; height: 12px; border-left: 2px solid #1d2a24; border-radius: 0; }
+.sgtwb i em { position: absolute; left: 0; top: -1px; height: 5px; border-radius: 3px; background: #b9c4be; }
+.sgtwb i { height: 16px; background: transparent !important; } .sgtwb u { top: 6px !important; bottom: auto !important; height: 10px; }
+.sgtwb.bad u { background: #d0604f; } .sgtwb.bad b { color: #b0473f; } .sgtwb b { color: #1f6b3a; }
+html body .sgtbars button.sgtbr { border-radius: 0; box-shadow: none; background: none; min-height: 0; margin: 0; padding: 7px 0; -webkit-backdrop-filter: none; backdrop-filter: none; border: 0; border-top: 1px solid rgba(20,60,40,.08); }
+/* v176 (Scott): last 2 / 3 / 4 rounds, and the course vs the test */
+.mgrseg { margin-top: 6px; align-items: center; } .mgrseg > span { font-size: 13px; color: #43524a; padding: 0 8px 0 10px; white-space: nowrap; }
+.mgcvt { padding: 16px; border-radius: 22px; margin: 12px 0; }
+.mgcvt .mgeye { font-size: 11px; letter-spacing: .1em; text-transform: uppercase; color: #5c6b63; font-weight: 600; margin: 0 0 6px; }
+.mgcvth { font-size: 17px; font-weight: 600; line-height: 1.3; margin: 0 0 6px; color: #1d2a24; } .mgcvth span { color: #43524a; font-weight: 500; } .mgcvth span.bad { color: #b0473f; font-weight: 600; }
+.cvtr { display: grid; grid-template-columns: 74px 1fr 40px; grid-template-areas: "a b c" "d d d"; column-gap: 8px; align-items: center; padding: 8px 0; border-top: 1px solid rgba(20,60,40,.08); }
+.cvtr b { grid-area: a; font-size: 13.5px; } .cvtd { grid-area: b; position: relative; height: 12px; background: rgba(20,60,40,.06); border-radius: 6px; }
+.cvtd s { position: absolute; left: 50%; top: -3px; bottom: -3px; border-left: 2px solid #1d2a24; }
+.cvtd i { position: absolute; top: 2px; height: 8px; border-radius: 4px; } .cvtd i.neg { background: #d0604f; } .cvtd i.pos { background: #1f9d55; }
+.cvtv { grid-area: c; text-align: right; font-weight: 600; font-size: 13px; } .cvtv.bad { color: #b0473f; }
+.cvtn { grid-area: d; font-size: 12.5px; margin-top: 4px; color: #2b3a33; } .cvtn em { font-style: normal; font-weight: 700; color: #b0473f; margin-right: 6px; } .cvtn em.warn { color: #a86a12; }
+.cvtn small { color: #6b7a72; font-size: 12px; }
+html body .mgcvt .cvtr > b { color: #1d2a24; font-weight: 600; }
+/* v176 (Scott): "your average" in blue – grey was hard to see, and it is neither good (green) nor bad (red) */
+.sgtbt i.avg, .sgtwb i em { background: #4a7fd0 !important; } .sgtbkey .k2 { background: #4a7fd0 !important; }
+html body .mgcvt .cvtv { color: #1f6b3a; } html body .mgcvt .cvtv.bad { color: #b0473f; }
+/* v177 (Scott): a page not using the player's benchmark says so */
+.blwarn { margin: 6px 2px 10px; padding: 8px 12px; border-radius: 12px; background: #fff4dc; border: 1px solid #e3b65a; color: #5a3f0c; font-size: 13px; line-height: 1.35; }
+.blwarn button.txt { color: #8a5a00; font-weight: 700; text-decoration: underline; padding: 0 0 0 4px; min-height: 0; }
+.mgblhelp { font-size: 12px; margin: 4px 0 0; }
+/* v178 (Scott): benchmark not set – a red "!" on My Game, and the picker at the top of My Game */
+.bang { display: inline-flex; align-items: center; justify-content: center; width: 18px; height: 18px; border-radius: 9px; background: #d0342c; color: #fff !important; font-style: normal; font-weight: 800; font-size: 12px; line-height: 1; margin-left: 7px; vertical-align: 2px; }
+.mgblcard { padding: 12px 16px; border-radius: 20px; margin: 10px 0; }
+.mgblcard.unset { border: 2px solid #d0342c !important; background: rgba(255,236,232,.9) !important; }
+.mgblcard .mgblt { margin: 0 0 8px; font-weight: 700; font-size: 15px; color: #7a1d16; display: flex; align-items: center; gap: 8px; } .mgblcard .mgblt .bang { margin: 0; flex: 0 0 18px; }
+.mgblcard .mgbl { display: flex; align-items: center; gap: 10px; font-weight: 600; flex-wrap: wrap; }
+.mgblcard button.primary { width: 100%; margin-top: 10px; }
+.bangon::after { content: "!"; display: inline-flex; align-items: center; justify-content: center; width: 18px; height: 18px; border-radius: 9px; background: #d0342c; color: #fff; font-style: normal; font-weight: 800; font-size: 12px; line-height: 1; margin-left: 7px; vertical-align: 2px; }
