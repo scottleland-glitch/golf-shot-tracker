@@ -35,7 +35,7 @@ function make(id, date, q) { const t = T.blank(id, date, 'Scott', 'scm');
   for (let k = 0; k < 3; k++) { await page.click('#sgtintronext'); await page.waitForTimeout(600); } assert.strictEqual(await page.textContent('#sgtintronext'), 'Start');
   await page.click('#sgtintronext'); await page.waitForSelector('#sgtest'); await shot('02-hub', true);
   await page.click('#sgtintroopen'); await page.waitForSelector('#sgtintro'); await page.click('#sgtintroskip'); await page.waitForSelector('#sgtest');
-  await page.click('[data-act="mygame"]'); await page.waitForSelector('#sgtmg'); await page.click('#sgtopen'); await page.waitForSelector('#sgtest'); // seen: straight to the hub
+  await page.click('[data-act="mygame"]'); await page.waitForSelector('#sgtmg'); await page.click('#sgtopen'); await page.waitForSelector('#sgtintro'); await page.click('#sgtintroskip'); await page.waitForSelector('#sgtest'); // v172: the intro runs every time
   await page.click('[data-act="sgtcond"][data-v="green:fast"]'); await page.click('#sgtstart'); await page.waitForSelector('#sgtrun'); await shot('03-lag-setup', true);
   const type = async (v) => { await page.fill('#sgtft', String(v)); };
   // lag

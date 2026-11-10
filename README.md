@@ -25,6 +25,9 @@ Every Shot Counts Table 3.10). The other five are ESTIMATED: per-round gaps from
 Player Quality ladder, then spread over the PGA table. Full sources, method and caveats: in-app
 "About the numbers" and the BASELINES comment in `sg.js`.
 
+## Short game test intro every time (v172)
+- Opening the short game test always starts with the four-slide intro; Skip intro or Start goes to the test page.
+
 ## Speed ladder labels (v171)
 - The flat / uphill / downhill speed spokes show the ladder as the raw count it is – "13 balls · goal 16" (goal = best
   ladder on that slope + 3) – instead of "13 of 16 balls", which read like 13 good out of 16 putted.

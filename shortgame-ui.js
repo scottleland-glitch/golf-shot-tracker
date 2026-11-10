@@ -202,7 +202,6 @@
 
     // ---------- v168 (Scott): an intro to swipe through the first time – styled like the Instagram one-pager ----------
     var INTRO_K = 'golfsg.sgtintro.v1';
-    function introSeen() { try { return localStorage.getItem(INTRO_K) === '1'; } catch (e) { return false; } }
     function introDone() { try { localStorage.setItem(INTRO_K, '1'); } catch (e) {} }
     function introHTML() {
       var SK = {}; T.SKILLS.forEach(function (x) { SK[x.k] = x; });
@@ -271,7 +270,7 @@
       if (a === 'sgtintronext') { var sl = document.getElementById('sgtislides'), k0 = introAt(); if (k0 >= 3 || !sl) { introDone(); s.mode = 'hub'; env.render(); window.scrollTo(0, 0); return; }
         try { sl.scrollTo({ left: (k0 + 1) * sl.clientWidth, behavior: 'smooth' }); } catch (e) { sl.scrollLeft = (k0 + 1) * sl.clientWidth; } setTimeout(introSync, 400); return; }
       if (a === 'sgtintro') { s.mode = 'intro'; env.render(); window.scrollTo(0, 0); return; }
-      if (a === 'sgtopen') { view.hmenu = null; view.screen = 'sgtest'; s.mode = introSeen() ? 'hub' : 'intro'; if (view.mgPlayer) s.who = view.mgPlayer; env.render(); window.scrollTo(0, 0); return; }
+      if (a === 'sgtopen') { view.hmenu = null; view.screen = 'sgtest'; s.mode = 'intro'; /* v172 (Scott): the intro runs every time the test is opened – Skip intro goes straight to the page */ if (view.mgPlayer) s.who = view.mgPlayer; env.render(); window.scrollTo(0, 0); return; }
       if (a === 'sgthub') { s.mode = 'hub'; s.open = null; env.render(); window.scrollTo(0, 0); return; }
       if (a === 'sgtplayer') { s.who = v; env.render(); return; }
       if (a === 'sgtcond') { var p = v.split(':'); s.cond = s.cond || {}; s.cond[p[0]] = s.cond[p[0]] === p[1] ? '' : p[1]; env.render(); return; }
