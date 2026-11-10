@@ -13,7 +13,10 @@
   function clamp(v, lo, hi) { return Math.max(lo, Math.min(hi, v)); }
 
   // ---------- the test ----------
-  var COMPASS_D = [3, 5, 7, 9], WEDGE_D = [30, 45, 60, 80, 100], LAG_D = [30, 40, 50], LADDER_TRIES = 3, OVER_YD = 10, FLOP_SHORT_YD = 10, MAX_FT = 200;
+  var COMPASS_D = [3, 5, 7, 9], WEDGE_D = [30, 45, 60, 80, 100], LAG_D = [30, 40, 50], LADDER_TRIES = 3, OVER_YD = 10, FLOP_SHORT_YD = 10, MAX_FT = 200, UD_BALLS = 10;
+  // v174 (Scott): up and down – 10 balls scattered around the green, only the count is entered. Its benchmark is worked out from the
+  // same strokes tables as everything else, over a fixed spread of spots like the ones the golfer scatters: up and down ≈ 3 − expected strokes.
+  var UD_SPOTS = [['fairway', 5], ['fairway', 10], ['fairway', 20], ['fairway', 30], ['rough', 8], ['rough', 15], ['rough', 25], ['sand', 10], ['sand', 20], ['rough', 12]];
   // v168 (Scott): "way off" is against the player's OWN usual – the benchmark is a lofty goal, and someone always 0.8 behind it
   // learns nothing from a red box every month. A check is way off when it loses this many more strokes a shot than the player's
   // usual (the last six tests that had it). Until there are two earlier tests there is no usual, so it falls back to the benchmark.
@@ -52,13 +55,20 @@
       setup: ['Greenside bunker, about 10 yd to the hole.', 'Five balls. Enter the feet away, or tap Still in sand or Over the green.'] },
     { id: 'bkLong', cat: 'bunker', kind: 'bunker', name: 'Long bunker shots', lie: 'sand', dist: 25, n: 5,
       setup: ['Greenside bunker, about 25 yd to the hole.', 'Five balls. Enter the feet away, or tap Still in sand or Over the green.'] },
+    { id: 'updown', cat: 'chipping', kind: 'updown', name: 'Up and down', balls: UD_BALLS, shots: [{ label: UD_BALLS + ' balls' }],
+      setup: ['Scatter 10 balls around the green: different distances (5 to 30 yd) and different lies – fringe, rough, a tight lie, a bunker, one or two short-sided.', 'Play each ball out until it’s in the hole, full routine, no do-overs.', 'Count the ones you got up and down – in the hole in two shots or fewer – and enter the count. No shot-by-shot entry.'] },
     { id: 'wedge', cat: 'wedge', kind: 'wedge', name: 'Wedges', lie: 'fairway', unit: 'ft',
       shots: [].concat.apply([], rep(3, function () { return WEDGE_D.map(function (d) { return { dist: d, label: d + ' yd' }; }); })),
       setup: ['From the fairway to one flag. Measure 30, 45, 60, 80 and 100 yd.', 'Three balls from each distance, in the order shown.', 'Enter the feet away, then tap where it finished from the hole (long, short, left, right).'] }
   ];
   STATIONS.forEach(function (s) { if (!s.shots) s.shots = rep(s.n, function (i) { return { dist: s.dist, label: 'Ball ' + (i + 1) }; }); });
   var STATION = {}; STATIONS.forEach(function (s) { STATION[s.id] = s; });
-  var TOTAL = STATIONS.reduce(function (t, s) { return t + s.shots.length; }, 0);
+  // shots per entry: the up and down entry is 10 balls
+  function weight(st) { return st.balls || 1; }
+  var TOTAL = STATIONS.reduce(function (t, s) { return t + s.shots.length * weight(s); }, 0);
+  // tests from before v174 had no up and down station: it is not part of them (not missing shots)
+  function inTest(test, st) { return st.id !== 'updown' || !!test.ud; }
+  function totalOf(test) { return STATIONS.reduce(function (t, s) { return t + (inTest(test, s) ? s.shots.length * weight(s) : 0); }, 0); }
 
   // The skills the test reports. better: 'low' = fewer feet is better, 'high' = more is better.
   var SKILLS = [
@@ -73,6 +83,7 @@
     { k: 'bkShort', cat: 'bunker', name: 'Short bunker', unit: 'ft', better: 'low', thr: 1.5, drill: 'Draw a line in the sand 2 in behind the ball. Ten shots: enter the sand on the line, land the ball on a towel.' },
     { k: 'bkLong', cat: 'bunker', name: 'Long bunker', unit: 'ft', better: 'low', thr: 2, drill: 'Ten 25-yard bunker shots with a squarer face and a full finish. Count how many reach the hole.' },
     { k: 'bkOn', cat: 'bunker', name: 'Bunker shots on the green', unit: 'made', of: 10, better: 'high', thr: 2, drill: 'Ten bunker shots to the middle of the green. Splash the sand, do not pick the ball: every one must finish on the putting surface.' },
+    { k: 'updown', cat: 'chipping', name: 'Up and down', unit: 'made', of: UD_BALLS, better: 'high', thr: 2, drill: 'Up-and-down game: scatter 9 balls around the green, play each one out and keep score. Beat your last total.' },
     { k: 'wedge', cat: 'wedge', name: 'Wedge proximity', unit: 'ft', better: 'low', thr: 2, drill: 'Wedge ladder: three balls each to 30, 45, 60, 80 and 100 yd. Write down the swing length that carries each number.' }
   ];
   var SKILL = {}; SKILLS.forEach(function (s) { SKILL[s.k] = s; });
@@ -83,7 +94,7 @@
   function validEntry(st, e) {
     if (!e || typeof e !== 'object') return null;
     var ft = Number(e.ft), okFt = e.ft != null && e.ft !== '' && isFinite(ft) && ft >= 0 && ft <= MAX_FT;
-    if (st.kind === 'ladder') { var n = Math.round(Number(e.n)); return e.n != null && isFinite(n) && n >= 0 && n <= 40 ? { n: n } : null; }
+    if (st.kind === 'ladder' || st.kind === 'updown') { var n = Math.round(Number(e.n)), max = st.kind === 'updown' ? UD_BALLS : 40; return e.n != null && isFinite(n) && n >= 0 && n <= max ? { n: n } : null; }
     if (st.kind === 'compass') return typeof e.made === 'boolean' ? (e.made ? { made: true } : { made: false, miss: /^(short|long|left|right|high|low)$/.test(e.miss) ? e.miss : '' }) : null;
     if (st.kind === 'bunker' && (e.res === 'sand' || e.res === 'over')) return { res: e.res };
     if (st.id === 'flop' && e.res === 'short') return { res: 'short' }; // v168: didn't reach the green – in the bunker it was going over
@@ -99,7 +110,7 @@
         var shots = {}; STATIONS.forEach(function (st) { var a = Array.isArray(src[st.id]) ? src[st.id] : []; shots[st.id] = st.shots.map(function (x, i) { return validEntry(st, a[i]); }); });
         var c = t.cond || {};
         // sl: ladders were flat / uphill / downhill (tests started from v168 on); before that all three were flat attempts
-        return { v: 3, sl: slopeLadders(t), id: t.id, date: t.date, player: String(t.player || ''), baseline: String(t.baseline || ''), done: !!t.done,
+        return { v: 3, sl: slopeLadders(t), ud: t.ud === true, id: t.id, date: t.date, player: String(t.player || ''), baseline: String(t.baseline || ''), done: !!t.done,
           cond: { green: /^(slow|medium|fast)$/.test(c.green) ? c.green : '', wind: /^(calm|breezy|windy)$/.test(c.wind) ? c.wind : '' }, shots: shots };
       });
   }
@@ -117,12 +128,12 @@
     var added = 0; validTests(incoming).forEach(function (t) { if (!have[t.id]) { have[t.id] = 1; out.push(t); added++; } });
     return { tests: out, added: added };
   }
-  function blank(id, date, player, baseline) { return validTests([{ id: id, date: date, player: player, baseline: baseline, sl: true, shots: {} }])[0]; }
-  function entered(test) { return STATIONS.reduce(function (t, st) { return t + test.shots[st.id].filter(Boolean).length; }, 0); }
-  function stationDone(test, st) { return test.shots[st.id].every(Boolean); }
+  function blank(id, date, player, baseline) { return validTests([{ id: id, date: date, player: player, baseline: baseline, sl: true, ud: true, shots: {} }])[0]; }
+  function entered(test) { return STATIONS.reduce(function (t, st) { return t + (inTest(test, st) ? test.shots[st.id].filter(Boolean).length * weight(st) : 0); }, 0); }
+  function stationDone(test, st) { return !inTest(test, st) || test.shots[st.id].every(Boolean); }
   // first station with a shot still to enter, and that shot
   function nextOpen(test) {
-    for (var i = 0; i < STATIONS.length; i++) { var a = test.shots[STATIONS[i].id]; for (var j = 0; j < a.length; j++) if (!a[j]) return { st: i, i: j }; }
+    for (var i = 0; i < STATIONS.length; i++) { if (!inTest(test, STATIONS[i])) continue; var a = test.shots[STATIONS[i].id]; for (var j = 0; j < a.length; j++) if (!a[j]) return { st: i, i: j }; }
     return null;
   }
 
@@ -136,7 +147,7 @@
     return (lo + hi) / 2;
   }
   function shotSG(SG, bl, st, spec, e) {
-    if (st.kind === 'ladder') return null;
+    if (st.kind === 'ladder' || st.kind === 'updown') return null;
     var start = SG.expected(st.lie, spec.dist, bl);
     if (st.kind === 'compass') return start - (e.made ? 1 : 2);
     if (e.res === 'sand') return -1;
@@ -144,6 +155,7 @@
     if (e.res === 'short') return start - 1 - SG.expected('sand', FLOP_SHORT_YD, bl); // still has the bunker shot: usually about a stroke lost
     return start - 1 - (e.ft > 0 ? SG.expected('green', e.ft, bl) : 0);
   }
+  function udBench(SG, bl) { return clamp(mean(UD_SPOTS.map(function (p) { return 3 - SG.expected(p[0], p[1], bl); })), 0.05, 0.95); }
   function idx(sgPerShot) { return sgPerShot == null ? null : clamp(100 + sgPerShot * 100, 10, 130); } // 100 = the benchmark
   function score(test, SG, bl) {
     bl = SG.baseline(bl || test.baseline).id;
@@ -166,10 +178,14 @@
     var flopShort = of('flop').filter(function (r) { return r.e.res === 'short'; }).length; S.flop.short = flopShort;
     var bk = of('bkShort').concat(of('bkLong')), sand = bk.filter(function (r) { return r.e.res === 'sand'; }).length, over = bk.filter(function (r) { return r.e.res === 'over'; }).length;
     S.bkOn = { k: 'bkOn', n: bk.length, value: bk.length ? bk.length - sand - over : null, of: bk.length, sg: null, index: bk.length ? clamp(100 - 100 * (sand + over) / bk.length * 2, 10, 100) : null, sand: sand, over: over };
+    // v174: up and down – the rate against the benchmark's, each extra up and down a stroke saved (so it sits on the same index scale)
+    var ud = of('updown')[0], udB = udBench(SG, bl);
+    S.updown = { k: 'updown', n: ud ? UD_BALLS : 0, value: ud ? ud.e.n : null, of: UD_BALLS, bench: udB * UD_BALLS, benchRate: udB, rate: ud ? ud.e.n / UD_BALLS : null,
+      cost: ud ? 1 - ud.e.n / UD_BALLS : null, sg: ud ? ud.e.n / UD_BALLS - udB : null, index: ud ? idx(ud.e.n / UD_BALLS - udB) : null };
     var wd = of('wedge'); put('wedge', wd, ftOf(wd));
     // category roll-ups: strokes gained per shot over every scored shot in the category
     var cats = {}; CATS.forEach(function (c) { var L = rows.filter(function (r) { return r.st.cat === c.k && r.sg != null; }), sg = sgOf(L);
-      cats[c.k] = { k: c.k, name: c.name, n: L.length, sg: sg, index: idx(sg), of: STATIONS.filter(function (s) { return s.cat === c.k && s.kind !== 'ladder'; }).reduce(function (t, s) { return t + s.shots.length; }, 0) }; });
+      cats[c.k] = { k: c.k, name: c.name, n: L.length, sg: sg, index: idx(sg), of: STATIONS.filter(function (s) { return s.cat === c.k && s.kind !== 'ladder' && s.kind !== 'updown'; }).reduce(function (t, s) { return t + s.shots.length; }, 0) }; });
     // details for the pictures and the coach notes
     var cnt = function (L, f) { return L.filter(f).length; };
     var X = {
@@ -197,6 +213,8 @@
       var bits = []; var sh = L.filter(function (r) { return r.e.res === 'short'; }).length, sd = L.filter(function (r) { return r.e.res === 'sand'; }).length, ov = L.filter(function (r) { return r.e.res === 'over'; }).length;
       if (sh) bits.push(plural(sh, 'shot') + ' didn’t reach the green'); if (sd) bits.push(sd + ' stayed in the sand'); if (ov) bits.push(sd ? ov + ' flew the green' : plural(ov, 'shot') + ' flew the green');
       warn.push({ cat: st.cat, k: id, title: st.name + ': ' + (k.value == null ? 'none finished on the green' : ftTxt(k.value) + ' away on average'), sg: k.sg, v: k.value, bench: k.bench == null ? null : Math.round(k.bench), unit: 'ft', why: bits.length ? cap(bits.join(', ')) + '.' : '' }); });
+    if (S.updown.value != null) warn.push({ cat: 'chipping', k: 'updown', title: 'Up and down: ' + S.updown.value + ' of ' + UD_BALLS, sg: S.updown.sg, v: S.updown.value, of: UD_BALLS, bench: Math.round(S.updown.bench * 10) / 10, unit: 'made',
+      why: 'Each missed green is costing about ' + r1(S.updown.cost) + ' strokes.' });
     X.wedge.byDist.forEach(function (d) { if (!d.n || d.sg == null) return; var L = wd.filter(function (r) { return r.spec.dist === d.dist && r.e.ft > 0; });
       warn.push({ cat: 'wedge', k: 'wedge:' + d.dist, title: d.dist + ' yd wedges: ' + ftTxt(d.ft) + ' away on average', sg: d.sg, v: d.ft, bench: Math.round(d.bench), unit: 'ft', why: pattern(L.map(function (r) { var m = /^(long|short)/.exec(r.e.dir || ''), sd = /(left|right)$/.exec(r.e.dir || ''); return m ? m[1] : sd ? sd[1] : ''; }), WEDGE_WHY) }); });
     return { id: test.id, date: test.date, baseline: bl, skills: S, cats: cats, extra: X, checks: warn, entered: rows.length, total: TOTAL };
@@ -341,7 +359,7 @@
     return s + '</svg>';
   }
 
-  var API = { STATIONS: STATIONS, STATION: STATION, SKILLS: SKILLS, SKILL: SKILL, CATS: CATS, LINES: LINES, TOTAL: TOTAL, COMPASS_D: COMPASS_D, WEDGE_D: WEDGE_D,
+  var API = { STATIONS: STATIONS, STATION: STATION, SKILLS: SKILLS, SKILL: SKILL, CATS: CATS, LINES: LINES, TOTAL: TOTAL, totalOf: totalOf, inTest: inTest, UD_BALLS: UD_BALLS, udBench: udBench, COMPASS_D: COMPASS_D, WEDGE_D: WEDGE_D,
     validTests: validTests, mergeTests: mergeTests, blank: blank, entered: entered, stationDone: stationDone, nextOpen: nextOpen, validEntry: validEntry,
     neutralLeave: neutralLeave, score: score, compare: compare, interpret: interpret, indexOf: indexOf, fmtVal: fmtVal, fmtNum: fmtNum,
     spiderSVG: spiderSVG, spiderKey: spiderKey, sparkSVG: sparkSVG, compassSVG: compassSVG, esc: esc, r1: r1 };

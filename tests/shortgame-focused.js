@@ -29,14 +29,16 @@ function make(id, date, q) { const t = T.blank(id, date, 'Scott', 'scm');
   if (await page.$('#plusbtn')) await page.click('#plusbtn');
   assert.ok(await page.$('[data-act="sgtopen"]'), 'menu item'); await page.click('.sheet-item[data-act="mygame"]');
   await page.waitForSelector('#sgtmg'); await page.locator('#sgtmg').scrollIntoViewIfNeeded(); await shot('01-mygame-card');
-  // v168: the first time, the test opens on its intro – four screens to swipe, Skip intro on each
-  await page.click('#sgtopen'); await page.waitForSelector('#sgtintro'); await shot('01b-intro');
-  assert.strictEqual(await page.$$eval('#sgtintro .sgtislide', e => e.length), 4); assert.ok(await page.$('#sgtintroskip'));
-  for (let k = 0; k < 3; k++) { await page.click('#sgtintronext'); await page.waitForTimeout(600); } assert.strictEqual(await page.textContent('#sgtintronext'), 'Start');
-  await page.click('#sgtintronext'); await page.waitForSelector('#sgtest'); await shot('02-hub', true);
-  await page.click('#sgtintroopen'); await page.waitForSelector('#sgtintro'); await page.click('#sgtintroskip'); await page.waitForSelector('#sgtest');
-  await page.click('[data-act="mygame"]'); await page.waitForSelector('#sgtmg'); await page.click('#sgtopen'); await page.waitForSelector('#sgtintro'); await page.click('#sgtintroskip'); await page.waitForSelector('#sgtest'); // v172: the intro runs every time
-  await page.click('[data-act="sgtcond"][data-v="green:fast"]'); await page.click('#sgtstart'); await page.waitForSelector('#sgtrun'); await shot('03-lag-setup', true);
+  // v174: opening goes to the tests page; the intro runs when a test is STARTED (a refresher – no skip, Back returns to Tests)
+  await page.click('#sgtopen'); await page.waitForSelector('#sgtest'); assert.ok(!(await page.$('#sgtintro'))); await shot('02-hub', true);
+  await page.click('#sgtintroopen'); await page.waitForSelector('#sgtintro'); assert.ok(await page.$('#sgtintroskip'), 'the link keeps Skip intro'); await page.click('#sgtintroskip'); await page.waitForSelector('#sgtest');
+  await page.click('[data-act="sgtcond"][data-v="green:fast"]'); await page.click('#sgtstart'); await page.waitForSelector('#sgtintro'); await shot('01b-intro');
+  assert.strictEqual(await page.$$eval('#sgtintro .sgtislide', e => e.length), 5); assert.ok(!(await page.$('#sgtintroskip')), 'no skip when starting'); assert.ok(await page.$('#sgtintroback'));
+  await page.click('#sgtintroback'); await page.waitForSelector('#sgtest'); assert.strictEqual(await page.evaluate(() => JSON.parse(localStorage.getItem('golfsg.sgtests.v1') || '[]').length), process.env.EMPTY ? 0 : 3, 'Back starts no test');
+  await page.click('#sgtstart'); await page.waitForSelector('#sgtintro');
+  for (let k = 0; k < 4; k++) { await page.click('#sgtintronext'); await page.waitForTimeout(600); if (k === 1) { assert.match(await page.textContent('#sgtintro .sgtislide[data-n="2"]'), /Ten balls,\s*one number/); await shot('01c-intro-updown'); } }
+  assert.strictEqual(await page.textContent('#sgtintronext'), 'Start the test');
+  await page.click('#sgtintronext'); await page.waitForSelector('#sgtrun'); await shot('03-lag-setup', true);
   const type = async (v) => { await page.fill('#sgtft', String(v)); };
   // lag
   // v168: three balls from each spot scored together (30, 40, 50 ft)
@@ -66,11 +68,17 @@ function make(id, date, q) { const t = T.blank(id, date, 'Scott', 'scm');
   for (let i = 0; i < 5; i++) { await type([8, 12, 6, 10, 9][i]); await page.click('[data-act="sgtsave"][data-v=""]'); } await page.click('#sgtnext');
   for (let i = 0; i < 5; i++) { if (i === 1) await shot('10-bunker-entry', true); if (i < 3) await page.click('[data-act="sgtsave"][data-v="over"]'); else { await type(15); await page.click('[data-act="sgtsave"][data-v=""]'); } }
   await page.click('#sgtnext');
+  // v174: up and down – one count of 10
+  assert.strictEqual(await page.textContent('#sgtwhat'), 'How many did you get up and down?');
+  for (let k = 0; k < 12; k++) await page.click('[data-act="sgtlad"][data-v="1"]'); assert.strictEqual(await page.textContent('#sgtladn'), '10', 'tops out at 10');
+  for (let k = 0; k < 6; k++) await page.click('[data-act="sgtlad"][data-v="-1"]'); await shot('10b-updown-entry', true); await page.click('#sgtladsave');
+  await page.waitForSelector('#sgtdonecard'); assert.match(await page.textContent('#sgtdonecard'), /Up and down 4 of 10 \(40%\) · each missed green costs about 0\.6 strokes/); await page.click('#sgtnext');
   // wedges
   const W = T.STATION.wedge.shots;
   for (let i = 0; i < 15; i++) { await type(Math.round(W[i].dist * (W[i].dist === 60 ? 0.42 : 0.2))); if (i === 2) await shot('11-wedge-entry', true); await page.click('[data-act="sgtsave"][data-v="dir:' + ['short', 'shortleft', 'short', 'left', 'long'][i % 5] + '"]'); }
   await page.waitForSelector('#sgtfinish'); await page.click('#sgtfinish'); await page.waitForSelector('#sgtresult');
   await shot('12-result', true);
+  const ud = await page.textContent('#sgtud'); assert.match(ud, /40%/); assert.match(ud, /about 0\.6 strokes/); await page.locator('#sgtud').scrollIntoViewIfNeeded(); await shot('12u-updown-result');
   await page.click('[data-act="sgtrow"][data-v="lag"]'); await page.locator('.sgtbig').scrollIntoViewIfNeeded(); await shot('13-row-open');
   const head = await page.textContent('#sgthead'); assert.match(head, /slipping\.$/, head);
   assert.match(await page.evaluate(() => document.querySelector('#sgtcoach').innerText), /3 of 10 bunker shots flew the green/);

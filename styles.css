@@ -2548,3 +2548,13 @@ html body .bmwrap .stnote.bmnote { font-size: 12.5px; line-height: 1.35; color: 
 .sgtwarn span { display: block; color: #3a2420; font-size: 13px; line-height: 1.35; margin-top: 2px; }
 /* v170 (Scott): delete a test from its result page */
 .sgtpage .sgtdelres { display: block; margin: 18px auto 4px; color: #b0473f !important; font-weight: 600; }
+/* v174 (Scott): up and down – one count of 10, its % and what a missed green costs */
+.sgtstep .sgtof { align-self: center; font-size: 15px; color: var(--muted, #5c6b63); margin: 0 6px 0 -4px; }
+.sgtud { margin: 6px 0 10px; padding: 12px 14px; border-radius: 14px; background: rgba(255,255,255,.55); border: 1px solid rgba(20,60,40,.12); }
+.sgtud.bad { background: #ffe9e4; border-color: #c0442f; }
+.sgtudh { display: flex; align-items: center; gap: 12px; }
+.sgtudh > b { font-size: 34px; line-height: 1; color: #1f6b3a; font-weight: 700; }
+.sgtud.bad .sgtudh > b { color: #b0473f; }
+.sgtudh span { font-size: 15px; font-weight: 600; color: #1d2a24; display: flex; flex-direction: column; }
+.sgtudh small { font-size: 12px; font-weight: 500; color: #5c6b63; }
+.sgtud p { margin: 8px 0 0; font-size: 14px; line-height: 1.4; color: #2b3a33; }

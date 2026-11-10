@@ -59,7 +59,7 @@
       if (names.length > 1) h += '<div class="hchips" id="sgtchips" role="group" aria-label="Player">' + names.map(function (nm) { var on = nm === who; return '<button class="frostchip' + (on ? ' sel' : '') + '" data-act="sgtplayer" data-v="' + esc(nm) + '" aria-pressed="' + on + '">' + esc(nm) + '</button>'; }).join('') + '</div>';
       h += '<div class="sgtcard frost" id="sgtstartcard">';
       if (open) { var n = T.entered(open), nx = T.nextOpen(open);
-        h += '<h2>Test in progress</h2><p>Started ' + esc(dShort(open.date)) + ' · ' + n + ' of ' + T.TOTAL + ' shots entered' + (nx ? ' · next: ' + esc(T.STATIONS[nx.st].name.toLowerCase()) : '') + '.</p>' +
+        h += '<h2>Test in progress</h2><p>Started ' + esc(dShort(open.date)) + ' · ' + n + ' of ' + T.totalOf(open) + ' shots entered' + (nx ? ' · next: ' + esc(T.STATIONS[nx.st].name.toLowerCase()) : '') + '.</p>' +
           '<button class="primary big" data-act="sgtresume" data-v="' + esc(open.id) + '" id="sgtresume">Carry on</button><button class="txt sgtlink" data-act="sgtdel" data-v="' + esc(open.id) + '">Discard this test</button>';
       } else {
         var last = done[0], age = last ? daysSince(last.date) : null;
@@ -76,7 +76,7 @@
           T.spiderSVG(overallSpokes(A), { aria: 'Short game shape, latest test' }) + T.spiderKey(A.cmp.cats.putting.avgIndex != null, A.blName) +
           '<button class="frostbtn big" data-act="sgtview" data-v="' + esc(done[0].id) + '" id="sgtseelatest">See the full result</button></div>';
         h += '<div class="sgtcard frost" id="sgthist"><p class="sgteyebrow">All tests</p>' + done.map(function (t) { var c = [t.cond.green ? t.cond.green + ' greens' : '', t.cond.wind].filter(Boolean).join(', '), n = T.entered(t);
-          return '<div class="sgthrow"><button class="sgthopen" data-act="sgtview" data-v="' + esc(t.id) + '"><b>' + esc(dLong(t.date)) + '</b><span>' + esc((n < T.TOTAL ? n + ' of ' + T.TOTAL + ' shots' : 'Complete') + (c ? ' · ' + c : '')) + '</span></button><button class="sgtx" data-act="sgtdel" data-v="' + esc(t.id) + '" aria-label="Delete the test of ' + esc(dLong(t.date)) + '">×</button></div>'; }).join('') + '</div>';
+          return '<div class="sgthrow"><button class="sgthopen" data-act="sgtview" data-v="' + esc(t.id) + '"><b>' + esc(dLong(t.date)) + '</b><span>' + esc((n < T.totalOf(t) ? n + ' of ' + T.totalOf(t) + ' shots' : 'Complete') + (c ? ' · ' + c : '')) + '</span></button><button class="sgtx" data-act="sgtdel" data-v="' + esc(t.id) + '" aria-label="Delete the test of ' + esc(dLong(t.date)) + '">×</button></div>'; }).join('') + '</div>';
       }
       return h + '</div>';
     }
@@ -85,6 +85,7 @@
     function entryText(st, e) {
       if (!e) return '';
       if (st.kind === 'ladder') return e.n + ' ball' + (e.n === 1 ? '' : 's');
+      if (st.kind === 'updown') return e.n + ' of ' + T.UD_BALLS;
       if (st.kind === 'compass') return e.made ? 'made' : 'missed' + (e.miss ? ' ' + e.miss : '');
       if (e.res) return e.res === 'sand' ? 'in sand' : e.res === 'short' ? 'short' : 'over';
       return (e.ft === 0 ? 'holed' : r1(e.ft).replace(/\.0$/, '') + ' ft') + (e.dir ? ' ' + (st.kind === 'lag' ? (e.dir === 'long' ? 'long' : 'short') : DIRN[e.dir]) : (st.kind === 'lag' && e.ft > 0 ? ' away' : ''));
@@ -93,6 +94,7 @@
       var sc = T.score(test, SG, blFor(test, who)), k = st.id === 'ladder' ? 'speed' : st.id, bits = [];
       if (st.id === 'compass') { bits.push('Straight putts ' + sc.skills.short.value + ' of ' + sc.skills.short.of); bits.push('breaking putts ' + sc.skills.brk.value + ' of ' + sc.skills.brk.of); }
       else if (st.id === 'ladder') bits.push('Average ' + r1(sc.skills.speed.value) + ' balls, best ' + sc.skills.speed.best);
+      else if (st.id === 'updown') { var u = sc.skills.updown; bits.push('Up and down ' + u.value + ' of ' + u.of + ' (' + Math.round(u.rate * 100) + '%)'); bits.push('each missed green costs about ' + r1(u.cost) + ' strokes'); }
       else { var s = sc.skills[k]; bits.push(s.value == null ? 'No ball finished on the green' : 'Average ' + r1(s.value) + ' ft away'); if (s.bench != null) bits.push(sc.baseline ? SG.baseline(sc.baseline).name + ' level is about ' + Math.round(s.bench) + ' ft' : '');
         if (st.id === 'flop' && sc.skills.flop.short) bits.push(sc.skills.flop.short + ' didn’t reach the green');
         if (st.kind === 'bunker') { var a = test.shots[st.id]; var sd = a.filter(function (e) { return e && e.res === 'sand'; }).length, ov = a.filter(function (e) { return e && e.res === 'over'; }).length; if (sd) bits.push(sd + ' stayed in the sand'); if (ov) bits.push(ov + ' flew the green'); } }
@@ -117,8 +119,8 @@
       } else {
         if (st.kind === 'lag') h += lagGroupHTML(st, a, i);
         else {
-        h += '<div class="sgtcard frost sgtentry" id="sgtentry"><p class="sgteyebrow">' + esc((st.kind === 'ladder' ? '' : st.kind === 'lag' || st.kind === 'compass' ? 'Putt ' : 'Shot ') + (st.kind === 'ladder' ? spec.label : (i + 1) + ' of ' + st.shots.length)) + '</p>' +
-          '<h2 class="sgtwhat" id="sgtwhat">' + esc(st.kind === 'ladder' ? spec.label + ' ladder · how many balls?' : st.kind === 'leave' || st.kind === 'bunker' ? st.name + ' · ' + st.dist + ' yd' : spec.label) + '</h2>';
+        h += '<div class="sgtcard frost sgtentry" id="sgtentry"><p class="sgteyebrow">' + esc(st.kind === 'updown' ? 'All 10 balls' : (st.kind === 'ladder' ? '' : st.kind === 'lag' || st.kind === 'compass' ? 'Putt ' : 'Shot ') + (st.kind === 'ladder' ? spec.label : (i + 1) + ' of ' + st.shots.length)) + '</p>' +
+          '<h2 class="sgtwhat" id="sgtwhat">' + esc(st.kind === 'updown' ? 'How many did you get up and down?' : st.kind === 'ladder' ? spec.label + ' ladder · how many balls?' : st.kind === 'leave' || st.kind === 'bunker' ? st.name + ' · ' + st.dist + ' yd' : spec.label) + '</h2>';
         var cur = a[i], ftBox = '<label class="sgtft"><input id="sgtft" type="text" inputmode="decimal" autocomplete="off" placeholder="0" value="' + (cur && cur.ft != null ? esc(String(cur.ft)) : '') + '" aria-label="Feet away"><span>ft away</span></label>';
         var btn = function (v, label, cls) { return '<button class="' + (cls || 'frostbtn') + '" data-act="sgtsave" data-v="' + v + '">' + esc(label) + '</button>'; };
         if (st.kind === 'lag') h += ftBox + '<p class="sgthint">Type the feet away, then tap where it finished.</p><div class="sgtbtns g3">' + btn('short', 'Short') + btn('level', 'Level') + btn('long', 'Long') + '</div><div class="sgtbtns">' + btn('holed', 'Holed it') + '</div>';
@@ -131,13 +133,14 @@
             // v168 (Scott): an 18-inch rule separates speed misses from direction misses – it matters for reading the results
             '<details class="sgtwhy" id="sgtlongwhy"><summary>Long, or a ' + (straight ? 'left / right' : 'high / low') + ' miss?</summary><p><b>Long</b> only if it finished more than 18 inches past the hole (about a putter grip). That is a speed miss: even on the right line it would likely have lipped out or rolled over the hole.</p>' +
             '<p>Within 18 inches the speed was fine and the line was off – tap the side it missed (' + (straight ? 'Left or Right' : 'High side or Low side') + '). Keeping these apart is what shows whether a putting leak is speed or aim.</p></details>'; }
-        else if (st.kind === 'ladder') { var n = s.lad != null ? s.lad : cur ? cur.n : 0;
-          h += '<div class="sgtstep"><button class="frostbtn" data-act="sgtlad" data-v="-1" aria-label="One fewer">−</button><b id="sgtladn">' + n + '</b><button class="frostbtn" data-act="sgtlad" data-v="1" aria-label="One more">+</button></div><div class="sgtbtns"><button class="primary" data-act="sgtladsave" id="sgtladsave">Save attempt</button></div>'; }
+        else if (st.kind === 'ladder' || st.kind === 'updown') { var n = s.lad != null ? s.lad : cur ? cur.n : 0, ud = st.kind === 'updown';
+          h += '<div class="sgtstep"><button class="frostbtn" data-act="sgtlad" data-v="-1" aria-label="One fewer">−</button><b id="sgtladn">' + n + '</b>' + (ud ? '<small class="sgtof">of ' + T.UD_BALLS + '</small>' : '') + '<button class="frostbtn" data-act="sgtlad" data-v="1" aria-label="One more">+</button></div>' +
+            (ud ? '<p class="sgthint">Up and down = in the hole in two shots or fewer. Chip-ins count.</p>' : '') + '<div class="sgtbtns"><button class="primary" data-act="sgtladsave" id="sgtladsave">' + (ud ? 'Save' : 'Save attempt') + '</button></div>'; }
         h += '</div>';
         }
       }
       h += '<div class="sgtchipsrow" id="sgtshots">' + st.shots.map(function (x, k) { var e = a[k];
-        return '<button class="sgtshot' + (k === i && !(done && !s.edit) ? ' cur' : '') + (e ? ' in' : '') + '" data-act="sgtshot" data-v="' + k + '"><span>' + esc(st.kind === 'ladder' ? x.label : st.kind === 'leave' || st.kind === 'bunker' ? '#' + (k + 1) : x.label.replace(' · ', ' ').replace('breaks ', '').replace('hill', '')) + '</span><b>' + esc(e ? entryText(st, e) : '–') + '</b></button>'; }).join('') + '</div>';
+        return '<button class="sgtshot' + (k === i && !(done && !s.edit) ? ' cur' : '') + (e ? ' in' : '') + '" data-act="sgtshot" data-v="' + k + '"><span>' + esc(st.kind === 'ladder' || st.kind === 'updown' ? x.label : st.kind === 'leave' || st.kind === 'bunker' ? '#' + (k + 1) : x.label.replace(' · ', ' ').replace('breaks ', '').replace('hill', '')) + '</span><b>' + esc(e ? entryText(st, e) : '–') + '</b></button>'; }).join('') + '</div>';
       h += '<div class="sgtfoot">' + (!done && !last ? '<button class="txt sgtlink" data-act="sgtskip">Skip this station</button>' : '') + (T.entered(test) ? '<button class="txt sgtlink" data-act="sgtfinish">Finish the test now</button>' : '') + '</div>';
       return h + '</div>';
     }
@@ -148,14 +151,22 @@
       if (s.value == null) return '<div class="sgtrow none"><span class="sgtrn">' + esc(sk.name) + '</span><span class="sgtrv"><small>not tested</small></span></div>';
       // dates line up with the series: only tests that have this skill
       var withSkill = A.prev.filter(function (t) { return T.score(t, SG, A.bl).skills[sk.k].value != null; }).slice(0, 11).reverse().map(function (t) { return dShort(t.date); }).concat([dShort(A.test.date)]);
-      var sub = c.usual != null ? (c.tests > 1 ? 'usually ' : 'last time ') + T.fmtNum(sk, c.usual) : s.bench != null ? blShort(A.bl) + ' ' + (sk.unit === 'ft' ? Math.round(s.bench) + ' ft' : r1(s.bench)) : sk.k === 'speed' ? 'best ' + s.best : '';
+      var sub = c.usual != null ? (c.tests > 1 ? 'usually ' : 'last time ') + T.fmtNum(sk, c.usual) : s.bench != null ? blShort(A.bl) + ' ' + (sk.k === 'updown' ? Math.round(s.benchRate * 100) + '%' : sk.unit === 'ft' ? Math.round(s.bench) + ' ft' : r1(s.bench)) : sk.k === 'speed' ? 'best ' + s.best : '';
       var tag = c.trend === 'slipping' ? 'Slipping' : c.trend === 'improving' ? 'Improving' : c.status === 'worse' ? 'Down' : c.status === 'better' ? 'Up' : '';
       var o = '<button class="sgtrow ' + toneOf(c) + (open ? ' open' : '') + '" data-act="sgtrow" data-v="' + sk.k + '" aria-expanded="' + !!open + '"><span class="sgtrn">' + esc(sk.name) + (tag ? '<em>' + tag + '</em>' : '') + '</span>' +
         T.sparkSVG(c.series, sk, { usual: c.usual, thr: c.thr, status: toneOf(c) === 'bad' ? 'worse' : toneOf(c) === 'good' ? 'better' : 'same' }) +
         '<span class="sgtrv"><b>' + esc(T.fmtVal(sk, s)) + '</b><small>' + esc(sub) + '</small></span></button>';
       if (open) o += '<div class="sgtbig">' + T.sparkSVG(c.series, sk, { big: true, usual: c.usual, thr: c.thr, status: toneOf(c) === 'bad' ? 'worse' : toneOf(c) === 'good' ? 'better' : 'same', dates: withSkill }) +
-        '<p>' + esc((sk.better === 'low' ? 'Feet away on average – higher on the graph is closer to the hole. ' : sk.unit === 'balls' ? 'Balls per ladder, average of three' + ((s.bySlope || []).some(function (x) { return x.n != null; }) ? ' (' + s.bySlope.map(function (x) { return x.name.toLowerCase() + ' ' + (x.n == null ? '–' : x.n); }).join(', ') + ')' : '') + '. ' : 'Putts made. ') + (c.usual != null ? 'The band is your usual range.' : 'A band for your usual range appears after the next test.') + (s.bench != null ? ' ' + A.blName + ' level: ' + (sk.unit === 'ft' ? 'about ' + Math.round(s.bench) + ' ft.' : 'about ' + r1(s.bench) + ' of ' + s.of + '.') : '')) + '</p></div>';
+        '<p>' + esc((sk.better === 'low' ? 'Feet away on average – higher on the graph is closer to the hole. ' : sk.k === 'updown' ? 'Ups and downs out of 10. ' : sk.unit === 'balls' ? 'Balls per ladder, average of three' + ((s.bySlope || []).some(function (x) { return x.n != null; }) ? ' (' + s.bySlope.map(function (x) { return x.name.toLowerCase() + ' ' + (x.n == null ? '–' : x.n); }).join(', ') + ')' : '') + '. ' : 'Putts made. ') + (c.usual != null ? 'The band is your usual range.' : 'A band for your usual range appears after the next test.') + (s.bench != null ? ' ' + A.blName + ' level: ' + (sk.unit === 'ft' ? 'about ' + Math.round(s.bench) + ' ft.' : sk.k === 'updown' ? 'about ' + Math.round(s.benchRate * 100) + '% up and down.' : 'about ' + r1(s.bench) + ' of ' + s.of + '.') : '')) + '</p></div>';
       return o;
+    }
+    // v174 (Scott): up and down % and what every missed green costs – 60% is 0.4 strokes a green, 20% is 0.8
+    function upDownHTML(A) {
+      var u = A.cur.skills.updown; if (u.value == null) return '';
+      var pct = Math.round(u.rate * 100), bp = Math.round(u.benchRate * 100), bad = u.rate < u.benchRate - 0.15;
+      return '<div class="sgtud' + (bad ? ' bad' : '') + '" id="sgtud"><div class="sgtudh"><b>' + pct + '%</b><span>up and down<small>' + u.value + ' of ' + u.of + ' · ' + esc(blShort(A.bl)) + ' about ' + bp + '%</small></span></div>' +
+        '<p>Every time you miss a green it costs you about <b>' + r1(u.cost) + ' strokes</b>' + (u.rate < 1 ? ' – at ' + pct + '% up and down, ' + (100 - pct) + ' in 100 missed greens turn into a dropped shot.' : '.') +
+        (pct < 80 ? ' At ' + (pct + 20) + '% it would be ' + r1(Math.max(0, u.cost - 0.2)) + '.' : '') + '</p></div>';
     }
     function wedgeHTML(A) {
       var W = A.cur.extra.wedge, max = Math.max.apply(null, W.byDist.map(function (d) { return Math.max(d.ft || 0, d.bench); }).concat([10]));
@@ -170,7 +181,7 @@
       var A = analysed(test, s.who), I = A.I, n = T.entered(test), cond = [test.cond.green ? test.cond.green + ' greens' : '', test.cond.wind].filter(Boolean).join(', ');
       var h = '<div class="frostpage theme-sky sgtpage sgtres" id="sgtresult">' + top('<button class="txt frostbtn" data-act="sgthub" id="sgthubbtn">‹ Tests</button>', 'Test result', dLong(test.date));
       h += '<div class="sgtcard frost" id="sgtverdict"><h2 id="sgthead">' + esc(I.headline) + '</h2><p id="sgtsub">' + esc(I.sub) + '</p>' +
-        '<p class="sgtnote">' + esc(s.who ? s.who + ' · ' : '') + esc('compared with ' + A.blName) + (cond ? ' · ' + esc(cond) : '') + (n < T.TOTAL ? ' · ' + n + ' of ' + T.TOTAL + ' shots entered' : '') + '</p>' +
+        '<p class="sgtnote">' + esc(s.who ? s.who + ' · ' : '') + esc('compared with ' + A.blName) + (cond ? ' · ' + esc(cond) : '') + (n < T.totalOf(test) ? ' · ' + n + ' of ' + T.totalOf(test) + ' shots entered' : '') + '</p>' +
         T.spiderSVG(overallSpokes(A), { aria: 'Short game shape' }) + T.spiderKey(A.cmp.cats.putting.avgIndex != null, A.blName) +
         '<p class="sgtnote">Each spoke is strokes gained per shot against ' + esc(A.blName) + ': on the line is level, inside it is losing strokes.' + (A.cmp.tests < 2 ? ' Your average appears as a dashed shape from your third test.' : '') + '</p></div>';
       if (I.plan.length) h += '<div class="sgtcard sgtplan" id="sgtplan"><p class="sgteyebrow">Practice this month</p>' + I.plan.map(function (p, k) { return '<div><b>' + (k + 1) + '. ' + esc(p.title) + '</b><em>' + esc(p.why) + '</em><span>' + esc(p.drill) + '</span></div>'; }).join('') + '</div>';
@@ -190,11 +201,12 @@
             : w.bench == null ? '' : (w.unit === 'made' ? bn + ' players make about ' + w.bench : 'Level with ' + bn + ': about ' + ftS(w.bench)) + ' · no usual of your own yet';
           return '<div data-k="' + esc(w.k) + '" data-vs="' + w.vs + '"><b>' + esc(w.title) + '</b>' + (cmpTxt ? '<small>' + esc(cmpTxt) + '</small>' : '') + (w.why ? '<span>' + esc(w.why) + '</span>' : '') + '</div>'; }).join('') + '</div>';
         if (c.k === 'putting' && any) { var X = A.cur.extra; h += '<p class="sgtnote">By distance: ' + esc(X.byDist.filter(function (d) { return d.n; }).map(function (d) { return d.dist + ' ft ' + d.made + '/' + d.n; }).join(' · ')) + '</p>'; }
+        if (c.k === 'chipping') h += upDownHTML(A);
         if (c.k === 'bunker' && any) { var B = A.cur.extra.bunker; h += '<p class="sgtnote' + (B.over >= 2 ? ' bad' : '') + '" id="sgtover">' + B.over + ' of ' + B.n + ' flew the green · ' + B.sand + ' stayed in the sand</p>'; }
         h += '<div class="sgtrows">' + skills.map(function (sk) { return rowHTML(A, sk, s.open === sk.k); }).join('') + '</div></div>';
       });
       h += '<p class="sgtnote sgtfootnote">Tap a skill to see every test. A skill is marked Down when it is worse than your usual by more than its normal wobble, and Slipping when it has dropped two tests in a row.</p>';
-      if (!test.done || n < T.TOTAL) h += '<button class="frostbtn big" data-act="sgtresume" data-v="' + esc(test.id) + '">Add the missing shots</button>';
+      if (!test.done || n < T.totalOf(test)) h += '<button class="frostbtn big" data-act="sgtresume" data-v="' + esc(test.id) + '">Add the missing shots</button>';
       // v170 (Scott): a plain way to delete a test from its result page (the × on All tests was easy to miss)
       h += '<button class="txt sgtlink sgtdelres" data-act="sgtdel" data-v="' + esc(test.id) + '" id="sgtdelres">Delete this test</button>';
       return h + '</div>';
@@ -203,39 +215,45 @@
     // ---------- v168 (Scott): an intro to swipe through the first time – styled like the Instagram one-pager ----------
     var INTRO_K = 'golfsg.sgtintro.v1';
     function introDone() { try { localStorage.setItem(INTRO_K, '1'); } catch (e) {} }
+    var INTRO_N = 5; // slides
     function introHTML() {
       var SK = {}; T.SKILLS.forEach(function (x) { SK[x.k] = x; });
       var spider = T.spiderSVG([{ name: 'Putting', index: 96, avg: 88, sub: '+0.04 a shot' }, { name: 'Chipping', index: 108, avg: 101, sub: '+0.11 a shot' }, { name: 'Bunker', index: 72, avg: 86, sub: '−0.21 a shot', tone: 'bad' }, { name: 'Wedges', index: 99, avg: 97, sub: '0.00 a shot' }], { R: 92, aria: 'Example: short game shape' });
       var spark = T.sparkSVG([5.8, 5.1, 4.6, 4.9, 5.6, 6.4], SK.lag, { big: true, usual: 5.1, thr: 0.75, status: 'worse', dates: ['Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov'] });
-      var stn = [['Putting', 'Lag putts from 30, 40 and 50 ft · a speed ladder flat, uphill and downhill · short and breaking putts'], ['Chipping', 'Short, long, a flop over a bunker, and from the rough'], ['Bunker', 'Short and long greenside bunker shots'], ['Wedges', '30 to 100 yd, three balls each']];
+      var stn = [['Putting', 'Lag putts from 30, 40 and 50 ft · a speed ladder flat, uphill and downhill · short and breaking putts'], ['Chipping', 'Short, long, a flop over a bunker, from the rough – and 10 up and downs'], ['Bunker', 'Short and long greenside bunker shots'], ['Wedges', '30 to 100 yd, three balls each']];
       var slide = function (n, eyebrow, title, body) { return '<section class="sgtislide" data-n="' + n + '" aria-label="' + esc(title) + '"><p class="sgtieye">' + esc(eyebrow) + '</p><h2>' + title + '</h2>' + body + '</section>'; };
       var o = '<div class="sgtintro" id="sgtintro" role="dialog" aria-label="About the short game test"><div class="sgtibg" aria-hidden="true"></div>' +
-        '<div class="sgtitop"><span class="sgtibrand"><i aria-hidden="true"></i>STROKEWISE</span><button class="sgtiskip" data-act="sgtintroskip" id="sgtintroskip">Skip intro</button></div>' +
+        '<div class="sgtitop"><span class="sgtibrand"><i aria-hidden="true"></i>STROKEWISE</span>' + (S().introThen === 'start' ? '<button class="sgtiskip" data-act="sgtintroback" id="sgtintroback">‹ Back</button>' : '<button class="sgtiskip" data-act="sgtintroskip" id="sgtintroskip">Skip intro</button>') + '</div>' +
         '<div class="sgtislides" id="sgtislides">' +
         slide(0, 'Short game test', 'Your monthly<br>check-up', '<p class="sgtibig">An hour around one practice green. It finds the gaps you don’t notice on the course – before they show up on the scorecard.</p>' +
           '<div class="sgtipanel"><p class="sgtilbl">Why every month</p><p>Touch fades quietly. A test each month catches a slip while it’s small and shows whether practice is working.</p></div>' +
-          '<div class="sgtipanel"><p class="sgtilbl">And it’s practice</p><p>73 shots, each one with a target and a score – a great session on its own.</p></div>') +
-        slide(1, 'How it works', '10 stations,<br>73 shots', '<div class="sgtipanel sgtisteps">' + stn.map(function (x) { return '<div><b>' + esc(x[0]) + '</b><span>' + esc(x[1]) + '</span></div>'; }).join('') + '</div>' +
+          '<div class="sgtipanel"><p class="sgtilbl">And it’s practice</p><p>' + T.TOTAL + ' shots, each one with a target and a score – a great session on its own.</p></div>') +
+        slide(1, 'How it works', T.STATIONS.length + ' stations,<br>' + T.TOTAL + ' shots', '<div class="sgtipanel sgtisteps">' + stn.map(function (x) { return '<div><b>' + esc(x[0]) + '</b><span>' + esc(x[1]) + '</span></div>'; }).join('') + '</div>' +
           '<div class="sgtipanel"><p class="sgtilbl">As you go</p><p>Each station shows how to set it up. Enter each shot with a tap or two – feet away, short or long, made or missed.</p></div>') +
-        slide(2, 'What you get', 'Your short game,<br>at a glance', '<div class="sgtipanel sgtichart"><p class="sgtilbl">Shape vs your benchmark</p>' + spider + '</div>' +
+        // v174 (Scott): the up and down station – and why it matters
+        slide(2, 'Up and down', 'Ten balls,<br>one number', '<p class="sgtibig">Scatter 10 balls around the green – different distances, different lies: fringe, rough, a tight lie, a bunker, short-sided. Play each one until it’s in.</p>' +
+          '<div class="sgtipanel"><p class="sgtilbl">Just count</p><p>No shot-by-shot entry. Tap how many you got up and down – in the hole in two shots or fewer – like 6 of 10.</p></div>' +
+          '<div class="sgtipanel"><p class="sgtilbl">Why it matters</p><p>Every missed green costs you strokes. Up and down 60% of the time, each one costs about <b>0.4</b>. At 20% it’s <b>0.8</b>. Miss 8 greens and that gap is over 3 shots a round.</p></div>') +
+        slide(3, 'What you get', 'Your short game,<br>at a glance', '<div class="sgtipanel sgtichart"><p class="sgtilbl">Shape vs your benchmark</p>' + spider + '</div>' +
           '<div class="sgtipanel sgtichart"><p class="sgtilbl">Every skill over time · lag putts, feet away</p>' + spark + '</div>') +
-        slide(3, 'What it tells you', 'The leaks,<br>in plain words', '<div class="sgtipanel sgtiread"><p class="sgtitag bad">Slipping</p><p><b>Lag putts</b> – worse two tests in a row. 5 of 6 misses finished short.</p></div>' +
+        slide(4, 'What it tells you', 'The leaks,<br>in plain words', '<div class="sgtipanel sgtiread"><p class="sgtitag bad">Slipping</p><p><b>Lag putts</b> – worse two tests in a row. 5 of 6 misses finished short.</p></div>' +
           '<div class="sgtipanel sgtiread"><p class="sgtitag bad">Below your benchmark</p><p><b>Bunker</b> – long bunker shots finish 24 ft away; the benchmark is 15.</p></div>' +
           '<div class="sgtipanel sgtiread"><p class="sgtitag good">Working</p><p><b>Chipping</b> is up on last month. Keep the drill going.</p></div>' +
           '<p class="sgtibig sm">Each one comes with a drill to practise and a note for your coach.</p>') +
-        '</div><div class="sgtifoot"><div class="sgtidots" id="sgtidots" aria-hidden="true">' + [0, 1, 2, 3].map(function (k) { return '<i' + (k === 0 ? ' class="on"' : '') + '></i>'; }).join('') + '</div>' +
+        '</div><div class="sgtifoot"><div class="sgtidots" id="sgtidots" aria-hidden="true">' + [0, 1, 2, 3, 4].map(function (k) { return '<i' + (k === 0 ? ' class="on"' : '') + '></i>'; }).join('') + '</div>' +
         '<button class="sgtinext" data-act="sgtintronext" id="sgtintronext">Next ›</button></div></div>';
       return o;
     }
     function introAt() { var el = document.getElementById('sgtislides'); return el ? Math.round(el.scrollLeft / Math.max(1, el.clientWidth)) : 0; }
     function introSync() { var k = introAt(), d = document.querySelectorAll('#sgtidots i'), nb = document.getElementById('sgtintronext');
-      [].forEach.call(d, function (x, j) { x.className = j === k ? 'on' : ''; }); if (nb) nb.textContent = k >= 3 ? 'Start' : 'Next ›'; }
+      [].forEach.call(d, function (x, j) { x.className = j === k ? 'on' : ''; }); if (nb) nb.textContent = k >= INTRO_N - 1 ? (S().introThen === 'start' ? 'Start the test' : 'Done') : 'Next ›'; }
     document.addEventListener('scroll', function (ev) { if (ev.target && ev.target.id === 'sgtislides') introSync(); }, true);
+    function startTest(s) { var t = T.blank('sgt' + Date.now().toString(36), new Date().toISOString(), s.who, env.baselineOf(s.who)); t.cond = { green: (s.cond || {}).green || '', wind: (s.cond || {}).wind || '' }; put(t); goto(t, 0, 0); env.render(); window.scrollTo(0, 0); }
     function html() { var s = S(); return s.mode === 'intro' ? introHTML() : s.mode === 'run' ? runHTML() : s.mode === 'result' ? resultHTML() : hubHTML(); }
     // My Game: a small card that opens the test
     function cardHTML(who) {
       var list = mine(who), open = list.filter(function (t) { return !t.done; })[0], last = list.filter(function (t) { return t.done; })[0], age = last ? daysSince(last.date) : null;
-      var line = open ? 'Test in progress: ' + T.entered(open) + ' of ' + T.TOTAL + ' shots.' : last ? 'Last test ' + dShort(last.date) + '. ' + (age >= 30 ? 'The next one is due.' : 'Next one due in ' + (30 - age) + ' day' + (30 - age === 1 ? '' : 's') + '.') : 'A one-hour monthly check-up of putting, chipping, bunker and wedges.';
+      var line = open ? 'Test in progress: ' + T.entered(open) + ' of ' + T.totalOf(open) + ' shots.' : last ? 'Last test ' + dShort(last.date) + '. ' + (age >= 30 ? 'The next one is due.' : 'Next one due in ' + (30 - age) + ' day' + (30 - age === 1 ? '' : 's') + '.') : 'A one-hour monthly check-up of putting, chipping, bunker and wedges.';
       var o = '<div class="sgtcard frost sgtmg" id="sgtmg"><div class="sgtcath"><h2>Short game test</h2>' + (last && !open && age >= 30 ? '<span class="due">Due</span>' : '') + '</div>';
       if (last) { var A = analysed(last, who); o += '<p><b>' + esc(A.I.headline) + '</b></p>'; }
       return o + '<p>' + esc(line) + '</p><button class="frostbtn big" data-act="sgtopen" id="sgtopen">' + (open ? 'Carry on with the test' : last ? 'Open' : 'Take the test') + '</button></div>';
@@ -266,15 +284,17 @@
     function feet() { var f = document.getElementById('sgtft'), raw = f ? String(f.value).trim().replace(',', '.') : ''; return raw === '' || !/^\d+(\.\d+)?$/.test(raw) ? null : Number(raw); }
     function act(a, v, b) {
       var s = S(), test = s.id ? byId(s.id) : null;
-      if (a === 'sgtintroskip') { introDone(); s.mode = 'hub'; env.render(); window.scrollTo(0, 0); return; }
-      if (a === 'sgtintronext') { var sl = document.getElementById('sgtislides'), k0 = introAt(); if (k0 >= 3 || !sl) { introDone(); s.mode = 'hub'; env.render(); window.scrollTo(0, 0); return; }
+      if (a === 'sgtintroskip' || a === 'sgtintroback') { introDone(); s.introThen = null; s.mode = 'hub'; env.render(); window.scrollTo(0, 0); return; }
+      if (a === 'sgtintronext') { var sl = document.getElementById('sgtislides'), k0 = introAt();
+        if (k0 >= INTRO_N - 1 || !sl) { introDone(); if (s.introThen === 'start') { s.introThen = null; startTest(s); return; } s.mode = 'hub'; env.render(); window.scrollTo(0, 0); return; }
         try { sl.scrollTo({ left: (k0 + 1) * sl.clientWidth, behavior: 'smooth' }); } catch (e) { sl.scrollLeft = (k0 + 1) * sl.clientWidth; } setTimeout(introSync, 400); return; }
-      if (a === 'sgtintro') { s.mode = 'intro'; env.render(); window.scrollTo(0, 0); return; }
-      if (a === 'sgtopen') { view.hmenu = null; view.screen = 'sgtest'; s.mode = 'intro'; /* v172 (Scott): the intro runs every time the test is opened – Skip intro goes straight to the page */ if (view.mgPlayer) s.who = view.mgPlayer; env.render(); window.scrollTo(0, 0); return; }
+      if (a === 'sgtintro') { s.mode = 'intro'; s.introThen = null; env.render(); window.scrollTo(0, 0); return; }
+      if (a === 'sgtopen') { view.hmenu = null; view.screen = 'sgtest'; s.mode = 'hub'; s.introThen = null; /* v174: the intro now runs when a test is started (sgtstart), not on opening */ if (view.mgPlayer) s.who = view.mgPlayer; env.render(); window.scrollTo(0, 0); return; }
       if (a === 'sgthub') { s.mode = 'hub'; s.open = null; env.render(); window.scrollTo(0, 0); return; }
       if (a === 'sgtplayer') { s.who = v; env.render(); return; }
       if (a === 'sgtcond') { var p = v.split(':'); s.cond = s.cond || {}; s.cond[p[0]] = s.cond[p[0]] === p[1] ? '' : p[1]; env.render(); return; }
-      if (a === 'sgtstart') { var t = T.blank('sgt' + Date.now().toString(36), new Date().toISOString(), s.who, env.baselineOf(s.who)); t.cond = { green: (s.cond || {}).green || '', wind: (s.cond || {}).wind || '' }; put(t); goto(t, 0, 0); env.render(); window.scrollTo(0, 0); return; }
+      // v174 (Scott): a month is a long time between tests – starting one always runs the intro first as a refresher (no skip; Back returns to Tests)
+      if (a === 'sgtstart') { s.introThen = 'start'; s.mode = 'intro'; env.render(); window.scrollTo(0, 0); return; }
       if (a === 'sgtresume') { var t2 = byId(v); if (!t2) return; if (t2.done) { t2.done = false; put(t2); } var nx = T.nextOpen(t2) || { st: 0, i: 0 }; goto(t2, nx.st, nx.i); env.render(); window.scrollTo(0, 0); focus(); return; }
       if (a === 'sgtview') { s.mode = 'result'; s.id = v; s.open = null; env.render(); window.scrollTo(0, 0); return; }
       if (a === 'sgtdel') { var t3 = byId(v); if (!t3 || !window.confirm(t3.done ? 'Delete the test of ' + dLong(t3.date) + '? This cannot be undone.' : 'Discard this unfinished test?')) return; env.saveTests(env.tests().filter(function (x) { return x.id !== v; })); env.toast('Test deleted'); s.mode = 'hub'; env.render(); return; }
@@ -287,10 +307,10 @@
       if (a === 'sgtnext' || a === 'sgtskip') { var from = s.st, nx2 = null; for (var k = from + 1; k < T.STATIONS.length; k++) if (!T.stationDone(test, T.STATIONS[k])) { nx2 = k; break; }
         if (nx2 == null) { var o = T.nextOpen(test); nx2 = o && o.st !== from ? o.st : null; }
         if (nx2 == null) { finish(test); return; } goto(test, nx2, Math.max(0, test.shots[T.STATIONS[nx2].id].indexOf(null))); env.render(); window.scrollTo(0, 0); focus(); return; }
-      if (a === 'sgtfinish') { if (T.entered(test) < T.TOTAL && !window.confirm('Finish with ' + T.entered(test) + ' of ' + T.TOTAL + ' shots entered? Skills with no shots are left out. You can add the rest later.')) return; finish(test); return; }
+      if (a === 'sgtfinish') { if (T.entered(test) < T.totalOf(test) && !window.confirm('Finish with ' + T.entered(test) + ' of ' + T.totalOf(test) + ' shots entered? Skills with no shots are left out. You can add the rest later.')) return; finish(test); return; }
       if (a === 'sgtmade') { store({ made: true }); return; }
       if (a === 'sgtmiss') { store({ made: false, miss: v }); return; }
-      if (a === 'sgtlad') { var cur = test.shots[st.id][s.i]; s.lad = Math.max(0, Math.min(40, (s.lad != null ? s.lad : cur ? cur.n : 0) + (+v))); var el = document.getElementById('sgtladn'); if (el) el.textContent = s.lad; return; }
+      if (a === 'sgtlad') { var cur = test.shots[st.id][s.i]; s.lad = Math.max(0, Math.min(st.kind === 'updown' ? T.UD_BALLS : 40, (s.lad != null ? s.lad : cur ? cur.n : 0) + (+v))); var el = document.getElementById('sgtladn'); if (el) el.textContent = s.lad; return; }
       if (a === 'sgtlagdir') { var q = v.split(':'), bi = +q[0]; s.lg = s.lg || { g: Math.floor(s.i / 3), dir: ['', '', ''] }; s.lg.dir[bi] = q[1];
         if (q[1] === 'holed') { var fi = document.getElementById('sgtft' + bi); if (fi) fi.value = '0'; }
         [].forEach.call(document.querySelectorAll('[data-act="sgtlagdir"]'), function (x) { var p2 = x.getAttribute('data-v').split(':'); if (+p2[0] === bi) { var on = p2[1] === q[1]; x.classList.toggle('sel', on); x.setAttribute('aria-pressed', on); } }); return; }

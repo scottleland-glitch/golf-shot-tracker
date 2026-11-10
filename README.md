@@ -25,6 +25,16 @@ Every Shot Counts Table 3.10). The other five are ESTIMATED: per-round gaps from
 Player Quality ladder, then spread over the PGA table. Full sources, method and caveats: in-app
 "About the numbers" and the BASELINES comment in `sg.js`.
 
+## Up and down station; intro on Start (v174)
+- **Up and down:** station 10 of 11 (after the bunkers). Scatter 10 balls 5–30 yd around the green on mixed lies, play
+  each out, enter one count (0–10). It counts as 10 shots (the test is now 83). Older tests (`ud` false) don't include it.
+- **Result:** on the Chipping card – the % with the benchmark ("PGA Tour about 59%") and "Every time you miss a green it
+  costs you about 0.4 strokes" (1 − the rate). Also a Chipping spoke, a row with its history, and a way-off check.
+  The benchmark is worked out from the strokes tables over a spread of 10 spots: up and down ≈ 3 − expected strokes
+  (PGA Tour 59%, D1 men 56%, LPGA 51%, D1 women 50%, scratch 48–50%).
+- **Intro:** a fifth slide, "Ten balls, one number". Tapping Start the test always runs the intro first as a refresher
+  (no Skip; Back returns to Tests; the last button is Start the test). Opening the test goes straight to Tests.
+
 ## Round takeaway: what a great round beat (v173)
 - "Better than the PGA Tour average everywhere" showed when only some areas were measured against the benchmark and the
   rest against the golfer's own normal (still negative strokes gained). The takeaway now says which areas beat your

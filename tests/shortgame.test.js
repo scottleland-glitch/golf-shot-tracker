@@ -17,9 +17,9 @@ function make(id, date, q) {
 }
 const sc = (t) => T.score(t, SG, 'pga');
 
-test('the test is 10 stations: 9 lag putts, 3 ladder attempts, 16 short putts, 20 chips, 10 bunker shots, 15 wedges', () => {
-  assert.deepStrictEqual(T.STATIONS.map((s) => s.shots.length), [9, 3, 16, 5, 5, 5, 5, 5, 5, 15]);
-  assert.equal(T.TOTAL, 73);
+test('the test is 11 stations: 9 lag putts, 3 ladder attempts, 16 short putts, 20 chips, 10 bunker shots, 10 up and downs, 15 wedges', () => {
+  assert.deepStrictEqual(T.STATIONS.map((s) => s.shots.length), [9, 3, 16, 5, 5, 5, 5, 5, 5, 1, 15]);
+  assert.equal(T.TOTAL, 83, 'the up and down entry is 10 balls');
   const c = T.STATION.compass.shots; assert.equal(c.filter((s) => s.line === 'up').length, 4); assert.deepStrictEqual([...new Set(c.map((s) => s.dist))], [3, 5, 7, 9]);
 });
 test('entries are checked: bad ones are dropped, a new test resumes at the first open shot', () => {
@@ -145,4 +145,19 @@ test('v170: tests saved by v168 (v: 2, no sl) keep their uphill / downhill ladde
   assert.equal(v({ v: 2, sl: false, date: '2026-10-10T06:30:00Z' }), null, 'pre-v168 re-saved by v169');
   assert.equal(T.validTests([{ id: 'y', date: '2026-11-10T06:30:00Z', v: 2, shots: {} }])[0].v, 3);
   assert.equal(v({ v: 3, sl: false, date: '2026-11-11T06:30:00Z' }), null, 'v: 3 says for sure');
+});
+
+test('v174: up and down – one count of 10, its rate against the benchmark, what a missed green costs', () => {
+  const SG = require('../sg.js');
+  assert.ok(Math.abs(T.udBench(SG, 'pga') - 0.59) < 0.03, 'PGA Tour about 59% (tour scrambling is about 58–60%)');
+  assert.deepStrictEqual(T.validEntry(T.STATION.updown, { n: 6 }), { n: 6 }); assert.equal(T.validEntry(T.STATION.updown, { n: 11 }), null);
+  const t = T.blank('u', '2026-12-01T10:00:00Z', 'Q', 'd1w'); assert.equal(t.ud, true); assert.equal(T.totalOf(t), 83);
+  t.shots.updown = [{ n: 6 }]; const v = T.validTests([t])[0]; assert.equal(T.entered(v), 10, 'counts as 10 shots');
+  const S = T.score(v, SG, 'd1w').skills.updown;
+  assert.equal(S.value, 6); assert.equal(S.rate, 0.6); assert.ok(Math.abs(S.cost - 0.4) < 1e-9, '60% up and down: each missed green costs 0.4');
+  assert.ok(S.index > 100, '60% beats D1 women (about 50%)');
+  // a test from before v174 has no up and down station: not a missing shot
+  const old = T.validTests([{ id: 'o', date: '2026-11-09T10:00:00Z', v: 3, sl: true, shots: {} }])[0];
+  assert.equal(old.ud, false); assert.equal(T.totalOf(old), 73); assert.ok(T.stationDone(old, T.STATION.updown));
+  assert.equal(T.score(old, SG, 'd1w').skills.updown.value, null);
 });
