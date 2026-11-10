@@ -95,16 +95,21 @@
   function validTests(list) {
     return (Array.isArray(list) ? list : []).filter(function (t) { return t && typeof t.id === 'string' && t.id && typeof t.date === 'string' && !isNaN(Date.parse(t.date)) && t.shots && typeof t.shots === 'object'; })
       .map(function (t) {
-        var src = t.shots; if (t.v !== 2 && Array.isArray(src.lag)) src = Object.assign({}, src, { lag: lagV2(src.lag) });
+        var src = t.shots; if (!(t.v >= 2) && Array.isArray(src.lag)) src = Object.assign({}, src, { lag: lagV2(src.lag) });
         var shots = {}; STATIONS.forEach(function (st) { var a = Array.isArray(src[st.id]) ? src[st.id] : []; shots[st.id] = st.shots.map(function (x, i) { return validEntry(st, a[i]); }); });
         var c = t.cond || {};
         // sl: ladders were flat / uphill / downhill (tests started from v168 on); before that all three were flat attempts
-        return { v: 2, sl: !!t.sl, id: t.id, date: t.date, player: String(t.player || ''), baseline: String(t.baseline || ''), done: !!t.done,
+        return { v: 3, sl: slopeLadders(t), id: t.id, date: t.date, player: String(t.player || ''), baseline: String(t.baseline || ''), done: !!t.done,
           cond: { green: /^(slow|medium|fast)$/.test(c.green) ? c.green : '', wind: /^(calm|breezy|windy)$/.test(c.wind) ? c.wind : '' }, shots: shots };
       });
   }
   // tests saved before v168 kept lag putts in a mixed order (30, 40, 50, 40, 50, 30, 50, 30, 40) – move each into its distance's slots
   var LAG_OLD = [30, 40, 50, 40, 50, 30, 50, 30, 40];
+  // v170 fix: v168 saved its tests as v: 2 but without the sl flag, so their uphill / downhill ladders showed "not tested".
+  // v: 3 (v170 on) stores sl for sure. A v: 2 test is sloped unless it says otherwise – and anything dated after v168
+  // went out is sloped even if v169 re-saved it with sl: false. Tests with no v are from before v168: all flat.
+  var V168_OUT = Date.parse('2026-11-10T05:38:54Z');
+  function slopeLadders(t) { if (t.v >= 3) return !!t.sl; if (t.v === 2) return t.sl !== false || Date.parse(t.date) >= V168_OUT; return !!t.sl; }
   function lagV2(a) { var out = [], used = {}; LAG_OLD.forEach(function (d, i) { var g = LAG_D.indexOf(d), k = used[d] || 0; used[d] = k + 1; out[g * 3 + k] = a[i] == null ? null : a[i]; });
     for (var i = 0; i < 9; i++) if (out[i] === undefined) out[i] = null; return out; }
   function mergeTests(existing, incoming) {

@@ -195,6 +195,8 @@
       });
       h += '<p class="sgtnote sgtfootnote">Tap a skill to see every test. A skill is marked Down when it is worse than your usual by more than its normal wobble, and Slipping when it has dropped two tests in a row.</p>';
       if (!test.done || n < T.TOTAL) h += '<button class="frostbtn big" data-act="sgtresume" data-v="' + esc(test.id) + '">Add the missing shots</button>';
+      // v170 (Scott): a plain way to delete a test from its result page (the × on All tests was easy to miss)
+      h += '<button class="txt sgtlink sgtdelres" data-act="sgtdel" data-v="' + esc(test.id) + '" id="sgtdelres">Delete this test</button>';
       return h + '</div>';
     }
 

@@ -2546,3 +2546,5 @@ html body .bmwrap .stnote.bmnote { font-size: 12.5px; line-height: 1.35; color: 
 .sgtwarn b { display: block; color: #9b2a17; font-size: 14px; line-height: 1.3; }
 .sgtwarn small { display: block; color: #6b3a30; font-size: 12px; }
 .sgtwarn span { display: block; color: #3a2420; font-size: 13px; line-height: 1.35; margin-top: 2px; }
+/* v170 (Scott): delete a test from its result page */
+.sgtpage .sgtdelres { display: block; margin: 18px auto 4px; color: #b0473f !important; font-weight: 600; }

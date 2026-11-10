@@ -95,5 +95,10 @@ function make(id, date, q) { const t = T.blank(id, date, 'Scott', 'scm');
   const spill = await page.evaluate(() => [...document.querySelectorAll('.sgtrow')].filter(r => { const card = r.closest('.sgtcard') || r.parentElement, cr = card.getBoundingClientRect(); return [...r.querySelectorAll('*')].some(e => e.getBoundingClientRect().right > cr.right - 4); }).map(r => r.textContent.slice(0, 40)));
   assert.deepStrictEqual(spill, [], 'result rows stay inside their tile');
   await page.click('#sgthubbtn'); await shot('14-hub-after', true);
+  // v170 (Scott): delete a test from its result page
+  const nBefore = await page.locator('#sgthist .sgthrow').count();
+  await page.click('#sgthist .sgthrow:last-child .sgthopen'); await page.locator('#sgtdelres').scrollIntoViewIfNeeded(); await shot('15-delete-button');
+  await page.click('#sgtdelres'); await page.waitForSelector('#sgthist');
+  assert.equal(await page.locator('#sgthist .sgthrow').count(), nBefore - 1, 'the test is gone');
   assert.deepStrictEqual(errors, []); console.log('PASS shortgame-focused'); await browser.close(); if (srv) srv.kill();
 })().catch(e => { console.error(e); process.exit(1); });

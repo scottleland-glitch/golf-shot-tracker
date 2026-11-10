@@ -80,7 +80,7 @@ test('v168 lag putts are grouped by spot (30, 30, 30, 40 …) and older tests ar
   assert.deepStrictEqual(T.STATION.lag.shots.map((x) => x.dist), [30, 30, 30, 40, 40, 40, 50, 50, 50]);
   const old = { id: 'o', date: '2026-10-01T00:00:00Z', shots: { lag: [30, 40, 50, 40.1, 50.1, 30.1, 50.2, 30.2, 40.2].map((ft) => ({ ft, dir: 'short' })) } };
   const v = T.validTests([old])[0];
-  assert.strictEqual(v.v, 2); assert.deepStrictEqual(v.shots.lag.map((e) => e.ft), [30, 30.1, 30.2, 40, 40.1, 40.2, 50, 50.1, 50.2]);
+  assert.strictEqual(v.v, 3); assert.deepStrictEqual(v.shots.lag.map((e) => e.ft), [30, 30.1, 30.2, 40, 40.1, 40.2, 50, 50.1, 50.2]);
   assert.deepStrictEqual(T.validTests([v])[0].shots.lag.map((e) => e.ft), [30, 30.1, 30.2, 40, 40.1, 40.2, 50, 50.1, 50.2], 'not moved twice');
 });
 test('v168 speed ladders: flat, uphill, downhill – a slope well short of flat is named as the leak', () => {
@@ -133,4 +133,16 @@ test('v168: way-off warnings name the pattern of the misses', () => {
   // a spread of misses says so
   const t2 = mk('w2', '2026-11-01T00:00:00Z', s => ['long', 'right', 'short'][s.dist % 3], 10);
   assert.match(warnOf(t2, []).find(x => x.k === 'line:down').why, /No single pattern/);
+});
+
+test('v170: tests saved by v168 (v: 2, no sl) keep their uphill / downhill ladders', () => {
+  const T = require('../shortgame.js'), SG = require('../sg.js');
+  const lad = [{ n: 7 }, { n: 5 }, { n: 6 }];
+  const v = (t) => T.score(T.validTests([Object.assign({ id: 'x', shots: { ladder: lad } }, t)])[0], SG, 'd1w').skills.speed.bySlope;
+  assert.deepStrictEqual(v({ v: 2, date: '2026-11-10T06:30:00Z' }).map(x => x.n), [7, 5, 6], 'v168 test');
+  assert.deepStrictEqual(v({ v: 2, sl: false, date: '2026-11-10T06:30:00Z' }).map(x => x.n), [7, 5, 6], 're-saved by v169 after v168 went out');
+  assert.equal(v({ date: '2026-10-10T06:30:00Z' }), null, 'pre-v168: all flat');
+  assert.equal(v({ v: 2, sl: false, date: '2026-10-10T06:30:00Z' }), null, 'pre-v168 re-saved by v169');
+  assert.equal(T.validTests([{ id: 'y', date: '2026-11-10T06:30:00Z', v: 2, shots: {} }])[0].v, 3);
+  assert.equal(v({ v: 3, sl: false, date: '2026-11-11T06:30:00Z' }), null, 'v: 3 says for sure');
 });

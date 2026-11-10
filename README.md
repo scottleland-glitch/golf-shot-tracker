@@ -25,6 +25,12 @@ Every Shot Counts Table 3.10). The other five are ESTIMATED: per-round gaps from
 Player Quality ladder, then spread over the PGA table. Full sources, method and caveats: in-app
 "About the numbers" and the BASELINES comment in `sg.js`.
 
+## Short game fixes (v170)
+- **Slope ladders:** tests saved by v168 had no `sl` flag, so v169 showed their uphill / downhill ladders as "not tested".
+  Tests are now stored as `v: 3` with `sl` for sure; a `v: 2` test (or one dated after v168 went out) is read as sloped;
+  tests with no `v` are from before v168 and stay all flat.
+- **Delete this test:** a button at the bottom of every test result (asks first, then back to Tests).
+
 ## Short game results: putting spiders and way-off warnings (v169)
 - **Wording:** "ft left" is now "ft away" (proximity); "Past" is now "Long" everywhere.
 - **Short putts (around the hole):** a "Why go around the hole?" note on the setup screen. On entry, Long means more
