@@ -416,10 +416,13 @@
     return T;
   }
   // My Game + My Practice pages for the stats report (the player's chosen My Game time frame)
-  function pdfMyGamePages(doc, H, who) {
+  // v175: parts { game, practice } – the My Game report can leave either page out (the Stats PDF has both)
+  function pdfMyGamePages(doc, H, who, parts) {
     if (!who) return Promise.resolve();
     var D = mgData(who), P = D.period, M = H.M, W = H.PW - 2 * M, logs = practiceOf(who), PB = MYGAME.practiceBuild(logs, { period: P.id });
+    var doGame = !parts || parts.game !== false, doPrac = !parts || parts.practice !== false;
     if (!D.cur.rounds && !PB.cur.total) return Promise.resolve();
+    if (doGame) {
     doc.addPage(); var y = H.header('My Game – ' + P.name);
     H.font(10); H.ink(90); H.T(who + ' · ' + D.cur.rounds + ' round' + (D.cur.rounds === 1 ? '' : 's') + ' · compared with ' + D.baselineName + (D.prev ? ' · gray = ' + (P.id === '1y' ? 'the year before' : 'the previous ' + P.short) : ''), M, y); H.ink(); y += 22;
     y = pdfLines(doc, H, D.headline, M, y, W, 17, 25, 21) + 2;
@@ -436,8 +439,10 @@
         H.T(tiny ? 'same as before' : (d > 0 ? 'up ' : 'down ') + t[3](Math.abs(d)).replace(/^\+/, '') + ' from ' + t[3](t[2]), x + 8, y + 53); } H.ink(); });
     y += 76;
     y = pdfLines(doc, H, 'Each spoke is strokes gained per 18 holes in one skill: Driving (par 4 and 5 tee shots), Irons 100+ (approach shots from over 100 yd), Wedges (30-100 yd), Chipping (30 yd and in), Lag putts (10 ft and over), Short putts (under 10 ft). The six add up to the total. Further out = better; the dashed line is the ' + D.baselineName + ' average. A hollow point is still learning.', M, y, W, 8.5, 110, 10.8);
-    return radarPng(MYGAME.radarSVG(D.cur, D.prev, { R: 96 })).then(function (im) {
-      var back = doc.getCurrentPageInfo().pageNumber; doc.setPage(pg); doc.addImage(im.data, 'JPEG', M + (W - gw) / 2, gy, gw, gh); doc.setPage(back);
+    }
+    return (doGame ? radarPng(MYGAME.radarSVG(D.cur, D.prev, { R: 96 })) : Promise.resolve(null)).then(function (im) {
+      if (im) { var back = doc.getCurrentPageInfo().pageNumber; doc.setPage(pg); doc.addImage(im.data, 'JPEG', M + (W - gw) / 2, gy, gw, gh); doc.setPage(back); }
+      if (!doPrac) return null;
       // ---- My Practice ----
       doc.addPage(); var y2 = H.header('My Practice – ' + P.name);
       var LT = MYGAME.practiceLevelText(logs, { period: P.id, bl: D.baseline }); // v155: practice level vs the benchmark group
@@ -446,7 +451,9 @@
       var jobs = [];
       if (LT.level.wk >= 1 || LT.prev) { var py = y2, pw = 300, ph = pw * 264 / 344, pp = doc.getCurrentPageInfo().pageNumber; y2 += ph + 8;
         jobs.push(radarPng(MYGAME.practiceLevelSVG(LT.level, LT.prev, { R: 96 })).then(function (im2) { var b2 = doc.getCurrentPageInfo().pageNumber; doc.setPage(pp); doc.addImage(im2.data, 'JPEG', M + (W - pw) / 2, py, pw, ph); doc.setPage(b2); }));
-        H.font(8.5); H.ink(100); H.T(SG.pdfSafe('Blue = your practice level now (minutes a week, builds over ~6 weeks, fades without practice)' + (LT.prev ? ' · gray = ' + (P.id === '1y' ? 'a year ago' : P.id === '30d' ? '30 days ago' : '3 months ago') : '') + ' · dashed ring = ' + LT.level.bench.who + ' avg (~' + LT.level.bench.h + ' h a week)'), M + W / 2, y2, { align: 'center', maxWidth: W }); H.ink(); y2 += 26; }
+        // v175: wrapped here (not with maxWidth) so each line stays inside the margins
+        var keyL = pdfWrap(doc, H, 'Blue = your practice level now (minutes a week, builds over ~6 weeks, fades without practice)' + (LT.prev ? ' · gray = ' + (P.id === '1y' ? 'a year ago' : P.id === '30d' ? '30 days ago' : '3 months ago') : '') + ' · dashed ring = ' + LT.level.bench.who + ' avg (~' + LT.level.bench.h + ' h a week)', W, 8.5);
+        H.ink(100); keyL.forEach(function (l, k) { H.T(l, M + W / 2, y2 + k * 11, { align: 'center' }); }); H.ink(); y2 += 26 + (keyL.length - 1) * 11; }
       var V = MYGAME.practiceVsGame(D.cur, PB.cur);
       if (V) {
         H.font(12.5); H.ink(30); H.T('Strokes lost vs practice time', M, y2); y2 += 16;
@@ -958,10 +965,103 @@
       });
     });
   }
+  // ---------- v175 (Scott): My Game report – one PDF for a coach or a college coach: game, practice, the short game test, the plan ----------
+  var GR_PARTS = [{ k: 'game', name: 'My Game & stats' }, { k: 'practice', name: 'Practice' }, { k: 'test', name: 'Short game test' }, { k: 'plan', name: 'Practice plan' }];
+  var GR_PRESET = { coach: { game: true, practice: true, test: true, plan: true }, recruit: { game: true, practice: false, test: true, plan: false } };
+  function grFileName(who, iso) { var d = new Date(iso), p = function (n) { return (n < 10 ? '0' : '') + n; }, w = function (x) { return String(x || '').replace(/[^A-Za-z0-9]+/g, '-').replace(/^-|-$/g, ''); };
+    return ['Strokewise-Game-Report', w(who), d.getFullYear() + '-' + p(d.getMonth() + 1) + '-' + p(d.getDate())].filter(Boolean).join('-') + '.pdf'; }
+  function svgAspect(svg) { var m = /viewBox="[-\d.]+ [-\d.]+ ([\d.]+) ([\d.]+)"/.exec(svg); return m ? +m[2] / +m[1] : 1; }
+  function makeGameReport(who, parts) {
+    if (!who) return Promise.reject(new Error('Pick a player first'));
+    parts = parts || GR_PRESET.coach;
+    var D = mgData(who), PER = D.period, logs = practiceOf(who), LT = MYGAME.practiceLevelText(logs, { period: PER.id, bl: D.baseline }), PB = MYGAME.practiceBuild(logs, { period: PER.id });
+    var TR = SGTUI.reportData(who), V = MYGAME.practiceVsGame(D.cur, PB.cur), now = new Date(), P = SG.pdfSafe;
+    var dateTxt = now.toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' }), dLong = function (iso) { return new Date(iso).toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' }); };
+    if (parts.test && !TR) parts = Object.assign({}, parts, { test: false });
+    if (!D.cur.rounds && !PB.cur.total && !TR) return Promise.reject(new Error('Nothing to report yet – play a round, log practice or take the short game test'));
+    return loadJsPDF().then(function () {
+      var doc = new window.jspdf.jsPDF({ unit: 'pt', format: 'letter', orientation: 'portrait' }), M = 36, PW = 612, PH = 792, BOT = PH - M - 20, W = PW - 2 * M, y;
+      doc.setProperties({ title: 'Strokewise game report – ' + who + ' ' + dateTxt, author: who, creator: 'Strokewise' });
+      var LAY = [], txt0 = doc.text.bind(doc);
+      doc.text = function (t, x, yy, o) { var L = Array.isArray(t) ? t : [t], al = (o && o.align) || 'left', lh = doc.getFontSize() * doc.getLineHeightFactor(), pg = doc.getCurrentPageInfo().pageNumber;
+        L.forEach(function (s0, k) { var w = doc.getTextWidth(String(s0)), x0 = al === 'right' ? x - w : al === 'center' ? x - w / 2 : x; if (String(s0).trim()) LAY.push({ p: pg, t: String(s0), x0: x0, x1: x0 + w, y: yy + k * lh }); });
+        return txt0(t, x, yy, o); };
+      var font = function (sz) { doc.setFont('helvetica', 'normal'); doc.setFontSize(sz); }, ink = function (g) { doc.setTextColor(g == null ? 30 : g); }, red = function () { doc.setTextColor(176, 71, 63); }, green = function () { doc.setTextColor(31, 122, 68); };
+      var T = function (t, x, yy, o) { doc.text(P(t), x, yy, o); };
+      var header = function (title) { font(9); ink(110); T(who + ' · Game report · ' + PER.name + ' · ' + dateTxt, M, 26); T('Strokewise', PW - M, 26, { align: 'right' });
+        font(16); ink(25); T(title, M, 54); doc.setDrawColor(190); doc.setLineWidth(0.6); doc.line(M, 63, PW - M, 63); doc.setDrawColor(0); ink(); return 82; };
+      var H = { M: M, PW: PW, PH: PH, font: font, ink: ink, T: T, header: header }, jobs = [], pageTitle = '';
+      var lines = function (t, x, yy, w, sz, g, lh) { return pdfLines(doc, H, t, x, yy, w, sz, g, lh); };
+      var need = function (h) { if (y + h > BOT) { doc.addPage(); y = header(pageTitle + ' (continued)'); } };
+      var pic = function (svg, x, yy, w) { var h = w * svgAspect(svg), pg = doc.getCurrentPageInfo().pageNumber;
+        jobs.push(radarPng(svg).then(function (im) { var b = doc.getCurrentPageInfo().pageNumber; doc.setPage(pg); doc.addImage(im.data, 'JPEG', x, yy, w, h); doc.setPage(b); })); return h; };
+      // ---- page 1: the summary ----
+      y = header('Game report');
+      font(22); ink(25); T(who, M, y + 6); y += 26;
+      font(10.5); ink(90); T(PER.name + ' · compared with ' + D.baselineName + ' · made ' + dateTxt, M, y); y += 26;
+      var box = function (label, head, body) { var hl = pdfWrap(doc, H, head, W - 28, 13), bl = body ? pdfWrap(doc, H, body, W - 28, 10) : [], h = 30 + hl.length * 16 + bl.length * 13;
+        need(h + 10); doc.setDrawColor(214, 220, 226); doc.setLineWidth(0.6); doc.roundedRect(M, y, W, h, 8, 8, 'S'); doc.setDrawColor(0);
+        font(8.5); ink(120); T(label.toUpperCase(), M + 14, y + 17); var yy = lines(head, M + 14, y + 34, W - 28, 13, 25, 16); if (body) lines(body, M + 14, yy + 1, W - 28, 10, 85, 13); y += h + 10; };
+      var n1 = function (v) { return (Math.round(v * 10) / 10).toFixed(1); }, Tn = D.cur.tiles;
+      if (parts.game && D.cur.rounds) box('My Game', D.headline, D.cur.rounds + ' round' + (D.cur.rounds === 1 ? '' : 's') + ' · avg score ' + (Tn.score == null ? '–' : n1(Tn.score)) + ' · strokes gained ' + (Tn.sg == null ? '–' : MYGAME.fmt(Tn.sg)) + ' a round · putts ' + (Tn.putts == null ? '–' : n1(Tn.putts)) + ' · greens ' + (Tn.gir == null ? '–' : Math.round(Tn.gir) + '%') + '.');
+      if (parts.test && TR) box('Short game test · ' + dLong(TR.date), TR.headline, TR.sub);
+      if (parts.practice) box('Practice', LT.headline, LT.lede + (V ? ' ' + V.headline + '.' : ''));
+      if (parts.plan && TR && TR.plan.length) box('Practice plan', TR.plan.map(function (p0, k) { return (k + 1) + '. ' + p0.title; }).join('   '), 'From the short game test of ' + dLong(TR.date) + '. Drills on the plan page.');
+      font(8.5); ink(120); y = lines('Strokes gained compares every shot with what a ' + D.baselineName + ' player averages from the same spot: 0 is level, negative is strokes lost. It is a high bar – the goal, not a pass mark.', M, y + 6, W, 8.5, 120, 11);
+      // ---- My Game / My Practice (the pages the Stats PDF uses) ----
+      return pdfMyGamePages(doc, H, (parts.game || parts.practice) ? who : '', { game: parts.game, practice: parts.practice }).then(function () {
+        // ---- short game test ----
+        if (parts.test && TR) {
+          doc.addPage(); pageTitle = 'Short game test – ' + dLong(TR.date); y = header(pageTitle);
+          font(10); ink(90); T(['Test ' + TR.tests + (TR.tests === 1 ? ' (the starting point)' : ''), 'compared with ' + TR.blName, TR.cond, TR.entered < TR.total ? TR.entered + ' of ' + TR.total + ' shots' : ''].filter(Boolean).join(' · '), M, y); y += 22;
+          y = lines(TR.headline, M, y, W, 16, 25, 20) + 2; y = lines(TR.sub, M, y, W, 10.5, 80, 14) + 6;
+          var ow = 290; y += pic(TR.overall, M + (W - ow) / 2, y, ow) + 14; // (the pictures go on last, over the page: leave clear space under them)
+          font(8.5); ink(110); T('Solid ring = ' + TR.blName + ' · green = this test' + (TR.hasAvg ? ' · dashed = your average' : '') + ' · each spoke is strokes gained per shot', M + W / 2, y, { align: 'center' }); ink(); y += 20;
+          TR.cats.forEach(function (c) { if (!c.any) return;
+            need(c.pics.length ? 150 : 50); font(13); ink(25); T(c.name, M, y); if (c.sg != null) { font(10); if (c.sg < -0.004) red(); else if (c.sg > 0.004) green(); else ink(60); T((c.sg >= 0 ? '+' : '') + c.sg.toFixed(2) + ' strokes a shot', M + W, y, { align: 'right' }); ink(); }
+            doc.setDrawColor(225); doc.setLineWidth(0.5); doc.line(M, y + 6, M + W, y + 6); doc.setDrawColor(0); y += 16;
+            if (c.pics.length) { var pw = c.pics.length === 2 ? (W - 16) / 2 : 250, ph = Math.max.apply(null, c.pics.map(function (q) { return pw * svgAspect(q.svg); })); need(ph + 18);
+              c.pics.forEach(function (q, k) { var x = c.pics.length === 2 ? M + k * (pw + 16) : M + (W - pw) / 2; if (q.title) { font(8.5); ink(110); T(q.title.toUpperCase(), x + pw / 2, y + 8, { align: 'center' }); ink(); } pic(q.svg, x, y + (q.title ? 12 : 0), pw); });
+              y += ph + (c.pics.some(function (q) { return q.title; }) ? 26 : 14); }
+            c.rows.forEach(function (r) { need(18); font(10); ink(35); T(r.name, M + 4, y); font(10); ink(25); T(r.value, M + 300, y, { align: 'right' }); font(9); ink(110); T(r.sub, M + 312, y);
+              if (r.tag) { font(9); if (r.tone === 'bad') red(); else if (r.tone === 'good') green(); else ink(90); T(r.tag, M + W - 4, y, { align: 'right' }); ink(); }
+              doc.setDrawColor(236); doc.setLineWidth(0.4); doc.line(M, y + 5, M + W, y + 5); doc.setDrawColor(0); y += 16; });
+            c.notes.forEach(function (t) { need(28); y = lines(t, M + 4, y + 6, W - 8, 9.5, 70, 12.5) + 2; });
+            c.warn.forEach(function (w) { var L = pdfWrap(doc, H, w.why, W - 28, 9.5), h = 34 + (w.sub ? 0 : -12) + L.length * 12.5; need(h + 8); y += 4;
+              doc.setFillColor(255, 233, 228); doc.setDrawColor(192, 68, 47); doc.setLineWidth(0.8); doc.roundedRect(M, y, W, h, 6, 6, 'FD'); doc.setDrawColor(0);
+              font(10.5); red(); T(w.title, M + 12, y + 16); ink(); var yy = y + 16; if (w.sub) { font(9); ink(100); T(w.sub, M + 12, yy + 13); yy += 13; } if (L.length) lines(w.why, M + 12, yy + 13, W - 24, 9.5, 50, 12.5); y += h + 4; });
+            y += 14; });
+        }
+        // ---- the plan ----
+        if (parts.plan && ((TR && (TR.plan.length || TR.coach.length)) || V)) {
+          doc.addPage(); pageTitle = 'Practice plan'; y = header(pageTitle);
+          if (TR && TR.plan.length) { font(12.5); ink(30); T('Practice this month', M, y); font(9); ink(110); T('from the short game test of ' + dLong(TR.date), M + W, y, { align: 'right' }); ink(); y += 18;
+            TR.plan.forEach(function (p0, k) { need(60); font(12); ink(25); T((k + 1) + '. ' + p0.title, M, y); if (p0.why) { font(9.5); red(); T(p0.why, M + W, y, { align: 'right' }); ink(); } y = lines(p0.drill, M + 16, y + 15, W - 16, 10, 60, 13.5) + 10; }); y += 6; }
+          if (V) { need(60); font(12.5); ink(30); T('Practice time vs strokes lost', M, y); y += 16; y = lines(V.headline + ' – ' + V.lede, M, y, W, 10, 70, 13.5) + 12; }
+          if (TR && TR.coach.length) { need(50); font(12.5); ink(30); T('Ask your coach', M, y); y += 18;
+            TR.coach.forEach(function (c0) { need(44); y = lines(c0.text, M, y, W, 10.5, 30, 14); y = lines(c0.ask, M + 12, y + 1, W - 12, 9.5, 100, 12.5) + 10; }); }
+        }
+        return Promise.all(jobs);
+      }).then(function () {
+        var n = doc.getNumberOfPages();
+        for (var i = 1; i <= n; i++) { doc.setPage(i); font(8); doc.setTextColor(130); T('Page ' + i + ' of ' + n, PW - M, PH - 18, { align: 'right' }); doc.setTextColor(0); }
+        return { kind: 'game', blob: new Blob([doc.output('arraybuffer')], { type: 'application/pdf' }), pages: n, name: grFileName(who, now.toISOString()), parts: parts, layout: { PW: PW, PH: PH, M: M, text: LAY } };
+      });
+    });
+  }
+  function grSheetHTML() {
+    var g = view.grep; if (!g) return '';
+    var who = mgWho(), TR = SGTUI.reportData(who);
+    return '<div class="pdfsheet grsheet" id="grsheet"><b>📄 Game report</b><p class="help">One PDF for your coach or a college coach. Pick what goes in:</p>' +
+      '<div class="grpre" role="group" aria-label="Presets"><button class="frostchip' + (g.preset === 'coach' ? ' sel' : '') + '" data-act="grpreset" data-v="coach" id="grpcoach">For my coach – everything</button><button class="frostchip' + (g.preset === 'recruit' ? ' sel' : '') + '" data-act="grpreset" data-v="recruit" id="grprecruit">For recruiting – results only</button></div>' +
+      '<div class="grparts" id="grparts">' + GR_PARTS.map(function (x) { var on = !!g.parts[x.k], off = x.k === 'test' && !TR;
+        return '<button class="grpart' + (on && !off ? ' on' : '') + '" data-act="grpart" data-v="' + x.k + '" aria-pressed="' + (on && !off) + '"' + (off ? ' disabled' : '') + '><i aria-hidden="true">' + (on && !off ? '✓' : '') + '</i>' + esc(x.name) + (off ? '<small>no test yet</small>' : '') + '</button>'; }).join('') + '</div>' +
+      '<button class="primary big" data-act="grgo" id="grgo">Make the PDF</button><button class="txt" data-act="grclose">Cancel</button></div>';
+  }
   function pinDataRound() { var keep = view.mapScope; view.mapScope = 'round'; var D = pinData(); view.mapScope = keep; return D.holes; }
   function pdfHTML() {
     var p = view.pdf; if (!p) return '';
-    if (p.busy) return '<div class="pdfsheet" id="pdfsheet" role="status"><b>Making your PDF report…</b><p class="help muted">Drawing the ' + (p.kind === 'stats' ? 'graphs' : 'maps') + ' – this takes a few seconds.</p></div>';
+    if (p.busy) return '<div class="pdfsheet" id="pdfsheet" role="status"><b>Making your PDF report…</b><p class="help muted">Drawing the ' + (p.kind === 'stats' || p.kind === 'game' ? 'graphs' : 'maps') + ' – this takes a few seconds.</p></div>';
     if (p.error) return '<div class="pdfsheet" id="pdfsheet"><p class="notice bad">' + esc(p.error) + '</p><button class="big" data-act="pdfclose">Close</button></div>';
     return '<div class="pdfsheet" id="pdfsheet"><b>📄 PDF report ready</b><p class="help" id="pdfname">' + esc(p.name) + ' · ' + p.pages + ' pages</p>' +
       '<button class="primary big" data-act="pdfshare">Share / Save to Files</button>' +
@@ -2014,6 +2114,7 @@
     h += '<div class="stseg mgseg" id="mgperiod" role="group" aria-label="Time frame">' + MYGAME.PERIODS.map(function (x) {
       var on = x.id === P.id; return '<button class="' + (on ? 'sel' : '') + '" data-act="mgperiod" data-v="' + x.id + '" aria-pressed="' + on + '">' + x.name.replace('Last ', '') + '</button>'; }).join('') + '</div>';
     h += '<button class="primary big prbtn" data-act="prlog" id="prlogbtn">＋ Log practice</button>' + prSheetHTML(who);
+    h += '<button class="frostbtn big grbtn" data-act="grep" id="grbtn">📄 Make a game report</button>' + grSheetHTML() + (view.pdf && view.pdf.kind === 'game' ? pdfHTML() : ''); // v175
     h += '<div class="mgchart frost"><h2 id="mghead">' + esc(D.headline) + '</h2><p id="mglede">' + esc(D.lede) + '</p>' +
       MYGAME.radarSVG(D.cur, D.prev, { R: 96, aria: 'Game shape, ' + P.name }) +
       mgKnowHTML(D) +
@@ -4939,6 +5040,14 @@
       case 'gdlmissing': view.restore.items.forEach(function (it) { if (it.status === 'new') view.restore.sel[it.round.id] = true; }); render(); return;
       case 'gdlclear': view.restore.sel = {}; render(); return;
       case 'pdfclose': view.pdf = null; render(); return;
+      // v175 My Game report
+      case 'grep': view.grep = view.grep ? null : { preset: 'coach', parts: Object.assign({}, GR_PRESET.coach) }; view.pdf = null; render(); return;
+      case 'grclose': view.grep = null; render(); return;
+      case 'grpreset': if (view.grep) { view.grep.preset = v; view.grep.parts = Object.assign({}, GR_PRESET[v]); } render(); return;
+      case 'grpart': if (view.grep) { view.grep.parts[v] = !view.grep.parts[v]; view.grep.preset = ''; } render(); return;
+      case 'grgo': { var gp = view.grep && view.grep.parts; if (!gp || !GR_PARTS.some(function (x) { return gp[x.k]; })) { toast('Pick at least one part'); return; }
+        view.grep = null; view.pdf = { busy: true, kind: 'game' }; render();
+        makeGameReport(mgWho(), gp).then(function (o) { view.pdf = o; window.__golf.lastPdf = o; render(); }, function (e) { view.pdf = { kind: 'game', error: 'Could not make the PDF: ' + (e && e.message) }; render(); }); return; }
       case 'story': case 'storyshare': case 'storyclose': case 'storyfull': case 'storyfullclose': case 'storyzoom': storyAct(act); return;
       case 'setname': setName((document.getElementById('pname') || {}).value); return;
       case 'editname': view.editName = true; render(); var pi = document.getElementById('pname'); if (pi) pi.focus(); return;

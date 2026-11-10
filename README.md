@@ -25,6 +25,16 @@ Every Shot Counts Table 3.10). The other five are ESTIMATED: per-round gaps from
 Player Quality ladder, then spread over the PGA table. Full sources, method and caveats: in-app
 "About the numbers" and the BASELINES comment in `sg.js`.
 
+## My Game report (v175)
+- **📄 Make a game report** on My Game (under Log practice) opens a sheet: presets *For my coach – everything* and
+  *For recruiting – results only* (no practice minutes, no plan), and four parts to tick on their own – My Game & stats,
+  Practice, Short game test, Practice plan. It reports on the player and time frame My Game is showing.
+- **The PDF (Letter):** a summary page (one box per part), the My Game and My Practice pages the Stats PDF uses, the
+  latest short game test (overall spider, each category's spiders, rows, up and down, bunker and wedge notes, way-off
+  boxes) and the practice plan (drills, practice time vs strokes lost, Ask your coach). Shared or saved like the round report.
+- `SGTUI.reportData(who)` gives the latest finished test for it; `tests/gamereport-focused.js` checks both presets,
+  margins and no outside requests. The My Practice key line now wraps inside the margins.
+
 ## Up and down station; intro on Start (v174)
 - **Up and down:** station 10 of 11 (after the bunkers). Scatter 10 balls 5–30 yd around the green on mixed lies, play
   each out, enter one count (0–10). It counts as 10 shots (the test is now 83). Older tests (`ud` false) don't include it.

@@ -40,15 +40,18 @@
     function speedGoals(A) { var best = { flat: 0, up: 0, down: 0 };
       [A.test].concat(A.prev).forEach(function (t) { (T.score(t, SG, A.bl).skills.speed.bySlope || []).forEach(function (x) { if (x.n != null && x.n > best[x.k]) best[x.k] = x.n; }); });
       return { flat: best.flat + SPEED_GOAL_PLUS, up: best.up + SPEED_GOAL_PLUS, down: best.down + SPEED_GOAL_PLUS }; }
-    function puttSpidersHTML(A) {
+    function puttSpidersHTML(A) { var P = puttSpokes(A);
+      return '<div class="sgtpsp" id="sgtpsplag"><p class="sgteyebrow">Lag and speed</p>' + T.spiderSVG(P.lag, { R: 70, padX: 112, aria: 'Lag and speed shape' }) +
+        '<p class="sgtnote">The ring is ' + esc(A.blName) + ' for the lag putts, and your goal for the speed ladders: your best ladder on that slope + ' + SPEED_GOAL_PLUS + ' balls.</p></div>' +
+        '<div class="sgtpsp" id="sgtpspshort"><p class="sgteyebrow">Short and breaking putts</p>' + T.spiderSVG(P.lines, { R: 70, aria: 'Short putts shape' }) +
+        '<p class="sgtnote">Putts made from 3, 5, 7 and 9 ft on each line. The ring is ' + esc(A.blName) + '.</p></div>';
+    }
+    function puttSpokes(A) {
       var X = A.cur.extra, G = speedGoals(A), SB = A.cur.skills.speed.bySlope || [{ k: 'flat', name: 'Flat', n: null }, { k: 'up', name: 'Uphill', n: null }, { k: 'down', name: 'Downhill', n: null }];
       var lag = X.lag.byDist.map(function (d) { return { name: 'Lag ' + d.dist, index: d.n ? d.index : null, sub: d.n ? '' : 'not tested', tone: d.sg == null ? '' : d.sg <= -0.15 ? 'bad' : d.sg >= 0.15 ? 'good' : '' }; });
       var spd = SB.map(function (x) { var g = G[x.k]; return { name: x.name + ' speed', index: x.n == null ? null : Math.max(10, Math.min(130, 100 * x.n / g)), sub: x.n == null ? 'not tested' : x.n + ' ball' + (x.n === 1 ? '' : 's') + ' · goal ' + g }; }); // v171 (Scott): a raw count, not x of y
       var lines = X.lines.map(function (l) { return { name: l.name, index: l.n ? l.index : null, sub: l.n ? l.made + ' of ' + l.n : 'not tested', tone: l.sg == null ? '' : l.sg <= -0.1 ? 'bad' : l.sg >= 0.1 ? 'good' : '' }; });
-      return '<div class="sgtpsp" id="sgtpsplag"><p class="sgteyebrow">Lag and speed</p>' + T.spiderSVG(lag.concat(spd), { R: 70, padX: 112, aria: 'Lag and speed shape' }) +
-        '<p class="sgtnote">The ring is ' + esc(A.blName) + ' for the lag putts, and your goal for the speed ladders: your best ladder on that slope + ' + SPEED_GOAL_PLUS + ' balls.</p></div>' +
-        '<div class="sgtpsp" id="sgtpspshort"><p class="sgteyebrow">Short and breaking putts</p>' + T.spiderSVG(lines, { R: 70, aria: 'Short putts shape' }) +
-        '<p class="sgtnote">Putts made from 3, 5, 7 and 9 ft on each line. The ring is ' + esc(A.blName) + '.</p></div>';
+      return { lag: lag.concat(spd), lines: lines };
     }
     function top(left, title, sub, right) { return '<div class="topbar frost">' + left + '<div class="title"><b>' + esc(title) + '</b><span>' + esc(sub || '') + '</span></div>' + (right || '<span class="sgtsp"></span>') + '</div>'; }
 
@@ -146,13 +149,36 @@
     }
 
     // ---------- the result ----------
+    function rowSub(A, sk) { var s = A.cur.skills[sk.k], c = A.cmp.skills[sk.k];
+      return c.usual != null ? (c.tests > 1 ? 'usually ' : 'last time ') + T.fmtNum(sk, c.usual) : s.bench != null ? blShort(A.bl) + ' ' + (sk.k === 'updown' ? Math.round(s.benchRate * 100) + '%' : sk.unit === 'ft' ? Math.round(s.bench) + ' ft' : r1(s.bench)) : sk.k === 'speed' ? 'best ' + s.best : ''; }
+    function rowTag(c) { return c.trend === 'slipping' ? 'Slipping' : c.trend === 'improving' ? 'Improving' : c.status === 'worse' ? 'Down' : c.status === 'better' ? 'Up' : ''; }
+    // v175 (Scott): the latest finished test, ready for the My Game report (pictures as SVG strings, everything else as text)
+    function reportData(who) {
+      var done = mine(who).filter(function (t) { return t.done; }); if (!done.length) return null;
+      var A = analysed(done[0], who), P = puttSpokes(A), bn = blShort(A.bl), ftS = function (v) { return (v < 10 ? v.toFixed(1) : String(Math.round(v))) + ' ft'; };
+      var cats = T.CATS.map(function (c) { var x = A.cur.cats[c.k], skills = T.SKILLS.filter(function (sk) { return sk.cat === c.k; });
+        var any = skills.some(function (sk) { return A.cur.skills[sk.k].value != null; });
+        var pics = !any ? [] : c.k === 'putting' ? [{ title: 'Lag and speed', svg: T.spiderSVG(P.lag, { R: 70, padX: 112 }) }, { title: 'Short and breaking putts', svg: T.spiderSVG(P.lines, { R: 70 }) }]
+          : c.k === 'wedge' ? [] : [{ title: '', svg: T.spiderSVG(catSpokes(A, c.k), { R: 70 }) }];
+        var rows = skills.filter(function (sk) { return A.cur.skills[sk.k].value != null; }).map(function (sk) { var cc = A.cmp.skills[sk.k]; return { name: sk.name, value: T.fmtVal(sk, A.cur.skills[sk.k]), sub: rowSub(A, sk), tag: rowTag(cc), tone: toneOf(cc) }; });
+        var warn = (A.cmp.warn || []).filter(function (w) { return w.cat === c.k; }).map(function (w) {
+          return { title: w.title, sub: w.vs === 'own' ? 'Usually ' + (w.unit === 'made' ? fmtUsual(w.usual) + ' of ' + (w.usualOf || w.of) : ftS(w.usual) + ' away') + ' · last ' + w.tests + ' tests'
+            : w.bench == null ? '' : (w.unit === 'made' ? bn + ' players make about ' + w.bench : 'Level with ' + bn + ': about ' + ftS(w.bench)) + ' · no usual of your own yet', why: w.why || '' }; });
+        var notes = [], u = A.cur.skills.updown;
+        if (c.k === 'chipping' && u.value != null) notes.push('Up and down ' + Math.round(u.rate * 100) + '% (' + u.value + ' of ' + u.of + ', ' + bn + ' about ' + Math.round(u.benchRate * 100) + '%): every missed green costs about ' + r1(u.cost) + ' strokes.');
+        if (c.k === 'bunker' && any) { var B = A.cur.extra.bunker; notes.push(B.over + ' of ' + B.n + ' flew the green · ' + B.sand + ' stayed in the sand.'); }
+        if (c.k === 'wedge' && any) notes.push(A.cur.extra.wedge.byDist.filter(function (d) { return d.n; }).map(function (d) { return d.dist + ' yd ' + r1(d.ft) + ' ft (' + bn + ' ' + Math.round(d.bench) + ')'; }).join(' · '));
+        return { k: c.k, name: c.name, any: any, sg: x.sg, pics: pics, rows: rows, warn: warn, notes: notes }; });
+      return { date: A.test.date, tests: done.length, headline: A.I.headline, sub: A.I.sub, blName: A.blName, cond: [A.test.cond.green ? A.test.cond.green + ' greens' : '', A.test.cond.wind].filter(Boolean).join(', '),
+        overall: T.spiderSVG(overallSpokes(A), { R: 92 }), hasAvg: A.cmp.cats.putting.avgIndex != null, entered: T.entered(A.test), total: T.totalOf(A.test),
+        plan: A.I.plan.map(function (p) { return { title: p.title, why: p.why, drill: p.drill }; }), coach: A.I.coach.map(function (c) { return { text: c.text, ask: c.ask }; }), cats: cats };
+    }
     function rowHTML(A, sk, open) {
       var s = A.cur.skills[sk.k], c = A.cmp.skills[sk.k], dates = A.prev.slice(0, 11).reverse().filter(function (t, n) { return true; }).map(function (t) { return dShort(t.date); });
       if (s.value == null) return '<div class="sgtrow none"><span class="sgtrn">' + esc(sk.name) + '</span><span class="sgtrv"><small>not tested</small></span></div>';
       // dates line up with the series: only tests that have this skill
       var withSkill = A.prev.filter(function (t) { return T.score(t, SG, A.bl).skills[sk.k].value != null; }).slice(0, 11).reverse().map(function (t) { return dShort(t.date); }).concat([dShort(A.test.date)]);
-      var sub = c.usual != null ? (c.tests > 1 ? 'usually ' : 'last time ') + T.fmtNum(sk, c.usual) : s.bench != null ? blShort(A.bl) + ' ' + (sk.k === 'updown' ? Math.round(s.benchRate * 100) + '%' : sk.unit === 'ft' ? Math.round(s.bench) + ' ft' : r1(s.bench)) : sk.k === 'speed' ? 'best ' + s.best : '';
-      var tag = c.trend === 'slipping' ? 'Slipping' : c.trend === 'improving' ? 'Improving' : c.status === 'worse' ? 'Down' : c.status === 'better' ? 'Up' : '';
+      var sub = rowSub(A, sk), tag = rowTag(c);
       var o = '<button class="sgtrow ' + toneOf(c) + (open ? ' open' : '') + '" data-act="sgtrow" data-v="' + sk.k + '" aria-expanded="' + !!open + '"><span class="sgtrn">' + esc(sk.name) + (tag ? '<em>' + tag + '</em>' : '') + '</span>' +
         T.sparkSVG(c.series, sk, { usual: c.usual, thr: c.thr, status: toneOf(c) === 'bad' ? 'worse' : toneOf(c) === 'good' ? 'better' : 'same' }) +
         '<span class="sgtrv"><b>' + esc(T.fmtVal(sk, s)) + '</b><small>' + esc(sub) + '</small></span></button>';
@@ -336,6 +362,6 @@
     function finish(test) { var s = S(); test.done = true; put(test); s.mode = 'result'; s.id = test.id; s.open = null; env.toast('Test saved'); env.render(); window.scrollTo(0, 0); }
     // Enter in the feet box = Save on the stations that have a plain Save
     function key(ev) { if (ev.key !== 'Enter' || !ev.target || ev.target.id !== 'sgtft') return; var s = S(), st = T.STATIONS[s.st]; if (st && (st.kind === 'leave' || st.kind === 'bunker')) { ev.preventDefault(); act('sgtsave', ''); } }
-    return { html: html, act: act, cardHTML: cardHTML, key: key };
+    return { html: html, act: act, cardHTML: cardHTML, key: key, reportData: reportData };
   };
 })(this);
