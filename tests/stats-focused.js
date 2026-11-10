@@ -137,7 +137,7 @@ const SEED = fs.readFileSync(__dirname + '/fixtures/stats-rounds.js', 'utf8');
   await page.selectOption('#stbl', 'pga');
   const D2 = await page.evaluate(() => window.__golf.statsData()), s2 = await page.evaluate(() => window.__golf.statsRound('s2', 'pga'));
   assert.strictEqual(D2.all[1].bl, 'pga'); assert.strictEqual(D2.all[1].sg.tot, s2.sg.tot); assert.notStrictEqual(D2.all[1].sg.tot, D.all[1].sg.tot);
-  assert.match(await page.textContent('#stsgnote'), /compared with PGA Tour/);
+  assert.match(await page.textContent('#tip-stblnote'), /compared with PGA Tour/); // v179: behind the ⓘ
   await page.selectOption('#stbl', '');
 
   // 9. other player with one round -> page still works, trend graphs say not enough rounds; All players -> 8 finished rounds

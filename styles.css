@@ -2619,3 +2619,15 @@ html body .mgcvt .cvtv { color: #1f6b3a; } html body .mgcvt .cvtv.bad { color: #
 .sgtbkey i.k1 { width: 6px !important; margin-right: 2px !important; } .sgtbkey i.k1.tr { margin-right: 6px !important; }
 .sgtbkey i.k1.tg { background: #1f9d55; } .sgtbkey i.k1.ta { background: #e0a82e; } .sgtbkey i.k1.tr { background: #d0604f; }
 .sgtbl > span.vg, .sgtwb b.vg { color: #1f6b3a !important; } .sgtbl > span.va, .sgtwb b.va { color: #a06e0a !important; } .sgtbl > span.vr, .sgtwb b.vr { color: #b0473f !important; }
+/* v179 (Scott): PDF report + story picture side by side at the top of Round stats, line icons */
+.rsbtns { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+html body .rsact { display: flex; align-items: center; gap: 10px; min-height: 62px; padding: 10px 12px; border-radius: 18px; text-align: left;
+  background: rgba(255,255,255,.62); border: 1px solid rgba(255,255,255,.75); box-shadow: 0 1px 2px rgba(20,40,30,.08), inset 0 1px 0 rgba(255,255,255,.7); color: #1d2a24; }
+html body .rsact:active { transform: scale(.98); background: rgba(255,255,255,.78); }
+.rsact .rsic { flex: 0 0 30px; width: 30px; height: 30px; padding: 6px; border-radius: 10px; background: #1f5d3a; fill: none; stroke: #fff; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; box-sizing: border-box; }
+#storybtn .rsic { background: linear-gradient(135deg, #d8a23a, #c4553e); }
+.rsact span { display: flex; flex-direction: column; min-width: 0; } .rsact b { font-size: 15px; font-weight: 650; line-height: 1.2; } .rsact small { font-size: 11.5px; color: #5c6b63; font-weight: 500; }
+.bmrow .tipbtn { margin-left: 8px; flex: 0 0 auto; } .bmnote { margin: 6px 2px 4px; }
+html body .bmrow { display: flex; align-items: center; gap: 8px; } html body .bmrow .stsect { white-space: nowrap; flex: 0 0 auto; }
+html body .bmrow select { flex: 1 1 auto; min-width: 0; width: auto; } html body .bmrow .tipbtn { margin-left: 0; }
+html body .bmrow .infobtn span { font-weight: 400; } /* the app's light type */

@@ -1213,10 +1213,14 @@
   function stWho() { return view.stPlayer && view.stPlayer !== '~none' ? view.stPlayer : playerName(); }
   function stBlNow() { return view.stBl == null ? myBench(stWho()) : view.stBl; }
   function histBlNow() { return view.histBl == null ? myBench(view.histPlayer && view.histPlayer !== '~none' ? view.histPlayer : playerName()) : view.histBl; }
+  // v179: line icons for the round's two share buttons (document, and a portrait story frame)
+  var ICON_DOC = '<svg class="rsic" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 3h7l5 5v12a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1z"/><path d="M14 3v5h5"/><path d="M9 13h6M9 17h6"/></svg>';
+  var ICON_STORY = '<svg class="rsic" viewBox="0 0 24 24" aria-hidden="true"><rect x="6" y="2.5" width="12" height="19" rx="3"/><circle cx="12" cy="10" r="2.6"/><path d="M9 16h6"/></svg>';
   function bmRowHTML(id, cur, allLabel, note) {
     return '<div class="bmwrap"><div class="stsec stsecsg bmrow" id="' + id + 'row"><span class="stsect">Strokes gained</span><select id="' + id + '" class="stbl" data-f="baseline" aria-label="Benchmark – compare against">' +
-      (allLabel ? '<option value="">' + esc(allLabel) + '</option>' : '') + SG.BASELINES.map(function (b) { return '<option value="' + b.id + '"' + (cur === b.id ? ' selected' : '') + '>' + esc(blLabel(b.id)) + '</option>'; }).join('') + '</select></div>' +
-      (note ? '<p class="stnote stsgnote bmnote" id="' + id + 'note">' + note + '</p>' : '') + '</div>';
+      (allLabel ? '<option value="">' + esc(allLabel) + '</option>' : '') + SG.BASELINES.map(function (b) { return '<option value="' + b.id + '"' + (cur === b.id ? ' selected' : '') + '>' + esc(blLabel(b.id)) + '</option>'; }).join('') + '</select>' +
+      (note ? tipBtn(id + 'note', 'i', 'About the benchmark') : '') + '</div>' + // v179 (Scott): the note sits behind the ⓘ
+      (note ? '<div class="infotext tippop bmnote" id="tip-' + id + 'note"' + (infoOpen[id + 'note'] ? '' : ' hidden') + '>' + note + '</div>' : '') + '</div>';
   }
   function historyHTML() {
     var P = playersIn(), names = Object.keys(P).sort(), multi = names.length + (savedRounds().some(function (r) { return !r.player; }) && names.length ? 1 : 0) > 1;
@@ -1567,7 +1571,7 @@
     if (mode !== 'all') h += '<div class="stbar"><button class="stcmp' + (D.cmp ? ' on' : '') + '" id="stcmp" data-act="stcmp" aria-pressed="' + D.cmp + '"><i aria-hidden="true"></i>Compare to all rounds</button></div>';
     h += '<p class="stsub" id="stshown">' + (mode === 'pick' ? esc(stPickLine(shown)) : mode === 'sel' && D.sel ? esc(stDate(D.sel.date)) + ' · ' + esc(D.sel.course) + ' · ' + D.sel.score + ' (' + toPar(D.sel.toPar) + ')' + (D.sel.open ? ' · ' + D.sel.holes + ' holes so far' : '') :
       (mode === '5' ? 'Last ' + shown.length + ' of ' : '') + all.length + ' finished round' + (all.length === 1 ? '' : 's') + ' · ' + esc(stDate(shown[0].date)) + (shown.length > 1 ? ' – ' + esc(stDate(shown[shown.length - 1].date)) : '')) + '</p>';
-    h += bmRowHTML('stbl', stBlNow(), 'Each round’s benchmark', 'Benchmark: plus = strokes gained, minus = strokes lost, compared with ' + esc(stBlNow() ? blLabel(stBlNow()) : 'each round’s own benchmark') + '.').replace('id="stblnote"', 'id="stsgnote"'); h += notMineHTML(stBlNow(), stWho(), 'blminest'); // v177
+    h += bmRowHTML('stbl', stBlNow(), 'Each round’s benchmark', 'Benchmark: plus = strokes gained, minus = strokes lost, compared with ' + esc(stBlNow() ? blLabel(stBlNow()) : 'each round’s own benchmark') + '.'); h += notMineHTML(stBlNow(), stWho(), 'blminest'); // v177
     // v125: graphs grouped in collapsible categories (tap a header; open / closed is kept while the page is open)
     var sgT = function (k) { var c = ST_SG.filter(function (x) { return x[0] === k; })[0]; return stTrend(k, D, function (p) { return p.sg[k]; }, { title: c[1], short: c[1].replace(/ \(.*\)$/, ''), color: c[2], help: c[3] }); };
     var pctT = function (k) { var c = ST_PCT.filter(function (x) { return x[0] === k; })[0]; return stTrend(k, D, function (p) { return p[k]; }, { title: c[1], short: c[1].replace(/ \(.*\)$/, ''), color: c[2], help: c[3], pct: true }); };
@@ -3546,7 +3550,10 @@
       new Date(r.date).toLocaleDateString() + (r.course ? ' · ' + esc(r.course) : '') + '</span></div><button class="txt frostbtn" data-act="home">Home</button></div>';
     if (view.stxRound !== r.id) { view.stx = {}; view.stxRound = r.id; } // tiles start collapsed for each round
     // v165 (Scott): Create PDF report at the top of Round stats – no scrolling to the bottom for it (its share sheet opens right here)
-    out += '<div class="rsactions" id="rsactions"><button class="primary rspdftop" data-act="pdf" data-at="top" id="rspdftop">📄 Create PDF report</button>' + (view.pdfAt === 'top' ? pdfHTML() : '') + '</div>';
+    // v179 (Scott): the PDF report and the story picture side by side at the top, with line icons instead of emoji
+    out += '<div class="rsactions" id="rsactions"><div class="rsbtns"><button class="rsact" data-act="pdf" data-at="top" id="rspdftop">' + ICON_DOC + '<span><b>PDF report</b><small>to print or send</small></span></button>' +
+      (S.holesDone ? '<button class="rsact" data-act="story" id="storybtn">' + ICON_STORY + '<span><b>Story picture</b><small>Instagram / TikTok</small></span></button>' : '') + '</div>' +
+      (view.pdfAt === 'top' ? pdfHTML() : '') + (S.holesDone ? storyHTML() : '') + '</div>';
     out += rsTopHTML(r, S) + bmRowHTML('sumbl', bl, '', 'Changing it recalculates the whole round and is saved with it.') + notMineHTML(bl, r.player || playerName(), 'blmineround') + playPickHTML('rplay', MYGAME.playOf(r), 'Round type', 'rplay') + takeawayHTML(r) + quickViewHTML(S);
     out += scorecardHTML(r, S) + '<button class="big rpbtn" data-act="replay" data-v="0" id="sumreplay">▶ Hole replay (hole by hole)</button>';
     var B = SG.baseline(bl), main = out; out = '';
@@ -3574,7 +3581,6 @@
       'Avg to pin after = how far from the hole the ball finished: feet on the green, yards × 3 off it, 0 if holed' +
       (pex ? '; <b>' + pex + '</b> approach shot' + (pex === 1 ? '' : 's') + ' with a penalty or OB left out of that average' : '; shots with a penalty or OB are left out of it') + '.</p>';
     var sgPart = out; out = main + '<h2>Stats</h2>' + statTilesHTML(S) + roundParCurvesHTML(r, bl, S);
-    out += (S.holesDone ? '<button class="primary big storybtn" data-act="story" id="storybtn" style="margin-top:16px">📸 Share to Instagram / TikTok<small>a one-page story picture of this round</small></button>' + storyHTML() : '');
     out += '<button class="primary big" data-act="pdf" data-at="bottom" style="margin-top:16px">📄 Make PDF report</button>' + (view.pdfAt === 'top' ? '' : pdfHTML());
     out += '<button class="big" data-act="csv">Export this round (CSV)</button>';
     out += '<button class="big sendbtn" data-act="sendopen" id="sendround">📤 Send round<small>to another phone – it lands in their Rounds</small></button>';

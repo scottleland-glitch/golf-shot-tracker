@@ -45,6 +45,10 @@ ok('story numbers match the round: 78 (+6), SG by category, FW 8/14, GIR 7/18, a
     if (await page.$('#plusbtn')) await page.click('#plusbtn');
     await page.click('[data-act="history"]'); await page.click('#histlist [data-act="open"][data-id="arc78"]');
     await page.waitForSelector('#storybtn'); assert.match(await page.textContent('#storybtn'), /Instagram \/ TikTok/);
+    // v179: the story picture sits beside the PDF report at the top; the benchmark note is behind the ⓘ
+    assert.deepStrictEqual(await page.$$eval('#rsactions .rsbtns > button', e => e.map(b => b.id)), ['rspdftop', 'storybtn']);
+    assert.ok(await page.$('#tip-sumblnote[hidden]'), 'note hidden'); await page.click('#sumblrow .tipbtn'); assert.ok(await page.$('#tip-sumblnote:not([hidden])'), 'ⓘ shows it');
+    await page.click('#sumblrow .tipbtn'); await page.screenshot({ path: OUT + 'round-top.png' });
     ok('Round stats has "Share to Instagram / TikTok"');
     await page.click('#storybtn'); await page.waitForSelector('#storyprev');
     const img = await page.evaluate(() => new Promise(r => { const i = document.getElementById('storyprev'); const go = () => r([i.naturalWidth, i.naturalHeight]); i.complete ? go() : (i.onload = go); }));

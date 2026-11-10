@@ -25,6 +25,12 @@ Every Shot Counts Table 3.10). The other five are ESTIMATED: per-round gaps from
 Player Quality ladder, then spread over the PGA table. Full sources, method and caveats: in-app
 "About the numbers" and the BASELINES comment in `sg.js`.
 
+## Round stats top buttons (v179)
+- **PDF report** and **Story picture** sit side by side at the top of Round stats (`#rspdftop`, `#storybtn`), with line
+  icons (a page; a portrait story frame) instead of emoji. The story preview / share opens right there.
+- The benchmark note ("Changing it recalculates the whole round…") moved behind an ⓘ at the end of the Strokes gained row
+  (also on Stats and Rounds).
+
 ## One-pager scorecard; rating and differential (v178)
 - **Round one-pager:** a front 9 / back 9 scorecard (Hole / Par / Score, Out / In / Tot, the app's birdie circle and bogey
   square marks) under strokes gained. The score, fairways / greens and putting panels are a little smaller; the SG total
