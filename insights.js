@@ -266,6 +266,7 @@
     return { ready: known.length > 0, headline: headline, sub: sub, rows: rows, plan: plan, coach: coach, poolRounds: pool.length };
   }
 
+  function andList(L) { return L.length < 2 ? (L[0] || '') : L.slice(0, -1).join(', ') + ' and ' + L[L.length - 1]; }
   // ---------- the takeaway ----------
   // round: the round; history: the golfer's OTHER finished rounds, newest first; opts: { baselineName }.
   function build(round, history, SG, opts) {
@@ -300,9 +301,19 @@
     var others = areas.filter(function (a) { return a !== worst && a.delta < 0; }), otherLoss = -sum(others, function (a) { return a.delta; });
     var headline, lede;
     if (!worst) { headline = 'Round saved.'; lede = ''; }
-    else if (areas.every(function (a) { return a.delta >= 0; })) {
-      headline = 'Great round – better than ' + (areas.every(function (a) { return a.mine; }) ? 'your normal' : 'the ' + blName + ' average') + ' everywhere.';
-      lede = cap(best.word) + ' led the way (+' + r1(best.delta) + ').';
+    else if (areas.every(function (a) { return a.delta >= -0.1; }) && best.delta >= 0.5) { // v173: nothing worse than its yardstick and something clearly better (a level round is steady, not great)
+      // v173 (Scott): say what each area was measured against – "better than the PGA Tour average everywhere" was wrong when
+      // most areas were measured against the golfer's own normal and were still well below the tour.
+      var mineA = areas.filter(function (a) { return a.mine; }), benchA = areas.filter(function (a) { return !a.mine; });
+      var ins = function (L) { return andList(L.map(function (a) { return a.in; })); }, vs = function (a) { return a.mine ? 'your normal' : 'the ' + blName + ' average'; };
+      if (!benchA.length) { headline = 'Great round – better than your normal everywhere.'; lede = ''; }
+      else if (!mineA.length) { headline = 'Great round – better than the ' + blName + ' average everywhere.'; lede = ''; }
+      else { headline = 'Great round – better than your normal everywhere.';
+        lede = 'Better than your normal ' + ins(mineA) + '; better than the ' + blName + ' average ' + ins(benchA) + ' (Strokewise doesn’t know your normal there yet). '; }
+      lede += cap(best.word) + ' led the way: ' + r1(best.delta) + ' ' + (Math.abs(best.delta) === 1 ? 'stroke' : 'strokes') + ' better than ' + vs(best) + '.';
+      // and where that leaves the round against the benchmark, so a good round for you is not read as tour-level
+      var tot = sum(areas, function (a) { return a.sg; });
+      if (mineA.length && tot <= -0.5) lede += ' Overall you were still ' + r1(-tot) + ' strokes behind the ' + blName + ' average – that is the long-term goal.';
     } else if (worst.delta > -BIG) {
       headline = 'A steady round with no big leaks.';
       lede = 'Every area was within a stroke of ' + (worst.mine ? 'your normal' : 'the ' + blName + ' average') + '.';

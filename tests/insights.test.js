@@ -139,3 +139,11 @@ test('patterns: a one-way miss over several rounds becomes a coach note', () => 
   const P = I.patterns(sums, SG, 'pga'), sp = P.find((x) => x.id === 'puttspeed');
   assert.ok(sp, JSON.stringify(P)); assert.equal(sp.dir, 'finished short'); assert.match(sp.text, /over your last 3 rounds\.$/);
 });
+
+test('v173: a great round for this golfer says what it beat, and that it is still behind the benchmark', () => {
+  const hist = Array.from({ length: 6 }, (_, i) => threePutts(copy('h' + i), [0, 1, 4, 5]));
+  const t = I.build(copy('now'), hist, SG);
+  assert.strictEqual(t.headline, 'Great round – better than your normal everywhere.');
+  assert.match(t.lede, /^Putting led the way: [3-5]\.\d strokes better than your normal\. Overall you were still \d+\.\d strokes behind the PGA Tour average – that is the long-term goal\.$/);
+  assert.ok(!/better than the PGA Tour average/.test(t.headline + t.lede));
+});

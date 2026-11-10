@@ -25,6 +25,13 @@ Every Shot Counts Table 3.10). The other five are ESTIMATED: per-round gaps from
 Player Quality ladder, then spread over the PGA table. Full sources, method and caveats: in-app
 "About the numbers" and the BASELINES comment in `sg.js`.
 
+## Round takeaway: what a great round beat (v173)
+- "Better than the PGA Tour average everywhere" showed when only some areas were measured against the benchmark and the
+  rest against the golfer's own normal (still negative strokes gained). The takeaway now says which areas beat your
+  normal and which beat the benchmark, "Putting led the way: 2.1 strokes better than your normal", and – when the round
+  is still behind the benchmark – "Overall you were still N strokes behind the PGA Tour average".
+- A great round needs one area clearly better (0.5+ strokes) and none worse; a level round reads as steady.
+
 ## Short game test intro every time (v172)
 - Opening the short game test always starts with the four-slide intro; Skip intro or Start goes to the test page.
 
