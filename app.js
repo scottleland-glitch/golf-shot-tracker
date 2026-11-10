@@ -36,6 +36,19 @@
   function saveWedges(w) { w.updated = new Date().toISOString(); localStorage.setItem(WGK, JSON.stringify(WEDGES.norm(w))); backupDirty(20000); }
   function wedgesForBackup() { var w = wedges(); return WEDGES.count(w) ? w : null; } // both flights, incl. entries kept from the 5-yard draft
   function courseById(id) { return courses().filter(function (c) { return c.id === id; })[0]; }
+  // v178 (Scott): the tee's course rating and slope (from the course search – GolfCore – when the course came from there), and the
+  // round's score differential = 113 / slope × (score − rating). Women's rating for a women's benchmark, else men's; either if only one.
+  // The differential uses the gross score (no per-hole caps) and only for a full 18 holes.
+  var WOMEN_BL = { lpga: 1, d1w: 1, scw: 1 };
+  function roundRating(r) {
+    var c = r && (courseById(r.courseId) || courses().filter(function (x) { return String(x.name || '').trim().toLowerCase() === String(r.course || '').trim().toLowerCase(); })[0]); if (!c) return null;
+    var t = (c.tees || []).filter(function (x) { return x.name === r.tee; })[0] || ((c.tees || []).length === 1 ? c.tees[0] : null); if (!t || !t.rt) return null;
+    var ok = t.rt.filter(function (x) { return x.rating != null && x.slope != null && +x.slope > 0; }); if (!ok.length) return null;
+    var want = WOMEN_BL[myBench(r.player || playerName())] ? 'F' : 'M', pick = ok.filter(function (x) { return x.g === want; })[0] || ok[0];
+    return { rating: +pick.rating, slope: +pick.slope, g: pick.g || '' };
+  }
+  function roundDiff(r, S) { var R = roundRating(r); if (!R || !S || S.holesDone !== 18 || (r.holes || []).length !== 18) return null;
+    return Math.round(10 * 113 / R.slope * (S.strokes - R.rating)) / 10; }
   function playerName() { return (localStorage.getItem(PN) || '').trim(); }
   // Rounds that belong to this phone's player (unnamed rounds count as theirs). Backups contain only these,
   // so another player's rounds are never written into this player's file.
@@ -604,6 +617,9 @@
       y = note('Proximity = average distance from the hole after approach shots. 1st putts made inside 10 ft = first putts from 10 ft and in that went in. Lag putts = first putts over 10 ft that finished inside 3 ft.', M, y + 4);
       // ---- Page 2: the scorecard (the same numbers as the on-screen card: scorecardData) ----
       doc.addPage(); y = header('The numbers – scorecard, strokes gained vs ' + blName(R.bl));
+      // v178 (Scott): the tee's course rating / slope and the round's score differential, above the scorecard
+      var RR = roundRating(r), DF = roundDiff(r, S);
+      if (RR) { font(10); ink(60); T([r.tee ? r.tee + ' tees' : '', 'Course rating ' + RR.rating.toFixed(1), 'Slope ' + RR.slope, DF != null ? 'Score differential ' + DF.toFixed(1) + ' (gross score)' : ''].filter(Boolean).join('  ·  '), M, y - 4); ink(); y += 8; } // one line: the page is full
       var D = scorecardData(r, S), SCG = D.rows.map(function (row) { return [row.lbl]; }), nG = D.groups.length;
       var halves = D.n > 9 ? [['Front 9', D.idx.filter(function (i) { return i < 9; }), [0]], ['Back 9', D.idx.filter(function (i) { return i >= 9; }), D.groups.map(function (g, k) { return k; }).slice(1)]]
         : [['Front 9', D.idx, D.groups.map(function (g, k) { return k; })]];
@@ -847,7 +863,8 @@
   }
   // v137 PDF covers – the Instagram story look (STORY.drawCover), Letter shaped
   var COVER_BG = 'img/home-bg.webp';
-  function roundCover(r) { var bl = blOf(r), S = SG.summarize(r, bl); return STORY.coverImage(STORY.data(r, S, { baselineName: SG.baseline(bl).name, player: r.player || playerName() }), COVER_BG); }
+  function storyOpts(r, S, bl) { return { baselineName: SG.baseline(bl).name, player: r.player || playerName(), rating: roundRating(r), diff: roundDiff(r, S) }; } // v178 + rating, differential
+  function roundCover(r) { var bl = blOf(r), S = SG.summarize(r, bl); return STORY.coverImage(STORY.data(r, S, storyOpts(r, S, bl)), COVER_BG); }
   function statsCover(R, dateTxt) {
     var ids = {}; R.D.shown.forEach(function (p) { ids[p.id] = 1; });
     var list = savedRounds().filter(function (r) { return ids[r.id]; }).map(function (r) { var bl = stBlNow() || blOf(r); return STORY.data(r, SG.summarize(r, bl), {}); });
@@ -1173,7 +1190,7 @@
     var r = round(); if (!r) return;
     if (act === 'story') {
       storyClose(); view.story = { busy: true, id: r.id }; render();
-      var bl = blOf(r), S = SG.summarize(r, bl), d = STORY.data(r, S, { baselineName: SG.baseline(bl).name, player: r.player || playerName() });
+      var bl = blOf(r), S = SG.summarize(r, bl), d = STORY.data(r, S, storyOpts(r, S, bl));
       STORY.makeImage(d, 'img/home-bg.webp').then(function (blob) {
         if (!view.story || view.story.id !== r.id) return;
         view.story = { id: r.id, blob: blob, url: URL.createObjectURL(blob), name: STORY.fileName(r) }; window.__golf.lastStory = view.story; render();

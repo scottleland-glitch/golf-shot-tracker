@@ -25,6 +25,9 @@
       player: String(opts.player || round.player || '').trim(),
       dateText: isNaN(d) ? '' : d.toLocaleDateString(opts.locale || undefined, { month: 'short', day: 'numeric', year: 'numeric' }),
       holes: S.holesDone, strokes: S.strokes, toPar: S.toPar,
+      // v178 (Scott): the scorecard (par and score per hole; null score = not played) and the tee's rating / slope + differential
+      card: (round.holes || []).map(function (h, i) { var a = (S.holes || [])[i]; return { n: i + 1, par: Number(h.par) || 0, score: a && a.done ? a.strokes : null }; }),
+      rating: opts.rating || null, diff: opts.diff == null ? null : opts.diff,
       baseline: opts.baselineName || '',
       sg: { ott: S.cats.tee.sg, app: S.cats.approach.sg, arg: S.cats.short.sg, bnk: (S.cats.bunker || {}).sg || 0, putt: S.cats.putting.sg, total: S.sgTotal,
         nOtt: S.cats.tee.n, nApp: S.cats.approach.n, nArg: S.cats.short.n, nBnk: (S.cats.bunker || {}).n || 0, nPutt: S.cats.putting.n },
@@ -96,6 +99,35 @@
     ctx.restore();
   }
 
+  // v178: front 9 and back 9, each Hole / Par / Score with Out / In (and Tot on the back nine)
+  function scorecard(ctx, d, x, y, w) {
+    var C = d.card || [], n = C.length; if (!n) return y;
+    var halves = n > 9 ? [C.slice(0, 9), C.slice(9)] : [C], h = 24 + halves.length * 152 + (halves.length - 1) * 10;
+    panel(ctx, x, y, w, h);
+    var LW = 92, SUMW = 70, nSum = n > 9 ? 2 : 1, cw = (w - 40 - LW - nSum * SUMW) / 9, sum = function (L, f) { return L.reduce(function (t, c) { return t + (f(c) || 0); }, 0); };
+    var allDone = function (L) { return L.every(function (c) { return c.score != null; }); };
+    halves.forEach(function (L, k) {
+      var y0 = y + 22 + k * 162, x0 = x + 20, rows = [['Hole', y0 + 34], ['Par', y0 + 82], ['Score', y0 + 132]];
+      ctx.save(); roundRect(ctx, x0, y0 + 4, w - 40, 44, 12); ctx.fillStyle = 'rgba(255,255,255,0.10)'; ctx.fill(); ctx.restore();
+      rows.forEach(function (r) { ctx.textAlign = 'left'; ctx.font = font(24, 600); ctx.fillStyle = MUTED; ctx.fillText(r[0].toUpperCase(), x0 + 12, r[1]); });
+      L.forEach(function (c, i) { var cx = x0 + LW + cw * i + cw / 2;
+        ctx.textAlign = 'center'; ctx.font = font(26, 600); ctx.fillStyle = '#fff'; ctx.fillText(String(c.n), cx, y0 + 34);
+        ctx.font = font(28, 400); ctx.fillStyle = MUTED; ctx.fillText(c.par ? String(c.par) : '–', cx, y0 + 82);
+        if (c.score == null) { ctx.fillStyle = 'rgba(255,255,255,0.35)'; ctx.fillText('–', cx, y0 + 132); return; }
+        var dlt = c.par ? c.score - c.par : 0, sz = 22, cy = y0 + 121;
+        ctx.save(); ctx.strokeStyle = dlt < 0 ? POS : dlt > 0 ? '#ffffff' : 'rgba(0,0,0,0)'; ctx.lineWidth = 2.5;
+        if (dlt <= -1) { ctx.beginPath(); ctx.arc(cx, cy, sz, 0, Math.PI * 2); ctx.stroke(); if (dlt <= -2) { ctx.beginPath(); ctx.arc(cx, cy, sz + 6, 0, Math.PI * 2); ctx.stroke(); } }
+        if (dlt >= 1) { ctx.strokeRect(cx - sz, cy - sz, 2 * sz, 2 * sz); if (dlt >= 2) ctx.strokeRect(cx - sz - 6, cy - sz - 6, 2 * sz + 12, 2 * sz + 12); }
+        ctx.restore();
+        ctx.font = font(30, 600); ctx.fillStyle = dlt < 0 ? POS : '#fff'; ctx.fillText(String(c.score), cx, y0 + 132); });
+      var sums = k === 0 ? [['Out', L]] : [['In', L], ['Tot', C]]; if (halves.length === 1 && n <= 9) sums = [['Tot', L]];
+      sums.forEach(function (sm, j) { var sx = x0 + LW + cw * 9 + SUMW * j + SUMW / 2, Ls = sm[1];
+        ctx.textAlign = 'center'; ctx.font = font(24, 700); ctx.fillStyle = GOLD; ctx.fillText(sm[0].toUpperCase(), sx, y0 + 34);
+        ctx.font = font(28, 500); ctx.fillStyle = MUTED; ctx.fillText(String(sum(Ls, function (c) { return c.par; })), sx, y0 + 82);
+        ctx.font = font(32, 700); ctx.fillStyle = '#fff'; var sc = Ls.filter(function (c) { return c.score != null; }); ctx.fillText(sc.length ? String(sum(sc, function (c) { return c.score; })) + (allDone(Ls) ? '' : '*') : '–', sx, y0 + 132); });
+    });
+    return y + h;
+  }
   // Background: the photo, covered and darkened so white type reads on any part of it.
   function background(ctx, bg) {
     ctx.fillStyle = '#0b2414'; ctx.fillRect(0, 0, W, H);
@@ -118,25 +150,29 @@
     // Header
     ctx.font = font(30, 700); ctx.fillStyle = GOLD; brand(ctx, 'STROKEWISE', W / 2, 250);
     ctx.textAlign = 'center'; ctx.fillStyle = '#fff';
-    var course = fitText(ctx, d.course, CW, 64, 600, 40); ctx.fillText(course, W / 2, 340);
+    var course = fitText(ctx, d.course, CW, 58, 600, 40); ctx.fillText(course, W / 2, 330);
     var sub = [d.dateText, d.tee ? d.tee + ' tees' : '', d.player].filter(Boolean).join('  ·  ');
-    ctx.font = font(32, 400); ctx.fillStyle = MUTED; ctx.fillText(fitText(ctx, sub, CW, 32, 400, 24), W / 2, 395);
+    ctx.font = font(30, 400); ctx.fillStyle = MUTED; ctx.fillText(fitText(ctx, sub, CW, 30, 400, 24), W / 2, 378);
 
     // Score
     var scoreTxt = String(d.strokes || 0), parTxt = toPar(d.toPar || 0);
-    ctx.font = font(220, 300); var sw = ctx.measureText(scoreTxt).width;
-    ctx.font = font(84, 500); var pw = ctx.measureText(parTxt).width + 56;
-    var gap = 36, sx = W / 2 - (sw + gap + pw) / 2, base = 615;
-    ctx.textAlign = 'left'; ctx.fillStyle = '#fff'; ctx.font = font(220, 300); ctx.fillText(scoreTxt, sx, base);
-    var px = sx + sw + gap, py = base - 150;
-    ctx.save(); roundRect(ctx, px, py, pw, 110, 55);
+    ctx.font = font(170, 300); var sw = ctx.measureText(scoreTxt).width;
+    ctx.font = font(68, 500); var pw = ctx.measureText(parTxt).width + 48;
+    var gap = 30, sx = W / 2 - (sw + gap + pw) / 2, base = 545;
+    ctx.textAlign = 'left'; ctx.fillStyle = '#fff'; ctx.font = font(170, 300); ctx.fillText(scoreTxt, sx, base);
+    var px = sx + sw + gap, py = base - 118;
+    ctx.save(); roundRect(ctx, px, py, pw, 88, 44);
     ctx.fillStyle = d.toPar < 0 ? 'rgba(126,226,160,0.22)' : d.toPar > 0 ? 'rgba(255,255,255,0.14)' : 'rgba(244,210,138,0.22)'; ctx.fill(); ctx.restore();
-    ctx.font = font(84, 500); ctx.fillStyle = d.toPar < 0 ? POS : d.toPar === 0 ? GOLD : '#fff'; ctx.textAlign = 'center'; ctx.fillText(parTxt, px + pw / 2, py + 85);
+    ctx.font = font(68, 500); ctx.fillStyle = d.toPar < 0 ? POS : d.toPar === 0 ? GOLD : '#fff'; ctx.textAlign = 'center'; ctx.fillText(parTxt, px + pw / 2, py + 68);
+    // v178: holes · course rating / slope · differential under the score
+    var meta = [d.holes + (d.holes === 1 ? ' hole' : ' holes'), d.rating ? 'Rating ' + d.rating.rating.toFixed(1) + ' / ' + d.rating.slope : ''].filter(Boolean).join('  ·  ');
     ctx.font = font(28, 400); ctx.fillStyle = MUTED; ctx.textAlign = 'center';
-    ctx.fillText(d.holes + (d.holes === 1 ? ' hole' : ' holes'), W / 2, base + 54);
+    if (d.diff != null) { var dl = 'Differential ', dv = d.diff.toFixed(1), mt = meta + '  ·  '; var w1 = ctx.measureText(mt + dl).width; ctx.font = font(28, 700); var w2 = ctx.measureText(dv).width;
+      var x0 = W / 2 - (w1 + w2) / 2; ctx.textAlign = 'left'; ctx.font = font(28, 400); ctx.fillText(mt + dl, x0, base + 50); ctx.font = font(28, 700); ctx.fillStyle = GOLD; ctx.fillText(dv, x0 + w1, base + 50); ctx.textAlign = 'center'; }
+    else ctx.fillText(meta, W / 2, base + 50);
 
     // Strokes gained
-    var y0 = 715, ph = 310; panel(ctx, M, y0, CW, ph);
+    var y0 = 625, ph = 272; panel(ctx, M, y0, CW, ph);
     label(ctx, 'Strokes gained', M + 44, y0 + 66);
     if (d.baseline) { ctx.save(); ctx.font = font(26, 400); ctx.fillStyle = MUTED; ctx.textAlign = 'right'; ctx.fillText('vs ' + d.baseline, M + CW - 44, y0 + 66); ctx.restore(); }
     // v133 all four categories: off the tee, approach, around the green, putting
@@ -144,45 +180,50 @@
     var inX = M + 28, cw = (CW - 56) / cols.length;
     cols.forEach(function (c, i) {
       var cx = inX + cw * i + cw / 2;
-      if (i) { ctx.save(); ctx.strokeStyle = 'rgba(255,255,255,0.12)'; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(inX + cw * i, y0 + 110); ctx.lineTo(inX + cw * i, y0 + 250); ctx.stroke(); ctx.restore(); }
-      ctx.textAlign = 'center'; ctx.fillStyle = '#fff'; ctx.fillText(fitText(ctx, c[0], cw - 16, 27, 500, 20), cx, y0 + 132);
-      ctx.fillStyle = sgColor(c[1]); ctx.fillText(fitText(ctx, fmtSG(c[1]), cw - 14, 70, 400, 44), cx, y0 + 218);
-      ctx.font = font(23, 400); ctx.fillStyle = MUTED; ctx.fillText(c[2] + (c[2] === 1 ? ' shot' : ' shots'), cx, y0 + 264);
+      if (i) { ctx.save(); ctx.strokeStyle = 'rgba(255,255,255,0.12)'; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(inX + cw * i, y0 + 100); ctx.lineTo(inX + cw * i, y0 + 225); ctx.stroke(); ctx.restore(); }
+      ctx.textAlign = 'center'; ctx.fillStyle = '#fff'; ctx.fillText(fitText(ctx, c[0], cw - 16, 26, 500, 20), cx, y0 + 118);
+      ctx.fillStyle = sgColor(c[1]); ctx.fillText(fitText(ctx, fmtSG(c[1]), cw - 14, 62, 400, 40), cx, y0 + 196);
+      ctx.font = font(22, 400); ctx.fillStyle = MUTED; ctx.fillText(c[2] + (c[2] === 1 ? ' shot' : ' shots'), cx, y0 + 238);
     });
     ctx.save(); ctx.font = font(30, 400); ctx.fillStyle = MUTED; ctx.textAlign = 'center';
     var tl = ctx.measureText('Total ').width, tv = fmtSG(d.sg.total); ctx.font = font(30, 600); var tvw = ctx.measureText(tv).width;
-    ctx.textAlign = 'left'; ctx.font = font(30, 400); ctx.fillText('Total ', W / 2 - (tl + tvw) / 2, y0 + ph + 50);
-    ctx.font = font(30, 600); ctx.fillStyle = sgColor(d.sg.total); ctx.fillText(tv, W / 2 - (tl + tvw) / 2 + tl, y0 + ph + 50); ctx.restore();
+    // v178: the total sits in the header line, after the label (the scorecard now follows the panel)
+    ctx.save(); ctx.font = font(26, 600); var lw0 = 0; ['S','T','R','O','K','E','S',' ','G','A','I','N','E','D'].forEach(function (c) { lw0 += ctx.measureText(c).width + 4; }); ctx.restore();
+    var tx0 = M + 44 + lw0 + 18; ctx.textAlign = 'left'; ctx.font = font(30, 400); ctx.fillText('Total ', tx0, y0 + 66);
+    ctx.font = font(30, 600); ctx.fillStyle = sgColor(d.sg.total); ctx.fillText(tv, tx0 + tl, y0 + 66); ctx.restore();
+
+    // v178 (Scott): the scorecard, same look as the app – circle = birdie, double circle = eagle, square = bogey, double square = double+
+    scorecard(ctx, d, M, 918, CW);
 
     // Fairways and greens
-    var y1 = 1112, th = 270, tw = (CW - 32) / 2;
+    var y1 = 1276, th = 188, tw = (CW - 32) / 2;
     [['Fairways', d.fw], ['Greens in reg', d.gir]].forEach(function (t, i) {
       var x = M + i * (tw + 32), v = t[1]; panel(ctx, x, y1, tw, th);
-      label(ctx, t[0], x + 40, y1 + 62);
-      var rcx = x + tw - 108, rcy = y1 + 156;
-      ring(ctx, rcx, rcy, 66, v.total ? v.hit / v.total : 0, GOLD);
-      ctx.textAlign = 'center'; ctx.font = font(40, 500); ctx.fillStyle = '#fff'; ctx.fillText(v.pct == null ? '–' : v.pct + '%', rcx, rcy + 14);
-      ctx.textAlign = 'left'; ctx.font = font(96, 300); ctx.fillStyle = '#fff';
-      var hit = String(v.hit); ctx.fillText(hit, x + 40, y1 + 192);
-      var hw = ctx.measureText(hit).width; ctx.font = font(44, 300); ctx.fillStyle = MUTED; ctx.fillText('/' + v.total, x + 46 + hw, y1 + 192);
-      ctx.font = font(26, 400); ctx.fillText(v.total ? 'hit' : 'none played', x + 40, y1 + 234);
+      label(ctx, t[0], x + 36, y1 + 52);
+      var rcx = x + tw - 92, rcy = y1 + 112;
+      ring(ctx, rcx, rcy, 52, v.total ? v.hit / v.total : 0, GOLD);
+      ctx.textAlign = 'center'; ctx.font = font(34, 500); ctx.fillStyle = '#fff'; ctx.fillText(v.pct == null ? '–' : v.pct + '%', rcx, rcy + 12);
+      ctx.textAlign = 'left'; ctx.font = font(76, 300); ctx.fillStyle = '#fff';
+      var hit = String(v.hit); ctx.fillText(hit, x + 36, y1 + 140);
+      var hw = ctx.measureText(hit).width; ctx.font = font(38, 300); ctx.fillStyle = MUTED; ctx.fillText('/' + v.total, x + 42 + hw, y1 + 140);
+      ctx.font = font(24, 400); ctx.fillText(v.total ? 'hit' : 'none played', x + 36, y1 + 174);
     });
 
     // Putting highlight
-    var y2 = 1414, h2 = 280, p = d.putting; panel(ctx, M, y2, CW, h2);
-    label(ctx, 'Putting', M + 44, y2 + 62, 'left', MUTED);
-    ctx.textAlign = 'left'; ctx.font = font(120, 300); ctx.fillStyle = GOLD;
-    var feet = p.avg2nd == null ? '–' : p.avg2nd.toFixed(1); ctx.fillText(feet, M + 44, y2 + 180);
-    var fw2 = ctx.measureText(feet).width; ctx.font = font(48, 300); if (p.avg2nd != null) ctx.fillText(' ft', M + 44 + fw2, y2 + 180);
-    ctx.font = font(30, 400); ctx.fillStyle = '#fff'; ctx.fillText(p.avg2nd == null ? 'no 2nd putts' : 'avg 2nd putt', M + 44, y2 + 232);
-    var rx = M + CW - 44, rows = [['Longest make', p.longest == null ? '–' : p.longest + ' ft'], ['Putts', String(p.putts)], ['1-putts', String(p.onePutts)], ['3-putts', String(p.threePutts)]];
+    var y2 = 1484, h2 = 190, p = d.putting; panel(ctx, M, y2, CW, h2);
+    label(ctx, 'Putting', M + 40, y2 + 52, 'left', MUTED);
+    ctx.textAlign = 'left'; ctx.font = font(86, 300); ctx.fillStyle = GOLD;
+    var feet = p.avg2nd == null ? '–' : p.avg2nd.toFixed(1); ctx.fillText(feet, M + 40, y2 + 136);
+    var fw2 = ctx.measureText(feet).width; ctx.font = font(40, 300); if (p.avg2nd != null) ctx.fillText(' ft', M + 40 + fw2, y2 + 136);
+    ctx.font = font(26, 400); ctx.fillStyle = '#fff'; ctx.fillText(p.avg2nd == null ? 'no 2nd putts' : 'avg 2nd putt', M + 40, y2 + 174);
+    var rx = M + CW - 40, rows = [['Longest make', p.longest == null ? '–' : p.longest + ' ft'], ['Putts', String(p.putts)], ['1-putts', String(p.onePutts)], ['3-putts', String(p.threePutts)]];
     rows.forEach(function (r, i) {
-      var ry = y2 + 102 + i * 50;
-      ctx.textAlign = 'right'; ctx.font = font(34, 500); ctx.fillStyle = '#fff'; ctx.fillText(r[1], rx, ry);
-      ctx.font = font(28, 400); ctx.fillStyle = MUTED; ctx.fillText(r[0], rx - 140, ry);
+      var ry = y2 + 58 + i * 38;
+      ctx.textAlign = 'right'; ctx.font = font(30, 500); ctx.fillStyle = '#fff'; ctx.fillText(r[1], rx, ry);
+      ctx.font = font(25, 400); ctx.fillStyle = MUTED; ctx.fillText(r[0], rx - 120, ry);
     });
 
-    ctx.textAlign = 'center'; ctx.font = font(24, 400); ctx.fillStyle = 'rgba(255,255,255,0.5)'; spaced(ctx, 'TRACKED WITH STROKEWISE', W / 2, 1760, 4, 'center');
+    ctx.textAlign = 'center'; ctx.font = font(24, 400); ctx.fillStyle = 'rgba(255,255,255,0.5)'; spaced(ctx, 'TRACKED WITH STROKEWISE', W / 2, 1730, 4, 'center');
     ctx.restore();
   }
 

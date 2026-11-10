@@ -25,6 +25,15 @@ Every Shot Counts Table 3.10). The other five are ESTIMATED: per-round gaps from
 Player Quality ladder, then spread over the PGA table. Full sources, method and caveats: in-app
 "About the numbers" and the BASELINES comment in `sg.js`.
 
+## One-pager scorecard; rating and differential (v178)
+- **Round one-pager:** a front 9 / back 9 scorecard (Hole / Par / Score, Out / In / Tot, the app's birdie circle and bogey
+  square marks) under strokes gained. The score, fairways / greens and putting panels are a little smaller; the SG total
+  sits in the panel's header line.
+- **Course rating, slope, differential** (`roundRating`, `roundDiff`): from the tee's rating / slope that the course search
+  (GolfCore) brings in – the women's rating for a women's benchmark, else the men's, or whichever there is. Differential =
+  113 / slope × (score − rating), gross score, full 18 holes only. Shown under the score on the one-pager and on one line
+  at the top of the round PDF's scorecard page.
+
 ## Bar colours (v177)
 - Each "this test" bar (and its value) is coloured by how close it is to the benchmark mark, on the spider's scale:
   green within ~0.1 strokes a shot (index 90+), amber 0.1–0.25 behind (75–90), red further back. Speed ladders use the

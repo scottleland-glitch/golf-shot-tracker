@@ -1,4 +1,5 @@
 // Offline support: cache the whole app on install, serve cache-first.
+// v178: Round one-pager – scorecard under strokes gained; course rating / slope and score differential on the one-pager and the round PDF scorecard page.
 // v177: Short game bars coloured by distance to the benchmark – green (90%+), amber (75–90%), red; value text matches.
 // v176: Bars under every short game spider (your average blue, this test, benchmark mark); wedges as bars; course vs test card; last 2/3/4 rounds; one benchmark per player (My benchmark) used everywhere, red ! until set; report drawn with bars.
 // v175: My Game report – one PDF (summary, My Game, My Practice, short game test, practice plan); coach and recruiting presets, each part on its own.
@@ -70,7 +71,7 @@
 // v113: "Courses near me" (near.js). The course finder list (data/us-courses.json, ~1.0 MB, ~0.28 MB gzipped) is NOT in this cache:
 // the app downloads it on first use into its own cache 'pinhigh-courselist-v1', which a new version keeps (so no re-download).
 // GolfCore scorecards (through the Pin High relay, pinhigh-golfcore.pinhigh.workers.dev) go straight to the network; the app saves each picked course with the saved courses.
-const CACHE = 'golf-sg-v177';
+const CACHE = 'golf-sg-v178';
 const ASSETS = ['./', './img/home-bg.webp', './img/oriole.webp', './index.html', './styles.css', './sg.js', './birdie.js', './voice.js', './courses.js', './near.js', './bag.js', './wedges.js', './live.js', './share.js', './story.js', './insights.js', './mygame.js', './shortgame.js', './shortgame-ui.js', './gdrive.js', './app.js', './config.js', './vendor/jspdf.umd.min.js',
   './manifest.webmanifest', './icons/apple-touch-icon.png', './icons/icon-192.png',
   './icons/icon-512.png', './icons/icon-512-maskable.png'];

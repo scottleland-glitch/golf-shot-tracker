@@ -34,7 +34,10 @@ ok('story numbers match the round: 78 (+6), SG by category, FW 8/14, GIR 7/18, a
     const page = await ctx.newPage(); page.setDefaultTimeout(30000);
     page.on('pageerror', e => errors.push(String(e))); page.on('console', m => m.type() === 'error' && errors.push(m.text()));
     await page.goto(BASE + '?x=' + Date.now());
-    await page.evaluate(r => { localStorage.clear(); localStorage.setItem('golfsg.player.v1', 'Scott'); localStorage.setItem('golfsg.nameasked.v1', '1'); localStorage.setItem('golfsg.rounds.v1', JSON.stringify([r])); }, R);
+    // v178: the course (from the course search) carries the tee's rating / slope, so the one-pager shows them and the differential
+    R.courseId = 'c-arcade'; R.tee = R.tee || 'Blue';
+    const CRS = [{ id: 'c-arcade', name: R.course, pars: R.holes.map(h => h.par), tees: [{ name: R.tee, yards: R.holes.map(() => 0), rt: [{ g: 'M', rating: 71.4, slope: 128 }, { g: 'F', rating: 76.9, slope: 136 }] }] }];
+    await page.evaluate(([r, c]) => { localStorage.clear(); localStorage.setItem('golfsg.player.v1', 'Scott'); localStorage.setItem('golfsg.nameasked.v1', '1'); localStorage.setItem('golfsg.rounds.v1', JSON.stringify([r])); localStorage.setItem('golfsg.courses.v1', JSON.stringify(c)); }, [R, CRS]);
     await page.reload(); await page.waitForSelector('#home');
     // record what the share sheet would get
     await page.evaluate(() => { window.__shared = null; navigator.canShare = () => true; navigator.share = d => { window.__shared = d.files.map(f => ({ name: f.name, type: f.type, size: f.size })); return Promise.resolve(); }; });
