@@ -49,15 +49,18 @@ function make(id, date, q) { const t = T.blank(id, date, 'Scott', 'scm');
   // v168: ladders flat, uphill, downhill
   for (const [n, lbl] of [[8, 'Flat'], [6, 'Uphill'], [4, 'Downhill']]) { assert.match(await page.textContent('#sgtwhat'), new RegExp('^' + lbl + ' ladder')); for (let k = 0; k < n; k++) await page.click('[data-act="sgtlad"][data-v="1"]'); if (n === 6) await shot('06-ladder', true); await page.click('#sgtladsave'); }
   await page.click('#sgtnext'); await shot('07-compass-setup', true);
+  // v168: the setup explains why the putts go around the hole
+  assert.ok(await page.$('#sgtwhy:not([open])')); await page.click('#sgtwhy summary'); assert.match(await page.textContent('#sgtwhy'), /every putt a fresh read/); await shot('07b-compass-why', true);
   // compass: miss downhill 7/9 and breaks-right 9
   const C = T.STATION.compass.shots;
   for (let i = 0; i < 16; i++) { const s = C[i], miss = (s.line === 'down' && s.dist >= 5) || (s.line === 'br' && s.dist === 9) || (s.line === 'bl' && s.dist === 9);
     if (i === 5) await shot('08-compass-entry', true);
+    if (i === 0) { assert.match(await page.textContent('#sgtlongwhy summary'), /Long, or a left \/ right miss\?/); await page.click('#sgtlongwhy summary'); assert.match(await page.textContent('#sgtlongwhy'), /more than 18 inches past the hole/); await page.locator('#sgtlongwhy').scrollIntoViewIfNeeded(); await shot('08a-long-why'); }
     if (miss) await page.click('[data-act="sgtmiss"][data-v="' + (s.line === 'down' ? 'long' : 'low') + '"]'); else await page.click('#sgtmade'); }
   await page.click('#sgtnext');
   // chips
   for (const [id, vals] of [['chipShort', [3, 5, 4, 6, 2]], ['chipLong', [8, 12, 6, 9, 10]], ['flop', [14, 18, 9, 22, 12]], ['rough', [7, 9, 12, 6, 8]]]) {
-    for (let i = 0; i < 5; i++) { await type(vals[i]); if (id === 'flop' && i === 1) await shot('09-flop-entry', true); if (i === 0) await page.keyboard.press('Enter'); else await page.click('[data-act="sgtsave"][data-v=""]'); }
+    for (let i = 0; i < 5; i++) { await type(vals[i]); if (id === 'flop' && i === 1) { await shot('09-flop-entry', true); assert.ok(await page.$('[data-act="sgtsave"][data-v="fshort"]'), 'v168: flop has Didn’t reach the green'); } if (i === 0) await page.keyboard.press('Enter'); else await page.click('[data-act="sgtsave"][data-v=""]'); }
     await page.click('#sgtnext'); }
   // bunkers
   for (let i = 0; i < 5; i++) { await type([8, 12, 6, 10, 9][i]); await page.click('[data-act="sgtsave"][data-v=""]'); } await page.click('#sgtnext');
@@ -73,7 +76,14 @@ function make(id, date, q) { const t = T.blank(id, date, 'Scott', 'scm');
   assert.match(await page.evaluate(() => document.querySelector('#sgtcoach').innerText), /3 of 10 bunker shots flew the green/);
   assert.match(await page.evaluate(() => document.querySelector('#sgtcoach').innerText), /Speed ladder: 8 balls flat, 6 uphill, 4 downhill\.\s*Downhill speed is the leak/);
   assert.match(await page.evaluate(() => document.querySelector('#sgtplan').innerText), /1\. /);
-  assert.equal(await page.locator('.sgtspider').count(), 4, 'overall + putting + chipping + bunker spiders'); assert.equal(await page.locator('#sgtwbars .sgtwb').count(), 5);
+  assert.equal(await page.locator('.sgtspider').count(), 5, 'overall + 2 putting + chipping + bunker spiders');
+  // v168: putting = lag & speed (6 spokes) + short putts (4 lines)
+  const sp = await page.evaluate(() => ['#sgtpsplag', '#sgtpspshort'].map(id => [...document.querySelectorAll(id + ' svg text')].filter(x => x.getAttribute('font-weight') === '600').map(x => x.textContent)));
+  assert.deepStrictEqual(sp, [['Lag 30', 'Lag 40', 'Lag 50', 'Flat speed', 'Uphill speed', 'Downhill speed'], ['Uphill', 'Breaks right', 'Downhill', 'Breaks left']]);
+  assert.match(await page.textContent('#sgtpsplag'), /4 of 12 balls/, 'downhill ladder 4 against its best (9, in August) + 3'); assert.equal(await page.locator('#sgtwbars .sgtwb').count(), 5);
+  // v168 (Scott): way off her own usual gets a warning with the pattern – downhill 1 of 4, all three misses long
+  const wtxt = await page.textContent('#sgtwarn-putting'); assert.match(wtxt, /Downhill putts: 1 of 4 made/); assert.match(wtxt, /All 3 missed long/); assert.match(wtxt, /Way off your usual/); assert.match(wtxt, /Usually 3\.3 of 4 · last 3 tests/); // against her own usual, not the benchmark
+  await page.locator('#sgtwarn-putting').scrollIntoViewIfNeeded(); await shot('12w-putting-warning');
   assert.ok(await page.locator('.sgtavg').count() >= 1, 'your average shows with 3 earlier tests');
   console.log('HEAD', head, '|', await page.textContent('#sgtsub'));
   console.log('PLAN', await page.evaluate(() => (document.querySelector('#sgtplan') || {}).innerText)); console.log('COACH', await page.evaluate(() => (document.querySelector('#sgtcoach') || {}).innerText));
@@ -81,6 +91,9 @@ function make(id, date, q) { const t = T.blank(id, date, 'Scott', 'scm');
   console.log('stored', stored.length, 'done', stored[stored.length - 1].done, 'green', stored[stored.length - 1].cond.green);
   // overflow check: nothing wider than the screen
   const wide = await page.evaluate(() => [...document.querySelectorAll('#app *')].filter(e => e.getBoundingClientRect().right > innerWidth + 1).map(e => e.className || e.tagName).slice(0, 8)); assert.deepStrictEqual(wide, [], 'nothing wider than the screen');
+  // v168: nothing in a result row runs past its tile (long benchmark names did)
+  const spill = await page.evaluate(() => [...document.querySelectorAll('.sgtrow')].filter(r => { const card = r.closest('.sgtcard') || r.parentElement, cr = card.getBoundingClientRect(); return [...r.querySelectorAll('*')].some(e => e.getBoundingClientRect().right > cr.right - 4); }).map(r => r.textContent.slice(0, 40)));
+  assert.deepStrictEqual(spill, [], 'result rows stay inside their tile');
   await page.click('#sgthubbtn'); await shot('14-hub-after', true);
   assert.deepStrictEqual(errors, []); console.log('PASS shortgame-focused'); await browser.close(); if (srv) srv.kill();
 })().catch(e => { console.error(e); process.exit(1); });

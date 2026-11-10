@@ -25,6 +25,20 @@ Every Shot Counts Table 3.10). The other five are ESTIMATED: per-round gaps from
 Player Quality ladder, then spread over the PGA table. Full sources, method and caveats: in-app
 "About the numbers" and the BASELINES comment in `sg.js`.
 
+## Short game results: putting spiders and way-off warnings (v169)
+- **Wording:** "ft left" is now "ft away" (proximity); "Past" is now "Long" everywhere.
+- **Short putts (around the hole):** a "Why go around the hole?" note on the setup screen. On entry, Long means more
+  than 18 in past the hole – a miss inside 18 in is tagged by its line (left / right, or high / low on breaking putts),
+  explained under "Long, or a left / right miss?".
+- **Flop:** a "Didn't reach the green" button; it costs about a stroke (scored as a 10 yd bunker shot plus one).
+- **Two putting spiders:** Lag & speed – lag from 30 / 40 / 50 ft against the benchmark, and the flat / uphill /
+  downhill ladders against a goal of the player's best on that slope + 3 balls. Short putts – uphill, breaks right,
+  downhill, breaks left, made of 4. Result rows use short benchmark names so they stay inside the tile.
+- **Way off your usual:** a red box on each category card when a line, lag distance, station or wedge yardage loses
+  0.25+ strokes a shot more than the player's own usual (last six tests). It shows the result, "Usually …", and the
+  pattern of the misses ("All 3 missed long – a speed miss, too firm", or "No single pattern …"). With fewer than two
+  earlier tests it falls back to the benchmark and says there is no usual yet.
+
 ## Benchmarks, short game test intro (v168)
 - **Benchmark** (was "baseline" in the app's words): the same "Strokes gained [benchmark ▾]" row on Stats, on Rounds (the SG
   column follows it; "Each round's benchmark" by default) and at the top of a round (changes the round's own benchmark).

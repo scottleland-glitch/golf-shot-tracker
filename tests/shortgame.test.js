@@ -85,8 +85,52 @@ test('v168 lag putts are grouped by spot (30, 30, 30, 40 …) and older tests ar
 });
 test('v168 speed ladders: flat, uphill, downhill – a slope well short of flat is named as the leak', () => {
   assert.deepStrictEqual(T.STATION.ladder.shots.map((x) => x.label), ['Flat', 'Uphill', 'Downhill']);
-  const t = T.validTests([{ id: 'x', date: '2026-11-01T00:00:00Z', shots: { ladder: [{ n: 8 }, { n: 7 }, { n: 4 }] } }])[0];
+  const t = T.validTests([{ id: 'x', date: '2026-11-01T00:00:00Z', sl: true, shots: { ladder: [{ n: 8 }, { n: 7 }, { n: 4 }] } }])[0];
+  assert.strictEqual(T.score(T.validTests([{ id: 'old', date: '2026-10-01T00:00:00Z', shots: { ladder: [{ n: 8 }, { n: 7 }, { n: 4 }] } }])[0], SG, 'pga').skills.speed.bySlope, null, 'pre-v168 ladders were all flat: no slopes');
   const S = T.score(t, SG, 'pga'); assert.deepStrictEqual(S.skills.speed.bySlope.map((x) => [x.k, x.n]), [['flat', 8], ['up', 7], ['down', 4]]);
   const I = T.interpret(S, T.compare(S, [])); const c = I.coach.find((x) => x.k === 'speed');
   assert.ok(c, 'coach note'); assert.match(c.text, /8 balls flat, 7 uphill, 4 downhill/); assert.match(c.ask, /Downhill speed is the leak/);
+});
+
+test('v168 short putts: Long (more than 18 in past) and Short misses count as speed misses, with a coach note', () => {
+  const C = T.STATION.compass.shots, miss = C.map((s, i) => (i < 4 ? { made: false, miss: 'long' } : i === 4 ? { made: false, miss: 'short' } : { made: true }));
+  const t = T.validTests([{ id: 'c', date: '2026-11-01T00:00:00Z', shots: { compass: miss } }])[0];
+  const S = T.score(t, SG, 'pga'), I = T.interpret(S, T.compare(S, []));
+  const c = I.coach.find((x) => /speed misses/.test(x.text)); assert.ok(c, JSON.stringify(I.coach));
+  assert.match(c.text, /^4 of 5 short-putt speed misses were long – more than 18 in past the hole\.$/); assert.match(c.ask, /dying the ball/);
+  assert.deepStrictEqual(T.validEntry(T.STATION.compass, { made: false, miss: 'long' }), { made: false, miss: 'long' }, 'breaking putts can be long too');
+});
+
+test('v168 flop: "didn\'t reach the green" is about a full stroke lost and gets a coach note', () => {
+  const t = T.validTests([{ id: 'f', date: '2026-11-01T00:00:00Z', shots: { flop: [{ ft: 6 }, { res: 'short' }, { ft: 8 }, { ft: 5 }, { res: 'short' }] } }])[0];
+  assert.deepStrictEqual(t.shots.flop[1], { res: 'short' }); assert.strictEqual(T.validEntry(T.STATION.chipShort, { res: 'short' }), null, 'only the flop station');
+  const S = T.score(t, SG, 'pga'); assert.strictEqual(S.skills.flop.short, 2); assert.strictEqual(S.skills.flop.value, (6 + 8 + 5) / 3, 'feet away = the ones that reached');
+  const ok = T.score(T.validTests([{ id: 'g', date: '2026-11-01T00:00:00Z', shots: { flop: [{ ft: 6 }, { ft: 8 }, { ft: 8 }, { ft: 5 }, { ft: 8 }] } }])[0], SG, 'pga');
+  assert.ok(ok.skills.flop.sg - S.skills.flop.sg > 0.3, 'two short of the green cost a lot per shot');
+  const I = T.interpret(S, T.compare(S, [])); assert.ok(I.coach.some((c) => /2 of 5 flop shots didn’t reach the green – each one costs about a stroke\./.test(c.text)));
+});
+
+test('v168: way-off warnings name the pattern of the misses', () => {
+  const T = require('../shortgame.js'), SG = require('../sg.js');
+  const C = T.STATION.compass.shots;
+  const mk = (id, date, downMiss, wedgeFt) => T.validTests([{ id, date, sl: true, shots: {
+    compass: C.map(s => s.line === 'down' && s.dist > 3 && downMiss(s) ? { made: false, miss: typeof downMiss(s) === 'string' ? downMiss(s) : 'long' } : { made: true }),
+    wedge: T.STATION.wedge.shots.map(() => ({ ft: wedgeFt, dir: 'long' })) } }])[0];
+  const warnOf = (t, prev) => { const S = T.score(t, SG, 'd1w'); return T.compare(S, prev.map(p => T.score(p, SG, 'd1w'))).warn; };
+  // no history: falls back to the benchmark
+  const bad = mk('w', '2026-11-01T00:00:00Z', () => true, 40);
+  let W = warnOf(bad, []), down = W.find(w => w.k === 'line:down');
+  assert.equal(down.vs, 'bench'); assert.match(down.title, /Downhill putts: 1 of 4 made/); assert.match(down.why, /All 3 missed long/);
+  assert.ok(!W.find(w => w.k === 'line:up'), 'uphill all made: no warning');
+  assert.match(W.find(x => x.cat === 'wedge').why, /flew long/);
+  // always this far off the benchmark: it is their usual, so no red box
+  const same = [mk('a', '2026-10-01T00:00:00Z', () => true, 40), mk('b', '2026-09-01T00:00:00Z', () => true, 40)];
+  assert.equal(warnOf(bad, same).length, 0, 'always 0.8 off the benchmark is not a warning');
+  // slipping from their own usual (downhill 4 of 4 → 1 of 4): warned, with the usual
+  const good = [mk('a', '2026-10-01T00:00:00Z', () => false, 40), mk('b', '2026-09-01T00:00:00Z', () => false, 40)];
+  down = warnOf(bad, good).find(w => w.k === 'line:down');
+  assert.equal(down.vs, 'own'); assert.equal(down.usual, 4); assert.equal(down.tests, 2);
+  // a spread of misses says so
+  const t2 = mk('w2', '2026-11-01T00:00:00Z', s => ['long', 'right', 'short'][s.dist % 3], 10);
+  assert.match(warnOf(t2, []).find(x => x.k === 'line:down').why, /No single pattern/);
 });
