@@ -743,7 +743,7 @@
   function stLastRound(D) { return D.all.length ? D.all[D.all.length - 1] : null; }
   function statsPdfData(opts) {
     opts = opts || {}; var OR = opts.round || null;
-    var keep = { stOpen: view.stOpen, stSel: view.stSel, stPmB: view.stPmB, pdf: view.pdf, stMode: view.stMode, stCmp: view.stCmp, stPlayer: view.stPlayer };
+    var keep = { stOpen: view.stOpen, stSel: view.stSel, stPmB: view.stPmB, pdf: view.pdf, stMode: view.stMode, stCmp: view.stCmp, stPlayer: view.stPlayer, stPick: view.stPick };
     view.stOpen = { driver: true, approach: true, putting: true, chipping: true, bunker: true, scoring: true, pmiss: true }; view.stSel = null; view.pdf = null;
     if (OR) { view.stMode = 'all'; view.stCmp = false; if (OR.player) view.stPlayer = OR.player; } // the round PDF always shows every finished round
     var box = document.createElement('div'); box.style.cssText = 'position:fixed;left:-10000px;top:0;width:390px';
@@ -779,7 +779,7 @@
         return { id: c, name: tx(sec.querySelector('.stcath b')), sum: tx(sec.querySelector('.stcatsum')), items: items };
       });
       var tbl = pg.querySelector('#sttable'), rows = tbl ? [].slice.call(tbl.rows).map(function (r) { return [].slice.call(r.cells).map(tx); }) : [];
-      var mode = D.mode, rangeName = mode === 'sel' ? 'Selected round' : mode === '5' ? 'Last 5' : 'All rounds';
+      var mode = D.mode, rangeName = mode === 'sel' ? 'Selected round' : mode === '5' ? 'Last 5' : mode === 'pick' ? stPickName(D.shown) : 'All rounds';
       var bl = view.stBl ? blLabel(view.stBl) : 'each round’s own baseline';
       var who = (pg.querySelector('.topbar .title span') || {}).textContent || '';
       return { D: D, cats: cats, table: rows, tableNote: tx(pg.querySelector('#sttablecard .stnote')), shown: tx(pg.querySelector('#stshown')), range: rangeName, cmp: D.cmp,
@@ -828,7 +828,7 @@
     var ids = {}; R.D.shown.forEach(function (p) { ids[p.id] = 1; });
     var list = savedRounds().filter(function (r) { return ids[r.id]; }).map(function (r) { var bl = view.stBl || blOf(r); return STORY.data(r, SG.summarize(r, bl), {}); });
     var f = R.D.shown[0], l = R.D.shown[R.D.shown.length - 1], span = f && l ? (f === l ? stDate(f.date) : stDate(f.date) + ' – ' + stDate(l.date)) : '';
-    return STORY.coverImage(STORY.combine(list, { player: R.player, range: R.range === 'Selected round' ? '' : R.range, dateText: span, baselineName: view.stBl ? blLabel(view.stBl) : '' }), COVER_BG);
+    return STORY.coverImage(STORY.combine(list, { player: R.player, range: R.range === 'Selected round' ? '' : R.range, dateText: span, baselineName: view.stBl ? blLabel(view.stBl) : '', total: R.D.mode === 'pick' && list.length > 1 }), COVER_BG);
   }
   // v137: the Stats categories as PDF pages – every category starts on a new page (no category runs into the next), graphs two per row,
   // a row never split by a page end. Used by the Stats PDF and the round PDF. K = page kit; K.after(catId) adds pages after a category
@@ -1138,9 +1138,25 @@
       if (oR && SG.summarize(oR).holesDone) { openP = statsRound(oR, view.stBl || ''); openP.open = true; } }
     var selX = mode === 'sel' && openP && openP.open && view.stRid === openId ? openP : null;
     if (selX) selIdx = -1; else if (mode === 'sel' && selIdx < 0 && all.length) { selIdx = all.length - 1; view.stRid = all[selIdx].id; }
-    var shown = mode === '5' ? SG.lastN(all, 5) : mode === 'sel' ? (selX ? [selX] : selIdx >= 0 ? [all[selIdx]] : []) : all.slice();
+    // v165 (Scott): 'pick' = any rounds you tick – e.g. the three rounds of a 54-hole tournament – reviewed and PDF'd together
+    var pk = view.stPick || {};
+    var shown = mode === '5' ? SG.lastN(all, 5) : mode === 'pick' ? all.filter(function (p) { return pk[p.id]; }) : mode === 'sel' ? (selX ? [selX] : selIdx >= 0 ? [all[selIdx]] : []) : all.slice();
     return { all: all, shown: shown, mode: mode, selIdx: selIdx, sel: selX || (selIdx >= 0 ? all[selIdx] : null), selExtra: !!selX, openP: openP || null, cmp: !!view.stCmp && mode !== 'all', unfinished: unf, avgShown: avg(shown), avgAll: avg(all) };
   }
+  // v165: rounds of one event = same course on back-to-back days (a 36- / 54- / 72-hole tournament), newest first
+  function stEvents(all) {
+    var out = [], cur = null, day = function (d) { var x = new Date(d); return Math.floor(new Date(x.getFullYear(), x.getMonth(), x.getDate()).getTime() / 864e5); };
+    all.forEach(function (p) { var c = String(p.course || '').trim().toLowerCase(), d = day(p.date);
+      if (cur && c && cur.c === c && d - cur.last <= 1 && d >= cur.last) { cur.list.push(p); cur.last = d; } else { cur = { c: c, last: d, list: [p] }; out.push(cur); } });
+    return out.filter(function (g) { return g.list.length >= 2; }).reverse().slice(0, 4).map(function (g) { var a = g.list[0], z = g.list[g.list.length - 1];
+      return { ids: g.list.map(function (p) { return p.id; }), course: a.course, holes: g.list.reduce(function (t, p) { return t + p.holes; }, 0), when: stDate(a.date, true) + '–' + stDate(z.date, true) }; });
+  }
+  function stPickTot(L) { return L.reduce(function (t, p) { t.score += p.score; t.toPar += p.toPar; t.holes += p.holes; return t; }, { score: 0, toPar: 0, holes: 0 }); }
+  function stPickLine(L) { var T = stPickTot(L), cs = L.map(function (p) { return p.course; }).filter(function (c, i, a) { return a.indexOf(c) === i; });
+    return L.length + ' round' + (L.length === 1 ? '' : 's') + ' · ' + T.holes + ' holes · total ' + T.score + ' (' + toPar(T.toPar) + ')' + (L.length > 1 ? ' · ' + L.map(function (p) { return p.score; }).join('-') : '') +
+      ' · ' + (cs.length === 1 ? cs[0] + ' · ' : '') + stDate(L[0].date) + (L.length > 1 ? ' – ' + stDate(L[L.length - 1].date) : ''); }
+  function stPickName(L) { var cs = L.map(function (p) { return p.course; }).filter(function (c, i, a) { return a.indexOf(c) === i; }), T = stPickTot(L);
+    return (cs.length === 1 ? cs[0] + ' · ' : 'Selected rounds · ') + T.holes + ' holes'; }
   function stDate(d, short) { d = new Date(d); return short ? (d.getMonth() + 1) + '/' + d.getDate() : d.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' }); }
   function stNum(v, dec, kind) {
     if (v == null) return '–';
@@ -1164,7 +1180,7 @@
     var W = 358, H = 150, L = 34, R = 10, T = 14, B = 22, pw = W - L - R, ph = H - T - B, mode = D.mode, cmp = D.cmp;
     // v125: o.avg(list) = a weighted average (per shot / per putt) instead of the mean of the rounds; o.nOf(p) = shots behind a point;
     // o.ft = a distance in feet (no plus / minus, no zero line); D.selExtra = the picked round is the open, unfinished round (drawn after the others)
-    var pts = mode === '5' && !cmp ? D.shown : D.selExtra ? D.all.concat([D.sel]) : D.all, n = pts.length, solid0 = mode === 'sel' ? n : mode === '5' && cmp ? n - D.shown.length : 0, hl = mode === 'sel' ? (D.selExtra ? n - 1 : D.selIdx) : -1;
+    var pts = (mode === '5' && !cmp) || mode === 'pick' ? D.shown : D.selExtra ? D.all.concat([D.sel]) : D.all, n = pts.length, solid0 = mode === 'sel' ? n : mode === '5' && cmp ? n - D.shown.length : 0, hl = mode === 'sel' ? (D.selExtra ? n - 1 : D.selIdx) : -1;
     var avgOf = function (L) { return o.avg ? o.avg(L) : SG.trendAvg(L.map(val)); };
     var avgSel = avgOf(D.shown), avgAll = avgOf(D.all), fmt = function (v) { return v == null ? '–' : o.pct ? Math.round(v) + '%' : o.ft ? Math.round(v) + ' ft' : fmtSG(v); };
     var lo = 0, hi = 100, step = 25;
@@ -1190,16 +1206,16 @@
       s += '<rect class="sthit" ' + (mode === 'sel' ? 'data-act="stround" data-id="' + esc(p.id) + '"' : 'data-act="stpt" data-c="' + id + '" data-i="' + i + '"') + ' x="' + stF(x0) + '" y="' + T + '" width="' + stF(x1 - x0) + '" height="' + ph + '"><title>' + esc(stDate(p.date) + ' · ' + p.course + ' · ' + fmt(val(p))) + '</title></rect>'; });
     s += '</svg>';
     var head = mode === 'sel' ? 'This round <em>' + fmt(D.sel ? val(D.sel) : null) + '</em>' + (cmp ? ' · all avg <em>' + fmt(avgAll) + '</em>' : '')
-      : (mode === '5' ? 'Last 5 avg ' : 'Avg ') + '<em>' + fmt(avgSel) + '</em>' + (cmp ? ' · all <em>' + fmt(avgAll) + '</em>' : '');
+      : (mode === '5' ? 'Last 5 avg ' : mode === 'pick' ? 'Selected avg ' : 'Avg ') + '<em>' + fmt(avgSel) + '</em>' + (cmp ? ' · all <em>' + fmt(avgAll) + '</em>' : '');
     var few = mode !== 'sel' && D.shown.filter(function (p) { return val(p) != null; }).length < 2 ? '<p class="stfew">Not enough rounds yet for a trend – it starts with 2 rounds.</p>' : '';
-    var nSum = function (L) { return L.reduce(function (t, p) { return t + (o.nOf(p) || 0); }, 0); }, nLine = o.nOf ? '<p class="stn" id="' + id + 'n">n = ' + nSum(D.shown) + ' ' + o.unit + (mode === 'sel' ? ' this round' : mode === '5' ? ' in the last 5' : '') +
+    var nSum = function (L) { return L.reduce(function (t, p) { return t + (o.nOf(p) || 0); }, 0); }, nLine = o.nOf ? '<p class="stn" id="' + id + 'n">n = ' + nSum(D.shown) + ' ' + o.unit + (mode === 'sel' ? ' this round' : mode === '5' ? ' in the last 5' : mode === 'pick' ? ' in the ' + D.shown.length + ' selected' : '') +
       (cmp ? ' · all rounds: ' + nSum(D.all) : '') + (nSum(D.shown) ? '' : ' – nothing to show yet') + (o.nExtra ? o.nExtra : '') + '</p>' : '';
     var tip = '', sel = view.stSel && view.stSel.c === id ? view.stSel.i : null;
     if (sel != null && pts[sel]) { var p = pts[sel];
       tip = '<div class="sttip" id="' + id + 'tip"><div class="sttiph">' + esc(stDate(p.date)) + ' · ' + esc(p.course) + '<button class="sttipx" data-act="stpt" data-c="' + id + '" data-i="' + sel + '" aria-label="Close">×</button></div>' +
         '<div class="sttipm">' + esc(o.short) + ' ' + fmt(val(p)) + (o.nOf ? ' (n = ' + (o.nOf(p) || 0) + ')' : '') + ' · Score ' + p.score + ' (' + toPar(p.toPar) + ') · ' + p.putts + ' putts</div></div>'; }
     var key = mode === 'sel' ? 'Big dot = this round; tap a grey dot to pick another.' + (cmp ? ' Grey dashed = all-rounds average.' : '')
-      : 'Dashed = average' + (mode === '5' ? ' of the last 5' : '') + '.' + (cmp ? ' Grey = older rounds; grey dashed = all-rounds average.' : '');
+      : 'Dashed = average' + (mode === '5' ? ' of the last 5' : mode === 'pick' ? ' of the selected rounds' : '') + '.' + (cmp ? (mode === 'pick' ? ' Grey dashed = all-rounds average.' : ' Grey = older rounds; grey dashed = all-rounds average.') : '');
     return '<div class="stcard stgraph" id="st-' + id + '"><div class="sth"><span>' + esc(o.title) + '</span><span class="stv" id="' + id + 'val">' + head + '</span></div>' + s + nLine + few + tip +
       (o.helpIn && nLine ? '<p class="help stnote" id="' + id + 'help" data-infoin="' + id + 'n">' : '<p class="stnote">') + esc(o.help) + ' ' + key + '</p></div>';
   }
@@ -1207,7 +1223,7 @@
   function stDist(par, D) {
     var sum = function (L) { var c = [0, 0, 0, 0, 0, 0], n = 0, st = 0; L.forEach(function (p) { p.dist[par].forEach(function (x, i) { c[i] += x; }); n += p.parN[par].n; st += p.parN[par].s; }); return { c: c, n: n, avg: n ? st / n : null }; };
     var fl = !!D.flip, A = fl ? sum(D.all) : sum(D.shown), Z = fl ? sum(D.shown) : sum(D.all), cmp = fl || D.cmp, col = ST_PAR[par], id = 'par' + par;
-    var who = fl ? 'these rounds' : D.mode === 'sel' ? 'this round' : D.mode === '5' ? 'the last 5 rounds' : 'these rounds';
+    var who = fl ? 'these rounds' : D.mode === 'sel' ? 'this round' : D.mode === '5' ? 'the last 5 rounds' : D.mode === 'pick' ? 'the selected rounds' : 'these rounds';
     var h = '<div class="stcard stgraph stdistcard" id="st-' + id + '"><div class="sth"><span>Par ' + par + ' scores</span><span class="stv" id="' + id + 'val">' +
       (fl ? (A.n ? (D.allTag || 'all') + ' <em>' + A.avg.toFixed(2) + '</em>' : '') + (Z.n ? ' · this round <em>' + Z.avg.toFixed(2) + '</em>' : '') :
       (A.n ? 'avg <em>' + A.avg.toFixed(2) + '</em>' + (cmp && Z.n ? ' · all <em>' + Z.avg.toFixed(2) + '</em>' : '') : '')) + '</span></div>';
@@ -1237,10 +1253,10 @@
   function stDrives(L) { var all = [], c = 0; L.forEach(function (p) { (p.drv || []).forEach(function (m) { all.push(m); if (m.club) c++; }); });
     var drv = all.length && c / all.length > 0.5, d = (drv ? all.filter(function (m) { return m.club === 'Driver'; }) : all).map(function (m) { return m.hit; }); return { n: d.length, d: d, driverOnly: drv }; }
   function stBox(D) {
-    var A = stDrives(D.shown), Z = D.cmp ? stDrives(D.all) : null, two = !!(Z && Z.n), who = D.mode === 'sel' ? 'This round' : D.mode === '5' ? 'Last 5' : 'All rounds', r = Math.round;
+    var A = stDrives(D.shown), Z = D.cmp ? stDrives(D.all) : null, two = !!(Z && Z.n), who = D.mode === 'sel' ? 'This round' : D.mode === '5' ? 'Last 5' : D.mode === 'pick' ? 'Selected' : 'All rounds', r = Math.round;
     var mean = function (V) { return V.d.reduce(function (a, b) { return a + b; }, 0) / V.n; }, med = function (V) { return clubQuart(V.d)(0.5); };
     var h = '<div class="stcard stgraph" id="st-drive"><div class="sth"><span>' + (A.driverOnly || (Z && Z.driverOnly) ? 'Driver distance' : 'Drive distance') + '</span><span class="stv" id="driveval">' +
-      (A.n ? (D.mode === 'sel' ? 'This round' : D.mode === '5' ? 'Last 5' : 'Avg') + ' <em>' + r(mean(A)) + ' yd</em>' + (two ? ' · all <em>' + r(mean(Z)) + ' yd</em>' : '') : '') + '</span></div>';
+      (A.n ? (D.mode === 'sel' ? 'This round' : D.mode === '5' ? 'Last 5' : D.mode === 'pick' ? 'Selected' : 'Avg') + ' <em>' + r(mean(A)) + ' yd</em>' + (two ? ' · all <em>' + r(mean(Z)) + ' yd</em>' : '') : '') + '</span></div>';
     if (!A.n) return h + '<p class="stfew" id="drivenone">No measurable drives in ' + (D.mode === 'sel' ? 'this round' : 'these rounds') + ' yet.</p></div>';
     var vals = A.d.concat(two ? Z.d : []), lo = Math.min.apply(null, vals), hi = Math.max.apply(null, vals), span = Math.max(hi - lo, 10), step = span <= 35 ? 5 : span <= 90 ? 10 : span <= 180 ? 20 : 50;
     var pad = hi - lo < 10 ? (10 - (hi - lo)) / 2 : 0, a0 = Math.floor((lo - pad) / step) * step, a1 = Math.ceil((hi + pad) / step) * step; if (a1 === a0) a1 = a0 + step;
@@ -1315,7 +1331,7 @@
   // one card for one band (also used by the PDF for All + every band)
   function stPmissCard(D, band) {
     var B = PM_BANDS.filter(function (b) { return b.id === band; })[0] || PM_BANDS[0], G = SG.puttMissGrid(stPmList(D.shown), B.id), Z = D.cmp ? SG.puttMissGrid(stPmList(D.all), B.id) : null;
-    var who = D.mode === 'sel' ? 'this round' : D.mode === '5' ? 'the last 5 rounds' : 'all rounds', id = 'pm' + B.id;
+    var who = D.mode === 'sel' ? 'this round' : D.mode === '5' ? 'the last 5 rounds' : D.mode === 'pick' ? 'the selected rounds' : 'all rounds', id = 'pm' + B.id;
     return '<div class="stcard stgraph stpmcard" id="st-' + id + '" data-band="' + B.id + '"><div class="sth"><span>Putt misses · ' + esc(B.name) + '</span><span class="stv" id="' + id + 'val">Made <em>' + (G.madePct == null ? '–' : Math.round(G.madePct) + '%') + '</em>' +
       (Z ? ' · all <em>' + (Z.madePct == null ? '–' : Math.round(Z.madePct) + '%') + '</em>' : '') + '</span></div>' +
       (G.putts ? stPmissSVG(id + 'grid', G, Z) : '<p class="stfew" id="' + id + 'none">No first putts ' + (B.id === 'all' ? '' : B.name.toLowerCase() + ' ') + 'in ' + who + ' yet.</p>') +
@@ -1343,15 +1359,26 @@
         var s = (view.stPlayer || '') === nm; return '<button class="frostchip' + (s ? ' sel' : '') + '" data-act="stplayer" data-v="' + esc(nm) + '" aria-pressed="' + s + '">' + (nm ? esc(nm) : 'All players') + '</button>'; }).join('') +
       (I.noName ? '<button class="frostchip' + (view.stPlayer === '~none' ? ' sel' : '') + '" data-act="stplayer" data-v="~none">No name</button>' : '') + '</div>';
     if (!all.length) return h + '<div class="stcard stnone" id="stnone"><p>No finished rounds yet.</p><p class="stnote">Graphs appear here once a round is finished' + (D.unfinished ? ' (' + D.unfinished + ' unfinished not shown)' : '') + '.</p></div></div>';
-    h += '<div class="stseg" id="strange" role="group" aria-label="Rounds shown">' + [['all', 'All rounds'], ['5', 'Last 5'], ['sel', 'Selected round']].map(function (o) {
+    h += '<div class="stseg" id="strange" role="group" aria-label="Rounds shown">' + [['all', 'All rounds'], ['5', 'Last 5'], ['sel', 'One round'], ['pick', 'Choose rounds']].map(function (o) {
       var s = mode === o[0]; return '<button class="' + (s ? 'sel' : '') + '" data-act="strange" data-v="' + o[0] + '" aria-pressed="' + s + '">' + o[1] + '</button>'; }).join('') + '</div>';
     // v125: the open round is first in the list, marked "Open now" (an unfinished one shows its holes so far)
     var OP = D.openP, rl = all.slice().reverse(); if (OP) rl = [OP].concat(rl.filter(function (p) { return p.id !== OP.id; }));
     if (mode === 'sel') h += '<div class="strounds" id="strounds" role="listbox" aria-label="Pick a round">' + rl.map(function (p) {
       var s = D.sel && p.id === D.sel.id, isO = OP && p.id === OP.id; return '<button class="stri' + (s ? ' sel' : '') + (isO ? ' stopen' : '') + '" role="option" aria-selected="' + s + '" data-act="stround" data-id="' + esc(p.id) + '"><span class="strd">' + (isO ? '<i class="stopenb">Open now</i>' : '') + esc(stDate(p.date)) +
         '</span><span class="strc">' + esc(p.course) + (p.open ? ' <small>· ' + p.holes + ' holes</small>' : '') + '</span><span class="strs">' + p.score + ' <small>(' + toPar(p.toPar) + ')</small></span></button>'; }).join('') + '</div>';
+    if (mode === 'pick') {
+      var G = stEvents(all);
+      h += '<div class="stpickbox" id="stpickbox"><p class="stnote" id="stpickhelp">Tick the rounds to review together – a 54-hole tournament, a trip, a month' + (G.length ? ', or tap an event' : '') + '. Create PDF makes a report of just these.</p>';
+      if (G.length) h += '<div class="stevents" id="stevents">' + G.map(function (g) { var on = g.ids.length === shown.length && g.ids.every(function (id) { return (view.stPick || {})[id]; });
+        return '<button class="stevent' + (on ? ' sel' : '') + '" data-act="stpickev" data-v="' + esc(g.ids.join(',')) + '" aria-pressed="' + on + '"><b>' + esc(g.course) + '</b><span>' + esc(g.when) + ' · ' + g.ids.length + ' rounds · ' + g.holes + ' holes</span></button>'; }).join('') + '</div>';
+      h += '<div class="strounds stpicklist" id="stpicklist" role="group" aria-label="Choose rounds">' + all.slice().reverse().map(function (p) { var s = !!(view.stPick || {})[p.id];
+        return '<button class="stri stpk' + (s ? ' sel' : '') + '" role="checkbox" aria-checked="' + s + '" data-act="stpick" data-id="' + esc(p.id) + '"><i class="stck" aria-hidden="true"></i><span class="strd">' + esc(stDate(p.date)) +
+          '</span><span class="strc">' + esc(p.course) + (p.holes !== 18 ? ' <small>· ' + p.holes + ' holes</small>' : '') + '</span><span class="strs">' + p.score + ' <small>(' + toPar(p.toPar) + ')</small></span></button>'; }).join('') + '</div>' +
+        (shown.length ? '<button class="txt stpickclr" data-act="stpickclr">Clear</button>' : '') + '</div>';
+      if (!shown.length) return h + '<div class="stcard stnone" id="stpicknone"><p>Pick at least one round.</p></div></div>';
+    }
     if (mode !== 'all') h += '<div class="stbar"><button class="stcmp' + (D.cmp ? ' on' : '') + '" id="stcmp" data-act="stcmp" aria-pressed="' + D.cmp + '"><i aria-hidden="true"></i>Compare to all rounds</button></div>';
-    h += '<p class="stsub" id="stshown">' + (mode === 'sel' && D.sel ? esc(stDate(D.sel.date)) + ' · ' + esc(D.sel.course) + ' · ' + D.sel.score + ' (' + toPar(D.sel.toPar) + ')' + (D.sel.open ? ' · ' + D.sel.holes + ' holes so far' : '') :
+    h += '<p class="stsub" id="stshown">' + (mode === 'pick' ? esc(stPickLine(shown)) : mode === 'sel' && D.sel ? esc(stDate(D.sel.date)) + ' · ' + esc(D.sel.course) + ' · ' + D.sel.score + ' (' + toPar(D.sel.toPar) + ')' + (D.sel.open ? ' · ' + D.sel.holes + ' holes so far' : '') :
       (mode === '5' ? 'Last ' + shown.length + ' of ' : '') + all.length + ' finished round' + (all.length === 1 ? '' : 's') + ' · ' + esc(stDate(shown[0].date)) + (shown.length > 1 ? ' – ' + esc(stDate(shown[shown.length - 1].date)) : '')) + '</p>';
     h += '<div class="stsec stsecsg"><span class="stsect">Strokes gained</span><select id="stbl" class="stbl" data-f="baseline" aria-label="Compare against"><option value="">Each round’s baseline</option>' + SG.BASELINES.map(function (b) {
         return '<option value="' + b.id + '"' + (view.stBl === b.id ? ' selected' : '') + '>' + esc(blLabel(b.id)) + '</option>'; }).join('') + '</select></div>' +
@@ -1414,7 +1441,7 @@
       return '<section class="stcat' + (on ? ' open' : '') + '" id="stcat-' + c[0] + '" data-cat="' + c[0] + '"><button class="stcath" data-act="stcat" data-v="' + c[0] + '" aria-expanded="' + on + '" aria-controls="stcatb-' + c[0] + '">' +
         '<b>' + c[1] + '</b><span class="stcatsum" id="stcatsum-' + c[0] + '">' + catSum(c[3]) + '</span><i class="stcatc" aria-hidden="true"></i></button>' +
         '<div class="stcatb" id="stcatb-' + c[0] + '"' + (on ? '' : ' hidden') + '>' + c[2]() + '</div></section>'; }).join('') + '</div>';
-    var colN = mode === 'sel' ? 'This round' : mode === '5' ? 'Last 5' : 'All rounds', two = D.cmp;
+    var colN = mode === 'sel' ? 'This round' : mode === '5' ? 'Last 5' : mode === 'pick' ? 'Selected' : 'All rounds', two = D.cmp;
     h += '<div class="stcard" id="sttablecard"><div class="sth"><span>Averages per round</span></div><table class="sttable" id="sttable"><thead><tr><th></th><th class="num">' + colN + '</th>' + (two ? '<th class="num">All rounds</th>' : '') + '</tr></thead><tbody>' +
       '<tr data-k="Rounds"><td>Rounds</td><td class="num">' + D.avgShown.n + '</td>' + (two ? '<td class="num">' + D.avgAll.n + '</td>' : '') + '</tr>' +
       ST_ROWS.map(function (d) { return '<tr data-k="' + esc(d[0]) + '"' + (d[3] === 'sg' ? ' class="stsgrow"' : '') + '><td>' + esc(d[0]) + '</td><td class="num">' + stNum(D.avgShown[d[0]], d[2], d[3]) + '</td>' +
@@ -3287,6 +3314,8 @@
     var out = '<div class="topbar frost">' + (view.from === 'history' ? '<button class="txt frostbtn" data-act="history">‹ Rounds</button>' : '<button class="txt frostbtn" data-act="backHole">‹ Round</button>') + '<div class="title"><b>Round stats</b><span>' +
       new Date(r.date).toLocaleDateString() + (r.course ? ' · ' + esc(r.course) : '') + '</span></div><button class="txt frostbtn" data-act="home">Home</button></div>';
     if (view.stxRound !== r.id) { view.stx = {}; view.stxRound = r.id; } // tiles start collapsed for each round
+    // v165 (Scott): Create PDF report at the top of Round stats – no scrolling to the bottom for it (its share sheet opens right here)
+    out += '<div class="rsactions" id="rsactions"><button class="primary rspdftop" data-act="pdf" data-at="top" id="rspdftop">📄 Create PDF report</button>' + (view.pdfAt === 'top' ? pdfHTML() : '') + '</div>';
     out += rsTopHTML(r, S) + playPickHTML('rplay', MYGAME.playOf(r), 'Round type', 'rplay') + takeawayHTML(r) + quickViewHTML(S);
     out += scorecardHTML(r, S) + '<button class="big rpbtn" data-act="replay" data-v="0" id="sumreplay">▶ Hole replay (hole by hole)</button>' +
       (S.holesDone ? '<button class="big rpbtn bzbtn" data-act="bzopen" data-v="round" id="sumbz">🎯 Scoring chances</button>' : '');
@@ -3317,7 +3346,7 @@
       (pex ? '; <b>' + pex + '</b> approach shot' + (pex === 1 ? '' : 's') + ' with a penalty or OB left out of that average' : '; shots with a penalty or OB are left out of it') + '.</p>';
     var sgPart = out; out = main + '<h2>Stats</h2>' + statTilesHTML(S) + roundParCurvesHTML(r, bl, S);
     out += (S.holesDone ? '<button class="primary big storybtn" data-act="story" id="storybtn" style="margin-top:16px">📸 Share to Instagram / TikTok<small>a one-page story picture of this round</small></button>' + storyHTML() : '');
-    out += '<button class="primary big" data-act="pdf" style="margin-top:16px">📄 Make PDF report</button>' + pdfHTML();
+    out += '<button class="primary big" data-act="pdf" data-at="bottom" style="margin-top:16px">📄 Make PDF report</button>' + (view.pdfAt === 'top' ? '' : pdfHTML());
     out += '<button class="big" data-act="csv">Export this round (CSV)</button>';
     out += '<button class="big sendbtn" data-act="sendopen" id="sendround">📤 Send round<small>to another phone – it lands in their Rounds</small></button>';
     out += '<button class="big sendbtn" data-act="mvone" id="chgplayer1">👤 Change player<small>' + (r.player || playerName() ? 'now ' + esc(r.player || playerName()) : 'whose round is this?') + '</small></button>';
@@ -4854,7 +4883,7 @@
     var b = ev.target.closest('[data-act]'); if (!b || b.disabled) return;
     var act = b.getAttribute('data-act'), v = b.getAttribute('data-v'), k = +b.getAttribute('data-k');
     var r = round(), h = r && r.holes[view.hole];
-    if (/^sgt/.test(act)) { SGTUI.act(act, v, b); return; } // v166 short game test
+    if (/^sgt/.test(act) && act !== 'sgtoggle') { SGTUI.act(act, v, b); return; } // v166 short game test (v167: not Round stats' Strokes gained toggle, 'sgtoggle')
     switch (act) {
       case 'liveshare': if (!live || !r) return; live.start(r.id); view.liveCard = true; render(); liveSend(r); return;
       case 'livecard': view.liveCard = true; render(); return;
@@ -4885,7 +4914,7 @@
       case 'namecancel': view.nameSheet = null; render(); return;
       case 'history': view.hmenu = null; view.mv = null; view.screen = 'history'; view.notice = null; render(); window.scrollTo(0, 0); return;
       case 'backup': backupRounds(); return;
-      case 'pdf': case 'pdfshare': case 'stpdf': pdfAct(act); return;
+      case 'pdf': case 'pdfshare': case 'stpdf': if (act === 'pdf') view.pdfAt = b.getAttribute('data-at') || ''; pdfAct(act); return;
       case 'info': { infoOpen[v] = !infoOpen[v]; var t = b && document.getElementById(b.getAttribute('aria-controls'));
         [].slice.call(document.querySelectorAll('[data-act="info"]')).forEach(function (x) { if (x.getAttribute('data-v') === v) x.setAttribute('aria-expanded', !!infoOpen[v]); }); // icon + its label
         if (t) t.hidden = !infoOpen[v]; return; }
@@ -4916,6 +4945,9 @@
       case 'stats': view.hmenu = null; view.screen = 'stats'; view.stSel = null; view.stPlayer = undefined; view.stOpen = {}; view.stPmB = 'all'; view.pdf = null; render(); window.scrollTo(0, 0); return; // v110
       case 'stplayer': view.stPlayer = v || null; view.histPlayer = view.stPlayer; view.stSel = null; render(); return;
       case 'strange': view.stMode = v || 'all'; view.stSel = null; render(); return; // v116: all | 5 | sel
+      case 'stpick': { var pk = view.stPick = Object.assign({}, view.stPick || {}), pid = b.getAttribute('data-id'); if (pk[pid]) delete pk[pid]; else pk[pid] = true; view.stSel = null; render(); return; }
+      case 'stpickev': { var ids = String(v || '').split(','), pk2 = {}; ids.forEach(function (id) { pk2[id] = true; }); view.stPick = pk2; view.stSel = null; render(); return; }
+      case 'stpickclr': view.stPick = {}; view.stSel = null; render(); return;
       case 'stround': view.stMode = 'sel'; view.stRid = b.getAttribute('data-id'); view.stSel = null; render(); return;
       case 'stcmp': view.stCmp = !view.stCmp; view.stSel = null; render(); return;
       case 'stcat': (view.stOpen = view.stOpen || {})[v] = !view.stOpen[v]; render(); return; // v125: open / close a category (v126: also the Putt misses sub-menu, v = 'pmiss')

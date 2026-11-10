@@ -25,6 +25,14 @@ Every Shot Counts Table 3.10). The other five are ESTIMATED: per-round gaps from
 Player Quality ladder, then spread over the PGA table. Full sources, method and caveats: in-app
 "About the numbers" and the BASELINES comment in `sg.js`.
 
+## Stats: choose rounds (v167)
+Stats has a fourth range, **Choose rounds**: tick any rounds to review together, or tap an event – rounds on the same course on
+back-to-back days (a 36- / 54- / 72-hole tournament; the newest 4 events are offered). The line under the range shows the total
+("3 rounds · 54 holes · total 214 (+7) · 72-72-70"), the graphs show only those rounds, and Create PDF makes a report of just them:
+named after the course and holes, its cover led by the total instead of the average.
+Round stats: **Create PDF report** now sits at the top, under the title bar; its share sheet opens right there.
+Fix: v166's short-game-test actions (`sgt…`) had also caught Round stats' Strokes gained toggle (`sgtoggle`), so that section
+wouldn't open – it opens again.
 ## Short game test (v166)
 My Game › **Short game test** (also in the + menu): a fixed monthly check-up, about an hour, 73 shots over 10 stations.
 The same test every time, so a skill that starts to slip shows up test over test.

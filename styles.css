@@ -2452,3 +2452,17 @@ html body .plbtog.on { background: #e6efff; } .plbtog.on i { background: #4a7fd0
 .sgtmgrid span b { font-size: 18px; font-weight: 700; color: var(--frost-ink); }
 .sgtmgrid span.on { background: rgba(192,68,47,.14); } .sgtmgrid span.pin { background: #17301f; color: #fff; font-weight: 600; border-radius: 50%; width: 46px; justify-self: center; }
 .sgtmg { margin-top: 12px; }
+/* v165: Stats – choose several rounds (e.g. a 54-hole tournament) */
+.stpickbox { margin: 10px 0 4px; }
+.stevents { display: flex; flex-wrap: wrap; gap: 8px; margin: 8px 0 10px; }
+html body .stevent { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; padding: 8px 12px; border-radius: 14px; border: 1px solid rgba(70,110,160,.35); background: rgba(255,255,255,.6); color: #1d3350; text-align: left; box-shadow: none; }
+.stevent b { font-size: 14px; } .stevent span { font-size: 12px; color: #4b5d6e; }
+html body .stevent.sel { background: #e6efff; border-color: #2f64b5; }
+.stpicklist .stck { flex: 0 0 auto; width: 20px; height: 20px; border-radius: 6px; border: 1.5px solid #6d8fb9; background: #fff; margin-right: 8px; }
+.stpicklist .stpk.sel .stck { background: #2f64b5 url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 14 14'%3E%3Cpath d='M3 7l3 3 5-6' stroke='white' stroke-width='2' fill='none'/%3E%3C/svg%3E") center/14px no-repeat; border-color: #2f64b5; }
+.stpicklist .stpk { display: flex; align-items: center; }
+html body .stpickclr { margin: 6px 0 0; font-size: 14px; }
+
+/* v165: Create PDF report at the top of Round stats */
+.rsactions { margin: 10px 0 6px; }
+html body .rspdftop { width: 100%; min-height: 46px; font-size: 16px; border-radius: 16px; }

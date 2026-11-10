@@ -61,7 +61,7 @@ const OUT = '/workspace/golf-app/screenshots/', PORT = 8831, BASE = 'http://127.
     await page.reload(); await page.waitForSelector('#home');
     assert.strictEqual(await page.$('[data-act="profile"], [data-act="wedges"], [data-act="bag"]'), null, 'home stays clean');
     await page.click('#plusbtn'); await page.waitForSelector('#plusmenu');
-    assert.deepStrictEqual(await page.$$eval('#plusmenu .sheet-item', e => e.map(x => x.textContent)), ['New round', 'Rounds', 'Stats', 'My Game', 'Log practice', 'My Bag', 'Settings', 'Help'] /* v140+: My Game and Log practice added */);
+    assert.deepStrictEqual(await page.$$eval('#plusmenu .sheet-item', e => e.map(x => x.textContent)), ['New round', 'Rounds', 'Stats', 'My Game', 'Log practice', 'Short game test', 'My Bag', 'Settings', 'Help'] /* v140+: My Game and Log practice added */);
     // My Bag opens on the Bag tab; the toggle switches to the Wedge ladder and back; ‹ Home
     await page.click('#plusmenu [data-act="bag"]'); await page.waitForSelector('#baglist');
     assert.strictEqual(await page.$('#plusmenu'), null, 'menu closed');

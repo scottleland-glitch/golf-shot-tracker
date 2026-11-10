@@ -194,7 +194,9 @@
     var sum = function (f) { return list.reduce(function (t, d) { return t + (f(d) || 0); }, 0); };
     var fwH = sum(function (d) { return d.fw.hit; }), fwT = sum(function (d) { return d.fw.total; }), gH = sum(function (d) { return d.gir.hit; }), gT = sum(function (d) { return d.gir.total; });
     var w2 = list.filter(function (d) { return d.putting.avg2nd != null; }), n2 = w2.reduce(function (t, d) { return t + d.putting.n2nd; }, 0);
-    return { kind: 'stats', rounds: n, player: opts.player || '', range: opts.range || '', dateText: opts.dateText || '', baseline: opts.baselineName || '',
+    // v165: chosen rounds (e.g. a 54-hole tournament) lead with the total: 214 (+7) · 54-hole total · 72-72-70
+    var total = opts.total ? { strokes: sum(function (d) { return d.strokes; }), toPar: sum(function (d) { return d.toPar; }), holes: sum(function (d) { return d.holes; }), scores: list.map(function (d) { return d.strokes; }) } : null;
+    return { kind: 'stats', total: total, rounds: n, player: opts.player || '', range: opts.range || '', dateText: opts.dateText || '', baseline: opts.baselineName || '',
       strokes: av(function (d) { return d.strokes; }), toPar: av(function (d) { return d.toPar; }),
       sg: { ott: av(function (d) { return d.sg.ott; }), app: av(function (d) { return d.sg.app; }), arg: av(function (d) { return d.sg.arg; }), bnk: av(function (d) { return d.sg.bnk || 0; }), putt: av(function (d) { return d.sg.putt; }), total: av(function (d) { return d.sg.total; }) },
       fw: { hit: fwH, total: fwT, pct: pct(fwH, fwT) }, gir: { hit: gH, total: gT, pct: pct(gH, gT) },
@@ -214,14 +216,15 @@
       var sub = st ? [d.range, d.rounds + (d.rounds === 1 ? ' round' : ' rounds'), d.dateText].filter(Boolean).join('  ·  ') : [d.dateText, d.tee ? d.tee + ' tees' : '', d.player].filter(Boolean).join('  ·  ');
       ctx.font = font(30, 400); ctx.fillStyle = MUTED; ctx.fillText(fitText(ctx, sub, CW, 30, 400, 22), W / 2, 320);
       // score (stats: average score per round)
-      var scoreTxt = st ? one(d.strokes) : String(d.strokes || 0), tp = st ? Math.round(d.toPar * 10) / 10 : d.toPar || 0, parTxt = st ? (tp === 0 ? 'E' : (tp > 0 ? '+' : '') + one(tp)) : toPar(tp);
+      var TT = st && d.total;
+      var scoreTxt = TT ? String(TT.strokes) : st ? one(d.strokes) : String(d.strokes || 0), tp = TT ? TT.toPar : st ? Math.round(d.toPar * 10) / 10 : d.toPar || 0, parTxt = TT ? toPar(tp) : st ? (tp === 0 ? 'E' : (tp > 0 ? '+' : '') + one(tp)) : toPar(tp);
       var big = st ? 170 : 190; ctx.font = font(big, 300); var sw = ctx.measureText(scoreTxt).width;
       ctx.font = font(72, 500); var pw = ctx.measureText(parTxt).width + 50, gap = 32, sx = W / 2 - (sw + gap + pw) / 2, base = 510;
       ctx.textAlign = 'left'; ctx.fillStyle = '#fff'; ctx.font = font(big, 300); ctx.fillText(scoreTxt, sx, base);
       var px = sx + sw + gap, py = base - 128;
       ctx.save(); roundRect(ctx, px, py, pw, 96, 48); ctx.fillStyle = tp < 0 ? 'rgba(126,226,160,0.22)' : tp > 0 ? 'rgba(255,255,255,0.14)' : 'rgba(244,210,138,0.22)'; ctx.fill(); ctx.restore();
       ctx.font = font(72, 500); ctx.fillStyle = tp < 0 ? POS : tp === 0 ? GOLD : '#fff'; ctx.textAlign = 'center'; ctx.fillText(parTxt, px + pw / 2, py + 73);
-      ctx.font = font(27, 400); ctx.fillStyle = MUTED; ctx.fillText(st ? 'average score per round' : d.holes + (d.holes === 1 ? ' hole' : ' holes'), W / 2, base + 50);
+      ctx.font = font(27, 400); ctx.fillStyle = MUTED; ctx.fillText(TT ? TT.holes + '-hole total  ·  ' + TT.scores.join('-') : st ? 'average score per round' : d.holes + (d.holes === 1 ? ' hole' : ' holes'), W / 2, base + 50);
       // strokes gained
       var y0 = 600, ph = 268; panel(ctx, M, y0, CW, ph);
       label(ctx, st ? 'Strokes gained per round' : 'Strokes gained', M + 44, y0 + 60);

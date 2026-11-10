@@ -27,7 +27,7 @@ const OUT = '/workspace/golf-app/screenshots/', PORT = 8833, BASE = 'http://127.
       prev: t.previousElementSibling.className, firstTable: document.querySelector('.roundpage table') === t, r: t.getBoundingClientRect().right }; });
   assert.deepStrictEqual(top.th, ['Score', 'To par', 'Yards', 'Putts']);
   assert.deepStrictEqual(top.td, ['78', '+6', '5531', '31'], 'completed round: no "thru" under the score');
-  assert.ok(/topbar/.test(top.prev) && top.firstTable && top.r <= 390, JSON.stringify(top));
+  assert.ok(/topbar|rsactions/.test(top.prev) && top.firstTable && top.r <= 390, JSON.stringify(top));
   assert.strictEqual(await page.$('.big-score'), null, 'big score header gone'); assert.strictEqual(await page.$('#card-total'), null, 'old TOTAL row gone');
   const txt = await page.evaluate(() => document.querySelector('.roundpage').innerText);
   assert.ok(!/vs par/i.test(txt) && !/holes? done/i.test(txt) && !/blank\s*=/i.test(txt) && !/\bTOTAL\b/.test(txt), 'no "vs par" / "holes done" / "Blank =" / TOTAL text');

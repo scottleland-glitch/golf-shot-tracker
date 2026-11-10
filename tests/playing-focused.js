@@ -45,6 +45,9 @@ const rounds = [at('p1', 2, 'practice'), nine(at('p2', 6, 'practice')), extraPut
     assert.strictEqual(await page.$$eval('#histlist .htour', e => e.length), 2, 'trophy on the two tournament rounds');
     await page.click('#histlist [data-act="open"][data-id="u1"]'); await page.waitForSelector('#rplay');
     assert.strictEqual(await page.$('#rplay button.sel'), null, 'untagged round: nothing picked');
+    // v165: Create PDF report sits at the top of Round stats, above the score
+    const yy = await page.evaluate(() => [document.querySelector('#rspdftop').getBoundingClientRect().top, document.querySelector('#rs-top').getBoundingClientRect().top]);
+    assert.ok(yy[0] < yy[1] && yy[0] < 300, 'PDF button at the top ' + yy); ok('Create PDF report at the top of Round stats');
     await page.click('#rplay [data-v="tournament"]'); await page.waitForSelector('#rplay [data-v="tournament"].sel');
     assert.strictEqual(await page.evaluate(() => window.__golf.rounds().find(r => r.id === 'u1').play), 'tournament'); ok('Round stats: Round type tags an older round');
     // New round sheet: remembers the last pick, keeps a typed course name

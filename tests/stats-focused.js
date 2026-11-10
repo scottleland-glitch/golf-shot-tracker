@@ -16,7 +16,7 @@ const SEED = fs.readFileSync(__dirname + '/fixtures/stats-rounds.js', 'utf8');
 
   // 1. + menu: New round · Rounds · Stats · My Bag · Settings
   await page.click('#plusbtn'); await page.waitForSelector('#plusmenu');
-  assert.deepStrictEqual(await page.$$eval('#plusmenu button', e => e.map(x => [x.textContent, x.dataset.act])), [['New round', 'newform'], ['Rounds', 'history'], ['Stats', 'stats'], ['My Game', 'mygame'], ['Log practice', 'prlog'], ['My Bag', 'bag'], ['Settings', 'archive'], ['Help', 'help']] /* v140+: My Game and Log practice added */);
+  assert.deepStrictEqual(await page.$$eval('#plusmenu button', e => e.map(x => [x.textContent, x.dataset.act])), [['New round', 'newform'], ['Rounds', 'history'], ['Stats', 'stats'], ['My Game', 'mygame'], ['Log practice', 'prlog'], ['Short game test', 'sgtopen'], ['My Bag', 'bag'], ['Settings', 'archive'], ['Help', 'help']] /* v140+: My Game and Log practice added */);
   await shot('menu-stats.png');
 
   // 2. per-round numbers read off each round's own Round stats page (finished rounds of Scott, oldest first)
@@ -58,7 +58,7 @@ const SEED = fs.readFileSync(__dirname + '/fixtures/stats-rounds.js', 'utf8');
   assert.strictEqual(D.all[1].bl, 'd1w');
 
   // 4. v116: one graph per number – TOT, OTT, APP, ARG, PUTT, then fairways and GIR; one dot per round, dashed average line
-  assert.deepStrictEqual(await page.$$eval('#strange button', e => e.map(x => [x.dataset.v, x.textContent, x.getAttribute('aria-pressed')])), [['all', 'All rounds', 'true'], ['5', 'Last 5', 'false'], ['sel', 'Selected round', 'false']]);
+  assert.deepStrictEqual(await page.$$eval('#strange button', e => e.map(x => [x.dataset.v, x.textContent, x.getAttribute('aria-pressed')])), [['all', 'All rounds', 'true'], ['5', 'Last 5', 'false'], ['sel', 'One round', 'false'], ['pick', 'Choose rounds', 'false']]);
   assert.deepStrictEqual((await page.$$eval('.stgraph .sth span:first-child', e => e.map(x => x.textContent))).slice(1),
     // v125: grouped in categories – Driver, Approach, Putting, Chipping, Scoring
     // (the first card is the drive box chart: 'Driver distance' or 'Drive distance', checked in stats-cats-focused)
