@@ -46,7 +46,7 @@ const CATS = ['driver', 'approach', 'putting', 'chipping', 'bunker', 'scoring'];
   assert.deepStrictEqual(R.cats.map(c => c.id), CATS); assert.strictEqual(R.last, D.last, 'the last round = the newest finished round');
   const txt = execSync('pdftotext -layout ' + f + ' -').toString(), flat = txt.replace(/\s+/g, ' ');
   const titles = await page.$$eval('.stcatb .stcard.stgraph .sth > span:first-child', e => e.map(x => x.textContent.replace(/[–—]/g, '-')));
-  ['Summary', 'Scott - All rounds', 'Strokes gained compared with each round\'s own baseline', 'Averages per round', 'Strokes gained - TOT', 'Putts per round',
+  ['Summary', 'Scott - All rounds', 'Strokes gained compared with each round\'s own benchmark', 'Averages per round', 'Strokes gained - TOT', 'Putts per round',
     'Driver', 'Approach', 'Putting', 'Chipping', 'Scoring', 'Putt misses · All distances', 'Putt misses · Under 5 ft', 'Putt misses · 5-10 ft', 'Putt misses · 10-25 ft', 'Putt misses · Over 25 ft',
     'Par 3 scores', 'Par 4 scores', 'Par 5 scores',
     'Page ' + R.pages + ' of ' + R.pages].concat(titles).forEach(s => assert.ok(flat.includes(s), 'missing in PDF: ' + s));

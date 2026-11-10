@@ -29,14 +29,25 @@ function make(id, date, q) { const t = T.blank(id, date, 'Scott', 'scm');
   if (await page.$('#plusbtn')) await page.click('#plusbtn');
   assert.ok(await page.$('[data-act="sgtopen"]'), 'menu item'); await page.click('.sheet-item[data-act="mygame"]');
   await page.waitForSelector('#sgtmg'); await page.locator('#sgtmg').scrollIntoViewIfNeeded(); await shot('01-mygame-card');
-  await page.click('#sgtopen'); await page.waitForSelector('#sgtest'); await shot('02-hub', true);
+  // v168: the first time, the test opens on its intro – four screens to swipe, Skip intro on each
+  await page.click('#sgtopen'); await page.waitForSelector('#sgtintro'); await shot('01b-intro');
+  assert.strictEqual(await page.$$eval('#sgtintro .sgtislide', e => e.length), 4); assert.ok(await page.$('#sgtintroskip'));
+  for (let k = 0; k < 3; k++) { await page.click('#sgtintronext'); await page.waitForTimeout(600); } assert.strictEqual(await page.textContent('#sgtintronext'), 'Start');
+  await page.click('#sgtintronext'); await page.waitForSelector('#sgtest'); await shot('02-hub', true);
+  await page.click('#sgtintroopen'); await page.waitForSelector('#sgtintro'); await page.click('#sgtintroskip'); await page.waitForSelector('#sgtest');
+  await page.click('[data-act="mygame"]'); await page.waitForSelector('#sgtmg'); await page.click('#sgtopen'); await page.waitForSelector('#sgtest'); // seen: straight to the hub
   await page.click('[data-act="sgtcond"][data-v="green:fast"]'); await page.click('#sgtstart'); await page.waitForSelector('#sgtrun'); await shot('03-lag-setup', true);
   const type = async (v) => { await page.fill('#sgtft', String(v)); };
   // lag
-  for (let i = 0; i < 9; i++) { await type([6, 7.5, 9, 5, 8, 4, 10, 6, 7][i]); if (i === 3) await shot('04-lag-entry', true); await page.click('[data-act="sgtsave"][data-v="' + (i % 4 === 3 ? 'long' : 'short') + '"]'); }
+  // v168: three balls from each spot scored together (30, 40, 50 ft)
+  const LV = [6, 4, 6, 7.5, 5, 7, 9, 8, 10];
+  for (let g = 0; g < 3; g++) { assert.strictEqual(await page.textContent('#sgtwhat'), [30, 40, 50][g] + ' ft · three balls');
+    for (let b = 0; b < 3; b++) { await page.fill('#sgtft' + b, String(LV[g * 3 + b])); await page.click('[data-act="sgtlagdir"][data-v="' + b + ':' + ((g * 3 + b) % 4 === 3 ? 'long' : 'short') + '"]'); }
+    if (g === 1) await shot('04-lag-entry', true); await page.click('#sgtlagsave'); }
   await page.waitForSelector('#sgtdonecard'); await shot('05-lag-done', true); await page.click('#sgtnext');
   // ladder
-  for (const n of [6, 8, 5]) { for (let k = 0; k < n; k++) await page.click('[data-act="sgtlad"][data-v="1"]'); if (n === 8) await shot('06-ladder', true); await page.click('#sgtladsave'); }
+  // v168: ladders flat, uphill, downhill
+  for (const [n, lbl] of [[8, 'Flat'], [6, 'Uphill'], [4, 'Downhill']]) { assert.match(await page.textContent('#sgtwhat'), new RegExp('^' + lbl + ' ladder')); for (let k = 0; k < n; k++) await page.click('[data-act="sgtlad"][data-v="1"]'); if (n === 6) await shot('06-ladder', true); await page.click('#sgtladsave'); }
   await page.click('#sgtnext'); await shot('07-compass-setup', true);
   // compass: miss downhill 7/9 and breaks-right 9
   const C = T.STATION.compass.shots;
@@ -60,6 +71,7 @@ function make(id, date, q) { const t = T.blank(id, date, 'Scott', 'scm');
   await page.click('[data-act="sgtrow"][data-v="lag"]'); await page.locator('.sgtbig').scrollIntoViewIfNeeded(); await shot('13-row-open');
   const head = await page.textContent('#sgthead'); assert.match(head, /slipping\.$/, head);
   assert.match(await page.evaluate(() => document.querySelector('#sgtcoach').innerText), /3 of 10 bunker shots flew the green/);
+  assert.match(await page.evaluate(() => document.querySelector('#sgtcoach').innerText), /Speed ladder: 8 balls flat, 6 uphill, 4 downhill\.\s*Downhill speed is the leak/);
   assert.match(await page.evaluate(() => document.querySelector('#sgtplan').innerText), /1\. /);
   assert.equal(await page.locator('.sgtspider').count(), 4, 'overall + putting + chipping + bunker spiders'); assert.equal(await page.locator('#sgtwbars .sgtwb').count(), 5);
   assert.ok(await page.locator('.sgtavg').count() >= 1, 'your average shows with 3 earlier tests');

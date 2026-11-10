@@ -13,7 +13,8 @@
   function clamp(v, lo, hi) { return Math.max(lo, Math.min(hi, v)); }
 
   // ---------- the test ----------
-  var COMPASS_D = [3, 5, 7, 9], WEDGE_D = [30, 45, 60, 80, 100], LADDER_TRIES = 3, OVER_YD = 10, MAX_FT = 200;
+  var COMPASS_D = [3, 5, 7, 9], WEDGE_D = [30, 45, 60, 80, 100], LAG_D = [30, 40, 50], LADDER_TRIES = 3, OVER_YD = 10, MAX_FT = 200;
+  var LADDER_SLOPES = [{ k: 'flat', name: 'Flat' }, { k: 'up', name: 'Uphill' }, { k: 'down', name: 'Downhill' }];
   // The four lines of the short-putt station. up = ball below the hole (putting uphill); bl / br = side lines.
   var LINES = [{ k: 'up', name: 'Uphill', straight: true }, { k: 'br', name: 'Breaks right', straight: false },
     { k: 'down', name: 'Downhill', straight: true }, { k: 'bl', name: 'Breaks left', straight: false }];
@@ -22,11 +23,13 @@
   var CATS = [{ k: 'putting', name: 'Putting' }, { k: 'chipping', name: 'Chipping' }, { k: 'bunker', name: 'Bunker' }, { k: 'wedge', name: 'Wedges' }];
   var STATIONS = [
     { id: 'lag', cat: 'putting', kind: 'lag', name: 'Lag putts', lie: 'green', unit: 'ft',
-      shots: [30, 40, 50, 40, 50, 30, 50, 30, 40].map(function (d) { return { dist: d, label: d + ' ft' }; }),
-      setup: ['Pick one hole. Mark spots 30, 40 and 50 ft away (10, 13 and 17 paces).', 'One ball per putt, full routine, in the order shown.', 'Enter how many feet were left, then tap whether it finished short of the hole or past it.'] },
+      // v168 (Scott): three balls from a spot, all hit before walking up – then score the three and move back (less walking)
+      shots: LAG_D.reduce(function (o, d) { return o.concat([1, 2, 3].map(function (b) { return { dist: d, ball: b, label: d + ' ft · ball ' + b }; })); }, []),
+      setup: ['Pick one hole. Mark spots 30, 40 and 50 ft away (10, 13 and 17 paces).', 'From 30 ft, putt all three balls, full routine on each. Then walk up and score the three: feet left, and short or past.', 'Then do the same from 40 ft and from 50 ft.'] },
     { id: 'ladder', cat: 'putting', kind: 'ladder', name: 'Speed ladder',
-      shots: rep(LADDER_TRIES, function (i) { return { label: 'Attempt ' + (i + 1) }; }),
-      setup: ['Lay a club or a line of tees 6 ft away and another 30 ft away.', 'The first ball must pass the 6 ft line. Every ball after that must finish past the ball before it.', 'It ends when a ball finishes short of the last one, or runs past 30 ft.', 'Count the good balls. Three attempts.'] },
+      // v168 (Scott): one flat ladder, one uphill, one downhill (a 2–3% slope) – speed leaks often hide on slopes
+      shots: LADDER_SLOPES.map(function (x) { return { slope: x.k, label: x.name }; }),
+      setup: ['Three ladders: one on flat ground, one uphill and one downhill. For the slopes find a steady 2–3% slope – a gentle one where a ball left still just starts to roll.', 'Lay a club or a line of tees 6 ft away and another 30 ft away.', 'The first ball must pass the 6 ft line. Every ball after that must finish past the ball before it.', 'It ends when a ball finishes short of the last one, or runs past 30 ft. Count the good balls.'] },
     { id: 'compass', cat: 'putting', kind: 'compass', name: 'Short and breaking putts', lie: 'green',
       shots: [].concat.apply([], COMPASS_D.map(function (d) { return LINES.map(function (l) { return { dist: d, line: l.k, label: d + ' ft · ' + l.name.toLowerCase() }; }); })),
       setup: ['Find a hole on a 1 to 2 degree slope and work out which way is straight downhill.', 'Four lines of tees at 3, 5, 7 and 9 ft: one straight below the hole, one straight above, one out each side.', 'One putt from each tee, working around the hole at each distance. Tap what happened.'] },
@@ -84,12 +87,17 @@
   function validTests(list) {
     return (Array.isArray(list) ? list : []).filter(function (t) { return t && typeof t.id === 'string' && t.id && typeof t.date === 'string' && !isNaN(Date.parse(t.date)) && t.shots && typeof t.shots === 'object'; })
       .map(function (t) {
-        var shots = {}; STATIONS.forEach(function (st) { var a = Array.isArray(t.shots[st.id]) ? t.shots[st.id] : []; shots[st.id] = st.shots.map(function (x, i) { return validEntry(st, a[i]); }); });
+        var src = t.shots; if (t.v !== 2 && Array.isArray(src.lag)) src = Object.assign({}, src, { lag: lagV2(src.lag) });
+        var shots = {}; STATIONS.forEach(function (st) { var a = Array.isArray(src[st.id]) ? src[st.id] : []; shots[st.id] = st.shots.map(function (x, i) { return validEntry(st, a[i]); }); });
         var c = t.cond || {};
-        return { id: t.id, date: t.date, player: String(t.player || ''), baseline: String(t.baseline || ''), done: !!t.done,
+        return { v: 2, id: t.id, date: t.date, player: String(t.player || ''), baseline: String(t.baseline || ''), done: !!t.done,
           cond: { green: /^(slow|medium|fast)$/.test(c.green) ? c.green : '', wind: /^(calm|breezy|windy)$/.test(c.wind) ? c.wind : '' }, shots: shots };
       });
   }
+  // tests saved before v168 kept lag putts in a mixed order (30, 40, 50, 40, 50, 30, 50, 30, 40) – move each into its distance's slots
+  var LAG_OLD = [30, 40, 50, 40, 50, 30, 50, 30, 40];
+  function lagV2(a) { var out = [], used = {}; LAG_OLD.forEach(function (d, i) { var g = LAG_D.indexOf(d), k = used[d] || 0; used[d] = k + 1; out[g * 3 + k] = a[i] == null ? null : a[i]; });
+    for (var i = 0; i < 9; i++) if (out[i] === undefined) out[i] = null; return out; }
   function mergeTests(existing, incoming) {
     var have = {}, out = validTests(existing); out.forEach(function (t) { have[t.id] = 1; });
     var added = 0; validTests(incoming).forEach(function (t) { if (!have[t.id]) { have[t.id] = 1; out.push(t); added++; } });
@@ -133,7 +141,8 @@
     var put = function (k, L, value, extra) { var sg = sgOf(L), o = { k: k, n: L.length, value: L.length ? value : null, sg: sg, index: idx(sg) }; if (extra) for (var q in extra) o[q] = extra[q]; S[k] = o; };
     var lag = of('lag'); put('lag', lag, ftOf(lag));
     var lad = of('ladder'), tries = lad.map(function (r) { return r.e.n; });
-    S.speed = { k: 'speed', n: lad.length, value: tries.length ? mean(tries) : null, sg: null, index: null, tries: tries, best: tries.length ? Math.max.apply(null, tries) : null };
+    S.speed = { k: 'speed', n: lad.length, value: tries.length ? mean(tries) : null, sg: null, index: null, tries: tries, best: tries.length ? Math.max.apply(null, tries) : null,
+      bySlope: LADDER_SLOPES.map(function (x) { var r = lad.filter(function (q) { return q.spec.slope === x.k; })[0]; return { k: x.k, name: x.name, n: r ? r.e.n : null }; }) };
     var comp = of('compass'), str = comp.filter(function (r) { return LINE[r.spec.line].straight; }), brk = comp.filter(function (r) { return !LINE[r.spec.line].straight; });
     var made = function (L) { return L.filter(function (r) { return r.e.made; }).length; };
     var bench = function (L) { return L.reduce(function (t, r) { return t + clamp(2 - SG.expected('green', r.spec.dist, bl), 0, 1); }, 0); };
@@ -218,6 +227,11 @@
     // patterns a coach can use
     var X = cur.extra, coach = [], L;
     L = lean(X.lag.short, X.lag.long, 5); if (L != null) coach.push({ k: 'lag', text: (L ? X.lag.long : X.lag.short) + ' of ' + (X.lag.short + X.lag.long) + ' lag putts finished ' + (L ? 'past the hole' : 'short') + '.', ask: L ? 'Speed: check for a hit at the ball on long putts.' : 'Speed: check stroke length and tempo on long putts.' });
+    // v168: the three ladders – flat, uphill, downhill. A slope that runs out well short of the others is a speed leak.
+    var SL = {}; (cur.skills.speed.bySlope || []).forEach(function (x) { SL[x.k] = x.n; });
+    if (SL.flat != null && SL.up != null && SL.down != null) { var lo = Math.min(SL.up, SL.down);
+      if (SL.flat - lo >= 2) { var w = SL.down <= SL.up ? 'down' : 'up';
+        coach.push({ k: 'speed', text: 'Speed ladder: ' + SL.flat + ' balls flat, ' + SL.up + ' uphill, ' + SL.down + ' downhill.', ask: w === 'down' ? 'Downhill speed is the leak: practise a shorter, softer stroke and let the slope do the work.' : 'Uphill speed is the leak: commit to a firmer stroke that still finishes past the hole.' }); } }
     var ln = {}; X.lines.forEach(function (l) { ln[l.k] = l; });
     if (ln.up.n >= 4 && ln.down.n >= 4 && Math.abs(ln.up.made - ln.down.made) >= 2) coach.push({ k: 'short', text: ln.up.made + ' of ' + ln.up.n + ' uphill putts went in, ' + ln.down.made + ' of ' + ln.down.n + ' downhill.', ask: ln.down.made < ln.up.made ? 'Downhill is a speed problem more than a line problem: check for deceleration.' : 'Uphill misses are usually left short or under-hit: check commitment to the stroke.' });
     if (ln.bl.n >= 4 && ln.br.n >= 4 && Math.abs(ln.bl.made - ln.br.made) >= 2) coach.push({ k: 'brk', text: ln.bl.made + ' of ' + ln.bl.n + ' right-to-left putts went in, ' + ln.br.made + ' of ' + ln.br.n + ' left-to-right.', ask: 'One break is weaker: check aim and start line on the ' + (ln.bl.made < ln.br.made ? 'right-to-left' : 'left-to-right') + ' putt.' });

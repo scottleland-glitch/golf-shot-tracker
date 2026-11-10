@@ -65,7 +65,7 @@ const rnd = (id, player, date, extra, more) => { const r = Object.assign(ARC.rou
   assert(rows.every(r => r.del), 'each row has the tiny trash');
   assert(/^[+−-]?\d/.test(by('t0').sg), 'SG shown small: ' + by('t0').sg);
   const tools = await P.$$eval('#histtools button', bs => bs.map(x => [x.id, x.getBoundingClientRect().height]));
-  assert.deepStrictEqual(tools.map(t => t[0]), ['addround', 'chgplayer', 'cmpopen', 'histbz']);
+  assert.deepStrictEqual(tools.map(t => t[0]), ['addround', 'chgplayer', 'cmpopen'] /* v168: no Scoring chances */);
   assert(tools.every(t => t[1] <= 52), 'tools are slim: ' + tools);
   assert(await P.$('#playerchips [data-v="Quincy"]'), 'player filter still there');
   await shot('rounds-tight.png');

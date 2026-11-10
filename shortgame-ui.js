@@ -49,7 +49,7 @@
           '<p class="sgtneed">You need: a putting green with a sloped hole, a chipping green with a bunker, room for 100 yd wedges, about a dozen tees.</p>' +
           '<div class="sgtcond"><span>Greens today</span>' + ['slow', 'medium', 'fast'].map(function (g) { var on = (s.cond || {}).green === g; return '<button class="frostchip' + (on ? ' sel' : '') + '" data-act="sgtcond" data-v="green:' + g + '" aria-pressed="' + on + '">' + g + '</button>'; }).join('') + '</div>' +
           '<div class="sgtcond"><span>Wind</span>' + ['calm', 'breezy', 'windy'].map(function (g) { var on = (s.cond || {}).wind === g; return '<button class="frostchip' + (on ? ' sel' : '') + '" data-act="sgtcond" data-v="wind:' + g + '" aria-pressed="' + on + '">' + g + '</button>'; }).join('') + '</div>' +
-          '<button class="primary big" data-act="sgtstart" id="sgtstart">Start the test</button>';
+          '<button class="primary big" data-act="sgtstart" id="sgtstart">Start the test</button><button class="txt sgtlink" data-act="sgtintro" id="sgtintroopen">What is this test? See the intro</button>';
       }
       h += '</div>';
       if (done.length) { var A = analysed(done[0], who);
@@ -92,8 +92,10 @@
         h += '<div class="sgtcard frost sgtdone" id="sgtdonecard"><p class="sgteyebrow">Station done</p><h2>' + esc(stationSummary(test, st, s.who)) + '</h2>' +
           (T.nextOpen(test) ? '<button class="primary big" data-act="sgtnext" id="sgtnext">Next station ›</button>' : '<button class="primary big" data-act="sgtfinish" id="sgtfinish">Finish and see the result</button>') + '</div>';
       } else {
+        if (st.kind === 'lag') h += lagGroupHTML(st, a, i);
+        else {
         h += '<div class="sgtcard frost sgtentry" id="sgtentry"><p class="sgteyebrow">' + esc((st.kind === 'ladder' ? '' : st.kind === 'lag' || st.kind === 'compass' ? 'Putt ' : 'Shot ') + (st.kind === 'ladder' ? spec.label : (i + 1) + ' of ' + st.shots.length)) + '</p>' +
-          '<h2 class="sgtwhat" id="sgtwhat">' + esc(st.kind === 'ladder' ? 'How many balls?' : st.kind === 'leave' || st.kind === 'bunker' ? st.name + ' · ' + st.dist + ' yd' : spec.label) + '</h2>';
+          '<h2 class="sgtwhat" id="sgtwhat">' + esc(st.kind === 'ladder' ? spec.label + ' ladder · how many balls?' : st.kind === 'leave' || st.kind === 'bunker' ? st.name + ' · ' + st.dist + ' yd' : spec.label) + '</h2>';
         var cur = a[i], ftBox = '<label class="sgtft"><input id="sgtft" type="text" inputmode="decimal" autocomplete="off" placeholder="0" value="' + (cur && cur.ft != null ? esc(String(cur.ft)) : '') + '" aria-label="Feet left"><span>ft left</span></label>';
         var btn = function (v, label, cls) { return '<button class="' + (cls || 'frostbtn') + '" data-act="sgtsave" data-v="' + v + '">' + esc(label) + '</button>'; };
         if (st.kind === 'lag') h += ftBox + '<p class="sgthint">Type the feet left, then tap where it finished.</p><div class="sgtbtns g3">' + btn('short', 'Short') + btn('level', 'Level') + btn('long', 'Past') + '</div><div class="sgtbtns">' + btn('holed', 'Holed it') + '</div>';
@@ -106,9 +108,10 @@
         else if (st.kind === 'ladder') { var n = s.lad != null ? s.lad : cur ? cur.n : 0;
           h += '<div class="sgtstep"><button class="frostbtn" data-act="sgtlad" data-v="-1" aria-label="One fewer">−</button><b id="sgtladn">' + n + '</b><button class="frostbtn" data-act="sgtlad" data-v="1" aria-label="One more">+</button></div><div class="sgtbtns"><button class="primary" data-act="sgtladsave" id="sgtladsave">Save attempt</button></div>'; }
         h += '</div>';
+        }
       }
       h += '<div class="sgtchipsrow" id="sgtshots">' + st.shots.map(function (x, k) { var e = a[k];
-        return '<button class="sgtshot' + (k === i && !(done && !s.edit) ? ' cur' : '') + (e ? ' in' : '') + '" data-act="sgtshot" data-v="' + k + '"><span>' + esc(st.kind === 'ladder' ? 'Try ' + (k + 1) : st.kind === 'leave' || st.kind === 'bunker' ? '#' + (k + 1) : x.label.replace(' · ', ' ').replace('breaks ', '').replace('hill', '')) + '</span><b>' + esc(e ? entryText(st, e) : '–') + '</b></button>'; }).join('') + '</div>';
+        return '<button class="sgtshot' + (k === i && !(done && !s.edit) ? ' cur' : '') + (e ? ' in' : '') + '" data-act="sgtshot" data-v="' + k + '"><span>' + esc(st.kind === 'ladder' ? x.label : st.kind === 'leave' || st.kind === 'bunker' ? '#' + (k + 1) : x.label.replace(' · ', ' ').replace('breaks ', '').replace('hill', '')) + '</span><b>' + esc(e ? entryText(st, e) : '–') + '</b></button>'; }).join('') + '</div>';
       h += '<div class="sgtfoot">' + (!done && !last ? '<button class="txt sgtlink" data-act="sgtskip">Skip this station</button>' : '') + (T.entered(test) ? '<button class="txt sgtlink" data-act="sgtfinish">Finish the test now</button>' : '') + '</div>';
       return h + '</div>';
     }
@@ -125,7 +128,7 @@
         T.sparkSVG(c.series, sk, { usual: c.usual, thr: c.thr, status: toneOf(c) === 'bad' ? 'worse' : toneOf(c) === 'good' ? 'better' : 'same' }) +
         '<span class="sgtrv"><b>' + esc(T.fmtVal(sk, s)) + '</b><small>' + esc(sub) + '</small></span></button>';
       if (open) o += '<div class="sgtbig">' + T.sparkSVG(c.series, sk, { big: true, usual: c.usual, thr: c.thr, status: toneOf(c) === 'bad' ? 'worse' : toneOf(c) === 'good' ? 'better' : 'same', dates: withSkill }) +
-        '<p>' + esc((sk.better === 'low' ? 'Feet left on average – higher on the graph is closer to the hole. ' : sk.unit === 'balls' ? 'Balls per attempt, average of three. ' : 'Putts made. ') + (c.usual != null ? 'The band is your usual range.' : 'A band for your usual range appears after the next test.') + (s.bench != null ? ' ' + A.blName + ' level: ' + (sk.unit === 'ft' ? 'about ' + Math.round(s.bench) + ' ft.' : 'about ' + r1(s.bench) + ' of ' + s.of + '.') : '')) + '</p></div>';
+        '<p>' + esc((sk.better === 'low' ? 'Feet left on average – higher on the graph is closer to the hole. ' : sk.unit === 'balls' ? 'Balls per ladder, average of three' + ((s.bySlope || []).some(function (x) { return x.n != null; }) ? ' (' + s.bySlope.map(function (x) { return x.name.toLowerCase() + ' ' + (x.n == null ? '–' : x.n); }).join(', ') + ')' : '') + '. ' : 'Putts made. ') + (c.usual != null ? 'The band is your usual range.' : 'A band for your usual range appears after the next test.') + (s.bench != null ? ' ' + A.blName + ' level: ' + (sk.unit === 'ft' ? 'about ' + Math.round(s.bench) + ' ft.' : 'about ' + r1(s.bench) + ' of ' + s.of + '.') : '')) + '</p></div>';
       return o;
     }
     function wedgeHTML(A) {
@@ -161,7 +164,39 @@
       return h + '</div>';
     }
 
-    function html() { var s = S(); return s.mode === 'run' ? runHTML() : s.mode === 'result' ? resultHTML() : hubHTML(); }
+    // ---------- v168 (Scott): an intro to swipe through the first time – styled like the Instagram one-pager ----------
+    var INTRO_K = 'golfsg.sgtintro.v1';
+    function introSeen() { try { return localStorage.getItem(INTRO_K) === '1'; } catch (e) { return false; } }
+    function introDone() { try { localStorage.setItem(INTRO_K, '1'); } catch (e) {} }
+    function introHTML() {
+      var SK = {}; T.SKILLS.forEach(function (x) { SK[x.k] = x; });
+      var spider = T.spiderSVG([{ name: 'Putting', index: 96, avg: 88, sub: '+0.04 a shot' }, { name: 'Chipping', index: 108, avg: 101, sub: '+0.11 a shot' }, { name: 'Bunker', index: 72, avg: 86, sub: '−0.21 a shot', tone: 'bad' }, { name: 'Wedges', index: 99, avg: 97, sub: '0.00 a shot' }], { R: 92, aria: 'Example: short game shape' });
+      var spark = T.sparkSVG([5.8, 5.1, 4.6, 4.9, 5.6, 6.4], SK.lag, { big: true, usual: 5.1, thr: 0.75, status: 'worse', dates: ['Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov'] });
+      var stn = [['Putting', 'Lag putts from 30, 40 and 50 ft · a speed ladder flat, uphill and downhill · short and breaking putts'], ['Chipping', 'Short, long, a flop over a bunker, and from the rough'], ['Bunker', 'Short and long greenside bunker shots'], ['Wedges', '30 to 100 yd, three balls each']];
+      var slide = function (n, eyebrow, title, body) { return '<section class="sgtislide" data-n="' + n + '" aria-label="' + esc(title) + '"><p class="sgtieye">' + esc(eyebrow) + '</p><h2>' + title + '</h2>' + body + '</section>'; };
+      var o = '<div class="sgtintro" id="sgtintro" role="dialog" aria-label="About the short game test"><div class="sgtibg" aria-hidden="true"></div>' +
+        '<div class="sgtitop"><span class="sgtibrand"><i aria-hidden="true"></i>STROKEWISE</span><button class="sgtiskip" data-act="sgtintroskip" id="sgtintroskip">Skip intro</button></div>' +
+        '<div class="sgtislides" id="sgtislides">' +
+        slide(0, 'Short game test', 'Your monthly<br>check-up', '<p class="sgtibig">An hour around one practice green. It finds the gaps you don’t notice on the course – before they show up on the scorecard.</p>' +
+          '<div class="sgtipanel"><p class="sgtilbl">Why every month</p><p>Touch fades quietly. A test each month catches a slip while it’s small and shows whether practice is working.</p></div>' +
+          '<div class="sgtipanel"><p class="sgtilbl">And it’s practice</p><p>73 shots, each one with a target and a score – a great session on its own.</p></div>') +
+        slide(1, 'How it works', '10 stations,<br>73 shots', '<div class="sgtipanel sgtisteps">' + stn.map(function (x) { return '<div><b>' + esc(x[0]) + '</b><span>' + esc(x[1]) + '</span></div>'; }).join('') + '</div>' +
+          '<div class="sgtipanel"><p class="sgtilbl">As you go</p><p>Each station shows how to set it up. Enter each shot with a tap or two – feet left, short or past, made or missed.</p></div>') +
+        slide(2, 'What you get', 'Your short game,<br>at a glance', '<div class="sgtipanel sgtichart"><p class="sgtilbl">Shape vs your benchmark</p>' + spider + '</div>' +
+          '<div class="sgtipanel sgtichart"><p class="sgtilbl">Every skill over time · lag putts, feet left</p>' + spark + '</div>') +
+        slide(3, 'What it tells you', 'The leaks,<br>in plain words', '<div class="sgtipanel sgtiread"><p class="sgtitag bad">Slipping</p><p><b>Lag putts</b> – worse two tests in a row. 5 of 6 misses finished short.</p></div>' +
+          '<div class="sgtipanel sgtiread"><p class="sgtitag bad">Below your benchmark</p><p><b>Bunker</b> – long bunker shots finish 24 ft away; the benchmark is 15.</p></div>' +
+          '<div class="sgtipanel sgtiread"><p class="sgtitag good">Working</p><p><b>Chipping</b> is up on last month. Keep the drill going.</p></div>' +
+          '<p class="sgtibig sm">Each one comes with a drill to practise and a note for your coach.</p>') +
+        '</div><div class="sgtifoot"><div class="sgtidots" id="sgtidots" aria-hidden="true">' + [0, 1, 2, 3].map(function (k) { return '<i' + (k === 0 ? ' class="on"' : '') + '></i>'; }).join('') + '</div>' +
+        '<button class="sgtinext" data-act="sgtintronext" id="sgtintronext">Next ›</button></div></div>';
+      return o;
+    }
+    function introAt() { var el = document.getElementById('sgtislides'); return el ? Math.round(el.scrollLeft / Math.max(1, el.clientWidth)) : 0; }
+    function introSync() { var k = introAt(), d = document.querySelectorAll('#sgtidots i'), nb = document.getElementById('sgtintronext');
+      [].forEach.call(d, function (x, j) { x.className = j === k ? 'on' : ''; }); if (nb) nb.textContent = k >= 3 ? 'Start' : 'Next ›'; }
+    document.addEventListener('scroll', function (ev) { if (ev.target && ev.target.id === 'sgtislides') introSync(); }, true);
+    function html() { var s = S(); return s.mode === 'intro' ? introHTML() : s.mode === 'run' ? runHTML() : s.mode === 'result' ? resultHTML() : hubHTML(); }
     // My Game: a small card that opens the test
     function cardHTML(who) {
       var list = mine(who), open = list.filter(function (t) { return !t.done; })[0], last = list.filter(function (t) { return t.done; })[0], age = last ? daysSince(last.date) : null;
@@ -171,6 +206,17 @@
       return o + '<p>' + esc(line) + '</p><button class="frostbtn big" data-act="sgtopen" id="sgtopen">' + (open ? 'Carry on with the test' : last ? 'Open' : 'Take the test') + '</button></div>';
     }
 
+    // v168 (Scott): lag putts – all three balls from a spot are hit first, then walked up to and scored together
+    function lagGroupHTML(st, a, i) {
+      var s = S(), g = Math.floor(i / 3), d = st.shots[g * 3].dist, L = s.lg && s.lg.g === g ? s.lg : (s.lg = { g: g, dir: [0, 1, 2].map(function (b) { var e = a[g * 3 + b]; return e ? e.dir || 'level' : ''; }) });
+      var o = '<div class="sgtcard frost sgtentry sgtlag" id="sgtentry"><p class="sgteyebrow">Spot ' + (g + 1) + ' of 3</p><h2 class="sgtwhat" id="sgtwhat">' + d + ' ft · three balls</h2>' +
+        '<p class="sgthint">Putt all three, then walk up and score each one: feet left and where it finished.</p>';
+      [0, 1, 2].forEach(function (b) { var e = a[g * 3 + b], dir = L.dir[b];
+        o += '<div class="sgtlagrow" data-b="' + b + '"><b>Ball ' + (b + 1) + '</b><label class="sgtft sm"><input id="sgtft' + b + '" class="sgtlagft" type="text" inputmode="decimal" autocomplete="off" placeholder="0" value="' + (e && e.ft != null ? esc(String(e.ft)) : '') + '" aria-label="Ball ' + (b + 1) + ' feet left"><span>ft</span></label>' +
+          '<div class="sgtlagdir" role="group" aria-label="Ball ' + (b + 1) + ' finished">' + [['short', 'Short'], ['level', 'Level'], ['long', 'Past'], ['holed', 'In']].map(function (x) { var on = dir === x[0] || (x[0] === 'holed' && e && e.ft === 0 && dir !== 'short' && dir !== 'long' && dir !== 'level');
+            return '<button class="frostchip' + (on ? ' sel' : '') + '" data-act="sgtlagdir" data-v="' + b + ':' + x[0] + '" aria-pressed="' + on + '">' + x[1] + '</button>'; }).join('') + '</div></div>'; });
+      return o + '<div class="sgtbtns"><button class="primary" data-act="sgtlagsave" id="sgtlagsave">Save these three</button></div></div>';
+    }
     // ---------- actions ----------
     function goto(test, st, i) { var s = S(); s.mode = 'run'; s.id = test.id; s.st = st; s.i = i; s.setup = null; s.edit = false; s.lad = null; }
     function store(val) {
@@ -181,11 +227,15 @@
       s.lad = null; s.setup = false; if (nx >= 0) s.i = nx; else s.edit = false;
       env.render(); focus();
     }
-    function focus() { var f = document.getElementById('sgtft'); if (f) { try { f.focus(); f.select(); } catch (e) {} } }
+    function focus() { var f = document.getElementById('sgtft') || document.getElementById('sgtft0'); if (f) { try { f.focus(); f.select(); } catch (e) {} } }
     function feet() { var f = document.getElementById('sgtft'), raw = f ? String(f.value).trim().replace(',', '.') : ''; return raw === '' || !/^\d+(\.\d+)?$/.test(raw) ? null : Number(raw); }
     function act(a, v, b) {
       var s = S(), test = s.id ? byId(s.id) : null;
-      if (a === 'sgtopen') { view.hmenu = null; view.screen = 'sgtest'; s.mode = 'hub'; if (view.mgPlayer) s.who = view.mgPlayer; env.render(); window.scrollTo(0, 0); return; }
+      if (a === 'sgtintroskip') { introDone(); s.mode = 'hub'; env.render(); window.scrollTo(0, 0); return; }
+      if (a === 'sgtintronext') { var sl = document.getElementById('sgtislides'), k0 = introAt(); if (k0 >= 3 || !sl) { introDone(); s.mode = 'hub'; env.render(); window.scrollTo(0, 0); return; }
+        try { sl.scrollTo({ left: (k0 + 1) * sl.clientWidth, behavior: 'smooth' }); } catch (e) { sl.scrollLeft = (k0 + 1) * sl.clientWidth; } setTimeout(introSync, 400); return; }
+      if (a === 'sgtintro') { s.mode = 'intro'; env.render(); window.scrollTo(0, 0); return; }
+      if (a === 'sgtopen') { view.hmenu = null; view.screen = 'sgtest'; s.mode = introSeen() ? 'hub' : 'intro'; if (view.mgPlayer) s.who = view.mgPlayer; env.render(); window.scrollTo(0, 0); return; }
       if (a === 'sgthub') { s.mode = 'hub'; s.open = null; env.render(); window.scrollTo(0, 0); return; }
       if (a === 'sgtplayer') { s.who = v; env.render(); return; }
       if (a === 'sgtcond') { var p = v.split(':'); s.cond = s.cond || {}; s.cond[p[0]] = s.cond[p[0]] === p[1] ? '' : p[1]; env.render(); return; }
@@ -206,6 +256,19 @@
       if (a === 'sgtmade') { store({ made: true }); return; }
       if (a === 'sgtmiss') { store({ made: false, miss: v }); return; }
       if (a === 'sgtlad') { var cur = test.shots[st.id][s.i]; s.lad = Math.max(0, Math.min(40, (s.lad != null ? s.lad : cur ? cur.n : 0) + (+v))); var el = document.getElementById('sgtladn'); if (el) el.textContent = s.lad; return; }
+      if (a === 'sgtlagdir') { var q = v.split(':'), bi = +q[0]; s.lg = s.lg || { g: Math.floor(s.i / 3), dir: ['', '', ''] }; s.lg.dir[bi] = q[1];
+        if (q[1] === 'holed') { var fi = document.getElementById('sgtft' + bi); if (fi) fi.value = '0'; }
+        [].forEach.call(document.querySelectorAll('[data-act="sgtlagdir"]'), function (x) { var p2 = x.getAttribute('data-v').split(':'); if (+p2[0] === bi) { var on = p2[1] === q[1]; x.classList.toggle('sel', on); x.setAttribute('aria-pressed', on); } }); return; }
+      if (a === 'sgtlagsave') { var g = Math.floor(s.i / 3), vals = [];
+        for (var bb = 0; bb < 3; bb++) { var f = document.getElementById('sgtft' + bb), raw = f ? String(f.value).trim().replace(',', '.') : '', dd = s.lg && s.lg.g === g ? s.lg.dir[bb] : '';
+          if (dd === 'holed') { vals.push({ ft: 0, dir: '' }); continue; }
+          if (raw === '' || !/^\d+(\.\d+)?$/.test(raw) || Number(raw) > 200) { env.toast('Ball ' + (bb + 1) + ': type the feet left (or tap In)'); if (f) f.focus(); return; }
+          if (Number(raw) === 0) { vals.push({ ft: 0, dir: '' }); continue; }
+          if (!dd) { env.toast('Ball ' + (bb + 1) + ': tap Short, Level or Past'); return; }
+          vals.push({ ft: Number(raw), dir: dd === 'level' ? '' : dd }); }
+        vals.forEach(function (val, k2) { test.shots[st.id][g * 3 + k2] = T.validEntry(st, val); }); put(test);
+        var arr = test.shots[st.id], nx3 = -1; for (var k3 = 0; k3 < arr.length; k3++) if (!arr[k3]) { nx3 = k3; break; }
+        s.lg = null; s.setup = false; if (nx3 >= 0) s.i = nx3; else s.edit = false; env.render(); var f0 = document.getElementById('sgtft0'); if (f0) try { f0.focus(); } catch (e) {} return; }
       if (a === 'sgtladsave') { var c2 = test.shots[st.id][s.i]; store({ n: s.lad != null ? s.lad : c2 ? c2.n : 0 }); return; }
       if (a === 'sgtsave') {
         if (v === 'holed') { store(st.kind === 'lag' || st.kind === 'wedge' ? { ft: 0, dir: '' } : { ft: 0 }); return; }

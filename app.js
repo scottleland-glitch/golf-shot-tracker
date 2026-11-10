@@ -633,10 +633,10 @@
         dist.push([g[0], '', '', '']); g[1].forEach(function (b) { var c = S.buckets[b]; dist.push([b, String(c.n), c.n ? fmtSG(c.sg) : '-', g[0] === 'Approach' ? (c.proxN ? Math.round(c.proxFt) + ' ft' : '-') : '']); }); });
       y = table(dist, M, y, [260, 90, 90, 100], { group: function (row) { return row[1] === '' && /^(Approach|Short game|Bunker|Putting)$/.test(row[0]); }, cont: 'The numbers – strokes gained (continued)' });
       y = note('Approach = shots from more than 30 yd off the green (par-3 tee shots included); 30-60 = over 30 up to under 60 yd, other ranges include the lower number. Short game = off the green from 30 yd and in (not sand). Bunker = from a greenside bunker, 50 yd and in; fairway bunkers count as approach. Avg to pin after = feet on the green, yards x 3 off it, 0 if holed; penalty/OB shots left out.', M, y + 6) + 12;
-      heading('Same round vs every baseline', M, y); y += 16;
-      y = table([['Baseline', 'Tee', 'Approach', 'Short', 'Bunker', 'Putting', 'Total']].concat(SG.BASELINES.map(function (b) { var X = SG.summarize(r, b.id);
+      heading('Same round vs every benchmark', M, y); y += 16;
+      y = table([['Benchmark', 'Tee', 'Approach', 'Short', 'Bunker', 'Putting', 'Total']].concat(SG.BASELINES.map(function (b) { var X = SG.summarize(r, b.id);
         return [b.name + (b.status === 'estimated' ? ' (est.)' : '') + (b.id === R.bl ? '  <' : ''), fmtSG(X.cats.tee.sg), fmtSG(X.cats.approach.sg), fmtSG(X.cats.short.sg), fmtSG(X.cats.bunker.sg), fmtSG(X.cats.putting.sg), fmtSG(X.sgTotal)]; })), M, y, [160, 62, 62, 62, 62, 62, 70]);
-      y = note('< = the baseline this report uses. (est.) = estimated baseline (no published table).', M, y + 6);
+      y = note('< = the benchmark this report uses. (est.) = estimated benchmark (no published table).', M, y + 6);
         return SCG;
       };
       // ---- v137: the Stats categories (all rounds, this round dashed on the par curves), each followed by this round's maps ----
@@ -780,7 +780,7 @@
       });
       var tbl = pg.querySelector('#sttable'), rows = tbl ? [].slice.call(tbl.rows).map(function (r) { return [].slice.call(r.cells).map(tx); }) : [];
       var mode = D.mode, rangeName = mode === 'sel' ? 'Selected round' : mode === '5' ? 'Last 5' : mode === 'pick' ? stPickName(D.shown) : 'All rounds';
-      var bl = view.stBl ? blLabel(view.stBl) : 'each round’s own baseline';
+      var bl = view.stBl ? blLabel(view.stBl) : 'each round’s own benchmark';
       var who = (pg.querySelector('.topbar .title span') || {}).textContent || '';
       return { D: D, cats: cats, table: rows, tableNote: tx(pg.querySelector('#sttablecard .stnote')), shown: tx(pg.querySelector('#stshown')), range: rangeName, cmp: D.cmp,
         baseline: SG.pdfSafe(bl), player: SG.pdfSafe(who.split(' · ').length > 1 ? who.split(' · ')[0] : ''),
@@ -1031,6 +1031,12 @@
   // ---------- History ----------
   function savedRounds() { return rounds.filter(function (r) { return !SG.roundEmpty(r); }); }
   function playersIn() { var o = {}; savedRounds().forEach(function (r) { if (r.player) o[r.player] = (o[r.player] || 0) + 1; }); return o; }
+  // v168 (Scott): one look for picking the benchmark – Stats, Rounds and a round all show "Strokes gained [vs benchmark ▾]"
+  function bmRowHTML(id, cur, allLabel, note) {
+    return '<div class="bmwrap"><div class="stsec stsecsg bmrow" id="' + id + 'row"><span class="stsect">Strokes gained</span><select id="' + id + '" class="stbl" data-f="baseline" aria-label="Benchmark – compare against">' +
+      (allLabel ? '<option value="">' + esc(allLabel) + '</option>' : '') + SG.BASELINES.map(function (b) { return '<option value="' + b.id + '"' + (cur === b.id ? ' selected' : '') + '>' + esc(blLabel(b.id)) + '</option>'; }).join('') + '</select></div>' +
+      (note ? '<p class="stnote stsgnote bmnote" id="' + id + 'note">' + note + '</p>' : '') + '</div>';
+  }
   function historyHTML() {
     var P = playersIn(), names = Object.keys(P).sort(), multi = names.length + (savedRounds().some(function (r) { return !r.player; }) && names.length ? 1 : 0) > 1;
     if (!multi || (view.histPlayer && view.histPlayer !== '~none' && !P[view.histPlayer])) view.histPlayer = null;
@@ -1046,15 +1052,15 @@
       var tool = function (id, act, ic, lbl, extra) { return '<button class="htool" id="' + id + '" data-act="' + act + '"' + (extra || '') + '><span aria-hidden="true">' + ic + '</span>' + lbl + '</button>'; };
       h += '<div class="histtools htools" id="histtools">' + tool('addround', 'addopen', '📥', 'Add a round') +
         (list.length ? tool('chgplayer', 'mvstart', '👤', 'Change player') : '') +
-        (list.length >= 2 ? tool('cmpopen', 'compare', '⚖', 'Best vs worst') : '') +
-        (list.length ? tool('histbz', 'bzopen', '🎯', 'Scoring chances', ' data-v="all" data-id="' + list[0].id + '"') : '') + '</div>';
+        (list.length >= 2 ? tool('cmpopen', 'compare', '⚖', 'Best vs worst') : '') + '</div>';
+      if (list.length) h += bmRowHTML('histbl', view.histBl || '', 'Each round’s benchmark');
     }
     if (!list.length) h += '<p class="muted frostnote">No rounds yet. Start one from Home.</p>';
     else h += '<div class="hhead" id="hhead" aria-hidden="true">' + (M ? '<span class="hcchk"></span>' : '') + '<span class="hc1">Score</span><span class="hc2">Holes</span><span class="hc3">Date</span><span class="hc4">To par<br>SG</span><span class="hc5">Course</span>' + (M ? '' : '<span class="hc6"></span>') + '</div>';
     var curId = localStorage.getItem(CUR);
     h += '<div id="histlist" class="hlist">';
     list.forEach(function (r) {
-      var S = SG.summarize(r), on = M && M.ids[r.id], d = new Date(r.date), nH = r.holes.length, unf = S.holesDone < nH || r.id === curId;
+      var S = SG.summarize(r, view.histBl || undefined), on = M && M.ids[r.id], d = new Date(r.date), nH = r.holes.length, unf = S.holesDone < nH || r.id === curId;
       var pp = S.holesDone ? S.toPar * 18 / S.holesDone : null, tint = pp == null ? 'none' : pp < -0.5 ? 'under' : pp <= 18.5 ? 'even' : 'over';
       var sub = [r.tee, r.player].filter(Boolean).map(esc).join(' · ');
       var lbl = d.toLocaleDateString() + (r.course ? ' ' + r.course : '');
@@ -1380,9 +1386,7 @@
     if (mode !== 'all') h += '<div class="stbar"><button class="stcmp' + (D.cmp ? ' on' : '') + '" id="stcmp" data-act="stcmp" aria-pressed="' + D.cmp + '"><i aria-hidden="true"></i>Compare to all rounds</button></div>';
     h += '<p class="stsub" id="stshown">' + (mode === 'pick' ? esc(stPickLine(shown)) : mode === 'sel' && D.sel ? esc(stDate(D.sel.date)) + ' · ' + esc(D.sel.course) + ' · ' + D.sel.score + ' (' + toPar(D.sel.toPar) + ')' + (D.sel.open ? ' · ' + D.sel.holes + ' holes so far' : '') :
       (mode === '5' ? 'Last ' + shown.length + ' of ' : '') + all.length + ' finished round' + (all.length === 1 ? '' : 's') + ' · ' + esc(stDate(shown[0].date)) + (shown.length > 1 ? ' – ' + esc(stDate(shown[shown.length - 1].date)) : '')) + '</p>';
-    h += '<div class="stsec stsecsg"><span class="stsect">Strokes gained</span><select id="stbl" class="stbl" data-f="baseline" aria-label="Compare against"><option value="">Each round’s baseline</option>' + SG.BASELINES.map(function (b) {
-        return '<option value="' + b.id + '"' + (view.stBl === b.id ? ' selected' : '') + '>' + esc(blLabel(b.id)) + '</option>'; }).join('') + '</select></div>' +
-      '<p class="stnote stsgnote" id="stsgnote">Plus = strokes gained, minus = strokes lost, compared with ' + esc(view.stBl ? blLabel(view.stBl) : 'each round’s own baseline') + '.</p>';
+    h += bmRowHTML('stbl', view.stBl || '', 'Each round’s benchmark', 'Benchmark: plus = strokes gained, minus = strokes lost, compared with ' + esc(view.stBl ? blLabel(view.stBl) : 'each round’s own benchmark') + '.').replace('id="stblnote"', 'id="stsgnote"');
     // v125: graphs grouped in collapsible categories (tap a header; open / closed is kept while the page is open)
     var sgT = function (k) { var c = ST_SG.filter(function (x) { return x[0] === k; })[0]; return stTrend(k, D, function (p) { return p.sg[k]; }, { title: c[1], short: c[1].replace(/ \(.*\)$/, ''), color: c[2], help: c[3] }); };
     var pctT = function (k) { var c = ST_PCT.filter(function (x) { return x[0] === k; })[0]; return stTrend(k, D, function (p) { return p[k]; }, { title: c[1], short: c[1].replace(/ \(.*\)$/, ''), color: c[2], help: c[3], pct: true }); };
@@ -3316,15 +3320,13 @@
     if (view.stxRound !== r.id) { view.stx = {}; view.stxRound = r.id; } // tiles start collapsed for each round
     // v165 (Scott): Create PDF report at the top of Round stats – no scrolling to the bottom for it (its share sheet opens right here)
     out += '<div class="rsactions" id="rsactions"><button class="primary rspdftop" data-act="pdf" data-at="top" id="rspdftop">📄 Create PDF report</button>' + (view.pdfAt === 'top' ? pdfHTML() : '') + '</div>';
-    out += rsTopHTML(r, S) + playPickHTML('rplay', MYGAME.playOf(r), 'Round type', 'rplay') + takeawayHTML(r) + quickViewHTML(S);
-    out += scorecardHTML(r, S) + '<button class="big rpbtn" data-act="replay" data-v="0" id="sumreplay">▶ Hole replay (hole by hole)</button>' +
-      (S.holesDone ? '<button class="big rpbtn bzbtn" data-act="bzopen" data-v="round" id="sumbz">🎯 Scoring chances</button>' : '');
+    out += rsTopHTML(r, S) + bmRowHTML('sumbl', bl, '', 'Changing it recalculates the whole round and is saved with it.') + playPickHTML('rplay', MYGAME.playOf(r), 'Round type', 'rplay') + takeawayHTML(r) + quickViewHTML(S);
+    out += scorecardHTML(r, S) + '<button class="big rpbtn" data-act="replay" data-v="0" id="sumreplay">▶ Hole replay (hole by hole)</button>';
     var B = SG.baseline(bl), main = out; out = '';
     out += '<h2>Strokes gained: <span class="' + sgCls(S.sgTotal) + '" id="sgtotal">' + fmtSG(S.sgTotal) + '</span></h2>' +
-      '<div class="blbox"><label class="lbl" for="sumbl">Baseline – compared with</label>' + blSelect('sumbl', bl) +
-      '<p class="help muted" id="blnote">Average player in: ' + esc(B.name) +
-      (B.status === 'estimated' ? ' – <b>estimated</b> baseline (no published table; see About the numbers)' : ' – published PGA Tour data (Broadie)') +
-      '. Plus = better, minus = strokes lost. Changing this recalculates the whole round and is saved with it.</p></div>';
+      '<div class="blbox"><p class="help muted" id="blnote">Benchmark: average player in ' + esc(B.name) +
+      (B.status === 'estimated' ? ' – <b>estimated</b> benchmark (no published table; see About the numbers)' : ' – published PGA Tour data (Broadie)') +
+      '. Plus = better, minus = strokes lost. Change it at the top of this page.</p></div>';
     out += '<table><tr><th>Category</th><th class="num">Shots</th><th class="num">SG</th></tr>';
     ['tee', 'approach', 'short', 'bunker', 'putting'].forEach(function (k) {
       var c = S.cats[k];
@@ -3364,22 +3366,22 @@
   }
   function compareHTML(r, bl) {
     var cats = ['tee', 'approach', 'short', 'bunker', 'putting'];
-    var out = '<h3>Same round vs every baseline</h3><p class="help muted">Strokes gained by category. Tap a row to use it.</p>' +
-      '<table class="cmp" id="cmp"><tr><th>Baseline</th><th class="num">Tee</th><th class="num">App</th><th class="num">Short</th><th class="num">Sand</th><th class="num">Putt</th><th class="num">Total</th></tr>';
+    var out = '<h3>Same round vs every benchmark</h3><p class="help muted">Strokes gained by category. Tap a row to use it.</p>' +
+      '<table class="cmp" id="cmp"><tr><th>Benchmark</th><th class="num">Tee</th><th class="num">App</th><th class="num">Short</th><th class="num">Sand</th><th class="num">Putt</th><th class="num">Total</th></tr>';
     SG.BASELINES.forEach(function (b) {
       var S = SG.summarize(r, b.id);
       out += '<tr data-act="setbl" data-v="' + b.id + '" class="' + (b.id === bl ? 'cur' : '') + '"><td>' + esc(b.name) + (b.status === 'estimated' ? '<sup>est</sup>' : '') + '</td>' +
         cats.map(function (c) { return '<td class="num ' + sgCls(S.cats[c].sg) + '">' + fmtSG(S.cats[c].sg) + '</td>'; }).join('') +
         '<td class="num ' + sgCls(S.sgTotal) + '"><b>' + fmtSG(S.sgTotal) + '</b></td></tr>';
     });
-    return out + '</table><p class="help muted"><sup>est</sup> = estimated baseline, see About the numbers.</p>';
+    return out + '</table><p class="help muted"><sup>est</sup> = estimated benchmark, see About the numbers.</p>';
   }
   function aboutHTML() {
     var L = function (u, t) { return '<a href="' + u + '" target="_blank" rel="noopener">' + esc(t || u) + '</a>'; };
     var gaps = SG.BASELINES.map(function (b) {
       return '<tr><td>' + esc(b.name) + '</td><td>' + (b.status === 'sourced' ? 'Published' : '<b>Estimated</b>') + '</td><td class="num">' +
         (b.id === 'pga' ? '0' : '−' + b.gap.toFixed(1)) + '</td></tr>'; }).join('');
-    return '<div class="topbar"><button class="txt" data-act="aboutBack">‹ Back</button><div class="title"><b>About the numbers</b><span>Where the baselines come from</span></div><span></span></div>' +
+    return '<div class="topbar"><button class="txt" data-act="aboutBack">‹ Back</button><div class="title"><b>About the numbers</b><span>Where the benchmarks come from</span></div><span></span></div>' +
       '<div class="about">' +
       '<p>Strokes gained compares each shot with how many strokes an average player in the chosen group needs to hole out from the same spot. ' +
       'A shot\'s value = expected strokes before − expected strokes after − 1 (and −1 more for a penalty).</p>' +
@@ -3394,7 +3396,7 @@
       'shots under 10 yd use the 10-yd value; par-3 tee shots under 100 yd use the fairway column; putts over 90 ft and shots over 600 yd are extended in a straight line.</p>' +
       '<h2>Other groups – estimated</h2>' +
       '<p><b>No published expected-strokes table exists</b> for the LPGA Tour, D1 college men or women, or scratch men or women. (The LPGA shows strokes-gained stats via KPMG but not the table behind them. ' +
-      'Clippd/Scoreboard college rankings use their own data and don\'t publish a table.) So these baselines are <b>estimates</b>, built from two published numbers:</p>' +
+      'Clippd/Scoreboard college rankings use their own data and don\'t publish a table.) So these benchmarks are <b>estimates</b>, built from two published numbers:</p>' +
       '<ol><li><b>Scratch men vs PGA Tour:</b> 5.5 strokes per round behind, split off the tee 2.5, approach 1.5, short game 0.5, putting 1.0. Source: Peter Sanders (ShotByShot), ' +
       L('https://clubhouse.swingu.com/statistics/the-statistical-differences-between-a-scratch-golfer-and-pga-tour-player/', 'SwingU, 8,360 scratch rounds vs 2015 ShotLink') +
       '. This agrees with Lou Stagner\'s finding that the average tour pro is about a +5.4 handicap (' + L('https://golf.com/instruction/pro-golfer-handicap-index-score/', 'Golf.com') + ').</li>' +
@@ -3402,12 +3404,12 @@
       L('https://www.clippd.com/insights/post/shot-quality-and-player-quality-clippds-new-performance-metrics', 'Clippd') + '.</li></ol>' +
       '<p><b>Method:</b> we assume each Player Quality point is worth the same number of strokes. Scratch men are 13 points and 5.5 strokes behind the Tour, so 1 point ≈ 0.42 strokes per round. ' +
       'Every group uses the scratch-men split by category. The PGA table is then shifted slightly (more for long shots, a little for putts) so that a typical 18-hole round loses exactly that many strokes in each category.</p>' +
-      '<table><tr><th>Baseline</th><th>Type</th><th class="num">Strokes/round vs Tour</th></tr>' + gaps + '</table>' +
+      '<table><tr><th>Benchmark</th><th>Type</th><th class="num">Strokes/round vs Tour</th></tr>' + gaps + '</table>' +
       '<p><b>Caveats</b></p><ul>' +
-      '<li>Estimated baselines are approximate. Use them to compare rounds with each other, not as exact numbers.</li>' +
+      '<li>Estimated benchmarks are approximate. Use them to compare rounds with each other, not as exact numbers.</li>' +
       '<li>Player Quality is Clippd\'s own scale. Treating it as linear in strokes is our assumption.</li>' +
-      '<li>D1 women and scratch men share the same Clippd score (87), so their baselines are identical.</li>' +
-      '<li>Women\'s baselines use the same distances as men\'s. Real tours play shorter courses (the LPGA plays roughly 700 yd shorter per round), so a given distance is harder for them than this shows.</li>' +
+      '<li>D1 women and scratch men share the same Clippd score (87), so their benchmarks are identical.</li>' +
+      '<li>Women\'s benchmarks use the same distances as men\'s. Real tours play shorter courses (the LPGA plays roughly 700 yd shorter per round), so a given distance is harder for them than this shows.</li>' +
       '<li>The category split for every group comes from scratch men. Other groups may lose strokes in a different mix.</li>' +
       '<li>“Scratch” here means a 0 handicap on a typical course, as in the sources.</li></ul>' +
       '<p class="muted">Researched October 2026.</p></div>' +
@@ -4067,7 +4069,7 @@
     } else {
       tilesH = sgAll + clubQV('n', 'Shots', st.n, all ? 'all rounds' : 'this round', null) +
         clubQV('green', 'On the green', st.n ? Math.round(st.green / st.n * 100) + '%' : '–', st.green + ' / ' + st.n + ' shots', null);
-      tips.push('<b>Strokes gained</b> = every ' + esc(cur) + ' shot vs the PGA Tour baseline. <b>On the green</b> = shots that finished on the green or in the hole.');
+      tips.push('<b>Strokes gained</b> = every ' + esc(cur) + ' shot vs the PGA Tour benchmark. <b>On the green</b> = shots that finished on the green or in the hole.');
     }
     o += '<div class="mapsum clubsum" id="mapsum"><span><b id="clubcur">' + esc(cur) + '</b> · <b>' + st.n + '</b> shot' + (st.n === 1 ? '' : 's') + (all ? ' in all rounds' : ' this round') + '</span>' + tipBtn('clubtiles', 'i', 'About these numbers') + '</div>' +
       tipText('clubtiles', tips.join(' ')) + '<div class="quickview clubqv" id="clubqv" data-kind="' + kind + '">' + tilesH + '</div>';
@@ -4085,7 +4087,7 @@
       var fin = x.holed ? 'holed' : x.ob ? 'OB' : (x.s.end.lie === 'green' ? Math.round(x.s.end.dist) + ' ft' : Math.round(x.s.end.dist) + ' yd') + (x.dir ? ' ' + SG.DIR_NAME[x.dir].toLowerCase() : '') + (x.s.end.lie !== 'green' ? ' · ' + (LIE_NAME[x.s.end.lie] || x.s.end.lie) : ' · green');
       return '<tr><td>' + (all ? localDate(x.r.date).slice(5) + ' #' : '#') + x.hole + '</td><td>' + Math.round(x.s.start.dist) + ' yd ' + (LIE_NAME[x.s.start.lie] || (x.s.start.lie === 'tee' ? 'tee' : x.s.start.lie)) + '</td><td>' + esc(fin) + '</td><td class="num ' + sgCls(x.sg) + '">' + (x.layup ? 'layup' : fmtSG(x.sg)) + '</td></tr>'; }).join('') + '</table>';
     var rank = used.map(function (c) { var s2 = clubStats(by[c]); return { c: c, s: s2 }; }).filter(function (x) { return x.s.sgN; }).sort(function (a, b) { return b.s.sg / b.s.sgN - a.s.sg / a.s.sgN; });
-    o += '<h3 class="clubh3">Strokes gained by club' + tipBtn('clubrank', 'i', 'About this table') + '</h3>' + tipText('clubrank', 'Best club per shot at the top (vs PGA Tour baseline). Layup tee shots are not in SG. Bias ⚠ = finishes more than 5 yd short or long on average (from the distance + direction of the next shot; straight left/right counts as pin high). Tap a row to see that club.') + '<table id="clubrank" class="clubtab"><tr><th>#</th><th>Club</th><th class="num">Shots</th><th class="num">SG/shot</th><th class="num">Total</th><th>Bias</th></tr>' + rank.map(function (x, i) {
+    o += '<h3 class="clubh3">Strokes gained by club' + tipBtn('clubrank', 'i', 'About this table') + '</h3>' + tipText('clubrank', 'Best club per shot at the top (vs PGA Tour benchmark). Layup tee shots are not in SG. Bias ⚠ = finishes more than 5 yd short or long on average (from the distance + direction of the next shot; straight left/right counts as pin high). Tap a row to see that club.') + '<table id="clubrank" class="clubtab"><tr><th>#</th><th>Club</th><th class="num">Shots</th><th class="num">SG/shot</th><th class="num">Total</th><th>Bias</th></tr>' + rank.map(function (x, i) {
       return '<tr data-act="clubsel" data-v="' + esc(x.c) + '" class="' + (x.c === cur ? 'cur' : '') + '"><td>' + (i + 1) + '</td><td><b>' + esc(x.c) + '</b></td><td class="num">' + x.s.sgN + '</td><td class="num ' + sgCls(x.s.sg) + '">' + fmtSG(x.s.sg / x.s.sgN) + '</td><td class="num ' + sgCls(x.s.sg) + '">' + fmtSG(x.s.sg) + '</td><td>' + (x.s.bias ? '⚠ ' + Math.round(Math.abs(x.s.lg)) + ' yd ' + x.s.bias : '') + '</td></tr>'; }).join('') + '</table>';
 
     return o;
@@ -5121,7 +5123,7 @@
     var t = ev.target, f = t.getAttribute('data-f'); if (!f) return;
     if (f === 'proxbench') { var mvb = document.getElementById('mapview'), stb = mvb ? mvb.scrollTop : 0; view.proxBench = t.value; render(); var mvb2 = document.getElementById('mapview'); if (mvb2) mvb2.scrollTop = stb; return; } // v124: this view only
     if (f === 'baseline' && t.id === 'mgbl') { view.mgBl = t.value; render(); return; } // v141 My Game: compare with (this page only)
-    if (f === 'baseline') { if (t.id === 'sumbl') setBaseline(t.value); else if (t.id === 'stbl') { view.stBl = t.value || ''; view.stSel = null; render(); } return; }
+    if (f === 'baseline') { if (t.id === 'sumbl') setBaseline(t.value); else if (t.id === 'stbl') { view.stBl = t.value || ''; view.stSel = null; render(); } else if (t.id === 'histbl') { view.histBl = t.value || ''; render(); } return; }
     var h = round().holes[view.hole], k = +t.getAttribute('data-k'), row = h.rows[k];
     if (f === 'loc') {
       var v = t.value, was = row.loc;

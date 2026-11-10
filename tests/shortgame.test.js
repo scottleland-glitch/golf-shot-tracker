@@ -75,3 +75,18 @@ test('pictures: spider has benchmark, this test and (when known) your average; s
   assert.equal((T.sparkSVG([3, 4, 5], T.SKILL.lag, { usual: 3.5, thr: 0.75, status: 'worse' }).match(/<circle/g) || []).length, 3);
   assert.equal((T.compassSVG({ line: 'up', dist: 5 }).match(/<circle/g) || []).length, 17);
 });
+
+test('v168 lag putts are grouped by spot (30, 30, 30, 40 …) and older tests are moved into place once', () => {
+  assert.deepStrictEqual(T.STATION.lag.shots.map((x) => x.dist), [30, 30, 30, 40, 40, 40, 50, 50, 50]);
+  const old = { id: 'o', date: '2026-10-01T00:00:00Z', shots: { lag: [30, 40, 50, 40.1, 50.1, 30.1, 50.2, 30.2, 40.2].map((ft) => ({ ft, dir: 'short' })) } };
+  const v = T.validTests([old])[0];
+  assert.strictEqual(v.v, 2); assert.deepStrictEqual(v.shots.lag.map((e) => e.ft), [30, 30.1, 30.2, 40, 40.1, 40.2, 50, 50.1, 50.2]);
+  assert.deepStrictEqual(T.validTests([v])[0].shots.lag.map((e) => e.ft), [30, 30.1, 30.2, 40, 40.1, 40.2, 50, 50.1, 50.2], 'not moved twice');
+});
+test('v168 speed ladders: flat, uphill, downhill – a slope well short of flat is named as the leak', () => {
+  assert.deepStrictEqual(T.STATION.ladder.shots.map((x) => x.label), ['Flat', 'Uphill', 'Downhill']);
+  const t = T.validTests([{ id: 'x', date: '2026-11-01T00:00:00Z', shots: { ladder: [{ n: 8 }, { n: 7 }, { n: 4 }] } }])[0];
+  const S = T.score(t, SG, 'pga'); assert.deepStrictEqual(S.skills.speed.bySlope.map((x) => [x.k, x.n]), [['flat', 8], ['up', 7], ['down', 4]]);
+  const I = T.interpret(S, T.compare(S, [])); const c = I.coach.find((x) => x.k === 'speed');
+  assert.ok(c, 'coach note'); assert.match(c.text, /8 balls flat, 7 uphill, 4 downhill/); assert.match(c.ask, /Downhill speed is the leak/);
+});

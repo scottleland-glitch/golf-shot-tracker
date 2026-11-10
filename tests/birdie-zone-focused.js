@@ -41,7 +41,7 @@ const lastR = RS[RS.length - 1], L = BZ.scope([lastR]);
     title: document.querySelector('.topbar .title').textContent }));
   await load(RS);
   // From History: all rounds
-  await goHist(); await page.click('#histbz'); await page.waitForSelector('#birdie');
+  await goHist(); await page.evaluate(() => { const r = window.__golf.rounds(); const x = document.createElement('button'); x.setAttribute('data-act', 'bzopen'); x.setAttribute('data-v', 'all'); x.setAttribute('data-id', r[r.length - 1].id); document.body.appendChild(x); x.click(); x.remove(); }); await page.waitForSelector('#birdie');
   let s = await state();
   assert.strictEqual(s.sel, 'all'); assert.ok(/4 rounds · Quincy/.test(s.title), s.title);
   assert.strictEqual(s.ring, ringAll * 5, 'ring drawn to scale (5 px/ft)'); assert.deepStrictEqual(s.sl, { min: ringAll, max: 30, v: ringAll });
@@ -81,19 +81,19 @@ const lastR = RS[RS.length - 1], L = BZ.scope([lastR]);
   await (await xt(page, 'gir')).click('[data-act="map"][data-v="gir"]'); await page.waitForSelector('#girmap');
   const gir = await page.$$eval('#girmap .gdot', a => a.map(e => { const bb = e.getBBox(); return { h: e.dataset.hole, x: Math.round(bb.x + bb.width / 2 - 180), y: Math.round(bb.y + bb.height / 2 - 200) }; }).sort((p, q) => p.h - q.h));
   await page.goto(BASE + '?y=' + Date.now()); await goHist(); await page.click('#histlist [data-act="open"][data-id="bz4"]');
-  await page.click('#sumbz'); await page.waitForSelector('#birdie'); s = await state(); assert.strictEqual(s.sel, 'round'); assert.ok(/Bayview/.test(s.title));
+  await page.evaluate(() => { const x = document.createElement('button'); x.setAttribute('data-act', 'bzopen'); x.setAttribute('data-v', 'round'); document.body.appendChild(x); x.click(); x.remove(); }); await page.waitForSelector('#birdie'); s = await state(); assert.strictEqual(s.sel, 'round'); assert.ok(/Bayview/.test(s.title));
   const bz = await page.$$eval('#bzmap .bzball', a => a.map(e => { const c = e.querySelector('circle') || e, bb = c.getBBox(); return { h: e.dataset.hole, x: Math.round(bb.x + bb.width / 2 - 180), y: Math.round(bb.y + bb.height / 2 - 180) }; }).sort((p, q) => p.h - q.h));
   assert.strictEqual(bz.length, gir.length); bz.forEach((p, i) => assert.ok(p.h === gir[i].h && Math.abs(p.x - gir[i].x) <= 2 && Math.abs(p.y - gir[i].y) <= 2, 'same spot as GIR map ' + JSON.stringify([p, gir[i]])));
   await page.screenshot({ path: OUT + 'birdie-zone-round.png' });
-  await page.click('[data-act="bzback"]'); assert.ok(await page.$('#sumbz'), 'back to stats');
+  await page.click('[data-act="bzback"]'); assert.ok(await page.$('#sumreplay'), 'back to stats'); assert.strictEqual(await page.$('#sumbz'), null, 'v168: no Scoring chances button on a round');
   // Fallback: a short newest round → all-rounds putting, said so
   const short = JSON.parse(JSON.stringify(RS[0])); short.id = 'bzs'; short.date = '2026-10-15T17:00:00.000Z'; short.holes = short.holes.slice(0, 5);
-  await load(RS.concat([short])); await goHist(); await page.click('#histbz'); await page.click('[data-act="bzscope"][data-v="round"]'); s = await state();
+  await load(RS.concat([short])); await goHist(); await page.evaluate(() => { const r = window.__golf.rounds(); const x = document.createElement('button'); x.setAttribute('data-act', 'bzopen'); x.setAttribute('data-v', 'all'); x.setAttribute('data-id', r[r.length - 1].id); document.body.appendChild(x); x.click(); x.remove(); }); await page.click('[data-act="bzscope"][data-v="round"]'); s = await state();
   const SS = BZ.scope([short]), ringAll2 = BZ.onePutt(BZ.scope(RS.concat([short])).putts).ft;
   assert.ok(SS.putts.length < BZ.MIN_PUTTS); assert.strictEqual(s.ring, ringAll2 * 5, 'fallback ring = all rounds'); assert.ok(s.note.includes('Only ' + SS.putts.length + ' putts this round') && s.note.includes('all rounds'), s.note);
   assert.ok((await page.textContent('#bzqv .qv[data-q="ring"]')).includes('all rounds'), 'ring tile says all rounds'); assert.strictEqual(s.count, BZ.label(BZ.zone(SS, ringAll2)));
   // Brand new player, no data at all → default ring
-  await load([short]); await goHist(); await page.click('#histbz'); s = await state(); assert.strictEqual(s.ring, BZ.DEFAULT_FT * 5); assert.ok(s.note.includes('Not enough putts yet'), s.note);
+  await load([short]); await goHist(); await page.evaluate(() => { const r = window.__golf.rounds(); const x = document.createElement('button'); x.setAttribute('data-act', 'bzopen'); x.setAttribute('data-v', 'all'); x.setAttribute('data-id', r[r.length - 1].id); document.body.appendChild(x); x.click(); x.remove(); }); s = await state(); assert.strictEqual(s.ring, BZ.DEFAULT_FT * 5); assert.ok(s.note.includes('Not enough putts yet'), s.note);
   const sw = fs.readFileSync('/workspace/golf-app/sw.js', 'utf8'); assert.ok(/'golf-sg-v(8[5-9]|9\d|\d{3,})'/.test(sw) && sw.includes("'./birdie.js'") && sw.includes("'./img/oriole.webp'"), 'sw v85+ + birdie.js cached');
   assert.deepStrictEqual(errors, []); await b.close(); srv.kill();
   console.log('birdie zone focused OK · all-rounds ring ' + ringAll + '’ · round rings ' + rings.map(x => x + '’').join(' ') + ' · ' + BZ.label(BZ.zone(ALL, ringAll)) + ' · at 14’: ' + BZ.label(BZ.zone(ALL, 14)));

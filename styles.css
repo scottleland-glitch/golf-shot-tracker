@@ -2466,3 +2466,60 @@ html body .stpickclr { margin: 6px 0 0; font-size: 14px; }
 /* v165: Create PDF report at the top of Round stats */
 .rsactions { margin: 10px 0 6px; }
 html body .rspdftop { width: 100%; min-height: 46px; font-size: 16px; border-radius: 16px; }
+
+/* v168: lag putts – three balls scored together */
+.sgtlag .sgtlagrow { display: grid; grid-template-columns: 52px 92px 1fr; align-items: center; gap: 8px; padding: 8px 0; border-top: 1px solid rgba(23,48,31,.12); }
+.sgtlag .sgtlagrow b { font-size: 14px; }
+.sgtlag .sgtft.sm input { width: 52px; font-size: 20px; }
+.sgtlag .sgtlagdir { display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; }
+html body .sgtlag .sgtlagdir .frostchip { min-height: 38px; padding: 0 2px; font-size: 13px; justify-content: center; }
+
+/* v168: Short game test intro – the Instagram one-pager look: dark green photo, white type, gold brand, glass panels */
+.sgtintro { position: fixed; inset: 0; z-index: 60; color: #fff; display: flex; flex-direction: column; font-family: -apple-system, "SF Pro Text", "Helvetica Neue", "Inter", system-ui, sans-serif; background: #0b2414; }
+.sgtibg { position: absolute; inset: 0; background: linear-gradient(180deg, rgba(6,18,11,.62) 0%, rgba(6,22,12,.74) 35%, rgba(5,20,11,.86) 70%, rgba(3,12,7,.95) 100%), url("img/home-bg.webp") center/cover no-repeat; }
+.sgtitop { position: relative; display: flex; align-items: center; justify-content: space-between; padding: calc(env(safe-area-inset-top, 0px) + 14px) 20px 6px; }
+.sgtibrand { display: inline-flex; align-items: center; gap: 9px; color: #f4d28a; font-weight: 700; font-size: 13px; letter-spacing: .32em; }
+.sgtibrand i { width: 20px; height: 20px; border-radius: 5px; background: #0b5d1e radial-gradient(ellipse 36% 14% at 50% 72%, #34a344 98%, transparent 100%); position: relative; }
+.sgtibrand i::after { content: ""; position: absolute; left: 9px; top: 3px; width: 2px; height: 11px; background: #fff; box-shadow: 2px 0 0 0 #e52a2a; }
+html body .sgtiskip { background: rgba(255,255,255,.12); color: #fff; border: 1px solid rgba(255,255,255,.28); border-radius: 18px; min-height: 36px; padding: 0 14px; font-size: 14px; font-weight: 600; box-shadow: none; }
+.sgtislides { position: relative; flex: 1; display: flex; overflow-x: auto; overflow-y: hidden; scroll-snap-type: x mandatory; scrollbar-width: none; -webkit-overflow-scrolling: touch; }
+.sgtislides::-webkit-scrollbar { display: none; }
+.sgtislide { flex: 0 0 100%; scroll-snap-align: start; overflow-y: auto; padding: 10px 22px 20px; box-sizing: border-box; }
+.sgtieye { color: #f4d28a; font-size: 12px; font-weight: 700; letter-spacing: .28em; text-transform: uppercase; margin: 14px 0 6px; }
+.sgtislide h2 { font-size: 34px; line-height: 1.08; font-weight: 600; margin: 0 0 14px; color: #fff; letter-spacing: -.01em; }
+.sgtibig { font-size: 17px; line-height: 1.45; color: rgba(255,255,255,.86); margin: 0 0 14px; }
+.sgtibig.sm { font-size: 15px; margin-top: 12px; }
+.sgtipanel { background: rgba(10,30,18,.55); border: 1px solid rgba(255,255,255,.16); border-radius: 18px; padding: 14px 16px; margin: 0 0 12px; -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px); }
+.sgtipanel p { margin: 0; font-size: 15px; line-height: 1.45; color: rgba(255,255,255,.88); }
+.sgtipanel .sgtilbl { font-size: 11.5px; font-weight: 700; letter-spacing: .22em; text-transform: uppercase; color: rgba(255,255,255,.68); margin-bottom: 6px; }
+.sgtisteps div { display: grid; grid-template-columns: 82px 1fr; gap: 10px; padding: 8px 0; border-top: 1px solid rgba(255,255,255,.12); }
+.sgtisteps div:first-child { border-top: 0; padding-top: 0; }
+.sgtisteps b { color: #f4d28a; font-size: 15px; } .sgtisteps span { font-size: 14px; color: rgba(255,255,255,.85); line-height: 1.35; }
+.sgtichart svg { width: 100%; height: auto; display: block; }
+.sgtichart svg text { fill: rgba(255,255,255,.88) !important; }
+.sgtichart .sgtspider line, .sgtichart .sgtspider polygon:not(.sgtcur) { stroke: rgba(255,255,255,.45) !important; }
+.sgtichart .sgtspider .sgtcur { fill: rgba(126,226,160,.28) !important; stroke: #7ee2a0 !important; }
+.sgtichart .sgtspider circle { fill: #7ee2a0 !important; }
+.sgtichart svg line { stroke: rgba(255,255,255,.22); }
+.sgtiread .sgtitag { display: inline-block; font-size: 11px; font-weight: 700; letter-spacing: .16em; text-transform: uppercase; padding: 3px 8px; border-radius: 6px; margin-bottom: 6px; }
+.sgtitag.bad { background: rgba(255,138,122,.18); color: #ff8a7a; } .sgtitag.good { background: rgba(126,226,160,.18); color: #7ee2a0; }
+.sgtiread b { color: #fff; }
+.sgtifoot { position: relative; display: flex; align-items: center; justify-content: space-between; padding: 10px 22px calc(env(safe-area-inset-bottom, 0px) + 16px); }
+.sgtidots { display: flex; gap: 8px; } .sgtidots i { width: 8px; height: 8px; border-radius: 4px; background: rgba(255,255,255,.3); transition: width .2s; }
+.sgtidots i.on { width: 22px; background: #f4d28a; }
+html body .sgtinext { min-height: 46px; padding: 0 26px; border-radius: 23px; border: 0; background: #f4d28a; color: #10231a; font-size: 16px; font-weight: 700; box-shadow: none; }
+html body .sgtintro .sgtislide h2 { font-size: 36px; line-height: 1.08; font-weight: 600; color: #fff; margin: 0 0 16px; font-family: inherit; }
+.sgtislide { display: flex; flex-direction: column; justify-content: center; }
+.sgtislide > * { flex: 0 0 auto; }
+html body .sgtintro .sgtislide h2 { font-size: 36px !important; font-weight: 600 !important; }
+
+/* v168: the Stats benchmark row, reused on Rounds and a round */
+html body .bmwrap select.stbl { flex: 1; min-width: 0; height: 38px; padding: 0 10px; border-radius: 999px; border: 1px solid rgba(23, 48, 31, .12); background: rgba(255, 255, 255, .72);
+  font: inherit; font-size: 13.5px; font-weight: 400; color: #33424f; -webkit-appearance: none; appearance: none; text-overflow: ellipsis; }
+html body .bmwrap .stsec.stsecsg { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+html body .bmwrap .stsec.stsecsg select.stbl { flex: 0 1 auto; max-width: 62%; height: 36px; font-size: 13px !important; }
+html body .bmwrap .stsgnote { margin: 0 6px 8px; }
+html body .bmwrap { margin: 6px 0 10px; }
+html body .bmwrap .bmnote { margin: 2px 4px 0; }
+html body .bmwrap .stsect { font-size: 14.5px; font-weight: 500; color: #33475a; }
+html body .bmwrap .stnote.bmnote { font-size: 12.5px; line-height: 1.35; color: #556676; font-weight: 400; }

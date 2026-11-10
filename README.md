@@ -25,6 +25,17 @@ Every Shot Counts Table 3.10). The other five are ESTIMATED: per-round gaps from
 Player Quality ladder, then spread over the PGA table. Full sources, method and caveats: in-app
 "About the numbers" and the BASELINES comment in `sg.js`.
 
+## Benchmarks, short game test intro (v168)
+- **Benchmark** (was "baseline" in the app's words): the same "Strokes gained [benchmark ▾]" row on Stats, on Rounds (the SG
+  column follows it; "Each round's benchmark" by default) and at the top of a round (changes the round's own benchmark).
+- Scoring chances is no longer on Rounds or a round.
+- Short game test: a four-screen intro the first time (purpose and why monthly, how it works, what you get, what it tells
+  you), styled like the Instagram one-pager, with Skip intro; "What is this test?" on the test page shows it again.
+- Lag putts: three balls from each spot, all putted first, then scored together on one card (30, 40, 50 ft). Tests saved
+  before v168 are moved into the new order once (`v: 2`).
+- Speed ladder: one flat, one uphill, one downhill (a 2–3% slope); the result shows each, and a slope 2+ balls short of flat
+  becomes a coach note naming the leak.
+
 ## Stats: choose rounds (v167)
 Stats has a fourth range, **Choose rounds**: tick any rounds to review together, or tap an event – rounds on the same course on
 back-to-back days (a 36- / 54- / 72-hole tournament; the newest 4 events are offered). The line under the range shows the total

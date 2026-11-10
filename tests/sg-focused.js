@@ -17,7 +17,7 @@ const BASE = process.env.BASE_URL || 'http://127.0.0.1:8772/', OUT = '/workspace
   });
   await page.reload(); await goHist(page); await page.click('#histlist [data-act="open"][data-id="rs"]');
   await page.waitForSelector('#sgsec');
-  assert.strictEqual(await page.$('#sgbody'), null, 'collapsed by default'); assert.strictEqual(await page.$('#sumbl'), null);
+  assert.strictEqual(await page.$('#sgbody'), null, 'collapsed by default'); assert.ok(await page.$('#sumblrow'), 'v168: the benchmark picker sits at the top of the round');
   // section is at the bottom: after stats grid and the PDF / delete buttons
   const order = await page.evaluate(() => { const a = [...document.querySelectorAll('.stat-grid, [data-act="delRound"], #sgsec')]; return a.map(e => e.id || e.className || e.dataset.act); });
   assert.strictEqual(order[order.length - 1], 'sgsec', 'SG section last: ' + order);
@@ -26,7 +26,7 @@ const BASE = process.env.BASE_URL || 'http://127.0.0.1:8772/', OUT = '/workspace
   assert.strictEqual(await page.getAttribute('.sghead', 'aria-expanded'), 'false');
   await page.locator('#sgsec').scrollIntoViewIfNeeded(); await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
   await page.screenshot({ path: OUT + 'sg-collapsed.png' });
-  await page.click('.sghead'); await page.waitForSelector('#sgbody #sumbl');
+  await page.click('.sghead'); await page.waitForSelector('#sgbody #sgtotal');
   assert.strictEqual(await page.getAttribute('.sghead', 'aria-expanded'), 'true');
   for (const sel of ['#sgtotal', '#bydist', '#cmp', '#blnote']) assert.ok(await page.$('#sgbody ' + sel), sel);
   assert.strictEqual(await page.textContent('#sgtotal'), await page.textContent('#sghtotal'));
