@@ -25,6 +25,11 @@ Every Shot Counts Table 3.10). The other five are ESTIMATED: per-round gaps from
 Player Quality ladder, then spread over the PGA table. Full sources, method and caveats: in-app
 "About the numbers" and the BASELINES comment in `sg.js`.
 
+## Compact Round stats menu (v192)
+- The Round stats ☰ menu is compact: small icons and one line for PDF report / Story picture, small capital labels over a
+  full-width Strokes gained picker and a slim Practice / Tournament toggle, then Rounds / Home. Edit round is a normal-size
+  pill and ☰ a round button.
+
 ## ☰ menus, Round stats tidy-up, faster replay (v191)
 - **☰ opens a menu; + only starts or adds something.** Home: ☰ (top left) = Rounds, Stats, My Game, My Bag, Settings, Help;
   + (top right) = New round, Log practice, Short game test. My Game: + = Log practice, Short game test; ☰ = Make a game report,

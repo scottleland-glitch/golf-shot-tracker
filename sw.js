@@ -1,4 +1,5 @@
 // Offline support: cache the whole app on install, serve cache-first.
+// v192: Round stats ☰ menu compact (small icons, one line each, slim pickers); smaller Edit round, round ☰.
 // v191: ☰ for menus, + only to start things (Home, My Game, hole); Round stats ☰ (PDF, story, strokes gained, round type, Rounds, Home), Edit round, quick view under the score; stat maps in one tap; replay arrows pinned, the hole fits, swipe for holes.
 // v190: Round stats during a round – no Practice/Tournament picker (set at the start; change it after the round); "How well Strokewise knows your game" moved to the bottom.
 // v189: round bar flush on the bottom edge and on every screen of the round (replay, maps, About…); "Exit round?" when Back would leave the hole being entered; menu picks take the menu's Back step.
@@ -84,7 +85,7 @@
 // v113: "Courses near me" (near.js). The course finder list (data/us-courses.json, ~1.0 MB, ~0.28 MB gzipped) is NOT in this cache:
 // the app downloads it on first use into its own cache 'pinhigh-courselist-v1', which a new version keeps (so no re-download).
 // GolfCore scorecards (through the Pin High relay, pinhigh-golfcore.pinhigh.workers.dev) go straight to the network; the app saves each picked course with the saved courses.
-const CACHE = 'golf-sg-v191';
+const CACHE = 'golf-sg-v192';
 const ASSETS = ['./', './img/home-bg.webp', './img/oriole.webp', './index.html', './styles.css', './sg.js', './birdie.js', './courses.js', './near.js', './bag.js', './wedges.js', './live.js', './share.js', './story.js', './insights.js', './mygame.js', './shortgame.js', './shortgame-ui.js', './gdrive.js', './app.js', './config.js', './vendor/jspdf.umd.min.js',
   './manifest.webmanifest', './icons/apple-touch-icon.png', './icons/icon-192.png',
   './icons/icon-512.png', './icons/icon-512-maskable.png'];

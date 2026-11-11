@@ -2782,3 +2782,26 @@ html body #replayview .rpsticky { position: sticky; top: 0; z-index: 3; margin: 
 html body #replayview #replaymap { max-height: calc(100vh - env(safe-area-inset-top) - 150px - var(--rbh, 0px)); width: auto; max-width: 100%; margin: 0 auto; }
 html body .rsmenu .rsmi .rsic { flex: 0 0 36px; width: 36px; height: 36px; padding: 7px; border-radius: 11px; background: #1f5d3a; fill: none; stroke: #fff; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; box-sizing: border-box; }
 html body .rsmenu #storybtn .rsic { background: linear-gradient(135deg, #d8a23a, #c4553e); }
+/* v192 (Scott): the Round stats ☰ menu – compact, not bulky */
+html body .rsmenu { width: min(292px, calc(100vw - 24px)); padding: 6px; border-radius: 18px; top: calc(env(safe-area-inset-top) + 66px); }
+html body .rsmenu .sheet-item { font-size: 16px !important; padding: 10px 10px !important; min-height: 0 !important; height: auto !important; line-height: 1.2; }
+html body .rsmenu .rsmi { gap: 10px; } html body .rsmenu .rsmi .rsic { flex: 0 0 28px; width: 28px; height: 28px; padding: 5px; border-radius: 8px; }
+html body .rsmenu .rsmi small { display: none; } html body .rsmenu .rsmi b { font-size: 16px; font-weight: 600; }
+html body .rsmenu .rsmset { padding: 8px 10px 10px; gap: 8px; }
+html body .rsmenu .bmwrap { margin: 0; }
+html body .rsmenu .bmrow, html body .rsmenu .bmwrap .stsec.stsecsg { display: grid !important; grid-template-columns: 1fr auto; grid-template-rows: auto auto; gap: 4px 8px; align-items: center; margin: 0; padding: 0; min-height: 0; }
+html body .rsmenu .bmrow .stsect { grid-column: 1 / -1; font-size: 12px; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; color: #5b6b78; }
+html body .rsmenu .bmwrap .stsec.stsecsg select.stbl { max-width: none; width: 100%; height: 34px; font-size: 14px !important; }
+html body .rsmenu .bmrow .tipbtn { width: 28px; height: 28px; min-height: 28px; font-size: 14px; }
+html body .rsmenu .bmnote { margin: 4px 0 0; font-size: 12.5px; }
+html body .rsmenu .playpick { margin: 0; } html body .rsmenu .playpick .lbl { display: block; font-size: 12px; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; color: #5b6b78; margin: 0 0 4px; padding: 0; }
+html body .rsmenu .playseg { padding: 3px; gap: 3px; border-radius: 12px; background: rgba(23, 48, 31, .06); border: 0; }
+html body .rsmenu .playseg button { min-height: 32px !important; height: 32px; font-size: 14px !important; border-radius: 9px; padding: 0 6px; }
+html body .rsmenu .playseg button.sel { background: #17301f; color: #fff; }
+/* header: a normal-size Edit round pill and a round ☰ */
+html body .topbar #editround { font-size: 15px; padding: 8px 12px; min-height: 36px; height: auto; flex: none; }
+html body .topbar .rsmenubtn { width: 40px !important; min-width: 40px; max-width: 40px; height: 40px !important; min-height: 40px !important; padding: 0 !important; border-radius: 50% !important; flex: none; }
+html body .topbar .rsmenubtn .menuic { width: 20px; height: 20px; }
+html body .rsmenu .rsmset > *, html body .rsmenu .playpick, html body .rsmenu .playseg { margin-bottom: 0 !important; padding-bottom: 0; }
+html body .rsmenu .playseg { padding: 3px !important; } html body .rsmenu .rsmset { padding-bottom: 10px !important; }
+html body .rsmenu .playpick > :not(.lbl):not(.playseg) { display: none; }
