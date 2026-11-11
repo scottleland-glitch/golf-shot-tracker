@@ -333,11 +333,15 @@
     function html() { var s = S(); return s.mode === 'intro' ? introHTML() : s.mode === 'run' ? runHTML() : s.mode === 'result' ? resultHTML() : hubHTML(); }
     // My Game: a small card that opens the test
     function cardHTML(who) {
-      var list = mine(who), open = list.filter(function (t) { return !t.done; })[0], last = list.filter(function (t) { return t.done; })[0], age = last ? daysSince(last.date) : null;
-      var line = open ? 'Test in progress: ' + T.entered(open) + ' of ' + T.totalOf(open) + ' shots.' : last ? 'Last test ' + dShort(last.date) + '. ' + (age >= 30 ? 'The next one is due.' : 'Next one due in ' + (30 - age) + ' day' + (30 - age === 1 ? '' : 's') + '.') : 'A one-hour monthly check-up of putting, chipping, bunker and wedges.';
-      var o = '<div class="sgtcard frost sgtmg" id="sgtmg"><div class="sgtcath"><h2>Short game test</h2>' + (last && !open && age >= 30 ? '<span class="due">Due</span>' : '') + '</div>';
-      if (last) { var A = analysed(last, who); o += '<p><b>' + esc(A.I.headline) + '</b></p>'; }
-      return o + '<p>' + esc(line) + '</p><button class="frostbtn big" data-act="sgtopen" id="sgtopen">' + (open ? 'Carry on with the test' : last ? 'Open' : 'Take the test') + '</button></div>';
+      // v183 (Scott): + starts a new test (straight into the intro); below it, the last 4 tests – tap one for its result
+      var list = mine(who), open = list.filter(function (t) { return !t.done; })[0], done = list.filter(function (t) { return t.done; }), last = done[0], age = last ? daysSince(last.date) : null;
+      var o = '<div class="sgtcard frost sgtmg" id="sgtmg"><div class="sgtcath"><h2>Short game test</h2>' + (last && !open && age >= 30 ? '<span class="due">Due</span>' : '') +
+        '<button class="mgadd" data-act="sgtnew" id="sgtnew" aria-label="' + (open ? 'Carry on with the test in progress' : 'Start a new short game test') + '">+</button></div>';
+      if (open) o += '<button class="sgtmrow open" data-act="sgtresume" data-v="' + esc(open.id) + '" id="sgtmopen"><b>In progress</b><span>' + T.entered(open) + ' of ' + T.totalOf(open) + ' shots · carry on</span><i aria-hidden="true">›</i></button>';
+      if (!done.length) return o + (open ? '' : '<p class="sgtmnone">A one-hour monthly check-up of putting, chipping, bunker and wedges. Tap + to take your first.</p>') + '</div>';
+      o += '<p class="sgtmsub">' + (age >= 30 ? 'The next one is due.' : 'Next one due in ' + (30 - age) + ' day' + (30 - age === 1 ? '' : 's') + '.') + '</p>';
+      return o + '<div class="sgtmlist" id="sgtmlist">' + done.slice(0, 4).map(function (t) { var A = analysed(t, who);
+        return '<button class="sgtmrow" data-act="sgtview" data-v="' + esc(t.id) + '"><b>' + esc(dShort(t.date)) + '</b><span>' + esc(A.I.headline) + '</span><i aria-hidden="true">›</i></button>'; }).join('') + '</div></div>';
     }
 
     // v168 (Scott): lag putts – all three balls from a spot are hit first, then walked up to and scored together
@@ -365,7 +369,11 @@
     function feet() { var f = document.getElementById('sgtft'), raw = f ? String(f.value).trim().replace(',', '.') : ''; return raw === '' || !/^\d+(\.\d+)?$/.test(raw) ? null : Number(raw); }
     function act(a, v, b) {
       var s = S(), test = s.id ? byId(s.id) : null;
-      if (a === 'sgtintroskip' || a === 'sgtintroback') { introDone(); s.introThen = null; s.mode = 'hub'; env.render(); window.scrollTo(0, 0); return; }
+      if (a === 'sgtintroskip' || a === 'sgtintroback') { introDone(); s.introThen = null; s.mode = 'hub'; if (s.fromMg) { s.fromMg = false; view.screen = 'mygame'; } env.render(); window.scrollTo(0, 0); return; }
+      // v183 (Scott): My Game's + (card and menu) – straight into the intro, then the test; a test already under way just carries on
+      if (a === 'sgtnew') { view.hmenu = null; view.mgMenu = null; view.screen = 'sgtest'; if (view.mgPlayer) s.who = view.mgPlayer;
+        var op = mine(s.who).filter(function (t) { return !t.done; })[0]; if (op) { act('sgtresume', op.id); return; }
+        s.fromMg = true; s.introThen = 'start'; s.mode = 'intro'; env.render(); window.scrollTo(0, 0); return; }
       if (a === 'sgtintronext') { var sl = document.getElementById('sgtislides'), k0 = introAt();
         if (k0 >= INTRO_N - 1 || !sl) { introDone(); if (s.introThen === 'start') { s.introThen = null; startTest(s); return; } s.mode = 'hub'; env.render(); window.scrollTo(0, 0); return; }
         try { sl.scrollTo({ left: (k0 + 1) * sl.clientWidth, behavior: 'smooth' }); } catch (e) { sl.scrollLeft = (k0 + 1) * sl.clientWidth; } setTimeout(introSync, 400); return; }
@@ -376,8 +384,8 @@
       if (a === 'sgtcond') { var p = v.split(':'); s.cond = s.cond || {}; s.cond[p[0]] = s.cond[p[0]] === p[1] ? '' : p[1]; env.render(); return; }
       // v174 (Scott): a month is a long time between tests – starting one always runs the intro first as a refresher (no skip; Back returns to Tests)
       if (a === 'sgtstart') { s.introThen = 'start'; s.mode = 'intro'; env.render(); window.scrollTo(0, 0); return; }
-      if (a === 'sgtresume') { var t2 = byId(v); if (!t2) return; if (t2.done) { t2.done = false; put(t2); } var nx = T.nextOpen(t2) || { st: 0, i: 0 }; goto(t2, nx.st, nx.i); env.render(); window.scrollTo(0, 0); focus(); return; }
-      if (a === 'sgtview') { s.mode = 'result'; s.id = v; s.open = null; env.render(); window.scrollTo(0, 0); return; }
+      if (a === 'sgtresume') { var t2 = byId(v); if (!t2) return; view.screen = 'sgtest'; view.mgMenu = null; if (t2.done) { t2.done = false; put(t2); } var nx = T.nextOpen(t2) || { st: 0, i: 0 }; goto(t2, nx.st, nx.i); env.render(); window.scrollTo(0, 0); focus(); return; }
+      if (a === 'sgtview') { if (view.screen !== 'sgtest') { view.screen = 'sgtest'; if (view.mgPlayer) s.who = view.mgPlayer; } s.mode = 'result'; s.id = v; s.open = null; env.render(); window.scrollTo(0, 0); return; }
       if (a === 'sgtdel') { var t3 = byId(v); if (!t3 || !window.confirm(t3.done ? 'Delete the test of ' + dLong(t3.date) + '? This cannot be undone.' : 'Discard this unfinished test?')) return; env.saveTests(env.tests().filter(function (x) { return x.id !== v; })); env.toast('Test deleted'); s.mode = 'hub'; env.render(); return; }
       if (a === 'sgtrow') { s.open = s.open === v ? null : v; env.render(); return; }
       if (!test) return;

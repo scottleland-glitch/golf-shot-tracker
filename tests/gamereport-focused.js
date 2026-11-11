@@ -50,7 +50,7 @@ function make(id, date, q) { const t = T.blank(id, date, 'Scott', 'd1w');
   assert.ok((await page.$$('#mgcvt .cvtr')).length === 4);
   await page.click('#mgperiod [data-v="3m"]');
   // 1. the button and the sheet: coach preset ticks everything
-  assert.match(await page.textContent('#grbtn'), /Make a game report/); await page.click('#grbtn'); await page.waitForSelector('#grsheet');
+  assert.strictEqual(await page.$('#grbtn'), null, 'v183: no report button on the page'); await page.click('#mgplus'); await page.click('#mgmenu [data-act="grep"]'); await page.waitForSelector('#grsheet');
   assert.deepStrictEqual(await page.$$eval('#grparts .grpart', e => e.map(b => b.getAttribute('aria-pressed'))), ['true', 'true', 'true', 'true']);
   await page.locator('#grsheet').scrollIntoViewIfNeeded(); await page.screenshot({ path: OUT + '/gr-sheet.png' });
   const make1 = async () => { await page.click('#grgo'); await page.waitForSelector('#pdfname'); return page.evaluate(async () => { const p = window.__golf.lastPdf; return { name: p.name, pages: p.pages, L: p.layout, b: Array.from(new Uint8Array(await p.blob.arrayBuffer())) }; }); };
@@ -66,14 +66,14 @@ function make(id, date, q) { const t = T.blank(id, date, 'Scott', 'd1w');
   if (process.env.SHOTS) execSync('pdftoppm -r 60 -png ' + f + ' ' + OUT + '/gr-coach');
   await page.screenshot({ path: OUT + '/gr-ready.png' });
   // 2. recruiting: results only – no practice minutes, no plan
-  await page.click('[data-act="pdfclose"]'); await page.click('#grbtn'); await page.click('#grprecruit');
+  await page.click('[data-act="pdfclose"]'); await page.click('#mgplus'); await page.click('#mgmenu [data-act="grep"]'); await page.click('#grprecruit');
   assert.deepStrictEqual(await page.$$eval('#grparts .grpart', e => e.map(b => b.getAttribute('aria-pressed'))), ['true', 'false', 'true', 'false']);
   const R = await make1(), rall = R.L.text.map(t => t.t).join('\n');
   assert.ok(R.pages < C.pages, 'shorter'); assert.ok(!rall.includes('My Practice') && !rall.includes('Practice plan') && !rall.includes('PRACTICE'), 'no practice in the recruiting copy');
   assert.ok(rall.includes('Short game test - ') && rall.includes('My Game - '));
   if (process.env.SHOTS) { fs.writeFileSync(OUT + '/game-report-recruit.pdf', Buffer.from(R.b)); }
   // 3. nothing ticked: a toast, no PDF
-  await page.click('[data-act="pdfclose"]'); await page.click('#grbtn'); for (const k of ['game', 'practice', 'test', 'plan']) await page.click('[data-act="grpart"][data-v="' + k + '"]');
+  await page.click('[data-act="pdfclose"]'); await page.click('#mgplus'); await page.click('#mgmenu [data-act="grep"]'); for (const k of ['game', 'practice', 'test', 'plan']) await page.click('[data-act="grpart"][data-v="' + k + '"]');
   await page.click('#grgo'); assert.ok(await page.$('#grsheet'), 'the sheet stays open');
   assert.deepStrictEqual(errors, []); assert.deepStrictEqual(outside, [], 'no outside requests');
   console.log('coach', C.pages, 'pages · recruiting', R.pages, 'pages');

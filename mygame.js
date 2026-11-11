@@ -26,11 +26,11 @@
   function period(id) { if (id && typeof id === 'object') return id; return PERIODS.filter(function (p) { return p.id === id; })[0] || PERIODS[1]; }
   // v176 (Scott): "last 2 / 3 / 4 rounds" – e.g. just the rounds of a tournament. A period object carrying its own window:
   // cur = from the Nth newest finished round on, prev = the N rounds before that. Pass it anywhere a period id goes.
-  var ROUND_COUNTS = [2, 3, 4];
+  var ROUND_COUNTS = [1, 2, 3, 4]; // v183: + just the last round
   function roundPeriod(n, rounds) {
     var t = (rounds || []).map(function (r) { return Date.parse(r.date); }).filter(function (x) { return !isNaN(x); }).sort(function (a, b) { return b - a; });
     var from = t.length ? t[Math.min(n, t.length) - 1] : Date.now(), pfrom = t.length > n ? t[Math.min(2 * n, t.length) - 1] : null;
-    return { id: 'r' + n, n: n, name: 'Last ' + n + ' rounds', short: n + ' rounds', days: null, win: { cur: [from, Infinity], prev: pfrom == null ? null : [pfrom, from] } };
+    return { id: 'r' + n, n: n, name: n === 1 ? 'Last round' : 'Last ' + n + ' rounds', short: n === 1 ? 'round' : n + ' rounds', days: null, win: { cur: [from, Infinity], prev: pfrom == null ? null : [pfrom, from] } };
   }
   // [from, to) in ms for the period and the one before it (all time has none before it).
   function windows(id, now) {

@@ -184,6 +184,7 @@
     if (view.screen !== 'hole') { view.pinOpen = false; view.voice = null; view.liveCard = false; micAbort(); }
     if (view.screen !== 'card') view.card = null;
     if (view.screen !== 'summary') { view.send = null; if (view.story) storyClose(); } if (view.screen !== 'history') view.addr = null; // v97 sheets
+    if (view.screen !== 'mygame') view.mgMenu = null;
     if (view.screen !== 'home') { if (view.hmenu !== 'new') { view.newC = null; view.newAdd = false; } view.crsOpen = false; view.nameSheet = null; }
     if (view.hmenu !== 'new') view.newPEdit = false;
     document.body.classList.toggle('noscroll', !!(view.pinOpen && view.screen === 'hole'));
@@ -2220,7 +2221,12 @@
   }
   function mgKnowHTML(D) {
     var sp = D.cur.spokes, ready = sp.filter(function (x) { return x.solid; }).length, tick = Math.round(100 / MYGAME.STRONG);
-    return '<div class="mgknow" id="mgknow"><span class="mgkh"><span>How well Strokewise knows your game</span><b id="mgready">' + ready + '/' + MYGAME.SPOKES.length + ' ready</b></span><span class="mgkbars">' +
+    // v183 (Scott): folded to the title and one overall line; the arrow opens the skill-by-skill bars
+    var all = Math.round(sp.reduce(function (a, x) { return a + Math.min(1, x.conf); }, 0) / sp.length * 100), lvl = ready === sp.length ? 'ready' : ready * 2 >= sp.length ? 'mid' : 'low', open = !!view.mgKnowOpen;
+    var head = '<button class="mgkh mgktog" data-act="mgknow" id="mgknowtog" aria-expanded="' + open + '"><span>How well Strokewise knows your game</span><b id="mgready">' + ready + '/' + MYGAME.SPOKES.length + ' ready</b><i class="mgkchev" aria-hidden="true">›</i></button>' +
+      '<span class="mgkall ' + lvl + '" id="mgkall" title="' + all + '% of the way to trusting every skill"><u style="width:' + all + '%"></u></span>';
+    if (!open) return '<div class="mgknow shut" id="mgknow">' + head + '</div>';
+    return '<div class="mgknow" id="mgknow">' + head + '<span class="mgkbars">' +
       sp.map(function (x) { var pct = Math.round(x.conf * 100), word = x.strong ? 'strong' : x.solid ? 'ready' : x.n ? 'learning' : 'no shots';
         return '<span class="mgkb ' + (x.strong ? 'strong' : x.solid ? 'ready' : 'learn') + '" data-spoke="' + x.k + '" title="' + esc(x.name + ': ' + x.n + ' shots') + '"><em>' + esc(x.name) + '</em>' +
           '<i><u style="width:' + pct + '%"></u><s style="left:' + tick + '%"></s></i><small>' + word + (x.strong ? '' : ' · ' + pct + '%') + '</small></span>'; }).join('') +
@@ -2229,7 +2235,10 @@
   function myGameHTML() {
     var names = mgPlayers(), who = mgWho(), D = mgData(who), P = D.period;
     var h = '<div class="frostpage theme-sky mygamepage" id="mygame"><div class="topbar frost">' + (view.mgBack ? '<button class="txt frostbtn" data-act="mgback" id="mgback">‹ Round</button>' : '<button class="txt frostbtn" data-act="home">‹ Home</button>') + '<div class="title"><b>My Game</b><span>' +
-      (who ? esc(who) + ' · ' : '') + D.cur.rounds + ' round' + (D.cur.rounds === 1 ? '' : 's') + '</span></div><button class="txt frostbtn mglogtop" data-act="prlog" id="prlogtop" aria-label="Log practice">＋ Log</button></div>';
+      (who ? esc(who) + ' · ' : '') + D.cur.rounds + ' round' + (D.cur.rounds === 1 ? '' : 's') + '</span></div><button class="glass plusbtn mgplus" data-act="mgplus" id="mgplus" aria-label="Menu: log practice, make a game report or take the short game test" aria-expanded="' + !!view.mgMenu + '">+</button></div>';
+    // v183 (Scott): the page's actions live in a + menu like Home's
+    if (view.mgMenu) h += '<div class="sheet-back mgback" data-act="mgplus"></div><div class="hsheet glass mgmenu" id="mgmenu" role="menu"><button class="sheet-item" role="menuitem" data-act="prlog">Log practice</button>' +
+      '<button class="sheet-item" role="menuitem" data-act="grep">Make a game report</button><button class="sheet-item" role="menuitem" data-act="sgtnew">Short game test</button></div>';
     if (names.length > 1) h += '<div class="hchips" id="mgchips" role="group" aria-label="Player">' + names.map(function (nm) {
       var on = nm === who; return '<button class="frostchip' + (on ? ' sel' : '') + '" data-act="mgplayer" data-v="' + esc(nm) + '" aria-pressed="' + on + '">' + esc(nm) + '</button>'; }).join('') + '</div>';
     // v178 (Scott): My benchmark at the top – red until it is set, with a one-tap "use this one"
@@ -2242,26 +2251,27 @@
       // v176 (Scott): or the last 2, 3 or 4 rounds – e.g. just a tournament
       '<div class="stseg mgseg mgrseg" id="mgrounds" role="group" aria-label="Last rounds"><span>Last rounds</span>' + MYGAME.ROUND_COUNTS.map(function (n) { var on = P.id === 'r' + n;
         return '<button class="' + (on ? 'sel' : '') + '" data-act="mgperiod" data-v="r' + n + '" aria-pressed="' + on + '">' + n + '</button>'; }).join('') + '</div>';
-    h += '<button class="primary big prbtn" data-act="prlog" id="prlogbtn">＋ Log practice</button>' + prSheetHTML(who);
-    h += '<button class="frostbtn big grbtn" data-act="grep" id="grbtn">📄 Make a game report</button>' + grSheetHTML() + (view.pdf && view.pdf.kind === 'game' ? pdfHTML() : ''); // v175
+    h += prSheetHTML(who) + grSheetHTML() + (view.pdf && view.pdf.kind === 'game' ? pdfHTML() : ''); // v183: opened from the + menu
     h += '<div class="mgchart frost"><h2 id="mghead">' + esc(D.headline) + '</h2><p id="mglede">' + esc(D.lede) + '</p>' +
       MYGAME.radarSVG(D.cur, D.prev, { R: 96, aria: 'Game shape, ' + P.name }) +
       mgKnowHTML(D) +
       '<div class="mglegend"><span><i class="lc"></i>' + esc(P.name) + '</span>' + (D.prev ? '<span><i class="lp"></i>' + (P.id === '1y' ? 'Year before' : 'Previous ' + esc(P.short)) + '</span>' : '') +
       '<span><i class="lb"></i>' + esc(D.baselineName) + '</span>' + (D.cur.spokes.some(function (x) { return x.value != null && !x.solid; }) ? '<span><i class="ll"></i>Still learning</span>' : '') + '</div>' +
       '</div>';
-    h += SGTUI.cardHTML(who); // v166 the monthly short game test
-    h += cvtHTML(who, D); // v176 the course vs the test
     var T = D.cur.tiles, Q = D.prev && D.prev.tiles;
     var tile = function (id, label, v, pv, f, better) {
       var ch = '';
       if (v != null && pv != null) { var d = v - pv, good = better > 0 ? d > 0 : d < 0, tiny = Math.abs(d) < (id === 'gir' ? 0.5 : 0.05);
-        ch = '<em class="' + (tiny ? '' : good ? 'up' : 'down') + '">' + (tiny ? '→ same as ' + f(pv) : (d > 0 ? '↑ ' : '↓ ') + f(Math.abs(d), true) + ' from ' + f(pv)) + '</em>'; }
-      else if (v != null && D.prev === null && P.id !== 'all') ch = '<em>no rounds before</em>';
-      return '<div class="mgtile frost" data-t="' + id + '"><span>' + label + '</span><b>' + (v == null ? '–' : f(v)) + '</b>' + ch + '</div>'; };
+        ch = '<em class="' + (tiny ? '' : good ? 'up' : 'down') + '">' + (tiny ? '→ same' : (d > 0 ? '↑ ' : '↓ ') + f(Math.abs(d), true)) + '</em>'; }
+      // v183 (Scott): smaller tiles, four across under the shape; the change is against the previous time frame (full words on long-press)
+      var tt = v != null && pv != null ? label + ': ' + f(v) + ', was ' + f(pv) + ' the ' + (P.id === '1y' ? 'year before' : 'previous ' + P.short) : label;
+      return '<div class="mgtile frost" data-t="' + id + '" title="' + esc(tt) + '"><span>' + label + '</span><b>' + (v == null ? '–' : f(v)) + '</b>' + ch + '</div>'; };
     var n1 = function (v) { return (Math.round(v * 10) / 10).toFixed(1); }, sgf = function (v, abs) { return abs ? n1(v) : MYGAME.fmt(v); }, pc = function (v) { return Math.round(v) + '%'; };
-    h += '<div class="mgtiles" id="mgtiles">' + tile('score', 'Avg score (18 holes)', T.score, Q && Q.score, n1, -1) + tile('sg', 'Strokes gained / round', T.sg, Q && Q.sg, sgf, 1) +
-      tile('putts', 'Putts / round', T.putts, Q && Q.putts, n1, -1) + tile('gir', 'Greens in regulation', T.gir, Q && Q.gir, pc, 1) + '</div>';
+    h += '<div class="mgtilewrap" id="mgtilewrap"><p class="mgtileh">' + esc(P.name) + ' · ' + D.cur.rounds + ' round' + (D.cur.rounds === 1 ? '' : 's') + (D.prev ? ' · arrows vs the ' + (P.id === '1y' ? 'year before' : 'previous ' + esc(P.short)) : '') + '</p>' +
+      '<div class="mgtiles" id="mgtiles">' + tile('score', 'Score', T.score, Q && Q.score, n1, -1) + tile('sg', 'SG / round', T.sg, Q && Q.sg, sgf, 1) +
+      tile('putts', 'Putts', T.putts, Q && Q.putts, n1, -1) + tile('gir', 'GIR', T.gir, Q && Q.gir, pc, 1) + '</div></div>';
+    h += SGTUI.cardHTML(who); // v166 the monthly short game test
+    h += cvtHTML(who, D); // v176 the course vs the test
     h += practiceCardHTML(who, D);
     h += playingCardHTML(who, D);
     h += '<div class="tiprow" id="mginfo">' + tipBtn('mginfo', 'i', 'About My Game') + tipLbl('mginfo', 'How My Game works') + tipText('mginfo',
@@ -2274,7 +2284,7 @@
   function prOpen(preset) {
     view.prLog = { date: localDayISO(), mins: {}, open: {} };
     if (preset) { view.prLog.mins[preset.spoke + '|' + preset.focus] = preset.min || 15; view.prLog.open[preset.spoke] = true; }
-    view.hmenu = null; view.screen = 'mygame'; render();
+    view.hmenu = null; view.mgMenu = null; view.screen = 'mygame'; render();
     var el = document.getElementById('prsheet'); if (el && el.scrollIntoView) el.scrollIntoView({ block: 'start' });
   }
   function prSheetHTML(who) {
@@ -2355,7 +2365,7 @@
     var logs = practiceOf(who), PB = MYGAME.practiceBuild(logs, { period: D.period }), P = PB.period;
     // v155: the chart is your practice LEVEL (builds with each session, fades without practice) against your benchmark group's average
     var LT = MYGAME.practiceLevelText(logs, { period: P, bl: D.baseline }), ago = P.id === '30d' ? '30 days ago' : P.id === '3m' ? '3 months ago' : P.id === '1y' ? 'a year ago' : '';
-    var o = '<div class="mgchart prchart frost" id="prcard"><span class="tkeye">My Practice</span><h2 id="prhead">' + esc(LT.headline) + '</h2><p id="prlede">' + esc(LT.lede) + (LT.trend ? ' ' + esc(LT.trend) : '') + '</p>';
+    var o = '<div class="mgchart prchart frost" id="prcard"><div class="prcardh"><span class="tkeye">My Practice</span><button class="mgadd" data-act="prlog" id="prplus" aria-label="Log practice">+</button></div><h2 id="prhead">' + esc(LT.headline) + '</h2><p id="prlede">' + esc(LT.lede) + (LT.trend ? ' ' + esc(LT.trend) : '') + '</p>';
     o += MYGAME.practiceLevelSVG(LT.level, LT.prev, { R: 96, aria: 'Practice level by skill, against ' + LT.level.bench.who }) +
       '<div class="mglegend"><span><i class="lpc"></i>Your level now</span>' + (LT.prev && ago ? '<span><i class="lp"></i>' + ago + '</span>' : '') +
       '<span><i class="lb"></i>' + esc(LT.level.bench.who.charAt(0).toUpperCase() + LT.level.bench.who.slice(1)) + ' avg</span></div>' +
@@ -5237,7 +5247,10 @@
       case 'blminest': view.stBl = v; view.stSel = null; render(); return;
       case 'blminehist': view.histBl = v; render(); return;
       // v175 My Game report
-      case 'grep': view.grep = view.grep ? null : { preset: 'coach', parts: Object.assign({}, GR_PRESET.coach) }; view.pdf = null; render(); return;
+      case 'grep': view.grep = view.grep && !view.mgMenu ? null : { preset: 'coach', parts: Object.assign({}, GR_PRESET.coach) }; view.mgMenu = null; view.pdf = null; render();
+        var gs = document.getElementById('grsheet'); if (gs && gs.scrollIntoView) gs.scrollIntoView({ block: 'start' }); return;
+      case 'mgplus': view.mgMenu = !view.mgMenu; render(); return; // v183
+      case 'mgknow': view.mgKnowOpen = !view.mgKnowOpen; render(); return; // v183
       case 'grclose': view.grep = null; render(); return;
       case 'grpreset': if (view.grep) { view.grep.preset = v; view.grep.parts = Object.assign({}, GR_PRESET[v]); } render(); return;
       case 'grpart': if (view.grep) { view.grep.parts[v] = !view.grep.parts[v]; view.grep.preset = ''; } render(); return;

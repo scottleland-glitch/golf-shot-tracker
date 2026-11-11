@@ -25,6 +25,18 @@ Every Shot Counts Table 3.10). The other five are ESTIMATED: per-round gaps from
 Player Quality ladder, then spread over the PGA table. Full sources, method and caveats: in-app
 "About the numbers" and the BASELINES comment in `sg.js`.
 
+## My Game tidy-up (v183)
+- A round **+** in the top bar (`#mgplus`) opens a menu like Home's: Log practice, Make a game report, Short game test. The big
+  Log practice and game report buttons are gone from the page.
+- Time frames are slim segmented rows; "Last rounds" now has **1** (`r1`, "Last round").
+- "How well Strokewise knows your game" folds to its title, the ready count and one coloured line (red / amber / green); the
+  arrow opens the skill-by-skill bars (`#mgknowtog`).
+- The four tiles (Score, SG / round, Putts, GIR) sit right under the shape, four across and smaller, with a line saying which
+  rounds they cover; the arrows compare with the previous time frame.
+- My Practice has a small + (`#prplus`) to log practice.
+- Short game test card: no Open button – a + (`#sgtnew`) goes straight into the intro and then the test (a test in progress
+  just carries on); below it, the last 4 tests, each opening its result. Back from the intro returns to My Game.
+
 ## "Playing N" after a penalty (v182)
 - On the shot card, once a penalty has been added on the hole, a small red "playing N" sits under "Shot n" (N = the shot
   number + the penalty strokes so far: a hazard drop before shot 2 → "playing 3"). `#scplaying`.
