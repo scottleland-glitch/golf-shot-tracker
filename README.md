@@ -25,6 +25,10 @@ Every Shot Counts Table 3.10). The other five are ESTIMATED: per-round gaps from
 Player Quality ladder, then spread over the PGA table. Full sources, method and caveats: in-app
 "About the numbers" and the BASELINES comment in `sg.js`.
 
+## Privacy Policy and Support pages (v185)
+
+`privacy.html` and `support.html` are the pages Apple asks for (App Store Connect › Privacy Policy URL and Support URL): https://scottleland-glitch.github.io/golf-shot-tracker/privacy.html and …/support.html. Both are linked at the bottom of Settings. Contact: atypicalscott@gmail.com. The policy describes the app as it is (no accounts, location only for Courses near me, live sharing via Firebase, Drive backup, GolfCore relay). If accounts, subscriptions, GPS distances or crash reporting are added, update privacy.html and the App Privacy answers before submitting.
+
 ## Playing and practice by week; voice entry removed (v184)
 - **"Say it" is gone**: no mic button on the hole screen, `voice.js` and its test removed.
 - My Game's playing chart is now **by week, in hours**: a round counts as 5 h (9 holes 2½ h) so it sits on the same scale as

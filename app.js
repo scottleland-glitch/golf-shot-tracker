@@ -2410,6 +2410,7 @@
     if (rounds.length) h += '<button class="big frostbtn" data-act="csvall">Export all rounds (CSV)</button>';
     h += '<button class="big frostbtn" data-act="about">ⓘ About the numbers</button>';
     h += '<p class="credits" id="credits">Course data: <a href="https://www.golfcore.org/" target="_blank" rel="noopener">GolfCore</a> · <a href="https://opengolfapi.org/" target="_blank" rel="noopener" title="Contains data from OpenGolfAPI (opengolfapi.org), ODbL 1.0">OpenGolfAPI</a> (<a href="https://opendatacommons.org/licenses/odbl/1-0/" target="_blank" rel="noopener">ODbL</a>) · © <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a></p>'; // v113 – one short line (Settings keeps long text behind (i) buttons)
+    h += '<p class="credits setlinks" id="setlinks"><a href="privacy.html" target="_blank" rel="noopener">Privacy Policy</a> · <a href="support.html" target="_blank" rel="noopener">Support</a></p>'; // v179: required by Apple
     h += '<p class="appver setver" id="setver" aria-label="App version">' + esc(APP_VER) + '</p>';
     if (view.gdr) h += gdRestoreHTML();
     return h + '</div>';

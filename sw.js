@@ -1,4 +1,5 @@
 // Offline support: cache the whole app on install, serve cache-first.
+// v185: Privacy Policy (privacy.html) and Support (support.html) pages for the App Store, linked at the bottom of Settings.
 // v184: "Say it" voice entry removed; My Game playing + practice chart by week in hours (18 holes = 5 h), practice beside the rounds, swipe for earlier weeks.
 // v183: My Game tidy – + menu (log practice, game report, short game test), slim time frames + last round, folded knowledge line, small tiles under the shape.
 // v182: Shot card – "playing N" under the shot after a penalty; the From words after a drop no longer cut off.
@@ -77,7 +78,7 @@
 // v113: "Courses near me" (near.js). The course finder list (data/us-courses.json, ~1.0 MB, ~0.28 MB gzipped) is NOT in this cache:
 // the app downloads it on first use into its own cache 'pinhigh-courselist-v1', which a new version keeps (so no re-download).
 // GolfCore scorecards (through the Pin High relay, pinhigh-golfcore.pinhigh.workers.dev) go straight to the network; the app saves each picked course with the saved courses.
-const CACHE = 'golf-sg-v184';
+const CACHE = 'golf-sg-v185';
 const ASSETS = ['./', './img/home-bg.webp', './img/oriole.webp', './index.html', './styles.css', './sg.js', './birdie.js', './courses.js', './near.js', './bag.js', './wedges.js', './live.js', './share.js', './story.js', './insights.js', './mygame.js', './shortgame.js', './shortgame-ui.js', './gdrive.js', './app.js', './config.js', './vendor/jspdf.umd.min.js',
   './manifest.webmanifest', './icons/apple-touch-icon.png', './icons/icon-192.png',
   './icons/icon-512.png', './icons/icon-512-maskable.png'];

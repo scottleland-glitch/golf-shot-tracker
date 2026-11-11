@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>StrokeWise Privacy Policy</title>
+<link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
+<style>
+  :root { --ink:#17301f; --soft:#4a5d50; --line:#dfe6e0; --bg:#f5f7f4; --card:#fff; --acc:#1f7a44; }
+  @media (prefers-color-scheme: dark) { :root { --ink:#e6eee8; --soft:#a9b8ad; --line:#2c3a30; --bg:#121814; --card:#19211c; --acc:#5cc488; } }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink); font: 16px/1.55 -apple-system, "SF Pro Text", "Helvetica Neue", Helvetica, Arial, sans-serif; }
+  header { display: flex; align-items: center; gap: 10px; padding: 14px 16px; border-bottom: 1px solid var(--line); background: var(--card); }
+  header img { width: 32px; height: 32px; border-radius: 8px; } header b { font-size: 18px; }
+  main { max-width: 720px; margin: 0 auto; padding: 8px 16px 40px; }
+  h1 { font-size: 26px; margin: 18px 0 4px; } h2 { font-size: 18px; margin: 26px 0 6px; }
+  .meta { color: var(--soft); margin: 0 0 14px; font-size: 14px; }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 14px 16px; }
+  ul { padding-left: 20px; } li { margin: 4px 0; }
+  table { width: 100%; border-collapse: collapse; font-size: 14px; background: var(--card); border: 1px solid var(--line); border-radius: 12px; overflow: hidden; }
+  th, td { text-align: left; vertical-align: top; padding: 9px 10px; border-bottom: 1px solid var(--line); } th { font-size: 13px; color: var(--soft); }
+  tr:last-child td { border-bottom: 0; }
+  a { color: var(--acc); }
+  footer { max-width: 720px; margin: 0 auto; padding: 0 16px 30px; color: var(--soft); font-size: 14px; }
+  @media (max-width: 560px) { table, tbody, tr, td { display: block; width: 100%; } thead, th { display: none; } tr { border-bottom: 1px solid var(--line); padding: 4px 0; } td { border: 0; padding: 3px 12px; } td:first-child { font-weight: 600; padding-top: 10px; } }
+</style></head>
+<body>
+<header><img src="icons/icon-192.png" alt=""><b>StrokeWise</b></header>
+<main>
+<h1>Privacy Policy</h1>
+<p class="meta">Effective date: November 10, 2026 · Applies to the StrokeWise app for iPhone and the StrokeWise web app.</p>
+
+<div class="card"><b>The short version:</b> your golf data stays on your phone. StrokeWise has no accounts, no ads, no analytics and no tracking. Nothing leaves your phone unless you use a feature that sends it: course lookup, live sharing, Google Drive backup, or sharing something yourself.</div>
+
+<h2>Who we are</h2>
+<p>StrokeWise is a golf statistics app operated by Scott Leland, doing business as StrokeWise, Reno, Nevada, USA ("we", "us"). This policy explains what the app does with your information and the choices you have.</p>
+
+<h2>1. Your rounds stay on your phone</h2>
+<p>Your rounds, shots, scores, strokes gained, clubs (My Bag), courses, practice logs, player names, benchmark and settings are saved only in the app's storage on your device. We can't see them and we keep no copies on our servers. The only exception is a live round you choose to share (section 4).</p>
+<p>If you delete the app, this data is deleted too, so make a backup if you want to keep it.</p>
+
+<h2>2. No accounts</h2>
+<p>There is no sign-up and no StrokeWise account. We don't collect your email address, phone number or profile.</p>
+
+<h2>3. Location</h2>
+<p>If you tap <i>Courses near me</i>, the app asks your iPhone for your location once, to sort a list of golf courses by distance. The sorting happens on your phone. Your location is not sent to us or anyone else and is not saved. Location is never tracked in the background. You can say no and search for a course by name instead, and you can turn location off for StrokeWise in iPhone Settings at any time.</p>
+
+<h2>4. Features that send data, and only when you use them</h2>
+<table>
+<thead><tr><th>Feature</th><th>What is sent</th><th>Where it goes</th></tr></thead>
+<tbody>
+<tr><td>Course list and scorecards</td><td>A request for the course list, and for the scorecard of the course you pick. It uses the course's location, not yours. No personal information.</td><td>The StrokeWise website (GitHub Pages) and StrokeWise's course-data relay (a Cloudflare Worker that fetches scorecards from GolfCore). Like any website, these services may briefly process your IP address to answer the request. We don't keep it.</td></tr>
+<tr><td>Share live (optional)</td><td>The player name shown on the round, the course, tee, date and the hole-by-hole scores of the round you share.</td><td>A Google Firebase database, stored under a random private link. Anyone you give the link to can follow the round. When you tap <i>Stop sharing</i>, the app deletes the live copy. Until then it stays available to people with the link, including after the round ends.</td></tr>
+<tr><td>Google Drive backup (optional)</td><td>A backup file of your rounds, courses, bag and practice.</td><td>Your own Google Drive, through Google's sign-in. The app can only see files it created. We never see your backups, your Google account details or your password. You can disconnect at any time in Settings.</td></tr>
+<tr><td>Sending a round, PDF report, story picture, CSV or backup file</td><td>Whatever you choose to send.</td><td>Wherever you send it with the iPhone share sheet (Messages, Mail, Files, Instagram and so on). Those apps' own privacy policies apply.</td></tr>
+</tbody></table>
+
+<h2>5. How we use information</h2>
+<p>Only to run the features above: finding courses and scorecards, showing live rounds you share, and saving backups you ask for. We do not sell or rent your information, use it for advertising, or track you across other apps and websites. We do not use AI services to process your data.</p>
+
+<h2>6. Service providers</h2>
+<ul>
+<li><b>GitHub Pages</b> hosts the StrokeWise website and web app.</li>
+<li><b>Cloudflare</b> runs the course-data relay.</li>
+<li><b>GolfCore</b> provides course scorecards (through the relay, which never passes on anything about you).</li>
+<li><b>Google Firebase</b> stores live rounds you choose to share.</li>
+<li><b>Google Drive</b> stores backups you choose to make, in your own account.</li>
+<li><b>Apple</b> distributes the iPhone app. If you have turned on sharing with app developers in iPhone Settings, Apple may send us anonymous crash reports.</li>
+</ul>
+<p>These providers handle data only to deliver these features.</p>
+
+<h2>7. Deleting your data</h2>
+<ul>
+<li>Delete any round in the app, or delete the app to remove everything stored on your phone.</li>
+<li>Tap <i>Stop sharing</i> to delete a live round from our database. If you no longer have the app, email us the link and we will delete it.</li>
+<li>Disconnect Google Drive in Settings, and delete backup files from your Drive whenever you like.</li>
+</ul>
+
+<h2>8. Children</h2>
+<p>StrokeWise is a general-audience golf app and is not directed to children under 13. We do not knowingly collect personal information from children under 13. Junior golfers under 18 should use the app with a parent's or guardian's permission. If you believe a child under 13 has shared information with us through a live round, contact us and we will delete it.</p>
+
+<h2>9. Your choices and rights</h2>
+<p>You control your data: you can turn off location, stop live sharing, disconnect Google Drive and delete rounds at any time. Depending on where you live (for example California or the European Union), you may have rights to access, correct or delete personal information. Because we keep almost nothing, most requests are handled in the app itself. For anything else, email us.</p>
+
+<h2>10. Security</h2>
+<p>Data the app sends travels over encrypted (HTTPS) connections to providers that use industry-standard safeguards. Live rounds are stored under long random links that can't be guessed. No system is perfectly secure.</p>
+
+<h2>11. Changes</h2>
+<p>If we change this policy, we will update this page and the effective date. For significant changes, for example if StrokeWise adds accounts or subscriptions, we will also tell you in the app before the change applies.</p>
+
+<h2>12. Contact</h2>
+<p>Scott Leland, dba StrokeWise · Reno, Nevada, USA<br><a href="mailto:atypicalscott@gmail.com">atypicalscott@gmail.com</a></p>
+</main>
+<footer>StrokeWise · <a href="support.html">Support</a> · <a href="./">Open the app</a></footer>
+</body></html>
