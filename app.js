@@ -3229,15 +3229,19 @@
     var replay = k > 0 && (row.loc === 'ob' || SG.isRetee(row)), s = a.shots[k];
     var out = '<div class="shotcard sc2' + (bad ? ' bad' : '') + (view.vflash && view.vflash.indexOf(k) >= 0 ? ' vflash' : '') + '" data-k="' + k + '" id="shotcard">';
     // top: Shot n ⋯ (⌫) and the distance to the pin
-    out += '<div class="sc-head"><button class="sc-n" data-act="menu" data-k="' + k + '" aria-label="Shot ' + n + ' options">Shot ' + n + ' <small>⋯</small></button>' +
+    // v182 (Scott): after a penalty the stroke being played isn't the shot number – "playing 3" under Shot 2
+    var penB = (a.shots || []).slice(0, k).reduce(function (t, x) { return t + ((x && x.penStrokes) || 0); }, 0);
+    out += '<div class="sc-head"><span class="sc-nwrap"><button class="sc-n" data-act="menu" data-k="' + k + '" aria-label="Shot ' + n + ' options">Shot ' + n + ' <small>⋯</small></button>' +
+      (penB ? '<small class="sc-playing" id="scplaying">playing ' + (n + penB) + '</small>' : '') + '</span>' +
       (replay ? '<span class="sc-pin obtxt">' + prevDist(h, k) + ' <em>to pin</em></span>'
         : '<label class="sc-pin sc-dist"><input type="text" inputmode="numeric" pattern="[0-9]*" maxlength="3" data-row="' + k + '" value="' + esc(row.dist) + '" aria-label="Shot ' + n + ' distance to the pin" placeholder="–"><em><i class="u" data-unit="' + k + '">' + SG.rowUnit(rows, k) + '</i> to pin</em></label>') + '</div>';
     // From → Finished
     var fromHTML;
     if (k === 0) fromHTML = '<b class="sc-lie">Tee</b>';
     else if (replay) fromHTML = '<b class="sc-lie">Same spot</b><small>' + (row.loc === 'ob' ? (row.lost ? 'after a lost ball' : 'after OB') : 're-tee after the hazard') + ' <i class="tpen">+1</i></small>';
-    else if (!row.loc || row.pen) fromHTML = '<select class="sc-liesel dd" data-f="loc" data-k="' + k + '" aria-label="Shot ' + n + ' from">' + (row.loc ? '' : '<option value="" selected>' + (row.pen ? 'Dropped in…' : 'Where from?') + '</option>') +
-      FROM_LOCS.map(function (l) { return '<option value="' + l[0] + '"' + (row.loc === l[0] ? ' selected' : '') + '>' + l[1] + '</option>'; }).join('') + '</select>' + (row.pen ? '<small>after the drop <i class="tpen">+1</i></small>' : '');
+    else if (!row.loc || row.pen) fromHTML = '<span class="ddwrap fromwrap"><b class="sc-lie' + (row.loc ? '' : ' sc-lieq') + '">' + esc(row.loc ? (LOC_SHORT[row.loc] || row.loc) : 'Where?') + '<i class="fromchev" aria-hidden="true"></i></b>' +
+      '<select class="ddover sc-liesel" data-f="loc" data-k="' + k + '" aria-label="Shot ' + n + ' from">' + (row.loc ? '' : '<option value="" selected>' + (row.pen ? 'Dropped in…' : 'Where from?') + '</option>') +
+      FROM_LOCS.map(function (l) { return '<option value="' + l[0] + '"' + (row.loc === l[0] ? ' selected' : '') + '>' + l[1] + '</option>'; }).join('') + '</select></span>' + (row.pen ? '<small>after the drop <i class="tpen">+1</i></small>' : '');
     else fromHTML = '<span class="ddwrap fromwrap"><b class="sc-lie">' + esc(fromText(h, k)) + '<i class="fromchev" aria-hidden="true"></i></b><select class="ddover sc-liesel" data-f="loc" data-k="' + k + '" aria-label="Shot ' + n + ' from">' + // tap the words to change the lie
       FROM_LOCS.concat(row.loc === 'holed' ? [['holed', 'Green']] : row.loc === 'holedx' ? [['holedx', 'In the hole']] : []).map(function (l) { return '<option value="' + l[0] + '"' + (row.loc === l[0] ? ' selected' : '') + '>' + l[1] + '</option>'; }).join('') + '</select></span>';
     var hit = s && !green && s.hit != null && s.end && s.end.lie !== 'holed' && !s.ob ? s.hit + ' yd' : s && s.end && s.end.lie === 'holed' ? (green ? 'holed' : s.hit != null ? s.hit + ' yd' : '') : '';

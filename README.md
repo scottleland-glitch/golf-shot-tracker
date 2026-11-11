@@ -25,6 +25,12 @@ Every Shot Counts Table 3.10). The other five are ESTIMATED: per-round gaps from
 Player Quality ladder, then spread over the PGA table. Full sources, method and caveats: in-app
 "About the numbers" and the BASELINES comment in `sg.js`.
 
+## "Playing N" after a penalty (v182)
+- On the shot card, once a penalty has been added on the hole, a small red "playing N" sits under "Shot n" (N = the shot
+  number + the penalty strokes so far: a hazard drop before shot 2 → "playing 3"). `#scplaying`.
+- After a drop (or before a lie is picked) the From shows the lie as words with the small arrow ("Where?" until picked),
+  like the other From labels – no squeezed box.
+
 ## Replay tags; Putter off the green (v181)
 - **Hole replay:** each shot's label is a white tag (distance big; club → where it finished small; penalties red) set beside
   the middle of its tracer, with a short leader to a dot on the line; tags avoid each other, the numbers and the flag

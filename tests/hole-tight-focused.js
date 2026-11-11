@@ -70,7 +70,7 @@ const YDS = [349, 512, 165, 401, 377, 142, 530, 365, 388, 372, 158, 545, 380, 41
     await shot('hole-reedit-' + TAG);
     await page.click('.tline[data-k="1"]'); await page.waitForSelector('input[data-row="1"]'); L = await lines(); assert.strictEqual(L[0][2], '3W', 'club change shows on the line');
     // v180: Unplayable +1 and the direction are on shot 1's card (Finished / Direction dropdowns)
-    await page.click('.tline[data-k="0"]'); await page.selectOption('select[data-f="fin"][data-k="0"]', 'unp'); await page.selectOption('select[data-f="dir"][data-k="1"]', 'left');
+    await page.click('.tline[data-k="0"]'); await page.selectOption('select[data-f="fin"][data-k="0"]', 'unp'); await page.selectOption('select[data-f="dir"][data-k="1"]', 'left'); await page.click('.tline[data-k="1"]'); assert.strictEqual(await page.textContent('#scplaying'), 'playing 3', 'v182: after the drop, shot 2 is playing 3');
     await page.click('.tline[data-k="3"]'); L = await lines(); assert.strictEqual(L[0][3], 'Tee → Rough+1', 'penalty of shot 1 shows on its line, no miss arrow ' + L[0][3]); assert.strictEqual(await page.$('.tline .tarr'), null);
     await page.selectOption('select[data-f="fin"][data-k="3"]', 'in'); await page.click('[data-act="finish"]'); await page.waitForSelector('.hole-done');
     L = await lines(); assert.strictEqual(L.length, 4); assert.deepStrictEqual(L[3].slice(1, 4), ['3 ft', 'Putter', 'Green → Holed']); assert.strictEqual(await page.$('.shotcard[data-k]'), null, 'finished: all tight');

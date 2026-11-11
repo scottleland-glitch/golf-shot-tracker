@@ -1,4 +1,5 @@
 // Offline support: cache the whole app on install, serve cache-first.
+// v182: Shot card – "playing N" under the shot after a penalty; the From words after a drop no longer cut off.
 // v181: Hole replay – distance tags beside the middle of each shot (and each putt on the green) with a leader to the line; Putter can be picked off the green.
 // v180: Shot card redesign – yards to pin on top; From → (yards hit, club) → Finished dropdown; Direction dropdown; Hazard / OB / Unplayable / Lost ball +1 in the list (no Penalty button); delete in ⋯.
 // v179: Round stats – PDF report and Story picture side by side at the top with line icons; benchmark note behind an ⓘ.
@@ -74,7 +75,7 @@
 // v113: "Courses near me" (near.js). The course finder list (data/us-courses.json, ~1.0 MB, ~0.28 MB gzipped) is NOT in this cache:
 // the app downloads it on first use into its own cache 'pinhigh-courselist-v1', which a new version keeps (so no re-download).
 // GolfCore scorecards (through the Pin High relay, pinhigh-golfcore.pinhigh.workers.dev) go straight to the network; the app saves each picked course with the saved courses.
-const CACHE = 'golf-sg-v181';
+const CACHE = 'golf-sg-v182';
 const ASSETS = ['./', './img/home-bg.webp', './img/oriole.webp', './index.html', './styles.css', './sg.js', './birdie.js', './voice.js', './courses.js', './near.js', './bag.js', './wedges.js', './live.js', './share.js', './story.js', './insights.js', './mygame.js', './shortgame.js', './shortgame-ui.js', './gdrive.js', './app.js', './config.js', './vendor/jspdf.umd.min.js',
   './manifest.webmanifest', './icons/apple-touch-icon.png', './icons/icon-192.png',
   './icons/icon-512.png', './icons/icon-512-maskable.png'];

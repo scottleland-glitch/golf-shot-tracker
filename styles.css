@@ -2663,3 +2663,7 @@ html body .sc2 .sc-mid select.dd { max-width: 100px; padding-right: 22px; backgr
 html body .sc2 .dd.ddshow.ddlong { font-size: 14px; padding-left: 9px; padding-right: 23px; background-position: right 7px center; }
 html body .sc2 .fromwrap { display: block; } html body .sc2 .fromchev { display: inline-block; width: 7px; height: 7px; border-right: 2px solid #8a968f; border-bottom: 2px solid #8a968f; transform: rotate(45deg); margin: 0 0 4px 7px; }
 html body .sc2 .fromwrap { display: flex; align-items: center; min-height: 40px; }
+/* v182 (Scott): "playing 3" under Shot 2 after a penalty; the From words after a drop */
+html body .sc2 .sc-nwrap { display: flex; flex-direction: column; align-items: flex-start; margin-right: auto; }
+html body .sc2 .sc-nwrap .sc-n { margin-right: 0; } html body .sc2 .sc-playing { font-size: 12.5px; font-weight: 700; color: #b0473f; margin: 3px 0 0 12px; letter-spacing: .02em; }
+html body .sc2 .sc-lieq { color: #7a8780; font-weight: 500; }
