@@ -16,8 +16,8 @@ const ok = m => console.log('OK  ' + m);
     await P.evaluate(src => { const m = { exports: {} }; new Function('module', src)(m); localStorage.clear(); localStorage.setItem('golfsg.player.v1', 'Scott');
       localStorage.setItem('golfsg.rounds.v1', JSON.stringify(m.exports.all())); }, fix);
     await P.reload();
-    const open = async id => { if (await P.$('[data-act="mapclose"]')) await P.click('[data-act="mapclose"]'); if (await P.$('#plusbtn')) await P.click('#plusbtn'); await P.click('[data-act="history"]'); await P.click('#histlist [data-act="open"][data-id="' + id + '"]');
-      if (!(await P.$('[data-stx="club"].open'))) await P.click('[data-act="stx"][data-v="club"]'); await P.click('[data-stx="club"] [data-act="map"][data-v="club"]'); await P.waitForSelector('#mapview'); };
+    const open = async id => { if (await P.$('[data-act="mapclose"]')) await P.click('[data-act="mapclose"]'); if (await P.$('#rsmenubtn')) await P.click('#rsmenubtn'); else if (await P.$('#navbtn')) await P.click('#navbtn'); await P.click('#rsmenu [data-act="history"], #navmenu [data-act="history"]'); await P.click('#histlist [data-act="open"][data-id="' + id + '"]');
+      if (!(await P.$('[data-stx="club"].open'))) ((await P.$('[data-act="stx"][data-v="club"]')) && await P.click('[data-act="stx"][data-v="club"]')); await P.click('[data-stx="club"] [data-act="map"][data-v="club"]'); await P.waitForSelector('#mapview'); };
     const tiles = () => P.$$eval('#clubqv .qv', q => q.map(x => [x.dataset.q, x.querySelector('b').textContent.trim(), x.querySelector('small').textContent.trim(), (x.querySelector('em') || { textContent: '' }).textContent.trim()]));
     const regions = () => P.$$eval('#clubfw .cfwreg', r => r.map(x => [x.dataset.reg, +x.dataset.n, +x.dataset.pct]));
     // expected numbers straight from SG (the same lists the round's fairway map / proximity use)

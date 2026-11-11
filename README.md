@@ -25,6 +25,18 @@ Every Shot Counts Table 3.10). The other five are ESTIMATED: per-round gaps from
 Player Quality ladder, then spread over the PGA table. Full sources, method and caveats: in-app
 "About the numbers" and the BASELINES comment in `sg.js`.
 
+## ☰ menus, Round stats tidy-up, faster replay (v191)
+- **☰ opens a menu; + only starts or adds something.** Home: ☰ (top left) = Rounds, Stats, My Game, My Bag, Settings, Help;
+  + (top right) = New round, Log practice, Short game test. My Game: + = Log practice, Short game test; ☰ = Make a game report,
+  Home. The hole screen's ⋯ is now ☰ (Home, Discard round).
+- **Round stats:** top left is **Edit round** (back into the holes; replaces "Back to the round" at the bottom). Top right ☰:
+  PDF report, Story picture, Strokes gained (picker), Round type (Practice / Tournament – after the round only), Rounds, Home.
+  The Quick view tiles sit right under the score. The benchmark warning stays on the page when it applies.
+- **Stat rows with a map open it in one tap** (Fairways, GIR, Approach misses, Proximity, Pin, Putts, 1st putts, Lag, Clubs);
+  Penalty strokes and Tee misses still expand.
+- **Hole replay:** the title and ‹ › hole arrows stay pinned at the top, each hole is sized to fit the screen and opens at the
+  top, and a swipe left / right goes to the next / previous hole. `tests/menus-focused.js`.
+
 ## Round stats: a quick snapshot during the round (v190)
 - The Practice / Tournament picker is gone from Stats while the round is being entered – it's chosen on the new-round form
   ("This round is"), and can still be changed on the round's stats page once it's finished or opened from Rounds.

@@ -16,7 +16,7 @@ const NAMES = ['Eagle', 'Birdie', 'Par', 'Bogey', 'Double', 'Triple'];
   await page.goto(BASE + '?x=' + Date.now()); await page.evaluate(SEED); await page.reload(); await page.waitForSelector('#plusbtn');
   const shot = async (n, el, off) => { if (el) await page.$eval(el, (e, o) => { window.scrollTo(0, 0); window.scrollTo(0, e.getBoundingClientRect().top - o); }, off == null ? 64 : off); else await page.evaluate(() => window.scrollTo(0, 0));
     await page.waitForTimeout(200); await page.screenshot({ path: OUT + '/' + n }); };
-  await page.click('#plusbtn'); await page.click('#plusmenu [data-act="stats"]'); await page.waitForSelector('#statspage');
+  await page.click('#navbtn'); await page.click('#navmenu [data-act="stats"]'); await page.waitForSelector('#statspage');
   // v125: the graphs sit in collapsible categories – open them all for this test (they stay open while the page is open)
   for (const c of ['driver', 'approach', 'putting', 'chipping', 'scoring']) await page.click('#stcat-' + c + ' .stcath');
 
@@ -126,10 +126,10 @@ const NAMES = ['Eagle', 'Birdie', 'Par', 'Bogey', 'Double', 'Triple'];
 
   // 6. one finished round -> page works, trends say not enough rounds; 0 finished -> message
   await page.evaluate(() => { const L = JSON.parse(localStorage.getItem('golfsg.rounds.v1')); localStorage.setItem('golfsg.rounds.v1', JSON.stringify(L.filter(r => r.id === 'g6' || r.id === 'g7'))); });
-  await page.reload(); await page.click('#plusbtn'); await page.click('#plusmenu [data-act="stats"]');
+  await page.reload(); await page.click('#navbtn'); await page.click('#navmenu [data-act="stats"]');
   assert.match(await page.textContent('#st-tot .stfew'), /Not enough rounds yet/); assert.deepStrictEqual((await read(4)).v, pcts(count([fin[5]], 4)));
   await page.evaluate(() => { const L = JSON.parse(localStorage.getItem('golfsg.rounds.v1')); localStorage.setItem('golfsg.rounds.v1', JSON.stringify(L.filter(r => r.id === 'g7'))); });
-  await page.reload(); await page.click('#plusbtn'); await page.click('#plusmenu [data-act="stats"]');
+  await page.reload(); await page.click('#navbtn'); await page.click('#navmenu [data-act="stats"]');
   assert.match(await page.textContent('#stnone'), /No finished rounds yet.*1 unfinished not shown/s); assert.strictEqual(await page.$('#strange'), null);
 
   assert.deepStrictEqual(errors, []); assert.deepStrictEqual(outside, [], 'no outside network calls');

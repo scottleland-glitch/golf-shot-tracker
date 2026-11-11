@@ -185,7 +185,7 @@ const ok = m => console.log('  ✓ ' + m), HOME = { lat: 36.5686, lng: -121.9497
     await page.evaluate(async () => { await caches.open('golf-sg-v1'); for (const r of await navigator.serviceWorker.getRegistrations()) await r.unregister(); });
     await page.reload(); await page.evaluate(() => navigator.serviceWorker.ready); await page.waitForFunction(async () => !(await caches.keys()).includes('golf-sg-v1'));
     assert.ok((await page.evaluate(() => caches.keys())).includes('pinhigh-courselist-v1'), 'list cache survives a service worker update');
-    await page.waitForSelector('#home'); await page.click('#plusbtn'); await page.click('#plusmenu [data-act="archive"]'); await page.waitForSelector('#credits');
+    await page.waitForSelector('#home'); await page.click('#navbtn'); await page.click('#navmenu [data-act="archive"]'); await page.waitForSelector('#credits');
     const cr = await page.textContent('#credits'); assert.match(cr, /GolfCore/); assert.match(cr, /OpenGolfAPI/); assert.match(cr, /ODbL/); assert.match(cr, /OpenStreetMap/); await light('#credits');
     ok('service worker update clears old app caches but keeps the course list; Settings credits GolfCore, OpenGolfAPI (ODbL), OpenStreetMap');
     assert.deepStrictEqual(T.outside, [], 'no outside requests'); assert.ok(!T.auth, 'no key header sent from the app'); assert.deepStrictEqual(errors, []);

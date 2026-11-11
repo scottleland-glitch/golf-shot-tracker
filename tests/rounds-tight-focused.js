@@ -35,8 +35,8 @@ const rnd = (id, player, date, extra, more) => { const r = Object.assign(ARC.rou
   await P.goto(BASE + 'index.html'); await P.waitForSelector('#plusbtn');
 
   // ---------- 1. the menu says Rounds ----------
-  await P.click('#plusbtn');
-  const menu = await P.$$eval('#plusmenu button', bs => bs.map(x => x.textContent.trim()));
+  await P.click('#navbtn');
+  const menu = await P.$$eval('#navmenu button', bs => bs.map(x => x.textContent.trim()));
   assert(menu.includes('Rounds') && !menu.some(t => /History/.test(t)), 'menu item renamed: ' + menu);
   await P.click('[data-act="history"]'); await P.waitForSelector('#histlist .hrow');
   assert.strictEqual(await P.textContent('.topbar .title b'), 'Rounds');
@@ -72,11 +72,11 @@ const rnd = (id, player, date, extra, more) => { const r = Object.assign(ARC.rou
   console.log('  list: ' + visible + ' of 11 rows visible, header labels, tints under/even/over, unfinished pill, mm/dd + year, tee · player, compact tools');
 
   // ---------- 3. tap a row → round stats; back says ‹ Rounds ----------
-  await P.click('.hrow[data-id="t1"] .hist'); await P.waitForSelector('[data-act="history"]');
+  await P.click('.hrow[data-id="t1"] .hist'); await P.waitForSelector('#editround');
   assert(/Haggin Oaks/.test(await P.textContent('#app')), 'opened the tapped round');
-  const back = (await P.textContent('.topbar [data-act="history"]')).trim();
-  assert.strictEqual(back, '‹ Rounds');
-  await P.click('.topbar [data-act="history"]'); await P.waitForSelector('#histlist');
+  const back = (await P.textContent('#editround')).trim();
+  assert.strictEqual(back, 'Edit round'); // v191: Rounds is in ☰
+  await (async (P) => { if (!(await P.$('.topbar [data-act="history"]')) && await P.$('#rsmenubtn')) await P.click('#rsmenubtn'); return P.click('.topbar [data-act="history"], #rsmenu [data-act="history"]'); })(P) /* v191: in ☰ on Round stats */; await P.waitForSelector('#histlist');
   console.log('  tap: row opens its stats, back button says ‹ Rounds');
 
   // ---------- 4. filter ----------
@@ -110,8 +110,8 @@ const rnd = (id, player, date, extra, more) => { const r = Object.assign(ARC.rou
   console.log('  select mode: tap toggles rows, trash hidden, moved t0 to Quincy');
 
   // ---------- 7. Settings (was Archive) button ----------
-  await P.click('.topbar [data-act="home"]'); await P.waitForSelector('#plusbtn');
-  await P.click('#plusbtn'); await P.click('#plusmenu [data-act="archive"]'); await P.waitForSelector('.histbtn');
+  await (async (P) => { if (!(await P.$('.topbar [data-act="home"]')) && await P.$('#rsmenubtn')) await P.click('#rsmenubtn'); return P.click('.topbar [data-act="home"], #rsmenu [data-act="home"]'); })(P) /* v191: in ☰ on Round stats */; await P.waitForSelector('#plusbtn');
+  await P.click('#navbtn'); await P.click('#navmenu [data-act="archive"]'); await P.waitForSelector('.histbtn');
   assert(/📋 Rounds/.test(await P.textContent('.histbtn'))); console.log('  Settings: button says 📋 Rounds');
 
   assert.deepStrictEqual(errors, []);

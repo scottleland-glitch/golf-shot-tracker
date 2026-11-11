@@ -1,6 +1,6 @@
 const { chromium } = require('playwright-core'); const assert = require('assert'); const { spawn } = require('child_process');
 const xt = async (p, id) => { if (!(await p.$('[data-stx="' + id + '"].open')) && await p.$('[data-act="stx"][data-v="' + id + '"]')) await p.click('[data-act="stx"][data-v="' + id + '"]'); return p; }; // v96: stat tiles are collapsed – open one first
-const goHist = async p => { if (await p.$('#plusbtn')) await p.click('#plusbtn'); await p.click('[data-act="history"]'); };
+const goHist = async p => { if (await p.$('#plusbtn')) await p.click('#navbtn'); await p.click('[data-act="history"]'); };
 const errors = [];
 const BASE = process.env.BASE_URL || 'http://127.0.0.1:8765/', SHOTS = process.env.SHOTS || '/tmp/shots-v15f';
 (async () => {
@@ -47,10 +47,10 @@ const BASE = process.env.BASE_URL || 'http://127.0.0.1:8765/', SHOTS = process.e
   await page.locator('#sccard').scrollIntoViewIfNeeded(); await page.evaluate(() => window.scrollBy(0, -56));
   await page.screenshot({ path: SHOTS + '/33-scorecard.png' });
   await page.click('#scorecard tr.sscore [data-act="goHole"][data-i="12"]'); assert.match(await page.textContent('.hc-head'), /Hole 13/);
-  await page.locator('[data-act="summary"]').first().click(); await page.click('.topbar [data-act="history"]'); await page.waitForSelector('#histlist');
+  await page.locator('[data-act="summary"]').first().click(); await (async (P) => { if (!(await P.$('.topbar [data-act="history"]')) && await P.$('#rsmenubtn')) await P.click('#rsmenubtn'); return P.click('.topbar [data-act="history"], #rsmenu [data-act="history"]'); })(page) /* v191: in ☰ on Round stats */; await page.waitForSelector('#histlist');
   console.log('✓ scorecard: marks, OUT/IN/TOTAL, fits 390 (cells ' + fit.h.toFixed(0) + 'px), tap opens hole; History newest first, ‹ History back');
   // backup (download fallback) + restore
-  await page.click('[data-act="home"]'); await page.click('#plusbtn'); await page.click('#plusmenu [data-act="archive"]');
+  await page.click('[data-act="home"]'); await page.click('#navbtn'); await page.click('#navmenu [data-act="archive"]');
   assert.match(await page.textContent('#bkremind'), /haven't backed up/);
   const [dl] = await Promise.all([page.waitForEvent('download'), page.click('[data-act="backup"]')]);
   assert.match(dl.suggestedFilename(), /^golf-rounds-scott-\d{4}-\d\d-\d\d\.json$/);

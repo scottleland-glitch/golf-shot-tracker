@@ -60,9 +60,9 @@ const pct = (a, b) => (a / b - 1) * 100;
     await page.goto(BASE + '?x=' + Date.now()); await page.evaluate(() => { localStorage.clear(); localStorage.setItem('golfsg.player.v1', 'Quincy'); localStorage.setItem('golfsg.nameasked.v1', '1'); });
     await page.reload(); await page.waitForSelector('#home');
     assert.strictEqual(await page.$('[data-act="bag"]'), null, 'nothing new on the clean home screen');
-    await page.click('#plusbtn'); await page.waitForSelector('#plusmenu');
-    assert.deepStrictEqual(await page.$$eval('#plusmenu .sheet-item', e => e.map(x => x.textContent)), ['New round', 'Rounds', 'Stats', 'My Game', 'Log practice', 'Short game test', 'My Bag', 'Settings', 'Help'] /* v140+: My Game and Log practice added */, 'My Bag has its own + menu item (v102)');
-    await page.click('#plusmenu [data-act="bag"]'); await page.waitForSelector('#bagempty');
+    await page.click('#navbtn'); await page.waitForSelector('#navmenu');
+    assert.deepStrictEqual(await page.$$eval('#navmenu .sheet-item', e => e.map(x => x.textContent)), ['Rounds', 'Stats', 'My Game', 'My Bag', 'Settings', 'Help'] /* v140+: My Game and Log practice added */, 'My Bag has its own + menu item (v102)');
+    await page.click('#navmenu [data-act="bag"]'); await page.waitForSelector('#bagempty');
     assert.strictEqual(await page.getAttribute('#segbag', 'aria-selected'), 'true', 'opens on the Bag tab'); assert.strictEqual(await page.textContent('.topbar .txt'), '‹ Home');
     await shot('bag-empty');
     const add = async (make, model, cat, pick) => {
@@ -131,7 +131,7 @@ const pct = (a, b) => (a / b - 1) * 100;
     const p60 = (await store()).clubs.find(c => c.code === '60'); await page.click('.bname[data-id="' + p60.id + '"]'); await page.click('#bagedit [data-v="remove"]');
     assert.strictEqual((await store()).clubs.length, 13); assert.match(dialogs.pop(), /Remove 60/);
     // in-round picker: bag clubs only (no putter), with the San Diego carries since "show in picker" is on
-    await page.click('.topbar [data-act="home"]'); await page.click('#plusbtn'); await page.click('[data-act="newform"]'); await page.waitForSelector('[data-act="new"]');
+    await (async (P) => { if (!(await P.$('.topbar [data-act="home"]')) && await P.$('#rsmenubtn')) await P.click('#rsmenubtn'); return P.click('.topbar [data-act="home"], #rsmenu [data-act="home"]'); })(page) /* v191: in ☰ on Round stats */; await page.click('#plusbtn'); await page.click('[data-act="newform"]'); await page.waitForSelector('[data-act="new"]');
     const cIn = await page.$('#course'); if (cIn) await page.fill('#course', 'Torrey Pines');
     await page.click('[data-act="new"]'); await page.waitForSelector('.holecard');
     const opts = await page.$$eval('select[data-f="club"][data-k="0"] option', e => e.map(o => [o.value, o.textContent]));
@@ -157,7 +157,7 @@ const pct = (a, b) => (a / b - 1) * 100;
     // backup → restore round trip (bag only file) into an empty bag
     const bk = await page.evaluate(j => JSON.stringify(SG.makeBackup([], null, 'Quincy', [], JSON.parse(j))), bagJson);
     fs.writeFileSync('/tmp/bag-backup.json', bk); assert.ok(JSON.parse(bk).bag.clubs.length === 13);
-    await (async () => { if (await page.$('#holemore') && !(await page.$('#holemenu'))) await page.click('#holemore'); return page.click('[data-act="home"]'); })() /* v188: Home + Discard are in ⋯ during a round */; await page.click('#plusbtn'); await page.click('#plusmenu [data-act="archive"]'); await page.setInputFiles('#restorefile', '/tmp/bag-backup.json');
+    await (async () => { if (await page.$('#holemore') && !(await page.$('#holemenu'))) await page.click('#holemore'); return page.click('[data-act="home"]'); })() /* v188: Home + Discard are in ⋯ during a round */; await page.click('#navbtn'); await page.click('#navmenu [data-act="archive"]'); await page.setInputFiles('#restorefile', '/tmp/bag-backup.json');
     await page.waitForSelector('#rpbag'); assert.match(await page.textContent('#rpgo'), /Restore my bag/); await page.click('#rpgo'); await page.waitForSelector('#notice');
     assert.match(await page.textContent('#notice'), /My Bag \(13 clubs\)/); B = await store(); assert.strictEqual(B.clubs.length, 13); assert.strictEqual(B.clubs.find(c => c.code === '7i').carry, 150);
     assert.ok(await page.$eval('[data-act="backup"]', e => !e.disabled));

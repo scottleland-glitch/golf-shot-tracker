@@ -14,8 +14,8 @@ const PORT = 8871, BASE = 'http://127.0.0.1:' + PORT + '/', OUT = '/workspace/go
     P.on('pageerror', e => errors.push(String(e))); P.on('request', r => { if (!r.url().startsWith(BASE) && !r.url().startsWith('data:')) outside.push(r.url()); });
     await P.goto(BASE + '?x=' + Date.now()); const fix = fs.readFileSync(__dirname + '/fixtures/prox-rounds.js', 'utf8');
     await P.evaluate(src => { const m = { exports: {} }; new Function('module', src)(m); localStorage.clear(); localStorage.setItem('golfsg.player.v1', 'Scott'); localStorage.setItem('golfsg.rounds.v1', JSON.stringify(m.exports.all())); }, fix);
-    await P.reload(); if (await P.$('#plusbtn')) await P.click('#plusbtn'); await P.click('[data-act="history"]'); await P.click('#histlist [data-act="open"][data-id="p1"]');
-    if (!(await P.$('[data-stx="prox"].open'))) await P.click('[data-act="stx"][data-v="prox"]'); await P.click('[data-stx="prox"] [data-act="map"][data-v="prox"]'); await P.waitForSelector('#proxrail');
+    await P.reload(); if (await P.$('#plusbtn')) await P.click('#navbtn'); await P.click('[data-act="history"]'); await P.click('#histlist [data-act="open"][data-id="p1"]');
+    if (!(await P.$('[data-stx="prox"].open'))) ((await P.$('[data-act="stx"][data-v="prox"]')) && await P.click('[data-act="stx"][data-v="prox"]')); await P.click('[data-stx="prox"] [data-act="map"][data-v="prox"]'); await P.waitForSelector('#proxrail');
     // page chrome = Club performance
     assert.ok(await P.$('#mapview.clubview.proxview'), 'prox page uses the compact page class');
     const head = await P.evaluate(() => { const cs = s => getComputedStyle(document.querySelector(s)); return { t: [cs('#mapview .maphead b').fontSize, cs('#mapview .maphead b').fontWeight], c: [cs('#mapview .maphead .close').fontSize, cs('#mapview .maphead .close').minHeight], s: cs('#mapview > .seg button').minHeight, bc: cs('#mapview > button.big[data-act="mapclose"]').fontWeight }; });

@@ -28,11 +28,11 @@ const srv = http.createServer((q, s) => {
   // let the service worker install + take control, then reload so it handles every request
   await P.evaluate(() => navigator.serviceWorker.ready); await P.reload(); await P.waitForSelector('#plusbtn');
   assert.ok(await P.evaluate(() => !!navigator.serviceWorker.controller), 'service worker controls the page');
-  await P.click('#plusbtn'); await P.waitForSelector('#plusmenu');
-  const menu = await P.$$eval('#plusmenu button', e => e.map(x => [x.textContent, x.dataset.act]));
-  assert.deepStrictEqual(menu, [['New round', 'newform'], ['Rounds', 'history'], ['Stats', 'stats'], ['My Game', 'mygame'], ['Log practice', 'prlog'], ['Short game test', 'sgtopen'], ['My Bag', 'bag'], ['Settings', 'archive'], ['Help', 'help']] /* v140+: My Game and Log practice added */);
+  await P.click('#navbtn'); await P.waitForSelector('#navmenu');
+  const menu = await P.$$eval('#navmenu button', e => e.map(x => [x.textContent, x.dataset.act]));
+  assert.deepStrictEqual(menu, [['Rounds', 'history'], ['Stats', 'stats'], ['My Game', 'mygame'], ['My Bag', 'bag'], ['Settings', 'archive'], ['Help', 'help']] /* v140+: My Game and Log practice added */);
   await P.waitForTimeout(400); await P.screenshot({ path: OUT + 'help-plus-menu-v128.png' });
-  await P.click('#plusmenu [data-act="help"]'); await P.waitForSelector('#helppage');
+  await P.click('#navmenu [data-act="help"]'); await P.waitForSelector('#helppage');
   assert.strictEqual(await P.textContent('.topbar .title b'), 'Help');
   assert.strictEqual(await P.$$eval('#hpstart li', e => e.length), 5);
   const V0 = await P.$eval('#hpvid', v => ({ pre: v.getAttribute('preload'), pi: v.hasAttribute('playsinline'), c: v.controls, rs: v.readyState, poster: v.poster }));
@@ -55,7 +55,7 @@ const srv = http.createServer((q, s) => {
   const cached = await P.evaluate(async () => { const out = []; for (const k of await caches.keys()) for (const r of await (await caches.open(k)).keys()) if (/\/help\//.test(r.url)) out.push(k + ' ' + r.url); return out; });
   assert.deepStrictEqual(cached, [], 'help files not cached');
   // back to Home
-  await P.click('.topbar [data-act="home"]'); await P.waitForSelector('#home');
+  await (async (P) => { if (!(await P.$('.topbar [data-act="home"]')) && await P.$('#rsmenubtn')) await P.click('#rsmenubtn'); return P.click('.topbar [data-act="home"], #rsmenu [data-act="home"]'); })(P) /* v191: in ☰ on Round stats */; await P.waitForSelector('#home');
   console.log('server log (help/):\n  ' + log.join('\n  '));
   assert.deepStrictEqual(errors.filter(e => !/net::ERR_FAILED|Failed to load resource/.test(e)), [], 'no page errors: ' + errors.join(' | '));
   console.log('help-focused: OK'); await b.close(); srv.close();

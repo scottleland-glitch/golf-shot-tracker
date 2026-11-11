@@ -16,7 +16,7 @@ const CATS = ['driver', 'approach', 'putting', 'chipping', 'bunker', 'scoring'];
   page.on('pageerror', e => errors.push(String(e))); page.on('console', m => { if (m.type() === 'error') errors.push(m.text()); });
   page.on('request', q => { const u = new URL(q.url()); if (!/^(127\.0\.0\.1|localhost)$/.test(u.hostname) && !/^(data|blob):/.test(q.url())) outside.push(q.url()); });
   await page.goto(BASE + '?x=' + Date.now()); await page.evaluate(SEED); await page.reload(); await page.waitForSelector('#plusbtn');
-  const goStats = async () => { if (!(await page.$('#plusmenu'))) await page.click('#plusbtn'); await page.click('#plusmenu [data-act="stats"]'); await page.waitForSelector('#statspage'); };
+  const goStats = async () => { if (!(await page.$('#plusmenu'))) await page.click('#navbtn'); await page.click('#navmenu [data-act="stats"]'); await page.waitForSelector('#statspage'); };
   const make = async () => { await page.click('#stpdf'); await page.waitForSelector('#pdfname'); return page.evaluate(async () => { const p = window.__golf.lastPdf;
     return { name: p.name, pages: p.pages, cats: p.cats, last: p.last, L: p.layout, b: Array.from(new Uint8Array(await p.blob.arrayBuffer())) }; }); };
   await goStats();

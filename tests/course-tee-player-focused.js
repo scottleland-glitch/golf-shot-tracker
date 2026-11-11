@@ -120,7 +120,7 @@ const Y = (b) => Array.from({ length: 18 }, (_, i) => b + i * 7), P = [4, 4, 3, 
   assert.strictEqual(await page.evaluate(() => localStorage.getItem('golfsg.player.v1')), 'Quincy');
   // v89: Home stays clean – no Player row; the player lives in the New round sheet
   const homeBtns = () => page.$$eval('#home button', e => e.map(x => x.id));
-  assert.strictEqual(await page.$('#playerrow'), null, 'no Player row on Home'); assert.deepStrictEqual(await homeBtns(), ['plusbtn']);
+  assert.strictEqual(await page.$('#playerrow'), null, 'no Player row on Home'); assert.deepStrictEqual(await homeBtns(), ['navbtn', 'plusbtn']);
   assert.doesNotMatch(await page.innerText('#home'), /Quincy|Player|golfer/i);
   await shot('home-clean');
   await page.reload(); await page.waitForSelector('#home'); assert.strictEqual(await page.$('#namesheet'), null, 'asked once');
@@ -155,7 +155,7 @@ const Y = (b) => Array.from({ length: 18 }, (_, i) => b + i * 7), P = [4, 4, 3, 
   await page.click('.sheet-back', { position: { x: 30, y: 40 } });
   // Not now: no nagging, Home stays clean, New round offers to add the name
   await seed({}); await page.reload(); await page.waitForSelector('#namesheet'); await page.click('[data-act="nameskip"]');
-  assert.strictEqual(await page.$('#namesheet'), null); assert.deepStrictEqual(await homeBtns(), ['plusbtn']);
+  assert.strictEqual(await page.$('#namesheet'), null); assert.deepStrictEqual(await homeBtns(), ['navbtn', 'plusbtn']);
   await page.reload(); await page.waitForSelector('#home'); assert.strictEqual(await page.$('#namesheet'), null, 'Not now is remembered');
   await openNew(); assert.match(await page.textContent('#nplayer'), /Add golfer’s name/);
   await page.click('#nplayer'); await page.fill('#pname', 'Quincy'); await page.click('#npeditrow [data-act="setname"]'); assert.strictEqual(await page.textContent('#npname'), 'Quincy');

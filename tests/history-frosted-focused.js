@@ -12,7 +12,7 @@ const BASE = 'http://127.0.0.1:8796/', OUT = '/workspace/golf-app/screenshots/',
     const rd = (id, date, c, pl, s) => ({ v: 3, dv: 2, id, date, course: c, baseline: 'pga', player: pl, holes: Array.from({ length: 18 }, (_, i) => ({ par: 4, finished: true, rows: [R(400, 'tee'), R(150, 'fairway'), R(i % s ? 10 : 30, 'green')].concat(i % s ? [] : [R(4, 'green')]).concat([R(1, 'holed')]) })) });
     localStorage.clear(); localStorage.setItem('golfsg.player.v1', 'Scott');
     localStorage.setItem('golfsg.rounds.v1', JSON.stringify([rd('a', '2026-10-01T17:00:00Z', 'Lakeridge', 'Scott', 2), rd('b', '2026-10-08T17:00:00Z', 'Washoe County GC', 'Scott', 5), rd('c', '2026-10-11T17:00:00Z', 'Wolf Run', 'Emma', 3), rd('d', '2026-10-14T17:00:00Z', 'Lakeridge', 'Scott', 9)])); });
-  await page.reload(); await page.click('#plusbtn'); await page.click('#plusmenu [data-act="history"]'); await page.waitForSelector('#histlist');
+  await page.reload(); await page.click('#navbtn'); await page.click('#navmenu [data-act="history"]'); await page.waitForSelector('#histlist');
   await page.waitForTimeout(400); await page.screenshot({ path: OUT + (TAG === 'after' ? 'sky-history.png' : 'history-frosted-' + TAG + '.png') });
   if (TAG === 'before') { await b.close(); srv.kill(); return; }
   // frosted: page backdrop + shared classes on header, buttons, chips, cards, trash
@@ -31,15 +31,15 @@ const BASE = 'http://127.0.0.1:8796/', OUT = '/workspace/golf-app/screenshots/',
   await page.click('#playerchips [data-v="Emma"]'); assert.deepStrictEqual(await page.$$eval('#histlist .hrow', x => x.map(e => e.dataset.id)), ['c']);
   await page.click('#playerchips [data-v=""]'); assert.deepStrictEqual(await page.$$eval('#histlist .hrow', x => x.map(e => e.dataset.id)), ['d', 'c', 'b', 'a']);
   await page.click('#cmpopen'); await page.waitForSelector('.topbar'); assert.match(await page.textContent('.topbar'), /Best vs worst/);
-  await page.click('.topbar [data-act="history"]'); await page.waitForSelector('#histlist');
-  await page.click('#histlist [data-act="open"][data-id="b"]'); assert.match(await page.textContent('.topbar'), /‹ Rounds/);
-  await page.click('.topbar [data-act="history"]'); await page.waitForSelector('#histlist');
+  await (async (P) => { if (!(await P.$('.topbar [data-act="history"]')) && await P.$('#rsmenubtn')) await P.click('#rsmenubtn'); return P.click('.topbar [data-act="history"], #rsmenu [data-act="history"]'); })(page) /* v191: in ☰ on Round stats */; await page.waitForSelector('#histlist');
+  await page.click('#histlist [data-act="open"][data-id="b"]'); assert.match(await page.textContent('.topbar'), /Edit round/);
+  await (async (P) => { if (!(await P.$('.topbar [data-act="history"]')) && await P.$('#rsmenubtn')) await P.click('#rsmenubtn'); return P.click('.topbar [data-act="history"], #rsmenu [data-act="history"]'); })(page) /* v191: in ☰ on Round stats */; await page.waitForSelector('#histlist');
   ans = false; await page.click('.hdel[data-id="a"]'); assert.strictEqual(await page.locator('#histlist .hrow').count(), 4);
   ans = true; await page.click('.hdel[data-id="a"]'); assert.strictEqual(await page.locator('#histlist .hrow').count(), 3);
-  await page.click('.topbar [data-act="home"]'); await page.waitForSelector('#home');
+  await (async (P) => { if (!(await P.$('.topbar [data-act="home"]')) && await P.$('#rsmenubtn')) await P.click('#rsmenubtn'); return P.click('.topbar [data-act="home"], #rsmenu [data-act="home"]'); })(page) /* v191: in ☰ on Round stats */; await page.waitForSelector('#home');
   // Archive in the same sky look; home keeps its photo
   assert.ok(/home-bg\.webp/.test(await page.evaluate(() => getComputedStyle(document.querySelector('.home-bg')).backgroundImage)), 'home keeps the photo');
-  await page.click('#plusbtn'); await page.click('#plusmenu [data-act="archive"]'); await page.waitForSelector('#playerbox');
+  await page.click('#navbtn'); await page.click('#navmenu [data-act="archive"]'); await page.waitForSelector('#playerbox');
   const A = await page.evaluate(() => { const q = s => document.querySelector(s);
     return { sky: !!q('.frostpage.theme-sky.archivepage'), bg: getComputedStyle(q('.frostpage'), '::before').backgroundImage, top: q('.topbar').classList.contains('frost'),
       hist: getComputedStyle(q('.histbtn')).backgroundImage, btns: [...document.querySelectorAll('.archivepage [data-act="backup"], .archivepage [data-act="about"], .archivepage label.filebtn')].every(x => x.classList.contains('frostbtn')),
@@ -59,6 +59,6 @@ const BASE = 'http://127.0.0.1:8796/', OUT = '/workspace/golf-app/screenshots/',
   for (const k of ['gdinfo', 'bktip', 'bkinfo']) { await page.click('button.tiplbl[data-v="' + k + '"]'); assert.ok(await page.isVisible('#tip-' + k), k + ' label opens');
     assert.strictEqual(await page.getAttribute('.tipbtn[data-v="' + k + '"]', 'aria-expanded'), 'true', k + ' icon state follows'); await page.click('button.tiplbl[data-v="' + k + '"]'); assert.ok(await page.isHidden('#tip-' + k), k + ' label closes'); }
   await page.click('[data-v="bktip"]'); assert.match(await page.textContent('#tip-bktip'), /backed up/); await page.click('[data-v="bkinfo"]'); assert.match(await page.textContent('#tip-bkinfo'), /golf-rounds-backup/);
-  await page.click('.topbar [data-act="home"]'); await page.waitForSelector('#home');
+  await (async (P) => { if (!(await P.$('.topbar [data-act="home"]')) && await P.$('#rsmenubtn')) await P.click('#rsmenubtn'); return P.click('.topbar [data-act="home"], #rsmenu [data-act="home"]'); })(page) /* v191: in ☰ on Round stats */; await page.waitForSelector('#home');
   assert.deepStrictEqual(errors, []); console.log('HISTORY FROSTED OK'); await b.close(); srv.kill();
 })().catch(e => { console.error(e); process.exit(1); });

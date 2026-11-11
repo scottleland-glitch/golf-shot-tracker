@@ -29,7 +29,7 @@ const DIR8 = ['longleft', 'long', 'longright', 'left', 'right', 'shortleft', 'sh
   const sec = (band, ids) => page.evaluate(([band, ids]) => { const R = window.__golf.rounds().filter(r => ids.includes(r.id)); const B = window.SG.FP_BANDS.find(b => b.id === band);
     const L = [].concat(...R.map(r => window.SG.summarize(r).puttList)).filter(p => p.n === 1 && !p.made && p.endLie === 'green' && p.endFt > 0 && (!B || B.test(p.ft)));
     return L.length ? (Math.round(L.reduce((t, p) => t + p.endFt, 0) / L.length * 10) / 10).toFixed(1) + ' ft' : '–'; }, [band, ids]);
-  await page.click('#plusbtn'); await page.click('#plusmenu [data-act="stats"]'); await page.waitForSelector('#statspage');
+  await page.click('#navbtn'); await page.click('#navmenu [data-act="stats"]'); await page.waitForSelector('#statspage');
 
   // 1. Putting: SG graphs on top, the Putt misses sub-menu last; closed at first, same chevron
   await page.click('#stcat-putting .stcath');
@@ -131,7 +131,7 @@ const DIR8 = ['longleft', 'long', 'longright', 'left', 'right', 'shortleft', 'sh
   for (const w of [390, 375]) { await page.setViewportSize({ width: w, height: 844 }); await page.waitForTimeout(100);
     assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth), 'no sideways scroll at ' + w); }
   await page.setViewportSize({ width: 390, height: 844 });
-  await page.click('.topbar [data-act="home"], .topbar .back'); await page.click('#plusbtn'); await page.click('#plusmenu [data-act="stats"]');
+  await page.click('.topbar [data-act="home"], .topbar .back'); await page.click('#navbtn'); await page.click('#navmenu [data-act="stats"]');
   await page.click('#stcat-putting .stcath'); assert.strictEqual(await page.getAttribute('#stpm .stsubh', 'aria-expanded'), 'false');
 
   assert.deepStrictEqual(errors, []); assert.deepStrictEqual(outside, [], 'no outside network calls');

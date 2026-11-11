@@ -24,7 +24,7 @@ const REPO = path.join(__dirname, '..'), PORT = 8964, ARC = require('./fixtures/
   await page.click('.hmback', { position: { x: 20, y: 600 } }); assert.strictEqual(await page.$('#holemenu'), null); ok('hole page: bar, ⋯ menu, previous + next hole, replay under Next shot');
   // Scorecard on its own; Stats on their own
   await page.click('#rbcard'); await page.waitForSelector('#sumcardonly #scorecard'); assert.deepStrictEqual(await on(), ['rbcard']); assert.strictEqual(await page.$('#rsactions'), null, 'scorecard only');
-  await page.click('#rbstats'); await page.waitForSelector('#rsactions'); assert.deepStrictEqual(await on(), ['rbstats']); assert.strictEqual(await page.$('#scorecard'), null, 'stats only');
+  await page.click('#rbstats'); await page.waitForSelector('#rs-top'); assert.deepStrictEqual(await on(), ['rbstats']); assert.strictEqual(await page.$('#scorecard'), null, 'stats only');
   assert.strictEqual(await page.$('[data-act="backHole"]'), null, 'no "Back to the round" – Holes does it');
   assert.strictEqual(await page.$('#rplay'), null, 'v190: no round-type picker during the round');
   assert.ok(await page.evaluate(() => { const k = document.getElementById('tkknowsec'), q = document.querySelector('#takeaway'); return !!k && !!q && (q.compareDocumentPosition(k) & Node.DOCUMENT_POSITION_FOLLOWING); }), 'v190: knowledge strip below the takeaway'); ok('Scorecard and Stats are separate screens');
@@ -34,7 +34,7 @@ const REPO = path.join(__dirname, '..'), PORT = 8964, ARC = require('./fixtures/
   await page.locator('[data-act="replay"]').first().click(); await page.waitForSelector('[data-act="rpclose"]'); await page.waitForTimeout(150);
   await back(); assert.strictEqual(await page.$('[data-act="rpclose"]'), null); assert.strictEqual(await hole(), 'Hole 5');
   await page.click('#rbback'); await page.waitForSelector('#sumcardonly'); await page.waitForTimeout(200);
-  await page.click('#rbback'); await page.waitForSelector('#rsactions'); await page.waitForTimeout(200);
+  await page.click('#rbback'); await page.waitForSelector('#rs-top'); await page.waitForTimeout(200);
   await page.click('#rbback'); await page.waitForSelector('#sumcardonly'); await page.waitForTimeout(200); // (the way here was hole → scorecard → stats → scorecard → hole 5)
   await page.click('#rbback'); await page.waitForTimeout(250); assert.strictEqual(await hole(), 'Hole 10'); assert.deepStrictEqual(await on(), ['rbholes']); ok('Back retraces every step: replay, hole 5, scorecard, stats, scorecard, the hole');
   // the phone Back stops at the hole being entered
@@ -42,7 +42,7 @@ const REPO = path.join(__dirname, '..'), PORT = 8964, ARC = require('./fixtures/
   assert.match(await page.textContent('#exitask'), /Exit round\?.*saved/); await page.click('#exitno'); assert.strictEqual(await page.$('#exitask'), null, 'Stay');
   await back(); assert.ok(await page.$('#exitask'), 'asks again'); await page.click('#exitno'); assert.strictEqual(await hole(), 'Hole 10'); ok('phone Back stops at the hole and asks "Exit round?"');
   // Holes from anywhere: straight back to the hole being entered, and Back still stops there
-  await page.click('#rbstats'); await page.waitForSelector('#rsactions'); await page.click('#rbcard'); await page.waitForSelector('#sumcardonly');
+  await page.click('#rbstats'); await page.waitForSelector('#rs-top'); await page.click('#rbcard'); await page.waitForSelector('#sumcardonly');
   await page.click('#scorecard [data-act="goHole"][data-i="2"]'); await page.waitForTimeout(200); await page.click('#rbholes'); await page.waitForTimeout(300);
   assert.strictEqual(await hole(), 'Hole 10'); await back(); assert.strictEqual(await hole(), 'Hole 10'); assert.ok(await page.$('#exitask'), 'Back from the hole asks'); await page.click('#exitno'); ok('Holes jumps back to the hole being entered');
   // ‹ › still move through holes; the bar follows the hole you're on
@@ -55,8 +55,8 @@ const REPO = path.join(__dirname, '..'), PORT = 8964, ARC = require('./fixtures/
   assert.strictEqual(await page.$('#replayview'), null, 'Back closes the replay'); assert.ok(await page.$eval('#rbback', e => e.disabled), 'and stops at the hole');
   await page.locator('[data-act="replay"]').first().click(); await page.waitForSelector('#replayview');
   await page.click('#rbcard'); await page.waitForSelector('#sumcardonly'); assert.strictEqual(await page.$('#replayview'), null, 'Scorecard closes the replay'); await page.click('#rbholes'); await page.waitForTimeout(200);
-  await page.click('#rbstats'); await page.waitForSelector('#rsactions'); await page.click('[data-act="about"]'); await page.waitForTimeout(250);
-  assert.ok(await page.$('#roundbar'), 'bar on About too'); await page.click('#rbback'); await page.waitForSelector('#rsactions'); await page.click('#rbholes'); await page.waitForTimeout(200);
+  await page.click('#rbstats'); await page.waitForSelector('#rs-top'); await page.click('[data-act="about"]'); await page.waitForTimeout(250);
+  assert.ok(await page.$('#roundbar'), 'bar on About too'); await page.click('#rbback'); await page.waitForSelector('#rs-top'); await page.click('#rbholes'); await page.waitForTimeout(200);
   ok('bar stays on the replay and About, flush with the bottom');
   // "Exit round" leaves (the round is kept)
   await back(); await page.click('#exityes'); await page.waitForSelector('#home'); assert.ok(await page.$('[data-act="resume"]'), 'round kept'); await page.click('[data-act="resume"]'); await page.waitForSelector('#roundbar'); ok('Exit round → Home, round kept');

@@ -35,9 +35,9 @@ R2.holes = [{ par: 4, finished: true, rows: [R(400, 'tee'), R(150, 'fairway'), R
       localStorage.setItem('golfsg.player.v1', 'Scott'); localStorage.setItem('golfsg.nameasked.v1', '1'); } }, [R1, R2]);
     const P = await ctx.newPage(); P.setDefaultTimeout(30000); P.on('pageerror', e => errors.push(String(e))); P.on('console', m => m.type() === 'error' && errors.push('console: ' + m.text()));
     const shot = async name => { await P.waitForFunction(() => !document.querySelector('#toast.show')); await P.waitForTimeout(400); await P.screenshot({ path: OUT + name }); };
-    const open = async id => { if (!(await P.$(`[data-stx="${id}"].open`))) await P.click(`[data-act="stx"][data-v="${id}"]`); };
+    const open = async id => { if (!(await P.$(`[data-stx="${id}"].open`))) ((await P.$(`[data-act="stx"][data-v="${id}"]`)) && await P.click(`[data-act="stx"][data-v="${id}"]`)); };
     await P.goto(BASE + 'index.html'); await P.waitForSelector('#plusbtn');
-    await P.click('#plusbtn'); await P.click('#plusmenu [data-act="history"]'); await P.click('#histlist [data-act="open"][data-id="lag1"]'); await P.waitForSelector('#stattiles');
+    await P.click('#navbtn'); await P.click('#navmenu [data-act="history"]'); await P.click('#histlist [data-act="open"][data-id="lag1"]'); await P.waitForSelector('#stattiles');
 
     // ---------- 1. the engine ----------
     const E = await P.evaluate(() => { const S = SG.summarize(window.__golf.rounds().find(r => r.id === 'lag1'), 'pga');
@@ -55,10 +55,10 @@ R2.holes = [{ par: 4, finished: true, rows: [R(400, 'tee'), R(150, 'fairway'), R
     // ---------- 2. tiles ----------
     await open('pmiss'); await open('lag');
     const T = await P.evaluate(() => { const h = id => document.querySelector(`[data-stx="${id}"] .stxh`); return {
-      pmH: h('pmiss').textContent, pmTile: document.querySelector('[data-stx="pmiss"] .stat.tile').textContent, lagH: h('lag').textContent, lagTile: document.querySelector('[data-stx="lag"] .stat.tile').textContent,
-      order: [...document.querySelectorAll('#stattiles [data-act="stx"]')].map(x => x.getAttribute('data-v')) }; });
-    assert.strictEqual(T.pmH, '1st putts made inside 10 ft1/3 (33%)'); assert.match(T.pmTile, /^1\/3 made\s*1st putts made inside 10 ft – tap for map\s*33% made · 1st putts from 10 ft and in$/); // v112: made, not missed assert.ok(!/50 ft/.test(T.pmTile));
-    assert.strictEqual(T.lagH, 'Lag putts (>10 ft)3/5 (60%)'); assert.match(T.lagTile, /^3\/5 inside 3 ft\s*Lag putts \(>10 ft\) – tap for map\s*60% inside 3 ft · avg leave 3\.9 ft$/);
+      pmH: h('pmiss').textContent.replace('›', ''), lagH: h('lag').textContent.replace('›', ''),
+      order: [...document.querySelectorAll('#stattiles [data-stx]')].map(x => x.getAttribute('data-stx')) }; }); // v191: these rows open their map in one tap – no tiles
+    assert.strictEqual(T.pmH, '1st putts made inside 10 ft1/3 (33%)');  // v112: made, not missed assert.ok(!/50 ft/.test(T.pmTile));
+    assert.strictEqual(T.lagH, 'Lag putts (>10 ft)3/5 (60%)'); 
     assert.strictEqual(T.order.indexOf('lag'), T.order.indexOf('pmiss') + 1);
     ok('rows: "1st putts made inside 10 ft – 1/3 (33%)", "Lag putts (>10 ft) – 3/5 (60%)" (v112); tiles: 1/3 made · "33% made · 1st putts from 10 ft and in", 3/5 inside 3 ft · "60% inside 3 ft · avg leave 3.9 ft"');
     await P.evaluate(() => window.scrollTo(0, document.querySelector('[data-stx="pmiss"]').getBoundingClientRect().top + window.scrollY - 140));

@@ -15,15 +15,15 @@ const SEED = fs.readFileSync(__dirname + '/fixtures/stats-rounds.js', 'utf8');
   const shot = async (n, el) => { if (el) await page.$eval(el, e => { e.scrollIntoView({ block: 'start' }); window.scrollBy(0, -96); }); await page.waitForTimeout(150); await page.screenshot({ path: OUT + '/' + n }); };
 
   // 1. + menu: New round · Rounds · Stats · My Bag · Settings
-  await page.click('#plusbtn'); await page.waitForSelector('#plusmenu');
-  assert.deepStrictEqual(await page.$$eval('#plusmenu button', e => e.map(x => [x.textContent, x.dataset.act])), [['New round', 'newform'], ['Rounds', 'history'], ['Stats', 'stats'], ['My Game', 'mygame'], ['Log practice', 'prlog'], ['Short game test', 'sgtopen'], ['My Bag', 'bag'], ['Settings', 'archive'], ['Help', 'help']] /* v140+: My Game and Log practice added */);
+  await page.click('#navbtn'); await page.waitForSelector('#navmenu');
+  assert.deepStrictEqual(await page.$$eval('#navmenu button', e => e.map(x => [x.textContent, x.dataset.act])), [['Rounds', 'history'], ['Stats', 'stats'], ['My Game', 'mygame'], ['My Bag', 'bag'], ['Settings', 'archive'], ['Help', 'help']] /* v140+: My Game and Log practice added */);
   await shot('menu-stats.png');
 
   // 2. per-round numbers read off each round's own Round stats page (finished rounds of Scott, oldest first)
   const ids = ['s1', 's2', 's3', 's4', 's5', 's6', 's7'], screen = {};
   for (const id of ids) {
     await page.evaluate(() => { document.querySelector('[data-act="menuclose"]') && document.querySelector('[data-act="menuclose"]').click(); });
-    await page.evaluate(() => window.scrollTo(0, 0)); if (!(await page.$('#histlist'))) { if (!(await page.$('#plusmenu'))) await page.click('#plusbtn'); await page.click('#plusmenu [data-act="history"]'); }
+    await page.evaluate(() => window.scrollTo(0, 0)); if (!(await page.$('#histlist'))) { if (!(await page.$('#plusmenu'))) await page.click('#navbtn'); await page.click('#navmenu [data-act="history"]'); }
     await page.click('#histlist [data-act="open"][data-id="' + id + '"]'); await page.waitForSelector('#scorecard');
     screen[id] = await page.evaluate(() => {
       const t = s => document.querySelector(s).textContent.trim(), tot = c => t('#scorecard tr.' + c + ' td.sum.tot');
@@ -32,12 +32,12 @@ const SEED = fs.readFileSync(__dirname + '/fixtures/stats-rounds.js', 'utf8');
       return { score: +t('#rs-score'), toPar: t('#rs-topar'), putts: +t('#rs-putts'), sg: { tot: tot('sgtot'), ott: tot('sgott'), app: tot('sgapp'), arg: tot('sgarg'), bnk: tot('sgbnk'), putt: tot('sgputt') },
         fw: qv('fw'), gir: qv('gir'), two: putts.filter(p => p === 2).length, three: putts.filter(p => p >= 3).length };
     });
-    await page.click('.topbar [data-act="history"]');
+    await (async (P) => { if (!(await P.$('.topbar [data-act="history"]')) && await P.$('#rsmenubtn')) await P.click('#rsmenubtn'); return P.click('.topbar [data-act="history"], #rsmenu [data-act="history"]'); })(page) /* v191: in ☰ on Round stats */;
   }
   console.log('  read', ids.length, 'Round stats pages');
 
   // 3. open Stats from the + menu
-  await page.click('.topbar [data-act="home"]'); await page.click('#plusbtn'); await page.click('#plusmenu [data-act="stats"]'); await page.waitForSelector('#statspage');
+  await (async (P) => { if (!(await P.$('.topbar [data-act="home"]')) && await P.$('#rsmenubtn')) await P.click('#rsmenubtn'); return P.click('.topbar [data-act="home"], #rsmenu [data-act="home"]'); })(page) /* v191: in ☰ on Round stats */; await page.click('#navbtn'); await page.click('#navmenu [data-act="stats"]'); await page.waitForSelector('#statspage');
   // v176: Stats starts on the player's benchmark (the one most of Scott's rounds use, PGA Tour); these checks compare each round with its own scorecard, so pick that
   assert.strictEqual(await page.$eval('#stbl', e => e.value), 'pga'); await page.selectOption('#stbl', ''); await page.waitForFunction(() => document.querySelector('#stbl').value === '');
   for (const c of ['driver', 'approach', 'putting', 'chipping', 'scoring']) await page.click('#stcat-' + c + ' .stcath'); // v125: open the categories
@@ -149,7 +149,7 @@ const SEED = fs.readFileSync(__dirname + '/fixtures/stats-rounds.js', 'utf8');
   await page.click('#statspage .topbar [data-act="home"]'); await page.waitForSelector('#home');
 
   // 10. no rounds at all
-  await page.evaluate(() => localStorage.setItem('golfsg.rounds.v1', '[]')); await page.reload(); await page.click('#plusbtn'); await page.click('#plusmenu [data-act="stats"]');
+  await page.waitForTimeout(300); /* v187+: let the app drop its spare Back step first */ await page.evaluate(() => localStorage.setItem('golfsg.rounds.v1', '[]')); await page.reload(); await page.click('#navbtn'); await page.click('#navmenu [data-act="stats"]');
   assert.match(await page.textContent('#stnone'), /No finished rounds yet/); assert.strictEqual(await page.$('#totchart'), null);
 
   // light type: no bold text on the page

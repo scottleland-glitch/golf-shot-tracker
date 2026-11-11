@@ -60,7 +60,7 @@ const ids = b => b.rounds.map(r => r.id).sort();
   const shot = async name => { await P.waitForFunction(() => !document.querySelector('#toast.show')); await P.waitForTimeout(400); await P.screenshot({ path: OUT + name }); };
   await P.reload(); await P.waitForSelector('#app > *'); await waitOk();
   assert.deepStrictEqual(ids(G.json('golf-rounds-scott-leland.json', 'Scott Leland')), ['r1', 'r2', 'r3', 'r4']);
-  const hist = async () => { if (await P.$('#plusbtn')) await P.click('#plusbtn'); await P.click('[data-act="history"]'); await P.waitForSelector('#histlist'); };
+  const hist = async () => { if (await P.$('#plusbtn')) await P.click('#navbtn'); await P.click('[data-act="history"]'); await P.waitForSelector('#histlist'); };
   await hist();
   assert.ok(await P.isVisible('#chgplayer') && await P.isVisible('#addround'));
 

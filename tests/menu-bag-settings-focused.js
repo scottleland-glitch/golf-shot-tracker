@@ -26,15 +26,15 @@ const OUT = '/workspace/golf-app/screenshots/', PORT = 8840, BASE = 'http://127.
   await P.goto(BASE + 'index.html'); await P.waitForSelector('#plusbtn');
 
   // ---------- 1. Home + menu ----------
-  assert.deepStrictEqual(await P.$$eval('#home button', e => e.map(x => x.id)), ['plusbtn', 'mgcard'], 'Home: the + button and the My Game card (v140+)');
+  assert.deepStrictEqual(await P.$$eval('#home button', e => e.map(x => x.id)), ['navbtn', 'plusbtn', 'mgcard'], 'Home: ☰, + and the My Game card (v191)');
   assert.strictEqual(await P.$('#archivepill'), null); assert(!/Archive/.test(await vis()));
-  await P.click('#plusbtn'); await P.waitForSelector('#plusmenu');
-  assert.deepStrictEqual(await P.$$eval('#plusmenu button', e => e.map(x => [x.textContent, x.dataset.act])), [['New round', 'newform'], ['Rounds', 'history'], ['Stats', 'stats'], ['My Game', 'mygame'], ['Log practice', 'prlog'], ['Short game test', 'sgtopen'], ['My Bag', 'bag'], ['Settings', 'archive'], ['Help', 'help']]);
+  await P.click('#navbtn'); await P.waitForSelector('#navmenu');
+  assert.deepStrictEqual(await P.$$eval('#navmenu button', e => e.map(x => [x.textContent, x.dataset.act])), [['Rounds', 'history'], ['Stats', 'stats'], ['My Game', 'mygame'], ['My Bag', 'bag'], ['Settings', 'archive'], ['Help', 'help']]);
   await shot('menu-new.png');
   console.log('  home: only +; menu New round · Rounds · Stats · My Bag · Settings');
 
   // ---------- 2. My Bag: Bag tab ----------
-  await P.click('#plusmenu [data-act="bag"]'); await P.waitForSelector('#baglist');
+  await P.click('#navmenu [data-act="bag"]'); await P.waitForSelector('#baglist');
   const seg = () => P.$$eval('#bagseg button', e => e.map(x => x.textContent + (x.getAttribute('aria-selected') === 'true' ? '*' : '')));
   assert.deepStrictEqual(await seg(), ['Bag*', 'Wedge ladder']);
   assert.match(await P.textContent('.topbar'), /‹ Home\s*My Bag\s*9 clubs/);
@@ -62,7 +62,7 @@ const OUT = '/workspace/golf-app/screenshots/', PORT = 8840, BASE = 'http://127.
   console.log('  Wedge ladder tab: 40–110, High/Low flight, simple view, Edit; toggles back to Bag');
 
   // ---------- 4. Settings ----------
-  await P.click('.topbar [data-act="home"]'); await P.click('#plusbtn'); await P.click('#plusmenu [data-act="archive"]'); await P.waitForSelector('.archivepage #playerbox');
+  await (async (P) => { if (!(await P.$('.topbar [data-act="home"]')) && await P.$('#rsmenubtn')) await P.click('#rsmenubtn'); return P.click('.topbar [data-act="home"], #rsmenu [data-act="home"]'); })(P) /* v191: in ☰ on Round stats */; await P.click('#navbtn'); await P.click('#navmenu [data-act="archive"]'); await P.waitForSelector('.archivepage #playerbox');
   assert.match(await P.textContent('.topbar'), /‹ Home\s*Settings\s*1 saved round/);
   assert.match(await P.textContent('#pnameshow'), /Scott/);
   for (const s of ['[data-act="history"]', '[data-act="courses"]', '[data-act="backup"]', '#restorefile', '#gdcard']) assert(await P.$(s), 'Settings has ' + s);

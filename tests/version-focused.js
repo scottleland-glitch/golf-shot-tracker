@@ -12,7 +12,7 @@ assert.ok(swVer, 'sw.js has a golf-sg-vN cache name'); assert.strictEqual(cfgVer
 assert.ok(!/appVersion/.test(cfg), 'no version in config.js (it is network-first, so it would show a version the phone is not running yet)');
 const cfgVer = cfgVers[0].match(/'(v\d+)'/)[1];
 assert.strictEqual(cfgVer, swVer, 'sg.js VERSION (' + cfgVer + ') must equal the sw.js cache version (' + swVer + ')');
-assert.strictEqual(swVer, 'v190');
+assert.strictEqual(swVer, 'v191');
 assert.ok(!/(Pin High|Strokewise) v\d+/.test(app), 'no version typed into app.js – it reads SG.VERSION');
 ok('sg.js VERSION ' + cfgVer + ' = sw.js cache golf-sg-' + swVer);
 (async () => {
@@ -40,7 +40,7 @@ ok('sg.js VERSION ' + cfgVer + ' = sw.js cache golf-sg-' + swVer);
     if (await page.$('#resumepill')) { const P = await look('#resumepill'), H2 = await look('#homever'); assert.ok(P.r.bottom <= H2.r.top, 'Resume pill above the version line ' + JSON.stringify([P.r, H2.r])); ok('Resume round pill sits above it (no overlap)'); }
     await page.evaluate(() => { localStorage.removeItem('golfsg.rounds.v1'); localStorage.removeItem('golfsg.current.v1'); }); await page.reload(); await page.waitForSelector('#home');
     // ---- 3. Settings: last thing on the page, quiet
-    await page.click('#plusbtn'); await page.click('#plusmenu [data-act="archive"]'); await page.waitForSelector('#setver');
+    await page.click('#navbtn'); await page.click('#navmenu [data-act="archive"]'); await page.waitForSelector('#setver');
     const S = await look('#setver'); light(S, 'Settings version');
     const last = await page.evaluate(() => { const p = document.querySelector('.archivepage'), kids = [...p.children].filter(e => getComputedStyle(e).display !== 'none' && e.type !== 'file'); return kids[kids.length - 1].id; });
     assert.strictEqual(last, 'setver', 'version is the last line of Settings');

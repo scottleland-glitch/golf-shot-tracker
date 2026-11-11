@@ -18,7 +18,7 @@ const ok = m => console.log('  ✓ ' + m);
     await page.evaluate(() => { const rs = JSON.parse(localStorage.getItem('golfsg.rounds.v1')), by = id => JSON.parse(JSON.stringify(rs.find(r => r.id === id)));
       [['t1', 's5', '2026-11-06T17:00:00.000Z'], ['t2', 's6', '2026-11-07T17:00:00.000Z'], ['t3', 's7', '2026-11-08T17:00:00.000Z'], ['t9', 's4', '2026-11-15T17:00:00.000Z']].forEach(([id, from, date]) => rs.push(Object.assign(by(from), { id, date, course: 'Paradise Valley', play: 'tournament' })));
       localStorage.setItem('golfsg.rounds.v1', JSON.stringify(rs)); });
-    await page.reload(); await page.waitForSelector('#plusbtn'); await page.click('#plusbtn'); await page.click('#plusmenu [data-act="stats"]'); await page.waitForSelector('#statspage');
+    await page.reload(); await page.waitForSelector('#plusbtn'); await page.click('#navbtn'); await page.click('#navmenu [data-act="stats"]'); await page.waitForSelector('#statspage');
     assert.deepStrictEqual(await page.$$eval('#strange button', e => e.map(x => x.textContent)), ['All rounds', 'Last 5', 'One round', 'Choose rounds']);
     await page.click('#strange [data-v="pick"]'); await page.waitForSelector('#stpicknone'); assert.strictEqual(await page.$('.stcat'), null, 'nothing chosen yet: no graphs');
     // the event shortcut

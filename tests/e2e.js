@@ -21,8 +21,8 @@ let passed = 0; const ok = (m) => { passed++; console.log('  ✓', m); };
   const page = await ctx.newPage();
   const errors = []; page.on('pageerror', e => errors.push(e.message)); page.on('console', m => { if (m.type() === 'error') errors.push(m.text()); });
   page.on('dialog', d => d.accept());
-  const act = async (a, v) => { if ((a === 'history' || a === 'archive') && await page.$('#plusbtn') && !await page.$('#plusmenu')) await page.click('#plusbtn'); // Rounds + Settings live in the + menu on Home
-    else if (['backup', 'csvall', 'about', 'discard', 'editname'].includes(a) && await page.$('#plusbtn')) { await page.click('#plusbtn'); await page.click('#plusmenu [data-act="archive"]'); } // data tools live on Settings (v102)
+  const act = async (a, v) => { if ((a === 'history' || a === 'archive') && await page.$('#navbtn') && !await page.$('#navmenu')) await page.click('#navbtn'); // Rounds + Settings live in the + menu on Home
+    else if (['backup', 'csvall', 'about', 'discard', 'editname'].includes(a) && await page.$('#plusbtn')) { await page.click('#navbtn'); await page.click('#navmenu [data-act="archive"]'); } // data tools live on Settings (v102)
     if (a === 'addShot') { const ks = await page.$$eval('.tline[data-k], .shotcard[data-k]', e => e.map(x => +x.getAttribute('data-k'))); const last = Math.max(...ks, 0); // v180: add from the LAST shot's card (an earlier card's button just steps on)
       if (ks.length && await page.$(`button.tline[data-k="${last}"]`)) { await page.click(`button.tline[data-k="${last}"]`); await page.waitForSelector(`.shotcard[data-k="${last}"]`); } }
     if (a === 'addShot' && !(await page.$('[data-act="addShot"]')) && await page.$('[data-act="nextshot"]')) a = 'nextshot';

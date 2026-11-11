@@ -46,13 +46,12 @@ const rounds = [at('p1', 2, 'practice'), nine(at('p2', 6, 'practice')), extraPut
     assert.match(await page.textContent('#plcmpt thead'), /Practice\s*3 rounds.*Tournament\s*2 rounds/); ok('tournament vs practice: score, SG by area, worst area named');
     const box = await page.locator('#plcmp').boundingBox(); assert.ok(box.x >= 0 && box.x + box.width <= 390, 'comparison fits the phone');
     // Round list tag + Round type on Round stats
-    await (async () => { if (await page.$('#holemore') && !(await page.$('#holemenu'))) await page.click('#holemore'); return page.click('[data-act="home"]'); })() /* v188: Home + Discard are in ⋯ during a round */; if (await page.$('#plusbtn')) await page.click('#plusbtn'); await page.click('[data-act="history"]');
+    await (async () => { if (await page.$('#holemore') && !(await page.$('#holemenu'))) await page.click('#holemore'); return page.click('[data-act="home"]'); })() /* v188: Home + Discard are in ⋯ during a round */; if (await page.$('#plusbtn')) await page.click('#navbtn'); await page.click('[data-act="history"]');
     assert.strictEqual(await page.$$eval('#histlist .htour', e => e.length), 2, 'trophy on the two tournament rounds');
-    await page.click('#histlist [data-act="open"][data-id="u1"]'); await page.waitForSelector('#rplay');
+    await page.click('#histlist [data-act="open"][data-id="u1"]'); await page.waitForSelector('#rsmenubtn'); await page.click('#rsmenubtn'); await page.waitForSelector('#rplay'); // v191: round type is in ☰
     assert.strictEqual(await page.$('#rplay button.sel'), null, 'untagged round: nothing picked');
-    // v165: Create PDF report sits at the top of Round stats, above the score
-    const yy = await page.evaluate(() => [document.querySelector('#rspdftop').getBoundingClientRect().top, document.querySelector('#rs-top').getBoundingClientRect().top]);
-    assert.ok(yy[0] < yy[1] && yy[0] < 300, 'PDF button at the top ' + yy); ok('Create PDF report at the top of Round stats');
+    // v191: PDF report is the first item in ☰
+    assert.strictEqual(await page.$eval('#rsmenu .rsmi', e => e.id), 'rspdftop'); ok('PDF report first in the ☰ menu');
     await page.click('#rplay [data-v="tournament"]'); await page.waitForSelector('#rplay [data-v="tournament"].sel');
     assert.strictEqual(await page.evaluate(() => window.__golf.rounds().find(r => r.id === 'u1').play), 'tournament'); ok('Round stats: Round type tags an older round');
     // New round sheet: remembers the last pick, keeps a typed course name

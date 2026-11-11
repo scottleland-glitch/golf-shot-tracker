@@ -16,8 +16,8 @@ const PORT = 8875, BASE = 'http://127.0.0.1:' + PORT + '/', OUT = '/workspace/go
     await P.evaluate(src => { const m = { exports: {} }; new Function('module', src)(m); const R = m.exports.all(); R.forEach(r => { r.baseline = r.id === 'p1' ? 'd1w' : 'pga'; });
       localStorage.clear(); localStorage.setItem('golfsg.player.v1', 'Scott'); localStorage.setItem('golfsg.rounds.v1', JSON.stringify(R)); }, fix);
     await P.reload();
-    const open = async id => { if (await P.$('#mapview')) await P.click('[data-act="mapclose"]'); if (await P.$('#plusbtn')) await P.click('#plusbtn'); await P.click('[data-act="history"]'); await P.click('#histlist [data-act="open"][data-id="' + id + '"]');
-      if (!(await P.$('[data-stx="prox"].open'))) await P.click('[data-act="stx"][data-v="prox"]'); await P.click('[data-stx="prox"] [data-act="map"][data-v="prox"]'); await P.waitForSelector('#proxrail'); await P.waitForTimeout(150); };
+    const open = async id => { if (await P.$('#mapview')) await P.click('[data-act="mapclose"]'); if (await P.$('#rsmenubtn')) await P.click('#rsmenubtn'); else if (await P.$('#navbtn')) await P.click('#navbtn'); await P.click('#rsmenu [data-act="history"], #navmenu [data-act="history"]'); await P.click('#histlist [data-act="open"][data-id="' + id + '"]');
+      if (!(await P.$('[data-stx="prox"].open'))) ((await P.$('[data-act="stx"][data-v="prox"]')) && await P.click('[data-act="stx"][data-v="prox"]')); await P.click('[data-stx="prox"] [data-act="map"][data-v="prox"]'); await P.waitForSelector('#proxrail'); await P.waitForTimeout(150); };
     const st = () => P.evaluate(() => { const g = document.getElementById('d1ring'), q = s => document.querySelector(s), r = e => e && e.getBoundingClientRect();
       const svg = q('#proxmap'), gr = r(q('#proxmap .pgreen')), sel = q('#proxbench');
       return { ring: g ? g.querySelector('text').textContent : null, bench: g ? g.dataset.bench : null, rft: +q('#proxrings').dataset.rft, sel: sel.value, opts: [...sel.options].map(o => [o.value, o.textContent]),

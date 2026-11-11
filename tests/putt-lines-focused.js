@@ -22,10 +22,10 @@ const ok = m => console.log('OK  ' + m);
       localStorage.setItem('golfsg.rounds.v1', JSON.stringify([{ v: 3, dv: 2, id: 'pl117', date: '2026-10-30T17:00:00.000Z', course: 'Arcade Creek', baseline: 'pga', player: 'Scott', holes }]));
     });
     await P.reload();
-    if (await P.$('#plusbtn')) await P.click('#plusbtn'); await P.click('[data-act="history"]'); await P.click('#histlist [data-act="open"][data-id="pl117"]');
-    const xt = async id => { if (!(await P.$('[data-stx="' + id + '"].open'))) await P.click('[data-act="stx"][data-v="' + id + '"]'); };
+    if (await P.$('#plusbtn')) await P.click('#navbtn'); await P.click('[data-act="history"]'); await P.click('#histlist [data-act="open"][data-id="pl117"]');
+    const xt = async id => { if (!(await P.$('[data-stx="' + id + '"].open'))) ((await P.$('[data-act="stx"][data-v="' + id + '"]')) && await P.click('[data-act="stx"][data-v="' + id + '"]')); };
     // Round stats row
-    const row = await P.textContent('[data-act="stx"][data-v="pmiss"]'); assert.match(row.replace(/\s+/g, ' '), /1st putts made inside 10 ft\s*5\/7 \(71%\)/); ok('Round stats row: 1st putts made inside 10 ft 5/7 (71%)');
+    const row = await P.textContent('[data-stx="pmiss"] .stxh'); assert.match(row.replace(/\s+/g, ' '), /1st putts made inside 10 ft\s*5\/7 \(71%\)/); ok('Round stats row: 1st putts made inside 10 ft 5/7 (71%)');
     await xt('pmiss'); await P.click('[data-stx="pmiss"] [data-act="map"][data-v="pmiss"]'); await P.waitForSelector('#pmissmap');
     const btns = await P.$$eval('#pmgroups button', bs => bs.map(x => [x.getAttribute('data-v'), +x.getAttribute('data-n')]));
     assert.deepStrictEqual(btns, [['6-10', 5], ['0-6', 2], ['lag', 2]]); ok('map buttons: 6–10 ft 5 · Under 6 ft 2 · Over 10 ft 2 (v137: no All putts)');

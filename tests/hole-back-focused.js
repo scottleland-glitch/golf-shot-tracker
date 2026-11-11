@@ -12,7 +12,7 @@ const OUT = process.env.SHOTS || '/workspace/golf-app/screenshots';
     page.setDefaultTimeout(15000); page.on('pageerror', e => errors.push(String(e)));
     await page.goto(BASE + '?x=' + Date.now());
     await page.evaluate(rs => { localStorage.clear(); localStorage.setItem('golfsg.player.v1', 'Scott'); localStorage.setItem('golfsg.nameasked.v1', '1'); localStorage.setItem('golfsg.rounds.v1', JSON.stringify(rs)); }, [Object.assign(ARC.round(), { player: 'Scott' })]);
-    await page.reload(); await page.waitForSelector('#home'); if (await page.$('#plusbtn')) await page.click('#plusbtn');
+    await page.reload(); await page.waitForSelector('#home'); if (await page.$('#plusbtn')) await page.click('#navbtn');
     await page.click('[data-act="history"]'); await page.click('#histlist [data-act="open"][data-id="arc78"]'); await page.waitForSelector('#scorecard');
     await page.locator('#scorecard').scrollIntoViewIfNeeded(); const y0 = await page.evaluate(() => window.scrollY);
     await page.click('#scorecard [data-act="goHole"][data-i="5"]'); await page.waitForSelector('#holeback');

@@ -229,6 +229,7 @@
     if (view.screen !== 'about') { legendNotes(el); infoize(el); }
     // v188: the round bar
     if (view.screen !== 'hole') { view.holeMenu = false; view.exitAsk = false; }
+    if (view.screen !== 'summary') view.rsMenu = null;
     var rbOn = liveOn(); if (rbOn) { if (entryHoleOn()) view.entryHole = view.hole; el.insertAdjacentHTML('beforeend', roundBarHTML() + (view.exitAsk && view.screen === 'hole' ? exitAskHTML() : '')); }
     document.body.classList.toggle('hasrbar', rbOn);
   }
@@ -1235,6 +1236,8 @@
   function stBlNow() { return view.stBl == null ? myBench(stWho()) : view.stBl; }
   function histBlNow() { return view.histBl == null ? myBench(view.histPlayer && view.histPlayer !== '~none' ? view.histPlayer : playerName()) : view.histBl; }
   // v179: line icons for the round's two share buttons (document, and a portrait story frame)
+  // v191 (Scott): ☰ opens a menu; + only starts or adds something
+  var ICON_MENU = '<svg class="menuic" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg>';
   var ICON_DOC = '<svg class="rsic" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 3h7l5 5v12a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1z"/><path d="M14 3v5h5"/><path d="M9 13h6M9 17h6"/></svg>';
   var ICON_STORY = '<svg class="rsic" viewBox="0 0 24 24" aria-hidden="true"><rect x="6" y="2.5" width="12" height="19" rx="3"/><circle cx="12" cy="10" r="2.6"/><path d="M9 16h6"/></svg>';
   function bmRowHTML(id, cur, allLabel, note) {
@@ -2163,7 +2166,8 @@
     if (!view.nameSheet && needFirstName()) { view.nameSheet = 'first'; view.hmenu = null; }
     var h = '<div class="home" id="home"><div class="home-bg" aria-hidden="true"></div><div class="home-fade" aria-hidden="true"></div>' +
       '<h1 class="home-title">Strokewise</h1>' +
-      '<button class="glass plusbtn" id="plusbtn" data-act="plus" aria-label="Menu: new round, rounds, stats, my bag, settings or help" aria-expanded="' + !!view.hmenu + '">+</button>' +
+      '<button class="glass plusbtn navbtn' + benchBang() + '" id="navbtn" data-act="hnav" aria-label="Menu: rounds, stats, my game, my bag, settings or help" aria-expanded="' + (view.hmenu === 'nav') + '">' + ICON_MENU + '</button>' +
+      '<button class="glass plusbtn" id="plusbtn" data-act="plus" aria-label="Start: new round, log practice or short game test" aria-expanded="' + (view.hmenu === 'menu' || view.hmenu === 'new') + '">+</button>' +
 ''; // v89: no Player row on Home (kept clean) – it lives in the New round sheet
     var bot = '';
     bot += mgHomeCardHTML(); // v141 My Game card
@@ -2172,11 +2176,12 @@
     h += '<div class="home-bottom">' + bot + '</div><div class="appver homever" id="homever" aria-label="App version">' + esc(APP_VER) + '</div>';
     if (view.nameSheet) h += nameSheetHTML();
     else if (view.hmenu) {
-      h += '<div class="sheet-back" data-act="menuclose"></div><div class="hsheet glass" id="plusmenu" role="menu">';
+      h += '<div class="sheet-back" data-act="menuclose"></div><div class="hsheet glass' + (view.hmenu === 'nav' ? ' navsheet" id="navmenu"' : '" id="plusmenu"') + ' role="menu">';
       if (view.hmenu === 'new') h += '<div class="sheet-h">New round</div>' + newCourseHTML() +
         playPickHTML('newplay', view.newPlay || lastPlay(), 'This round is') + '<label class="lbl" for="newbl">Compare my shots against</label>' + blSelect('newbl', view.newBl || myBench(playerName())) + newPlayerHTML() +
         '<button class="sheet-go" data-act="new">Start round</button><button class="sheet-item muted" data-act="plus">Back</button>';
-      else h += '<button class="sheet-item" role="menuitem" data-act="newform">New round</button><button class="sheet-item" role="menuitem" data-act="history">Rounds</button><button class="sheet-item" role="menuitem" data-act="stats">Stats</button><button class="sheet-item' + benchBang() + '" role="menuitem" data-act="mygame">My Game</button><button class="sheet-item" role="menuitem" data-act="prlog">Log practice</button><button class="sheet-item" role="menuitem" data-act="sgtopen">Short game test</button><button class="sheet-item" role="menuitem" data-act="bag">My Bag</button><button class="sheet-item" role="menuitem" data-act="archive">Settings</button><button class="sheet-item" role="menuitem" data-act="help">Help</button>';
+      else if (view.hmenu === 'nav') h += '<button class="sheet-item" role="menuitem" data-act="history">Rounds</button><button class="sheet-item" role="menuitem" data-act="stats">Stats</button><button class="sheet-item' + benchBang() + '" role="menuitem" data-act="mygame">My Game</button><button class="sheet-item" role="menuitem" data-act="bag">My Bag</button><button class="sheet-item" role="menuitem" data-act="archive">Settings</button><button class="sheet-item" role="menuitem" data-act="help">Help</button>';
+      else h += '<button class="sheet-item" role="menuitem" data-act="newform">New round</button><button class="sheet-item" role="menuitem" data-act="prlog">Log practice</button><button class="sheet-item" role="menuitem" data-act="sgtopen">Short game test</button>';
       h += '</div>';
     }
     return h + '</div>';
@@ -2255,10 +2260,14 @@
   function myGameHTML() {
     var names = mgPlayers(), who = mgWho(), D = mgData(who), P = D.period;
     var h = '<div class="frostpage theme-sky mygamepage" id="mygame"><div class="topbar frost">' + (view.mgBack ? '<button class="txt frostbtn" data-act="mgback" id="mgback">‹ Round</button>' : '<button class="txt frostbtn" data-act="home">‹ Home</button>') + '<div class="title"><b>My Game</b><span>' +
-      (who ? esc(who) + ' · ' : '') + D.cur.rounds + ' round' + (D.cur.rounds === 1 ? '' : 's') + '</span></div><button class="glass plusbtn mgplus" data-act="mgplus" id="mgplus" aria-label="Menu: log practice, make a game report or take the short game test" aria-expanded="' + !!view.mgMenu + '">+</button></div>';
+      (who ? esc(who) + ' · ' : '') + D.cur.rounds + ' round' + (D.cur.rounds === 1 ? '' : 's') + '</span></div><span class="tbbtns"><button class="glass plusbtn mgplus mgnav" data-act="mgnav" id="mgnav" aria-label="Menu: make a game report or go Home" aria-expanded="' + (view.mgMenu === 'nav') + '">' + ICON_MENU + '</button>' +
+      '<button class="glass plusbtn mgplus" data-act="mgplus" id="mgplus" aria-label="Start: log practice or the short game test" aria-expanded="' + (view.mgMenu === 'plus') + '">+</button></span></div>';
     // v183 (Scott): the page's actions live in a + menu like Home's
-    if (view.mgMenu) h += '<div class="sheet-back mgback" data-act="mgplus"></div><div class="hsheet glass mgmenu" id="mgmenu" role="menu"><button class="sheet-item" role="menuitem" data-act="prlog">Log practice</button>' +
-      '<button class="sheet-item" role="menuitem" data-act="grep">Make a game report</button><button class="sheet-item" role="menuitem" data-act="sgtnew">Short game test</button></div>';
+    // v191: + starts something (practice, a test); ☰ holds the rest (game report, Home)
+    if (view.mgMenu === 'plus') h += '<div class="sheet-back mgback" data-act="mgplus"></div><div class="hsheet glass mgmenu" id="mgmenu" role="menu"><button class="sheet-item" role="menuitem" data-act="prlog">Log practice</button>' +
+      '<button class="sheet-item" role="menuitem" data-act="sgtnew">Short game test</button></div>';
+    else if (view.mgMenu === 'nav') h += '<div class="sheet-back mgback" data-act="mgnav"></div><div class="hsheet glass mgmenu" id="mgnavmenu" role="menu"><button class="sheet-item" role="menuitem" data-act="grep">Make a game report</button>' +
+      '<button class="sheet-item" role="menuitem" data-act="home">Home</button></div>';
     if (names.length > 1) h += '<div class="hchips" id="mgchips" role="group" aria-label="Player">' + names.map(function (nm) {
       var on = nm === who; return '<button class="frostchip' + (on ? ' sel' : '') + '" data-act="mgplayer" data-v="' + esc(nm) + '" aria-pressed="' + on + '">' + esc(nm) + '</button>'; }).join('') + '</div>';
     // v178 (Scott): My benchmark at the top – red until it is set, with a one-tap "use this one"
@@ -2439,7 +2448,7 @@
   // v128: Help (+ menu › Help) – a few Get started lines, the how-to video and the how-to guide PDF (help/, not in the offline cache)
   function helpHTML() {
     var steps = ['Tap <b>+</b> › <b>New round</b>, pick a course, <b>Start round</b>.', 'Log each shot: distance, lie, club.', 'Mark the shot that goes in: <b>In the hole</b> or <b>Hole out</b> (1-putts too).',
-      '<b>Scorecard &amp; stats</b> works any time mid-round.', '<b>Finish round</b> on 18, then open <b>Stats</b>.'];
+      '<b>Scorecard</b> and <b>Stats</b> in the bar at the bottom work any time mid-round.', '<b>Finish round</b> on 18, then open <b>☰</b> › <b>Stats</b>.']; // v191
     return '<div class="frostpage theme-sky helppage" id="helppage"><div class="topbar frost"><button class="txt frostbtn" data-act="home">‹ Home</button><div class="title"><b>Help</b><span>Get started with Strokewise</span></div><span></span></div>' +
       '<div class="frostcard hpcard" id="hpstart"><b class="hph">Get started</b><ol class="hpsteps">' + steps.map(function (t) { return '<li>' + t + '</li>'; }).join('') + '</ol></div>' +
       '<div class="frostcard hpcard" id="hpvideo"><b class="hph">Watch the video</b><small class="hpsub">Entering a round, finishing it, Stats · 3:41 · with voice</small>' +
@@ -2972,7 +2981,7 @@
     // v154: reviewing a hole (opened from Round stats, or a round that is not the one in progress) → an obvious way back
     var reviewing = !!view.holeFrom || (r.id !== localStorage.getItem(CUR) && !view.preview);
     var lv = liveOn();
-    if (lv) out += '<div class="holetop holetop2">' + liveBarHTML(r) + '<button class="frostbtn holemore" data-act="holemenu" id="holemore" aria-label="More: Home, discard round" aria-expanded="' + !!view.holeMenu + '">⋯</button></div>' +
+    if (lv) out += '<div class="holetop holetop2">' + liveBarHTML(r) + '<button class="frostbtn holemore" data-act="holemenu" id="holemore" aria-label="Menu: Home, discard round" aria-expanded="' + !!view.holeMenu + '">' + ICON_MENU + '</button></div>' +
       (view.holeMenu ? '<div class="sheet-back hmback" data-act="holemenu"></div><div class="hsheet glass holemenu" id="holemenu" role="menu"><button class="sheet-item" role="menuitem" data-act="home">Home</button>' +
         '<button class="sheet-item danger" role="menuitem" data-act="discard" data-id="' + esc(r.id) + '">Discard round</button></div>' : '') + // v188: Home + Discard live in ⋯
       ''; // v189
@@ -3508,6 +3517,9 @@
   }
   // v96 detailed stat tiles: one collapsible row each (collapsed by default; the headline number stays in the header)
   function stx(id, label, val, body) {
+    // v191 (Scott): a row with a map opens it in one tap (its tile only said "tap for map"); rows without a map still expand
+    var mm = /data-act="map" data-v="([a-z]+)"/.exec(body || '');
+    if (mm) return '<div class="stx stxgo" data-stx="' + id + '"><button class="stxh" data-act="map" data-v="' + mm[1] + '" aria-label="' + esc(label.replace(/&gt;/g, '>')) + ' – open the map"><span>' + label + '</span><b>' + val + '</b><i class="stxgo-c" aria-hidden="true">›</i></button></div>';
     var open = !!(view.stx && view.stx[id]);
     return '<div class="stx' + (open ? ' open' : '') + '" data-stx="' + id + '"><button class="stxh" data-act="stx" data-v="' + id + '" aria-expanded="' + open + '"><span>' + label + '</span><b>' + val + '</b><i class="stxc" aria-hidden="true"></i></button>' +
       (open ? '<div class="stxb">' + body + '</div>' : '') + '</div>';
@@ -3561,15 +3573,21 @@
     if (part === 'card') // v188: the scorecard on its own while the round is being entered
       return '<div class="topbar frost rbtop"><div class="title"><b>Scorecard</b><span>' + (r.course ? esc(r.course) + ' · ' : '') + (S.holesDone ? 'Total ' + S.strokes + ' (' + toPar(S.toPar) + ') thru ' + S.holesDone : 'No holes finished yet') + '</span></div></div>' +
         '<div id="sumcardonly">' + scorecardHTML(r, S) + '</div>';
-    var out = lv ? '<div class="topbar frost rbtop"><div class="title"><b>Round stats</b><span>' + new Date(r.date).toLocaleDateString() + (r.course ? ' · ' + esc(r.course) : '') + '</span></div></div>' : '<div class="topbar frost">' + (view.from === 'history' ? '<button class="txt frostbtn" data-act="history">‹ Rounds</button>' : '<button class="txt frostbtn" data-act="backHole">‹ Round</button>') + '<div class="title"><b>Round stats</b><span>' +
-      new Date(r.date).toLocaleDateString() + (r.course ? ' · ' + esc(r.course) : '') + '</span></div><button class="txt frostbtn" data-act="home">Home</button></div>';
+    // v191 (Scott): Edit round on the left (back into the holes); ☰ on the right holds PDF, story picture, strokes gained, round type, Rounds, Home
+    var menuBtn = '<button class="frostbtn rsmenubtn" data-act="rsmenu" id="rsmenubtn" aria-label="Menu: PDF report, story picture, strokes gained, round type, Rounds, Home" aria-expanded="' + !!view.rsMenu + '">' + ICON_MENU + '</button>';
+    var out = lv ? '<div class="topbar frost rbtop"><div class="title"><b>Round stats</b><span>' + new Date(r.date).toLocaleDateString() + (r.course ? ' · ' + esc(r.course) : '') + '</span></div>' + menuBtn + '</div>' : '<div class="topbar frost">' + '<button class="txt frostbtn" data-act="backHole" id="editround">Edit round</button><div class="title"><b>Round stats</b><span>' +
+      new Date(r.date).toLocaleDateString() + (r.course ? ' · ' + esc(r.course) : '') + '</span></div>' + menuBtn + '</div>';
+    if (view.rsMenu) out += '<div class="sheet-back rsback" data-act="rsmenu"></div><div class="hsheet glass rsmenu" id="rsmenu" role="menu">' +
+      '<button class="sheet-item rsmi" role="menuitem" data-act="pdf" data-at="top" id="rspdftop">' + ICON_DOC + '<span><b>PDF report</b><small>to print or send</small></span></button>' +
+      (S.holesDone ? '<button class="sheet-item rsmi" role="menuitem" data-act="story" id="storybtn">' + ICON_STORY + '<span><b>Story picture</b><small>Instagram / TikTok</small></span></button>' : '') +
+      '<div class="rsmset">' + bmRowHTML('sumbl', bl, '', 'Changing it recalculates the whole round and is saved with it.') + (part ? '' : playPickHTML('rplay', MYGAME.playOf(r), 'Round type', 'rplay')) + '</div>' +
+      (lv ? '' : '<button class="sheet-item" role="menuitem" data-act="history">Rounds</button>') + (lv ? '' : '<button class="sheet-item" role="menuitem" data-act="home">Home</button>') + '</div>';
     if (view.stxRound !== r.id) { view.stx = {}; view.stxRound = r.id; } // tiles start collapsed for each round
     // v165 (Scott): Create PDF report at the top of Round stats – no scrolling to the bottom for it (its share sheet opens right here)
     // v179 (Scott): the PDF report and the story picture side by side at the top, with line icons instead of emoji
-    out += '<div class="rsactions" id="rsactions"><div class="rsbtns"><button class="rsact" data-act="pdf" data-at="top" id="rspdftop">' + ICON_DOC + '<span><b>PDF report</b><small>to print or send</small></span></button>' +
-      (S.holesDone ? '<button class="rsact" data-act="story" id="storybtn">' + ICON_STORY + '<span><b>Story picture</b><small>Instagram / TikTok</small></span></button>' : '') + '</div>' +
-      (view.pdfAt === 'top' ? pdfHTML() : '') + (S.holesDone ? storyHTML() : '') + '</div>';
-    out += rsTopHTML(r, S) + bmRowHTML('sumbl', bl, '', 'Changing it recalculates the whole round and is saved with it.') + notMineHTML(bl, r.player || playerName(), 'blmineround') + (part ? '' : playPickHTML('rplay', MYGAME.playOf(r), 'Round type', 'rplay')) + takeawayHTML(r) + quickViewHTML(S); // v190: round type is set when the round starts; change it after the round
+    out += '<div class="rsactions" id="rsactions">' + (view.pdfAt === 'top' ? pdfHTML() : '') + (S.holesDone ? storyHTML() : '') + '</div>'; // the PDF / story panels open here (from ☰)
+    // v191: the quick view sits right under the score; the benchmark warning (if any) next; then the takeaway
+    out += rsTopHTML(r, S) + quickViewHTML(S) + notMineHTML(bl, r.player || playerName(), 'blmineround') + takeawayHTML(r); // v190: round type is set when the round starts; change it after the round
     if (!part) out += scorecardHTML(r, S) + '<button class="big rpbtn" data-act="replay" data-v="0" id="sumreplay">▶ Hole replay (hole by hole)</button>'; // v188: during a round the scorecard has its own screen
     var B = SG.baseline(bl), main = out; out = '';
     out += '<h2>Strokes gained: <span class="' + sgCls(S.sgTotal) + '" id="sgtotal">' + fmtSG(S.sgTotal) + '</span></h2>' +
@@ -3600,7 +3618,7 @@
     out += '<button class="big" data-act="csv">Export this round (CSV)</button>';
     out += '<button class="big sendbtn" data-act="sendopen" id="sendround">📤 Send round<small>to another phone – it lands in their Rounds</small></button>';
     out += '<button class="big sendbtn" data-act="mvone" id="chgplayer1">👤 Change player<small>' + (r.player || playerName() ? 'now ' + esc(r.player || playerName()) : 'whose round is this?') + '</small></button>';
-    if (!part) out += '<button class="big" data-act="backHole">Back to the round</button>';
+    // v191: no "Back to the round" – Edit round at the top does it
     out += '<button class="big danger" data-act="delRound">Delete this round</button>';
     out += '<button class="big" data-act="about">ⓘ About the numbers</button>';
     out += '<div class="sgsec' + (view.sgOpen ? ' open' : '') + '" id="sgsec"><button class="sghead" data-act="sgtoggle" aria-expanded="' + !!view.sgOpen + '" aria-controls="sgbody">' +
@@ -4563,9 +4581,10 @@
   }
   function replayHTML() {
     var r = round(), hi = view.replay, h = r.holes[hi], R = replaySVG(h, hi), A = R.A, n = r.holes.length;
-    return '<div class="mapview" id="replayview" role="dialog" aria-label="Hole replay"><div class="maphead"><b>Hole ' + (hi + 1) + ' replay</b><button class="close" data-act="rpclose" aria-label="Close replay">✕ Close</button></div>' +
+    // v191 (Scott): the title and the hole arrows stay pinned at the top; the hole fits the screen; swipe left / right for the next / previous hole
+    return '<div class="mapview" id="replayview" role="dialog" aria-label="Hole replay"><div class="rpsticky"><div class="maphead"><b>Hole ' + (hi + 1) + ' replay</b><button class="close" data-act="rpclose" aria-label="Close replay">✕ Close</button></div>' +
       '<div class="seg rpnav"><button data-act="rphole" data-v="' + (hi - 1) + '"' + (hi > 0 ? '' : ' disabled') + ' aria-label="Previous hole">‹ ' + (hi > 0 ? 'Hole ' + hi : 'Hole') + '</button><span class="rpinfo" id="rpinfo">Par ' + h.par + ' · ' + R.yd + ' yd · ' +
-      (A.complete ? A.strokes + ' (' + toPar(A.strokes - h.par) + ')' : (A.shots || []).length + ' shots so far') + '</span><button data-act="rphole" data-v="' + (hi + 1) + '"' + (hi < n - 1 ? '' : ' disabled') + ' aria-label="Next hole">Hole ' + (hi + 2) + ' ›</button></div>' +
+      (A.complete ? A.strokes + ' (' + toPar(A.strokes - h.par) + ')' : (A.shots || []).length + ' shots so far') + '</span><button data-act="rphole" data-v="' + (hi + 1) + '"' + (hi < n - 1 ? '' : ' disabled') + ' aria-label="Next hole">Hole ' + (hi + 2) + ' ›</button></div></div>' +
       (!(A.shots || []).length ? '<p class="notice">No shots entered on this hole yet.</p>' : view.rpGreen ? '<div class="row"><button class="big" data-act="rpgreenback" id="rpgreenback">‹ Back to hole</button></div><h3>Hole ' + (hi + 1) + ' – on the green</h3>' + R.green + (R.nPutts ? '' : '<p class="notice">No putts on this hole.</p>') + '<p class="help">Drawn to true scale in feet (rings every few ft). White = putts: numbered ball = where each putt started, small white ball + ft = where a missed putt finished, dashed white line = the putt that went in; black dot = the cup. The coloured dashed line is the shot that arrived on the green.</p>' : '<p class="rptap" id="rptapnote">Tap the green for a closer look at the putts</p>' + R.svg) +
       '<div class="legend" id="rplegend">' + ['tee', 'approach', 'short', 'bunker', 'putting'].map(function (k) { return '<span><i class="ln" style="background:' + RPC[k] + (k === 'putting' ? ';outline:1px solid #333' : '') + '"></i><i class="dot num" style="background:' + RPC[k] + (k === 'putting' ? ';color:#111;border:1px solid #333' : '') + '">1</i>' + RPN[k] + '</span>'; }).join('') +
       '<span>Putts are white; in the green close-up the black dot is the cup.</span><span><b style="color:#e0102a">✕</b>Penalty (label shows the penalty strokes); dashed line = OB, replayed from the same spot</span><span>Number = shot; label = distance left (yd off the green, ft on it) and lie. Tap the green to see the putts.</span></div>' +
@@ -5184,7 +5203,8 @@
       case 'open': view.pdf = null; view.addr = null; view.send = null; view.mv = null; view.roundId = b.getAttribute('data-id'); view.from = view.screen === 'history' ? 'history' : null; view.screen = 'summary'; view.map = null; render(); window.scrollTo(0, 0); return;
       case 'home': view.screen = 'home'; view.from = null; view.hmenu = null; view.mgBack = null; view.inRound = false; view.exitAsk = false; break;
       case 'archive': view.screen = 'archive'; view.hmenu = null; render(); window.scrollTo(0, 0); return;
-      case 'plus': view.hmenu = view.hmenu ? (view.hmenu === 'new' ? 'menu' : null) : 'menu'; render(); return;
+      case 'plus': view.hmenu = view.hmenu === 'menu' ? null : 'menu'; render(); return;
+      case 'hnav': view.hmenu = view.hmenu === 'nav' ? null : 'nav'; render(); return; // v191: ☰ – places to go
       case 'newform': view.hmenu = 'new'; render(); var ci = document.getElementById('course'); if (ci) ci.focus(); return;
       case 'menuclose': view.hmenu = null; view.near = null; view.newC = null; view.newAdd = false; view.newName = ''; view.newBl = null; view.crsOpen = false; render(); return;
       case 'nearopen': case 'neargo': case 'nearname': case 'nearmore': case 'nearpick': case 'nearcand': case 'nearlayout': case 'nearretry': case 'nearmanual': case 'nearclose': nearAct(act, b); return;
@@ -5199,7 +5219,8 @@
       case 'namecancel': view.nameSheet = null; render(); return;
       case 'history': view.hmenu = null; view.mv = null; view.screen = 'history'; view.notice = null; render(); window.scrollTo(0, 0); return;
       case 'backup': backupRounds(); return;
-      case 'pdf': case 'pdfshare': case 'stpdf': if (act === 'pdf') view.pdfAt = b.getAttribute('data-at') || ''; pdfAct(act); return;
+      case 'pdf': case 'pdfshare': case 'stpdf': if (act === 'pdf') { view.pdfAt = b.getAttribute('data-at') || ''; view.rsMenu = null; } pdfAct(act); return;
+      case 'rsmenu': view.rsMenu = !view.rsMenu; render(); return; // v191
       case 'info': { infoOpen[v] = !infoOpen[v]; var t = b && document.getElementById(b.getAttribute('aria-controls'));
         [].slice.call(document.querySelectorAll('[data-act="info"]')).forEach(function (x) { if (x.getAttribute('data-v') === v) x.setAttribute('aria-expanded', !!infoOpen[v]); }); // icon + its label
         if (t) t.hidden = !infoOpen[v]; return; }
@@ -5230,7 +5251,8 @@
       // v175 My Game report
       case 'grep': view.grep = view.grep && !view.mgMenu ? null : { preset: 'coach', parts: Object.assign({}, GR_PRESET.coach) }; view.mgMenu = null; view.pdf = null; render();
         var gs = document.getElementById('grsheet'); if (gs && gs.scrollIntoView) gs.scrollIntoView({ block: 'start' }); return;
-      case 'mgplus': view.mgMenu = !view.mgMenu; render(); return; // v183
+      case 'mgplus': view.mgMenu = view.mgMenu === 'plus' ? null : 'plus'; render(); return; // v183
+      case 'mgnav': view.mgMenu = view.mgMenu === 'nav' ? null : 'nav'; render(); return; // v191
       case 'mgknow': view.mgKnowOpen = !view.mgKnowOpen; render(); return; // v183
       case 'grclose': view.grep = null; render(); return;
       case 'grpreset': if (view.grep) { view.grep.preset = v; view.grep.parts = Object.assign({}, GR_PRESET[v]); } render(); return;
@@ -5238,7 +5260,7 @@
       case 'grgo': { var gp = view.grep && view.grep.parts; if (!gp || !GR_PARTS.some(function (x) { return gp[x.k]; })) { toast('Pick at least one part'); return; }
         view.grep = null; view.pdf = { busy: true, kind: 'game' }; render();
         makeGameReport(mgWho(), gp).then(function (o) { view.pdf = o; window.__golf.lastPdf = o; render(); }, function (e) { view.pdf = { kind: 'game', error: 'Could not make the PDF: ' + (e && e.message) }; render(); }); return; }
-      case 'story': case 'storyshare': case 'storyclose': case 'storyfull': case 'storyfullclose': case 'storyzoom': storyAct(act); return;
+      case 'story': case 'storyshare': case 'storyclose': case 'storyfull': case 'storyfullclose': case 'storyzoom': if (act === 'story') view.rsMenu = null; storyAct(act); return;
       case 'setname': setName((document.getElementById('pname') || {}).value); return;
       case 'editname': view.editName = true; render(); var pi = document.getElementById('pname'); if (pi) pi.focus(); return;
       case 'cancelname': view.editName = false; view.needName = null; render(); return;
@@ -5303,7 +5325,7 @@
       case 'replay': view.replay = Math.max(0, +v || 0); render(); return;
       case 'rpgreen': view.rpGreen = true; render(); return;
       case 'rpgreenback': view.rpGreen = false; render(); return;
-      case 'rphole': { view.rpGreen = false; var nh = +v; if (nh >= 0 && nh < round().holes.length) { view.replay = nh; render(); var rv = document.getElementById('replayview'); if (rv) rv.scrollTop = rv.scrollHeight; } return; }
+      case 'rphole': { view.rpGreen = false; var nh = +v; if (nh >= 0 && nh < round().holes.length) { view.replay = nh; render(); var rv = document.getElementById('replayview'); if (rv) rv.scrollTop = 0; } return; } // v191: the whole hole fits – start at the top
       case 'rpclose': view.replay = null; view.rpGreen = false; document.body.classList.remove('noscroll'); render(); return;
       case 'pmg': { var mvq = document.getElementById('mapview'), stq = mvq ? mvq.scrollTop : 0; view.pmG = v; render(); var mvq2 = document.getElementById('mapview'); if (mvq2) mvq2.scrollTop = stq; return; }
       case 'puttn': { var mvp = document.getElementById('mapview'), stp = mvp ? mvp.scrollTop : 0; view.puttN = v; render(); var mvp2 = document.getElementById('mapview'); if (mvp2) mvp2.scrollTop = stp; return; }
@@ -5630,5 +5652,11 @@
   try { history.replaceState({ swBack: 0, d: 0 }, ''); } catch (e) {} // count from here: steps left by a page before a reload aren't ours to undo
   if (window.MutationObserver) new MutationObserver(backQueue).observe(document.body, { childList: true, subtree: true });
   backLast = backSig(); backQueue();
+  // v191: swipe across the replay for the next / previous hole
+  (function () { var sx = null, sy = 0;
+    document.addEventListener('touchstart', function (e) { var t = e.target && e.target.closest && e.target.closest('#replayview'); sx = t && e.touches.length === 1 ? e.touches[0].clientX : null; sy = sx == null ? 0 : e.touches[0].clientY; }, { passive: true });
+    document.addEventListener('touchend', function (e) { if (sx == null || view.replay == null || view.rpGreen) return; var t = e.changedTouches[0], dx = t.clientX - sx, dy = t.clientY - sy; sx = null;
+      if (Math.abs(dx) < 60 || Math.abs(dx) < Math.abs(dy) * 1.5) return; var b = document.querySelector('#replayview .rpnav button[data-act="rphole"]' + (dx < 0 ? ':last-of-type' : ':first-of-type'));
+      if (b && !b.disabled) b.click(); }, { passive: true }); })();
   window.__golf = { backTarget: function () { var t = backTarget(); return t && t !== 'home' ? (t.getAttribute('data-act') || t.className) : t; }, card: function () { return view.card; }, statsData: function () { return statsData(); }, statsRound: function (id, bl) { return statsRound(rounds.filter(function (r) { return r.id === id; })[0], bl || ''); }, scorecardHTML: function () { var r = round(); return r ? scorecardHTML(r, SG.summarize(r, blOf(r))) : ''; }, d1Bench: d1Bench, proxBench: proxBench, PROX_BENCH: PROX_BENCH, proxZoomFt: proxZoomFt, proxSVG: proxSVG, pinSVG: function () { return pinReportSVG(SG.pinSegments(pinDataRound())); }, csvFor: csvFor, rounds: function () { return rounds; } };
 })();

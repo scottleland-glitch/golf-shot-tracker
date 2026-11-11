@@ -2754,3 +2754,31 @@ html body .exitbtns { display: flex; gap: 10px; } html body .exitbtns button { f
 /* v189: bottom sheets (live sharing, direction, send…) slide up over the round bar while they're open */
 html body.hasrbar .sheet-bg, html body.hasrbar .rsheet-bg { padding-bottom: 0; z-index: 91; }
 html body.hasrbar .sheet, html body.hasrbar .rsheet { z-index: 92; }
+/* v191 (Scott): ☰ menus; + only starts something */
+html body .menuic { width: 24px; height: 24px; display: block; }
+html body .home .navbtn { right: auto; left: calc(env(safe-area-inset-left) + 18px); }
+html body .home .navbtn.bangon::after { content: '!'; position: absolute; top: -4px; right: -4px; width: 18px; height: 18px; border-radius: 50%; background: #d23b2f; color: #fff; font: 800 12px/18px system-ui, sans-serif; text-align: center; }
+html body .home .hsheet.navsheet { right: auto; left: calc(env(safe-area-inset-left) + 18px); }
+html body .mygamepage .tbbtns { display: flex; gap: 8px; flex: none; }
+html body .mygamepage .topbar .mgplus.mgnav, html body .mygamepage .topbar .mgplus { display: flex; align-items: center; justify-content: center; }
+html body .holemore .menuic { margin: 0 auto; width: 22px; height: 22px; }
+/* Round stats ☰ */
+html body .rsmenubtn { width: 44px; height: 44px; min-height: 44px; padding: 0; border-radius: 50%; display: flex; align-items: center; justify-content: center; flex: none; }
+html body .rbtop { position: relative; } html body .rbtop .rsmenubtn { position: absolute; right: 10px; top: 50%; transform: translateY(-50%); }
+html body .sheet-back.rsback { position: fixed; inset: 0; z-index: 93; background: rgba(10, 25, 40, .18); }
+html body .rsmenu { position: fixed; z-index: 94; top: calc(env(safe-area-inset-top) + 74px); right: calc(env(safe-area-inset-right) + 12px); width: min(330px, calc(100vw - 24px));
+  max-height: calc(100vh - env(safe-area-inset-top) - 90px); overflow-y: auto; display: flex; flex-direction: column; padding: 6px; border-radius: 20px; background: rgba(255, 255, 255, .96); box-shadow: 0 10px 30px rgba(20, 40, 30, .22); color: #17301f; }
+html body .rsmenu .sheet-item { background: transparent; border: 0; box-shadow: none; text-align: left; font-size: 17px; font-weight: 500; color: #17301f; padding: 12px 12px; border-radius: 14px; min-height: 0; }
+html body .rsmenu .sheet-item + .sheet-item, html body .rsmenu .rsmset + .sheet-item { border-top: 1px solid rgba(23, 48, 31, .1); border-radius: 0; }
+html body .rsmenu .rsmi { display: flex; align-items: center; gap: 12px; } html body .rsmenu .rsmi .rsic { width: 40px; height: 40px; flex: none; }
+html body .rsmenu .rsmi span { display: flex; flex-direction: column; } html body .rsmenu .rsmi b { font-size: 17px; } html body .rsmenu .rsmi small { font-size: 13px; color: #5b6b78; font-weight: 400; }
+html body .rsmenu .rsmset { border-top: 1px solid rgba(23, 48, 31, .1); padding: 10px 6px 8px; display: flex; flex-direction: column; gap: 10px; }
+html body .rsmenu .bmrow { margin: 0; flex-wrap: nowrap; } html body .rsmenu .bmrow .stbl { flex: 1; min-width: 0; }
+html body .rsmenu .playpick { margin: 0; }
+/* stat rows that open a map in one tap */
+html body .stxgo .stxgo-c { font-style: normal; font-size: 20px; line-height: 1; color: #6b7b88; margin-left: 8px; }
+/* replay: pinned header, the hole fits the screen */
+html body #replayview .rpsticky { position: sticky; top: 0; z-index: 3; margin: calc(-1 * (env(safe-area-inset-top) + 8px)) -12px 8px; padding: calc(env(safe-area-inset-top) + 8px) 12px 8px; background: rgba(225, 238, 232, .94); -webkit-backdrop-filter: blur(16px); backdrop-filter: blur(16px); }
+html body #replayview #replaymap { max-height: calc(100vh - env(safe-area-inset-top) - 150px - var(--rbh, 0px)); width: auto; max-width: 100%; margin: 0 auto; }
+html body .rsmenu .rsmi .rsic { flex: 0 0 36px; width: 36px; height: 36px; padding: 7px; border-radius: 11px; background: #1f5d3a; fill: none; stroke: #fff; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; box-sizing: border-box; }
+html body .rsmenu #storybtn .rsic { background: linear-gradient(135deg, #d8a23a, #c4553e); }

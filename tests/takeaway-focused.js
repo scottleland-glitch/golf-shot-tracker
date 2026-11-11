@@ -22,7 +22,7 @@ today.holes.forEach(h => { for (let k = 1; k < h.rows.length; k++) if (h.rows[k 
       await page.goto(BASE + '?x=' + Date.now());
       await page.evaluate(rs => { localStorage.clear(); localStorage.setItem('golfsg.player.v1', 'Scott'); localStorage.setItem('golfsg.nameasked.v1', '1'); localStorage.setItem('golfsg.rounds.v1', JSON.stringify(rs)); }, rounds);
       await page.reload(); await page.waitForSelector('#home');
-      if (await page.$('#plusbtn')) await page.click('#plusbtn');
+      if (await page.$('#plusbtn')) await page.click('#navbtn');
       await page.click('[data-act="history"]'); await page.click('#histlist [data-act="open"][data-id="' + id + '"]');
       await page.waitForSelector('#takeaway');
     };
@@ -34,8 +34,8 @@ today.holes.forEach(h => { for (let k = 1; k < h.rows.length; k++) if (h.rows[k 
     assert.match(await page.textContent('#tkfocus h3'), /Wedge distance control/);
     assert.match(await page.textContent('#tkbasis'), /^Compared with the PGA Tour average – still learning your approach play \(0%\)$/);
     assert.strictEqual(await page.$$eval('.tktile', t => t.length), 4); assert.strictEqual(await page.$('.tkusual'), null);
-    const order = await page.evaluate(() => ['rs-top', 'takeaway', 'quickview'].map(id => document.getElementById(id).getBoundingClientRect().top));
-    assert.ok(order[0] < order[1] && order[1] < order[2], 'takeaway sits between the score and Quick view');
+    const order = await page.evaluate(() => ['rs-top', 'quickview', 'takeaway'].map(id => document.getElementById(id).getBoundingClientRect().top));
+    assert.ok(order[0] < order[1] && order[1] < order[2], 'v191: the score, Quick view, then the takeaway');
     const wide = await page.evaluate(() => document.documentElement.scrollWidth); assert.ok(wide <= 390, 'no sideways scroll ' + wide);
     ok('first round: empty bars, compares with PGA Tour and says so, sits above Quick view');
     // 2. with history

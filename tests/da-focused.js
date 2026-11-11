@@ -57,7 +57,7 @@ const SAMPLE = [['Driver', 'd', 250, 10.5], ['3W', 'fw', 225, 15], ['5i', 'ir', 
     const seed = BAG.addClubs(BAG.blank(), SAMPLE.map(([code, cat, carry, loft]) => ({ cat, code, carry, loft, make: 'Srixon', model: 'ZX5' })).concat([{ cat: 'pt', code: 'Putter' }])).bag;
     await page.goto(BASE + '?x=' + Date.now());
     await page.evaluate(s => { localStorage.clear(); localStorage.setItem('golfsg.player.v1', 'Scott'); localStorage.setItem('golfsg.nameasked.v1', '1'); localStorage.setItem('golfsg.bag.v1', s); }, JSON.stringify(seed));
-    await page.reload(); await page.waitForSelector('#home'); await page.click('#plusbtn'); await page.click('#plusmenu [data-act="bag"]'); await page.waitForSelector('#baglist');
+    await page.reload(); await page.waitForSelector('#home'); await page.click('#navbtn'); await page.click('#navmenu [data-act="bag"]'); await page.waitForSelector('#baglist');
     // collapsed by default (kept from v106)
     assert.strictEqual(await page.getAttribute('#bagcondh', 'aria-expanded'), 'false'); assert.strictEqual(await page.$('#bagusda'), null);
     assert.strictEqual(await page.textContent('#bagcondsum'), 'Carries entered at 5000 ft · 70°F');
@@ -106,7 +106,7 @@ const SAMPLE = [['Driver', 'd', 250, 10.5], ['3W', 'fw', 225, 15], ['5i', 'ir', 
     // club picker checkbox works in DA mode
     await page.check('#baguse'); let st = await store(); assert.deepStrictEqual([st.useCond, st.useDA, st.da], [true, true, -1200]);
     // persistence: reload, reopen
-    await page.reload(); await page.waitForSelector('#home'); await page.click('#plusbtn'); await page.click('#plusmenu [data-act="bag"]'); await page.waitForSelector('#baglist');
+    await page.reload(); await page.waitForSelector('#home'); await page.click('#navbtn'); await page.click('#navmenu [data-act="bag"]'); await page.waitForSelector('#baglist');
     assert.strictEqual(await page.textContent('#bagcondsum'), 'Carries entered at 5000 ft · 70°F · now -1200 ft density altitude', 'kept after reload');
     await page.click('#bagcondh'); await page.waitForSelector('#bagda'); assert.ok(await page.isChecked('#bagusda') && await page.isChecked('#baguse')); assert.strictEqual(await page.inputValue('#bagdatxt'), '-1200');
     ok('after reload: still checked, -1,200 ft, club picker checkbox kept');

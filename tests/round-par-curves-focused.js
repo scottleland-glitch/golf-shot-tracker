@@ -15,7 +15,7 @@ const today = Object.assign(ARC.round(), { id: 'today', date: '2026-11-07T17:00:
     const page = await ctx.newPage(); page.on('pageerror', e => errors.push(String(e)));
     const open = async (rounds, id) => { await page.goto(BASE + '?x=' + Date.now());
       await page.evaluate(rs => { localStorage.clear(); localStorage.setItem('golfsg.player.v1', 'Scott'); localStorage.setItem('golfsg.nameasked.v1', '1'); localStorage.setItem('golfsg.rounds.v1', JSON.stringify(rs)); }, rounds);
-      await page.reload(); await page.waitForSelector('#home'); if (await page.$('#plusbtn')) await page.click('#plusbtn');
+      await page.reload(); await page.waitForSelector('#home'); if (await page.$('#plusbtn')) await page.click('#navbtn');
       await page.click('[data-act="history"]'); await page.click('#histlist [data-act="open"][data-id="' + id + '"]'); await page.waitForSelector('#rpcurves'); };
     await open(hist.concat([today]), 'today');
     assert.match(await page.textContent('#rpclegend'), /Your average · 5 other rounds/);

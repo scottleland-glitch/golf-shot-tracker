@@ -58,7 +58,7 @@ const OUT = '/workspace/golf-app/screenshots/', PORT = 8834, BASE = 'http://127.
     await page.evaluate(([p, rs]) => { localStorage.clear(); localStorage.setItem('golfsg.player.v1', p); localStorage.setItem('golfsg.nameasked.v1', '1'); localStorage.setItem('golfsg.rounds.v1', JSON.stringify(rs)); }, [player, rounds]);
     await page.reload(); return page;
   };
-  const hist = async p => { if (await p.$('#plusbtn')) await p.click('#plusbtn'); await p.click('[data-act="history"]'); await p.waitForSelector('#histlist'); };
+  const hist = async p => { if (await p.$('#plusbtn')) await p.click('#navbtn'); await p.click('[data-act="history"]'); await p.waitForSelector('#histlist'); };
   // Scott's phone: send
   const S = await phone('Scott', [R], true);
   await hist(S); await S.click('#histlist [data-act="open"][data-id="arc78"]'); await S.waitForSelector('#rs-top');
@@ -117,8 +117,8 @@ const OUT = '/workspace/golf-app/screenshots/', PORT = 8834, BASE = 'http://127.
   await Q.click('#addview'); await Q.waitForSelector('#rs-top');
   assert.deepStrictEqual(await Q.$$eval('#rs-top tr:nth-child(2) td', t => t.map(x => x.textContent)), ['78', '+6', '5531', '31']);
   const sg = SG.summarize(R); const fmt = v => { const s = (Math.round(v * 100) / 100).toFixed(2); return (v > 0.004 ? '+' : '') + (s === '-0.00' ? '0.00' : s); };
-  assert.strictEqual((await Q.textContent('.sghead')).match(/[+−-]?\d+\.\d\d/)[0], fmt(sg.sgTotal), 'strokes gained recomputed'); assert.match(await Q.textContent('.topbar'), /‹ Rounds/);
-  await Q.click('.topbar [data-act="history"]'); assert.match(await Q.textContent('#histlist .hrow[data-id="arc78"]'), /^78[\s\S]*Arcade Creek[\s\S]*Quincy/);
+  assert.strictEqual((await Q.textContent('.sghead')).match(/[+−-]?\d+\.\d\d/)[0], fmt(sg.sgTotal), 'strokes gained recomputed'); assert.match(await Q.textContent('.topbar'), /Edit round/);
+  await (async (P) => { if (!(await P.$('.topbar [data-act="history"]')) && await P.$('#rsmenubtn')) await P.click('#rsmenubtn'); return P.click('.topbar [data-act="history"], #rsmenu [data-act="history"]'); })(Q) /* v191: in ☰ on Round stats */; assert.match(await Q.textContent('#histlist .hrow[data-id="arc78"]'), /^78[\s\S]*Arcade Creek[\s\S]*Quincy/);
   // second add (gzip-less code) → no duplicate; same round with another id → also caught
   await Q.click('#addround'); await paste(plain); await Q.waitForSelector('#addyes'); await Q.click('#addyes'); await Q.waitForSelector('#adddone');
   assert.match(await Q.textContent('#adddone'), /already in your rounds/); assert.strictEqual(await Q.getAttribute('#addview', 'data-id'), 'arc78');
@@ -129,7 +129,7 @@ const OUT = '/workspace/golf-app/screenshots/', PORT = 8834, BASE = 'http://127.
   assert.strictEqual(await Q.evaluate(() => JSON.parse(localStorage.getItem('golfsg.rounds.v1')).length), 3, 'still 3 rounds');
   await Q.click('#addsheet [data-act="addclose"]');
   // in Quincy's backup
-  await (async () => { if (await Q.$('#holemore') && !(await Q.$('#holemenu'))) await Q.click('#holemore'); return Q.click('[data-act="home"]'); })() /* v188: Home + Discard are in ⋯ during a round */; await Q.click('#plusbtn'); await Q.click('#plusmenu [data-act="archive"]'); await Q.evaluate(() => { window.__shared.length = 0; window.__shareMode = 'ok'; });
+  await (async () => { if (await Q.$('#holemore') && !(await Q.$('#holemenu'))) await Q.click('#holemore'); return Q.click('[data-act="home"]'); })() /* v188: Home + Discard are in ⋯ during a round */; await Q.click('#navbtn'); await Q.click('#navmenu [data-act="archive"]'); await Q.evaluate(() => { window.__shared.length = 0; window.__shareMode = 'ok'; });
   await Q.click('[data-act="backup"]'); await Q.waitForFunction(() => window.__shared.length === 1);
   const bfile = (await Q.evaluate(() => window.__shared[0])).files[0], B = JSON.parse(bfile.text);
   assert.match(bfile.name, /^golf-rounds-quincy-/i); const inB = B.rounds.filter(r => r.id === 'arc78');

@@ -16,7 +16,7 @@ const OUT = '/workspace/golf-app/screenshots/', PORT = 8833, BASE = 'http://127.
   await page.evaluate(() => { const r = window.__arc.exports.round(); localStorage.clear(); localStorage.setItem('golfsg.player.v1', 'Scott');
     localStorage.setItem('golfsg.rounds.v1', JSON.stringify([r])); });
   await page.reload();
-  if (await page.$('#plusbtn')) await page.click('#plusbtn'); await page.click('[data-act="history"]');
+  if (await page.$('#plusbtn')) await page.click('#navbtn'); await page.click('[data-act="history"]');
   await page.click('#histlist [data-act="open"][data-id="arc78"]'); await page.waitForSelector('#rs-top');
   const exp = await page.evaluate(() => { const r = window.__golf.rounds()[0], S = SG.summarize(r);
     return { strokes: S.strokes, toPar: S.toPar, putts: S.putts, fw: [S.fwHit, S.fwTotal], gir: [S.gir, S.girHoles], tee: S.cats.tee.sg, appr: S.cats.approach.sg, putt: S.cats.putting.sg }; });
@@ -40,8 +40,8 @@ const OUT = '/workspace/golf-app/screenshots/', PORT = 8833, BASE = 'http://127.
   assert.deepStrictEqual(qv.map(q => q.sg.replace(/\s*SG$/, '')), [fmt(exp.tee), fmt(exp.appr), fmt(exp.putt)], 'SG: off the tee / approach / putting');
   assert.deepStrictEqual(qv.map(q => q.cls.replace('qvsg', '').trim()), [cls(exp.tee), cls(exp.appr), cls(exp.putt)]);
   // v140+: the round Takeaway card sits between the score box and Quick view – Quick view comes right after whichever is last
-  const qvTop = await page.evaluate(() => { const tk = document.querySelector('#rs-top ~ .takeaway'), above = tk || document.getElementById('rs-top'); return document.getElementById('quickview').getBoundingClientRect().top - above.getBoundingClientRect().bottom; });
-  assert.ok(qvTop >= 0 && qvTop < 60, 'Quick view directly under the box (or the Takeaway card) ' + qvTop);
+  const qvTop = await page.evaluate(() => document.getElementById('quickview').getBoundingClientRect().top - document.getElementById('rs-top').getBoundingClientRect().bottom);
+  assert.ok(qvTop >= 0 && qvTop < 60, 'v191: Quick view directly under the score ' + qvTop);
   console.log('  quick view: ' + qv.map(q => q.l + ' ' + q.v + ' (' + q.sg + ')').join(' · '));
   await page.screenshot({ path: OUT + 'round-stats-top.png' });
   // ---- legend smaller + lighter
@@ -51,29 +51,24 @@ const OUT = '/workspace/golf-app/screenshots/', PORT = 8833, BASE = 'http://127.
   await page.screenshot({ path: OUT + 'round-stats-legend.png' });
   console.log('  legend ' + lg.fs + 'px / weight ' + lg.fw + ', no "Blank =" note');
   // ---- detailed tiles collapsed by default, header keeps the headline number
-  const heads = await page.$$eval('#stattiles .stxh', h => h.map(x => ({ v: x.dataset.v, l: x.querySelector('span').textContent, n: x.querySelector('b').textContent, ex: x.getAttribute('aria-expanded') })));
+  const heads = await page.$$eval('#stattiles .stxh', h => h.map(x => ({ v: x.closest('[data-stx]').dataset.stx, l: x.querySelector('span').textContent, n: x.querySelector('b').textContent, ex: x.getAttribute('aria-expanded') })));
   assert.deepStrictEqual(heads.map(h => h.v), ['fw', 'gir', 'miss', 'prox', 'pin', 'putt', 'pmiss', 'lag', 'club', 'pen', 'teelr']);
-  assert.ok(heads.every(h => h.ex === 'false'), 'all collapsed'); assert.strictEqual(await page.$$eval('#stattiles .stxb, #stattiles [data-act="map"]', x => x.length), 0, 'no bodies yet');
+  assert.ok(heads.filter(h => h.ex !== null).every(h => h.ex === 'false'), 'all collapsed'); assert.strictEqual(await page.$$eval('#stattiles .stxb', x => x.length), 0, 'no bodies yet');
   const H = Object.fromEntries(heads.map(h => [h.v, h]));
   const pc = f => f.join(' / ') + ' (' + Math.round(100 * f[0] / f[1]) + '%)'; // v111: whole percent next to the fraction; v112: in brackets
   assert.strictEqual(H.fw.n, pc(exp.fw)); assert.strictEqual(H.gir.n, pc(exp.gir)); assert.ok(!/%/.test(H.pin.n + H.putt.n + H.pen.n + H.teelr.n), 'no percent on Pin location, Putts, Penalty, Tee misses L / R'); assert.strictEqual(H.putt.n, '31'); assert.strictEqual(H.fw.l, 'Fairways hit');
-  // tap Greens in regulation → it opens (map button inside), the others stay shut; tap again → shut
-  await page.click('[data-act="stx"][data-v="gir"]');
-  assert.strictEqual(await page.getAttribute('[data-act="stx"][data-v="gir"]', 'aria-expanded'), 'true');
-  assert.match(await page.textContent('[data-stx="gir"] .stxb [data-act="map"][data-v="gir"]'), /^7 \/ 18\s*Greens in reg/);
-  assert.strictEqual(await page.$$eval('#stattiles .stxb', x => x.length), 1);
+  // v191: tap Greens in regulation → its map opens straight away (one tap); rows without a map (Penalty) still open and shut
+  await page.click('[data-stx="gir"] .stxh'); await page.waitForSelector('#mapview'); await page.click('[data-act="mapclose"]'); await page.waitForSelector('#stattiles');
+  assert.strictEqual(await page.$$eval('#stattiles .stxb', x => x.length), 0);
   await page.click('[data-act="stx"][data-v="pen"]'); assert.match(await page.textContent('[data-stx="pen"] .stxb'), /Penalty strokes/);
   await page.click('[data-act="stx"][data-v="pen"]'); assert.strictEqual(await page.$('[data-stx="pen"] .stxb'), null);
-  // the map still opens from the expanded tile and the tile is still open when you come back
-  await page.click('[data-act="map"][data-v="gir"]'); await page.waitForSelector('#mapview'); await page.click('[data-act="mapclose"]'); await page.waitForSelector('#mapview', { state: 'detached' });
-  assert.ok(await page.$('[data-stx="gir"] .stxb [data-act="map"]'), 'still open after the map');
   await page.locator('#stattiles').scrollIntoViewIfNeeded(); await page.evaluate(() => window.scrollBy(0, -40));
   await page.screenshot({ path: OUT + 'round-stats-tiles.png' });
   console.log('  12 detail tiles collapsed; GIR opens on tap, map works, Penalty toggles');
   // ---- unfinished round: "thru N" under the score
   await page.evaluate(() => { const r = window.__golf.rounds()[0]; r.holes[17].finished = false; r.holes[16].finished = false; r.id = 'arc16';
     localStorage.setItem('golfsg.rounds.v1', JSON.stringify([r])); });
-  await page.reload(); if (await page.$('#plusbtn')) await page.click('#plusbtn'); await page.click('[data-act="history"]');
+  await page.reload(); if (await page.$('#plusbtn')) await page.click('#navbtn'); await page.click('[data-act="history"]');
   await page.click('#histlist [data-act="open"][data-id="arc16"]'); await page.waitForSelector('#rs-top');
   assert.match(await page.textContent('#rs-score'), /^\d+thru 16$/); assert.ok(!/vs par|holes? done/i.test(await page.evaluate(() => document.querySelector('.roundpage').innerText)));
   assert.strictEqual(await page.$$eval('#stattiles .stxb', x => x.length), 0, 'a different round starts collapsed again');

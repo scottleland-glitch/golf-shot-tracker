@@ -42,11 +42,11 @@ ok('story numbers match the round: 78 (+6), SG by category, FW 8/14, GIR 7/18, a
     // record what the share sheet would get
     await page.evaluate(() => { window.__shared = null; navigator.canShare = () => true; navigator.share = d => { window.__shared = d.files.map(f => ({ name: f.name, type: f.type, size: f.size })); return Promise.resolve(); }; });
     await page.evaluate(() => document.querySelector('[data-act="open"][data-id="arc78"]') || null);
-    if (await page.$('#plusbtn')) await page.click('#plusbtn');
+    if (await page.$('#plusbtn')) await page.click('#navbtn');
     await page.click('[data-act="history"]'); await page.click('#histlist [data-act="open"][data-id="arc78"]');
-    await page.waitForSelector('#storybtn'); assert.match(await page.textContent('#storybtn'), /Instagram \/ TikTok/);
-    // v179: the story picture sits beside the PDF report at the top; the benchmark note is behind the ⓘ
-    assert.deepStrictEqual(await page.$$eval('#rsactions .rsbtns > button', e => e.map(b => b.id)), ['rspdftop', 'storybtn']);
+    await page.waitForSelector('#rsmenubtn'); await page.click('#rsmenubtn'); await page.waitForSelector('#storybtn'); assert.match(await page.textContent('#storybtn'), /Instagram \/ TikTok/);
+    // v191: the PDF report and the story picture live in the ☰ menu; the benchmark note is behind the ⓘ
+    assert.deepStrictEqual(await page.$$eval('#rsmenu .rsmi', e => e.map(b => b.id)), ['rspdftop', 'storybtn']);
     assert.ok(await page.$('#tip-sumblnote[hidden]'), 'note hidden'); await page.click('#sumblrow .tipbtn'); assert.ok(await page.$('#tip-sumblnote:not([hidden])'), 'ⓘ shows it');
     await page.click('#sumblrow .tipbtn'); await page.screenshot({ path: OUT + 'round-top.png' });
     ok('Round stats has "Share to Instagram / TikTok"');

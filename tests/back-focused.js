@@ -46,12 +46,12 @@ function make(id, date, q) { const t = T.blank(id, date, 'Scott', 'd1w');
   await page.click('#plusbtn'); await page.waitForSelector('.sheet-item'); await page.waitForTimeout(100); await back();
   assert.strictEqual(await page.$('.sheet-back'), null); assert.strictEqual(await screen(), 'home'); ok('Home + menu → Back closes it');
   // Rounds → a round → Back → Rounds → Back → Home (two levels)
-  await page.click('#plusbtn'); await page.click('.sheet-item[data-act="history"]'); await page.waitForSelector('#histlist .hrow');
-  await page.click('.hrow .hist'); await page.waitForSelector('.topbar [data-act="history"]'); await page.waitForTimeout(100);
+  await page.click('#navbtn'); await page.click('.sheet-item[data-act="history"]'); await page.waitForSelector('#histlist .hrow');
+  await page.click('.hrow .hist'); await page.waitForSelector('#editround'); await page.waitForTimeout(100);
   await back(); await page.waitForSelector('#histlist'); assert.strictEqual(await screen(), 'history');
   await back(); assert.strictEqual(await screen(), 'home'); ok('round → Rounds → Home');
   // Scott's case: Rounds → round → scorecard → a hole → replay. Back closes the replay, Back is the scorecard where you left it, Back is Rounds, Back is Home
-  await page.click('#plusbtn'); await page.click('.sheet-item[data-act="history"]'); await page.waitForSelector('#histlist .hrow'); await page.click('.hrow .hist'); await page.waitForSelector('#scorecard');
+  await page.click('#navbtn'); await page.click('.sheet-item[data-act="history"]'); await page.waitForSelector('#histlist .hrow'); await page.click('.hrow .hist'); await page.waitForSelector('#scorecard');
   await page.$eval('#scorecard', e => e.scrollIntoView({ block: 'center' })); await page.waitForTimeout(150); const y0 = await page.evaluate(() => window.scrollY);
   await page.click('#scorecard [data-act="goHole"][data-i="4"]'); await page.waitForSelector('#holeback'); await page.waitForTimeout(150);
   const hole = () => page.evaluate(() => (document.body.innerText.match(/Hole \d+/) || [''])[0]);
@@ -61,21 +61,22 @@ function make(id, date, q) { const t = T.blank(id, date, 'Scott', 'd1w');
   await back(); await page.waitForSelector('#scorecard'); await page.waitForTimeout(200); assert.ok(Math.abs(await page.evaluate(() => window.scrollY) - y0) < 40, 'back at the scorecard, same place');
   await back(); await page.waitForSelector('#histlist'); await back(); assert.strictEqual(await screen(), 'home'); ok('scorecard → hole → replay: Back, Back = scorecard; Back = Rounds; Back = Home');
   // a menu pick takes the menu's step: Home + → Rounds → Back = Home (not the menu again)
-  await page.click('#plusbtn'); await page.click('.sheet-item[data-act="history"]'); await page.waitForSelector('#histlist'); await page.waitForTimeout(150);
+  await page.click('#navbtn'); await page.click('.sheet-item[data-act="history"]'); await page.waitForSelector('#histlist'); await page.waitForTimeout(150);
   await back(); assert.strictEqual(await screen(), 'home'); assert.strictEqual(await page.$('.sheet-back'), null, 'menu not reopened'); ok('+ menu → Rounds → Back = Home');
   // the short game test intro (from My Game's +) → Back → My Game
   await page.click('#mgcard'); await page.waitForSelector('#mygame'); await page.click('#sgtnew'); await page.waitForSelector('#sgtintro'); await page.waitForTimeout(100);
   await back(); await page.waitForSelector('#mygame'); ok('short game test intro → Back → My Game');
   // the app's own ‹ Home button leaves no spare step behind: one more Back from Home leaves
-  await page.click('.topbar [data-act="home"]'); await page.waitForSelector('#plusbtn'); await page.waitForTimeout(300);
+  await (async (P) => { if (!(await P.$('.topbar [data-act="home"]')) && await P.$('#rsmenubtn')) await P.click('#rsmenubtn'); return P.click('.topbar [data-act="home"], #rsmenu [data-act="home"]'); })(page) /* v191: in ☰ on Round stats */; await page.waitForSelector('#plusbtn'); await page.waitForTimeout(300);
   assert.strictEqual(await page.evaluate(() => history.state.d), 0, 'spare entry dropped'); ok('on-screen Home: Back then leaves');
   // the app's own buttons keep the steps in line: My Game → ‹ Home leaves none; Rounds → round → ‹ Rounds → phone Back → Home
   await page.click('#mgcard'); await page.waitForSelector('#mygame'); await page.waitForTimeout(150); assert.strictEqual(await page.evaluate(() => history.state.d), 1, 'one step for My Game');
-  await page.click('.topbar [data-act="home"]'); await page.waitForSelector('#plusbtn'); await page.waitForTimeout(300); assert.strictEqual(await page.evaluate(() => history.state.d), 0);
-  await page.click('#plusbtn'); await page.click('.sheet-item[data-act="history"]'); await page.waitForSelector('#histlist .hrow'); await page.waitForTimeout(150);
-  await page.click('.hrow .hist'); await page.waitForSelector('.topbar [data-act="history"]'); await page.waitForTimeout(150);
-  await page.click('.topbar [data-act="history"]'); await page.waitForSelector('#histlist'); await page.waitForTimeout(300);
-  await back(); assert.strictEqual(await screen(), 'home'); await page.waitForTimeout(200); assert.strictEqual(await page.evaluate(() => history.state.d), 0, 'nothing left over'); ok('on-screen buttons and the phone Back stay in step');
+  await (async (P) => { if (!(await P.$('.topbar [data-act="home"]')) && await P.$('#rsmenubtn')) await P.click('#rsmenubtn'); return P.click('.topbar [data-act="home"], #rsmenu [data-act="home"]'); })(page) /* v191: in ☰ on Round stats */; await page.waitForSelector('#plusbtn'); await page.waitForTimeout(300); assert.strictEqual(await page.evaluate(() => history.state.d), 0);
+  await page.click('#navbtn'); await page.click('.sheet-item[data-act="history"]'); await page.waitForSelector('#histlist .hrow'); await page.waitForTimeout(150);
+  await page.click('.hrow .hist'); await page.waitForSelector('#editround'); await page.waitForTimeout(150);
+  await (async (P) => { if (!(await P.$('.topbar [data-act="history"]')) && await P.$('#rsmenubtn')) await P.click('#rsmenubtn'); return P.click('.topbar [data-act="history"], #rsmenu [data-act="history"]'); })(page) /* v191: in ☰ on Round stats */; await page.waitForSelector('#histlist'); await page.waitForTimeout(300);
+  // v191: Rounds is now a pick from ☰ (a step forward, not the round's own back) – so Back retraces: the round, Rounds, Home
+  await back(); await page.waitForSelector('#editround'); await back(); await page.waitForSelector('#histlist'); await back(); assert.strictEqual(await screen(), 'home'); await page.waitForTimeout(200); assert.strictEqual(await page.evaluate(() => history.state.d), 0, 'nothing left over'); ok('on-screen buttons and the phone Back stay in step');
   // Android Chrome rule: no step is ever added without a tap
   const pushes = await page.evaluate(() => window.__pushNoTap || 0); assert.strictEqual(pushes, 0);
   assert.deepStrictEqual(errors, []); assert.deepStrictEqual(outside, []);

@@ -1,5 +1,5 @@
 const { chromium } = require('playwright-core'); const assert = require('assert'); const { spawn } = require('child_process');
-const goHist = async p => { if (await p.$('#plusbtn')) await p.click('#plusbtn'); await p.click('[data-act="history"]'); };
+const goHist = async p => { if (await p.$('#plusbtn')) await p.click('#navbtn'); await p.click('[data-act="history"]'); };
 const BASE = process.env.BASE_URL || 'http://127.0.0.1:8772/', OUT = '/workspace/golf-app/screenshots/';
 (async () => {
   const srv = process.env.NO_SERVER ? null : spawn('python3', ['-m', 'http.server', '8772', '--bind', '127.0.0.1'], { cwd: '/workspace/golf-app', stdio: 'ignore' });
@@ -17,7 +17,7 @@ const BASE = process.env.BASE_URL || 'http://127.0.0.1:8772/', OUT = '/workspace
   });
   await page.reload(); await goHist(page); await page.click('#histlist [data-act="open"][data-id="rs"]');
   await page.waitForSelector('#sgsec');
-  assert.strictEqual(await page.$('#sgbody'), null, 'collapsed by default'); assert.ok(await page.$('#sumblrow'), 'v168: the benchmark picker sits at the top of the round');
+  assert.strictEqual(await page.$('#sgbody'), null, 'collapsed by default'); assert.strictEqual(await page.$('#sumblrow'), null, 'v191: the benchmark picker is in ☰'); await page.click('#rsmenubtn'); assert.ok(await page.$('#rsmenu #sumblrow'), 'v191: in the ☰ menu'); await page.$eval('.rsback', e => e.click());
   // section is at the bottom: after stats grid and the PDF / delete buttons
   const order = await page.evaluate(() => { const a = [...document.querySelectorAll('.stat-grid, [data-act="delRound"], #sgsec')]; return a.map(e => e.id || e.className || e.dataset.act); });
   assert.strictEqual(order[order.length - 1], 'sgsec', 'SG section last: ' + order);
@@ -33,10 +33,10 @@ const BASE = process.env.BASE_URL || 'http://127.0.0.1:8772/', OUT = '/workspace
   await page.waitForTimeout(300); await page.screenshot({ path: OUT + 'sg-expanded.png' });
   // re-benchmark keeps the section open and updates header + body
   const before = await page.textContent('#sghtotal');
-  await page.selectOption('#sumbl', 'scm'); await page.waitForSelector('#sgbody');
+  await page.click('#rsmenubtn'); await page.selectOption('#sumbl', 'scm'); await page.$eval('.rsback', e => e.click()); await page.waitForSelector('#sgbody'); // v191: in ☰
   assert.notStrictEqual(await page.textContent('#sghtotal'), before); assert.strictEqual(await page.textContent('#sgtotal'), await page.textContent('#sghtotal'));
   assert.strictEqual(await page.evaluate(() => window.__golf.rounds()[0].baseline), 'scm');
-  await page.locator('#cmp tr[data-v="pga"]').click(); assert.strictEqual(await page.$eval('#sumbl', e => e.value), 'pga');
+  await page.locator('#cmp tr[data-v="pga"]').click(); assert.strictEqual(await page.evaluate(() => window.__golf.rounds()[0].baseline), 'pga');
   assert.strictEqual(await page.textContent('#sghtotal'), before);
   await page.click('.sghead'); assert.strictEqual(await page.$('#sgbody'), null, 'collapses again');
   assert.deepStrictEqual(errors, []); console.log('SG OK'); await b.close(); if (srv) srv.kill();

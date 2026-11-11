@@ -1,5 +1,5 @@
 const { chromium } = require('playwright-core'); const assert = require('assert'); const { spawn } = require('child_process');
-const goHist = async p => { if (await p.$('#plusbtn')) await p.click('#plusbtn'); await p.click('[data-act="history"]'); };
+const goHist = async p => { if (await p.$('#plusbtn')) await p.click('#navbtn'); await p.click('[data-act="history"]'); };
 const BASE = 'http://127.0.0.1:8771/';
 (async () => {
   const srv = spawn('python3', ['-m', 'http.server', '8771', '--bind', '127.0.0.1'], { cwd: '/workspace/golf-app', stdio: 'ignore' });
@@ -13,7 +13,7 @@ const BASE = 'http://127.0.0.1:8771/';
     localStorage.clear(); localStorage.setItem('golfsg.player.v1', 'Scott');
     localStorage.setItem('golfsg.rounds.v1', JSON.stringify([real('a', '2026-10-01T17:00:00Z', 'A'), real('b', '2026-10-08T17:00:00Z', 'B'), empty('e1', '2026-10-12T17:00:00Z', 'X'), empty('e2', '2026-10-13T17:00:00Z', 'Y')])); });
   await page.reload();
-  await page.click('#plusbtn'); await page.click('#plusmenu [data-act="archive"]'); assert.match(await page.textContent('.histbtn'), /2 saved rounds/);
+  await page.click('#navbtn'); await page.click('#navmenu [data-act="archive"]'); assert.match(await page.textContent('.histbtn'), /2 saved rounds/);
   await goHist(page);
   const rows = await page.$$eval('#histlist .hrow', r => r.length);
   const hdr = await page.textContent('.topbar .title span');

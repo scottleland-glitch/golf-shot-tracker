@@ -30,7 +30,7 @@ function make(id, date, q) { const t = T.blank(id, date, 'Scott', 'd1w');
   await page.evaluate(({ R, TS, PR }) => { localStorage.setItem('golfsg.player.v1', 'Scott'); localStorage.setItem('golfsg.rounds.v1', JSON.stringify(R)); localStorage.setItem('golfsg.sgtests.v1', JSON.stringify(TS)); localStorage.setItem('golfsg.practice.v1', JSON.stringify(PR)); }, { R: rounds, TS: tests, PR: practice });
   await page.reload(); await page.waitForSelector('#plusbtn');
   // v178: no benchmark set yet – a red "!" on the Home card and beside My Game in the + menu, and a red card at the top of My Game
-  assert.ok(await page.$('#mgcard .bangon'), 'Home card'); await page.click('#plusbtn'); assert.ok(await page.$('.sheet-item.bangon[data-act="mygame"]'), '+ menu');
+  assert.ok(await page.$('#mgcard .bangon'), 'Home card'); await page.click('#navbtn'); assert.ok(await page.$('.sheet-item.bangon[data-act="mygame"]'), '+ menu');
   await page.click('.sheet-item[data-act="mygame"]'); await page.waitForSelector('#mygame');
   assert.ok(await page.$('#mgblcard.unset #mgblok')); await page.screenshot({ path: OUT + '/gr-bench-unset.png' });
   const order = await page.$$eval('#mygame > *', e => e.map(x => x.id || x.className)); assert.ok(order.indexOf('mgblcard') < order.indexOf('mgperiod'), 'at the top');
@@ -50,7 +50,7 @@ function make(id, date, q) { const t = T.blank(id, date, 'Scott', 'd1w');
   assert.ok((await page.$$('#mgcvt .cvtr')).length === 4);
   await page.click('#mgperiod [data-v="3m"]');
   // 1. the button and the sheet: coach preset ticks everything
-  assert.strictEqual(await page.$('#grbtn'), null, 'v183: no report button on the page'); await page.click('#mgplus'); await page.click('#mgmenu [data-act="grep"]'); await page.waitForSelector('#grsheet');
+  assert.strictEqual(await page.$('#grbtn'), null, 'v183: no report button on the page'); await page.click('#mgnav'); await page.click('#mgnavmenu [data-act="grep"]'); await page.waitForSelector('#grsheet');
   assert.deepStrictEqual(await page.$$eval('#grparts .grpart', e => e.map(b => b.getAttribute('aria-pressed'))), ['true', 'true', 'true', 'true']);
   await page.locator('#grsheet').scrollIntoViewIfNeeded(); await page.screenshot({ path: OUT + '/gr-sheet.png' });
   const make1 = async () => { await page.click('#grgo'); await page.waitForSelector('#pdfname'); return page.evaluate(async () => { const p = window.__golf.lastPdf; return { name: p.name, pages: p.pages, L: p.layout, b: Array.from(new Uint8Array(await p.blob.arrayBuffer())) }; }); };
@@ -66,14 +66,14 @@ function make(id, date, q) { const t = T.blank(id, date, 'Scott', 'd1w');
   if (process.env.SHOTS) execSync('pdftoppm -r 60 -png ' + f + ' ' + OUT + '/gr-coach');
   await page.screenshot({ path: OUT + '/gr-ready.png' });
   // 2. recruiting: results only – no practice minutes, no plan
-  await page.click('[data-act="pdfclose"]'); await page.click('#mgplus'); await page.click('#mgmenu [data-act="grep"]'); await page.click('#grprecruit');
+  await page.click('[data-act="pdfclose"]'); await page.click('#mgnav'); await page.click('#mgnavmenu [data-act="grep"]'); await page.click('#grprecruit');
   assert.deepStrictEqual(await page.$$eval('#grparts .grpart', e => e.map(b => b.getAttribute('aria-pressed'))), ['true', 'false', 'true', 'false']);
   const R = await make1(), rall = R.L.text.map(t => t.t).join('\n');
   assert.ok(R.pages < C.pages, 'shorter'); assert.ok(!rall.includes('My Practice') && !rall.includes('Practice plan') && !rall.includes('PRACTICE'), 'no practice in the recruiting copy');
   assert.ok(rall.includes('Short game test - ') && rall.includes('My Game - '));
   if (process.env.SHOTS) { fs.writeFileSync(OUT + '/game-report-recruit.pdf', Buffer.from(R.b)); }
   // 3. nothing ticked: a toast, no PDF
-  await page.click('[data-act="pdfclose"]'); await page.click('#mgplus'); await page.click('#mgmenu [data-act="grep"]'); for (const k of ['game', 'practice', 'test', 'plan']) await page.click('[data-act="grpart"][data-v="' + k + '"]');
+  await page.click('[data-act="pdfclose"]'); await page.click('#mgnav'); await page.click('#mgnavmenu [data-act="grep"]'); for (const k of ['game', 'practice', 'test', 'plan']) await page.click('[data-act="grpart"][data-v="' + k + '"]');
   await page.click('#grgo'); assert.ok(await page.$('#grsheet'), 'the sheet stays open');
   assert.deepStrictEqual(errors, []); assert.deepStrictEqual(outside, [], 'no outside requests');
   console.log('coach', C.pages, 'pages · recruiting', R.pages, 'pages');

@@ -27,7 +27,7 @@ const ok = m => console.log('ok - ' + m);
       localStorage.setItem('golfsg.player.v1', 'Scott'); localStorage.setItem('golfsg.nameasked.v1', '1'); } }, [full, live]);
     const P = await ctx.newPage(); P.setDefaultTimeout(30000); P.on('pageerror', e => errors.push(String(e))); P.on('console', m => m.type() === 'error' && errors.push('console: ' + m.text()));
     const shot = async name => { await P.waitForFunction(() => !document.querySelector('#toast.show')); await P.waitForTimeout(400); await P.screenshot({ path: OUT + name }); };
-    const openRound = async id => { await P.click('[data-act="home"] >> nth=0').catch(() => {}); await P.click('#plusbtn'); await P.click('#plusmenu [data-act="history"]');
+    const openRound = async id => { await P.click('[data-act="home"] >> nth=0').catch(() => {}); await P.click('#navbtn'); await P.click('#navmenu [data-act="history"]');
       await P.click(`#histlist [data-act="open"][data-id="${id}"]`); await P.waitForSelector('#scorecard'); };
     // each row: label, then every cell's text (✓ / ✗ for the yes/no icons)
     const table = () => P.$$eval('#scorecard tr:not(.scgap)', trs => trs.map(t => [t.querySelector('th').textContent,

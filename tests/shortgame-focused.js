@@ -26,8 +26,7 @@ function make(id, date, q) { const t = T.blank(id, date, 'Scott', 'scm');
   await page.evaluate(({ R, TS }) => { localStorage.setItem('golfsg.player.v1', 'Scott'); localStorage.setItem('golfsg.rounds.v1', JSON.stringify(R)); localStorage.setItem('golfsg.sgtests.v1', JSON.stringify(TS)); }, { R: rounds, TS: process.env.EMPTY ? [] : tests });
   await page.reload();
   const shot = async (n, full) => page.screenshot({ path: OUT + '/' + n + '.png', fullPage: !!full });
-  if (await page.$('#plusbtn')) await page.click('#plusbtn');
-  assert.ok(await page.$('[data-act="sgtopen"]'), 'menu item'); await page.click('.sheet-item[data-act="mygame"]');
+  await page.click('#plusbtn'); assert.ok(await page.$('[data-act="sgtopen"]'), 'menu item under +'); await page.$eval('.sheet-back', e => e.click()); await page.click('#navbtn'); await page.click('.sheet-item[data-act="mygame"]');
   await page.waitForSelector('#sgtmg'); await page.locator('#sgtmg').scrollIntoViewIfNeeded(); await shot('01-mygame-card');
   // v174: opening goes to the tests page; the intro runs when a test is STARTED (a refresher – no skip, Back returns to Tests)
   // v183: no Open button – the card lists the last 4 tests (tap = result) and its + goes straight into the intro; Back returns to My Game

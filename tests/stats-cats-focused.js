@@ -16,7 +16,7 @@ const CATS = ['driver', 'approach', 'putting', 'chipping', 'bunker', 'scoring'];
   await page.goto(BASE + '?x=' + Date.now()); await page.evaluate(SEED); await page.reload(); await page.waitForSelector('#plusbtn');
   const shot = async (n, el, off) => { if (el) await page.$eval(el, (e, o) => { window.scrollTo(0, 0); window.scrollTo(0, e.getBoundingClientRect().top - o); }, off == null ? 64 : off); else await page.evaluate(() => window.scrollTo(0, 0));
     await page.waitForTimeout(200); await page.screenshot({ path: OUT + '/' + n }); };
-  const goStats = async () => { if (!(await page.$('#plusmenu'))) await page.click('#plusbtn'); await page.click('#plusmenu [data-act="stats"]'); await page.waitForSelector('#statspage'); };
+  const goStats = async () => { if (!(await page.$('#plusmenu'))) await page.click('#navbtn'); await page.click('#navmenu [data-act="stats"]'); await page.waitForSelector('#statspage'); };
   const state = () => page.$$eval('.stcat', e => e.map(s => [s.dataset.cat, s.querySelector('.stcath').getAttribute('aria-expanded'), s.querySelector('.stcatb').hidden]));
   const toggle = c => page.click('#stcat-' + c + ' .stcath');
   const fmtSG = v => { const s = (Math.round(v * 100) / 100).toFixed(2); return (v > 0.004 ? '+' : '') + (s === '-0.00' ? '0.00' : s); };
@@ -40,7 +40,7 @@ const CATS = ['driver', 'approach', 'putting', 'chipping', 'bunker', 'scoring'];
   await toggle('putting'); await toggle('chipping'); await page.click('#strange [data-v="5"]');
   assert.deepStrictEqual((await state()).map(s => s[1]), ['false', 'false', 'true', 'true', 'false', 'false'], 'kept after Last 5');
   await page.click('#strange [data-v="all"]'); await toggle('chipping');
-  await page.click('.topbar [data-act="home"]'); await goStats(); assert.deepStrictEqual((await state()).map(s => s[1]), ['false', 'false', 'false', 'false', 'false', 'false'], 'fresh visit starts closed');
+  await (async (P) => { if (!(await P.$('.topbar [data-act="home"]')) && await P.$('#rsmenubtn')) await P.click('#rsmenubtn'); return P.click('.topbar [data-act="home"], #rsmenu [data-act="home"]'); })(page) /* v191: in ☰ on Round stats */; await goStats(); assert.deepStrictEqual((await state()).map(s => s[1]), ['false', 'false', 'false', 'false', 'false', 'false'], 'fresh visit starts closed');
 
   // hand counts from the saved rounds (finished rounds only) with the app's own sg.js helpers
   const H = await page.evaluate(() => { const L = window.__golf.rounds().filter(r => r.player === 'Scott' && r.id !== 'c7').sort((a, b) => a.date.localeCompare(b.date));
