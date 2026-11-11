@@ -181,3 +181,18 @@ test('v176: last 2 / 3 / 4 rounds – the newest N finished rounds, and the N be
   assert.strictEqual(P.name, 'Last 3 rounds'); assert.strictEqual(M.period(P), P, 'a period object passes straight through');
   assert.strictEqual(M.windows(M.roundPeriod(4, R.slice(0, 3))).prev, null, 'fewer rounds than N: no earlier window');
 });
+
+test('v184 weekly play + practice: rounds as hours (18 holes = 5 h), Monday weeks, ratio over the last 12 weeks', () => {
+  const nine = (r) => { r.holes = r.holes.slice(0, 9); return r; };
+  const now = Date.parse('2026-11-12T20:00:00'), on = (id, ymd, play) => Object.assign(ARC.round(), { id, date: ymd + 'T10:00:00' }, play ? { play } : {}); // Thu 12 Nov
+  const rs = [on('a', '2026-11-09', 'tournament'), nine(on('b', '2026-11-11', 'practice')), on('c', '2026-11-08'), on('old', '2024-01-01', 'practice')];
+  const logs = [{ date: '2026-11-10', min: 90 }, { date: '2026-11-02', min: 60 }, { date: '2026-11-15', min: 30 }];
+  const S = M.playWeeksBuild(rs, logs, SG, { now, baseline: 'd1w' }), W = S.weeks, wk = W[W.length - 1], prev = W[W.length - 2];
+  assert.strictEqual(new Date(wk.start).getDay(), 1, 'weeks start on Monday'); assert.strictEqual(W.length, 104, 'two years back at most');
+  assert.deepStrictEqual([wk.tournament, wk.practice, wk.untagged, wk.prac, wk.rounds], [5, 2.5, 0, 1.5, 1.5], 'this week: 1 round + 9 holes, 1½ h practice (future log ignored)');
+  assert.deepStrictEqual([prev.untagged, prev.prac], [5, 1], 'Sun 8 Nov belongs to the week before');
+  assert.strictEqual(S.headline, '0.2 h of practice for every hour on the course'); assert.strictEqual(S.lede, 'Last 12 weeks: 12½ h on the course (2½ rounds) and 2½ h of practice.');
+  assert.match(S.weekText(wk), /^This week: 7½ h on the course \(1½ rounds\) · 1½ h practice\.$/);
+  assert.strictEqual(M.playWeeksBuild([], [], SG, { now }).weeks.length, 16, 'at least 16 weeks'); assert.strictEqual(M.playWeeksBuild([], [], SG, { now }).headline, 'Nothing played or practised in the last 12 weeks');
+  const B = M.playWeeksBuild([], [], SG, { now, baseline: 'd1w', bench: true }); assert.ok(B.weeks.some((w) => w.bench > 0)); assert.match(B.lede, /D1 college women spend about/);
+});

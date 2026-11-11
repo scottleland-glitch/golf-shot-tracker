@@ -12,7 +12,7 @@ assert.ok(swVer, 'sw.js has a golf-sg-vN cache name'); assert.strictEqual(cfgVer
 assert.ok(!/appVersion/.test(cfg), 'no version in config.js (it is network-first, so it would show a version the phone is not running yet)');
 const cfgVer = cfgVers[0].match(/'(v\d+)'/)[1];
 assert.strictEqual(cfgVer, swVer, 'sg.js VERSION (' + cfgVer + ') must equal the sw.js cache version (' + swVer + ')');
-assert.strictEqual(swVer, 'v183');
+assert.strictEqual(swVer, 'v184');
 assert.ok(!/(Pin High|Strokewise) v\d+/.test(app), 'no version typed into app.js – it reads SG.VERSION');
 ok('sg.js VERSION ' + cfgVer + ' = sw.js cache golf-sg-' + swVer);
 (async () => {

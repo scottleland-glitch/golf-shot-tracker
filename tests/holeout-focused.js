@@ -3,7 +3,7 @@
 // Covers: SG model (strokes, start lie, SG split, GIR/chip-in rule), old rounds computing exactly like v89 (git 8e31760),
 // backup/restore, live snapshot + viewer, voice ("holed it" / "in the hole"), and the phone flow (box, one per hole, confirm, hint).
 const assert = require('assert'); const { execSync, spawn } = require('child_process'); const fs = require('fs'); const os = require('os'); const path = require('path');
-const SG = require('../sg.js'); global.SG = SG; const L = require('../live.js'); const V = require('../voice.js');
+const SG = require('../sg.js'); global.SG = SG; const L = require('../live.js');
 const R = (d, l, x) => Object.assign({ dist: d, loc: l, dir: '', pen: false }, x || {});
 const close = (a, b, m) => assert.ok(Math.abs(a - b) < 1e-9, m + ': ' + a + ' vs ' + b);
 let n = 0;
@@ -100,18 +100,6 @@ const hole1 = () => ({ par: 4, finished: true, rows: [R(467, 'tee', { club: 'Dri
   // old snapshots (no 7th field) still read as before
   const html0 = L.viewerHTML({ v: 1, h: [{ par: 4, sc: 3, shots: ['467|tee', '155|fairway', '25|holedx|right'] }], thru: 1, strokes: 3, par: 4, toPar: -1, cur: 2, at: 1 }, { open: 0, now: 2 });
   assert.ok(html0.includes('In the hole from 25 yd')); n++; }
-
-// ---------- 6. voice ----------
-{ const h = { par: 4, rows: [R(467, 'tee'), R(155, 'fairway'), R(25, 'deep', { club: '56' })] };
-  ['holed it', 'in the hole', 'made it', 'chipped in'].forEach(t => { const a = V.apply(h, V.parse(t)); assert.strictEqual(a.k, 2, t); assert.deepStrictEqual(a.rows[2], R(25, 'deep', { club: '56', holeOut: true }), t + ' keeps deep rough');
-    assert.deepStrictEqual(V.describe(h, a)[0], ['Shot 3', 'Deep rough · 25 yd – in the hole!']); assert.strictEqual(SG.analyzeHole({ par: 4, rows: a.rows }).strokes, 3); });
-  const p = V.parse('56 25 yards deep rough holed it'); assert.deepStrictEqual([p.loc, p.holeOut, p.club, p.dist], ['deep', true, '56', 25]);
-  const a2 = V.apply({ par: 4, rows: [R(467, 'tee'), R(155, 'fairway')] }, p); assert.deepStrictEqual(a2.rows[2], R(25, 'deep', { club: '56', holeOut: true })); assert.ok(a2.created);
-  // putts still become "In the hole"
-  assert.deepStrictEqual(V.apply({ par: 4, rows: [R(400, 'tee'), R(150, 'fairway'), R(8, 'green')] }, V.parse('made it')).rows[2], R(8, 'holed'));
-  assert.strictEqual(V.parse('on the green 10 feet made it').loc, 'holed');
-  // holed out already -> nothing more to add
-  assert.ok(V.apply(hole1(), V.parse('putt 3 feet')).done); n++; }
 
 // ---------- 7. phone flow (390x844) ----------
 (async () => {

@@ -164,7 +164,7 @@
     goHole(0, true);
   }
   function goHole(i, focus) {
-    view.screen = 'hole'; view.hole = Math.max(0, Math.min(17, i)); view.menu = null; view.edk = null; view.parEdit = null; view.liveCard = false; view.dirk = null; view.pinOpen = false; view.voice = null; micAbort();
+    view.screen = 'hole'; view.hole = Math.max(0, Math.min(17, i)); view.menu = null; view.edk = null; view.parEdit = null; view.liveCard = false; view.dirk = null; view.pinOpen = false;
     render(); window.scrollTo(0, 0);
     var h = round().holes[view.hole];
     if (focus && h.rows.length === 1 && h.rows[0].dist === '') focusDist(0);
@@ -181,7 +181,7 @@
     var el = document.getElementById('app');
     if (view.screen !== 'summary') view.map = null;
     if (view.screen !== 'summary' && view.screen !== 'hole') view.replay = null;
-    if (view.screen !== 'hole') { view.pinOpen = false; view.voice = null; view.liveCard = false; micAbort(); }
+    if (view.screen !== 'hole') { view.pinOpen = false; view.liveCard = false; }
     if (view.screen !== 'card') view.card = null;
     if (view.screen !== 'summary') { view.send = null; if (view.story) storyClose(); } if (view.screen !== 'history') view.addr = null; // v97 sheets
     if (view.screen !== 'mygame') view.mgMenu = null;
@@ -2332,17 +2332,21 @@
   function plBenchOn() { try { return localStorage.getItem('golfsg.plbench.v1') === '1'; } catch (e) { return false; } }
   function playingCardHTML(who, D) {
     var all = savedRounds().filter(function (r) { return samePlayer(r.player || playerName(), who); });
-    // v164 (Scott): a season histogram – rounds per month for the last 12 months in front of a typical season for the benchmark
-    // group (pale columns), last year's months as dashed outlines once there is a year of rounds
-    var wb = plBenchOn(), SN = MYGAME.seasonBuild(all, SG, { baseline: D.baseline, bench: wb }), Bn = SN.bench, P = D.period;
-    var o = '<div class="mgchart plchart frost" id="plcard"><span class="tkeye">My Playing · last 12 months</span><h2 id="plhead">' + esc(SN.headline) + '</h2><p id="pllede">' + esc(SN.lede) + '</p>' +
-      MYGAME.seasonSVG(SN) + '<button class="plbtog' + (wb ? ' on' : '') + '" id="plbtog" data-act="plbench" aria-pressed="' + wb + '"><i aria-hidden="true"></i>Compare with ' + esc(Bn.who) + '</button>' + '<p class="plmonth" id="plmonth">' + esc(SN.month) + '</p>' +
-      '<div class="mglegend plleg"><span><i class="lg-t"></i>Tournament</span><span><i class="lg-p"></i>Practice</span>' + (SN.untagged ? '<span><i class="lg-u"></i>Not tagged</span>' : '') +
-      (wb ? '<span><i class="lg-b"></i>' + esc(Bn.who.charAt(0).toUpperCase() + Bn.who.slice(1)) + ' (tournament rounds)</span>' : '') + (SN.hasPrev ? '<span><i class="lg-l"></i>Year before</span>' : '') + '</div>';
+    // v184 (Scott): weeks, not months – rounds as hours on the course (18 holes = 5 h) with logged practice beside them, on one
+    // hours scale. The weeks scroll sideways (newest at the right); tap a week for its numbers.
+    var wb = plBenchOn(), SN = MYGAME.playWeeksBuild(all, practiceOf(who), SG, { baseline: D.baseline, bench: wb }), Bn = SN.bench, P = D.period;
+    var nW = SN.weeks.length, sel = view.plWeek != null && view.plWeek < nW ? view.plWeek : nW - 1;
+    var o = '<div class="mgchart plchart frost" id="plcard"><span class="tkeye">Playing and practice · by week</span><h2 id="plhead">' + esc(SN.headline) + '</h2><p id="pllede">' + esc(SN.lede) + '</p>' +
+      '<div class="plwrap">' + MYGAME.playWeeksAxis(SN) + '<div class="plscroll" id="plscroll"><div class="plinner">' + MYGAME.playWeeksSVG(SN, sel) + '</div></div></div>' +
+      '<p class="plmonth" id="plweektxt">' + esc(SN.weekText(SN.weeks[sel])) + '</p>' +
+      '<div class="mglegend plleg"><span><i class="lg-t"></i>Tournament round</span><span><i class="lg-p"></i>Practice round</span>' + (SN.untagged ? '<span><i class="lg-u"></i>Not tagged</span>' : '') +
+      '<span><i class="lg-pr"></i>Practice logged</span>' + (wb ? '<span><i class="lg-b"></i>' + esc(Bn.who.charAt(0).toUpperCase() + Bn.who.slice(1)) + ' (tournament rounds)</span>' : '') + '</div>' +
+      '<button class="plbtog' + (wb ? ' on' : '') + '" id="plbtog" data-act="plbench" aria-pressed="' + wb + '"><i aria-hidden="true"></i>Compare with ' + esc(Bn.who) + '</button>' +
+      '<p class="plnote plhrs">A round counts as ' + MYGAME.ROUND_H + ' h (9 holes 2½ h), so it sits on the same scale as practice. Swipe the chart for earlier weeks.</p>';
     var un = all.filter(function (r) { return !MYGAME.playOf(r) && SG.summarize(r).holesDone; }).length;
     if (un) o += '<p class="plnote" id="pluntag">' + un + ' older round' + (un === 1 ? ' isn’t' : 's aren’t') + ' tagged – open ' + (un === 1 ? 'it' : 'each one') + ' and pick Practice or Tournament under Round type.</p>';
-    if (wb) o += '<details class="prhow" id="plhow"><summary>Where the benchmark comes from</summary><p>The pale columns are the tournament rounds a typical player in your benchmark group plays each month, ' +
-      'built from ' + esc(Bn.src) + ' – about ' + Math.round(Bn.perYear) + ' a year. Your tournament rounds sit at the bottom of each column so you can compare them straight across; practice rounds stack on top. ' +
+    if (wb) o += '<details class="prhow" id="plhow"><summary>Where the benchmark comes from</summary><p>The dashed line is the tournament rounds a typical player in your benchmark group plays each month, ' +
+      'built from ' + esc(Bn.src) + ' – about ' + Math.round(Bn.perYear) + ' a year, spread over the weeks of each month at ' + MYGAME.ROUND_H + ' h a round. Your tournament rounds sit at the bottom of each bar so you can compare them straight across; practice rounds stack on top. ' +
       'Practice rounds have no benchmark – no one publishes how many practice rounds players play – so compare those with your own year before.</p>' +
       '<p>Sources: PGA Tour and LPGA Tour 2026 schedules (The Golf News Net); NCAA Division I 24 competition days (Clippd); about 19.5 college rounds a year for D1 women and 17.8 for D1 men (Mikkel Bjerch-Andresen, “71 scorecards”); ' +
       'USGA player-development guidance of 8–12 multi-round events a year for top amateurs. College columns count college events only, not summer amateur events.</p></details>';
@@ -2962,8 +2966,7 @@
     });
 
     var pens = h.rows.reduce(function (n, rw, k) { return n + (SG.isPenalty(rw, k) ? 1 : 0); }, 0);
-    var lastR = h.rows[h.rows.length - 1], talk = !fin && !SG.isHoled(lastR, h.rows.length - 1);
-    out += '<div class="countrow"><div class="count" id="count">' + countText(h, pens) + '</div>' + (talk ? micHTML() : '') + '</div>';
+    out += '<div class="countrow"><div class="count" id="count">' + countText(h, pens) + '</div></div>';
     if (fin) {
       out += '<div class="hole-done">Score <b>' + a.strokes + '</b> (' + toPar(a.strokes - h.par) + ') · SG <span class="' + sgCls(a.sg) + '">' + fmtSG(a.sg) + '</span></div>';
       out += '<button class="big frostbtn" data-act="reopen">✎ Edit this hole</button>';
@@ -2984,7 +2987,6 @@
       'The shot that went in: tick "Hole out" on its row – its Loc (e.g. Rough) stays, so strokes gained counts it from there. Dir = where the shot before ended vs its target (8 ways: Short = toward you, Long = past it, Left, Right, and the corners). For an approach that missed the green, pick where it missed the green; if it found the green, pick where it stopped vs the hole. ' +
       'P = penalty stroke (+1), e.g. a drop. "OB re-hit" = +1 and you hit again from the same spot. Score = rows + penalties.</p>';
     if (view.dirk != null && h.rows[view.dirk] && !fin) out += dirSheetHTML(h, view.dirk);
-    if (view.voice && view.voice.hole === view.hole && !fin) out += voiceCardHTML(h);
     if (view.liveCard && live) out += liveCardHTML(r);
     return out;
   }
@@ -3025,66 +3027,7 @@
     else liveCopy(url);
   }
 
-  // ---------- Voice entry: hold the mic, say the shot, confirm ----------
-  var MIC_SVG = '<svg class="micico" viewBox="0 0 24 24" width="26" height="26" aria-hidden="true"><rect x="8.5" y="2.5" width="7" height="12" rx="3.5" fill="currentColor"/><path d="M5.5 11a6.5 6.5 0 0 0 13 0M12 17.5V21M8.5 21h7" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>';
-  // v83/v84: voice entry = the iPhone keyboard's own dictation. No Web Speech API (press-and-hold was unreliable in the home-screen app).
-  // Tap "Say it" → a small box opens with the field focused in the same tap (so the keyboard comes up) → tap the keyboard 🎤 and talk →
-  // tap ✓ (or Enter/Done) → same parser + confirmation card. v84: no idle auto-submit and no submit on blur – iOS pauses mid-phrase
-  // (and can blur the field when dictation pauses/ends), so the text is kept until he taps ✓.
-  var dictTimer = null; // kept for voiceState(); nothing schedules it any more
-  function micHTML() { return '<button type="button" id="micbtn" class="micbtn" data-act="vdict" aria-label="Say it: dictate the shot">' + MIC_SVG + '<span class="miclbl">Say it</span></button>'; }
-  function dictStop() { clearTimeout(dictTimer); dictTimer = null; }
-  function dictOpen() { // runs inside the tap handler: render, then focus synchronously so iOS opens the keyboard
-    dictStop(); view.voice = { hole: view.hole, stage: 'dict' }; render();
-    var t = document.getElementById('vtext'); if (t) { t.value = ''; t.focus(); }
-  }
-  function dictSubmit() {
-    dictStop(); var t = document.getElementById('vtext'), text = t ? t.value.replace(/\s+/g, ' ').trim() : '';
-    if (!view.voice || view.voice.stage !== 'dict') return;
-    if (!text) { if (t) t.focus(); return; }
-    if (t) t.blur(); voiceHeard(text);
-  }
-  function micAbort() { dictStop(); }
-  function voiceHeard(text) { var p = VOICE.parse(text); if (p && p.club) p.club = BAG.matchClub(p.club, bag()); view.voice = { hole: view.hole, stage: 'confirm', p: p }; render(); }
-  function vSel(f, opts, cur) { return '<select data-vf="' + f + '">' + opts.map(function (o) { return '<option value="' + o[0] + '"' + (String(cur == null ? '' : cur) === String(o[0]) ? ' selected' : '') + '>' + o[1] + '</option>'; }).join('') + '</select>'; }
-  function voiceCardHTML(h) {
-    var V = view.voice, out = '<div class="sheet-bg" data-act="vcancel"></div><div class="sheet frostsheet voicecard" role="dialog" aria-label="Voice entry">';
-    if (V.stage === 'dict') {
-      return '<div class="sheet-bg" data-act="vcancel"></div><div class="sheet frostsheet voicecard voicedict" role="dialog" aria-label="Say the shot">' +
-        '<input type="text" id="vtext" enterkeyhint="done" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" placeholder="3rd shot green 25 ft" aria-label="Shot">' +
-        '<p class="vhint">Tap 🎤 on your keyboard, talk, then tap ✓</p>' +
-        '<div class="vdrow"><button class="frostmain vgo" data-act="vgo" aria-label="Done – check the shot">✓</button><button class="frostbtn vx" data-act="vcancel" aria-label="Close">✕</button></div></div>';
-    }
-    var p = V.p, res = VOICE.apply(h, p), fields = VOICE.describe(h, res, p);
-    out += '<h3>' + MIC_SVG + ' I heard</h3><p class="vraw">“' + esc(p.raw) + '”</p>';
-    if (V.stage === 'edit') {
-      var k = res.k < 0 ? (p.shot ? p.shot - 1 : h.rows.length) : res.k, R = res.rows[k] || {}, n = h.rows.length, sel = p.shot || k + 1;
-      var loc = p.loc || R.loc || '', green = loc === 'green' || loc === 'holed' || !!p.putt, opts = [];
-      for (var si = 1; si <= n + 1; si++) opts.push([si, 'Shot ' + si + (si === n + 1 ? ' (new)' : '')]);
-      out += '<div class="vedit">' +
-        '<label><span>Shot</span>' + vSel('shot', opts, sel) + '</label>' +
-        (green ? '' : '<label><span>Club</span>' + vSel('club', [['', '–']].concat(clubChoices(p.club).map(function (c) { return [c.code, c.label]; })), p.club) + '</label>') +
-        '<label><span>To pin (' + (sel === 1 ? 'yd' : green ? 'ft' : 'yd') + ')</span><input type="text" inputmode="numeric" maxlength="3" data-vf="dist" value="' + (p.dist == null ? '' : p.dist) + '"></label>' +
-        (sel === 1 ? '' : '<label><span>Hitting from</span>' + vSel('loc', [['', '–'], ['fairway', 'Fairway'], ['rough', 'Rough'], ['deep', 'Deep rough'], ['bunker', 'Bunker'], ['green', 'Green'], ['hazard', 'Hazard'], ['trees', 'Trees'], ['ob', 'OB re-hit'], ['holed', 'In the hole']], p.loc) + '</label>' +
-          '<label><span>Shot ' + (sel - 1) + ' missed</span>' + vSel('dir', [['', '–']].concat(SG.DIR8.map(function (d) { return [d, SG.DIR_NAME[d]]; })), p.dir) + '</label>' +
-          '<label class="vchk"><input type="checkbox" data-vf="pen"' + (p.pen ? ' checked' : '') + '> Shot ' + (sel - 1) + ' penalty +1</label>' +
-          (p.loc === 'holed' ? '' : '<label class="vchk"><input type="checkbox" data-vf="holeOut"' + ((p.holeOut || (p.holeOut !== false && R.holeOut)) ? ' checked' : '') + '> Hole out (shot ' + sel + ' went in)</label>')) +
-        (sel === 1 && Number(h.par) !== 3 ? '<label class="vchk"><input type="checkbox" data-vf="layup"' + (p.layup ? ' checked' : '') + '> Layup</label>' : '') + '</div>';
-    } else if (p.empty) out += '<p class="vwarn">I couldn’t find a club, distance or result in that. Try again, or tap Edit.</p>';
-    else out += '<div class="vfields">' + fields.map(function (f) { return '<div class="vf"><span>' + esc(f[0]) + '</span><b>' + esc(f[1]) + '</b></div>'; }).join('') + '</div>';
-    if (p.unknown && V.stage !== 'edit') out += '<p class="vnote">Not sure about: “' + esc(p.unknown) + '”</p>';
-    (res.notes || []).forEach(function (w) { out += '<p class="vnote">' + esc(w) + '</p>'; });
-    res.warn.forEach(function (w) { out += '<p class="vwarn">' + esc(w) + '</p>'; });
-    var can = !res.done && res.k >= 0 && !(p.empty && V.stage !== 'edit');
-    return out + '<div class="vbtns"><button class="frostmain big vsave" data-act="vsave"' + (can ? '' : ' disabled') + '>✓ Save</button>' +
-      (V.stage === 'edit' ? '' : '<button class="frostbtn big" data-act="vedit">✎ Edit</button>') + '<button class="frostbtn big" data-act="vretry">↺ Retry</button></div></div>';
-  }
-  function voiceSave() {
-    var h = round().holes[view.hole], p = view.voice.p, res = VOICE.apply(h, p);
-    if (res.done || res.k < 0) { toast(res.warn[0] || 'Nothing to save'); return; }
-    dictStop(); h.rows = res.rows; save(); view.voice = null; view.menu = null; view.edk = null; view.vflash = res.touched.slice(); render(); view.vflash = null;
-    toast('Shot ' + (res.k + 1) + ' saved');
-  }
+  // v184 (Scott): voice entry ("Say it") removed.
   function dirSheetHTML(h, k) {
     var cur = SG.normDir(h.rows[k].dir), prevLie = SG.lieOf(h.rows, k - 1), prevGreen = prevLie === 'green', ob = h.rows[k].loc === 'ob'; // v153
     var out = '<div class="sheet-bg" data-act="dirclose"></div><div class="sheet frostsheet" role="dialog" aria-label="Pick direction">' +
@@ -5195,6 +5138,7 @@
       case 'livesend': if (live && r) liveSend(r); return;
       case 'livecopy': if (live && r) liveCopy(live.info(r.id).link); return;
       case 'livestop': if (!live || !r || !confirm('Stop sharing? The link will stop showing this round.')) return; live.stop(r.id); view.liveCard = false; toast('Sharing stopped'); render(); return;
+      case 'plweek': { var sc0 = document.getElementById('plscroll'), sl = sc0 ? sc0.scrollLeft : null; view.plWeek = +v; render(); var sc1 = document.getElementById('plscroll'); if (sc1 && sl != null) sc1.scrollLeft = sl; return; } // v184
       case 'plbench': try { localStorage.setItem('golfsg.plbench.v1', plBenchOn() ? '0' : '1'); } catch (e) {} render(); return;
       case 'newplay': view.newPlay = v; [].forEach.call(document.querySelectorAll('[data-act="newplay"]'), function (x) { var on = x.getAttribute('data-v') === v; x.classList.toggle('sel', on); x.setAttribute('aria-pressed', on); }); return; // no re-render: keeps a typed course name
       case 'rplay': { var rp = round(); if (rp) { rp.play = v; save(); toast(v === 'tournament' ? 'Tagged as a tournament round' : 'Tagged as a practice round'); render(); } return; }
@@ -5354,11 +5298,6 @@
       case 'cardedit': { var ce = courseById(b.getAttribute('data-id')); if (ce) cardOpen('archive', JSON.parse(JSON.stringify(ce)), 'review'); return; }
       case 'coursedel': { var cd = courseById(b.getAttribute('data-id')); if (!cd || !confirm('Delete ' + cd.name + '? Rounds already played keep their numbers.')) return;
         saveCourses(courses().filter(function (x) { return x.id !== cd.id; })); backupDirty(3000); toast('Course deleted'); render(); return; }
-      case 'vsave': voiceSave(); return;
-      case 'vedit': view.voice.stage = 'edit'; render(); return;
-      case 'vdict': case 'vretry': dictOpen(); return; // Retry: clear the box and refocus it (same tap opens the keyboard)
-      case 'vgo': dictSubmit(); return;
-      case 'vcancel': dictStop(); view.voice = null; render(); return;
       case 'dirpick': view.dirk = k; view.menu = null; break;
       case 'dirclose': view.dirk = null; break;
       case 'setdir': if (h.rows[view.dirk].loc === 'ob' && (v === 'short' || v === 'long')) return; h.rows[view.dirk].dir = v || ''; view.dirk = null; save(); break;
@@ -5495,18 +5434,7 @@
     var mv = document.getElementById('mapview'), st = mv ? mv.scrollTop : 0; render();
     var mv2 = document.getElementById('mapview'); if (mv2) mv2.scrollTop = st; var r2 = document.getElementById('clusr'); if (r2) r2.focus();
   });
-  // Voice card edit fields: update the parsed shot in place
-  function vField(t) {
-    var f = t.getAttribute && t.getAttribute('data-vf'); if (!f || !view.voice || !view.voice.p) return false;
-    var p = view.voice.p;
-    if (f === 'dist') { t.value = t.value.replace(/[^0-9]/g, '').slice(0, 3); p.dist = t.value === '' ? null : +t.value; p.distUnit = ''; p.extra = null; }
-    else if (f === 'shot') p.shot = +t.value || undefined;
-    else if (f === 'pen' || f === 'layup' || f === 'holeOut') p[f] = t.checked;
-    else p[f] = t.value || undefined;
-    if (f === 'loc') { p.holedx = false; if (p.loc === 'holed') delete p.holeOut; if (p.loc !== 'green' && p.loc !== 'holed') p.putt = false; }
-    p.empty = false; return f;
-  }
-  document.addEventListener('input', function (ev) { vField(ev.target); cField(ev.target); });
+  document.addEventListener('input', function (ev) { cField(ev.target); });
   function cField(t) {
     var f = t.getAttribute && t.getAttribute('data-cf'); if (!f || !view.card) return;
     var c = view.card.course, i = +t.getAttribute('data-i');
@@ -5519,8 +5447,6 @@
     cardRefresh();
     if (f === 'par' && t.value) { var nx = document.querySelector('[data-cf="par"][data-i="' + (i + 1) + '"]'); if (nx) nx.focus(); } // one digit: hop to the next hole
   }
-  document.addEventListener('change', function (ev) { var f = vField(ev.target); if (f === 'loc' || f === 'club' || f === 'shot') render(); });
-  document.addEventListener('keydown', function (ev) { if (ev.key === 'Enter' && ev.target && ev.target.id === 'vtext' && !ev.isComposing) { ev.preventDefault(); dictSubmit(); } });
   // ---------- v95 Wedge ladder on the scoring page ----------
   // Wedge yardages are CARRY distances, not distances to the pin (a 50 yd pin downhill may want a 40 yd carry that runs out).
   // So any shot 100 yd or less (not on the green, not OB) gets a dropdown of the ladder instead of the club picker: three carries
@@ -5597,5 +5523,5 @@
     });
     window.addEventListener('load', function () { navigator.serviceWorker.register('./sw.js').catch(function () {}); });
   }
-  window.__golf = { card: function () { return view.card; }, statsData: function () { return statsData(); }, statsRound: function (id, bl) { return statsRound(rounds.filter(function (r) { return r.id === id; })[0], bl || ''); }, scorecardHTML: function () { var r = round(); return r ? scorecardHTML(r, SG.summarize(r, blOf(r))) : ''; }, voiceState: function () { return { dict: !!(view.voice && view.voice.stage === 'dict'), timer: !!dictTimer }; }, d1Bench: d1Bench, proxBench: proxBench, PROX_BENCH: PROX_BENCH, proxZoomFt: proxZoomFt, proxSVG: proxSVG, pinSVG: function () { return pinReportSVG(SG.pinSegments(pinDataRound())); }, csvFor: csvFor, rounds: function () { return rounds; } };
+  window.__golf = { card: function () { return view.card; }, statsData: function () { return statsData(); }, statsRound: function (id, bl) { return statsRound(rounds.filter(function (r) { return r.id === id; })[0], bl || ''); }, scorecardHTML: function () { var r = round(); return r ? scorecardHTML(r, SG.summarize(r, blOf(r))) : ''; }, d1Bench: d1Bench, proxBench: proxBench, PROX_BENCH: PROX_BENCH, proxZoomFt: proxZoomFt, proxSVG: proxSVG, pinSVG: function () { return pinReportSVG(SG.pinSegments(pinDataRound())); }, csvFor: csvFor, rounds: function () { return rounds; } };
 })();

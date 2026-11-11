@@ -1,7 +1,7 @@
 // v92 My Bag: catalog → clubs, carries, the air-density carry model (elevation / temperature sliders), the in-round
 // club picker (bag clubs only), voice matching, and backup/restore. Opened from My Bag in the + menu (v102; was Profile). iPhone 390x844 @3x.
 const assert = require('assert'); const { spawn } = require('child_process'); const fs = require('fs');
-const BAG = require('../bag.js'); const SG = require('../sg.js'); const V = require('../voice.js');
+const BAG = require('../bag.js'); const SG = require('../sg.js');
 const OUT = '/workspace/golf-app/screenshots/', PORT = 8823, BASE = 'http://127.0.0.1:' + PORT + '/';
 const reno = { elev: 5000, temp: 70 }, sd = { elev: 0, temp: 75 }, sea = { elev: 0, temp: 70 };
 const pct = (a, b) => (a / b - 1) * 100;
@@ -31,11 +31,10 @@ const pct = (a, b) => (a / b - 1) * 100;
   assert.deepStrictEqual([R.added, R.replaced], [4, 0]); b = R.bag;
   R = BAG.addClubs(b, [{ cat: 'ir', code: '7I', make: 'Titleist', model: 'T100', loft: 33 }]); assert.deepStrictEqual([R.added, R.replaced, R.bag.clubs.length], [0, 1, 4], 'one club per name');
   assert.deepStrictEqual(BAG.sorted(R.bag, 'club').map(c => c.code), ['Driver', '7I', '52', 'Putter']); assert.deepStrictEqual(BAG.pickerClubs(R.bag).map(c => c.code), ['Driver', '7I', '52'], 'no putter in the picker');
-  assert.strictEqual(V.parse('gap wedge 95 fairway').club, '52'); assert.strictEqual(BAG.matchClub('52', b), '52');
+  assert.strictEqual(BAG.matchClub('52', b), '52');
   const g = BAG.addClubs(BAG.blank(), [{ cat: 'ir', code: 'GW', loft: 50 }, { cat: 'we', code: '56', loft: 56 }]).bag;
   assert.strictEqual(BAG.matchClub('52', g), 'GW', '"gap wedge" → the bag\'s GW'); assert.strictEqual(BAG.matchClub('58', g), '56', 'nearest wedge within 3°'); assert.strictEqual(BAG.matchClub('PW', g), 'PW', 'no match: unchanged');
   assert.strictEqual(BAG.matchClub('7i', BAG.blank()), '7i', 'empty bag: unchanged');
-  assert.strictEqual(V.parse('4 iron 190 fairway').club, '4i'); assert.strictEqual(V.parse('50 degree 80 rough').club, '50'); assert.strictEqual(V.parse('3 hybrid 200').club, '3H');
   const a = SG.analyzeHole({ par: 4, finished: true, rows: [{ loc: 'tee', dist: 400, club: 'Driver' }, { loc: 'fairway', dist: 150, club: 'GW' }, { loc: 'green', dist: 10 }, { loc: 'holed', dist: 1 }] });
   assert.strictEqual(a.shots[1].club, 'GW', 'any club name is kept for club stats');
   const bk = SG.makeBackup([], new Date('2026-10-28T19:00:00Z'), 'Quincy', [], b); assert.strictEqual(bk.bag.clubs.length, 4);

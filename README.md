@@ -25,6 +25,16 @@ Every Shot Counts Table 3.10). The other five are ESTIMATED: per-round gaps from
 Player Quality ladder, then spread over the PGA table. Full sources, method and caveats: in-app
 "About the numbers" and the BASELINES comment in `sg.js`.
 
+## Playing and practice by week; voice entry removed (v184)
+- **"Say it" is gone**: no mic button on the hole screen, `voice.js` and its test removed.
+- My Game's playing chart is now **by week, in hours**: a round counts as 5 h (9 holes 2½ h) so it sits on the same scale as
+  logged practice. Each week has the round bar (tournament / practice round / not tagged, stacked) and a slim blue bar beside it
+  for practice logged. Weeks start on Monday; at least 16 and at most 104 are kept.
+- The weeks scroll sideways (`#plscroll`, opens at the newest; the hours axis stays put). Tap a week for its numbers (`#plweektxt`).
+- Headline: practice hours per hour on the course over the last 12 weeks. "Compare with" draws the benchmark's tournament rounds
+  as a dashed line, spread over the weeks of each month at 5 h a round. The year-before line is gone – swipe back instead.
+- `MYGAME.playWeeksBuild / playWeeksSVG / playWeeksAxis`; the monthly `seasonBuild` stays for its data.
+
 ## My Game tidy-up (v183)
 - A round **+** in the top bar (`#mgplus`) opens a menu like Home's: Log practice, Make a game report, Short game test. The big
   Log practice and game report buttons are gone from the page.

@@ -382,6 +382,73 @@
   }
 
 
+  // ---------- v184 (Scott): play and practice by WEEK, both in hours, in a window you swipe back through ----------
+  // A round counts as time: 18 holes = 5 h (round + warm-up), 9 holes = 2.5 h – so it sits on the same scale as logged practice.
+  // Weeks run Monday–Sunday. The benchmark's tournament rounds per month are spread evenly over that month's weeks (× 5 h).
+  var ROUND_H = 5, WEEK = 7 * DAY;
+  function monday(t) { var d = new Date(t); d.setHours(0, 0, 0, 0); var wd = (d.getDay() + 6) % 7; d.setDate(d.getDate() - wd); return d.getTime(); }
+  function weekIdx(t, m0) { return Math.round((monday(t) - m0) / WEEK); } // round(): a DST change is an hour off a whole week
+  function playWeeksBuild(rounds, logs, SG, opts) {
+    opts = opts || {}; var now = opts.now == null ? Date.now() : +opts.now, B = SEASON_BENCH[opts.baseline] || SEASON_BENCH.pga, withB = !!opts.bench;
+    var mNow = monday(now), first = mNow;
+    var rs = (rounds || []).map(function (r) { var t = Date.parse(r.date), n = isNaN(t) ? 0 : SG.summarize(r).holesDone; return n && t <= now + DAY ? { t: t, h: n / 18 * ROUND_H, k: playOf(r) } : null; }).filter(Boolean);
+    var ps = (logs || []).map(function (e) { var t = Date.parse(e.date + (String(e.date).length <= 10 ? 'T12:00:00' : '')); return !isNaN(t) && e.min > 0 && t <= now + DAY ? { t: t, h: e.min / 60 } : null; }).filter(Boolean);
+    rs.concat(ps).forEach(function (x) { first = Math.min(first, monday(x.t)); });
+    // at least 16 weeks shown, at most two years back
+    first = Math.max(Math.min(first, mNow - 15 * WEEK), mNow - 103 * WEEK);
+    var n = Math.round((mNow - first) / WEEK) + 1, weeks = [];
+    for (var i = 0; i < n; i++) { var t0 = new Date(first); t0.setDate(t0.getDate() + i * 7); var mid = new Date(t0.getTime() + 3.5 * DAY), mi = mid.getMonth();
+      var dim = new Date(mid.getFullYear(), mi + 1, 0).getDate();
+      weeks.push({ i: i, start: t0.getTime(), m: mi, year: mid.getFullYear(), day: t0.getDate(), tournament: 0, practice: 0, untagged: 0, rounds: 0, prac: 0, total: 0, bench: B.months[mi] * 7 / dim * ROUND_H }); }
+    rs.forEach(function (x) { var w = weeks[weekIdx(x.t, first)]; if (!w) return; w[x.k || 'untagged'] += x.h; w.total += x.h; w.rounds += x.h / ROUND_H; });
+    ps.forEach(function (x) { var w = weeks[weekIdx(x.t, first)]; if (w) w.prac += x.h; });
+    var out = { bench: B, weeks: weeks, withBench: withB, roundH: ROUND_H, untagged: rs.some(function (x) { return !x.k; }) };
+    out.max = Math.max(2, Math.max.apply(null, weeks.map(function (w) { return Math.max(w.total, w.prac, withB ? w.bench : 0); })));
+    // the read-out: the last 12 weeks (this one included)
+    var last = weeks.slice(-12), sum = function (f) { return last.reduce(function (a, w) { return a + f(w); }, 0); };
+    var C = sum(function (w) { return w.total; }), Pr = sum(function (w) { return w.prac; }), R = sum(function (w) { return w.rounds; }), Bh = sum(function (w) { return w.bench; });
+    var hh = function (v) { return v >= 20 ? String(Math.round(v)) : (Math.round(v * 2) / 2).toString().replace('.5', '½'); };
+    var rr = function (v) { var w = Math.floor(v + 1e-9), h = v - w >= 0.5 - 1e-9; return (w || !h ? w : '') + (h ? '½' : ''); };
+    out.course12 = C; out.practice12 = Pr; out.rounds12 = R;
+    out.ratio = C > 0 ? Pr / C : null;
+    out.headline = !C && !Pr ? 'Nothing played or practised in the last 12 weeks' : !Pr ? 'No practice logged in the last 12 weeks' : !C ? hh(Pr) + ' h of practice and no rounds in the last 12 weeks'
+      : (out.ratio >= 0.95 && out.ratio <= 1.05 ? 'You practise about as much as you play' : (Math.round(out.ratio * 10) / 10).toFixed(1) + ' h of practice for every hour on the course');
+    out.lede = 'Last 12 weeks: ' + hh(C) + ' h on the course (' + rr(R) + ' round' + (R > 0 && R <= 1 ? '' : 's') + ') and ' + hh(Pr) + ' h of practice.' +
+      (withB ? ' ' + cap(B.who) + ' spend about ' + hh(Bh) + ' h in tournament rounds over those weeks.' : '');
+    out.weekText = function (w) { var d = new Date(w.start), lbl = d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+      var bits = [w.total ? hh(w.total) + ' h on the course (' + rr(w.rounds) + ' round' + (w.rounds > 0 && w.rounds <= 1 ? '' : 's') + ')' : 'no rounds', w.prac ? hh(w.prac) + ' h practice' : 'no practice'];
+      return (w.i === weeks.length - 1 ? 'This week' : 'Week of ' + lbl) + ': ' + bits.join(' · ') + (withB ? ' · ' + B.who + (w.bench >= 0.25 ? ' about ' + hh(w.bench) + ' h' : ' no tournament rounds') : '') + '.'; };
+    return out;
+  }
+  // The weeks as one wide SVG (scrolls sideways, newest at the right) + a fixed hours axis drawn separately so it stays put.
+  var PW = { cw: 30, H: 210, B0: 176, top: 14 };
+  function playWeeksSVG(S, sel) {
+    var cw = PW.cw, W = S.weeks.length * cw + 8, sc = (PW.B0 - PW.top) / S.max, f = function (v) { return v.toFixed(1); }, y = function (v) { return PW.B0 - v * sc; };
+    var step = S.max > 24 ? 10 : S.max > 10 ? 5 : 2, o = '<svg class="plweeks" id="plweeks" width="' + W + '" height="' + PW.H + '" viewBox="0 0 ' + W + ' ' + PW.H + '" role="img" aria-label="' +
+      esc('Hours a week on the course and practising, ' + S.weeks.length + ' weeks') + '">';
+    for (var g = step; g <= S.max + 1e-9; g += step) o += '<line x1="0" x2="' + W + '" y1="' + f(y(g)) + '" y2="' + f(y(g)) + '" class="plgrid"/>';
+    var LAY = [['tournament', 'pltour'], ['practice', 'plprac'], ['untagged', 'plunt']], bw = 11, pw = 7;
+    S.weeks.forEach(function (w, i) {
+      var x0 = 4 + i * cw, on = i === sel, base = PW.B0;
+      if (on) o += '<rect class="plsel" x="' + (x0 + 1) + '" y="' + (PW.top - 6) + '" width="' + (cw - 2) + '" height="' + (PW.B0 - PW.top + 6) + '" rx="5"/>';
+      LAY.forEach(function (Z) { var v = w[Z[0]]; if (!v) return; var h = v * sc; base -= h;
+        o += '<rect class="plbar ' + Z[1] + '" data-k="' + Z[0] + '" data-w="' + i + '" data-v="' + v + '" x="' + (x0 + 4) + '" y="' + f(base) + '" width="' + bw + '" height="' + f(h) + '"/>'; });
+      if (w.prac) o += '<rect class="plbar plpr" data-k="prac" data-w="' + i + '" data-v="' + w.prac + '" x="' + (x0 + 4 + bw + 2) + '" y="' + f(y(w.prac)) + '" width="' + pw + '" height="' + f(w.prac * sc) + '" rx="1.5"/>';
+      var newM = i === 0 || S.weeks[i - 1].m !== w.m;
+      o += '<text x="' + (x0 + cw / 2) + '" y="' + (PW.B0 + 12) + '" text-anchor="middle" class="plax' + (i === S.weeks.length - 1 ? ' now' : '') + '">' + w.day + '</text>' +
+        (newM ? '<text x="' + (x0 + 2) + '" y="' + (PW.B0 + 26) + '" class="plmon">' + MON[w.m] + (w.m === 0 || i === 0 ? ' ' + w.year : '') + '</text><line class="plmtick" x1="' + (x0 + 1) + '" x2="' + (x0 + 1) + '" y1="' + PW.B0 + '" y2="' + (PW.B0 + 28) + '"/>' : '');
+      o += '<rect class="plhit" data-act="plweek" data-v="' + i + '" x="' + x0 + '" y="0" width="' + cw + '" height="' + PW.H + '"/>';
+    });
+    o += '<line x1="0" x2="' + W + '" y1="' + PW.B0 + '" y2="' + PW.B0 + '" class="plbase"/>';
+    if (S.withBench) { var d = ''; S.weeks.forEach(function (w, i) { d += (i ? 'L' : 'M') + (4 + i * cw) + ' ' + f(y(w.bench)) + 'h' + cw; }); o += '<path class="plbenchl" d="' + d + '"/>'; }
+    return o + '</svg>';
+  }
+  function playWeeksAxis(S) {
+    var sc = (PW.B0 - PW.top) / S.max, step = S.max > 24 ? 10 : S.max > 10 ? 5 : 2, o = '<svg class="plyax" width="26" height="' + PW.H + '" aria-hidden="true">';
+    for (var g = 0; g <= S.max + 1e-9; g += step) o += '<text x="22" y="' + (PW.B0 - g * sc + 3.5).toFixed(1) + '" text-anchor="end" class="plax">' + g + '</text>';
+    return o + '<text x="22" y="' + (PW.B0 + 26) + '" text-anchor="end" class="plyr">h</text></svg>';
+  }
+
   // Tournament vs practice: per-18 score and strokes gained by area. Needs MIN_EACH finished rounds of each type.
   var MIN_EACH = 2, CMP_AREAS = [['tee', 'Off the tee'], ['approach', 'Approach'], ['short', 'Around the green'], ['bunker', 'Bunker'], ['putting', 'Putting']];
   function kindAvg(list, SG, bl) {
@@ -416,7 +483,7 @@
   var API = { TAU: TAU, TAU_ACUTE: TAU_ACUTE, PRAC_BENCH: PRAC_BENCH, PRAC_SPLIT: PRAC_SPLIT, CLUB_AVG_H: CLUB_AVG_H, practiceBench: practiceBench, practiceLevel: practiceLevel, practiceLevelSVG: practiceLevelSVG, practiceLevelText: practiceLevelText,
     STRONG: STRONG, FOCUS: FOCUS, FOCUS_HINT: FOCUS_HINT, validPractice: validPractice, mergePractice: mergePractice, practiceShape: practiceShape, practiceBuild: practiceBuild, practiceSVG: practiceSVG,
     practiceVsGame: practiceVsGame, drillFocus: drillFocus, hm: hm,
-    SEASON_BENCH: SEASON_BENCH, seasonBuild: seasonBuild, seasonSVG: seasonSVG,     PLAY_KINDS: PLAY_KINDS, playOf: playOf, playTally: playTally, playingBuild: playingBuild, kindCompare: kindCompare, holesText: holesText, MIN_EACH: MIN_EACH, CMP_AREAS: CMP_AREAS,
+    SEASON_BENCH: SEASON_BENCH, seasonBuild: seasonBuild, seasonSVG: seasonSVG, playWeeksBuild: playWeeksBuild, playWeeksSVG: playWeeksSVG, playWeeksAxis: playWeeksAxis, ROUND_H: ROUND_H,     PLAY_KINDS: PLAY_KINDS, playOf: playOf, playTally: playTally, playingBuild: playingBuild, kindCompare: kindCompare, holesText: holesText, MIN_EACH: MIN_EACH, CMP_AREAS: CMP_AREAS,
     SPOKES: SPOKES, PERIODS: PERIODS, MIN_ROUNDS: MIN_ROUNDS, period: period, roundPeriod: roundPeriod, ROUND_COUNTS: ROUND_COUNTS, windows: windows, shape: shape, build: build, radarSVG: radarSVG, radius: radius, fmt: fmt, RING: RING };
   if (typeof module !== 'undefined' && module.exports) module.exports = API; else root.MYGAME = API;
 })(this);

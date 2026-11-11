@@ -2701,3 +2701,20 @@ html body .sgtmrow i { font-style: normal; font-size: 18px; color: var(--frost-i
 html body .sgtmrow.open { margin-top: 6px; border-top: 0; border-radius: 12px; padding: 10px; background: rgba(200, 150, 46, .14); } html body .sgtmrow.open b { width: auto; }
 html body .mygamepage .topbar .mgplus { width: 44px; min-width: 44px; max-width: 44px; height: 44px; min-height: 44px; padding: 0; border-radius: 50%; display: flex; align-items: center; justify-content: center; }
 html body .mgktog span { white-space: normal; overflow: visible; text-align: left; }
+/* v184 (Scott): playing + practice by week – fixed hours axis, the weeks scroll sideways and open at the newest (rtl trick) */
+html body .plwrap { display: flex; align-items: flex-start; margin: 10px 0 2px; }
+html body .plyax { flex: none; display: block; }
+html body .plscroll { flex: 1; min-width: 0; overflow-x: auto; overflow-y: hidden; direction: rtl; -webkit-overflow-scrolling: touch; scrollbar-width: none; overscroll-behavior-x: contain; }
+html body .plscroll::-webkit-scrollbar { display: none; }
+html body .plinner { direction: ltr; display: inline-block; }
+html body .plweeks { display: block; }
+.plweeks .plgrid { stroke: rgba(80,100,120,.15); stroke-width: 1; } .plweeks .plbase { stroke: rgba(40,60,80,.45); stroke-width: 1; }
+.plweeks .plax, .plyax .plax { font-size: 10px; fill: #4b5d6e; font-weight: 600; } .plweeks .plax.now { fill: #10233a; font-weight: 800; }
+.plweeks .plmon { font-size: 10.5px; fill: #23384d; font-weight: 700; } .plweeks .plmtick { stroke: rgba(40,60,80,.3); stroke-width: 1; }
+.plyax .plyr { font-size: 10px; fill: #7b8b99; }
+.plweeks .pltour { fill: #c99a2b; } .plweeks .plprac { fill: #4fa874; } .plweeks .plunt { fill: #a9b6c2; } .plweeks .plpr { fill: #4a7fd0; }
+.plweeks .plsel { fill: rgba(74,127,208,.12); }
+.plweeks .plhit { fill: transparent; cursor: pointer; }
+.plweeks .plbenchl { fill: none; stroke: #2c5aa0; stroke-width: 1.6; stroke-dasharray: 4 3; pointer-events: none; }
+.plleg .lg-pr { background: #4a7fd0; width: 7px; }
+html body .plhrs { font-size: 12px; color: #5b6b78; margin: 8px 0 0; }

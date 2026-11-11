@@ -23,11 +23,14 @@ let passed = 0; const ok = (m) => { passed++; console.log('  ✓', m); };
   page.on('dialog', d => d.accept());
   const act = async (a, v) => { if ((a === 'history' || a === 'archive') && await page.$('#plusbtn') && !await page.$('#plusmenu')) await page.click('#plusbtn'); // Rounds + Settings live in the + menu on Home
     else if (['backup', 'csvall', 'about', 'discard', 'editname'].includes(a) && await page.$('#plusbtn')) { await page.click('#plusbtn'); await page.click('#plusmenu [data-act="archive"]'); } // data tools live on Settings (v102)
+    if (a === 'addShot') { const ks = await page.$$eval('.tline[data-k], .shotcard[data-k]', e => e.map(x => +x.getAttribute('data-k'))); const last = Math.max(...ks, 0); // v180: add from the LAST shot's card (an earlier card's button just steps on)
+      if (ks.length && await page.$(`button.tline[data-k="${last}"]`)) { await page.click(`button.tline[data-k="${last}"]`); await page.waitForSelector(`.shotcard[data-k="${last}"]`); } }
     if (a === 'addShot' && !(await page.$('[data-act="addShot"]')) && await page.$('[data-act="nextshot"]')) a = 'nextshot';
     return page.locator(v == null ? `[data-act="${a}"]` : `[data-act="${a}"][data-v="${v}"]`).first().click(); };
   // v115: only the active shot has entry cells; earlier shots are tight lines – tap one to open it
   const open = async k => { if (await page.$(`button.tline[data-k="${k}"]`)) { await page.click(`button.tline[data-k="${k}"]`); await page.waitForSelector(`.shotcard[data-k="${k}"]`); } };
-  const actK = async (a, k) => { if (!(await page.$(`[data-act="${a}"][data-k="${k}"]`))) await open(k); if (!(await page.$(`[data-act="${a}"][data-k="${k}"]`))) await open(k - 1); return page.locator(`[data-act="${a}"][data-k="${k}"]`).first().click(); };
+  const actK = async (a, k) => { if (a === 'del') { await open(k); if (!(await page.$(`[data-act="del"][data-k="${k}"]`))) await page.click(`[data-act="menu"][data-k="${k}"]`); return page.locator(`[data-act="del"][data-k="${k}"]`).first().click(); } // v180: delete is in the shot's ⋯ menu
+    if (!(await page.$(`[data-act="${a}"][data-k="${k}"]`))) await open(k); if (!(await page.$(`[data-act="${a}"][data-k="${k}"]`))) await open(k - 1); return page.locator(`[data-act="${a}"][data-k="${k}"]`).first().click(); };
   const dist = async (k, v) => { await open(k); return page.fill(`input[data-row="${k}"]`, String(v)); };
   // v157: shot card – "holed" = In the hole on that shot; OB etc. = where the previous shot finished
   // v180: Finished / Direction are dropdowns on the shot card
@@ -179,8 +182,8 @@ let passed = 0; const ok = (m) => { passed++; console.log('  ✓', m); };
   await page.locator('[data-act="next"].big').click();
   await setPar(5); await dist(0, 520);
   await act('addShot'); await loc(1, 'ob'); await dir(1, 'R');
-  await open(1); assert.match(await page.textContent('.shotcard[data-k="1"]'), /Same spot – after OB \+1.*520 yd to the pin/); // v157 card ok('OB re-hit row: same 520 yd spot, +1 automatic');
-  await act('addShot'); await dist(2, 250); await loc(2, 'hazard'); await actK('pen', 2); await dir(2, 'L');
+  await open(1); assert.match(await page.textContent('.shotcard[data-k="1"]'), /520 yd to pin.*Same spot.*after OB \+1/); // v157 card ok('OB re-hit row: same 520 yd spot, +1 automatic');
+  await act('addShot'); await dist(2, 250); await loc(2, 'hazard'); await open(1); await page.click('[data-act="hz"][data-k="2"][data-v="drop"]'); /* v180: Drop = +1 */ await dir(2, 'L');
   await act('addShot'); await dist(3, 90); await loc(3, 'fairway');
   await act('addShot'); await dist(4, 8); await loc(4, 'green');
   await act('addShot'); await dist(5, 2); await loc(5, 'holed');
@@ -201,7 +204,7 @@ let passed = 0; const ok = (m) => { passed++; console.log('  ✓', m); };
   if (!(await page.$('#sumbl'))) await page.click('[data-act="sgtoggle"]'); // strokes-gained section is folded by default
   const sum = await page.evaluate(() => SG.summarize(window.__golf.rounds()[0]));
   assert.strictEqual(sum.baseline, 'd1m'); assert.strictEqual(await page.$eval('#sumbl', e => e.value), 'd1m');
-  assert.match(await page.textContent('#blnote'), /D1 college men – estimated/); ok('summary shows the baseline in use (D1 college men, estimated)');
+  if (!(await page.$('#blnote'))) await page.click('[data-act="sgtoggle"]'); /* v167: inside the Strokes gained section */ assert.match(await page.textContent('#blnote'), /D1 college men – estimated/); ok('summary shows the baseline in use (D1 college men, estimated)');
   assert.strictEqual(sum.strokes, 16); assert.strictEqual(sum.par, 12); assert.strictEqual(sum.penalties, 2);
   assert.strictEqual(sum.putts, 6); assert.strictEqual(sum.fwHit, 1); assert.strictEqual(sum.fwTotal, 2);
   assert.match(await page.textContent('#rs-score'), /^16(thru 3)?$/); assert.strictEqual(await page.textContent('#rs-topar'), '+4'); ok('summary: 16 (+4) = 4 + 4 + 8, 2 penalties, 6 putts, FW 1/2');
@@ -219,9 +222,9 @@ let passed = 0; const ok = (m) => { passed++; console.log('  ✓', m); };
   const csv = await page.evaluate(() => window.__golf.csvFor([window.__golf.rounds()[0]]));
   const lines = csv.trim().split('\r\n'); assert.strictEqual(lines.length, 1 + 4 + 4 + 6);
   const hdr = lines[0].split(','); assert.deepStrictEqual(hdr.slice(-4), ['baseline', 'pin', 'gir', 'regulation']);
-  assert.ok(lines.slice(1).every(l => l.split(',')[21] === 'D1 college men (estimated)')); ok('CSV has a baseline column');
-  assert.deepStrictEqual([...new Set(lines.slice(1).map(l => l.split(',')[2] + ':' + l.split(',')[22]))], ['1:backright', '2:', '3:']); ok('CSV pin column: hole 1 = backright, others blank');
-  const scores = new Set(lines.slice(1).map(l => l.split(',')[20])); assert.deepStrictEqual([...scores].sort(), ['4', '8']);
+  assert.ok(lines.slice(1).every(l => l.split(',')[hdr.indexOf('baseline')] === 'D1 college men (estimated)')); ok('CSV has a baseline column');
+  assert.deepStrictEqual([...new Set(lines.slice(1).map(l => l.split(',')[2] + ':' + l.split(',')[hdr.indexOf('pin')]))], ['1:backright', '2:', '3:']); ok('CSV pin column: hole 1 = backright, others blank');
+  const scores = new Set(lines.slice(1).map(l => l.split(',')[hdr.indexOf('hole_score')])); assert.deepStrictEqual([...scores].sort(), ['4', '8']);
   ok('CSV: 14 shot rows, hole scores 4/4/8');
   const [dl] = await Promise.all([page.waitForEvent('download'), act('csv')]);
   assert.match(dl.suggestedFilename(), /golf-\d{4}-\d\d-\d\d-Washoe-County-GC\.csv/); ok('CSV download: ' + dl.suggestedFilename());
@@ -304,7 +307,7 @@ let passed = 0; const ok = (m) => { passed++; console.log('  ✓', m); };
   assert.ok(dots.some(p => near(p, 180 + 12 * 5 * Math.SQRT1_2, 200 - 12 * 5 * Math.SQRT1_2)), '12 ft long right → up-right');
   assert.ok(dots.some(p => near(p, 180, 200 - 33 * 5) && p[2] === '#ffd23f'), '40 ft long → at the edge, yellow');
   assert.ok((await page.textContent('#girmap')).includes('40 ft')); ok('GIR dots: radius = first-putt ft, angle = direction (short ↓, long ↑, left ←); 40 ft drawn at the edge with label');
-  assert.match(await page.textContent('.mapview .help'), /par − 2 strokes or fewer/); ok('GIR definition shown on screen');
+  assert.match(await page.$$eval('.mapview .help', e => e.map(x => x.textContent).join(' ')), /par − 2 strokes or fewer/); ok('GIR definition shown on screen');
   await page.screenshot({ path: `${SHOTS}/15-gir-map.png` });
   await page.locator('#mapview').evaluate(e => e.scrollTo(0, e.scrollHeight)); await page.screenshot({ path: `${SHOTS}/15b-gir-map-counts.png` });
   await act('mapclose');
@@ -377,7 +380,7 @@ let passed = 0; const ok = (m) => { passed++; console.log('  ✓', m); };
   await (await xt(page, 'prox')).locator('[data-act="map"][data-v="prox"]').click(); await page.waitForSelector('#proxmap');
   const railIds = await page.$$eval('#proxrail .ybtn', bs => bs.map(b => b.getAttribute('data-v')));
   assert.deepStrictEqual(railIds, Array.from({ length: 17 }, (_, i) => String(200 - i * 10)), '17 buttons, 200 at the top, 40 at the bottom');
-  assert.match(await page.getAttribute('[data-act="proxb"][data-v="all"]', 'class'), /sel/); assert.match(await page.textContent('#proxsel'), /All 40–200 yd/);
+  await page.click('[data-act="proxb"][data-v="all"]'); /* opens on the busiest yardage now */ assert.match(await page.getAttribute('[data-act="proxb"][data-v="all"]', 'class'), /sel/); assert.match(await page.textContent('#proxsel'), /All 40–200 yd/);
   ok('yardage rail: 17 buttons 200 (top) … 40 (bottom) + All button above the map, All selected');
   // layout at 390 wide (v121+): distance chips in a 6-across grid above the map, map full width
   const geo = await page.evaluate(() => { const r = document.getElementById('proxrail').getBoundingClientRect(), m = document.getElementById('proxmap').getBoundingClientRect();
@@ -404,7 +407,7 @@ let passed = 0; const ok = (m) => { passed++; console.log('  ✓', m); };
   // button counts / disabled states match the data and add up to All
   const rbtn = await page.$$eval('#proxrail .ybtn', bs => bs.map(b => [b.getAttribute('data-v'), +b.getAttribute('data-n'), b.disabled, (b.querySelector('small') || {}).textContent || '']));
   const byB = Object.fromEntries(expAll.byB);
-  rbtn.forEach(([id, n, dis, small]) => { assert.strictEqual(n, byB[id], id); assert.strictEqual(dis, n === 0, id + ' disabled iff empty'); assert.strictEqual(small, n ? String(n) : ''); });
+  rbtn.forEach(([id, n, dis, small]) => { assert.strictEqual(n, byB[id], id); assert.strictEqual(dis, n === 0, id + ' disabled iff empty'); assert.strictEqual(small, n ? String(n) : '–'); });
   assert.strictEqual(rbtn.reduce((a, b) => a + b[1], 0), expAll.P.n, 'button counts add up to All');
   assert.match(await page.textContent('[data-act="proxb"][data-v="all"]'), new RegExp('All 40–200 yd · ' + expAll.P.n + ' shots'));
   if (expAll.outside) assert.match(await page.textContent('#proxout'), new RegExp('^' + expAll.outside + ' regulation shot'));

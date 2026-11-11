@@ -2,7 +2,7 @@
 // (1) course helpers: stored shape, round prefill, restore merge, backup file, voice with a prefilled tee distance;
 // (2) phone-size browser flow, network blocked: no scan anywhere, type a card in from New round and from Archive › Courses,
 //     edit / delete, restore brings courses in; the service worker no longer caches the scanner and deletes its old cache.
-const assert = require('assert'); const fs = require('fs'); const C = require('../courses.js'); const SG = require('../sg.js'); const V = require('../voice.js');
+const assert = require('assert'); const fs = require('fs'); const C = require('../courses.js'); const SG = require('../sg.js');
 const CARD = require('./fixtures/card-data.js'); const TRUE = {}; CARD.rows.forEach(r => { TRUE[r.label.toLowerCase()] = r.vals; });
 let n = 0; const eq = (a, b, m) => { assert.deepStrictEqual(a, b, m); n++; };
 // no scanner left in the code or the offline file list
@@ -22,9 +22,6 @@ const newer = Object.assign({}, course, { name: 'Pebble Creek GC', updated: '299
 const old = Object.assign({}, course, { name: 'Old', updated: '2000-01-01T00:00:00Z' }); M = C.mergeCourses([course], [old]); eq(M.courses[0].name, course.name, 'older copy does not overwrite');
 const bk = SG.makeBackup([], null, 'Quincy', [course]); eq(bk.courses.length, 1); const pb = SG.parseBackup(JSON.stringify(bk)); eq([pb.rounds.length, pb.courses.length, !!pb.error], [0, 1, false]);
 eq(SG.makeBackup([], null, 'Q').courses, undefined, 'no courses key when none saved');
-// voice: with a prefilled tee distance, "driver 140 fairway" keeps the tee yardage, puts Driver on shot 1 and fills shot 2
-let a = V.apply({ par: 4, rows: [{ loc: 'tee', dist: 386, dir: '', pen: false }] }, V.parse('driver 140 fairway')); eq([a.rows.length, a.rows[0].dist, a.rows[0].club, a.rows[1].loc, a.rows[1].dist], [2, 386, 'Driver', 'fairway', 140]);
-a = V.apply({ par: 4, rows: [{ loc: 'tee', dist: 386, dir: '', pen: false }] }, V.parse('tee shot driver')); eq([a.rows.length, a.rows[0].dist, a.rows[0].club], [1, 386, 'Driver']);
 console.log('  course helpers OK – ' + n + ' checks');
 if (process.env.UNIT_ONLY) process.exit(0);
 
