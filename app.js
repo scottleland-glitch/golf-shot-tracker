@@ -141,16 +141,20 @@
   function save() { var cr = !view.preview && round(); if (cr) cr.updated = new Date().toISOString(); localStorage.setItem(KEY, JSON.stringify(rounds)); backupDirty(60000); if (live) live.touch(); }
   function round() { if (view.preview) return view.preview; return rounds.filter(function (r) { return r.id === view.roundId; })[0]; }
   // v188 (Scott): a round being entered gets a pinned bar – Back · Scorecard · Stats · Holes – on its hole, scorecard and stats screens
-  function liveOn() { if (view.preview || view.from === 'history' || (view.screen !== 'hole' && view.screen !== 'summary')) return false; var r = round(); return !!r && r.id === localStorage.getItem(CUR); }
+  // v189: the bar stays on every screen you reach during the round (replay, maps, About, My Game…) until you go Home
+  function liveOn() { if (view.preview || view.from === 'history' || view.screen === 'home' || !view.inRound) return false; var r = round(); return !!r && r.id === localStorage.getItem(CUR); }
   function entryHoleOn() { return view.screen === 'hole' && !view.holeFrom && liveOn(); }
   var ICON_RB = { back: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>',
     card: '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="5" width="17" height="14" rx="2.5" fill="none" stroke="currentColor" stroke-width="1.9"/><path d="M3.5 10h17M3.5 14.5h17M9 5v14M14.5 5v14" stroke="currentColor" stroke-width="1.5"/></svg>',
     stats: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 19V12M10 19V7M15 19v-5M20 19V4" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/></svg>',
     holes: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 21V3.5l10 4-10 4" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><ellipse cx="9" cy="21" rx="5" ry="1.3" fill="currentColor" opacity=".35"/></svg>' };
+  function exitAskHTML() { return '<div class="sheet-back exback" data-act="exitno"></div><div class="exitask" id="exitask" role="alertdialog" aria-labelledby="exitaskh"><b id="exitaskh">Exit round?</b>' +
+    '<p>Your round is saved – pick it up again from Home.</p><div class="exitbtns"><button class="frostbtn" data-act="exitno" id="exitno">Stay</button><button class="primary" data-act="home" id="exityes">Exit round</button></div></div>'; } // v189
+  function rbClear() { view.replay = null; view.rpGreen = null; view.map = null; view.pinOpen = false; view.pdf = null; view.pdfAt = null; view.send = null; view.mgMenu = null; if (view.story) storyClose(); } // v189: the bar's buttons close whatever is open
   function roundBarHTML() {
-    var part = view.screen === 'summary' ? (view.part || 'stats') : '', ent = entryHoleOn();
+    var part = view.screen === 'summary' ? (view.part || 'stats') : '', ent = entryHoleOn(), shut = ent && !backOverlay(backTarget()); // v189: on the hole with a replay / map open, Back closes it
     var b = function (k, act, label, on, dis) { return '<button class="rbbtn' + (on ? ' on' : '') + '" data-act="' + act + '" id="rb' + k + '"' + (dis ? ' disabled' : '') + (on ? ' aria-current="page"' : '') + '>' + ICON_RB[k] + '<span>' + label + '</span></button>'; };
-    return '<nav class="roundbar" id="roundbar" aria-label="Round">' + b('back', 'rbback', 'Back', false, ent) + b('card', 'rbcard', 'Scorecard', part === 'card') + b('stats', 'rbstats', 'Stats', part === 'stats') + b('holes', 'rbholes', 'Holes', ent) + '</nav>';
+    return '<nav class="roundbar" id="roundbar" aria-label="Round">' + b('back', 'rbback', 'Back', false, shut) + b('card', 'rbcard', 'Scorecard', part === 'card') + b('stats', 'rbstats', 'Stats', part === 'stats') + b('holes', 'rbholes', 'Holes', ent) + '</nav>';
   }
   function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return '&#' + c.charCodeAt(0) + ';'; }); }
   function fmtSG(v) { var s = (Math.round(v * 100) / 100).toFixed(2); return (v > 0.004 ? '+' : '') + (s === '-0.00' ? '0.00' : s); }
@@ -176,7 +180,7 @@
     goHole(0, true);
   }
   function goHole(i, focus) {
-    view.screen = 'hole'; view.hole = Math.max(0, Math.min(17, i)); view.menu = null; view.edk = null; view.parEdit = null; view.liveCard = false; view.dirk = null; view.pinOpen = false;
+    view.screen = 'hole'; view.hole = Math.max(0, Math.min(17, i)); view.menu = null; if (!view.preview && view.from !== 'history' && view.roundId === localStorage.getItem(CUR)) view.inRound = true; // v189 view.edk = null; view.parEdit = null; view.liveCard = false; view.dirk = null; view.pinOpen = false;
     render(); window.scrollTo(0, 0);
     var h = round().holes[view.hole];
     if (focus && h.rows.length === 1 && h.rows[0].dist === '') focusDist(0);
@@ -224,8 +228,8 @@
     if (view.replay != null) document.body.classList.add('noscroll');
     if (view.screen !== 'about') { legendNotes(el); infoize(el); }
     // v188: the round bar
-    if (view.screen !== 'hole') view.holeMenu = false;
-    var rbOn = liveOn(); if (rbOn) { if (entryHoleOn()) view.entryHole = view.hole; el.insertAdjacentHTML('beforeend', roundBarHTML()); }
+    if (view.screen !== 'hole') { view.holeMenu = false; view.exitAsk = false; }
+    var rbOn = liveOn(); if (rbOn) { if (entryHoleOn()) view.entryHole = view.hole; el.insertAdjacentHTML('beforeend', roundBarHTML() + (view.exitAsk && view.screen === 'hole' ? exitAskHTML() : '')); }
     document.body.classList.toggle('hasrbar', rbOn);
   }
   // v123: on the round-page map sheets, long legend sentences without a symbol ("Rings = feet from the hole…") move under the legend as a note, which infoize() puts behind ⓘ
@@ -2970,7 +2974,8 @@
     var lv = liveOn();
     if (lv) out += '<div class="holetop holetop2">' + liveBarHTML(r) + '<button class="frostbtn holemore" data-act="holemenu" id="holemore" aria-label="More: Home, discard round" aria-expanded="' + !!view.holeMenu + '">⋯</button></div>' +
       (view.holeMenu ? '<div class="sheet-back hmback" data-act="holemenu"></div><div class="hsheet glass holemenu" id="holemenu" role="menu"><button class="sheet-item" role="menuitem" data-act="home">Home</button>' +
-        '<button class="sheet-item danger" role="menuitem" data-act="discard" data-id="' + esc(r.id) + '">Discard round</button></div>' : ''); // v188: Home + Discard live in ⋯
+        '<button class="sheet-item danger" role="menuitem" data-act="discard" data-id="' + esc(r.id) + '">Discard round</button></div>' : '') + // v188: Home + Discard live in ⋯
+      ''; // v189
     else out += reviewing ? '<div class="holetop">' + '<button class="frostbtn holeback" data-act="holeback" id="holeback">‹ Round stats</button>' + liveBarHTML(r) + '</div>' : liveBarHTML(r);
 
     out += '<div class="holecard frostcard' + (fin ? ' fin' : '') + '">' + holeHeadHTML(r, h, fin);
@@ -5174,7 +5179,7 @@
       case 'new': view.from = null; view.holeFrom = null; view.hmenu = null; view.newBl = null; newRound(((document.getElementById('course') || {}).value || '').trim()); return;
       case 'resume': view.from = null; view.holeFrom = null; view.roundId = localStorage.getItem(CUR); goHole(firstOpenHole(round()), true); return;
       case 'open': view.pdf = null; view.addr = null; view.send = null; view.mv = null; view.roundId = b.getAttribute('data-id'); view.from = view.screen === 'history' ? 'history' : null; view.screen = 'summary'; view.map = null; render(); window.scrollTo(0, 0); return;
-      case 'home': view.screen = 'home'; view.from = null; view.hmenu = null; view.mgBack = null; break;
+      case 'home': view.screen = 'home'; view.from = null; view.hmenu = null; view.mgBack = null; view.inRound = false; view.exitAsk = false; break;
       case 'archive': view.screen = 'archive'; view.hmenu = null; render(); window.scrollTo(0, 0); return;
       case 'plus': view.hmenu = view.hmenu ? (view.hmenu === 'new' ? 'menu' : null) : 'menu'; render(); return;
       case 'newform': view.hmenu = 'new'; render(); var ci = document.getElementById('course'); if (ci) ci.focus(); return;
@@ -5347,9 +5352,10 @@
         view.screen = 'summary'; view.part = 'stats'; if (gdOn && gdState.pending) gdSoon(300); render(); window.scrollTo(0, 0); return;
       case 'backHole': view.part = null; goHole(view.hole); return;
       case 'holemenu': view.holeMenu = !view.holeMenu; render(); return; // v188
-      case 'rbcard': case 'rbstats': view.screen = 'summary'; view.part = act === 'rbcard' ? 'card' : 'stats'; view.holeFrom = null; view.holeMenu = false; view.pdfAt = null; render(); window.scrollTo(0, 0); return;
-      case 'rbholes': view.part = null; view.holeFrom = null; view.replay = null; goHole(view.entryHole != null ? view.entryHole : view.hole); return;
-      case 'rbback': if (entryHoleOn()) return; if (backDepth() > rbBaseD) { history.back(); return; } view.part = null; view.holeFrom = null; goHole(view.entryHole != null ? view.entryHole : view.hole); return;
+      case 'exitno': view.exitAsk = false; render(); return; // v189
+      case 'rbcard': case 'rbstats': rbClear(); view.screen = 'summary'; view.part = act === 'rbcard' ? 'card' : 'stats'; view.holeFrom = null; view.holeMenu = false; view.pdfAt = null; render(); window.scrollTo(0, 0); return;
+      case 'rbholes': rbClear(); view.part = null; view.holeFrom = null; goHole(view.entryHole != null ? view.entryHole : view.hole); return;
+      case 'rbback': if (entryHoleOn() && !backOverlay(backTarget())) return; if (backDepth() > rbBaseD) { history.back(); return; } rbClear(); view.part = null; view.holeFrom = null; goHole(view.entryHole != null ? view.entryHole : view.hole); return;
       case 'holeback': { var hf = view.holeFrom; view.holeFrom = null; view.screen = 'summary'; render(); // v154: back to Round stats, where you left it
         window.scrollTo(0, hf && hf.y ? hf.y : 0); return; }
       case 'goHole': view.holeFrom = view.screen === 'summary' ? { y: window.scrollY } : null; goHole(+b.getAttribute('data-i')); return; // v154: remember the way back
@@ -5560,7 +5566,7 @@
   // The app is one page, so Back used to leave it. Now, whenever there's somewhere to go back to (a sheet or picture open, or
   // any screen but Home), one extra history entry sits on top; Back pops it and we press the app's own back/close for that
   // spot, then put the entry back if there's still somewhere to go. On Home with nothing open, Back leaves as before.
-  var BACK_OVERLAY = ['storyfullclose', 'storyclose', 'pdfclose', 'mapclose', 'rpgreenback', 'rpclose', 'rpback', 'mvcancel', 'mvclose', 'sendclose', 'liveclose',
+  var BACK_OVERLAY = ['exitno', 'storyfullclose', 'storyclose', 'pdfclose', 'mapclose', 'rpgreenback', 'rpclose', 'rpback', 'mvcancel', 'mvclose', 'sendclose', 'liveclose',
     'gdrback', 'gdrclose', 'dirclose', 'pinclose', 'nearclose', 'addclose', 'grclose', 'prcancel', 'npcancel', 'namecancel', 'sgtintroback'];
   function shown(el) { return !!(el && el.getClientRects().length); }
   function backTarget() {
@@ -5595,17 +5601,17 @@
       else if (rbGuard && tap && entryHoleOn() && d < rbBaseD) { backStack[d + 1] = rbGuard; rbGuard = null; history.pushState({ swBack: 1, d: d + 1 }, ''); } // the hole's step again, on the next tap
       else if (sig === backLast || backPop) {}                                   // same spot, or Back already took the step
       else if (tap && (tap.back || (tap.had && scr(sig) === scr(backLast) && !sig.split('|')[1]))) { if (d > 0) { backStack.length = d; backSkip++; history.back(); } } // the app's own ‹ / close, or a sheet closed by picking from it: one step off
-      else if (tap && tap.had && scr(sig) !== scr(backLast) && d > 0) {}        // a pick in a menu opened a screen: it takes the menu's step (Back skips the menu)
+      else if (tap && tap.had && d > 0) {}                                       // a pick in a menu opened a screen or a sheet: it takes the menu's step (Back skips the menu)
       else if (tap) { backStack[d + 1] = tap.snap; history.pushState({ swBack: 1, d: d + 1 }, ''); } // a tap opened something: one step on
     } catch (e) {}
-    if (entryHoleOn() && !rbGuard) rbBaseD = backDepth();
+    if (entryHoleOn() && !rbGuard && !backOverlay(t)) rbBaseD = backDepth(); // the hole's own step (not a replay / map opened on it)
     backLast = sig; backPop = false; }
   function backQueue() { if (!backSync) backSync = (window.requestAnimationFrame || setTimeout)(backArm); }
   window.addEventListener('popstate', function () {
     if (backSkip) { backSkip--; return; }
     var d = backDepth(), snap = backStack[d + 1], t = backTarget();
     // v188: during a round, Back stops at the hole being entered (Home is in ⋯); its step comes back with the next tap
-    if (entryHoleOn() && !backOverlay(t)) { rbGuard = snap || { v: null }; toast('Round in progress – Home is in the ⋯ menu'); return; }
+    if (entryHoleOn() && !backOverlay(t)) { rbGuard = snap || { v: null }; view.exitAsk = true; render(); return; } // v189: ask before leaving the round
     backStack.length = d + 1;
     if (!t) return; // Home, nothing open: the phone leaves
     backPop = true;

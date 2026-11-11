@@ -38,6 +38,10 @@ function make(id, date, q) { const t = T.blank(id, date, 'Scott', 'd1w');
   await page.click('#mgcard'); await page.waitForSelector('#mygame'); await page.click('#mgplus'); await page.waitForSelector('#mgmenu'); await page.waitForTimeout(100);
   await back(); assert.strictEqual(await page.$('#mgmenu'), null, 'menu closed'); assert.strictEqual(await screen(), 'mygame');
   await back(); assert.strictEqual(await screen(), 'home'); ok('+ menu → Back closes it → Back → Home');
+  // Scott's example: Home → My Game → Log practice → Back closes the sheet → Back is Home
+  await page.click('#mgcard'); await page.waitForSelector('#mygame'); await page.click('#mgplus'); await page.click('#mgmenu [data-act="prlog"]'); await page.waitForSelector('#prsheet'); await page.waitForTimeout(150);
+  await back(); assert.strictEqual(await page.$('#prsheet'), null, 'log sheet closed'); assert.strictEqual(await screen(), 'mygame');
+  await back(); assert.strictEqual(await screen(), 'home'); ok('Home → My Game → Log practice: Back, Back = Home');
   // Home's + menu
   await page.click('#plusbtn'); await page.waitForSelector('.sheet-item'); await page.waitForTimeout(100); await back();
   assert.strictEqual(await page.$('.sheet-back'), null); assert.strictEqual(await screen(), 'home'); ok('Home + menu → Back closes it');

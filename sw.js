@@ -1,4 +1,5 @@
 // Offline support: cache the whole app on install, serve cache-first.
+// v189: round bar flush on the bottom edge and on every screen of the round (replay, maps, About…); "Exit round?" when Back would leave the hole being entered; menu picks take the menu's Back step.
 // v188: pinned round bar while entering a round (Back · Scorecard · Stats · Holes); ⋯ holds Home + Discard; Replay beside the next hole; Back stops at the hole being entered.
 // v187: the phone's Back button (Android / Samsung) steps back inside the app – closes what's open, then the screen – instead of leaving.
 // v186: My Game compares with "your usual" (the 20 rounds before the time frame); round views describe the round – no "learning".
@@ -81,7 +82,7 @@
 // v113: "Courses near me" (near.js). The course finder list (data/us-courses.json, ~1.0 MB, ~0.28 MB gzipped) is NOT in this cache:
 // the app downloads it on first use into its own cache 'pinhigh-courselist-v1', which a new version keeps (so no re-download).
 // GolfCore scorecards (through the Pin High relay, pinhigh-golfcore.pinhigh.workers.dev) go straight to the network; the app saves each picked course with the saved courses.
-const CACHE = 'golf-sg-v188';
+const CACHE = 'golf-sg-v189';
 const ASSETS = ['./', './img/home-bg.webp', './img/oriole.webp', './index.html', './styles.css', './sg.js', './birdie.js', './courses.js', './near.js', './bag.js', './wedges.js', './live.js', './share.js', './story.js', './insights.js', './mygame.js', './shortgame.js', './shortgame-ui.js', './gdrive.js', './app.js', './config.js', './vendor/jspdf.umd.min.js',
   './manifest.webmanifest', './icons/apple-touch-icon.png', './icons/icon-192.png',
   './icons/icon-512.png', './icons/icon-512-maskable.png'];

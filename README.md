@@ -25,6 +25,14 @@ Every Shot Counts Table 3.10). The other five are ESTIMATED: per-round gaps from
 Player Quality ladder, then spread over the PGA table. Full sources, method and caveats: in-app
 "About the numbers" and the BASELINES comment in `sg.js`.
 
+## Round bar everywhere in the round; "Exit round?" (v189)
+- The bar sits flush on the bottom edge (full width, safe area below), above the replay, maps, the story picture and sheets,
+  which now stop above it. It shows on every screen you reach during the round (About, My Game…) until you go Home
+  (`view.inRound`). Its buttons close whatever is open; Back on a hole with the replay open closes the replay.
+- One Back too many on the hole being entered (phone Back) asks **Exit round?** – Stay / Exit round (the round is kept).
+- A pick from a menu that opens a sheet (My Game + › Log practice) takes the menu's step, so Home → My Game → Log practice is
+  Back, Back = Home.
+
 ## Pinned round bar (v188)
 - While a round is being entered, a bar is pinned to the bottom of its hole, scorecard and stats screens (`#roundbar`):
   **Back** (the previous screen, never past the hole being entered – greyed out on it), **Scorecard** (just the scorecard),

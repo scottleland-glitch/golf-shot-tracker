@@ -2738,3 +2738,19 @@ html body .nextrow { display: flex; gap: 10px; } html body .nextrow > button { m
 html body .rbtop { justify-content: center; } html body .rbtop .title { text-align: center; }
 html body .holemenu .sheet-item.danger { background: transparent !important; border: 0 !important; border-top: 1px solid rgba(23, 48, 31, .1) !important; box-shadow: none !important; }
 html body .nextrow > button { flex: 1 !important; min-width: 0; } html body .rpcard { width: 100%; margin-top: 10px; min-height: 46px; }
+/* v189 (Scott): the round bar sits flush on the bottom edge, full width, above every full-screen view of the round */
+html body .roundbar { left: 0; right: 0; bottom: 0; max-width: none; margin: 0; border-radius: 22px 22px 0 0; border-width: 1px 0 0; z-index: 90;
+  padding: 6px calc(env(safe-area-inset-right) + 8px) calc(env(safe-area-inset-bottom) + 6px) calc(env(safe-area-inset-left) + 8px); box-shadow: 0 -4px 22px rgba(20, 40, 60, .16); }
+html body.hasrbar { --rbh: calc(env(safe-area-inset-bottom) + 66px); }
+html body.hasrbar #app { padding-bottom: calc(var(--rbh) + 18px); }
+html body.hasrbar .mapview, html body.hasrbar .storyfull, html body.hasrbar .sgtintro { bottom: var(--rbh); }
+html body.hasrbar .rsheet-bg, html body.hasrbar .sheet-bg { padding-bottom: var(--rbh); box-sizing: border-box; }
+/* v189: "Exit round?" when Back would leave the hole being entered */
+html body .sheet-back.exback { position: fixed; inset: 0; z-index: 95; background: rgba(10, 25, 40, .32); }
+html body .exitask { position: fixed; z-index: 96; left: 50%; top: 42%; transform: translate(-50%, -50%); width: min(320px, calc(100vw - 48px)); padding: 20px 18px 16px; border-radius: 22px;
+  background: rgba(255, 255, 255, .97); box-shadow: 0 14px 40px rgba(20, 40, 60, .28); text-align: center; color: #17301f; }
+html body .exitask b { display: block; font-size: 20px; margin-bottom: 6px; } html body .exitask p { margin: 0 0 16px; font-size: 15px; color: #4a5866; }
+html body .exitbtns { display: flex; gap: 10px; } html body .exitbtns button { flex: 1; min-height: 46px; border-radius: 14px; font-size: 16px; }
+/* v189: bottom sheets (live sharing, direction, send…) slide up over the round bar while they're open */
+html body.hasrbar .sheet-bg, html body.hasrbar .rsheet-bg { padding-bottom: 0; z-index: 91; }
+html body.hasrbar .sheet, html body.hasrbar .rsheet { z-index: 92; }

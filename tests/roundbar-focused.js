@@ -36,13 +36,28 @@ const REPO = path.join(__dirname, '..'), PORT = 8964, ARC = require('./fixtures/
   await page.click('#rbback'); await page.waitForSelector('#sumcardonly'); await page.waitForTimeout(200); // (the way here was hole → scorecard → stats → scorecard → hole 5)
   await page.click('#rbback'); await page.waitForTimeout(250); assert.strictEqual(await hole(), 'Hole 10'); assert.deepStrictEqual(await on(), ['rbholes']); ok('Back retraces every step: replay, hole 5, scorecard, stats, scorecard, the hole');
   // the phone Back stops at the hole being entered
-  await back(); assert.strictEqual(await hole(), 'Hole 10'); assert.ok(await page.$('#roundbar'), 'still in the round'); await back(); assert.strictEqual(await hole(), 'Hole 10'); ok('phone Back stops at the hole');
+  await back(); assert.strictEqual(await hole(), 'Hole 10'); assert.ok(await page.$('#roundbar'), 'still in the round');
+  assert.match(await page.textContent('#exitask'), /Exit round\?.*saved/); await page.click('#exitno'); assert.strictEqual(await page.$('#exitask'), null, 'Stay');
+  await back(); assert.ok(await page.$('#exitask'), 'asks again'); await page.click('#exitno'); assert.strictEqual(await hole(), 'Hole 10'); ok('phone Back stops at the hole and asks "Exit round?"');
   // Holes from anywhere: straight back to the hole being entered, and Back still stops there
   await page.click('#rbstats'); await page.waitForSelector('#rsactions'); await page.click('#rbcard'); await page.waitForSelector('#sumcardonly');
   await page.click('#scorecard [data-act="goHole"][data-i="2"]'); await page.waitForTimeout(200); await page.click('#rbholes'); await page.waitForTimeout(300);
-  assert.strictEqual(await hole(), 'Hole 10'); await back(); assert.strictEqual(await hole(), 'Hole 10'); ok('Holes jumps back to the hole being entered');
+  assert.strictEqual(await hole(), 'Hole 10'); await back(); assert.strictEqual(await hole(), 'Hole 10'); assert.ok(await page.$('#exitask'), 'Back from the hole asks'); await page.click('#exitno'); ok('Holes jumps back to the hole being entered');
   // ‹ › still move through holes; the bar follows the hole you're on
   await page.click('.topbar [data-act="next"]'); await page.waitForTimeout(150); assert.strictEqual(await hole(), 'Hole 11'); assert.deepStrictEqual(await on(), ['rbholes']);
+  // v189: the bar stays everywhere in the round – over the replay (which stops above it) and on About; it sits flush on the bottom edge
+  await page.locator('[data-act="replay"]').first().click(); await page.waitForSelector('#replayview');
+  const geo = await page.evaluate(() => { const b = document.getElementById('roundbar').getBoundingClientRect(), v = document.getElementById('replayview').getBoundingClientRect(); return { flush: Math.round(innerHeight - b.bottom), above: v.bottom <= b.top + 1, top: document.elementFromPoint(innerWidth / 2, b.top + 20).closest('#roundbar') !== null }; });
+  assert.deepStrictEqual(geo, { flush: 0, above: true, top: true }, 'bar flush and on top of the replay');
+  assert.ok(!(await page.$eval('#rbback', e => e.disabled)), 'Back works on the replay'); await page.click('#rbback'); await page.waitForTimeout(250);
+  assert.strictEqual(await page.$('#replayview'), null, 'Back closes the replay'); assert.ok(await page.$eval('#rbback', e => e.disabled), 'and stops at the hole');
+  await page.locator('[data-act="replay"]').first().click(); await page.waitForSelector('#replayview');
+  await page.click('#rbcard'); await page.waitForSelector('#sumcardonly'); assert.strictEqual(await page.$('#replayview'), null, 'Scorecard closes the replay'); await page.click('#rbholes'); await page.waitForTimeout(200);
+  await page.click('#rbstats'); await page.waitForSelector('#rsactions'); await page.click('[data-act="about"]'); await page.waitForTimeout(250);
+  assert.ok(await page.$('#roundbar'), 'bar on About too'); await page.click('#rbback'); await page.waitForSelector('#rsactions'); await page.click('#rbholes'); await page.waitForTimeout(200);
+  ok('bar stays on the replay and About, flush with the bottom');
+  // "Exit round" leaves (the round is kept)
+  await back(); await page.click('#exityes'); await page.waitForSelector('#home'); assert.ok(await page.$('[data-act="resume"]'), 'round kept'); await page.click('[data-act="resume"]'); await page.waitForSelector('#roundbar'); ok('Exit round → Home, round kept');
   // ⋯ › Home leaves the round; a round opened from Rounds has no bar
   await page.click('#holemore'); await page.click('#holemenu [data-act="home"]'); await page.waitForSelector('#home'); assert.strictEqual(await page.$('#roundbar'), null); ok('⋯ › Home leaves; no bar on Home');
   assert.deepStrictEqual(errors, []); await browser.close(); srv.kill(); console.log('PASS roundbar-focused');
