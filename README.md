@@ -25,6 +25,12 @@ Every Shot Counts Table 3.10). The other five are ESTIMATED: per-round gaps from
 Player Quality ladder, then spread over the PGA table. Full sources, method and caveats: in-app
 "About the numbers" and the BASELINES comment in `sg.js`.
 
+## Round stats: a quick snapshot during the round (v190)
+- The Practice / Tournament picker is gone from Stats while the round is being entered – it's chosen on the new-round form
+  ("This round is"), and can still be changed on the round's stats page once it's finished or opened from Rounds.
+- "How well Strokewise knows your game" moved from the top of Round stats to the bottom (after the stat tiles and par curves),
+  so the score, the takeaway and the quick view come first. `takeawayHTML(r, true)` draws just that strip (`#tkknowsec`).
+
 ## Round bar everywhere in the round; "Exit round?" (v189)
 - The bar sits flush on the bottom edge (full width, safe area below), above the replay, maps, the story picture and sheets,
   which now stop above it. It shows on every screen you reach during the round (About, My Game…) until you go Home

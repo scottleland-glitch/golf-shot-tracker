@@ -3469,7 +3469,7 @@
       '<text x="40" y="56" class="tkl">1-putts</text><text x="100" y="56" class="tkl">3-putts</text>', p.one + ' one-putts, ' + p.three + ' three-putts');
     return '';
   }
-  function takeawayHTML(r) {
+  function takeawayHTML(r, knowOnly) {
     var T; try { T = INSIGHTS.build(r, takeawayHistory(r), SG, { baselineName: SG.baseline(blOf(r)).name }); } catch (e) { return ''; }
     var P = T.progress, open = !!view.tkKnow;
     var bars = INSIGHTS.AREAS.map(function (a) { var p = P[a.k];
@@ -3477,8 +3477,11 @@
     var rows = open ? '<div class="tkrows" id="tkrows">' + INSIGHTS.AREAS.map(function (a) { var p = P[a.k];
       return '<div><span>' + a.name + '</span><b' + (p.ready ? ' class="ok"' : '') + '>' + (p.ready ? 'Ready ✓' : p.n + ' of ' + p.need + ' ' + p.unit + (p.roundsLeft ? ' · about ' + p.roundsLeft + ' more round' + (p.roundsLeft === 1 ? '' : 's') : '')) + '</b></div>'; }).join('') +
       '<p>Suggestions compare each area with <b>your</b> normal once it has enough shots from your rounds (last ' + INSIGHTS.NORM_ROUNDS + '). Until then they compare with the ' + esc(T.baselineName || SG.baseline(blOf(r)).name) + ' average.</p></div>' : '';
-    var out = '<section class="takeaway" id="takeaway"><button class="tkstrip frost" id="tkstrip" data-act="tkknow" aria-expanded="' + open + '">' +
+    // v190 (Scott): the "How well Strokewise knows your game" strip lives at the bottom of Round stats (takeawayHTML(r, true)) – the takeaway leads
+    var strip = '<button class="tkstrip frost" id="tkstrip" data-act="tkknow" aria-expanded="' + open + '">' +
       '<span class="tkst-h"><span>How well Strokewise knows your game</span><b id="tkready">' + P.readyCount + '/' + INSIGHTS.AREAS.length + ' ready</b></span><span class="tkbars">' + bars + '</span></button>' + rows;
+    if (knowOnly) return '<section class="takeaway tkknowsec" id="tkknowsec">' + strip + '</section>';
+    var out = '<section class="takeaway" id="takeaway">';
     if (!T.ok) return out + '<p class="tknote frost">' + esc(T.reason) + '</p></section>';
     out += '<div class="tkhead frost"><span class="tkeye">Round takeaway</span><h3 id="tkheadline">' + esc(T.headline) + '</h3>' + (T.lede ? '<p id="tklede">' + esc(T.lede) + '</p>' : '') + '</div>';
     var F = T.focus;
@@ -3566,7 +3569,7 @@
     out += '<div class="rsactions" id="rsactions"><div class="rsbtns"><button class="rsact" data-act="pdf" data-at="top" id="rspdftop">' + ICON_DOC + '<span><b>PDF report</b><small>to print or send</small></span></button>' +
       (S.holesDone ? '<button class="rsact" data-act="story" id="storybtn">' + ICON_STORY + '<span><b>Story picture</b><small>Instagram / TikTok</small></span></button>' : '') + '</div>' +
       (view.pdfAt === 'top' ? pdfHTML() : '') + (S.holesDone ? storyHTML() : '') + '</div>';
-    out += rsTopHTML(r, S) + bmRowHTML('sumbl', bl, '', 'Changing it recalculates the whole round and is saved with it.') + notMineHTML(bl, r.player || playerName(), 'blmineround') + playPickHTML('rplay', MYGAME.playOf(r), 'Round type', 'rplay') + takeawayHTML(r) + quickViewHTML(S);
+    out += rsTopHTML(r, S) + bmRowHTML('sumbl', bl, '', 'Changing it recalculates the whole round and is saved with it.') + notMineHTML(bl, r.player || playerName(), 'blmineround') + (part ? '' : playPickHTML('rplay', MYGAME.playOf(r), 'Round type', 'rplay')) + takeawayHTML(r) + quickViewHTML(S); // v190: round type is set when the round starts; change it after the round
     if (!part) out += scorecardHTML(r, S) + '<button class="big rpbtn" data-act="replay" data-v="0" id="sumreplay">▶ Hole replay (hole by hole)</button>'; // v188: during a round the scorecard has its own screen
     var B = SG.baseline(bl), main = out; out = '';
     out += '<h2>Strokes gained: <span class="' + sgCls(S.sgTotal) + '" id="sgtotal">' + fmtSG(S.sgTotal) + '</span></h2>' +
@@ -3592,7 +3595,7 @@
       'Short game = off the green from 30 yd and in. Ranges include the lower number (60–100 = 60 to under 100 yd); 30–60 = over 30 up to under 60 yd. ' +
       'Avg to pin after = how far from the hole the ball finished: feet on the green, yards × 3 off it, 0 if holed' +
       (pex ? '; <b>' + pex + '</b> approach shot' + (pex === 1 ? '' : 's') + ' with a penalty or OB left out of that average' : '; shots with a penalty or OB are left out of it') + '.</p>';
-    var sgPart = out; out = main + '<h2>Stats</h2>' + statTilesHTML(S) + roundParCurvesHTML(r, bl, S);
+    var sgPart = out; out = main + '<h2>Stats</h2>' + statTilesHTML(S) + roundParCurvesHTML(r, bl, S) + takeawayHTML(r, true);
     out += '<button class="primary big" data-act="pdf" data-at="bottom" style="margin-top:16px">📄 Make PDF report</button>' + (view.pdfAt === 'top' ? '' : pdfHTML());
     out += '<button class="big" data-act="csv">Export this round (CSV)</button>';
     out += '<button class="big sendbtn" data-act="sendopen" id="sendround">📤 Send round<small>to another phone – it lands in their Rounds</small></button>';

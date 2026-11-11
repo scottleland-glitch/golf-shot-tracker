@@ -25,7 +25,9 @@ const REPO = path.join(__dirname, '..'), PORT = 8964, ARC = require('./fixtures/
   // Scorecard on its own; Stats on their own
   await page.click('#rbcard'); await page.waitForSelector('#sumcardonly #scorecard'); assert.deepStrictEqual(await on(), ['rbcard']); assert.strictEqual(await page.$('#rsactions'), null, 'scorecard only');
   await page.click('#rbstats'); await page.waitForSelector('#rsactions'); assert.deepStrictEqual(await on(), ['rbstats']); assert.strictEqual(await page.$('#scorecard'), null, 'stats only');
-  assert.strictEqual(await page.$('[data-act="backHole"]'), null, 'no "Back to the round" – Holes does it'); ok('Scorecard and Stats are separate screens');
+  assert.strictEqual(await page.$('[data-act="backHole"]'), null, 'no "Back to the round" – Holes does it');
+  assert.strictEqual(await page.$('#rplay'), null, 'v190: no round-type picker during the round');
+  assert.ok(await page.evaluate(() => { const k = document.getElementById('tkknowsec'), q = document.querySelector('#takeaway'); return !!k && !!q && (q.compareDocumentPosition(k) & Node.DOCUMENT_POSITION_FOLLOWING); }), 'v190: knowledge strip below the takeaway'); ok('Scorecard and Stats are separate screens');
   // scorecard → hole 5 → replay; bar Back closes nothing it shouldn't: phone Back closes the replay, bar Back = scorecard, bar Back = stats, Back = hole 10 – and stops
   await page.click('#rbcard'); await page.waitForSelector('#sumcardonly'); await page.click('#scorecard [data-act="goHole"][data-i="4"]'); await page.waitForTimeout(200);
   assert.strictEqual(await hole(), 'Hole 5'); assert.deepStrictEqual(await on(), []); assert.ok(!(await page.$eval('#rbback', e => e.disabled)));
