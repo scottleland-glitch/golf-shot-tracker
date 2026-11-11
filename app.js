@@ -455,7 +455,7 @@
     if (!D.cur.rounds && !PB.cur.total) return Promise.resolve();
     if (doGame) {
     doc.addPage(); var y = H.header('My Game – ' + P.name);
-    H.font(10); H.ink(90); H.T(who + ' · ' + D.cur.rounds + ' round' + (D.cur.rounds === 1 ? '' : 's') + ' · compared with ' + D.baselineName + (D.prev ? ' · gray = ' + (P.id === '1y' ? 'the year before' : 'the previous ' + P.short) : ''), M, y); H.ink(); y += 22;
+    H.font(10); H.ink(90); H.T(who + ' · ' + D.cur.rounds + ' round' + (D.cur.rounds === 1 ? '' : 's') + ' · compared with ' + D.baselineName + (D.prev ? ' · gray = ' + D.prevName : ''), M, y); H.ink(); y += 22;
     y = pdfLines(doc, H, D.headline, M, y, W, 17, 25, 21) + 2;
     y = pdfLines(doc, H, D.lede, M, y, W, 11, 80, 14.5) + 8;
     var gy = y, gw = 380, gh = gw * 264 / 344, pg = doc.getCurrentPageInfo().pageNumber; y += gh + 10;
@@ -2220,7 +2220,7 @@
       '<p class="mgknote">Bars: strokes a round on the course, left of the line = lost. Test of ' + esc(new Date(C.testDate).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })) + '.</p></div>';
   }
   function mgKnowHTML(D) {
-    var sp = D.cur.spokes, ready = sp.filter(function (x) { return x.solid; }).length, tick = Math.round(100 / MYGAME.STRONG);
+    var sp = (D.know || D.cur).spokes, ready = sp.filter(function (x) { return x.solid; }).length, tick = Math.round(100 / MYGAME.STRONG); // v185: the round views judge it on all your rounds
     // v183 (Scott): folded to the title and one overall line; the arrow opens the skill-by-skill bars
     var all = Math.round(sp.reduce(function (a, x) { return a + Math.min(1, x.conf); }, 0) / sp.length * 100), lvl = ready === sp.length ? 'ready' : ready * 2 >= sp.length ? 'mid' : 'low', open = !!view.mgKnowOpen;
     var head = '<button class="mgkh mgktog" data-act="mgknow" id="mgknowtog" aria-expanded="' + open + '"><span>How well Strokewise knows your game</span><b id="mgready">' + ready + '/' + MYGAME.SPOKES.length + ' ready</b><i class="mgkchev" aria-hidden="true">›</i></button>' +
@@ -2230,7 +2230,7 @@
       sp.map(function (x) { var pct = Math.round(x.conf * 100), word = x.strong ? 'strong' : x.solid ? 'ready' : x.n ? 'learning' : 'no shots';
         return '<span class="mgkb ' + (x.strong ? 'strong' : x.solid ? 'ready' : 'learn') + '" data-spoke="' + x.k + '" title="' + esc(x.name + ': ' + x.n + ' shots') + '"><em>' + esc(x.name) + '</em>' +
           '<i><u style="width:' + pct + '%"></u><s style="left:' + tick + '%"></s></i><small>' + word + (x.strong ? '' : ' · ' + pct + '%') + '</small></span>'; }).join('') +
-      '</span><span class="mgknote">The mark is where a skill is ready to trust; more shots make it stronger. Based on ' + esc(D.period.id === '1y' ? 'the last year' : D.period.id === 'all' ? 'all your rounds' : D.period.name.toLowerCase()) + '.</span></div>';
+      '</span><span class="mgknote">The mark is where a skill is ready to trust; more shots make it stronger. Based on ' + esc(D.period.id === '1y' ? 'the last year' : D.period.id === 'all' || D.period.win ? 'all your rounds' : D.period.name.toLowerCase()) + '.</span></div>';
   }
   function myGameHTML() {
     var names = mgPlayers(), who = mgWho(), D = mgData(who), P = D.period;
@@ -2255,7 +2255,7 @@
     h += '<div class="mgchart frost"><h2 id="mghead">' + esc(D.headline) + '</h2><p id="mglede">' + esc(D.lede) + '</p>' +
       MYGAME.radarSVG(D.cur, D.prev, { R: 96, aria: 'Game shape, ' + P.name }) +
       mgKnowHTML(D) +
-      '<div class="mglegend"><span><i class="lc"></i>' + esc(P.name) + '</span>' + (D.prev ? '<span><i class="lp"></i>' + (P.id === '1y' ? 'Year before' : 'Previous ' + esc(P.short)) + '</span>' : '') +
+      '<div class="mglegend"><span><i class="lc"></i>' + esc(P.name) + '</span>' + (D.prev ? '<span><i class="lp"></i>' + esc(D.prevLabel) + '</span>' : '') +
       '<span><i class="lb"></i>' + esc(D.baselineName) + '</span>' + (D.cur.spokes.some(function (x) { return x.value != null && !x.solid; }) ? '<span><i class="ll"></i>Still learning</span>' : '') + '</div>' +
       '</div>';
     var T = D.cur.tiles, Q = D.prev && D.prev.tiles;
@@ -2264,10 +2264,10 @@
       if (v != null && pv != null) { var d = v - pv, good = better > 0 ? d > 0 : d < 0, tiny = Math.abs(d) < (id === 'gir' ? 0.5 : 0.05);
         ch = '<em class="' + (tiny ? '' : good ? 'up' : 'down') + '">' + (tiny ? '→ same' : (d > 0 ? '↑ ' : '↓ ') + f(Math.abs(d), true)) + '</em>'; }
       // v183 (Scott): smaller tiles, four across under the shape; the change is against the previous time frame (full words on long-press)
-      var tt = v != null && pv != null ? label + ': ' + f(v) + ', was ' + f(pv) + ' the ' + (P.id === '1y' ? 'year before' : 'previous ' + P.short) : label;
+      var tt = v != null && pv != null ? label + ': ' + f(v) + ', was ' + f(pv) + ' – ' + D.prevName : label;
       return '<div class="mgtile frost" data-t="' + id + '" title="' + esc(tt) + '"><span>' + label + '</span><b>' + (v == null ? '–' : f(v)) + '</b>' + ch + '</div>'; };
     var n1 = function (v) { return (Math.round(v * 10) / 10).toFixed(1); }, sgf = function (v, abs) { return abs ? n1(v) : MYGAME.fmt(v); }, pc = function (v) { return Math.round(v) + '%'; };
-    h += '<div class="mgtilewrap" id="mgtilewrap"><p class="mgtileh">' + esc(P.name) + ' · ' + D.cur.rounds + ' round' + (D.cur.rounds === 1 ? '' : 's') + (D.prev ? ' · arrows vs the ' + (P.id === '1y' ? 'year before' : 'previous ' + esc(P.short)) : '') + '</p>' +
+    h += '<div class="mgtilewrap" id="mgtilewrap"><p class="mgtileh">' + esc(P.name) + ' · ' + D.cur.rounds + ' round' + (D.cur.rounds === 1 ? '' : 's') + (D.prev ? ' · arrows vs ' + esc(D.prevName) : '') + '</p>' +
       '<div class="mgtiles" id="mgtiles">' + tile('score', 'Score', T.score, Q && Q.score, n1, -1) + tile('sg', 'SG / round', T.sg, Q && Q.sg, sgf, 1) +
       tile('putts', 'Putts', T.putts, Q && Q.putts, n1, -1) + tile('gir', 'GIR', T.gir, Q && Q.gir, pc, 1) + '</div></div>';
     h += SGTUI.cardHTML(who); // v166 the monthly short game test

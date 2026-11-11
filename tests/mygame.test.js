@@ -17,11 +17,19 @@ test('the six spokes split every shot once and add up to total strokes gained', 
   assert.strictEqual(sh.tiles.score, 78); assert.strictEqual(Math.round(sh.tiles.putts), 31);
 });
 
-test('time frames: this period and the same length before it; all time has nothing before', () => {
+test('v185 time frames: compared with your usual (the 20 rounds before, at least 3); the year with the year before; all time with nothing', () => {
   const rs = [at('a', 2), at('b', 20), at('c', 40), at('d', 75), at('e', 200), at('f', 500)];
   const n = (id) => { const D = M.build(rs, SG, { period: id, now: NOW }); return [D.cur.rounds, D.prev ? D.prev.rounds : null]; };
-  assert.deepStrictEqual(n('30d'), [2, 1]);
-  assert.deepStrictEqual(n('3m'), [4, null], 'nothing played 3-6 months ago');
+  assert.deepStrictEqual(n('30d'), [2, 4], 'the 4 rounds before the 30 days');
+  assert.deepStrictEqual(n('3m'), [4, null], 'only 2 rounds before: too few for a usual');
+  const D = M.build(rs, SG, { period: '30d', now: NOW }); assert.strictEqual(D.prevName, 'your usual'); assert.strictEqual(D.prevLabel, 'Your usual (4 rounds before)');
+  const many = Array.from({ length: 30 }, (_, i) => at('m' + i, 35 + i * 3)).concat([at('x', 1)]);
+  assert.deepStrictEqual(M.build(many, SG, { period: '30d', now: NOW }).prev.rounds, 20, 'at most 20');
+  const R1 = M.build(many, SG, { period: M.roundPeriod(1, many), now: NOW });
+  assert.deepStrictEqual([R1.cur.rounds, R1.prev.rounds], [1, 20], 'last round vs the 20 before');
+  assert.ok(R1.cur.spokes.filter((s) => s.value != null).every((s) => s.solid), 'a round view describes the round: no "learning"');
+  assert.ok(R1.know.spokes.some((s) => s.solid), 'how well it knows the game comes from all the rounds');
+  assert.notStrictEqual(R1.headline, 'Still learning your game');
   assert.deepStrictEqual(n('1y'), [5, 1]);
   assert.deepStrictEqual(n('all'), [6, null]);
 });
@@ -30,7 +38,7 @@ test('headline: a skill that got better than the period before', () => {
   const rs = [chipBetter(at('a', 3)), chipBetter(at('b', 10)), chipBetter(at('c', 20)), at('d', 35), at('e', 45), at('f', 55)];
   const D = M.build(rs, SG, { period: '30d', now: NOW, baseline: 'scm' });
   assert.strictEqual(D.headline, 'Chipping is improving');
-  assert.match(D.lede, /^Chipping is \d\.\d strokes a round better than the previous 30 days\.$/);
+  assert.match(D.lede, /^Chipping is \d\.\d strokes a round better than your usual\.$/);
   assert.ok(D.cur.spokes.find((s) => s.k === 'chip').solid, '3 rounds of chips: solid');
   assert.ok(!D.cur.spokes.find((s) => s.k === 'lag').solid, 'chipping close leaves few long putts: lag still learning');
 });

@@ -25,6 +25,14 @@ Every Shot Counts Table 3.10). The other five are ESTIMATED: per-round gaps from
 Player Quality ladder, then spread over the PGA table. Full sources, method and caveats: in-app
 "About the numbers" and the BASELINES comment in `sg.js`.
 
+## My Game compares with your usual (v186)
+- The grey shape and the tile arrows now compare with **your usual**: the 20 rounds before the time frame you picked (fewer if
+  that's all there is; at least 3). It doesn't overlap the rounds it judges, so a change shows up clearly. Year still compares
+  with the year before; All time has nothing to compare with. `MYGAME.USUAL_N`, `USUAL_MIN`; `D.prevName`, `D.prevLabel`.
+- **Last 1–4 rounds describe what happened**: points are solid (no "learning" gold rings), headlines like "Chipping beat your
+  usual" / "Putting cost you this round" / "Close to your usual game". "How well Strokewise knows your game" in those views is
+  judged on all your rounds (`D.know`).
+
 ## Privacy Policy and Support pages (v185)
 
 `privacy.html` and `support.html` are the pages Apple asks for (App Store Connect › Privacy Policy URL and Support URL): https://scottleland-glitch.github.io/golf-shot-tracker/privacy.html and …/support.html. Both are linked at the bottom of Settings. Contact: atypicalscott@gmail.com. The policy describes the app as it is (no accounts, location only for Courses near me, live sharing via Firebase, Drive backup, GolfCore relay). If accounts, subscriptions, GPS distances or crash reporting are added, update privacy.html and the App Privacy answers before submitting.

@@ -22,7 +22,7 @@
     { id: '1y', name: 'Year', short: 'year', days: 365 },
     { id: 'all', name: 'All time', short: 'all time', days: null }
   ];
-  var DAY = 86400000, MIN_ROUNDS = 2, STRONG = 3;
+  var DAY = 86400000, MIN_ROUNDS = 2, STRONG = 3, USUAL_N = 20, USUAL_MIN = 3;
   function period(id) { if (id && typeof id === 'object') return id; return PERIODS.filter(function (p) { return p.id === id; })[0] || PERIODS[1]; }
   // v176 (Scott): "last 2 / 3 / 4 rounds" – e.g. just the rounds of a tournament. A period object carrying its own window:
   // cur = from the Nth newest finished round on, prev = the N rounds before that. Pass it anywhere a period id goes.
@@ -75,23 +75,38 @@
   function build(rounds, SG, opts) {
     opts = opts || {};
     var bl = SG.baseline(opts.baseline).id, blName = opts.baselineName || SG.baseline(bl).name, p = period(opts.period), W = windows(p, opts.now);
-    var cur = shape(rounds.filter(function (r) { return inWin(r, W.cur); }), SG, bl);
-    var prev = W.prev ? shape(rounds.filter(function (r) { return inWin(r, W.prev); }), SG, bl) : null;
-    if (prev && !prev.rounds) prev = null;
+    var cur = shape(rounds.filter(function (r) { return inWin(r, W.cur); }), SG, bl), isR = !!p.win, prev = null, know = cur;
+    // v185 (Scott): compare with "your usual" – the USUAL_N rounds before the time frame (at least USUAL_MIN) – a steady
+    // baseline that doesn't overlap what it judges. The year keeps the year before; all time has nothing before it.
+    if (p.id === '1y') { prev = shape(rounds.filter(function (r) { return inWin(r, W.prev); }), SG, bl); if (!prev.rounds) prev = null; }
+    else if (p.id !== 'all') {
+      var before = rounds.filter(function (r) { var t = Date.parse(r.date); return !isNaN(t) && t < W.cur[0]; }).sort(function (a, b) { return Date.parse(b.date) - Date.parse(a.date); }).slice(0, USUAL_N);
+      if (before.length >= USUAL_MIN) { prev = shape(before, SG, bl); prev.usual = true; }
+    }
+    // v185: the round views describe what happened (no "learning"); how well the app knows the game comes from all the rounds
+    if (isR) { cur.spokes.forEach(function (s) { s.solid = s.value != null; }); know = shape(rounds, SG, bl); }
     var solid = cur.spokes.filter(function (s) { return s.solid; }), headline, lede;
-    var moves = prev ? cur.spokes.map(function (s, i) { var q = prev.spokes[i]; return s.solid && q.solid ? { s: s, d: s.value - q.value } : null; }).filter(Boolean) : [];
+    var moves = prev ? cur.spokes.map(function (s, i) { var q = prev.spokes[i]; return s.solid && (q.solid || (prev.usual && q.value != null && q.n >= q.need / 2)) ? { s: s, d: s.value - q.value } : null; }).filter(Boolean) : [];
     var up = moves.slice().sort(function (a, b) { return b.d - a.d; })[0], down = moves.slice().sort(function (a, b) { return a.d - b.d; })[0];
-    var before = p.id === '1y' ? 'the year before' : 'the previous ' + p.short;
+    var bef = p.id === '1y' ? 'the year before' : 'your usual', one = isR && p.n === 1, thisW = one ? 'this round' : isR ? 'these rounds' : '';
     if (!solid.length) { headline = 'Still learning your game'; lede = cur.rounds ? 'Play a few more rounds – each skill fills in as its shots come in.' : 'No finished rounds in this period yet.'; }
-    else if (up && up.d >= 0.5 && (!down || up.d >= -down.d)) { headline = up.s.name + ' is improving'; lede = up.s.name + ' is ' + Math.abs(up.d).toFixed(1) + ' strokes a round better than ' + before + '.'; }
-    else if (down && down.d <= -0.5) { headline = down.s.name + ' has slipped'; lede = down.s.name + ' is ' + Math.abs(down.d).toFixed(1) + ' strokes a round worse than ' + before + '.'; }
-    else if (moves.length) { headline = 'Holding steady'; lede = 'No skill moved more than half a stroke a round from ' + before + '.'; }
+    else if (isR && moves.length) { // a round (or a few): where it beat your usual and where it cost you
+      var bits = [];
+      if (up && up.d >= 0.5) bits.push(up.s.name + ' ' + Math.abs(up.d).toFixed(1) + ' better than usual');
+      if (down && down.d <= -0.5) bits.push(down.s.name.toLowerCase() + ' ' + Math.abs(down.d).toFixed(1) + ' worse');
+      headline = down && down.d <= -0.5 && (!up || -down.d >= up.d) ? down.s.name + ' cost you ' + thisW : up && up.d >= 0.5 ? up.s.name + ' beat your usual' : 'Close to your usual game';
+      lede = bits.length ? cap(bits.join(', ')) + ' (strokes a round).' : 'No skill was more than half a stroke a round from your usual.';
+    }
+    else if (up && up.d >= 0.5 && (!down || up.d >= -down.d)) { headline = up.s.name + ' is improving'; lede = up.s.name + ' is ' + Math.abs(up.d).toFixed(1) + ' strokes a round better than ' + bef + '.'; }
+    else if (down && down.d <= -0.5) { headline = down.s.name + ' has slipped'; lede = down.s.name + ' is ' + Math.abs(down.d).toFixed(1) + ' strokes a round worse than ' + bef + '.'; }
+    else if (moves.length) { headline = 'Holding steady'; lede = 'No skill moved more than half a stroke a round from ' + bef + '.'; }
     else {
       var worst = solid.slice().sort(function (a, b) { return a.value - b.value; })[0], best = solid.slice().sort(function (a, b) { return b.value - a.value; })[0];
       headline = worst.name + ' costs you the most';
       lede = fmt(worst.value) + ' strokes a round against the ' + blName + ' average' + (best !== worst ? '. Strongest: ' + best.name.toLowerCase() + ' (' + fmt(best.value) + ').' : '.');
     }
-    return { period: p, baseline: bl, baselineName: blName, cur: cur, prev: prev, headline: headline, lede: lede };
+    return { period: p, baseline: bl, baselineName: blName, cur: cur, prev: prev, know: know, headline: headline, lede: lede,
+      prevName: prev ? (prev.usual ? 'your usual' : 'the year before') : '', prevLabel: prev ? (prev.usual ? 'Your usual (' + prev.rounds + ' rounds before)' : 'Year before') : '' };
   }
 
   // ---------- the chart (SVG markup) ----------
@@ -120,7 +135,7 @@
       o += s.solid ? '<circle cx="' + q[0] + '" cy="' + q[1] + '" r="' + (lab ? 4 : 3) + '" fill="' + C.cur + '" stroke="' + C.cur + '" stroke-width="2"/>'
         : '<circle class="rlearn" cx="' + q[0] + '" cy="' + q[1] + '" r="' + (lab ? 5.5 : 3.5) + '" fill="#fff" stroke="#c8962e" stroke-width="' + (lab ? 3 : 2) + '"/>'; });
     if (lab) cur.spokes.forEach(function (s, i) {
-      var q = pt(i, R + 20), anchor = Math.abs(q[0]) < 10 ? 'middle' : q[0] > 0 ? 'start' : 'end', d = prev && s.solid && prev.spokes[i].solid ? s.value - prev.spokes[i].value : null;
+      var q = pt(i, R + 20), anchor = Math.abs(q[0]) < 10 ? 'middle' : q[0] > 0 ? 'start' : 'end', d = prev && s.solid && (prev.spokes[i].solid || (prev.usual && prev.spokes[i].value != null)) ? s.value - prev.spokes[i].value : null;
       o += '<text x="' + q[0] + '" y="' + (q[1] - 2) + '" text-anchor="' + anchor + '" font-size="12.5" font-weight="600" fill="' + C.ink + '">' + esc(s.name) + '</text>';
       var sub = s.value == null ? 'no shots yet' : !s.solid ? 'learning' : fmt(s.value) + (d != null && Math.abs(d) >= 0.25 ? (d > 0 ? ' ▲' : ' ▼') : '');
       o += '<text x="' + q[0] + '" y="' + (q[1] + 13) + '" text-anchor="' + anchor + '" font-size="11.5" fill="' + (!s.solid ? '#a8771a' : d != null && d >= 0.25 ? C.up : d != null && d <= -0.25 ? C.down : C.soft) + '"' + (s.solid ? '' : ' font-style="italic"') + '>' + esc(sub) + '</text>';
@@ -484,6 +499,6 @@
     STRONG: STRONG, FOCUS: FOCUS, FOCUS_HINT: FOCUS_HINT, validPractice: validPractice, mergePractice: mergePractice, practiceShape: practiceShape, practiceBuild: practiceBuild, practiceSVG: practiceSVG,
     practiceVsGame: practiceVsGame, drillFocus: drillFocus, hm: hm,
     SEASON_BENCH: SEASON_BENCH, seasonBuild: seasonBuild, seasonSVG: seasonSVG, playWeeksBuild: playWeeksBuild, playWeeksSVG: playWeeksSVG, playWeeksAxis: playWeeksAxis, ROUND_H: ROUND_H,     PLAY_KINDS: PLAY_KINDS, playOf: playOf, playTally: playTally, playingBuild: playingBuild, kindCompare: kindCompare, holesText: holesText, MIN_EACH: MIN_EACH, CMP_AREAS: CMP_AREAS,
-    SPOKES: SPOKES, PERIODS: PERIODS, MIN_ROUNDS: MIN_ROUNDS, period: period, roundPeriod: roundPeriod, ROUND_COUNTS: ROUND_COUNTS, windows: windows, shape: shape, build: build, radarSVG: radarSVG, radius: radius, fmt: fmt, RING: RING };
+    SPOKES: SPOKES, PERIODS: PERIODS, MIN_ROUNDS: MIN_ROUNDS, period: period, roundPeriod: roundPeriod, ROUND_COUNTS: ROUND_COUNTS, USUAL_N: USUAL_N, USUAL_MIN: USUAL_MIN, windows: windows, shape: shape, build: build, radarSVG: radarSVG, radius: radius, fmt: fmt, RING: RING };
   if (typeof module !== 'undefined' && module.exports) module.exports = API; else root.MYGAME = API;
 })(this);

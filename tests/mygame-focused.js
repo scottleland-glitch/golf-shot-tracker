@@ -32,7 +32,7 @@ for (let i = 0; i < 12; i++) {
     ok('Home card: mini shape, headline, 3 months · 8 rounds');
     await page.click('#mgcard'); await page.waitForSelector('#mygame');
     assert.strictEqual(await page.textContent('#mghead'), 'Chipping is improving');
-    assert.match(await page.textContent('#mglede'), /^Chipping is \d\.\d strokes a round better than the previous 3 months\.$/);
+    assert.match(await page.textContent('#mglede'), /^Chipping is \d\.\d strokes a round better than your usual\.$/);
     assert.ok(await page.$('#mygame .rcur') && await page.$('#mygame .rprev') && await page.$('#mygame .rbench'), 'current, previous and benchmark shapes');
     assert.match(await page.textContent('.mgtile[data-t="score"]'), /74\.3.*↓ 3\.8/);
     assert.ok(await page.$('.mgtile[data-t="score"] em.up'), 'a lower score is shown as better');
@@ -50,6 +50,9 @@ for (let i = 0; i < 12; i++) {
     assert.strictEqual(rings, await page.$$eval('#mgknow .mgkb.learn', x => x.filter(e => !/no shots/.test(e.textContent)).length), 'a gold ring for every learning skill with shots');
     if (rings) assert.match(await page.textContent('.mglegend'), /Still learning/); // v157: a skill with no shots yet (e.g. Bunker) has no point, so no legend for it
     await page.click('#mgrounds [data-v="r1"]'); assert.match(await page.textContent('.title span'), /1 round$/); assert.match(await page.textContent('#mgtilewrap'), /Last round · 1 round/);
+    assert.strictEqual(await page.$('#mygame .rlearn'), null, 'v185: one round is drawn solid – no "learning"'); assert.notStrictEqual(await page.textContent('#mghead'), 'Still learning your game');
+    assert.match(await page.textContent('.mglegend'), /Your usual \(\d+ rounds before\)/); assert.match(await page.textContent('#mgtilewrap'), /arrows vs your usual/);
+    await page.screenshot({ path: OUT + 'mygame-last-round.png', fullPage: true });
     await page.click('#mgperiod [data-v="30d"]');
     ok('time frames: All time 12 rounds (no previous), 30 days 3 rounds');
     await page.selectOption('#mgbl', 'pga'); assert.match(await page.textContent('.mglegend'), /PGA Tour/);
