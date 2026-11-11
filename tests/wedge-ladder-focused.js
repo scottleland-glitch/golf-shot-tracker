@@ -114,6 +114,8 @@ const LOW = ['40 yd · Low · not set', '50 yd · Low · not set', '60 yd · Low
     await page.click('[aria-label="Next hole"]'); await page.waitForFunction(() => document.querySelector('.holecard h2').textContent === 'Hole 3');
     await page.click('input[data-row="1"]'); await page.keyboard.type('48');
     await page.waitForSelector(sel(1)); assert.strictEqual(await page.inputValue(sel(1)), '');
+    // v181: Putter is on the wedge-chart list too (putting from the fringe / a tight fairway)
+    assert.ok(await page.$(sel(1) + ' option[value="c:Putter"]'));
     assert.strictEqual(await page.evaluate(() => document.activeElement.getAttribute('data-row')), '1', 'keyboard stays up');
     hr = await holeRows(2); assert.ok(!hr[1].club, 'no auto pick');
     for (const [d, c] of [['60', [50, 60, 70]], ['73', [60, 70, 80]], ['77', [70, 80, 90]], ['75', [70, 80, 90]], ['40', [40, 50, 60]], ['15', [40, 50, 60]]]) {

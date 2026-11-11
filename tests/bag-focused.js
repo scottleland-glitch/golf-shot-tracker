@@ -136,7 +136,7 @@ const pct = (a, b) => (a / b - 1) * 100;
     const cIn = await page.$('#course'); if (cIn) await page.fill('#course', 'Torrey Pines');
     await page.click('[data-act="new"]'); await page.waitForSelector('.holecard');
     const opts = await page.$$eval('select[data-f="club"][data-k="0"] option', e => e.map(o => [o.value, o.textContent]));
-    assert.deepStrictEqual(opts.map(o => o[0]), ['', 'Driver', '3W', '4H', '2i', '5i', '6i', '7i', '8i', '9i', 'PW', '52', '56'], 'picker = bag clubs');
+    assert.deepStrictEqual(opts.map(o => o[0]), ['', 'Driver', '3W', '4H', '2i', '5i', '6i', '7i', '8i', '9i', 'PW', '52', '56', 'Putter'], 'picker = bag clubs, then Putter (v181: putting from off the green)');
     assert.match(opts[1][1], /^Driver · 2(3[5-9]|4[0-4])$/); assert.match(opts[7][1], /^7i · 14[0-6]$/);
     await page.selectOption('select[data-f="club"][data-k="0"]', 'Driver');
     await page.fill('input[data-row="0"]', '410'); await page.click('[data-act="addShot"]'); await page.fill('input[data-row="1"]', '150');
@@ -153,7 +153,7 @@ const pct = (a, b) => (a / b - 1) * 100;
     const bagJson = await page.evaluate(() => localStorage.getItem('golfsg.bag.v1'));
     await page.evaluate(() => localStorage.removeItem('golfsg.bag.v1')); await page.reload(); await page.click('[data-act="resume"]'); await page.waitForSelector('.holecard');
     await page.click('.tline[data-k="0"]'); await page.waitForSelector('select[data-f="club"][data-k="0"]'); // v115: earlier shots are tight lines – tap to open
-    assert.deepStrictEqual((await page.$$eval('select[data-f="club"][data-k="0"] option', e => e.map(o => o.value))).slice(1), SG.CLUBS, 'empty bag: standard list as before');
+    assert.deepStrictEqual((await page.$$eval('select[data-f="club"][data-k="0"] option', e => e.map(o => o.value))).slice(1), SG.CLUBS.concat(['Putter']), 'empty bag: standard list as before, then Putter (v181)');
     assert.strictEqual(await page.evaluate(() => SG.summarize(window.__golf.rounds()[0]).sgTotal), sg1, 'strokes gained unaffected by the bag');
     // backup → restore round trip (bag only file) into an empty bag
     const bk = await page.evaluate(j => JSON.stringify(SG.makeBackup([], null, 'Quincy', [], JSON.parse(j))), bagJson);

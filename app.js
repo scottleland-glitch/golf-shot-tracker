@@ -2669,6 +2669,7 @@
     var b = bag(), L = BAG.pickerClubs(b), out = L.length ? L.map(function (c) { var a = b.useCond && c.carry ? BAG.clubCarry(c, b) : null;
       return { code: c.code, label: c.code + (a ? ' · ' + Math.round(a) : '') }; }) : SG.CLUBS.map(function (c) { return { code: c, label: c }; });
     if (cur && !out.some(function (x) { return x.code === cur; })) out.push({ code: cur, label: cur });
+    if (!out.some(function (x) { return /^putter$/i.test(x.code); })) out.push({ code: 'Putter', label: 'Putter' }); // v181 (Scott): putting from off the green – the fringe, a tight fairway
     return out;
   }
   function fmtFt(v) { return Math.round(v).toLocaleString('en-US') + ' ft'; }
@@ -4490,14 +4491,31 @@
         if (s.club) t = s.club + (t ? ' · ' + t : '');
         if (s.layup) t += ' (layup)';
         if (s.penStrokes && !s.ob) t += ' +' + s.penStrokes + (s.retee ? '' : ' pen');
-        labQ.push([sp[0], sp[1], t.trim(), s.penStrokes ? '#c00' : '#111']);
+        // v181 (Scott): the label sits beside the middle of the shot's line, joined to it by a short leader
+        var qx = (cur[0] + 2 * mx + e[0]) / 4, qy = (cur[1] + 2 * my + e[1]) / 4, tx = e[0] - cur[0], ty = e[1] - cur[1], tl = Math.hypot(tx, ty) || 1;
+        labQ.push({ x: qx, y: qy, nx: -ty / tl, ny: tx / tl, big: (s.hit && !s.ob && !s.retee ? s.hit + ' yd' : s.ob ? 'OB' : s.retee ? 'Hazard' : where || 'Penalty'), small: [s.club || '', s.hit && !s.ob && !s.retee && where ? '→ ' + where : '', s.layup ? '(layup)' : '', s.penStrokes ? '+' + s.penStrokes : ''].filter(Boolean).join(' '), col: col, pen: !!s.penStrokes, full: t.trim() });
         if (s.penStrokes) marks += '<path class="rppen" d="M' + f1(e[0] + 7) + ' ' + f1(e[1] - 14) + ' l8 8 m0 -8 l-8 8" stroke="#e0102a" stroke-width="3"/>';
       }
       if (cat !== 'putting') minY = Math.min(minY, e[1] - 14);
       cur = s.ob || s.retee ? cur : e; // OB / hazard re-tee: replay from the same spot
     });
     // v156: labels go down only after every shot's dot, so no label sits on a later shot
-    boxes.push([pin[0] - 4, pin[1] - 22, pin[0] + 14, pin[1] + 4]); labQ.forEach(function (q) { labs += lbl(q[0], q[1], q[2], q[3]); });
+    boxes.push([pin[0] - 4, pin[1] - 22, pin[0] + 14, pin[1] + 4]);
+    // a white two-line tag (distance big, club → finish small) beside the line's middle; a leader joins it to a dot on the line
+    var tag = function (q) {
+      var w = Math.max(q.big.length * 7.4, q.small.length * 5.6) + 16, hh = q.small ? 30 : 20, sgn = q.nx * (q.x > cx ? 1 : -1) >= 0 ? 1 : -1;
+      // the box's near edge clears the line by d (half the box's reach along the normal is added)
+      var reach = Math.abs(q.nx) * w / 2 + Math.abs(q.ny) * hh / 2, cand = [];
+      [1, -1].forEach(function (sd) { [14, 26, 42].forEach(function (d) { var ox = q.x + sd * sgn * q.nx * (d + reach), oy = q.y + sd * sgn * q.ny * (d + reach); cand.push([ox - w / 2, oy - hh / 2]); }); });
+      cand = cand.map(function (c) { return [Math.max(26, Math.min(W - 26 - w, c[0])), Math.max(minY - 28, Math.min(H - hh - 4, c[1]))]; });
+      var c = cand.filter(function (c) { var b = [c[0], c[1], c[0] + w, c[1] + hh]; return b[1] > minY - 30 && !boxes.some(function (z) { return b[0] < z[2] && b[2] > z[0] && b[1] < z[3] && b[3] > z[1]; }); })[0] || cand[0];
+      boxes.push([c[0], c[1], c[0] + w, c[1] + hh]);
+      var lx = Math.max(c[0] + 6, Math.min(c[0] + w - 6, q.x)), ly = q.y < c[1] ? c[1] : q.y > c[1] + hh ? c[1] + hh : c[1] + hh / 2, lx2 = q.y >= c[1] && q.y <= c[1] + hh ? (q.x < c[0] ? c[0] : c[0] + w) : lx;
+      return '<g class="rplbl" data-t="' + esc(q.full) + '"><line x1="' + f1(q.x) + '" y1="' + f1(q.y) + '" x2="' + f1(lx2) + '" y2="' + f1(ly) + '" stroke="#fff" stroke-width="1.6"/><circle cx="' + f1(q.x) + '" cy="' + f1(q.y) + '" r="3" fill="#fff" stroke="' + q.col + '" stroke-width="2"/>' +
+        '<rect x="' + f1(c[0]) + '" y="' + f1(c[1]) + '" width="' + f1(w) + '" height="' + hh + '" rx="8" fill="#fff" fill-opacity=".96" stroke="' + q.col + '" stroke-width="1.6"/>' +
+        '<text x="' + f1(c[0] + 8) + '" y="' + f1(c[1] + 14) + '" font-size="12" font-weight="800" fill="' + (q.pen ? '#c00' : '#111') + '">' + esc(q.big) + '</text>' +
+        (q.small ? '<text x="' + f1(c[0] + 8) + '" y="' + f1(c[1] + 25) + '" font-size="9.5" font-weight="600" fill="#444">' + esc(q.small) + '</text>' : '') + '</g>'; };
+    labQ.forEach(function (q) { labs += tag(q); });
     o += tr + '<line x1="' + f1(pin[0]) + '" y1="' + f1(pin[1]) + '" x2="' + f1(pin[0]) + '" y2="' + f1(pin[1] - 18) + '" stroke="#000" stroke-width="2"/><path d="M' + f1(pin[0]) + ' ' + f1(pin[1] - 18) + ' l10 3.5 l-10 3.5z" fill="#d0213a"/><circle cx="' + f1(pin[0]) + '" cy="' + f1(pin[1]) + '" r="3" fill="#000"/>' + ends + marks + labs;
     // tap target over the green (opens the enlarged green view)
     o += '<g class="rpgreen" data-act="rpgreen" role="button" aria-label="Open enlarged green"><circle cx="' + cx + '" cy="' + gY + '" r="' + (GR + 22) + '" fill="#fff" fill-opacity="0"/></g>' +
@@ -4514,19 +4532,36 @@
         var fa = prev.fromAng != null ? prev.fromAng : 270, fp = pt(ix, iy, IR + 26, fa), pc2 = RPC[prev.cat] || '#333', fx = Math.max(20, Math.min(Wg - 20, fp[0])), fy = Math.max(20, Math.min(Hg - 22, fp[1]));
         G += '<path id="rparrive" d="M' + f1(fx) + ' ' + fy + ' Q' + f1((fx + s0[0]) / 2 + (fy - s0[1]) * 0.15) + ' ' + f1((fy + s0[1]) / 2 + (s0[0] - fx) * 0.15) + ' ' + f1(s0[0]) + ' ' + f1(s0[1]) + '" fill="none" stroke="' + pc2 + '" stroke-width="3" stroke-dasharray="7 4"/>' +
           '<circle cx="' + f1(fx) + '" cy="' + fy + '" r="9" fill="' + pc2 + '" stroke="#fff" stroke-width="2"/><text x="' + f1(fx) + '" y="' + (fy + 4) + '" text-anchor="middle" font-size="10" font-weight="900" fill="#fff">' + prev.n + '</text>' +
-          '<text x="' + f1(fx > Wg / 2 ? fx - 13 : fx + 13) + '" y="' + f1(fy + (fy < 30 ? 18 : fy > Hg - 40 ? -14 : 4)) + '"' + (fx > Wg / 2 ? ' text-anchor="end"' : '') + ' font-size="10" font-weight="900" fill="#fff" stroke="#2f5f22" stroke-width="3" paint-order="stroke">' + '<tspan id="rparrlbl">' + esc((RPN[prev.cat] || 'Shot') + (prev.club ? ' · ' + prev.club : '') + (prev.hit != null && !prev.ob && !prev.retee ? ' · ' + prev.hit + ' yd' : '') + (SG.arrivalDepth(prev.dir, putts[0].start.dist) ? ' · ' + SG.arrivalDepth(prev.dir, putts[0].start.dist) : '')) + '</tspan></text>'; } // v160 (Scott): the yardage of the shot onto the green
-      var pp = s0, fin = '', st0 = [];
+          (function () { var big = prev.hit != null && !prev.ob && !prev.retee ? prev.hit + ' yd' : (RPN[prev.cat] || 'Shot'), dep = SG.arrivalDepth(prev.dir, putts[0].start.dist),
+            small = [(RPN[prev.cat] || 'Shot') + (prev.club ? ' · ' + prev.club : ''), dep || ''].filter(Boolean).join(' · '), w = Math.max(big.length * 7.6, small.length * 5.8) + 16, hh = 30, // v181: a tag like the others
+            tx = fx > Wg / 2 ? fx - 14 - w : fx + 14, ty = Math.max(6, Math.min(Hg - 30 - hh, fy - hh / 2)); tx = Math.max(6, Math.min(Wg - 6 - w, tx));
+            return '<g id="rparrlbl"><rect x="' + f1(tx) + '" y="' + f1(ty) + '" width="' + f1(w) + '" height="' + hh + '" rx="8" fill="#fff" fill-opacity=".96" stroke="' + pc2 + '" stroke-width="1.6"/>' +
+              '<text x="' + f1(tx + 8) + '" y="' + f1(ty + 14) + '" font-size="12.5" font-weight="800" fill="#111">' + esc(big) + '</text><text x="' + f1(tx + 8) + '" y="' + f1(ty + 25) + '" font-size="9.5" font-weight="600" fill="#444">' + esc(small) + '</text></g>'; })(); } // v160 (Scott): the yardage of the shot onto the green
+      var pp = s0, fin = '', st0 = [], en0 = [];
       putts.forEach(function (p, k) {
         var st = pp, holed = p.end.lie === 'holed', nr = h.rows[p.n] || {}, ed = nr.dir || p.dir || '';
         var e0 = holed ? [ix, iy] : pt(ix, iy, 14 + (Number(p.end.dist) || 0) * PK, p.ang != null && ed ? p.ang : SG.DIR_ANGLE[ed] != null ? SG.DIR_ANGLE[ed] : 90 - k * 35);
         G += '<path class="rpputt' + (holed ? ' holed' : ' missed') + '" data-n="' + p.n + '" d="M' + f1(st[0]) + ' ' + f1(st[1]) + ' L' + f1(e0[0]) + ' ' + f1(e0[1]) + '" stroke="#fff" stroke-width="3"' + (holed ? ' stroke-dasharray="6 4"' : '') + '/>';
-        if (!holed) fin += '<g class="rpfinish" data-n="' + p.n + '"><circle cx="' + f1(e0[0]) + '" cy="' + f1(e0[1]) + '" r="5.5" fill="#fff" stroke="#333" stroke-width="1.2"/><text x="' + f1(e0[0]) + '" y="' + f1(e0[1] - 16) + '" text-anchor="middle" font-size="11" font-weight="900" fill="#111" stroke="#fff" stroke-width="3" paint-order="stroke">' + p.end.dist + ' ft</text></g>';
-        st0.push(st); pp = e0;
+        if (!holed) fin += '<g class="rpfinish" data-n="' + p.n + '" data-ft="' + p.end.dist + '"><circle cx="' + f1(e0[0]) + '" cy="' + f1(e0[1]) + '" r="5.5" fill="#fff" stroke="#333" stroke-width="1.2"/></g>';
+        st0.push(st); en0.push(e0); pp = e0;
       });
       G += '<circle class="rpcup" cx="' + ix + '" cy="' + iy + '" r="4.5" fill="#000"/>' + fin;
       putts.forEach(function (p, k) { var st = st0[k];
         G += '<circle cx="' + f1(st[0]) + '" cy="' + f1(st[1]) + '" r="10" fill="#fff" stroke="#222" stroke-width="1.5"/><text x="' + f1(st[0]) + '" y="' + f1(st[1] + 4) + '" text-anchor="middle" font-size="11" font-weight="900" fill="#111">' + p.n + '</text>' +
-          (k === 0 ? '<text x="' + f1(st[0] + 13) + '" y="' + f1(st[1] - 8) + '" font-size="11" font-weight="900" fill="#111" stroke="#fff" stroke-width="3" paint-order="stroke">' + p.start.dist + ' ft</text>' : ''); });
+          ''; });
+      // v181 (Scott): the same tags as the hole map – putt length big, where it finished small – beside each putt's middle
+      var gb = [[ix - 8, iy - 8, ix + 8, iy + 8]]; st0.forEach(function (q) { gb.push([q[0] - 11, q[1] - 11, q[0] + 11, q[1] + 11]); });
+      putts.forEach(function (p, k) { var a0 = st0[k], b0 = en0[k], qx = (a0[0] + b0[0]) / 2, qy = (a0[1] + b0[1]) / 2, dx = b0[0] - a0[0], dy = b0[1] - a0[1], dl = Math.hypot(dx, dy) || 1;
+        var big = p.start.dist + ' ft', small = p.end.lie === 'holed' ? '→ holed' : '→ ' + p.end.dist + ' ft left', w = Math.max(big.length * 7.6, small.length * 5.8) + 16, hh = 30, nx = -dy / dl, ny = dx / dl;
+        var reach = Math.abs(nx) * w / 2 + Math.abs(ny) * hh / 2, cand = [];
+        [1, -1].forEach(function (sd) { [12, 24, 40].forEach(function (d) { cand.push([qx + sd * nx * (d + reach) - w / 2, qy + sd * ny * (d + reach) - hh / 2]); }); });
+        cand = cand.map(function (c) { return [Math.max(6, Math.min(Wg - 6 - w, c[0])), Math.max(6, Math.min(Hg - 24 - hh, c[1]))]; });
+        var c = cand.filter(function (c) { var b = [c[0], c[1], c[0] + w, c[1] + hh]; return !gb.some(function (z) { return b[0] < z[2] && b[2] > z[0] && b[1] < z[3] && b[3] > z[1]; }); })[0] || cand[0];
+        gb.push([c[0], c[1], c[0] + w, c[1] + hh]);
+        var lx = Math.max(c[0] + 6, Math.min(c[0] + w - 6, qx)), ly = qy < c[1] ? c[1] : qy > c[1] + hh ? c[1] + hh : c[1] + hh / 2, lx2 = qy >= c[1] && qy <= c[1] + hh ? (qx < c[0] ? c[0] : c[0] + w) : lx;
+        G += '<g class="rpputtlbl" data-n="' + p.n + '"><line x1="' + f1(qx) + '" y1="' + f1(qy) + '" x2="' + f1(lx2) + '" y2="' + f1(ly) + '" stroke="#fff" stroke-width="1.6"/><circle cx="' + f1(qx) + '" cy="' + f1(qy) + '" r="3" fill="#fff" stroke="#222" stroke-width="1.5"/>' +
+          '<rect x="' + f1(c[0]) + '" y="' + f1(c[1]) + '" width="' + f1(w) + '" height="' + hh + '" rx="8" fill="#fff" fill-opacity=".96" stroke="#222" stroke-width="1.4"/>' +
+          '<text x="' + f1(c[0] + 8) + '" y="' + f1(c[1] + 14) + '" font-size="12.5" font-weight="800" fill="#111">' + esc(big) + '</text><text x="' + f1(c[0] + 8) + '" y="' + f1(c[1] + 25) + '" font-size="9.5" font-weight="600" fill="' + (p.end.lie === 'holed' ? '#1f7a44' : '#444') + '">' + esc(small) + '</text></g>'; });
     }
     G += (putts.length ? '' : '<circle class="rpcup" cx="' + ix + '" cy="' + iy + '" r="4.5" fill="#000"/>') + '</svg>';
     var vy = Math.floor(Math.min(0, minY - 18)); o = o.replace('__VB__', '0 ' + vy + ' ' + W + ' ' + (H - vy)); // grows upward to fit shots that went long
@@ -5413,7 +5448,7 @@
     else if (f === 'club') { if (t.value) row.club = t.value; else delete row.club; delete row.wedgeY; delete row.wedgeF; delete row.wedgeAuto; delete row.wedgeOff; save(); }
     else if (f === 'wladder') {
       var we = /^w([hl])(\d+)$/.exec(t.value), wf = we && (we[1] === 'l' ? 'low' : 'high'), wr = we && WEDGES.rowsOf(wedges(), wf)[we[2]];
-      delete row.wedgeAuto; delete row.wedgeOff; if (wr && wr.club) { row.club = wr.club; row.wedgeY = +we[2]; row.wedgeF = wf; } else if (!t.value) { delete row.club; delete row.wedgeY; delete row.wedgeF; } // "Choose carry…" = no club
+      delete row.wedgeAuto; delete row.wedgeOff; if (wr && wr.club) { row.club = wr.club; row.wedgeY = +we[2]; row.wedgeF = wf; } else if (/^c:/.test(t.value)) { row.club = t.value.slice(2); delete row.wedgeY; delete row.wedgeF; } else if (!t.value) { delete row.club; delete row.wedgeY; delete row.wedgeF; } // "Choose carry…" = no club; c:Putter = putting from off the green
       save(); render();
     }
     else if (f === 'layup') { if (t.checked) row.layup = true; else delete row.layup; save(); refreshInfo(h); }
@@ -5491,7 +5526,8 @@
     var o = '<div class="clubrow wladder" data-club="' + k + '"><label class="clublbl"><span>Wedge</span><select data-f="wladder" data-k="' + k + '" aria-label="Wedge carry row ' + shotNo + '"' + dis + '><option value=""' + (val ? '' : ' selected') + '>Choose carry…</option>' +
       WEDGES.FLIGHTS.map(function (f) { /* grouped by flight, sorted by yardage */ return '<optgroup label="' + f[1] + ' flight">' + L.filter(function (e) { return e.f === f[0]; }).map(function (e) {
         return '<option value="' + wv(e) + '"' + (val === wv(e) ? ' selected' : '') + (e.set ? '' : ' disabled') + '>' + esc(WEDGES.ladderLabel(e)) + '</option>'; }).join('') + '</optgroup>'; }).join('') +
-      (row.club && !cur ? '<option value="c:' + esc(row.club) + '" selected>' + esc(row.club) + '</option>' : '') + '</select></label>' +
+      (row.club && !cur && !/^putter$/i.test(row.club) ? '<option value="c:' + esc(row.club) + '" selected>' + esc(row.club) + '</option>' : '') +
+      '<option value="c:Putter"' + (/^putter$/i.test(row.club || '') && !cur ? ' selected' : '') + '>Putter</option>' + '</select></label>' + // v181: putt from off the green
       (k === 0 && Number(h.par) !== 3 ? '<label class="layup"><input type="checkbox" data-f="layup" data-k="0"' + (row.layup ? ' checked' : '') + dis + '> Layup <small>(not in SG)</small></label>' : '') + hoBox;
     return o + (cur ? wDetailHTML(cur) : '') + '</div>';
   }

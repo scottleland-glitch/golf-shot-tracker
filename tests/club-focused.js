@@ -21,9 +21,10 @@ const BASE = process.env.BASE_URL || 'http://127.0.0.1:8773/';
   // pickers on tee + fairway rows, none on putts
   await open(2); assert.strictEqual(await page.locator('select[data-f="club"]').count(), 0); assert.strictEqual(await page.textContent('.shotcard .sc-mid .ddtxt'), 'Putter'); // v180: Putter under the arrow
   await open(1); assert.strictEqual(await page.locator('select[data-f="club"][data-k="1"]').count(), 1);
+  assert.ok(await page.$('select[data-f="club"][data-k="1"] option[value="Putter"]'), 'v181: Putter can be picked off the green');
   await open(0); assert.strictEqual(await page.locator('select[data-f="club"][data-k="0"]').count(), 1);
   const opts = await page.$$eval('select[data-f="club"][data-k="0"] option', o => o.map(x => x.textContent).slice(1));
-  assert.deepStrictEqual(opts, ['Driver', '3W', '5W', '7W', '4H', '5H', '5i', '6i', '7i', '8i', '9i', 'PW', '52', '54', '56', '58', '60']);
+  assert.deepStrictEqual(opts, ['Driver', '3W', '5W', '7W', '4H', '5H', '5i', '6i', '7i', '8i', '9i', 'PW', '52', '54', '56', '58', '60', 'Putter']); // v181: Putter last
   const bb = await page.locator('select[data-f="club"][data-k="0"]').boundingBox(); assert.ok(bb.height >= 36, 'tap target (v115 compact: 36 px+)');
   assert.strictEqual(await page.locator('input[data-f="layup"]').count(), 1);
   const sg0 = await page.evaluate(() => SG.analyzeHole(window.__golf.rounds()[0].holes[0], 'pga').sg);

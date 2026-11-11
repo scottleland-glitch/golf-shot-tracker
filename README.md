@@ -25,6 +25,14 @@ Every Shot Counts Table 3.10). The other five are ESTIMATED: per-round gaps from
 Player Quality ladder, then spread over the PGA table. Full sources, method and caveats: in-app
 "About the numbers" and the BASELINES comment in `sg.js`.
 
+## Replay tags; Putter off the green (v181)
+- **Hole replay:** each shot's label is a white tag (distance big; club → where it finished small; penalties red) set beside
+  the middle of its tracer, with a short leader to a dot on the line; tags avoid each other, the numbers and the flag
+  (`.rplbl`, full text in `data-t`). The green close-up does the same for each putt ("17 ft", "→ 2 ft left" / "→ holed")
+  and for the shot onto the green (`#rparrlbl`).
+- **Putter off the green:** Putter is the last choice in the club dropdown and in the wedge-chart picker (`c:Putter`), for
+  putting from the fringe or a tight fairway.
+
 ## Shot card redesign (v180)
 - **Top line:** Shot n ⋯ and the distance to the pin ("366 yd to pin", feet on the green) in a smaller box.
 - **One row:** From (Tee, or "Right rough" – the shot before's finish and direction; tap it to change the lie) → an arrow
