@@ -140,7 +140,7 @@ function rig(o) {
   const ups = reqs.filter(r => r.method === 'PUT'); assert.ok(ups.length >= 2 && ups.length <= 3, 'debounced updates: ' + ups.length);
   assert.deepStrictEqual(ups[ups.length - 1].body.h[3].shots.slice(-1), ['18|green']);
   // offline → note → catch up
-  netDown = true; await ctx.setOffline(true); await page.click('[data-act="addShot"]'); await page.fill('input[data-row="3"]', '2'); await page.click('[data-act="fin"][data-v="in"][data-k="3"]'); // v157 card: In the hole
+  netDown = true; await ctx.setOffline(true); await page.click('[data-act="addShot"]'); await page.fill('input[data-row="3"]', '2'); await page.selectOption('select[data-f="fin"][data-k="3"]', 'in'); // v180: Finished dropdown – In the hole
   await page.waitForSelector('#livenote', { timeout: 6000 }); assert.match(await page.textContent('#livenote'), /Waiting for signal – will catch up/);
   const nBefore = reqs.length; netDown = false; await ctx.setOffline(false); await page.evaluate(() => window.dispatchEvent(new Event('online')));
   await page.waitForFunction(() => !document.getElementById('livenote')); const last = reqs[reqs.length - 1];

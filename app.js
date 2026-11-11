@@ -3203,43 +3203,63 @@
       'Use it when the rules cost you a stroke and you play from a new spot: an <b>unplayable lie</b>, a <b>lost ball</b> you drop for, or any other penalty drop. ' +
       'OB and the hazard Drop / Re-tee add their stroke on their own – don’t add it twice. ' + (on ? 'Tap it again to take the stroke off.' : 'Tap Penalty +1 to add it; tap again to take it off.') + '</p>';
   }
+  // ---------- v180 (Scott): the shot card as one line – From → (yards hit, club) → Finished ----------
+  // Top: Shot n ⋯ and the distance to the pin. Then From (where it was hit from, e.g. "Right rough" – how the shot before finished),
+  // an arrow with the yards hit above it and the club under it, and Finished as a dropdown like the club's. Direction is a dropdown
+  // under Finished. Hazard, OB, Unplayable and Lost ball show their +1 by themselves (no separate Penalty button).
+  var FIN_LIST = [['fairway', 'Fairway'], ['rough', 'Rough'], ['deep', 'Deep rough'], ['bunker', 'Bunker'], ['green', 'Green'], ['trees', 'Trees'],
+    ['hazard', 'Hazard', 1], ['ob', 'OB', 1], ['unp', 'Unplayable', 1], ['lost', 'Lost ball', 1]];
+  var DIR_LIST = ['long', 'longright', 'right', 'shortright', 'short', 'shortleft', 'left', 'longleft'];
+  var ICON_ARROW = '<svg class="scarr" viewBox="0 0 104 14" preserveAspectRatio="none" aria-hidden="true"><path d="M2 7h96"/><path d="M92 2l7 5-7 5"/></svg>';
+  function finVal(h, k) { // what the Finished dropdown shows for shot k
+    var f = finOf(h, k), nx = h.rows[k + 1];
+    if (f === 'ob' && nx && nx.lost) return 'lost';
+    if (nx && nx.pen && f !== 'hazard' && f !== 'ob' && f !== 'in') return 'unp';
+    return f;
+  }
+  function fromText(h, k) { // "Right rough", "Tee", "Green"
+    var row = h.rows[k], lie = SG.lieOf(h.rows, k), dv = SG.normDir(row.dir), nm = LOC_SHORT[lie === 'holed' ? 'green' : lie] || '';
+    if (k === 0) return 'Tee';
+    if (!nm) return '';
+    return (dv && lie !== 'green' ? SG.DIR_NAME[dv] + ' ' + nm.toLowerCase() : nm);
+  }
   function shotCardHTML(h, a, row, k) {
-    var rows = h.rows, nx = rows[k + 1], n = k + 1, lie = SG.lieOf(rows, k), green = lie === 'green', bad = a.bad === k, fin = finOf(h, k);
-    var replay = k > 0 && (row.loc === 'ob' || SG.isRetee(row));
-    var out = '<div class="shotcard' + (bad ? ' bad' : '') + (view.vflash && view.vflash.indexOf(k) >= 0 ? ' vflash' : '') + '" data-k="' + k + '" id="shotcard">' +
-      '<div class="sc-head"><button class="sc-n" data-act="menu" data-k="' + k + '" aria-label="Shot ' + n + ' options">Shot ' + n + ' <small>⋯</small></button>' +
-      (k > 0 ? '<button class="del" data-act="del" data-k="' + k + '" aria-label="Delete shot ' + n + '">⌫</button>' : '') + '</div>';
-    // FROM
-    out += '<div class="sc-sec"><span class="sc-lbl">From</span><div class="sc-from">';
-    if (k === 0) out += '<span class="sc-lie">Tee</span>';
-    else if (replay) out += '<span class="sc-lie">' + (row.loc === 'ob' ? 'Same spot – after OB' : 'Same spot – re-tee after the hazard') + ' <i class="tpen">+1</i></span>';
-    else out += '<select class="sc-liesel" data-f="loc" data-k="' + k + '" aria-label="Shot ' + n + ' from">' + (row.loc ? '' : '<option value="" selected>Where from?</option>') +
-      FROM_LOCS.concat(row.loc === 'holed' ? [['holed', 'Green']] : row.loc === 'holedx' ? [['holedx', 'In the hole']] : []).map(function (l) { return '<option value="' + l[0] + '"' + (row.loc === l[0] ? ' selected' : '') + '>' + l[1] + '</option>'; }).join('') + '</select>';
-    if (replay) out += '<span class="sc-dist obtxt">' + prevDist(h, k) + ' to the pin</span>';
-    else out += '<label class="sc-dist"><input type="text" inputmode="numeric" pattern="[0-9]*" maxlength="3" data-row="' + k + '" value="' + esc(row.dist) + '" aria-label="Shot ' + n + ' distance to the pin" placeholder="to pin">' +
-      '<i class="u" data-unit="' + k + '">' + SG.rowUnit(rows, k) + '</i></label>';
-    out += '</div>';
-    if (k > 0 && !replay) { var dv0 = SG.normDir(row.dir); // how the shot before finished – editable here too
-      out += '<div class="sc-came">' + missBtn(k, dv0, 'Shot ' + k + ' direction', false, 'Shot ' + k) + penBtn(k, row.pen, 'Penalty before shot ' + n) + '</div>' + penNote(k, row.pen); }
-    out += '</div>';
-    // CLUB
-    var dis = '';
-    if (!green && row.loc !== 'holed' && wLadderFor(row)) out += '<div class="sc-sec sc-clubsec">' + ladderRowHTML(h, k, row, n, dis, '') + '</div>';
-    else if (!green && row.loc !== 'holed') out += '<div class="sc-sec sc-clubsec"><div class="clubrow" data-club="' + k + '"><label class="clublbl"><span class="sc-lbl">Club</span><select data-f="club" data-k="' + k + '" aria-label="Shot ' + n + ' club"><option value=""' + (row.club ? '' : ' selected') + '>–</option>' +
-        clubChoices(row.club).map(function (c) { return '<option value="' + esc(c.code) + '"' + (row.club === c.code ? ' selected' : '') + '>' + esc(c.label) + '</option>'; }).join('') + '</select></label>' +
-        (k === 0 && Number(h.par) !== 3 ? '<label class="layup"><input type="checkbox" data-f="layup" data-k="0"' + (row.layup ? ' checked' : '') + '> Layup <small>(not in SG)</small></label>' : '') + '</div></div>';
-    else out += '<div class="sc-sec sc-clubsec"><div class="clubrow putter" data-club="' + k + '"><span class="sc-lbl">Club</span><small>Putter</small></div></div>';
-    // FINISHED
-    var chips = FIN_OFF.concat([['in', k === 0 ? 'In the hole (ace!)' : 'In the hole']]); // v157b (Scott): a putt can finish anywhere too – off the green, a bunker, the lake
-    out += '<div class="sc-sec"><span class="sc-lbl">Finished</span><div class="finchips" role="group" aria-label="Where shot ' + n + ' finished">' + chips.map(function (c) {
-      return '<button type="button" class="finchip' + (c[0] === 'in' ? ' in' : '') + (fin === c[0] ? ' sel' : '') + '" data-act="fin" data-k="' + k + '" data-v="' + c[0] + '" aria-pressed="' + (fin === c[0]) + '">' + c[1] + '</button>'; }).join('') + '</div>';
-    if (fin && fin !== 'in' && nx) {
-      var dv = SG.normDir(nx.dir), ob = nx.loc === 'ob';
-      out += '<div class="sc-miss">' + missBtn(k + 1, dv, ob ? 'Direction (which side?)' : 'Direction', false);
-      if (ob) out += '<i class="tpen">+1</i>';
-      else if (nx.loc !== 'hazard') out += penBtn(k + 1, nx.pen, 'Penalty after shot ' + n);
-      out += '</div>' + (!ob && nx.loc !== 'hazard' ? penNote(k + 1, nx.pen) : '');
-      if (nx.loc === 'hazard') { // redesign 3: Drop or Re-tee (only for Hazard)
+    var rows = h.rows, nx = rows[k + 1], n = k + 1, lie = SG.lieOf(rows, k), green = lie === 'green', bad = a.bad === k, fin = finOf(h, k), fv = finVal(h, k);
+    var replay = k > 0 && (row.loc === 'ob' || SG.isRetee(row)), s = a.shots[k];
+    var out = '<div class="shotcard sc2' + (bad ? ' bad' : '') + (view.vflash && view.vflash.indexOf(k) >= 0 ? ' vflash' : '') + '" data-k="' + k + '" id="shotcard">';
+    // top: Shot n ⋯ (⌫) and the distance to the pin
+    out += '<div class="sc-head"><button class="sc-n" data-act="menu" data-k="' + k + '" aria-label="Shot ' + n + ' options">Shot ' + n + ' <small>⋯</small></button>' +
+      (replay ? '<span class="sc-pin obtxt">' + prevDist(h, k) + ' <em>to pin</em></span>'
+        : '<label class="sc-pin sc-dist"><input type="text" inputmode="numeric" pattern="[0-9]*" maxlength="3" data-row="' + k + '" value="' + esc(row.dist) + '" aria-label="Shot ' + n + ' distance to the pin" placeholder="–"><em><i class="u" data-unit="' + k + '">' + SG.rowUnit(rows, k) + '</i> to pin</em></label>') + '</div>';
+    // From → Finished
+    var fromHTML;
+    if (k === 0) fromHTML = '<b class="sc-lie">Tee</b>';
+    else if (replay) fromHTML = '<b class="sc-lie">Same spot</b><small>' + (row.loc === 'ob' ? (row.lost ? 'after a lost ball' : 'after OB') : 're-tee after the hazard') + ' <i class="tpen">+1</i></small>';
+    else if (!row.loc || row.pen) fromHTML = '<select class="sc-liesel dd" data-f="loc" data-k="' + k + '" aria-label="Shot ' + n + ' from">' + (row.loc ? '' : '<option value="" selected>' + (row.pen ? 'Dropped in…' : 'Where from?') + '</option>') +
+      FROM_LOCS.map(function (l) { return '<option value="' + l[0] + '"' + (row.loc === l[0] ? ' selected' : '') + '>' + l[1] + '</option>'; }).join('') + '</select>' + (row.pen ? '<small>after the drop <i class="tpen">+1</i></small>' : '');
+    else fromHTML = '<span class="ddwrap fromwrap"><b class="sc-lie">' + esc(fromText(h, k)) + '<i class="fromchev" aria-hidden="true"></i></b><select class="ddover sc-liesel" data-f="loc" data-k="' + k + '" aria-label="Shot ' + n + ' from">' + // tap the words to change the lie
+      FROM_LOCS.concat(row.loc === 'holed' ? [['holed', 'Green']] : row.loc === 'holedx' ? [['holedx', 'In the hole']] : []).map(function (l) { return '<option value="' + l[0] + '"' + (row.loc === l[0] ? ' selected' : '') + '>' + l[1] + '</option>'; }).join('') + '</select></span>';
+    var hit = s && !green && s.hit != null && s.end && s.end.lie !== 'holed' && !s.ob ? s.hit + ' yd' : s && s.end && s.end.lie === 'holed' ? (green ? 'holed' : s.hit != null ? s.hit + ' yd' : '') : '';
+    var club = green || row.loc === 'holed' ? '<span class="dd ddtxt">Putter</span>' : wLadderFor(row) ? '<span class="dd ddtxt">' + esc(row.club ? ((clubChoices(row.club).filter(function (c) { return c.code === row.club; })[0] || {}).label || row.club) : 'Wedge ↓') + '</span>'
+      : '<select class="dd" data-f="club" data-k="' + k + '" aria-label="Shot ' + n + ' club"><option value=""' + (row.club ? '' : ' selected') + '>Club</option>' +
+        clubChoices(row.club).map(function (c) { return '<option value="' + esc(c.code) + '"' + (row.club === c.code ? ' selected' : '') + '>' + esc(c.label) + '</option>'; }).join('') + '</select>';
+    var plus = fv === 'hazard' ? (nx && (nx.pen || SG.isRetee(nx))) : fv === 'ob' || fv === 'unp' || fv === 'lost';
+    // the box shows a short name; the list itself (the phone's picker) shows the +1s. The select sits invisibly over the box.
+    var finName = fv === 'in' ? (k === 0 ? 'Ace!' : 'In the hole') : fv ? (FIN_LIST.filter(function (c) { return c[0] === fv; })[0] || [])[1] || fv : 'Pick';
+    var finSel = '<span class="ddwrap"><span class="dd ddshow' + (fv ? '' : ' ddempty') + (finName.length > 9 ? ' ddlong' : '') + '" aria-hidden="true">' + esc(finName) + '</span><select class="ddover sc-finsel" data-f="fin" data-k="' + k + '" aria-label="Where shot ' + n + ' finished">' + (fv ? '' : '<option value="" selected>Pick</option>') +
+      FIN_LIST.map(function (c) { return '<option value="' + c[0] + '"' + (fv === c[0] ? ' selected' : '') + '>' + c[1] + (c[2] ? '  +1' : '') + '</option>'; }).join('') +
+      '<option value="in"' + (fv === 'in' ? ' selected' : '') + '>' + (k === 0 ? 'In the hole (ace!)' : 'In the hole') + '</option></select></span>';
+    out += '<div class="sc-flow"><div class="sc-from"><span class="sc-lbl">From</span>' + fromHTML + '</div>' +
+      '<div class="sc-mid"><span class="sc-hit">' + (hit || '&nbsp;') + '</span>' + ICON_ARROW + club + '</div>' +
+      '<div class="sc-fin"><span class="sc-lbl">Finished</span>' + finSel + (plus ? '<i class="tpen">+1</i>' : '') + '</div></div>';
+    // the wedge chart picks the club for wedge shots (its own row, as before)
+    if (!green && row.loc !== 'holed' && wLadderFor(row)) out += '<div class="sc-sec sc-clubsec">' + ladderRowHTML(h, k, row, n, '', '') + '</div>';
+    // direction under Finished
+    if (fin && fin !== 'in' && nx) { var dv = SG.normDir(nx.dir), obx = nx.loc === 'ob';
+      out += '<div class="sc-dirrow"><select class="dd sc-dirsel" data-f="dir" data-k="' + (k + 1) + '" aria-label="Shot ' + n + ' direction">' +
+        '<option value=""' + (dv ? '' : ' selected') + '>' + (obx ? 'Which side?' : 'Direction') + '</option>' +
+        DIR_LIST.filter(function (d) { return !obx || (d !== 'short' && d !== 'long'); }).map(function (d) { return '<option value="' + d + '"' + (dv === d ? ' selected' : '') + '>' + ARROW[d] + ' ' + SG.DIR_NAME[d] + '</option>'; }).join('') + '</select></div>';
+      if (nx.loc === 'hazard') { // Drop or Re-tee (only for Hazard)
         var hz = view.hzPend === (k + 1) + ':' + view.hole ? '' : SG.isRetee(nx) ? 'retee' : nx.pen ? 'drop' : 'play';
         out += '<div class="hzpick" id="hzpick" role="group" aria-label="Hazard: drop or re-tee"><span class="hzq">Into the hazard – then?</span>' +
           [['drop', 'Drop', '+1, play from the drop'], ['retee', k === 0 ? 'Re-tee' : 'Replay', '+1, again from the same spot']].map(function (o) {
@@ -3247,11 +3267,11 @@
           '<button type="button" class="hzplay' + (hz === 'play' ? ' sel' : '') + '" data-act="hz" data-k="' + (k + 1) + '" data-v="play">Played it from the hazard (no penalty)</button></div>';
       }
     }
-    out += '</div>';
-    out += '<div class="sinfo" data-info="' + k + '">' + infoHTML(a.shots[k]) + '</div>';
+    if (k === 0 && Number(h.par) !== 3 && fin !== 'in') out += '<label class="layup sc-layup"><input type="checkbox" data-f="layup" data-k="0"' + (row.layup ? ' checked' : '') + '> Layup <small>(not in strokes gained)</small></label>';
+    out += '<div class="sinfo" data-info="' + k + '">' + infoHTML(s) + '</div>';
     if (fin !== 'in') out += '<button class="addshot big" data-act="' + (nx ? 'nextshot' : 'addShot') + '" data-k="' + k + '">' + (k + 1 < rows.length - 1 ? 'Shot ' + (k + 2) + ' ›' : 'Next shot ›') + '</button>';
     if (view.menu === k) out += '<div class="rowmenu">' + (k > 0 ? '<button data-act="insBefore" data-k="' + k + '">Insert shot above</button>' : '') +
-        '<button data-act="insAfter" data-k="' + k + '">Insert shot below</button><button data-act="menu" data-k="' + k + '">Close</button></div>';
+        '<button data-act="insAfter" data-k="' + k + '">Insert shot below</button>' + (k > 0 ? '<button class="del" data-act="del" data-k="' + k + '" aria-label="Delete shot ' + n + '">Delete shot ' + n + '</button>' : '') + '<button data-act="menu" data-k="' + k + '">Close</button></div>'; // v180: delete lives in ⋯
     return out + '</div>';
   }
   // "Finished" chip: writes the NEXT row (its lie), adding it when this is the last shot; "In the hole" holes this shot out.
@@ -5374,6 +5394,13 @@
       toast('Benchmark: ' + blName(t.value)); if (old !== t.value) view.pdf = null; render(); return; }
     if (f === 'baseline') { if (t.id === 'sumbl') setBaseline(t.value); else if (t.id === 'stbl') { view.stBl = t.value || ''; view.stSel = null; render(); } else if (t.id === 'histbl') { view.histBl = t.value || ''; render(); } return; }
     var h = round().holes[view.hole], k = +t.getAttribute('data-k'), row = h.rows[k];
+    if (f === 'fin') { // v180: the Finished dropdown (Unplayable = a drop +1; Lost ball = stroke and distance, like OB)
+      var fvv = t.value; if (!fvv) return;
+      if (fvv === 'unp') { setFinish(h, k, h.rows[k + 1] && FIN_LIST.some(function (c) { return !c[2] && c[0] === h.rows[k + 1].loc; }) ? h.rows[k + 1].loc : 'rough'); var nu = h.rows[k + 1]; if (nu) { nu.pen = true; delete nu.lost; if (!FIN_LIST.some(function (c) { return !c[2] && c[0] === nu.loc; })) nu.loc = ''; save(); render(); } return; } // keeps a lie already picked (where it was dropped)
+      if (fvv === 'lost') { setFinish(h, k, 'ob'); var nl = h.rows[k + 1]; if (nl) { nl.lost = true; save(); render(); } return; }
+      var nb = h.rows[k + 1]; if (nb) { delete nb.lost; if (nb.pen && fvv !== 'hazard') nb.pen = false; }
+      setFinish(h, k, fvv); return;
+    }
     if (f === 'loc') {
       var v = t.value, was = row.loc;
       row.loc = v;
@@ -5469,6 +5496,13 @@
     return o + (cur ? wDetailHTML(cur) : '') + '</div>';
   }
   function clubRowRefresh(h, k) { // swap just that shot's club line (keeps the keyboard up in the distance box)
+    // v180 shot card: swap the middle (yards hit, club) and add / drop the wedge-chart row
+    var card = document.querySelector('.shotcard.sc2[data-k="' + k + '"]');
+    if (card) { var a2 = AH(h), t2 = document.createElement('div'); t2.innerHTML = shotCardHTML(h, a2, h.rows[k], k); var nc = t2.firstChild;
+      var om = card.querySelector('.sc-mid'), nm = nc.querySelector('.sc-mid'); if (om && nm) om.parentNode.replaceChild(nm, om);
+      var ol = card.querySelector('.sc-clubsec'), nl = nc.querySelector('.sc-clubsec'), fl = card.querySelector('.sc-flow');
+      if (ol && nl) ol.parentNode.replaceChild(nl, ol); else if (ol) ol.parentNode.removeChild(ol); else if (nl && fl) fl.parentNode.insertBefore(nl, fl.nextSibling);
+      return; }
     var el = document.querySelector('.clubrow[data-club="' + k + '"]'); if (!el) return;
     var a = AH(h), tmp = document.createElement('div'); tmp.innerHTML = rowHTML(h, a, h.rows[k], k, !!h.finished && a.complete);
     var fresh = tmp.querySelector('.clubrow[data-club="' + k + '"]'); if (fresh) el.parentNode.replaceChild(fresh, el);

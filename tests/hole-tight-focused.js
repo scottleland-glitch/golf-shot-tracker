@@ -69,12 +69,13 @@ const YDS = [349, 512, 165, 401, 377, 142, 530, 365, 388, 372, 158, 545, 380, 41
     await page.selectOption('select[data-f="club"][data-k="0"]', '3W');
     await shot('hole-reedit-' + TAG);
     await page.click('.tline[data-k="1"]'); await page.waitForSelector('input[data-row="1"]'); L = await lines(); assert.strictEqual(L[0][2], '3W', 'club change shows on the line');
-    await page.click('[data-act="pen"][data-k="1"]'); await page.click('[data-act="dirpick"][data-k="1"]'); await page.click('.dirgrid [data-act="setdir"][data-v="left"]');
+    // v180: Unplayable +1 and the direction are on shot 1's card (Finished / Direction dropdowns)
+    await page.click('.tline[data-k="0"]'); await page.selectOption('select[data-f="fin"][data-k="0"]', 'unp'); await page.selectOption('select[data-f="dir"][data-k="1"]', 'left');
     await page.click('.tline[data-k="3"]'); L = await lines(); assert.strictEqual(L[0][3], 'Tee → Rough+1', 'penalty of shot 1 shows on its line, no miss arrow ' + L[0][3]); assert.strictEqual(await page.$('.tline .tarr'), null);
-    await page.click('[data-act="fin"][data-v="in"][data-k="3"]'); await page.click('[data-act="finish"]'); await page.waitForSelector('.hole-done');
+    await page.selectOption('select[data-f="fin"][data-k="3"]', 'in'); await page.click('[data-act="finish"]'); await page.waitForSelector('.hole-done');
     L = await lines(); assert.strictEqual(L.length, 4); assert.deepStrictEqual(L[3].slice(1, 4), ['3 ft', 'Putter', 'Green → Holed']); assert.strictEqual(await page.$('.shotcard[data-k]'), null, 'finished: all tight');
     await page.click('[data-act="reopen"]'); assert.deepStrictEqual(await page.$$eval('.shotcard[data-k]', e => e.map(x => x.getAttribute('data-k'))), ['3']);
-    await page.click('.tline[data-k="2"]'); await page.click('[data-act="del"][data-k="2"]'); assert.strictEqual(await page.$$eval('.tline, .shotcard[data-k]', e => e.length), 3, 'delete still works');
+    await page.click('.tline[data-k="2"]'); await page.click('[data-act="menu"][data-k="2"]'); await page.click('[data-act="del"][data-k="2"]'); // v180: delete is in ⋯ assert.strictEqual(await page.$$eval('.tline, .shotcard[data-k]', e => e.length), 3, 'delete still works');
     ok('tap a line → full cells for that shot (club, Layup, P, Dir, delete, Hole out all work); the line updates; finished hole is all lines');
     // ---- 5. one shot (hole 2) and a par 3 (hole 3)
     await go(2); assert.strictEqual(await head(), 'Hole 2 512 yd Par 5 SI 3'); assert.strictEqual(await page.$('#thead'), null); assert.strictEqual(await page.$$eval('.shotcard[data-k]', e => e.length), 1);
@@ -97,7 +98,7 @@ const YDS = [349, 512, 165, 401, 377, 142, 530, 365, 388, 372, 158, 545, 380, 41
     // ---- 8. longest Loc ("Fairway → Bunker" + penalty) is not cut off at 375 px wide
     await page.fill('input[data-row="0"]', '342');
     await page.click('[data-act="addShot"]'); await page.selectOption('select[data-f="loc"][data-k="1"]', 'fairway'); await page.fill('input[data-row="1"]', '60');
-    await page.click('[data-act="addShot"]'); await page.selectOption('select[data-f="loc"][data-k="2"]', 'bunker'); await page.fill('input[data-row="2"]', '10'); await page.click('[data-act="pen"][data-k="2"]');
+    await page.click('[data-act="addShot"]'); await page.selectOption('select[data-f="loc"][data-k="2"]', 'bunker'); await page.fill('input[data-row="2"]', '10'); await page.click('.tline[data-k="1"]'); await page.selectOption('select[data-f="fin"][data-k="1"]', 'unp'); await page.click('.tline[data-k="2"]');
     await page.click('[data-act="addShot"]'); await page.setViewportSize({ width: 375, height: 812 }); await page.waitForTimeout(200);
     L = await lines(); assert.deepStrictEqual(L.map(l => l[3]), ['Tee → Fairway', 'Fairway → Bunker+1', 'Bunker → –']);
     const cut = await page.$$eval('.tline > span, .tline .tlw', e => e.filter(x => x.scrollWidth > x.clientWidth + 1).map(x => x.textContent));

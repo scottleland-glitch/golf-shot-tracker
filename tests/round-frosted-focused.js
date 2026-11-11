@@ -21,17 +21,21 @@ const BASE = 'http://127.0.0.1:8797/', OUT = '/workspace/golf-app/screenshots/',
   assert.match(await page.textContent('.hc-head'), /Hole 18/);
   await page.evaluate(() => window.scrollTo(0, 0)); await shot('hole');
   await shot('hole-full', true);
-  await page.click('.tline[data-k="2"]'); /* v115: earlier shots are tight lines – tap to open */ await page.click('[data-act="dirpick"][data-k="2"]'); await page.waitForSelector('.dirgrid'); await shot('direction');
-  await page.click('.dirgrid [data-act="setdir"][data-v="shortleft"]'); assert.strictEqual(await page.getAttribute('[data-act="dirpick"][data-k="2"]', 'data-dir'), 'shortleft');
+  // v180: shot 2's card has the Direction dropdown under Finished (it sets how shot 2 finished = row 3's direction)
+  await page.click('.tline[data-k="1"]'); /* v115: earlier shots are tight lines – tap to open */ await shot('direction');
+  await page.selectOption('select[data-f="dir"][data-k="2"]', 'shortleft'); assert.strictEqual(await page.$eval('select[data-f="dir"][data-k="2"]', e => e.value), 'shortleft');
+  await page.click('.tline[data-k="2"]'); assert.match(await page.textContent('.shotcard[data-k="2"] .sc-lie'), /^Green/, 'on the green the From is just Green');
   await page.click('[data-act="menu"][data-k="2"]'); await page.waitForSelector('.rowmenu'); await page.locator('.rowmenu').scrollIntoViewIfNeeded(); await shot('rowmenu');
   await page.click('.rowmenu [data-act="menu"]');
   await page.click('#pinbtn'); await page.waitForSelector('#pingreen'); await shot('pin');
   await page.click('#pingreen [data-act="pinset"][data-v="backleft"]'); await page.waitForTimeout(200); if (await page.$('#pinview')) await page.click('[data-act="pinclose"]');
   assert.match(await page.textContent('#pinbtn'), /Pin: back left/i);
   await page.click('.tline[data-k="1"]'); await page.selectOption('select[data-f="club"][data-k="1"]', '6i'); assert.strictEqual(await page.$eval('select[data-f="club"][data-k="1"]', e => e.value), '6i');
-  await page.click('[data-act="pen"][data-k="1"]'); assert.strictEqual(await page.$eval('[data-act="pen"][data-k="1"]', e => e.classList.contains('on')), false);
+  // v180: the fixture's penalty on shot 2 comes off by picking a plain lie for where shot 1 finished (was the Penalty +1 button)
+  await page.click('.tline[data-k="0"]'); assert.strictEqual(await page.$eval('select[data-f="fin"][data-k="0"]', e => e.value), 'unp'); await page.selectOption('select[data-f="fin"][data-k="0"]', 'rough');
+  assert.strictEqual(await page.evaluate(() => JSON.parse(localStorage.getItem('golfsg.rounds.v1'))[0].holes[17].rows[1].pen), false);
   await page.click('.tline[data-k="3"]'); await page.click('[data-act="addShot"]'); assert.strictEqual(await page.locator('.tline, .shotcard[data-k]').count(), 5); assert.strictEqual(await page.locator('.shotcard[data-k]').count(), 1); // v157 shot card
-  await page.fill('input[data-row="4"]', '3'); await page.locator('input[data-row="4"]').blur(); await page.click('[data-act="fin"][data-v="in"][data-k="4"]');
+  await page.fill('input[data-row="4"]', '3'); await page.locator('input[data-row="4"]').blur(); await page.selectOption('select[data-f="fin"][data-k="4"]', 'in');
   await page.click('[data-act="finish"]'); await page.waitForSelector('.hole-done'); assert.match(await page.textContent('.hole-done'), /Score 5/);
   await page.evaluate(() => window.scrollTo(0, 0)); await shot('finished');
   await page.click('[data-act="replay"]'); await page.waitForSelector('[data-act="rpclose"]'); await page.waitForTimeout(600); await shot('replay'); await page.click('[data-act="rpclose"] >> nth=0');

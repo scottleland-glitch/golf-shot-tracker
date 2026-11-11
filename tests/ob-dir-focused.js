@@ -18,20 +18,19 @@ const R = { v: 3, dv: 2, id: 'obt', date: '2026-11-07T17:00:00.000Z', course: 'T
     await page.reload(); await page.waitForSelector('#home'); await page.click('#resumepill');
     await page.waitForSelector('.shotcard[data-k="1"]'); await page.click('.tline[data-k="0"]'); await page.waitForSelector('.shotcard[data-k="0"]'); // v157: shot 1's card – Finished + which way it missed
     const stored = () => page.evaluate(() => JSON.parse(localStorage.getItem('golfsg.rounds.v1'))[0].holes[0].rows[1]);
-    // rough: all 8 directions on
-    await page.click('[data-act="dirpick"][data-k="1"]'); assert.strictEqual(await page.$$eval('.dirgrid button:disabled', e => e.length), 0); assert.strictEqual(await page.$('#dirobnote'), null);
-    await page.click('.sheet [data-act="dirclose"]'); ok('rough: all directions available');
-    // switch to OB: the stored "short" is cleared, Short / Long are off, corners and sides stay
-    await page.click('[data-act="fin"][data-v="ob"][data-k="0"]'); assert.strictEqual((await stored()).dir, '');
-    await page.click('[data-act="dirpick"][data-k="1"]');
-    assert.deepStrictEqual(await page.$$eval('.dirgrid button:disabled', e => e.map(x => x.dataset.v).sort()), ['long', 'short']);
-    assert.ok(await page.$('#dirobnote'));
-    await page.click('.sheet [data-act="setdir"][data-v="shortleft"]'); assert.strictEqual((await stored()).dir, 'shortleft');
-    ok('OB: short cleared, Short/Long off with a note, Short-left still works');
+    // v180: Direction is a dropdown under Finished
+    const opts = () => page.$$eval('select[data-f="dir"][data-k="1"] option', e => e.map(o => o.value).filter(Boolean));
+    // rough: all 8 directions
+    assert.strictEqual((await opts()).length, 8); ok('rough: all directions available');
+    // switch to OB: the stored "short" is cleared, Short / Long are not offered, corners and sides stay
+    await page.selectOption('select[data-f="fin"][data-k="0"]', 'ob'); assert.strictEqual((await stored()).dir, '');
+    assert.deepStrictEqual((await opts()).sort(), ['left', 'longleft', 'longright', 'right', 'shortleft', 'shortright']);
+    assert.match(await page.textContent('select[data-f="dir"][data-k="1"] option[value=""]'), /Which side/);
+    await page.selectOption('select[data-f="dir"][data-k="1"]', 'shortleft'); assert.strictEqual((await stored()).dir, 'shortleft');
+    ok('OB: short cleared, Short/Long not offered, Short-left still works');
     // penalty area: all 8 again
-    await page.click('[data-act="fin"][data-v="hazard"][data-k="0"]'); await page.click('[data-act="dirpick"][data-k="1"]');
-    assert.strictEqual(await page.$$eval('.dirgrid button:disabled', e => e.length), 0); await page.click('.sheet [data-act="setdir"][data-v="short"]');
-    assert.strictEqual((await stored()).dir, 'short'); ok('penalty area: Short still allowed');
+    await page.selectOption('select[data-f="fin"][data-k="0"]', 'hazard'); assert.strictEqual((await opts()).length, 8);
+    await page.selectOption('select[data-f="dir"][data-k="1"]', 'short'); assert.strictEqual((await stored()).dir, 'short'); ok('penalty area: Short still allowed');
     assert.deepStrictEqual(errors, []); console.log('PASS ob-dir-focused');
   } finally { await b.close(); srv.kill(); }
 })().catch(e => { console.error(e); process.exit(1); });

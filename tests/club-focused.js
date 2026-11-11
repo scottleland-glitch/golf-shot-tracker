@@ -19,7 +19,7 @@ const BASE = process.env.BASE_URL || 'http://127.0.0.1:8773/';
   const open = async k => { if (await page.$('.tline[data-k="' + k + '"]')) { await page.click('.tline[data-k="' + k + '"]'); await page.waitForSelector('input[data-row="' + k + '"]'); } };
   await nav(0);
   // pickers on tee + fairway rows, none on putts
-  await open(2); assert.strictEqual(await page.locator('select[data-f="club"]').count(), 0); assert.strictEqual(await page.locator('.clubrow.putter').count(), 1);
+  await open(2); assert.strictEqual(await page.locator('select[data-f="club"]').count(), 0); assert.strictEqual(await page.textContent('.shotcard .sc-mid .ddtxt'), 'Putter'); // v180: Putter under the arrow
   await open(1); assert.strictEqual(await page.locator('select[data-f="club"][data-k="1"]').count(), 1);
   await open(0); assert.strictEqual(await page.locator('select[data-f="club"][data-k="0"]').count(), 1);
   const opts = await page.$$eval('select[data-f="club"][data-k="0"] option', o => o.map(x => x.textContent).slice(1));

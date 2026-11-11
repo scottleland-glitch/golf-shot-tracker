@@ -30,12 +30,13 @@ let passed = 0; const ok = (m) => { passed++; console.log('  ✓', m); };
   const actK = async (a, k) => { if (!(await page.$(`[data-act="${a}"][data-k="${k}"]`))) await open(k); if (!(await page.$(`[data-act="${a}"][data-k="${k}"]`))) await open(k - 1); return page.locator(`[data-act="${a}"][data-k="${k}"]`).first().click(); };
   const dist = async (k, v) => { await open(k); return page.fill(`input[data-row="${k}"]`, String(v)); };
   // v157: shot card – "holed" = In the hole on that shot; OB etc. = where the previous shot finished
-  const loc = async (k, v) => { if (v === 'holed') { await open(k); return page.click(`[data-act="fin"][data-v="in"][data-k="${k}"]`); }
+  // v180: Finished / Direction are dropdowns on the shot card
+  const loc = async (k, v) => { if (v === 'holed') { await open(k); return page.selectOption(`select[data-f="fin"][data-k="${k}"]`, 'in'); }
     await open(k); if (await page.$(`select[data-f="loc"][data-k="${k}"] option[value="${v}"]`)) return page.selectOption(`select[data-f="loc"][data-k="${k}"]`, v);
-    await open(k - 1); return page.click(`[data-act="fin"][data-v="${v}"][data-k="${k - 1}"]`); };
+    await open(k - 1); return page.selectOption(`select[data-f="fin"][data-k="${k - 1}"]`, v); };
   const setPar = async v => { if (!(await page.$('#parpick'))) await page.click('#hpar'); await act('par', v); }; // v115: no card par → tap "Par 4 ✎", pick 3/4/5
   const OLD = { L: 'left', R: 'right', S: 'short', O: 'long' };
-  const dir = async (k, v) => { await actK('dirpick', k); await page.locator(`.sheet [data-act="setdir"][data-v="${OLD[v] || v}"]`).click(); };
+  const dir = async (k, v) => { await open(k - 1); return page.selectOption(`select[data-f="dir"][data-k="${k}"]`, OLD[v] || v); };
   const rows = () => page.locator('.tline[data-k], .shotcard[data-k]').count();
   const doneText = () => page.textContent('.hole-done');
   const hideToast = () => page.evaluate(() => { document.getElementById('toast').className = ''; });
@@ -85,8 +86,7 @@ let passed = 0; const ok = (m) => { passed++; console.log('  ✓', m); };
   const mig = await page.evaluate(() => { const rs = JSON.parse(localStorage.getItem('golfsg.rounds.v1')); return [rs[0].holes[0].rows[1].dir, rs[1].holes[1].rows[2].dir, rs[1].holes[2].rows[1].dir, rs[1].holes[11].rows[2].dir, rs[1].holes[3].rows[1].dir, rs[1].dv]; });
   assert.deepStrictEqual(mig, ['left', 'right', 'short', 'long', 'left', 2]); ok('old direction codes migrated: L→Left, R→Right, S→Short, O→Long');
   await act('resume'); await page.waitForSelector('.holecard');
-  await open(1); assert.strictEqual(await page.getAttribute('[data-act="dirpick"][data-k="1"]', 'data-dir'), 'left');
-  assert.strictEqual(await page.textContent('[data-act="dirpick"][data-k="1"] .mparr'), '←'); ok('row direction shows as ← (Left) (tap the shot line to open it)');
+  await open(1); assert.match(await page.textContent('.shotcard[data-k="1"] .sc-lie'), /^Left /); ok('the shot reads "Left …" under From (tap the shot line to open it)');
   assert.match(await count(), /^4 strokes/); ok("Scott's saved hole (365 Tee, 100 F L, 6 G, In the hole) counts 4 strokes");
   assert.ok(await finishDisabled()); assert.match(await hint(), /Next: shot 4’s distance to the pin/);
   assert.match(await header(), /No holes finished/); ok('…and stays unfinished (Finish disabled, "Missing: distance in row 4"), not in totals');
@@ -166,17 +166,10 @@ let passed = 0; const ok = (m) => { passed++; console.log('  ✓', m); };
   assert.match(await page.textContent('.hc-head'), /Hole 2/); ok('Add Hole 2 moves to hole 2');
   await setPar(3); await dist(0, 165);
   await act('addShot'); await dist(1, 15); await loc(1, 'bunker');
-  await actK('dirpick', 1);
-  const grid = await page.$$eval('.sheet .dirgrid button', bs => bs.map(b => b.getAttribute('data-v')));
-  assert.deepStrictEqual(grid, ['longleft', 'long', 'longright', 'left', '', 'right', 'shortleft', 'short', 'shortright']);
-  const names = await page.$$eval('.sheet .dirgrid button', bs => bs.map(b => b.textContent.slice(1)));
-  assert.deepStrictEqual(names, ['Long left', 'Long', 'Long right', 'Left', 'None', 'Right', 'Short left', 'Short', 'Short right']);
-  ok('direction picker: 3×3 grid, 8 directions + None, Short at the bottom (toward you)');
-  await hideToast(); await page.screenshot({ path: `${SHOTS}/13-direction-picker.png` });
-  await page.locator('.sheet [data-act="setdir"][data-v="shortleft"]').click();
-  assert.strictEqual(await page.textContent('[data-act="dirpick"][data-k="1"]'), '↙');
-  await dir(1, 'L');
-  assert.strictEqual(await page.textContent('[data-act="dirpick"][data-k="1"] .mparr'), '←');
+  await open(0); const dopts = await page.$$eval('select[data-f="dir"][data-k="1"] option', e => e.map(o => o.value));
+  assert.deepStrictEqual(dopts, ['', 'long', 'longright', 'right', 'shortright', 'short', 'shortleft', 'left', 'longleft']); ok('direction dropdown: 8 directions + none');
+  await dir(1, 'shortleft'); assert.strictEqual(await page.$eval('select[data-f="dir"][data-k="1"]', e => e.value), 'shortleft');
+  await dir(1, 'L'); assert.strictEqual(await page.$eval('select[data-f="dir"][data-k="1"]', e => e.value), 'left');
   assert.match(await page.textContent('.sinfo[data-info="0"]').catch(() => '') + await page.textContent('.tline[data-k="0"]').catch(() => ''), /left \(missed green\)|Tee → Bunker/); ok('pick Short left → ↙, change to Left → ←; info says "left (missed green)"');
   await act('addShot'); await dist(2, 4); await loc(2, 'green');
   await act('addShot'); await dist(3, 1); await loc(3, 'holed'); await act('finish');

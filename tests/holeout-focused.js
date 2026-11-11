@@ -135,15 +135,15 @@ const hole1 = () => ({ par: 4, finished: true, rows: [R(467, 'tee', { club: 'Dri
     });
     await page.reload(); await page.click('[data-act="resume"]'); await page.waitForSelector('.holecard');
     // v157: the "Hole out" box is now the "In the hole" chip under Finished – only on the shot being entered
-    const ins = () => page.$$eval('[data-act="fin"][data-v="in"]', e => e.map(x => +x.getAttribute('data-k')));
-    const inSel = k => page.$('[data-act="fin"][data-v="in"][data-k="' + k + '"].sel');
+    const ins = () => page.$$eval('select[data-f="fin"]', e => e.map(x => +x.getAttribute('data-k'))); // v180: Finished is a dropdown
+    const inSel = k => page.$eval('select[data-f="fin"][data-k="' + k + '"]', x => x.value === 'in');
     assert.deepStrictEqual(await ins(), [3], 'In the hole only on the shot being entered (shot 4)');
     assert.strictEqual(await page.$('select[data-f="loc"] option[value="holedx"]'), null, '"In the hole (chip/shot)" is not a From choice');
     assert.match(await page.textContent('#hint'), /pick where the shot finished, or In the hole/);
     // delete shot 4 -> shot 3 is the shot being entered
-    await page.click('[data-act="del"][data-k="3"]'); await page.waitForTimeout(150);
+    await page.click('[data-act="menu"][data-k="3"]'); await page.click('[data-act="del"][data-k="3"]'); await page.waitForTimeout(150);
     assert.match(dialogs[dialogs.length - 1], /Delete row 4/); assert.deepStrictEqual(await ins(), [2]);
-    await page.click('[data-act="fin"][data-v="in"][data-k="2"]'); await page.waitForTimeout(150);
+    await page.selectOption('select[data-f="fin"][data-k="2"]', 'in'); await page.waitForTimeout(150);
     assert.strictEqual(await page.$$eval('.tline, .shotcard', e => e.length), 3);
     assert.strictEqual(await page.$eval('select[data-f="loc"][data-k="2"]', s => s.value), 'deep', 'lie kept');
     assert.ok(await inSel(2)); assert.strictEqual(await page.$('[data-act="addShot"], [data-act="nextshot"]'), null, 'no Next shot once holed');
@@ -152,21 +152,21 @@ const hole1 = () => ({ par: 4, finished: true, rows: [R(467, 'tee', { club: 'Dri
     let st = await page.evaluate(() => window.__golf.rounds()[0].holes[0].rows.map(r => [r.loc, !!r.holeOut]));
     assert.deepStrictEqual(st, [['tee', false], ['fairway', false], ['deep', true]]);
     // change of mind: Finished = Green -> no longer holed, shot 4 waits (on the green)
-    await page.click('[data-act="fin"][data-v="green"][data-k="2"]'); await page.waitForTimeout(100); assert.ok(await page.$('[data-act="nextshot"][data-k="2"]'));
+    await page.selectOption('select[data-f="fin"][data-k="2"]', 'green'); await page.waitForTimeout(100); assert.ok(await page.$('[data-act="nextshot"][data-k="2"]'));
     st = await page.evaluate(() => window.__golf.rounds()[0].holes[0].rows.map(r => [r.loc, !!r.holeOut])); assert.deepStrictEqual(st, [['tee', false], ['fairway', false], ['deep', false], ['green', false]]);
     // back to In the hole: asks before deleting shot 4
-    const nD0 = dialogs.length; await page.click('[data-act="fin"][data-v="in"][data-k="2"]'); await page.waitForTimeout(150);
+    const nD0 = dialogs.length; await page.selectOption('select[data-f="fin"][data-k="2"]', 'in'); await page.waitForTimeout(150);
     assert.strictEqual(dialogs.length, nD0 + 1); assert.match(dialogs[dialogs.length - 1], /Shot 3 went in\?/);
     // Insert shot below the holed-out shot: the new shot becomes the hole-out; deleting it leaves the hole open again
     await page.click('.sc-n[data-k="2"]'); await page.click('[data-act="insAfter"][data-k="2"]'); await page.waitForTimeout(100);
     st = await page.evaluate(() => window.__golf.rounds()[0].holes[0].rows.map(r => !!r.holeOut)); assert.deepStrictEqual(st, [false, false, false, true]);
     assert.deepStrictEqual(await ins(), [3], 'after Insert below the new shot is the one being entered');
-    await page.click('[data-act="del"][data-k="3"]'); await page.waitForTimeout(100); assert.ok(await page.$('[data-act="addShot"]'));
-    await page.click('[data-act="fin"][data-v="in"][data-k="2"]'); await page.waitForTimeout(100);
+    await page.click('[data-act="menu"][data-k="3"]'); await page.click('[data-act="del"][data-k="3"]'); await page.waitForTimeout(100); assert.ok(await page.$('[data-act="addShot"]'));
+    await page.selectOption('select[data-f="fin"][data-k="2"]', 'in'); await page.waitForTimeout(100);
     const nD = dialogs.length; assert.ok(!(await page.isDisabled('[data-act="finish"]')));
     await page.click('[data-act="finish"]'); await page.waitForSelector('.hole-done'); assert.strictEqual(dialogs.length, nD, 'no confirm when nothing after');
     assert.match(await page.textContent('.hole-done'), /Score 3 \(-1\)/);
-    assert.strictEqual(await page.$('[data-act="fin"]'), null, 'v115: finished hole = plain lines, nothing to change'); assert.match(await page.textContent('.tline[data-k="2"]'), /Holed/);
+    assert.strictEqual(await page.$('select[data-f="fin"]'), null, 'v115: finished hole = plain lines, nothing to change'); assert.match(await page.textContent('.tline[data-k="2"]'), /Holed/);
     st = await page.evaluate(() => { const r = window.__golf.rounds()[0]; return { rows: r.holes[0].rows.map(x => [x.dist, x.loc, !!x.holeOut]), fin: r.holes[0].finished, saved: JSON.parse(localStorage.getItem('golfsg.rounds.v1'))[0].holes[0].rows[2].holeOut }; });
     assert.deepStrictEqual(st, { rows: [[467, 'tee', false], [155, 'fairway', false], [25, 'deep', true]], fin: true, saved: true });
     // old hole 2 untouched and still finished, summary/CSV fine
@@ -192,11 +192,11 @@ const hole1 = () => ({ par: 4, finished: true, rows: [R(467, 'tee', { club: 'Dri
     await page.reload(); await page.click('[data-act="resume"]'); await page.waitForSelector('.holecard');
     // v157: a stale tick on a NON-last shot shows as "Holed" and its In the hole chip is selected when that shot is opened;
     // holing the last shot keeps just one tick per hole (no confirm, nothing deleted)
-    const sel = () => page.$$eval('[data-act="fin"][data-v="in"].sel', e => e.map(x => +x.getAttribute('data-k')));
+    const sel = () => page.$$eval('select[data-f="fin"]', e => e.filter(x => x.value === 'in').map(x => +x.getAttribute('data-k')));
     assert.deepStrictEqual(await sel(), []); assert.match(await page.textContent('.tline[data-k="1"] .t-l'), /Holed/, 'stale tick on shot 2 stays visible');
     await page.click('.tline[data-k="1"]'); await page.waitForSelector('input[data-row="1"]'); assert.deepStrictEqual(await sel(), [1], 'shot 2 opens as holed');
     await page.click('.tline[data-k="3"]'); await page.waitForSelector('input[data-row="3"]');
-    const nD2 = dialogs.length; await page.click('[data-act="fin"][data-v="in"][data-k="3"]'); await page.waitForTimeout(150);
+    const nD2 = dialogs.length; await page.selectOption('select[data-f="fin"][data-k="3"]', 'in'); await page.waitForTimeout(150);
     assert.strictEqual(dialogs.length, nD2, 'no confirm for the last shot');
     assert.doesNotMatch(await page.textContent('.tline[data-k="1"] .t-l'), /Holed/);
     st = await page.evaluate(() => window.__golf.rounds()[0].holes[0].rows.map(r => !!r.holeOut)); assert.deepStrictEqual(st, [false, false, false, true]);

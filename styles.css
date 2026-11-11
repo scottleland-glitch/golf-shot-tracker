@@ -2631,3 +2631,35 @@ html body .rsact:active { transform: scale(.98); background: rgba(255,255,255,.7
 html body .bmrow { display: flex; align-items: center; gap: 8px; } html body .bmrow .stsect { white-space: nowrap; flex: 0 0 auto; }
 html body .bmrow select { flex: 1 1 auto; min-width: 0; width: auto; } html body .bmrow .tipbtn { margin-left: 0; }
 html body .bmrow .infobtn span { font-weight: 400; } /* the app's light type */
+/* v180 (Scott): the shot card as one line – From → (yards hit, club) → Finished; dropdowns like the club's */
+html body .sc2 .sc-head { display: flex; align-items: center; gap: 8px; padding-bottom: 10px; border-bottom: 1px solid rgba(20,40,30,.1); margin-bottom: 4px; }
+html body .sc2 .sc-head .sc-n { margin-right: auto; }
+html body .sc2 .sc-pin { display: inline-flex; align-items: baseline; gap: 6px; margin-left: 0; }
+html body .sc2 .sc-pin input { width: 72px; min-height: 40px; height: 40px; font-size: 21px; font-weight: 600; text-align: center; border-radius: 12px; padding: 0 4px; }
+html body .sc2 .sc-pin em { font-style: normal; font-size: 13.5px; color: #5c6b63; font-weight: 600; white-space: nowrap; } html body .sc2 .sc-pin em .u { font-style: normal; }
+html body .sc2 .sc-pin.obtxt { font-size: 18px; font-weight: 600; color: #1d2a24; }
+html body .sc2 .sc-flow { display: grid; grid-template-columns: minmax(0, 1fr) minmax(96px, 116px) minmax(0, 1fr); align-items: center; gap: 4px; margin: 12px 0 2px; }
+html body .sc2 .sc-lbl { display: block; font-size: 11px; letter-spacing: .12em; color: #7a8780; font-weight: 700; text-transform: uppercase; margin-bottom: 5px; }
+html body .sc2 .sc-from { display: block; min-width: 0; } html body .sc2 .sc-lie { display: block; font-size: 19px; font-weight: 600; line-height: 1.15; color: #1d2a24; }
+html body .sc2 .sc-from small { display: block; font-size: 12px; color: #5c6b63; margin-top: 3px; }
+html body .sc2 .sc-mid { display: flex; flex-direction: column; align-items: center; min-width: 0; }
+html body .sc2 .sc-hit { font-size: 13px; font-weight: 700; color: #1f6b3a; min-height: 16px; }
+html body .sc2 .scarr { width: 100%; height: 14px; margin: 2px 0 4px; fill: none; stroke: #1d2a24; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; }
+html body .sc2 .sc-fin { text-align: right; min-width: 0; } html body .sc2 .sc-fin .tpen { margin-left: 6px; }
+html body .sc2 select.dd, html body .sc2 .dd.ddtxt { appearance: none; -webkit-appearance: none; min-height: 36px; height: 36px; max-width: 100%; border: 1px solid #d3dbd6; background: #fff url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='14' viewBox='0 0 10 14'%3E%3Cpath d='M2 5l3-3 3 3M2 9l3 3 3-3' fill='none' stroke='%235c6b63' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") no-repeat right 9px center;
+  border-radius: 12px; padding: 0 26px 0 10px; font: 600 15px/34px -apple-system, "Helvetica Neue", system-ui, sans-serif; color: #1d2a24; box-shadow: none; width: auto; }
+html body .sc2 .dd.ddtxt { display: inline-block; background-image: none; padding: 0 10px; color: #43524a; font-weight: 500; }
+html body .sc2 .sc-mid select.dd { font-size: 13.5px; max-width: 116px; } html body .sc2 .sc-fin select.dd { font-size: 16px; }
+html body .sc2 .sc-dirrow { display: flex; justify-content: flex-end; margin-top: 8px; } html body .sc2 .sc-dirsel { font-weight: 500 !important; font-size: 14px !important; }
+html body .sc2 .sc-layup { display: flex; justify-content: center; margin: 10px 0 0; font-size: 13px; color: #5c6b63; }
+html body .sc2 .tpen { font-style: normal; display: inline-block; background: #fde3de; color: #b0473f; font-weight: 800; font-size: 12px; border-radius: 8px; padding: 2px 6px; }
+html body .sc2 .ddwrap { position: relative; display: inline-block; max-width: 100%; vertical-align: middle; }
+html body .sc2 .dd.ddshow { display: inline-block; min-height: 36px; height: 36px; border: 1px solid #d3dbd6; background: #fff url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='14' viewBox='0 0 10 14'%3E%3Cpath d='M2 5l3-3 3 3M2 9l3 3 3-3' fill='none' stroke='%235c6b63' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") no-repeat right 9px center;
+  border-radius: 12px; padding: 0 26px 0 10px; font: 600 16px/34px -apple-system, "Helvetica Neue", system-ui, sans-serif; color: #1d2a24; white-space: nowrap; max-width: 100%; overflow: hidden; text-overflow: ellipsis; box-sizing: border-box; }
+html body .sc2 .dd.ddshow.ddempty { color: #7a8780; font-weight: 500; }
+html body .sc2 select.ddover { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; min-height: 0; margin: 0; padding: 0; border: 0; font-size: 16px; }
+html body .sc2 .sc-flow { grid-template-columns: minmax(0, .85fr) 100px minmax(0, 1.25fr); }
+html body .sc2 .sc-mid select.dd { max-width: 100px; padding-right: 22px; background-position: right 7px center; }
+html body .sc2 .dd.ddshow.ddlong { font-size: 14px; padding-left: 9px; padding-right: 23px; background-position: right 7px center; }
+html body .sc2 .fromwrap { display: block; } html body .sc2 .fromchev { display: inline-block; width: 7px; height: 7px; border-right: 2px solid #8a968f; border-bottom: 2px solid #8a968f; transform: rotate(45deg); margin: 0 0 4px 7px; }
+html body .sc2 .fromwrap { display: flex; align-items: center; min-height: 40px; }

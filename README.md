@@ -25,6 +25,15 @@ Every Shot Counts Table 3.10). The other five are ESTIMATED: per-round gaps from
 Player Quality ladder, then spread over the PGA table. Full sources, method and caveats: in-app
 "About the numbers" and the BASELINES comment in `sg.js`.
 
+## Shot card redesign (v180)
+- **Top line:** Shot n ⋯ and the distance to the pin ("366 yd to pin", feet on the green) in a smaller box.
+- **One row:** From (Tee, or "Right rough" – the shot before's finish and direction; tap it to change the lie) → an arrow
+  with the yards hit above and the club dropdown under → Finished as a dropdown (`select[data-f="fin"]`). The box shows a
+  short name; the list shows Hazard +1, OB +1, Unplayable +1 (a drop: `pen` on the next shot, which asks where it was
+  dropped) and Lost ball +1 (stroke and distance, like OB: `loc: 'ob'`, `lost: true`). A red +1 shows by itself.
+- **Direction** is a dropdown under Finished (`select[data-f="dir"]`; Which side? after OB). Hazard still asks Drop /
+  Replay / Played it. The Penalty +1 button and its ? are gone; Delete shot moved into the ⋯ menu. Layup sits under the row.
+
 ## Round stats top buttons (v179)
 - **PDF report** and **Story picture** sit side by side at the top of Round stats (`#rspdftop`, `#storybtn`), with line
   icons (a page; a portrait story frame) instead of emoji. The story preview / share opens right there.
