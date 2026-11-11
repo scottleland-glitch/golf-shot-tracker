@@ -157,7 +157,7 @@ const pct = (a, b) => (a / b - 1) * 100;
     // backup → restore round trip (bag only file) into an empty bag
     const bk = await page.evaluate(j => JSON.stringify(SG.makeBackup([], null, 'Quincy', [], JSON.parse(j))), bagJson);
     fs.writeFileSync('/tmp/bag-backup.json', bk); assert.ok(JSON.parse(bk).bag.clubs.length === 13);
-    await page.click('[data-act="home"]'); await page.click('#plusbtn'); await page.click('#plusmenu [data-act="archive"]'); await page.setInputFiles('#restorefile', '/tmp/bag-backup.json');
+    await (async () => { if (await page.$('#holemore') && !(await page.$('#holemenu'))) await page.click('#holemore'); return page.click('[data-act="home"]'); })() /* v188: Home + Discard are in ⋯ during a round */; await page.click('#plusbtn'); await page.click('#plusmenu [data-act="archive"]'); await page.setInputFiles('#restorefile', '/tmp/bag-backup.json');
     await page.waitForSelector('#rpbag'); assert.match(await page.textContent('#rpgo'), /Restore my bag/); await page.click('#rpgo'); await page.waitForSelector('#notice');
     assert.match(await page.textContent('#notice'), /My Bag \(13 clubs\)/); B = await store(); assert.strictEqual(B.clubs.length, 13); assert.strictEqual(B.clubs.find(c => c.code === '7i').carry, 150);
     assert.ok(await page.$eval('[data-act="backup"]', e => !e.disabled));

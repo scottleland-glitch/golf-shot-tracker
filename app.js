@@ -140,6 +140,18 @@
   }
   function save() { var cr = !view.preview && round(); if (cr) cr.updated = new Date().toISOString(); localStorage.setItem(KEY, JSON.stringify(rounds)); backupDirty(60000); if (live) live.touch(); }
   function round() { if (view.preview) return view.preview; return rounds.filter(function (r) { return r.id === view.roundId; })[0]; }
+  // v188 (Scott): a round being entered gets a pinned bar – Back · Scorecard · Stats · Holes – on its hole, scorecard and stats screens
+  function liveOn() { if (view.preview || view.from === 'history' || (view.screen !== 'hole' && view.screen !== 'summary')) return false; var r = round(); return !!r && r.id === localStorage.getItem(CUR); }
+  function entryHoleOn() { return view.screen === 'hole' && !view.holeFrom && liveOn(); }
+  var ICON_RB = { back: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+    card: '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="5" width="17" height="14" rx="2.5" fill="none" stroke="currentColor" stroke-width="1.9"/><path d="M3.5 10h17M3.5 14.5h17M9 5v14M14.5 5v14" stroke="currentColor" stroke-width="1.5"/></svg>',
+    stats: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 19V12M10 19V7M15 19v-5M20 19V4" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/></svg>',
+    holes: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 21V3.5l10 4-10 4" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><ellipse cx="9" cy="21" rx="5" ry="1.3" fill="currentColor" opacity=".35"/></svg>' };
+  function roundBarHTML() {
+    var part = view.screen === 'summary' ? (view.part || 'stats') : '', ent = entryHoleOn();
+    var b = function (k, act, label, on, dis) { return '<button class="rbbtn' + (on ? ' on' : '') + '" data-act="' + act + '" id="rb' + k + '"' + (dis ? ' disabled' : '') + (on ? ' aria-current="page"' : '') + '>' + ICON_RB[k] + '<span>' + label + '</span></button>'; };
+    return '<nav class="roundbar" id="roundbar" aria-label="Round">' + b('back', 'rbback', 'Back', false, ent) + b('card', 'rbcard', 'Scorecard', part === 'card') + b('stats', 'rbstats', 'Stats', part === 'stats') + b('holes', 'rbholes', 'Holes', ent) + '</nav>';
+  }
   function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return '&#' + c.charCodeAt(0) + ';'; }); }
   function fmtSG(v) { var s = (Math.round(v * 100) / 100).toFixed(2); return (v > 0.004 ? '+' : '') + (s === '-0.00' ? '0.00' : s); }
   function sgCls(v) { return v > 0.004 ? 'pos' : v < -0.004 ? 'neg' : ''; }
@@ -211,6 +223,10 @@
     if (view.screen !== 'hole') document.body.classList.toggle('noscroll', !!((view.map || (view.story && view.story.full)) && view.screen === 'summary'));
     if (view.replay != null) document.body.classList.add('noscroll');
     if (view.screen !== 'about') { legendNotes(el); infoize(el); }
+    // v188: the round bar
+    if (view.screen !== 'hole') view.holeMenu = false;
+    var rbOn = liveOn(); if (rbOn) { if (entryHoleOn()) view.entryHole = view.hole; el.insertAdjacentHTML('beforeend', roundBarHTML()); }
+    document.body.classList.toggle('hasrbar', rbOn);
   }
   // v123: on the round-page map sheets, long legend sentences without a symbol ("Rings = feet from the hole…") move under the legend as a note, which infoize() puts behind ⓘ
   function legendNotes(root) {
@@ -2951,7 +2967,11 @@
       '<button class="frostbtn" data-act="next" aria-label="Next hole"' + (view.hole === 17 ? ' disabled' : '') + '>›</button></div>';
     // v154: reviewing a hole (opened from Round stats, or a round that is not the one in progress) → an obvious way back
     var reviewing = !!view.holeFrom || (r.id !== localStorage.getItem(CUR) && !view.preview);
-    out += reviewing ? '<div class="holetop">' + '<button class="frostbtn holeback" data-act="holeback" id="holeback">‹ Round stats</button>' + liveBarHTML(r) + '</div>' : liveBarHTML(r);
+    var lv = liveOn();
+    if (lv) out += '<div class="holetop holetop2">' + liveBarHTML(r) + '<button class="frostbtn holemore" data-act="holemenu" id="holemore" aria-label="More: Home, discard round" aria-expanded="' + !!view.holeMenu + '">⋯</button></div>' +
+      (view.holeMenu ? '<div class="sheet-back hmback" data-act="holemenu"></div><div class="hsheet glass holemenu" id="holemenu" role="menu"><button class="sheet-item" role="menuitem" data-act="home">Home</button>' +
+        '<button class="sheet-item danger" role="menuitem" data-act="discard" data-id="' + esc(r.id) + '">Discard round</button></div>' : ''); // v188: Home + Discard live in ⋯
+    else out += reviewing ? '<div class="holetop">' + '<button class="frostbtn holeback" data-act="holeback" id="holeback">‹ Round stats</button>' + liveBarHTML(r) + '</div>' : liveBarHTML(r);
 
     out += '<div class="holecard frostcard' + (fin ? ' fin' : '') + '">' + holeHeadHTML(r, h, fin);
     var pin = SG.normPin(h.pin);
@@ -2971,18 +2991,22 @@
     if (fin) {
       out += '<div class="hole-done">Score <b>' + a.strokes + '</b> (' + toPar(a.strokes - h.par) + ') · SG <span class="' + sgCls(a.sg) + '">' + fmtSG(a.sg) + '</span></div>';
       out += '<button class="big frostbtn" data-act="reopen">✎ Edit this hole</button>';
+      if (lv) out += '<button class="big rpbtn frostbtn rpcard" data-act="replay" data-v="' + view.hole + '" id="rpcard">▶ Hole replay</button>'; // v188: no shot card on a finished hole
     } else {
       var last = h.rows[h.rows.length - 1];
       out += '<button class="finish big" data-act="finish"' + (a.complete && h.par ? '' : ' disabled') + '>✓ Finish hole</button>';
       out += '<div id="hint" class="hint">' + hintText(h, a) + '</div>';
     }
     out += '</div>';
-    out += view.hole < 17
+    var nxt = view.hole < 17
       ? '<button class="' + (fin ? 'primary ' : 'frostbtn ') + 'big" data-act="next">' + (started(r.holes[view.hole + 1]) ? 'Hole ' + (view.hole + 2) + ' ›' : 'Add Hole ' + (view.hole + 2) + ' ⊕') + '</button>'
       : '<button class="primary big" data-act="summary" data-end="1">Finish round – see stats</button>';
-    out += '<button class="big rpbtn frostbtn" data-act="replay" data-v="' + view.hole + '">▶ Hole replay</button>';
-    out += '<div class="row sub"><button class="txt frostbtn" data-act="home">Home</button><button class="txt frostbtn" data-act="summary">Scorecard &amp; stats</button></div>' +
-      '<button class="danger discard frostdanger" data-act="discard" data-id="' + esc(r.id) + '">🗑 Discard round</button>';
+    if (lv) out += '<div class="nextrow" id="nextrow">' + (view.hole > 0 ? '<button class="frostbtn big" data-act="prev" id="prevhole">‹ Hole ' + view.hole + '</button>' : '') + nxt + '</div>'; // v188: previous + next hole at the bottom; Home / Scorecard & stats are in the bar and ⋯
+    else {
+      out += nxt + '<button class="big rpbtn frostbtn" data-act="replay" data-v="' + view.hole + '">▶ Hole replay</button>';
+      out += '<div class="row sub"><button class="txt frostbtn" data-act="home">Home</button><button class="txt frostbtn" data-act="summary">Scorecard &amp; stats</button></div>' +
+        '<button class="danger discard frostdanger" data-act="discard" data-id="' + esc(r.id) + '">🗑 Discard round</button>';
+    }
     out += '<p class="help muted">One card per shot. <b>From</b> = where you hit it from and how far it was to the pin (yards; feet on the green) – filled in from the shot before. <b>Club</b>. <b>Finished</b> = where the ball came to rest, and its <b>Direction</b> as you see it from the ball (Long = past the pin, Short = toward you). The app works out how far each shot went from the distances. Hazard: pick Drop (+1, play from the drop) or Re-tee (+1, play again from the same spot). OB = +1 and play again from the same spot. <b>Penalty +1</b> is for any other penalty stroke – an unplayable lie, a lost ball, another drop (tap ? next to it for more). Score = shots + penalties.</p>';
     if (false) out += '<p class="help muted">Each row is ONE stroke. Dist = how far from the pin you hit it (yards; feet on the green). Loc = where the ball was. ' +
       'The shot that went in: tick "Hole out" on its row – its Loc (e.g. Rough) stays, so strokes gained counts it from there. Dir = where the shot before ended vs its target (8 ways: Short = toward you, Long = past it, Left, Right, and the corners). For an approach that missed the green, pick where it missed the green; if it found the green, pick where it stopped vs the hole. ' +
@@ -3229,6 +3253,7 @@
     if (k === 0 && Number(h.par) !== 3 && fin !== 'in') out += '<label class="layup sc-layup"><input type="checkbox" data-f="layup" data-k="0"' + (row.layup ? ' checked' : '') + '> Layup <small>(not in strokes gained)</small></label>';
     out += '<div class="sinfo" data-info="' + k + '">' + infoHTML(s) + '</div>';
     if (fin !== 'in') out += '<button class="addshot big" data-act="' + (nx ? 'nextshot' : 'addShot') + '" data-k="' + k + '">' + (k + 1 < rows.length - 1 ? 'Shot ' + (k + 2) + ' ›' : 'Next shot ›') + '</button>';
+    if (liveOn()) out += '<button class="big rpbtn frostbtn rpcard" data-act="replay" data-v="' + view.hole + '" id="rpcard">▶ Hole replay</button>'; // v188: under Next shot
     if (view.menu === k) out += '<div class="rowmenu">' + (k > 0 ? '<button data-act="insBefore" data-k="' + k + '">Insert shot above</button>' : '') +
         '<button data-act="insAfter" data-k="' + k + '">Insert shot below</button>' + (k > 0 ? '<button class="del" data-act="del" data-k="' + k + '" aria-label="Delete shot ' + n + '">Delete shot ' + n + '</button>' : '') + '<button data-act="menu" data-k="' + k + '">Close</button></div>'; // v180: delete lives in ⋯
     return out + '</div>';
@@ -3524,8 +3549,11 @@
       '<p class="stnote">Strokes gained (+) or lost (-) this round, by 1st putt distance. The bars add up to the putting total' + (worst ? '. Biggest leak: ' + esc(worst.name) + ' (' + fmtSG(worst.v) + ').' : '.') + '</p></div></div>';
   }
   function summaryHTML() {
-    var r = round(), bl = blOf(r), S = SG.summarize(r, bl);
-    var out = '<div class="topbar frost">' + (view.from === 'history' ? '<button class="txt frostbtn" data-act="history">‹ Rounds</button>' : '<button class="txt frostbtn" data-act="backHole">‹ Round</button>') + '<div class="title"><b>Round stats</b><span>' +
+    var r = round(), bl = blOf(r), S = SG.summarize(r, bl), lv = liveOn(), part = lv ? (view.part || 'stats') : '';
+    if (part === 'card') // v188: the scorecard on its own while the round is being entered
+      return '<div class="topbar frost rbtop"><div class="title"><b>Scorecard</b><span>' + (r.course ? esc(r.course) + ' · ' : '') + (S.holesDone ? 'Total ' + S.strokes + ' (' + toPar(S.toPar) + ') thru ' + S.holesDone : 'No holes finished yet') + '</span></div></div>' +
+        '<div id="sumcardonly">' + scorecardHTML(r, S) + '</div>';
+    var out = lv ? '<div class="topbar frost rbtop"><div class="title"><b>Round stats</b><span>' + new Date(r.date).toLocaleDateString() + (r.course ? ' · ' + esc(r.course) : '') + '</span></div></div>' : '<div class="topbar frost">' + (view.from === 'history' ? '<button class="txt frostbtn" data-act="history">‹ Rounds</button>' : '<button class="txt frostbtn" data-act="backHole">‹ Round</button>') + '<div class="title"><b>Round stats</b><span>' +
       new Date(r.date).toLocaleDateString() + (r.course ? ' · ' + esc(r.course) : '') + '</span></div><button class="txt frostbtn" data-act="home">Home</button></div>';
     if (view.stxRound !== r.id) { view.stx = {}; view.stxRound = r.id; } // tiles start collapsed for each round
     // v165 (Scott): Create PDF report at the top of Round stats – no scrolling to the bottom for it (its share sheet opens right here)
@@ -3534,7 +3562,7 @@
       (S.holesDone ? '<button class="rsact" data-act="story" id="storybtn">' + ICON_STORY + '<span><b>Story picture</b><small>Instagram / TikTok</small></span></button>' : '') + '</div>' +
       (view.pdfAt === 'top' ? pdfHTML() : '') + (S.holesDone ? storyHTML() : '') + '</div>';
     out += rsTopHTML(r, S) + bmRowHTML('sumbl', bl, '', 'Changing it recalculates the whole round and is saved with it.') + notMineHTML(bl, r.player || playerName(), 'blmineround') + playPickHTML('rplay', MYGAME.playOf(r), 'Round type', 'rplay') + takeawayHTML(r) + quickViewHTML(S);
-    out += scorecardHTML(r, S) + '<button class="big rpbtn" data-act="replay" data-v="0" id="sumreplay">▶ Hole replay (hole by hole)</button>';
+    if (!part) out += scorecardHTML(r, S) + '<button class="big rpbtn" data-act="replay" data-v="0" id="sumreplay">▶ Hole replay (hole by hole)</button>'; // v188: during a round the scorecard has its own screen
     var B = SG.baseline(bl), main = out; out = '';
     out += '<h2>Strokes gained: <span class="' + sgCls(S.sgTotal) + '" id="sgtotal">' + fmtSG(S.sgTotal) + '</span></h2>' +
       '<div class="blbox"><p class="help muted" id="blnote">Benchmark: average player in ' + esc(B.name) +
@@ -3564,7 +3592,7 @@
     out += '<button class="big" data-act="csv">Export this round (CSV)</button>';
     out += '<button class="big sendbtn" data-act="sendopen" id="sendround">📤 Send round<small>to another phone – it lands in their Rounds</small></button>';
     out += '<button class="big sendbtn" data-act="mvone" id="chgplayer1">👤 Change player<small>' + (r.player || playerName() ? 'now ' + esc(r.player || playerName()) : 'whose round is this?') + '</small></button>';
-    out += '<button class="big" data-act="backHole">Back to the round</button>';
+    if (!part) out += '<button class="big" data-act="backHole">Back to the round</button>';
     out += '<button class="big danger" data-act="delRound">Delete this round</button>';
     out += '<button class="big" data-act="about">ⓘ About the numbers</button>';
     out += '<div class="sgsec' + (view.sgOpen ? ' open' : '') + '" id="sgsec"><button class="sghead" data-act="sgtoggle" aria-expanded="' + !!view.sgOpen + '" aria-controls="sgbody">' +
@@ -5316,8 +5344,12 @@
           var F2 = SG.foldStubs(rounds); rounds = F2.rounds; if (localStorage.getItem(CUR) === rr.id) localStorage.removeItem(CUR);
           save(); gdSoon(1500); toast('Round saved to Rounds');
         }
-        view.screen = 'summary'; if (gdOn && gdState.pending) gdSoon(300); render(); window.scrollTo(0, 0); return;
-      case 'backHole': goHole(view.hole); return;
+        view.screen = 'summary'; view.part = 'stats'; if (gdOn && gdState.pending) gdSoon(300); render(); window.scrollTo(0, 0); return;
+      case 'backHole': view.part = null; goHole(view.hole); return;
+      case 'holemenu': view.holeMenu = !view.holeMenu; render(); return; // v188
+      case 'rbcard': case 'rbstats': view.screen = 'summary'; view.part = act === 'rbcard' ? 'card' : 'stats'; view.holeFrom = null; view.holeMenu = false; view.pdfAt = null; render(); window.scrollTo(0, 0); return;
+      case 'rbholes': view.part = null; view.holeFrom = null; view.replay = null; goHole(view.entryHole != null ? view.entryHole : view.hole); return;
+      case 'rbback': if (entryHoleOn()) return; if (backDepth() > rbBaseD) { history.back(); return; } view.part = null; view.holeFrom = null; goHole(view.entryHole != null ? view.entryHole : view.hole); return;
       case 'holeback': { var hf = view.holeFrom; view.holeFrom = null; view.screen = 'summary'; render(); // v154: back to Round stats, where you left it
         window.scrollTo(0, hf && hf.y ? hf.y : 0); return; }
       case 'goHole': view.holeFrom = view.screen === 'summary' ? { y: window.scrollY } : null; goHole(+b.getAttribute('data-i')); return; // v154: remember the way back
@@ -5524,5 +5556,70 @@
     });
     window.addEventListener('load', function () { navigator.serviceWorker.register('./sw.js').catch(function () {}); });
   }
-  window.__golf = { card: function () { return view.card; }, statsData: function () { return statsData(); }, statsRound: function (id, bl) { return statsRound(rounds.filter(function (r) { return r.id === id; })[0], bl || ''); }, scorecardHTML: function () { var r = round(); return r ? scorecardHTML(r, SG.summarize(r, blOf(r))) : ''; }, d1Bench: d1Bench, proxBench: proxBench, PROX_BENCH: PROX_BENCH, proxZoomFt: proxZoomFt, proxSVG: proxSVG, pinSVG: function () { return pinReportSVG(SG.pinSegments(pinDataRound())); }, csvFor: csvFor, rounds: function () { return rounds; } };
+  // ---------- v187 (Scott): the phone's Back button (Android / Samsung) steps back inside the app ----------
+  // The app is one page, so Back used to leave it. Now, whenever there's somewhere to go back to (a sheet or picture open, or
+  // any screen but Home), one extra history entry sits on top; Back pops it and we press the app's own back/close for that
+  // spot, then put the entry back if there's still somewhere to go. On Home with nothing open, Back leaves as before.
+  var BACK_OVERLAY = ['storyfullclose', 'storyclose', 'pdfclose', 'mapclose', 'rpgreenback', 'rpclose', 'rpback', 'mvcancel', 'mvclose', 'sendclose', 'liveclose',
+    'gdrback', 'gdrclose', 'dirclose', 'pinclose', 'nearclose', 'addclose', 'grclose', 'prcancel', 'npcancel', 'namecancel', 'sgtintroback'];
+  function shown(el) { return !!(el && el.getClientRects().length); }
+  function backTarget() {
+    for (var i = 0; i < BACK_OVERLAY.length; i++) { var a = document.querySelectorAll('[data-act="' + BACK_OVERLAY[i] + '"]'); for (var j = 0; j < a.length; j++) if (shown(a[j])) return a[j]; }
+    var sb = document.querySelector('.sheet-back'); if (shown(sb)) return sb; // Home's and My Game's + menus
+    if (view.screen === 'home') return null;
+    if (view.screen === 'hole') { var hb = document.getElementById('holeback'); if (shown(hb)) return hb; return 'home'; } // in a round: Home (the round keeps)
+    var tb = document.querySelectorAll('.topbar > button:first-child, .topbar .txt'); for (var k = 0; k < tb.length; k++) { var t = tb[k];
+      if (shown(t) && !t.disabled && /^\s*‹/.test(t.textContent) && t.getAttribute('data-act') !== 'prev') return t; }
+    return 'home';
+  }
+  // Android Chrome skips history entries a page adds without a tap, so every entry is added by a tap: one per sheet/screen you
+  // open (history.state.d = how many sit above the first one), one taken away per step back – by the phone or the app's ‹ buttons.
+  function backSig() { var t = backTarget(), o = t && t !== 'home' && !(t.closest && t.closest('.topbar')) && t.id !== 'holeback' ? (t.getAttribute('data-act') || 'sheet') : '';
+    var tb = document.querySelector('.topbar > button:first-child'); return view.screen + (view.screen === 'summary' && view.part ? ':' + view.part : '') + (entryHoleOn() ? ':entry' : '') + '|' + o + '|' + (tb ? tb.getAttribute('data-act') : ''); }
+  function backDepth() { try { return (history.state && history.state.d) || 0; } catch (e) { return 0; } }
+  // v187: Back retraces your steps – each step remembers the screen you were on (view + scroll) and Back puts it back exactly,
+  // e.g. scorecard → hole → replay: Back closes the replay, Back again is the scorecard. An open sheet/picture closes with its own button.
+  var backSync = 0, backSkip = 0, backLast = '', backTap = null, backPop = false, backStack = [], rbBaseD = 0, rbGuard = null; // rbBaseD: the step the hole being entered sits on
+  function backSnap() { var v = {}; Object.keys(view).forEach(function (k) { v[k] = view[k]; }); if (view.sgt) try { v.sgt = JSON.parse(JSON.stringify(view.sgt)); } catch (e) {}
+    return { v: v, y: window.scrollY }; }
+  function backOverlay(t) { return !!t && t !== 'home' && !(t.closest && t.closest('.topbar')) && t.id !== 'holeback'; }
+  window.addEventListener('click', function (ev) { // capture: note what was tapped (and the screen as it was) before the app acts on it
+    if (!ev.isTrusted) { backTap = null; return; }
+    var el = ev.target && ev.target.closest ? ev.target.closest('[data-act]') : null, t = backTarget();
+    backTap = { act: el ? el.getAttribute('data-act') : '', back: !!el && (el === t || el.getAttribute('data-act') === 'home' || (t === 'home' && el.closest('.topbar') && /^\s*‹/.test(el.textContent))), had: backOverlay(t), snap: backSnap() };
+  }, true);
+  function backArm() { backSync = 0; var sig = backSig(), d = backDepth(), t = backTarget(), tap = backTap, scr = function (x) { return x.split('|')[0]; }; backTap = null;
+    try {
+      if (!t) { if (d > 0) { backSkip++; history.go(-d); } backStack = []; }   // Home, nothing open: no spare steps left behind
+      else if (tap && (tap.act === 'rbholes' || tap.act === 'rbback')) { if (tap.act === 'rbholes' && d > rbBaseD) { backStack.length = rbBaseD + 1; backSkip++; history.go(rbBaseD - d); } } // Holes: straight back to the hole's step
+      else if (rbGuard && tap && entryHoleOn() && d < rbBaseD) { backStack[d + 1] = rbGuard; rbGuard = null; history.pushState({ swBack: 1, d: d + 1 }, ''); } // the hole's step again, on the next tap
+      else if (sig === backLast || backPop) {}                                   // same spot, or Back already took the step
+      else if (tap && (tap.back || (tap.had && scr(sig) === scr(backLast) && !sig.split('|')[1]))) { if (d > 0) { backStack.length = d; backSkip++; history.back(); } } // the app's own ‹ / close, or a sheet closed by picking from it: one step off
+      else if (tap && tap.had && scr(sig) !== scr(backLast) && d > 0) {}        // a pick in a menu opened a screen: it takes the menu's step (Back skips the menu)
+      else if (tap) { backStack[d + 1] = tap.snap; history.pushState({ swBack: 1, d: d + 1 }, ''); } // a tap opened something: one step on
+    } catch (e) {}
+    if (entryHoleOn() && !rbGuard) rbBaseD = backDepth();
+    backLast = sig; backPop = false; }
+  function backQueue() { if (!backSync) backSync = (window.requestAnimationFrame || setTimeout)(backArm); }
+  window.addEventListener('popstate', function () {
+    if (backSkip) { backSkip--; return; }
+    var d = backDepth(), snap = backStack[d + 1], t = backTarget();
+    // v188: during a round, Back stops at the hole being entered (Home is in ⋯); its step comes back with the next tap
+    if (entryHoleOn() && !backOverlay(t)) { rbGuard = snap || { v: null }; toast('Round in progress – Home is in the ⋯ menu'); return; }
+    backStack.length = d + 1;
+    if (!t) return; // Home, nothing open: the phone leaves
+    backPop = true;
+    if (backOverlay(t)) t.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true })); // a sheet or picture: its own close
+    else if (snap && snap.v) { // the screen you came from, as you left it
+      Object.keys(view).forEach(function (k) { if (!(k in snap.v)) delete view[k]; }); Object.keys(snap.v).forEach(function (k) { view[k] = snap.v[k]; });
+      view.hmenu = null; view.mgMenu = null; render(); var y = snap.y; (window.requestAnimationFrame || setTimeout)(function () { window.scrollTo(0, y); }); }
+    else if (t === 'home') { view.screen = 'home'; view.from = null; view.hmenu = null; view.mgBack = null; render(); window.scrollTo(0, 0); }
+    else t.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));
+    backQueue();
+  });
+  try { if ('scrollRestoration' in history) history.scrollRestoration = 'manual'; } catch (e) {} // the app puts the scroll back itself
+  try { history.replaceState({ swBack: 0, d: 0 }, ''); } catch (e) {} // count from here: steps left by a page before a reload aren't ours to undo
+  if (window.MutationObserver) new MutationObserver(backQueue).observe(document.body, { childList: true, subtree: true });
+  backLast = backSig(); backQueue();
+  window.__golf = { backTarget: function () { var t = backTarget(); return t && t !== 'home' ? (t.getAttribute('data-act') || t.className) : t; }, card: function () { return view.card; }, statsData: function () { return statsData(); }, statsRound: function (id, bl) { return statsRound(rounds.filter(function (r) { return r.id === id; })[0], bl || ''); }, scorecardHTML: function () { var r = round(); return r ? scorecardHTML(r, SG.summarize(r, blOf(r))) : ''; }, d1Bench: d1Bench, proxBench: proxBench, PROX_BENCH: PROX_BENCH, proxZoomFt: proxZoomFt, proxSVG: proxSVG, pinSVG: function () { return pinReportSVG(SG.pinSegments(pinDataRound())); }, csvFor: csvFor, rounds: function () { return rounds; } };
 })();

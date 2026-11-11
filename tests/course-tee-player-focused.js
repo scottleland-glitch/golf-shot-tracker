@@ -65,7 +65,7 @@ const Y = (b) => Array.from({ length: 18 }, (_, i) => b + i * 7), P = [4, 4, 3, 
   assert.deepStrictEqual([rd.course, rd.courseId, rd.tee, rd.holes[0].rows[0].dist, rd.holes[2].par], ['Pebble Creek', 'p', 'White', 350, 3]);
   assert.match(await page.textContent('.topbar .title b'), /Pebble Creek/);
   // just played → Pebble Creek moves to the top
-  await page.click('[data-act="home"]'); await page.click('#plusbtn'); await page.click('[data-act="newform"]'); await page.click('#crspick');
+  await (async () => { if (await page.$('#holemore') && !(await page.$('#holemenu'))) await page.click('#holemore'); return page.click('[data-act="home"]'); })() /* v188: Home + Discard are in ⋯ during a round */; await page.click('#plusbtn'); await page.click('[data-act="newform"]'); await page.click('#crspick');
   assert.deepStrictEqual(await opts(), ['+ Add new course', 'Pebble Creek', 'Arcade Creek', 'Lakeridge']);
   // one tee box: shown as the one in use; add another tee box with a name from the quick chips
   await page.click('#crslist [data-id="a"]'); assert.strictEqual((await page.textContent('#teelbl')).trim(), 'Playing from');
@@ -137,7 +137,7 @@ const Y = (b) => Array.from({ length: 18 }, (_, i) => b + i * 7), P = [4, 4, 3, 
   await page.click('[data-act="new"]'); await page.waitForSelector('.holecard');
   assert.strictEqual(await page.evaluate(() => JSON.parse(localStorage.getItem('golfsg.rounds.v1'))[0].player), 'Quincy');
   // Change inline: prefilled, Cancel keeps it, Save asks before relabelling; the sheet stays open on New round
-  await page.click('[data-act="home"]'); await openNew(); await page.click('#nplayer [data-act="npedit"]'); await page.waitForSelector('#npeditrow');
+  await (async () => { if (await page.$('#holemore') && !(await page.$('#holemenu'))) await page.click('#holemore'); return page.click('[data-act="home"]'); })() /* v188: Home + Discard are in ⋯ during a round */; await openNew(); await page.click('#nplayer [data-act="npedit"]'); await page.waitForSelector('#npeditrow');
   assert.strictEqual(await page.$eval('#pname', e => e.value), 'Quincy'); assert.ok(await page.evaluate(() => document.activeElement.id === 'pname'), 'name box focused');
   await page.click('[data-act="npcancel"]'); assert.strictEqual(await page.$('#npeditrow'), null); assert.strictEqual(await page.textContent('#npname'), 'Quincy');
   await page.click('#nplayer [data-act="npedit"]'); await page.fill('#pname', 'Quincy L'); await page.press('#pname', 'Enter'); await page.waitForSelector('#npeditrow', { state: 'detached' });

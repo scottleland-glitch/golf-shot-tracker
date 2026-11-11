@@ -25,6 +25,26 @@ Every Shot Counts Table 3.10). The other five are ESTIMATED: per-round gaps from
 Player Quality ladder, then spread over the PGA table. Full sources, method and caveats: in-app
 "About the numbers" and the BASELINES comment in `sg.js`.
 
+## Pinned round bar (v188)
+- While a round is being entered, a bar is pinned to the bottom of its hole, scorecard and stats screens (`#roundbar`):
+  **Back** (the previous screen, never past the hole being entered – greyed out on it), **Scorecard** (just the scorecard),
+  **Stats** (just this round's stats) and **Holes** (straight back to the hole being entered). ‹ › at the top still move through holes.
+- The hole page loses Home, "Scorecard & stats" and Discard at the bottom: Home and Discard round are in the **⋯** menu by
+  Share live; Replay sits beside the next-hole button.
+- The phone's Back (Android) also stops at the hole being entered ("Home is in the ⋯ menu"). Finished rounds and rounds opened
+  from Rounds keep the old pages (no bar). `liveOn()`, `entryHoleOn()`, `view.part` ('card' / 'stats'). `tests/roundbar-focused.js`.
+
+## Phone Back button steps back (v187)
+- On Android / Samsung the system Back button (and the back gesture) used to close the app, because it's one page. Now each tap
+  that opens a sheet or a screen adds one history step (`history.state.d` counts them) and each step back takes one off – the
+  phone's Back or the app's own ‹ buttons. Back presses the app's own back/close for that spot: an open picture, sheet or menu
+  closes first, then you're back on the screen you came from, exactly as you left it (each step keeps a copy of the view and
+  the scroll) – e.g. scorecard → hole → replay: Back closes the replay, Back again is the scorecard. A pick in a menu takes the
+  menu's step, so Back doesn't reopen the menu. Steps are only ever added by a tap, because Android Chrome skips steps a page adds
+  on its own.
+  On Home with nothing open, Back leaves the app as before.
+- `BACK_OVERLAY` lists the close actions in priority order; `window.__golf.backTarget()` says what Back would press. `tests/back-focused.js`.
+
 ## My Game compares with your usual (v186)
 - The grey shape and the tile arrows now compare with **your usual**: the 20 rounds before the time frame you picked (fewer if
   that's all there is; at least 3). It doesn't overlap the rounds it judges, so a change shows up clearly. Year still compares

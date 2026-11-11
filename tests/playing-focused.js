@@ -46,7 +46,7 @@ const rounds = [at('p1', 2, 'practice'), nine(at('p2', 6, 'practice')), extraPut
     assert.match(await page.textContent('#plcmpt thead'), /Practice\s*3 rounds.*Tournament\s*2 rounds/); ok('tournament vs practice: score, SG by area, worst area named');
     const box = await page.locator('#plcmp').boundingBox(); assert.ok(box.x >= 0 && box.x + box.width <= 390, 'comparison fits the phone');
     // Round list tag + Round type on Round stats
-    await page.click('[data-act="home"]'); if (await page.$('#plusbtn')) await page.click('#plusbtn'); await page.click('[data-act="history"]');
+    await (async () => { if (await page.$('#holemore') && !(await page.$('#holemenu'))) await page.click('#holemore'); return page.click('[data-act="home"]'); })() /* v188: Home + Discard are in ⋯ during a round */; if (await page.$('#plusbtn')) await page.click('#plusbtn'); await page.click('[data-act="history"]');
     assert.strictEqual(await page.$$eval('#histlist .htour', e => e.length), 2, 'trophy on the two tournament rounds');
     await page.click('#histlist [data-act="open"][data-id="u1"]'); await page.waitForSelector('#rplay');
     assert.strictEqual(await page.$('#rplay button.sel'), null, 'untagged round: nothing picked');
@@ -56,12 +56,12 @@ const rounds = [at('p1', 2, 'practice'), nine(at('p2', 6, 'practice')), extraPut
     await page.click('#rplay [data-v="tournament"]'); await page.waitForSelector('#rplay [data-v="tournament"].sel');
     assert.strictEqual(await page.evaluate(() => window.__golf.rounds().find(r => r.id === 'u1').play), 'tournament'); ok('Round stats: Round type tags an older round');
     // New round sheet: remembers the last pick, keeps a typed course name
-    await page.click('[data-act="home"]'); if (await page.$('#plusbtn')) await page.click('#plusbtn'); await page.click('[data-act="newform"]'); await page.waitForSelector('#newplay');
+    await (async () => { if (await page.$('#holemore') && !(await page.$('#holemenu'))) await page.click('#holemore'); return page.click('[data-act="home"]'); })() /* v188: Home + Discard are in ⋯ during a round */; if (await page.$('#plusbtn')) await page.click('#plusbtn'); await page.click('[data-act="newform"]'); await page.waitForSelector('#newplay');
     assert.strictEqual(await page.getAttribute('#newplay [data-v="practice"]', 'aria-pressed'), 'true', 'practice by default');
     await page.fill('#course', 'Wolf Run'); await page.click('#newplay [data-v="tournament"]');
     assert.strictEqual(await page.inputValue('#course'), 'Wolf Run'); await page.click('[data-act="new"]'); await page.waitForSelector('#shotcard');
     let nr = await page.evaluate(() => window.__golf.rounds()[0]); assert.deepStrictEqual([nr.course, nr.play], ['Wolf Run', 'tournament']);
-    await page.click('[data-act="home"]'); if (await page.$('#plusbtn')) await page.click('#plusbtn'); await page.click('[data-act="newform"]'); await page.waitForSelector('#newplay');
+    await (async () => { if (await page.$('#holemore') && !(await page.$('#holemenu'))) await page.click('#holemore'); return page.click('[data-act="home"]'); })() /* v188: Home + Discard are in ⋯ during a round */; if (await page.$('#plusbtn')) await page.click('#plusbtn'); await page.click('[data-act="newform"]'); await page.waitForSelector('#newplay');
     assert.strictEqual(await page.getAttribute('#newplay [data-v="tournament"]', 'aria-pressed'), 'true', 'remembers the last pick');
     ok('new round: Practice / Tournament pick, remembered, saved on the round');
     assert.deepStrictEqual(errors, [], 'no page errors'); console.log('PASS playing-focused');

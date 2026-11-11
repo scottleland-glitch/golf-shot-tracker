@@ -33,7 +33,7 @@ function make(id, date, q) { const t = T.blank(id, date, 'Scott', 'scm');
   // v183: no Open button – the card lists the last 4 tests (tap = result) and its + goes straight into the intro; Back returns to My Game
   assert.strictEqual(await page.$('#sgtopen'), null); if (!process.env.EMPTY) assert.strictEqual(await page.$$eval('#sgtmlist .sgtmrow', e => e.length), 3);
   await page.click('#sgtnew'); await page.waitForSelector('#sgtintro'); assert.ok(await page.$('#sgtintroback')); await page.click('#sgtintroback'); await page.waitForSelector('#sgtmg');
-  await page.click('[data-act="home"]'); await page.waitForSelector('#home'); await page.click('#plusbtn'); await page.click('.sheet-item[data-act="sgtopen"]');
+  await (async () => { if (await page.$('#holemore') && !(await page.$('#holemenu'))) await page.click('#holemore'); return page.click('[data-act="home"]'); })() /* v188: Home + Discard are in ⋯ during a round */; await page.waitForSelector('#home'); await page.click('#plusbtn'); await page.click('.sheet-item[data-act="sgtopen"]');
   await page.waitForSelector('#sgtest'); assert.ok(!(await page.$('#sgtintro'))); await shot('02-hub', true);
   await page.click('#sgtintroopen'); await page.waitForSelector('#sgtintro'); assert.ok(await page.$('#sgtintroskip'), 'the link keeps Skip intro'); await page.click('#sgtintroskip'); await page.waitForSelector('#sgtest');
   await page.click('[data-act="sgtcond"][data-v="green:fast"]'); await page.click('#sgtstart'); await page.waitForSelector('#sgtintro'); await shot('01b-intro');

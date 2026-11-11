@@ -129,7 +129,7 @@ const OUT = '/workspace/golf-app/screenshots/', PORT = 8834, BASE = 'http://127.
   assert.strictEqual(await Q.evaluate(() => JSON.parse(localStorage.getItem('golfsg.rounds.v1')).length), 3, 'still 3 rounds');
   await Q.click('#addsheet [data-act="addclose"]');
   // in Quincy's backup
-  await Q.click('[data-act="home"]'); await Q.click('#plusbtn'); await Q.click('#plusmenu [data-act="archive"]'); await Q.evaluate(() => { window.__shared.length = 0; window.__shareMode = 'ok'; });
+  await (async () => { if (await Q.$('#holemore') && !(await Q.$('#holemenu'))) await Q.click('#holemore'); return Q.click('[data-act="home"]'); })() /* v188: Home + Discard are in ⋯ during a round */; await Q.click('#plusbtn'); await Q.click('#plusmenu [data-act="archive"]'); await Q.evaluate(() => { window.__shared.length = 0; window.__shareMode = 'ok'; });
   await Q.click('[data-act="backup"]'); await Q.waitForFunction(() => window.__shared.length === 1);
   const bfile = (await Q.evaluate(() => window.__shared[0])).files[0], B = JSON.parse(bfile.text);
   assert.match(bfile.name, /^golf-rounds-quincy-/i); const inB = B.rounds.filter(r => r.id === 'arc78');

@@ -132,7 +132,7 @@ const rnd = (id, player, day, extra, more) => { const r = Object.assign(ARC.roun
   console.log('  restore list: 10/10 rounds shown, 7 missing ticked, greyed rounds locked, Clear / Select all missing / count, 7 restored under Quincy, newer phone copy kept');
 
   // ---------- 5. a weekly copy: everything from it is already here now ----------
-  await P.click('[data-act="home"]'); await P.click('#plusbtn'); await P.click('#plusmenu [data-act="archive"]'); await P.click('#gdrestore'); await P.waitForSelector('#gdrsheet [data-act="gdrplayer"]');
+  await (async () => { if (await P.$('#holemore') && !(await P.$('#holemenu'))) await P.click('#holemore'); return P.click('[data-act="home"]'); })() /* v188: Home + Discard are in ⋯ during a round */; await P.click('#plusbtn'); await P.click('#plusmenu [data-act="archive"]'); await P.click('#gdrestore'); await P.waitForSelector('#gdrsheet [data-act="gdrplayer"]');
   await P.click('#gdrsheet [data-act="gdrplayer"][data-name="Quincy"]'); await P.waitForSelector('#gdrsheet [data-act="gdrfile"]');
   await P.click('#gdrsheet [data-act="gdrfile"] >> nth=1'); await P.waitForSelector('#gdlpage .gdlrow');
   assert.match(await P.textContent('#gdlpage .topbar .title'), /Weekly copy · Oct 12, 2026/);

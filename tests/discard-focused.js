@@ -23,8 +23,8 @@ const BASE = process.env.BASE_URL || 'http://127.0.0.1:8769/';
   await page.waitForTimeout(500); await page.evaluate(() => { const t = document.getElementById('toast'); if (t) t.className = ''; });
   await page.evaluate(() => window.scrollTo(0, 0)); await page.screenshot({ path: '/workspace/golf-app/screenshots/discard-round.png' });
   // cancel keeps it
-  answer = false; await page.click('[data-act="discard"]'); assert.ok(await page.$('[data-act="discard"]'));
-  answer = true; dialogs = []; await page.click('[data-act="discard"]');
+  answer = false; await (async () => { if (await page.$('#holemore') && !(await page.$('#holemenu'))) await page.click('#holemore'); return page.click('[data-act="discard"]'); })() /* v188: Home + Discard are in ⋯ during a round */; assert.ok(await page.$('[data-act="discard"]'));
+  answer = true; dialogs = []; await (async () => { if (await page.$('#holemore') && !(await page.$('#holemenu'))) await page.click('#holemore'); return page.click('[data-act="discard"]'); })() /* v188: Home + Discard are in ⋯ during a round */;
   assert.deepStrictEqual(dialogs, ['Discard this round? Shots will be deleted.']);
   assert.strictEqual(await page.$('[data-act="resume"]'), null);
   for (const step of ['reload', 'newpage']) { // force-close: reload, and a fresh page in the same storage
@@ -34,7 +34,7 @@ const BASE = process.env.BASE_URL || 'http://127.0.0.1:8769/';
   }
   // discard from the round screen
   await page.click('#plusbtn'); await page.click('[data-act="newform"]'); await page.fill('#course', 'Test'); await page.click('[data-act="new"]');
-  await page.waitForSelector('[data-act="discard"]'); await page.click('[data-act="discard"]'); await page.waitForSelector('#home');
+  await page.waitForSelector('#holemore'); await (async () => { if (await page.$('#holemore') && !(await page.$('#holemenu'))) await page.click('#holemore'); return page.click('[data-act="discard"]'); })() /* v188: Home + Discard are in ⋯ during a round */; await page.waitForSelector('#home');
   await page.reload(); assert.strictEqual(await page.$('[data-act="resume"]'), null);
   assert.deepStrictEqual(errors, []); console.log('DISCARD OK'); await b.close(); if (srv) srv.kill();
 })().catch(e => { console.error(e); process.exit(1); });

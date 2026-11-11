@@ -34,11 +34,11 @@ const BASE = 'http://127.0.0.1:8795/', OUT = '/workspace/golf-app/screenshots/';
   await page.click('[data-act="backup"]').catch(() => {}); // no rounds -> disabled
   await page.fill('#pname', 'Scott'); await page.click('[data-act="setname"]'); assert.strictEqual(await page.textContent('#pnameshow'), 'Scott');
   assert.ok(await page.$('#archivepage, .topbar'), 'stays on Settings after saving the name');
-  await page.click('[data-act="home"]'); await page.waitForSelector('#home');
+  await (async () => { if (await page.$('#holemore') && !(await page.$('#holemenu'))) await page.click('#holemore'); return page.click('[data-act="home"]'); })() /* v188: Home + Discard are in ⋯ during a round */; await page.waitForSelector('#home');
   // new round from the + sheet
   await page.click('#plusbtn'); await page.click('[data-act="newform"]'); await page.fill('#course', 'Lakeridge'); await page.selectOption('#newbl', { index: 0 });
   await page.click('[data-act="new"]'); await page.waitForSelector('.holecard');
-  await page.click('[data-act="home"]'); await page.waitForSelector('#resumepill');
+  await (async () => { if (await page.$('#holemore') && !(await page.$('#holemenu'))) await page.click('#holemore'); return page.click('[data-act="home"]'); })() /* v188: Home + Discard are in ⋯ during a round */; await page.waitForSelector('#resumepill');
   const R = await page.evaluate(() => [...document.querySelectorAll('#home button')].map(x => x.id + ':' + x.innerText.replace(/\s+/g, ' ')));
   assert.deepStrictEqual(R, ['plusbtn:+', 'resumepill:Resume round Lakeridge · 0 holes done']);
   const pos = await page.evaluate(() => document.getElementById('resumepill').getBoundingClientRect().bottom);
@@ -47,7 +47,7 @@ const BASE = 'http://127.0.0.1:8795/', OUT = '/workspace/golf-app/screenshots/';
   await shot('resume');
   await page.click('#resumepill'); await page.waitForSelector('.holecard');
   // discard lives on Settings now
-  await page.click('[data-act="home"]'); await page.click('#plusbtn'); await page.click('#plusmenu [data-act="archive"]'); await page.click('[data-act="discard"]'); await page.waitForSelector('#home');
+  await (async () => { if (await page.$('#holemore') && !(await page.$('#holemenu'))) await page.click('#holemore'); return page.click('[data-act="home"]'); })() /* v188: Home + Discard are in ⋯ during a round */; await page.click('#plusbtn'); await page.click('#plusmenu [data-act="archive"]'); await (async () => { if (await page.$('#holemore') && !(await page.$('#holemenu'))) await page.click('#holemore'); return page.click('[data-act="discard"]'); })() /* v188: Home + Discard are in ⋯ during a round */; await page.waitForSelector('#home');
   assert.strictEqual(await page.$('#resumepill'), null);
   assert.deepStrictEqual(errors, []); console.log('HOME OK'); await b.close(); srv.kill();
 })().catch(e => { console.error(e); process.exit(1); });

@@ -57,7 +57,7 @@ for (let i = 0; i < 6; i++) rounds.push(Object.assign(ARC.round(), { id: 'g' + i
     await page.click('#prlist .prx'); assert.strictEqual(await page.$$eval('#prlist .pritem', x => x.length), 2);
     ok('× removes an entry');
     // Log this drill from the newest round's takeaway
-    await page.click('[data-act="home"]'); await page.click('#plusbtn'); await page.click('#plusmenu [data-act="history"]');
+    await (async () => { if (await page.$('#holemore') && !(await page.$('#holemenu'))) await page.click('#holemore'); return page.click('[data-act="home"]'); })() /* v188: Home + Discard are in ⋯ during a round */; await page.click('#plusbtn'); await page.click('#plusmenu [data-act="history"]');
     await page.click('#histlist [data-act="open"][data-id="g0"]'); await page.waitForSelector('#prdrill');
     const label = await page.textContent('#prdrill'); assert.match(label, /Log this drill · /);
     await page.click('#prdrill'); await page.waitForSelector('#prsheet');

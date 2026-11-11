@@ -57,7 +57,7 @@ for (let i = 0; i < 12; i++) {
     ok('time frames: All time 12 rounds (no previous), 30 days 3 rounds');
     await page.selectOption('#mgbl', 'pga'); assert.match(await page.textContent('.mglegend'), /PGA Tour/);
     ok('Compared with changes the benchmark');
-    await page.click('[data-act="home"]'); await page.waitForSelector('#home');
+    await (async () => { if (await page.$('#holemore') && !(await page.$('#holemenu'))) await page.click('#holemore'); return page.click('[data-act="home"]'); })() /* v188: Home + Discard are in ⋯ during a round */; await page.waitForSelector('#home');
     assert.deepStrictEqual(errors, [], 'no page errors'); console.log('PASS mygame-focused');
   } finally { await b.close(); srv.kill(); }
 })().catch(e => { console.error(e); process.exit(1); });

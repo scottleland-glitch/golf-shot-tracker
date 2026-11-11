@@ -72,7 +72,7 @@ const PORT = 8813, BASE = `http://127.0.0.1:${PORT}/`, OUT = '/workspace/golf-ap
   const rd = await page.evaluate(() => JSON.parse(localStorage.getItem('golfsg.rounds.v1'))[0]); assert.strictEqual(rd.tee, 'White'); assert.strictEqual(rd.course, 'Pebble Creek');
   assert.deepStrictEqual(rd.holes.map(x => x.par), TRUE.par);
   // Rename tees or fix numbers from the New round sheet still opens the editor
-  await page.click('[data-act="home"]'); await page.click('#plusbtn'); await page.click('[data-act="newform"]'); await page.click('#crspick'); await page.click('#crslist [data-act="ncourse"]');
+  await (async () => { if (await page.$('#holemore') && !(await page.$('#holemenu'))) await page.click('#holemore'); return page.click('[data-act="home"]'); })() /* v188: Home + Discard are in ⋯ during a round */; await page.click('#plusbtn'); await page.click('[data-act="newform"]'); await page.click('#crspick'); await page.click('#crslist [data-act="ncourse"]');
   await page.click('[data-act="nedit"]'); await page.waitForSelector('.revgrid'); assert.strictEqual((await page.textContent('.topbar .title b')).trim(), 'Edit course'); await noScan();
   await page.fill('[data-cf="tee"]', 'White Tees'); await page.click('[data-act="cardsave"]'); await page.waitForSelector('#ntees'); assert.match(await page.textContent('#ntees .sel'), /White Tees/);
   await page.click('.sheet-back', { position: { x: 30, y: 40 } });
