@@ -74,7 +74,11 @@
   // v166 Short game test screens (shortgame-ui.js); the functions below are hoisted
   var SGTUI = SGTEST.ui({ SG: SG, view: view, tests: sgTests, saveTests: saveSgTests, players: function () { return mgPlayers(); }, me: playerName, same: samePlayer,
     baselineOf: function (who) { return myBench(who); }, // v177: the player's benchmark (tests are scored against it, whatever they were taken with)
-    render: function () { render(); }, toast: function (m) { toast(m); } });
+    render: function () { render(); }, toast: function (m) { toast(m); },
+    // v193: a test's ☰ › Make PDF – the game report with just that test in it; the share panel shows on the test page
+    pdfPanel: function () { return view.pdf && view.pdf.kind === 'game' ? pdfHTML() : ''; },
+    makePdf: function (who, id) { view.pdf = { busy: true, kind: 'game' }; render(); window.scrollTo(0, 0);
+      makeGameReport(who, { test: true, testId: id }).then(function (o) { view.pdf = o; window.__golf.lastPdf = o; render(); }, function (e) { view.pdf = { kind: 'game', error: 'Could not make the PDF: ' + (e && e.message) }; render(); }); } });
   document.addEventListener('keydown', function (ev) { if (view.screen === 'sgtest') SGTUI.key(ev); });
   // Live sharing (v87): one secret link per round; every save() pushes a fresh snapshot (debounced, queued while offline).
   var live = window.LIVE && LIVE_DB ? LIVE.publisher({ base: LIVE_DB, fetch: function (u, o) { return window.fetch(u, o); }, storage: localStorage, key: 'golfsg.live.v1',
@@ -1033,7 +1037,7 @@
     if (!who) return Promise.reject(new Error('Pick a player first'));
     parts = parts || GR_PRESET.coach;
     var D = mgData(who), PER = D.period, logs = practiceOf(who), LT = MYGAME.practiceLevelText(logs, { period: PER, bl: D.baseline }), PB = MYGAME.practiceBuild(logs, { period: PER });
-    var TR = SGTUI.reportData(who), V = MYGAME.practiceVsGame(D.cur, PB.cur), now = new Date(), P = SG.pdfSafe;
+    var TR = SGTUI.reportData(who, parts.testId), V = MYGAME.practiceVsGame(D.cur, PB.cur), now = new Date(), P = SG.pdfSafe;
     var dateTxt = now.toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' }), dLong = function (iso) { return new Date(iso).toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' }); };
     if (parts.test && !TR) parts = Object.assign({}, parts, { test: false });
     if (!D.cur.rounds && !PB.cur.total && !TR) return Promise.reject(new Error('Nothing to report yet – play a round, log practice or take the short game test'));
@@ -2266,7 +2270,7 @@
     // v191: + starts something (practice, a test); ☰ holds the rest (game report, Home)
     if (view.mgMenu === 'plus') h += '<div class="sheet-back mgback" data-act="mgplus"></div><div class="hsheet glass mgmenu" id="mgmenu" role="menu"><button class="sheet-item" role="menuitem" data-act="prlog">Log practice</button>' +
       '<button class="sheet-item" role="menuitem" data-act="sgtnew">Short game test</button></div>';
-    else if (view.mgMenu === 'nav') h += '<div class="sheet-back mgback" data-act="mgnav"></div><div class="hsheet glass mgmenu" id="mgnavmenu" role="menu"><button class="sheet-item" role="menuitem" data-act="grep">Make a game report</button>' +
+    else if (view.mgMenu === 'nav') h += '<div class="sheet-back mgback" data-act="mgnav"></div><div class="hsheet glass mgmenu" id="mgnavmenu" role="menu"><button class="sheet-item" role="menuitem" data-act="sgtlast">Tests</button><button class="sheet-item" role="menuitem" data-act="grep">Make a game report</button>' +
       '<button class="sheet-item" role="menuitem" data-act="home">Home</button></div>';
     if (names.length > 1) h += '<div class="hchips" id="mgchips" role="group" aria-label="Player">' + names.map(function (nm) {
       var on = nm === who; return '<button class="frostchip' + (on ? ' sel' : '') + '" data-act="mgplayer" data-v="' + esc(nm) + '" aria-pressed="' + on + '">' + esc(nm) + '</button>'; }).join('') + '</div>';

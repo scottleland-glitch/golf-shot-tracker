@@ -75,6 +75,16 @@ function make(id, date, q) { const t = T.blank(id, date, 'Scott', 'd1w');
   // 3. nothing ticked: a toast, no PDF
   await page.click('[data-act="pdfclose"]'); await page.click('#mgnav'); await page.click('#mgnavmenu [data-act="grep"]'); for (const k of ['game', 'practice', 'test', 'plan']) await page.click('[data-act="grpart"][data-v="' + k + '"]');
   await page.click('#grgo'); assert.ok(await page.$('#grsheet'), 'the sheet stays open');
+  // v193 (Scott): My Game ☰ › Tests opens the last test; the test's ☰ has Tests, Make PDF, Trend
+  await page.evaluate(() => { window.scrollTo(0, 0); }); if (!(await page.$('#mygame'))) { await page.click('#navbtn'); await page.click('#navmenu [data-act="mygame"]'); await page.waitForSelector('#mygame'); }
+  await page.click('#mgnav'); assert.deepStrictEqual(await page.$$eval('#mgnavmenu .sheet-item', e => e.map(x => x.textContent)), ['Tests', 'Make a game report', 'Home']);
+  await page.click('#mgnavmenu [data-act="sgtlast"]'); await page.waitForSelector('#sgtresult'); assert.match(await page.textContent('#sgtresult .topbar'), /Test result/);
+  await page.click('#sgtmenubtn'); assert.deepStrictEqual(await page.$$eval('#sgtmenu .sheet-item', e => e.map(x => x.textContent)), ['Tests', 'Make PDF', 'Trend']);
+  await page.click('#sgttrendbtn'); await page.waitForSelector('#sgttrend'); assert.ok((await page.$$eval('.trcard', e => e.length)) >= 3, 'one chart per area');
+  assert.strictEqual(await page.$$eval('.trcard[data-cat="putting"] .trsvg circle', e => e.length), tests.length, 'one point per test');
+  await page.click('#sgttrendback'); await page.waitForSelector('#sgtresult'); await page.click('#sgtmenubtn'); await page.click('#sgtpdf');
+  await page.waitForFunction(() => window.__golf.lastPdf && window.__golf.lastPdf.kind === 'game' && !window.__golf.lastPdf.busy, null, { timeout: 120000 }); assert.ok(await page.$('#sgtresult [data-act="pdfshare"], #sgtresult .pdfsheet'), 'PDF panel on the test page');
+  await page.click('#sgtmenubtn'); await page.click('#sgtmenu [data-act="sgthub"]'); await page.waitForSelector('#sgtest'); console.log('  ✓ My Game ☰ › Tests; test ☰: Tests, Make PDF, Trend');
   assert.deepStrictEqual(errors, []); assert.deepStrictEqual(outside, [], 'no outside requests');
   console.log('coach', C.pages, 'pages · recruiting', R.pages, 'pages');
   await browser.close(); if (srv) srv.kill(); console.log('PASS gamereport-focused');

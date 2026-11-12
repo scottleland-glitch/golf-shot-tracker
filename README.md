@@ -25,6 +25,14 @@ Every Shot Counts Table 3.10). The other five are ESTIMATED: per-round gaps from
 Player Quality ladder, then spread over the PGA table. Full sources, method and caveats: in-app
 "About the numbers" and the BASELINES comment in `sg.js`.
 
+## Test menu: Tests, Make PDF, Trend (v193)
+- My Game ☰ now starts with **Tests**, which opens your last finished short game test (or the tests list if there is none yet).
+- The test result page has its own ☰: **Tests** (the list), **Make PDF** (the game report with just this test in it – the
+  share panel opens on the test page; `reportData(who, id)` picks the test you're on) and **Trend**.
+- **Trend** (`SGTUI` mode `trend`): one small chart per area (putting, chipping, bunker, wedges), test by test, oldest to
+  newest, against the benchmark line (100); dots coloured green 90+ / amber 75–90 / red below; the latest level and the change
+  since the first test. Needs two tests.
+
 ## Compact Round stats menu (v192)
 - The Round stats ☰ menu is compact: small icons and one line for PDF report / Story picture, small capital labels over a
   full-width Strokes gained picker and a slim Practice / Tournament toggle, then Rounds / Home. Edit round is a normal-size

@@ -2805,3 +2805,21 @@ html body .topbar .rsmenubtn .menuic { width: 20px; height: 20px; }
 html body .rsmenu .rsmset > *, html body .rsmenu .playpick, html body .rsmenu .playseg { margin-bottom: 0 !important; padding-bottom: 0; }
 html body .rsmenu .playseg { padding: 3px !important; } html body .rsmenu .rsmset { padding-bottom: 10px !important; }
 html body .rsmenu .playpick > :not(.lbl):not(.playseg) { display: none; }
+/* v193 (Scott): short game test ☰ (Tests, Make PDF, Trend) and the Trend page */
+html body .sgtpage .sgtmenubtn { width: 40px; min-width: 40px; max-width: 40px; height: 40px; min-height: 40px; padding: 0; border-radius: 50%; display: flex; align-items: center; justify-content: center; flex: none; }
+html body .sgtpage .sgtmenubtn .menuic { width: 20px; height: 20px; }
+html body .sheet-back.sgtback { position: fixed; inset: 0; z-index: 93; background: rgba(10, 25, 40, .18); }
+html body .sgtmenu { position: fixed; z-index: 94; top: calc(env(safe-area-inset-top) + 66px); right: calc(env(safe-area-inset-right) + 12px); width: 220px; display: flex; flex-direction: column; padding: 6px; border-radius: 18px; background: rgba(255, 255, 255, .96); box-shadow: 0 10px 30px rgba(20, 40, 30, .22); }
+html body .sgtmenu .sheet-item { background: transparent; border: 0; box-shadow: none; text-align: left; font-size: 16px; font-weight: 500; color: #17301f; padding: 11px 12px; border-radius: 12px; min-height: 0; }
+html body .sgtmenu .sheet-item + .sheet-item { border-top: 1px solid rgba(23, 48, 31, .1); border-radius: 0; }
+html body .sgttrendlede { margin: 4px 6px 10px; font-size: 13.5px; color: var(--frost-ink-soft); }
+html body .trcard { padding: 12px 12px 6px; margin-bottom: 10px; }
+html body .trhead { display: flex; align-items: baseline; gap: 10px; margin: 0 2px 4px; } html body .trhead b { font-size: 17px; flex: 1; }
+html body .trhead span { font-size: 20px; font-weight: 800; } html body .trhead em { font-style: normal; font-size: 13px; color: #5b6b78; }
+html body .trhead em.up { color: #1f6b3a; } html body .trhead em.down { color: #b0473f; }
+html body .trgt { color: #1f6b3a; } html body .trat { color: #a06e0a; } html body .trrt { color: #b0473f; }
+html body .trsvg { display: block; width: 100%; height: auto; }
+.trsvg .trline { fill: none; stroke: #4a7fd0; stroke-width: 2.4; stroke-linejoin: round; } .trsvg .trbench { stroke: #17301f; stroke-width: 1.2; stroke-dasharray: 4 3; opacity: .55; }
+.trsvg .trgrid { stroke: rgba(40, 60, 80, .12); stroke-width: 1; } .trsvg .trax { font-size: 10px; fill: #5b6b78; font-weight: 600; }
+.trsvg .trg { fill: #1f9d55; stroke: #fff; stroke-width: 1.5; } .trsvg .tra { fill: #e0a82e; stroke: #fff; stroke-width: 1.5; } .trsvg .trr { fill: #d0604f; stroke: #fff; stroke-width: 1.5; }
+html body .sgtpage .sgtmenubtn svg.menuic { width: 22px !important; height: 22px !important; min-width: 22px; flex: none; }

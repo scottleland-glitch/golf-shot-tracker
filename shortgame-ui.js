@@ -183,9 +183,10 @@
       return c.usual != null ? (c.tests > 1 ? 'usually ' : 'last time ') + T.fmtNum(sk, c.usual) : s.bench != null ? blShort(A.bl) + ' ' + (sk.k === 'updown' ? Math.round(s.benchRate * 100) + '%' : sk.unit === 'ft' ? Math.round(s.bench) + ' ft' : r1(s.bench)) : sk.k === 'speed' ? 'best ' + s.best : ''; }
     function rowTag(c) { return c.trend === 'slipping' ? 'Slipping' : c.trend === 'improving' ? 'Improving' : c.status === 'worse' ? 'Down' : c.status === 'better' ? 'Up' : ''; }
     // v175 (Scott): the latest finished test, ready for the My Game report (pictures as SVG strings, everything else as text)
-    function reportData(who) {
+    function reportData(who, id) {
       var done = mine(who).filter(function (t) { return t.done; }); if (!done.length) return null;
-      var A = analysed(done[0], who), P = puttSpokes(A), bn = blShort(A.bl), ftS = function (v) { return (v < 10 ? v.toFixed(1) : String(Math.round(v))) + ' ft'; };
+      var pick = id ? done.filter(function (t) { return t.id === id; })[0] || done[0] : done[0]; // v193: the test you're looking at
+      var A = analysed(pick, who), P = puttSpokes(A), bn = blShort(A.bl), ftS = function (v) { return (v < 10 ? v.toFixed(1) : String(Math.round(v))) + ' ft'; };
       var cats = T.CATS.map(function (c) { var x = A.cur.cats[c.k], skills = T.SKILLS.filter(function (sk) { return sk.cat === c.k; });
         var any = skills.some(function (sk) { return A.cur.skills[sk.k].value != null; });
         var bar = function (L) { return L.map(function (x) { return { name: x.full || x.name, val: x.index == null ? 'not tested' : x.val || x.sub || '', usual: x.usual || '', index: x.index, avg: x.avg, tone: x.tone || '', tier: tierOf(x.index), tag: x.tag || '' }; }); };
@@ -258,7 +259,12 @@
     function resultHTML() {
       var s = S(), test = byId(s.id); if (!test) { s.mode = 'hub'; return hubHTML(); }
       var A = analysed(test, s.who), I = A.I, n = T.entered(test), cond = [test.cond.green ? test.cond.green + ' greens' : '', test.cond.wind].filter(Boolean).join(', ');
-      var h = '<div class="frostpage theme-sky sgtpage sgtres" id="sgtresult">' + top('<button class="txt frostbtn" data-act="sgthub" id="sgthubbtn">‹ Tests</button>', 'Test result', dLong(test.date));
+      // v193 (Scott): ☰ – Tests, Make PDF, Trend
+      var h = '<div class="frostpage theme-sky sgtpage sgtres" id="sgtresult">' + top('<button class="txt frostbtn" data-act="sgthub" id="sgthubbtn">‹ Tests</button>', 'Test result', dLong(test.date),
+        '<button class="frostbtn sgtmenubtn" data-act="sgtmenu" id="sgtmenubtn" aria-label="Menu: tests, make PDF, trend" aria-expanded="' + !!s.menu + '">' + MENU_IC + '</button>');
+      if (s.menu) h += '<div class="sheet-back sgtback" data-act="sgtmenu"></div><div class="hsheet glass sgtmenu" id="sgtmenu" role="menu"><button class="sheet-item" role="menuitem" data-act="sgthub">Tests</button>' +
+        '<button class="sheet-item" role="menuitem" data-act="sgtpdf" id="sgtpdf">Make PDF</button><button class="sheet-item" role="menuitem" data-act="sgttrend" id="sgttrendbtn">Trend</button></div>';
+      h += env.pdfPanel ? env.pdfPanel() : '';
       h += '<div class="sgtcard frost" id="sgtverdict"><h2 id="sgthead">' + esc(I.headline) + '</h2><p id="sgtsub">' + esc(I.sub) + '</p>' +
         '<p class="sgtnote">' + esc(s.who ? s.who + ' · ' : '') + esc('compared with ' + A.blName) + (cond ? ' · ' + esc(cond) : '') + (n < T.totalOf(test) ? ' · ' + n + ' of ' + T.totalOf(test) + ' shots entered' : '') + '</p>' +
         T.spiderSVG(overallSpokes(A), { aria: 'Short game shape' }) + T.spiderKey(A.cmp.cats.putting.avgIndex != null, A.blName) + barsHTML(overallSpokes(A), blShort(A.bl) + ' level', 'sgtbars-all') +
@@ -330,7 +336,33 @@
       [].forEach.call(d, function (x, j) { x.className = j === k ? 'on' : ''; }); if (nb) nb.textContent = k >= INTRO_N - 1 ? (S().introThen === 'start' ? 'Start the test' : 'Done') : 'Next ›'; }
     document.addEventListener('scroll', function (ev) { if (ev.target && ev.target.id === 'sgtislides') introSync(); }, true);
     function startTest(s) { var t = T.blank('sgt' + Date.now().toString(36), new Date().toISOString(), s.who, env.baselineOf(s.who)); t.cond = { green: (s.cond || {}).green || '', wind: (s.cond || {}).wind || '' }; put(t); goto(t, 0, 0); env.render(); window.scrollTo(0, 0); }
-    function html() { var s = S(); return s.mode === 'intro' ? introHTML() : s.mode === 'run' ? runHTML() : s.mode === 'result' ? resultHTML() : hubHTML(); }
+    var MENU_IC = '<svg class="menuic" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg>';
+    // ---------- v193 (Scott): Trend – each area across your tests, oldest to newest ----------
+    function trendHTML() {
+      var s = S(), done = mine(s.who).filter(function (t) { return t.done; }).slice().reverse(), back = s.id ? 'sgtview' : 'sgthub';
+      var h = '<div class="frostpage theme-sky sgtpage sgttrend" id="sgttrend">' + top('<button class="txt frostbtn" data-act="' + back + '" data-v="' + esc(s.id || '') + '" id="sgttrendback">‹ ' + (s.id ? 'Result' : 'Tests') + '</button>', 'Trend', (s.who ? s.who + ' · ' : '') + done.length + ' test' + (done.length === 1 ? '' : 's'));
+      if (done.length < 2) return h + '<div class="sgtcard frost"><p class="sgtmnone">Take another test to see a trend – each area is plotted test by test.</p></div></div>';
+      var pts = done.map(function (t) { return { t: t, sp: overallSpokes(analysed(t, s.who)) }; }), bl = blShort(analysed(done[done.length - 1], s.who).bl);
+      h += '<p class="sgttrendlede">Each area\'s level test by test – 100 = ' + esc(bl) + ' level. Green 90+, amber 75–90, red below.</p>';
+      T.CATS.forEach(function (c, ci) {
+        var ys = pts.map(function (p) { return p.sp[ci].index; }), have = ys.filter(function (v) { return v != null; });
+        if (!have.length) return;
+        var lo = Math.min(60, Math.min.apply(null, have) - 5), hi = Math.max(120, Math.max.apply(null, have) + 5), W = 320, H = 110, L = 32, R = 24, TP = 10, B = 22;
+        var x = function (i) { return L + (pts.length === 1 ? 0 : i * (W - L - R) / (pts.length - 1)); }, y = function (v) { return TP + (hi - v) * (H - TP - B) / (hi - lo); };
+        var line = '', dots = '', lab = '';
+        ys.forEach(function (v, i) { if (v == null) return; line += (line ? 'L' : 'M') + x(i).toFixed(1) + ' ' + y(v).toFixed(1); dots += '<circle cx="' + x(i).toFixed(1) + '" cy="' + y(v).toFixed(1) + '" r="4.5" class="tr' + tierOf(v) + '"/>'; });
+        pts.forEach(function (p, i) { if (pts.length <= 6 || i === 0 || i === pts.length - 1 || i % Math.ceil(pts.length / 5) === 0) lab += '<text x="' + x(i).toFixed(1) + '" y="' + (H - 6) + '" text-anchor="middle" class="trax">' + esc(dShort(p.t.date)) + '</text>'; });
+        var first = have[0], last = have[have.length - 1], d = Math.round(last - first);
+        h += '<div class="sgtcard frost trcard" data-cat="' + c.k + '"><div class="trhead"><b>' + esc(c.name) + '</b><span class="tr' + tierOf(last) + 't">' + Math.round(last) + '</span>' +
+          (have.length > 1 ? '<em class="' + (d >= 5 ? 'up' : d <= -5 ? 'down' : '') + '">' + (d > 0 ? '▲ ' : d < 0 ? '▼ ' : '') + (d ? Math.abs(d) + ' since ' + esc(dShort(pts[ys.indexOf(first)].t.date)) : 'steady') + '</em>' : '') + '</div>' +
+          '<svg viewBox="0 0 ' + W + ' ' + H + '" class="trsvg" role="img" aria-label="' + esc(c.name) + ' by test">' +
+          '<line x1="' + L + '" x2="' + (W - R) + '" y1="' + y(100).toFixed(1) + '" y2="' + y(100).toFixed(1) + '" class="trbench"/><text x="' + (L - 4) + '" y="' + (y(100) + 3.5).toFixed(1) + '" text-anchor="end" class="trax">100</text>' +
+          '<line x1="' + L + '" x2="' + (W - R) + '" y1="' + y(90).toFixed(1) + '" y2="' + y(90).toFixed(1) + '" class="trgrid"/><line x1="' + L + '" x2="' + (W - R) + '" y1="' + y(75).toFixed(1) + '" y2="' + y(75).toFixed(1) + '" class="trgrid"/>' +
+          '<path d="' + line + '" class="trline"/>' + dots + lab + '</svg></div>';
+      });
+      return h + '</div>';
+    }
+    function html() { var s = S(); return s.mode === 'intro' ? introHTML() : s.mode === 'run' ? runHTML() : s.mode === 'result' ? resultHTML() : s.mode === 'trend' ? trendHTML() : hubHTML(); }
     // My Game: a small card that opens the test
     function cardHTML(who) {
       // v183 (Scott): + starts a new test (straight into the intro); below it, the last 4 tests – tap one for its result
@@ -379,13 +411,18 @@
         try { sl.scrollTo({ left: (k0 + 1) * sl.clientWidth, behavior: 'smooth' }); } catch (e) { sl.scrollLeft = (k0 + 1) * sl.clientWidth; } setTimeout(introSync, 400); return; }
       if (a === 'sgtintro') { s.mode = 'intro'; s.introThen = null; env.render(); window.scrollTo(0, 0); return; }
       if (a === 'sgtopen') { view.hmenu = null; view.screen = 'sgtest'; s.mode = 'hub'; s.introThen = null; /* v174: the intro now runs when a test is started (sgtstart), not on opening */ if (view.mgPlayer) s.who = view.mgPlayer; env.render(); window.scrollTo(0, 0); return; }
-      if (a === 'sgthub') { s.mode = 'hub'; s.open = null; env.render(); window.scrollTo(0, 0); return; }
+      if (a === 'sgthub') { s.menu = false; s.mode = 'hub'; s.open = null; env.render(); window.scrollTo(0, 0); return; }
       if (a === 'sgtplayer') { s.who = v; env.render(); return; }
       if (a === 'sgtcond') { var p = v.split(':'); s.cond = s.cond || {}; s.cond[p[0]] = s.cond[p[0]] === p[1] ? '' : p[1]; env.render(); return; }
       // v174 (Scott): a month is a long time between tests – starting one always runs the intro first as a refresher (no skip; Back returns to Tests)
       if (a === 'sgtstart') { s.introThen = 'start'; s.mode = 'intro'; env.render(); window.scrollTo(0, 0); return; }
       if (a === 'sgtresume') { var t2 = byId(v); if (!t2) return; view.screen = 'sgtest'; view.mgMenu = null; if (t2.done) { t2.done = false; put(t2); } var nx = T.nextOpen(t2) || { st: 0, i: 0 }; goto(t2, nx.st, nx.i); env.render(); window.scrollTo(0, 0); focus(); return; }
-      if (a === 'sgtview') { if (view.screen !== 'sgtest') { view.screen = 'sgtest'; if (view.mgPlayer) s.who = view.mgPlayer; } s.mode = 'result'; s.id = v; s.open = null; env.render(); window.scrollTo(0, 0); return; }
+      if (a === 'sgtmenu') { s.menu = !s.menu; env.render(); return; } // v193
+      if (a === 'sgtpdf') { s.menu = false; if (env.makePdf) env.makePdf(s.who, s.id); return; }
+      if (a === 'sgttrend') { s.menu = false; s.mode = 'trend'; env.render(); window.scrollTo(0, 0); return; }
+      if (a === 'sgtlast') { view.hmenu = null; view.mgMenu = null; view.screen = 'sgtest'; if (view.mgPlayer) s.who = view.mgPlayer; s.menu = false; // My Game ☰ › Tests: your last test
+        var last = mine(s.who).filter(function (t) { return t.done; })[0]; if (last) { s.mode = 'result'; s.id = last.id; } else s.mode = 'hub'; env.render(); window.scrollTo(0, 0); return; }
+      if (a === 'sgtview') { s.menu = false; if (view.screen !== 'sgtest') { view.screen = 'sgtest'; if (view.mgPlayer) s.who = view.mgPlayer; } s.mode = 'result'; s.id = v; s.open = null; env.render(); window.scrollTo(0, 0); return; }
       if (a === 'sgtdel') { var t3 = byId(v); if (!t3 || !window.confirm(t3.done ? 'Delete the test of ' + dLong(t3.date) + '? This cannot be undone.' : 'Discard this unfinished test?')) return; env.saveTests(env.tests().filter(function (x) { return x.id !== v; })); env.toast('Test deleted'); s.mode = 'hub'; env.render(); return; }
       if (a === 'sgtrow') { s.open = s.open === v ? null : v; env.render(); return; }
       if (!test) return;

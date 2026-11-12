@@ -19,7 +19,7 @@ const REPO = path.join(__dirname, '..'), PORT = 8968, ARC = require('./fixtures/
   // My Game: + = practice / test, ☰ = game report / Home
   await page.click('#mgcard'); await page.waitForSelector('#mygame'); await page.click('#mgplus');
   assert.deepStrictEqual(await page.$$eval('#mgmenu .sheet-item', e => e.map(x => x.textContent)), ['Log practice', 'Short game test']); await page.$eval('.mgback', e => e.click());
-  await page.click('#mgnav'); assert.deepStrictEqual(await page.$$eval('#mgnavmenu .sheet-item', e => e.map(x => x.textContent)), ['Make a game report', 'Home']); await page.click('#mgnavmenu [data-act="home"]'); await page.waitForSelector('#home'); ok('My Game: + and ☰');
+  await page.click('#mgnav'); assert.deepStrictEqual(await page.$$eval('#mgnavmenu .sheet-item', e => e.map(x => x.textContent)), ['Tests', 'Make a game report', 'Home']); await page.click('#mgnavmenu [data-act="home"]'); await page.waitForSelector('#home'); ok('My Game: + and ☰');
   // Round stats: Edit round, quick view under the score, ☰ menu
   await page.click('#navbtn'); await page.click('#navmenu [data-act="history"]'); await page.waitForSelector('#histlist .hrow'); await page.click('.hrow .hist'); await page.waitForSelector('#rs-top');
   assert.strictEqual((await page.textContent('#editround')).trim(), 'Edit round'); assert.strictEqual(await page.$('[data-act="backHole"]:not(#editround)'), null, 'no "Back to the round"');
