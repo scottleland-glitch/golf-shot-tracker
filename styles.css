@@ -2877,3 +2877,10 @@ html body .trcard2.trearly .trfoot { margin-top: 4px; }
 .trchart .trtag.exp { fill: #a06a12; }
 .trchart .trles { stroke: #6b5aa6; stroke-width: 1; stroke-dasharray: 2 3; } .trchart .trles.big { stroke-width: 1.6; stroke-dasharray: none; }
 .trchart .trlestx { font-size: 8.5px; font-weight: 700; fill: #5a4a96; }
+/* v196: Trends – the band is confidence (red → amber → green); no colour for better / worse */
+.trchart .trband.low { fill: rgba(208, 96, 79, .22); } .trchart .trband.mid { fill: rgba(222, 160, 40, .24); } .trchart .trband.high { fill: rgba(63, 150, 96, .24); }
+.trchart .trwhat { fill: none; stroke: #6f7d88; stroke-width: 1.3; stroke-dasharray: 3 3; } .trchart .trwhat.thin { stroke-width: 1.1; }
+.trchart .trtag.what { fill: #4d5b66; }
+.trchart .trdip { fill: rgba(107, 90, 166, .10); } .trchart .trtag.exp { fill: #5a4a96; }
+html body .trconf { margin: -2px 4px 2px; font-size: 12px; font-weight: 700; } html body .trconf.low { color: #b0473f; } html body .trconf.mid { color: #a06a12; } html body .trconf.high { color: #2f7a4c; }
+html body .trlede b.cl { color: #b0473f; } html body .trlede b.cm { color: #a06a12; } html body .trlede b.ch { color: #2f7a4c; }

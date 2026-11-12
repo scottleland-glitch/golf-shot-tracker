@@ -25,6 +25,21 @@ Every Shot Counts Table 3.10). The other five are ESTIMATED: per-round gaps from
 Player Quality ladder, then spread over the PGA table. Full sources, method and caveats: in-app
 "About the numbers" and the BASELINES comment in `sg.js`.
 
+## Trends confidence: lines first, then a band that tightens (v196)
+- **Weeks 1–3:** just the lines – strokes gained from rounds and practice by week – with "2 of 4 weeks", a progress bar and
+  "2 more weeks with a round until the first forecast". An area with rounds but no practice shows its rounds line and
+  "Log … practice to see how it connects".
+- **From week 4:** a forecast with a **likely range** (about 2 in 3 weeks land inside): your typical miss from the backtest (your
+  week-to-week swing until the backtest has 4 checks), wider further ahead (× √(1 + 0.15 per week)) and wider while there are
+  fewer than 10 weeks (× 1 + (10 − weeks) / 6, so twice as wide at 4 weeks). The band's colour is the confidence: **red** under
+  6 weeks, **amber** to 10, **green** after (green also needs 4 backtest checks); the card says "Low confidence · 4 of 10 weeks".
+- **Early weeks can't fake a link:** the practice effect is shrunk by weeks / (weeks + 4) (×0.5 at 4 weeks, ×0.87 at 26), the lag
+  search only goes as far as the data allows (same week at 4 weeks, up to 3 weeks at 9+), the stock model needs 4 backtest
+  checks before it can replace the v194 one, and the link strength isn't named while confidence is low ("so far" while medium).
+- **No colour for better / worse:** the 25%-more / -less practice paths are thin grey dashed lines with "+N / −N min" labels,
+  the numbers aren't coloured, and the red "both slipping" boxes and "heading below normal" tint are gone. Lessons and the
+  expected dip after a big change use the lesson purple.
+
 ## Trends learn how practice lasts; lessons; how practice felt (v195)
 - **Practice has a memory** (`trends.js`). Besides the v194 model (one best lag, a straight line), each area keeps a **practice
   stock**: every week adds that week's practice and the stock fades with a half-life of 2, 4 or 8 weeks. Strokes follow

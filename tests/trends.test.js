@@ -109,3 +109,20 @@ test('lessons and feel come through from the log', () => {
   assert.deepStrictEqual(W[1].big, { drive: 'Grip', irons: 'Grip' }); assert.strictEqual(W[1].lessons.length, 2); assert.strictEqual(W[1].lessons[0].coach, 'Jo');
   assert.deepStrictEqual(W[0].feel.lag, [1, 2], 'feel weighted by minutes: (0.5 − 0.5 + 1) over 2 h');
 });
+// ---- v196: first forecast at 4 weeks, low confidence, the band narrows to 10 weeks ----
+test('confidence: lines only under 4 weeks; low → medium → high; the likely range narrows as weeks build', () => {
+  const { x, y } = stockSeries(26, 4, 1.2, 0.5, 21), now = Date.now(), at = w => TR.analyse(y.map((v, i) => i >= 26 - w ? v : null), x.map((v, i) => i >= 26 - w ? v : 0), { now });
+  assert.strictEqual(at(3).ok, false); assert.strictEqual(at(3).reason, 'not enough weeks'); assert.ok(at(3).sy.length, 'the lines are still there');
+  const A4 = at(4), A7 = at(7), A12 = at(12), A20 = at(20);
+  assert.ok(A4.ok); assert.deepStrictEqual([A4.conf, A7.conf, A12.conf, A20.conf], ['low', 'mid', 'high', 'high']);
+  assert.strictEqual(A4.lag, 0, '4 weeks: same-week only'); assert.ok(at(10).byLag.length === 4, '10 weeks: lags 0–3');
+  const w = A => (A.hi[4] - A.lo[4]) / A.sdY; assert.ok(w(A4) > w(A7) && w(A7) > w(A12), 'band narrows: ' + [w(A4), w(A7), w(A12)].map(v => v.toFixed(2)));
+  assert.ok(A4.widen === 2 && A12.widen === 1); A20.lo.forEach((v, k) => assert.ok(v < A20.fc[k] && A20.hi[k] > A20.fc[k]));
+  assert.ok(A20.hi[4] - A20.lo[4] > A20.hi[0] - A20.lo[0], 'wider further ahead');
+});
+test('few weeks hold the practice effect back toward "no effect"', () => {
+  const { x, y } = stockSeries(26, 4, 1.2, 0.2, 5), now = Date.now();
+  const cut = w => TR.analyse(y.map((v, i) => i >= 26 - w ? v : null), x.map((v, i) => i >= 26 - w ? v : 0), { now, model: 'lag' });
+  const s6 = cut(6), all = TR.analyse(y, x, { now, model: 'lag' }); assert.ok(s6.link && all.link, 'linked both ways');
+  assert.ok(Math.abs(s6.b - s6.byLag[s6.lag].b * 6 / 10) < 1e-9, '6 weeks: ×6/10'); assert.ok(Math.abs(all.b - all.byLag[all.lag].b * 26 / 30) < 1e-9, '26 weeks: ×26/30');
+});

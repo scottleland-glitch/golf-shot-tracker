@@ -2482,29 +2482,31 @@
   function trendsHTML() {
     var who = view.trWho || mgWho(), TD = trendsData(who), z = TR_ZOOM.filter(function (x) { return x[0] === view.trZoom; })[0] || TR_ZOOM[0];
     var h = '<div class="frostpage theme-sky mygamepage trendspage" id="trendspage"><div class="topbar frost"><button class="txt frostbtn" data-act="trback" id="trback">‹ ' + (view.trFrom === 'practice' ? 'Practice' : 'My Game') + '</button><div class="title"><b>Trends</b><span>' + esc(who || '') + '</span></div><span class="tbsp"></span></div>';
-    h += '<p class="trlede" id="trlede">Top line: strokes gained in your rounds. Bottom: practice. Ahead: the band is 25% more or less practice. Red = both below your normal.</p>';
-    // v195 (Scott): patience, said once – and every waiting card shows how close it is
-    h += '<p class="trpatience" id="trpatience">Trends learn how <i>your</i> practice turns into strokes. It takes about ' + TRENDS.CFG.minWeeks + ' weeks of rounds and practice – and keeps getting sharper the longer you log.</p>';
+    // v196 (Scott): the band is how sure the forecast is – red while it's learning you, amber, then green; no colour for better / worse
+    h += '<p class="trlede" id="trlede">Top: strokes gained in your rounds. Bottom: practice. Ahead, the shaded band is the likely range – <b class="cl">red</b> while Trends is still learning you, <b class="cm">amber</b>, then <b class="ch">green</b>. Thin lines: 25% more or less practice.</p>';
+    h += '<p class="trpatience" id="trpatience">The first forecast comes after ' + TRENDS.CFG.minWeeks + ' weeks of rounds. Confidence builds to ' + TRENDS.CFG.fullWeeks + ' weeks – and keeps sharpening the longer you log.</p>';
     h += '<div class="stseg mgseg trzoom" id="trzoom" role="group" aria-label="Zoom">' + TR_ZOOM.map(function (x) { var on = x === z; return '<button class="' + (on ? 'sel' : '') + '" data-act="trzoom" data-v="' + x[0] + '" aria-pressed="' + on + '">' + x[1] + '</button>'; }).join('') + '</div>';
     var end = TD.weeks[TD.weeks.length - 1] + TRENDS.CFG.ahead * 7 * 864e5, endTxt = new Date(end).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
     var card = function (A, total) {
       if (!A.ok) {
         var nm = total ? 'Practice vs score' : A.name, left = Math.max(1, A.need - A.dataWeeks), pct = Math.round(100 * Math.min(1, A.dataWeeks / A.need));
-        if (A.reason === 'no practice logged' || A.dataWeeks < 2) return '<div class="trcard2 frost trnone" data-k="' + A.k + '"><b>' + esc(nm) + '</b><span>' +
-          esc(A.reason === 'no practice logged' ? 'Log ' + (total ? 'practice' : A.name.toLowerCase() + ' practice') + ' to start this trend' : 'Play a few rounds to start this trend') + '</span></div>';
+        var noPr = A.reason === 'no practice logged';
+        if (A.dataWeeks < 2) return '<div class="trcard2 frost trnone" data-k="' + A.k + '"><b>' + esc(nm) + '</b><span>' +
+          esc(noPr ? 'Log ' + (total ? 'practice' : A.name.toLowerCase() + ' practice') + ' to start this trend' : total ? 'Play a few rounds to start this trend' : 'Needs a few rounds with ' + A.name.toLowerCase() + ' shots') + '</span></div>';
         // early: your history so far, and a countdown to the forecast
-        var full = A.dataWeeks >= A.need; // enough weeks, but your rounds or practice haven't changed enough to measure anything
-        return '<div class="trcard2 frost trearly" data-k="' + A.k + '"><div class="trh"><b>' + esc(nm) + '</b><span class="trsoon">' + (full ? 'learning' : A.dataWeeks + ' of ' + A.need + ' weeks') + '</span></div>' +
+        var full = !noPr && A.dataWeeks >= A.need; // enough weeks, but your rounds or practice haven't changed enough to measure anything
+        return '<div class="trcard2 frost trearly" data-k="' + A.k + '"><div class="trh"><b>' + esc(nm) + '</b><span class="trsoon">' + (noPr ? 'no practice yet' : full ? 'learning' : A.dataWeeks + ' of ' + A.need + ' weeks') + '</span></div>' +
           trendChartSVG(A, TD.weeks, z[2], total) +
-          (full ? '' : '<div class="trprog" role="progressbar" aria-valuemin="0" aria-valuemax="' + A.need + '" aria-valuenow="' + A.dataWeeks + '"><i style="width:' + pct + '%"></i></div>') +
-          '<p class="trfoot">' + esc(full ? 'Not enough change yet to measure – it needs some ups and downs in your rounds and practice.' : left === 1 ? '1 more week with a round and the forecast unlocks.' : left + ' more weeks with a round and the forecast unlocks.') + '</p></div>';
+          (full || noPr ? '' : '<div class="trprog" role="progressbar" aria-valuemin="0" aria-valuemax="' + A.need + '" aria-valuenow="' + A.dataWeeks + '"><i style="width:' + pct + '%"></i></div>') +
+          '<p class="trfoot">' + esc(noPr ? 'Log ' + (total ? 'practice' : A.name.toLowerCase() + ' practice') + ' to see how it connects.' : full ? 'Not enough change yet to measure – it needs some ups and downs in your rounds and practice.' : left === 1 ? '1 more week with a round until the first forecast.' : left + ' more weeks with a round until the first forecast.') + '</p></div>';
       }
       var f = function (v) { return total ? Math.round(v * 10) / 10 + '' : (Math.abs(v) < 0.05 ? '0.0' : (v > 0 ? '+' : '−') + Math.abs(v).toFixed(1)); }, last = A.fc.length - 1;
-      var head = total ? f(A.fc[last]) + ' by ' + endTxt : f(A.fc[last]) + ' by ' + endTxt;
-      return '<div class="trcard2 frost" data-k="' + A.k + '"><div class="trh"><b>' + esc(total ? 'Practice vs score' : A.name) + '</b><span class="' + (A.heading ? 'bad' : A.expected ? 'exp' : '') + '">' + esc(head) + '</span></div>' +
+      var head = f(A.fc[last]) + ' by ' + endTxt, CW = { low: 'Low confidence', mid: 'Medium confidence', high: 'High confidence' }[A.conf];
+      return '<div class="trcard2 frost" data-k="' + A.k + '" data-conf="' + A.conf + '"><div class="trh"><b>' + esc(total ? 'Practice vs score' : A.name) + '</b><span>' + esc(head) + '</span></div>' +
+        '<p class="trconf ' + A.conf + '">' + esc(CW) + (A.conf === 'high' ? '' : ' · ' + A.dataWeeks + ' of ' + TRENDS.CFG.fullWeeks + ' weeks') + '</p>' +
         trendChartSVG(A, TD.weeks, z[2], total) +
-        '<p class="trfoot">' + (A.link ? '<span class="up">' + f(A.up[last]) + '</span> with more · <span class="down">' + f(A.dn[last]) + '</span> with less' + (A.capped ? ' (your busiest week caps it)' : '') : 'No clear link with practice yet') +
-        ' · ' + esc(TRENDS.linkWord(A.r)) + ' link' + (A.link ? (A.model === 'stock' ? ', practice keeps working ~' + A.halfLife + ' wk' : ', shows up ' + (A.lag ? '~' + A.lag + ' wk later' : 'the same week')) : '') +
+        '<p class="trfoot">' + (A.link ? f(A.up[last]) + ' with more · ' + f(A.dn[last]) + ' with less' + (A.capped ? ' (your busiest week caps it)' : '') : 'No clear link with practice yet') +
+        (A.conf === 'low' ? ' · too early to say how strong the link is' : ' · ' + esc(TRENDS.linkWord(A.r)) + ' link' + (A.conf === 'mid' ? ' so far' : '')) + (A.link && A.conf !== 'low' ? (A.model === 'stock' ? ', practice keeps working ~' + A.halfLife + ' wk' : ', shows up ' + (A.lag ? '~' + A.lag + ' wk later' : 'the same week')) : '') +
         (A.feel && A.feel.used ? ' · your practice feel counts' : '') + '</p></div>';
     };
     h += card(TD.total, true) + TD.areas.map(function (A) { return card(A, false); }).join('');
@@ -2512,22 +2514,20 @@
     return h + '</div>';
   }
   function trendChartSVG(A, weeks, Z, total) {
-    var early = !A.ok, FC = A.fc || [], UP = A.up || [], DN = A.dn || [], SL = A.slip || [];
+    var early = !A.ok, FC = A.fc || [], UP = A.up || [], DN = A.dn || [], LO = A.lo || [], HI = A.hi || [];
     var N0 = A.y.length, H0 = Math.max(0, N0 - Z), FW = FC.length, N = Math.max(2, (N0 - H0) + FW), CW = 340, PH = 92, GAP = 18, T = 8, LX = 30, RX = 44, B = 22, H = T + PH * 2 + GAP + B;
     var x = function (i) { return LX + (i - H0) * (CW - LX - RX) / (N - 1); }, hw = (CW - LX - RX) / (N - 1) / 2, last = N0 - 1, xt = x(last);
-    var yv = A.y.slice(H0).filter(function (v) { return v != null; }).concat(UP, DN, [A.normY * (total ? -1 : 1)]), lo = Math.min.apply(null, yv), hi = Math.max.apply(null, yv), pad = Math.max(0.3, (hi - lo) * 0.12);
+    var yv = A.y.slice(H0).filter(function (v) { return v != null; }).concat(UP, DN, LO, HI, [A.normY * (total ? -1 : 1)]), lo = Math.min.apply(null, yv), hi = Math.max.apply(null, yv), pad = Math.max(0.3, (hi - lo) * 0.12);
     if (!total) { lo = Math.min(lo, -0.5); hi = Math.max(hi, 0.5); } lo -= pad; hi += pad;
     var ys = function (v) { return T + (hi - v) * PH / (hi - lo); }, px = A.x.slice(H0).concat([A.upX || 0]), pHi = Math.max(0.5, Math.max.apply(null, px)) * 1.12, yp = function (v) { return T + PH + GAP + (pHi - v) * PH / pHi; };
     var P = function (pts) { return pts.map(function (p, k) { return (k ? 'L' : 'M') + p[0].toFixed(1) + ' ' + p[1].toFixed(1); }).join(''); }, f1 = function (v) { return v.toFixed(1); };
     var normY = total ? -A.normY : A.normY, sm = A.sy.map(function (v) { return v == null ? null : total ? -v : v; });
     var o = '<svg class="trchart" viewBox="0 0 ' + CW + ' ' + H + '" role="img" aria-label="' + esc(A.name) + ': rounds and practice by week, and the forecast">';
-    SL.forEach(function (r) { var a = Math.max(r[0], H0), b = r[1]; if (b < H0) return; o += '<rect x="' + f1(x(a) - hw) + '" y="' + (T - 2) + '" width="' + f1(x(b) - x(a) + 2 * hw) + '" height="' + (PH * 2 + GAP + 4) + '" rx="6" class="trslip' + (r[2] ? ' exp' : '') + '"/>'; });
-    // v195: after a big change the dip is expected – amber, not red
+    // v195: after a big change a dip is expected (shaded in the lesson colour)
     (A.dips || []).forEach(function (d) { var a = Math.max(d.a, H0), b = Math.min(d.b, last + FW); if (b < H0 || a > b) return;
       o += '<rect x="' + f1(x(a) - hw) + '" y="' + (T - 2) + '" width="' + f1(x(b) - x(a) + 2 * hw) + '" height="' + (PH + 4) + '" rx="6" class="trdip"/>'; });
-    if (!early) o += '<rect x="' + f1(xt) + '" y="' + (T - 2) + '" width="' + f1(CW - RX - xt + 4) + '" height="' + (PH * 2 + GAP + 4) + '" class="trfuture' + (A.heading ? ' bad' : '') + '"/>';
-    if (A.heading) o += '<text x="' + f1(CW - RX) + '" y="' + (T + PH + GAP / 2 + 4) + '" text-anchor="end" class="trtag bad">heading below normal</text>';
-    else if (A.expected) o += '<text x="' + f1(CW - RX) + '" y="' + (T + PH + GAP / 2 + 4) + '" text-anchor="end" class="trtag exp">expected dip · ' + esc(String(A.expected).toLowerCase()) + '</text>';
+    if (!early) o += '<rect x="' + f1(xt) + '" y="' + (T - 2) + '" width="' + f1(CW - RX - xt + 4) + '" height="' + (PH * 2 + GAP + 4) + '" class="trfuture"/>';
+    if (A.expected) o += '<text x="' + f1(CW - RX) + '" y="' + (T + PH + GAP / 2 + 4) + '" text-anchor="end" class="trtag exp">expected dip · ' + esc(String(A.expected).toLowerCase()) + '</text>';
     // scale: whole strokes (half strokes when the range is small); the score in steps of 2 or 5
     var stp = total ? (hi - lo > 12 ? 5 : 2) : (hi - lo > 2.5 ? 1 : 0.5);
     for (var g = Math.ceil(lo / stp) * stp; g <= hi + 1e-9; g += stp) { var gy = f1(ys(g)), zero = !total && Math.abs(g) < 1e-9;
@@ -2541,11 +2541,13 @@
     if (early) { o += '<text x="' + (LX + 2) + '" y="' + (T + 10) + '" class="trpl">' + (total ? 'Score · lower is better' : 'Strokes gained / round') + '</text>'; }
     if (!early) {
     var st = [xt, ys(sm[last] != null ? sm[last] : (total ? A.formScore : A.form))], fut = function (arr) { return [st].concat(arr.map(function (v, k) { return [x(last + k + 1), ys(v)]; })); };
-    var U = fut(A.up), Dn = fut(A.dn), M = fut(A.fc);
-    if (A.link) o += '<path d="' + P(U) + Dn.slice().reverse().map(function (p) { return 'L' + f1(p[0]) + ' ' + f1(p[1]); }).join('') + 'Z" class="trband"/><path d="' + P(U) + '" class="trup"/><path d="' + P(Dn) + '" class="trdn"/>';
+    var U = fut(A.up), Dn = fut(A.dn), M = fut(A.fc), Hb = fut(HI), Lb = fut(LO);
+    // v196: the likely range, coloured by confidence; the 25% more / less practice paths as thin neutral lines
+    o += '<path d="' + P(Hb) + Lb.slice().reverse().map(function (p) { return 'L' + f1(p[0]) + ' ' + f1(p[1]); }).join('') + 'Z" class="trband ' + A.conf + '"/>';
+    if (A.link) o += '<path d="' + P(U) + '" class="trwhat"/><path d="' + P(Dn) + '" class="trwhat"/>';
     o += '<path d="' + P(M) + '" class="trmid"/>';
     var tag = function (p, t, c, dy) { return '<text x="' + f1(p[0] + 4) + '" y="' + f1(p[1] + 3.5 + dy) + '" class="trtag ' + c + '">' + t + '</text>'; }, pm = Math.round(A.dX * 60 / 5) * 5;
-    if (A.link) { var uT = U[U.length - 1], dT = Dn[Dn.length - 1], gap = Math.abs(uT[1] - dT[1]) < 20; o += tag(uT, '+' + pm + ' min', 'up', gap ? (uT[1] < dT[1] ? -5 : 5) : 0) + tag(dT, '−' + pm + ' min', 'down', gap ? (uT[1] < dT[1] ? 5 : -5) : 0); }
+    if (A.link) { var uT = U[U.length - 1], dT = Dn[Dn.length - 1], gap = Math.abs(uT[1] - dT[1]) < 20; o += tag(uT, '+' + pm + ' min', 'what', gap ? (uT[1] < dT[1] ? -5 : 5) : 0) + tag(dT, '−' + pm + ' min', 'what', gap ? (uT[1] < dT[1] ? 5 : -5) : 0); }
     else o += tag(M[M.length - 1], 'as now', '', 0);
     }
     o += '<line x1="' + f1(xt) + '" x2="' + f1(xt) + '" y1="' + (T - 4) + '" y2="' + (T + PH * 2 + GAP) + '" class="trtoday"/><text x="' + f1(xt + 3) + '" y="' + (T + 7) + '" class="trax">today</text>';
@@ -2557,7 +2559,7 @@
     var ph = []; for (var k = H0; k <= last; k++) ph.push([x(k), yp(A.sx[k])]); o += '<path d="' + P(ph) + '" class="trpr"/>';
     for (var q = H0; q <= last; q++) o += '<circle cx="' + f1(x(q)) + '" cy="' + f1(yp(A.x[q])) + '" r="2.4" class="trdotp"/>';
     var pf = function (v) { return [[xt, yp(A.sx[last])], [x(last + 1), yp(v)], [x(last + FW), yp(v)]]; };
-    if (A.link) o += '<path d="' + P(pf(A.upX)) + '" class="trup thin"/><path d="' + P(pf(A.dnX)) + '" class="trdn thin"/>';
+    if (A.link) o += '<path d="' + P(pf(A.upX)) + '" class="trwhat thin"/><path d="' + P(pf(A.dnX)) + '" class="trwhat thin"/>';
     if (!early) o += '<path d="' + P(pf(A.nowX)) + '" class="trprmid"/>';
     o += '<text x="' + (LX + 2) + '" y="' + (T + PH + GAP + 10) + '" class="trpl pr">Practice / week</text>';
     var lab = function (t) { return new Date(t).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }); }, step = Math.max(1, Math.round((N0 - H0) / 4));
