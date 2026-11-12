@@ -19,10 +19,8 @@ for (let i = 0; i < 6; i++) rounds.push(Object.assign(ARC.round(), { id: 'g' + i
     await page.reload(); await page.waitForSelector('#home');
     await page.click('#navbtn'); assert.ok(await page.$('#navmenu [data-act="mygame"]'), '☰ has My Game'); await page.$eval('.sheet-back', e => e.click()); await page.click('#plusbtn'); assert.ok(await page.$('#plusmenu [data-act="prlog"]'), '+ has Log practice'); await page.$eval('.sheet-back', e => e.click()); await page.click('#plusbtn');
     await page.click('#plusmenu [data-act="prlog"]'); await page.waitForSelector('#prsheet');
-    assert.ok(await page.$('#mgplus') && await page.$('#prplus'), 'v183: + menu in the top bar and a + on My Practice'); await page.click('[data-act="prcancel"]'); assert.strictEqual(await page.$('#prsheet'), null);
-    await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight)); await page.click('#mgplus'); assert.deepStrictEqual(await page.$$eval('#mgmenu button', e => e.map(x => [x.textContent, x.dataset.act])), [['Log practice', 'prlog'], ['Short game test', 'sgtnew']]);
-    await page.click('#mgmenu [data-act="prlog"]'); await page.waitForSelector('#prsheet'); assert.strictEqual(await page.$('#mgmenu'), null, 'menu closes');
-    await page.click('[data-act="prcancel"]'); await page.click('#prplus'); await page.waitForSelector('#prsheet');
+    assert.ok(await page.$('#mygame') && await page.$('#prplus') && !(await page.$('#mgplus')), 'v194: the + on My Practice (no + menu)'); await page.click('[data-act="prcancel"]'); assert.strictEqual(await page.$('#prsheet'), null);
+    await page.click('#prplus'); await page.waitForSelector('#prsheet');
     const bar = await page.evaluate(() => [document.querySelector('#mygame .topbar').getBoundingClientRect().bottom, document.querySelector('.prhead').getBoundingClientRect().top]);
     assert.ok(bar[1] >= bar[0], 'sheet title below the top bar ' + bar);
     await page.click('[data-act="prspoke"][data-v="irons"]');
@@ -47,6 +45,7 @@ for (let i = 0; i < 6; i++) rounds.push(Object.assign(ARC.round(), { id: 'g' + i
     assert.strictEqual(await page.textContent('#prlogged'), 'Last 3 months: 1 h in 1 session logged.');
     assert.ok(await page.$('#prcard .pbench'), 'benchmark ring drawn');
     assert.ok(await page.$('#prcard .pcur'), 'practice shape drawn');
+    assert.strictEqual(await page.$('#prlist'), null, 'v194: the list is on the Practice page'); await page.click('#pbgopractice'); await page.waitForSelector('#practicepage');
     assert.strictEqual(await page.$$eval('#prlist .pritem', x => x.length), 3);
     ok('saved per player; My Practice: 1 h in 1 session, chipping 50%, 3 recent entries');
     assert.strictEqual(await page.textContent('#prvshead'), 'Practice more irons 100+');
@@ -56,6 +55,7 @@ for (let i = 0; i < 6; i++) rounds.push(Object.assign(ARC.round(), { id: 'g' + i
     assert.strictEqual(await page.evaluate(() => document.documentElement.scrollWidth <= 390), true, 'no sideways scroll');
     await page.click('#prlist .prx'); assert.strictEqual(await page.$$eval('#prlist .pritem', x => x.length), 2);
     ok('× removes an entry');
+    await page.click('#pbprlog'); await page.waitForSelector('#prsheet'); assert.ok(await page.$('#practicepage'), 'Log practice stays on the Practice page'); await page.click('[data-act="prcancel"]'); await page.click('#prback'); await page.waitForSelector('#mygame');
     // Log this drill from the newest round's takeaway
     await (async () => { if (await page.$('#holemore') && !(await page.$('#holemenu'))) await page.click('#holemore'); return page.click('[data-act="home"]'); })() /* v188: Home + Discard are in ⋯ during a round */; await page.click('#navbtn'); await page.click('#navmenu [data-act="history"]');
     await page.click('#histlist [data-act="open"][data-id="g0"]'); await page.waitForSelector('#prdrill');

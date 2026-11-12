@@ -260,17 +260,13 @@
       var s = S(), test = byId(s.id); if (!test) { s.mode = 'hub'; return hubHTML(); }
       var A = analysed(test, s.who), I = A.I, n = T.entered(test), cond = [test.cond.green ? test.cond.green + ' greens' : '', test.cond.wind].filter(Boolean).join(', ');
       // v193 (Scott): ☰ – Tests, Make PDF, Trend
-      var h = '<div class="frostpage theme-sky sgtpage sgtres" id="sgtresult">' + top('<button class="txt frostbtn" data-act="sgthub" id="sgthubbtn">‹ Tests</button>', 'Test result', dLong(test.date),
-        '<button class="frostbtn sgtmenubtn" data-act="sgtmenu" id="sgtmenubtn" aria-label="Menu: tests, make PDF, trend" aria-expanded="' + !!s.menu + '">' + MENU_IC + '</button>');
-      if (s.menu) h += '<div class="sheet-back sgtback" data-act="sgtmenu"></div><div class="hsheet glass sgtmenu" id="sgtmenu" role="menu"><button class="sheet-item" role="menuitem" data-act="sgthub">Tests</button>' +
-        '<button class="sheet-item" role="menuitem" data-act="sgtpdf" id="sgtpdf">Make PDF</button><button class="sheet-item" role="menuitem" data-act="sgttrend" id="sgttrendbtn">Trend</button></div>';
+      // v194 (Scott): the bottom bar has History · Trend · Report · New test (no ☰)
+      var h = '<div class="frostpage theme-sky sgtpage sgtres" id="sgtresult">' + top('<button class="txt frostbtn" data-act="mygame" id="sgthubbtn">‹ My Game</button>', 'Test', dLong(test.date));
       h += env.pdfPanel ? env.pdfPanel() : '';
       h += '<div class="sgtcard frost" id="sgtverdict"><h2 id="sgthead">' + esc(I.headline) + '</h2><p id="sgtsub">' + esc(I.sub) + '</p>' +
         '<p class="sgtnote">' + esc(s.who ? s.who + ' · ' : '') + esc('compared with ' + A.blName) + (cond ? ' · ' + esc(cond) : '') + (n < T.totalOf(test) ? ' · ' + n + ' of ' + T.totalOf(test) + ' shots entered' : '') + '</p>' +
         T.spiderSVG(overallSpokes(A), { aria: 'Short game shape' }) + T.spiderKey(A.cmp.cats.putting.avgIndex != null, A.blName) + barsHTML(overallSpokes(A), blShort(A.bl) + ' level', 'sgtbars-all') +
         '<p class="sgtnote">Each spoke is strokes gained per shot against ' + esc(A.blName) + ': on the line is level, inside it is losing strokes.' + (A.cmp.tests < 2 ? ' Your average appears as a dashed shape from your third test.' : '') + '</p></div>';
-      if (I.plan.length) h += '<div class="sgtcard sgtplan" id="sgtplan"><p class="sgteyebrow">Practice this month</p>' + I.plan.map(function (p, k) { return '<div><b>' + (k + 1) + '. ' + esc(p.title) + '</b><em>' + esc(p.why) + '</em><span>' + esc(p.drill) + '</span></div>'; }).join('') + '</div>';
-      if (I.coach.length) h += '<div class="sgtcard frost sgtcoach" id="sgtcoach"><p class="sgteyebrow">Ask your coach</p>' + I.coach.map(function (c) { return '<div><b>' + esc(c.text) + '</b><span>' + esc(c.ask) + '</span></div>'; }).join('') + '</div>';
       T.CATS.forEach(function (c) {
         var x = A.cur.cats[c.k], skills = T.SKILLS.filter(function (sk) { return sk.cat === c.k; }), any = skills.some(function (sk) { return A.cur.skills[sk.k].value != null; });
         h += '<div class="sgtcard frost sgtcat" id="sgtcat-' + c.k + '"><div class="sgtcath"><h2>' + esc(c.name) + '</h2><span>' + (x.sg == null ? '' : (x.sg >= 0 ? '+' : '') + x.sg.toFixed(2) + ' strokes a shot') + '</span></div>';
@@ -292,6 +288,8 @@
         else if (s.open && skills.some(function (sk) { return sk.k === s.open; })) { var osk = skills.filter(function (sk) { return sk.k === s.open; })[0]; h += '<div class="sgtrows">' + rowHTML(A, osk, true) + '</div>'; } // the tapped bar's history
         h += '</div>';
       });
+      if (I.plan.length) h += '<div class="sgtcard sgtplan" id="sgtplan"><p class="sgteyebrow">Practice this month</p>' + I.plan.map(function (p, k) { return '<div><b>' + (k + 1) + '. ' + esc(p.title) + '</b><em>' + esc(p.why) + '</em><span>' + esc(p.drill) + '</span></div>'; }).join('') + '</div>';
+      if (I.coach.length) h += '<div class="sgtcard frost sgtcoach" id="sgtcoach"><p class="sgteyebrow">Ask your coach</p>' + I.coach.map(function (c) { return '<div><b>' + esc(c.text) + '</b><span>' + esc(c.ask) + '</span></div>'; }).join('') + '</div>';
       h += '<p class="sgtnote sgtfootnote">Tap a skill to see every test. A skill is marked Down when it is worse than your usual by more than its normal wobble, and Slipping when it has dropped two tests in a row.</p>';
       if (!test.done || n < T.totalOf(test)) h += '<button class="frostbtn big" data-act="sgtresume" data-v="' + esc(test.id) + '">Add the missing shots</button>';
       // v170 (Scott): a plain way to delete a test from its result page (the × on All tests was easy to miss)
@@ -342,23 +340,28 @@
       var s = S(), done = mine(s.who).filter(function (t) { return t.done; }).slice().reverse(), back = s.id ? 'sgtview' : 'sgthub';
       var h = '<div class="frostpage theme-sky sgtpage sgttrend" id="sgttrend">' + top('<button class="txt frostbtn" data-act="' + back + '" data-v="' + esc(s.id || '') + '" id="sgttrendback">‹ ' + (s.id ? 'Result' : 'Tests') + '</button>', 'Trend', (s.who ? s.who + ' · ' : '') + done.length + ' test' + (done.length === 1 ? '' : 's'));
       if (done.length < 2) return h + '<div class="sgtcard frost"><p class="sgtmnone">Take another test to see a trend – each area is plotted test by test.</p></div></div>';
-      var pts = done.map(function (t) { return { t: t, sp: overallSpokes(analysed(t, s.who)) }; }), bl = blShort(analysed(done[done.length - 1], s.who).bl);
-      h += '<p class="sgttrendlede">Each area\'s level test by test – 100 = ' + esc(bl) + ' level. Green 90+, amber 75–90, red below.</p>';
-      T.CATS.forEach(function (c, ci) {
-        var ys = pts.map(function (p) { return p.sp[ci].index; }), have = ys.filter(function (v) { return v != null; });
-        if (!have.length) return;
-        var lo = Math.min(60, Math.min.apply(null, have) - 5), hi = Math.max(120, Math.max.apply(null, have) + 5), W = 320, H = 110, L = 32, R = 24, TP = 10, B = 22;
-        var x = function (i) { return L + (pts.length === 1 ? 0 : i * (W - L - R) / (pts.length - 1)); }, y = function (v) { return TP + (hi - v) * (H - TP - B) / (hi - lo); };
-        var line = '', dots = '', lab = '';
-        ys.forEach(function (v, i) { if (v == null) return; line += (line ? 'L' : 'M') + x(i).toFixed(1) + ' ' + y(v).toFixed(1); dots += '<circle cx="' + x(i).toFixed(1) + '" cy="' + y(v).toFixed(1) + '" r="4.5" class="tr' + tierOf(v) + '"/>'; });
-        pts.forEach(function (p, i) { if (pts.length <= 6 || i === 0 || i === pts.length - 1 || i % Math.ceil(pts.length / 5) === 0) lab += '<text x="' + x(i).toFixed(1) + '" y="' + (H - 6) + '" text-anchor="middle" class="trax">' + esc(dShort(p.t.date)) + '</text>'; });
-        var first = have[0], last = have[have.length - 1], d = Math.round(last - first);
-        h += '<div class="sgtcard frost trcard" data-cat="' + c.k + '"><div class="trhead"><b>' + esc(c.name) + '</b><span class="tr' + tierOf(last) + 't">' + Math.round(last) + '</span>' +
-          (have.length > 1 ? '<em class="' + (d >= 5 ? 'up' : d <= -5 ? 'down' : '') + '">' + (d > 0 ? '▲ ' : d < 0 ? '▼ ' : '') + (d ? Math.abs(d) + ' since ' + esc(dShort(pts[ys.indexOf(first)].t.date)) : 'steady') + '</em>' : '') + '</div>' +
-          '<svg viewBox="0 0 ' + W + ' ' + H + '" class="trsvg" role="img" aria-label="' + esc(c.name) + ' by test">' +
-          '<line x1="' + L + '" x2="' + (W - R) + '" y1="' + y(100).toFixed(1) + '" y2="' + y(100).toFixed(1) + '" class="trbench"/><text x="' + (L - 4) + '" y="' + (y(100) + 3.5).toFixed(1) + '" text-anchor="end" class="trax">100</text>' +
-          '<line x1="' + L + '" x2="' + (W - R) + '" y1="' + y(90).toFixed(1) + '" y2="' + y(90).toFixed(1) + '" class="trgrid"/><line x1="' + L + '" x2="' + (W - R) + '" y1="' + y(75).toFixed(1) + '" y2="' + y(75).toFixed(1) + '" class="trgrid"/>' +
-          '<path d="' + line + '" class="trline"/>' + dots + lab + '</svg></div>';
+      // v194 (Scott): one simple line per test station, test by test; up is always better (distances are drawn upside down)
+      var As = done.map(function (t) { return analysed(t, s.who); });
+      h += '<p class="sgttrendlede">Each station test by test – up is better. Dots: green near ' + esc(blShort(As[As.length - 1].bl)) + ' level, amber behind, red well behind.</p>';
+      T.CATS.forEach(function (c) {
+        var skills = T.SKILLS.filter(function (sk) { return sk.cat === c.k; }), cards = '';
+        skills.forEach(function (sk) {
+          var vals = As.map(function (A) { var v = A.cur.skills[sk.k]; return v && v.value != null ? v.value : null; }), have = vals.filter(function (v) { return v != null; });
+          if (!have.length) return;
+          var low = sk.better === 'low', lo = Math.min.apply(null, have), hi = Math.max.apply(null, have), pad = Math.max((hi - lo) * 0.2, sk.unit === 'made' ? 1 : 0.5);
+          lo = Math.max(0, lo - pad); hi = hi + pad; if (sk.unit === 'made') { lo = Math.floor(lo); hi = Math.min(Math.ceil(hi), sk.of || 10); if (hi - lo < 2) lo = Math.max(0, hi - 2); }
+          var W = 320, H = 96, L = 32, R = 24, TP = 10, B = 22, x = function (i) { return L + (As.length === 1 ? (W - L - R) / 2 : i * (W - L - R) / (As.length - 1)); };
+          var y = function (v) { var f = (v - lo) / (hi - lo || 1); return TP + (low ? f : 1 - f) * (H - TP - B); }, line = '', dots = '', lab = '';
+          vals.forEach(function (v, i) { if (v == null) return; line += (line ? 'L' : 'M') + x(i).toFixed(1) + ' ' + y(v).toFixed(1);
+            dots += '<circle cx="' + x(i).toFixed(1) + '" cy="' + y(v).toFixed(1) + '" r="4.5" class="tr' + (tierOf(T.indexOf(As[i].cur, As[i].cmp, sk.k)) || 'a') + '"/>'; });
+          As.forEach(function (A, i) { if (As.length <= 6 || i === 0 || i === As.length - 1 || i % Math.ceil(As.length / 5) === 0) lab += '<text x="' + x(i).toFixed(1) + '" y="' + (H - 6) + '" text-anchor="middle" class="trax">' + esc(dShort(done[i].date)) + '</text>'; });
+          var axis = [lo, hi].map(function (v) { return '<text x="' + (L - 5) + '" y="' + (y(v) + 3.5).toFixed(1) + '" text-anchor="end" class="trax">' + esc(sk.unit === 'made' ? String(Math.round(v)) : T.fmtNum(sk, v) + (sk.unit === 'ft' ? 'ft' : '')) + '</text>'; }).join('');
+          var first = have[0], last = have[have.length - 1], d = last - first, good = low ? d < 0 : d > 0, unit = sk.unit === 'ft' ? ' ft' : sk.unit === 'balls' ? ' balls' : '';
+          var ch = have.length < 2 || Math.abs(d) < (sk.unit === 'ft' ? 0.3 : 0.5) ? 'steady' : (good ? '▲ ' : '▼ ') + T.fmtNum(sk, Math.abs(d)) + unit + (sk.unit === 'ft' ? (good ? ' closer' : ' further') : good ? ' more' : ' fewer');
+          cards += '<div class="trrow" data-sk="' + sk.k + '"><div class="trhead"><b>' + esc(sk.name) + '</b><span>' + esc(T.fmtVal(sk, As[As.length - 1].cur.skills[sk.k]).replace(' away', '')) + '</span><em class="' + (ch === 'steady' ? '' : good ? 'up' : 'down') + '">' + esc(ch) + '</em></div>' +
+            '<svg viewBox="0 0 ' + W + ' ' + H + '" class="trsvg" role="img" aria-label="' + esc(sk.name) + ' by test">' + axis + '<path d="' + line + '" class="trline"/>' + dots + lab + '</svg></div>';
+        });
+        if (cards) h += '<div class="sgtcard frost trcard" data-cat="' + c.k + '"><h2 class="trcat">' + esc(c.name) + '</h2>' + cards + '</div>';
       });
       return h + '</div>';
     }
@@ -462,6 +465,7 @@
     function finish(test) { var s = S(); test.done = true; put(test); s.mode = 'result'; s.id = test.id; s.open = null; env.toast('Test saved'); env.render(); window.scrollTo(0, 0); }
     // Enter in the feet box = Save on the stations that have a plain Save
     function key(ev) { if (ev.key !== 'Enter' || !ev.target || ev.target.id !== 'sgtft') return; var s = S(), st = T.STATIONS[s.st]; if (st && (st.kind === 'leave' || st.kind === 'bunker')) { ev.preventDefault(); act('sgtsave', ''); } }
-    return { html: html, act: act, cardHTML: cardHTML, key: key, reportData: reportData, testFlags: testFlags };
+    function trendTests(who) { return mine(who).filter(function (t) { return t.done; }).map(function (t) { var A = analysed(t, who), p = {}; T.CATS.forEach(function (c) { var x = A.cur.cats[c.k]; p[c.k] = x && x.sg != null ? x.sg : null; }); return { date: t.date, perShot: p }; }); } // v194
+    return { html: html, act: act, cardHTML: cardHTML, key: key, reportData: reportData, testFlags: testFlags, trendTests: trendTests };
   };
 })(this);

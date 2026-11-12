@@ -27,11 +27,9 @@ function make(id, date, q) { const t = T.blank(id, date, 'Scott', 'scm');
   await page.reload();
   const shot = async (n, full) => page.screenshot({ path: OUT + '/' + n + '.png', fullPage: !!full });
   await page.click('#plusbtn'); assert.ok(await page.$('[data-act="sgtopen"]'), 'menu item under +'); await page.$eval('.sheet-back', e => e.click()); await page.click('#navbtn'); await page.click('.sheet-item[data-act="mygame"]');
-  await page.waitForSelector('#sgtmg'); await page.locator('#sgtmg').scrollIntoViewIfNeeded(); await shot('01-mygame-card');
-  // v174: opening goes to the tests page; the intro runs when a test is STARTED (a refresher – no skip, Back returns to Tests)
-  // v183: no Open button – the card lists the last 4 tests (tap = result) and its + goes straight into the intro; Back returns to My Game
-  assert.strictEqual(await page.$('#sgtopen'), null); if (!process.env.EMPTY) assert.strictEqual(await page.$$eval('#sgtmlist .sgtmrow', e => e.length), 3);
-  await page.click('#sgtnew'); await page.waitForSelector('#sgtintro'); assert.ok(await page.$('#sgtintroback')); await page.click('#sgtintroback'); await page.waitForSelector('#sgtmg');
+  await page.waitForSelector('#mygame'); assert.strictEqual(await page.$('#sgtmg'), null, 'v194: no short game test card on My Game'); await shot('01-mygame');
+  // v194: My Game's bar › Tests opens the last test (or the Tests page); ‹ My Game returns
+  await page.click('#pbsgtlast'); await page.waitForSelector(process.env.EMPTY ? '#sgtest' : '#sgtresult'); await page.locator('[data-act="mygame"]').first().click(); await page.waitForSelector('#mygame');
   await (async () => { if (await page.$('#holemore') && !(await page.$('#holemenu'))) await page.click('#holemore'); return page.click('[data-act="home"]'); })() /* v188: Home + Discard are in ⋯ during a round */; await page.waitForSelector('#home'); await page.click('#plusbtn'); await page.click('.sheet-item[data-act="sgtopen"]');
   await page.waitForSelector('#sgtest'); assert.ok(!(await page.$('#sgtintro'))); await shot('02-hub', true);
   await page.click('#sgtintroopen'); await page.waitForSelector('#sgtintro'); assert.ok(await page.$('#sgtintroskip'), 'the link keeps Skip intro'); await page.click('#sgtintroskip'); await page.waitForSelector('#sgtest');
@@ -107,7 +105,7 @@ function make(id, date, q) { const t = T.blank(id, date, 'Scott', 'scm');
   // v168: nothing in a result row runs past its tile (long benchmark names did)
   const spill = await page.evaluate(() => [...document.querySelectorAll('.sgtrow')].filter(r => { const card = r.closest('.sgtcard') || r.parentElement, cr = card.getBoundingClientRect(); return [...r.querySelectorAll('*')].some(e => e.getBoundingClientRect().right > cr.right - 4); }).map(r => r.textContent.slice(0, 40)));
   assert.deepStrictEqual(spill, [], 'result rows stay inside their tile');
-  await page.click('#sgthubbtn'); await shot('14-hub-after', true);
+  await page.click('#pbsgthub'); await page.waitForSelector('#sgthist'); await shot('14-hub-after', true);
   // v170 (Scott): delete a test from its result page
   const nBefore = await page.locator('#sgthist .sgthrow').count();
   await page.click('#sgthist .sgthrow:last-child .sgthopen'); await page.locator('#sgtdelres').scrollIntoViewIfNeeded(); await shot('15-delete-button');

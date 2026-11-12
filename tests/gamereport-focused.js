@@ -49,8 +49,9 @@ function make(id, date, q) { const t = T.blank(id, date, 'Scott', 'd1w');
   assert.match(await page.textContent('#mgcvt [data-k="putting"]'), /fine in both · test: downhill putts down on your usual|test below the benchmark/, 'putting gains on the course (+0.4); the test only notes the downhill slip');
   assert.ok((await page.$$('#mgcvt .cvtr')).length === 4);
   await page.click('#mgperiod [data-v="3m"]');
+  const openReport = async () => { if (!(await page.$('#practicepage'))) await page.click('#pbgopractice'); await page.waitForSelector('#practicepage'); await page.click('#pbgrep'); }; // v194: Report is on the Practice page's bar
   // 1. the button and the sheet: coach preset ticks everything
-  assert.strictEqual(await page.$('#grbtn'), null, 'v183: no report button on the page'); await page.click('#mgnav'); await page.click('#mgnavmenu [data-act="grep"]'); await page.waitForSelector('#grsheet');
+  assert.strictEqual(await page.$('#grbtn'), null, 'v183: no report button on the page'); await openReport(); await page.waitForSelector('#grsheet');
   assert.deepStrictEqual(await page.$$eval('#grparts .grpart', e => e.map(b => b.getAttribute('aria-pressed'))), ['true', 'true', 'true', 'true']);
   await page.locator('#grsheet').scrollIntoViewIfNeeded(); await page.screenshot({ path: OUT + '/gr-sheet.png' });
   const make1 = async () => { await page.click('#grgo'); await page.waitForSelector('#pdfname'); return page.evaluate(async () => { const p = window.__golf.lastPdf; return { name: p.name, pages: p.pages, L: p.layout, b: Array.from(new Uint8Array(await p.blob.arrayBuffer())) }; }); };
@@ -66,25 +67,27 @@ function make(id, date, q) { const t = T.blank(id, date, 'Scott', 'd1w');
   if (process.env.SHOTS) execSync('pdftoppm -r 60 -png ' + f + ' ' + OUT + '/gr-coach');
   await page.screenshot({ path: OUT + '/gr-ready.png' });
   // 2. recruiting: results only – no practice minutes, no plan
-  await page.click('[data-act="pdfclose"]'); await page.click('#mgnav'); await page.click('#mgnavmenu [data-act="grep"]'); await page.click('#grprecruit');
+  await page.click('[data-act="pdfclose"]'); await openReport(); await page.click('#grprecruit');
   assert.deepStrictEqual(await page.$$eval('#grparts .grpart', e => e.map(b => b.getAttribute('aria-pressed'))), ['true', 'false', 'true', 'false']);
   const R = await make1(), rall = R.L.text.map(t => t.t).join('\n');
   assert.ok(R.pages < C.pages, 'shorter'); assert.ok(!rall.includes('My Practice') && !rall.includes('Practice plan') && !rall.includes('PRACTICE'), 'no practice in the recruiting copy');
   assert.ok(rall.includes('Short game test - ') && rall.includes('My Game - '));
   if (process.env.SHOTS) { fs.writeFileSync(OUT + '/game-report-recruit.pdf', Buffer.from(R.b)); }
   // 3. nothing ticked: a toast, no PDF
-  await page.click('[data-act="pdfclose"]'); await page.click('#mgnav'); await page.click('#mgnavmenu [data-act="grep"]'); for (const k of ['game', 'practice', 'test', 'plan']) await page.click('[data-act="grpart"][data-v="' + k + '"]');
+  await page.click('[data-act="pdfclose"]'); await openReport(); for (const k of ['game', 'practice', 'test', 'plan']) await page.click('[data-act="grpart"][data-v="' + k + '"]');
   await page.click('#grgo'); assert.ok(await page.$('#grsheet'), 'the sheet stays open');
   // v193 (Scott): My Game ☰ › Tests opens the last test; the test's ☰ has Tests, Make PDF, Trend
-  await page.evaluate(() => { window.scrollTo(0, 0); }); if (!(await page.$('#mygame'))) { await page.click('#navbtn'); await page.click('#navmenu [data-act="mygame"]'); await page.waitForSelector('#mygame'); }
-  await page.click('#mgnav'); assert.deepStrictEqual(await page.$$eval('#mgnavmenu .sheet-item', e => e.map(x => x.textContent)), ['Tests', 'Make a game report', 'Home']);
-  await page.click('#mgnavmenu [data-act="sgtlast"]'); await page.waitForSelector('#sgtresult'); assert.match(await page.textContent('#sgtresult .topbar'), /Test result/);
-  await page.click('#sgtmenubtn'); assert.deepStrictEqual(await page.$$eval('#sgtmenu .sheet-item', e => e.map(x => x.textContent)), ['Tests', 'Make PDF', 'Trend']);
-  await page.click('#sgttrendbtn'); await page.waitForSelector('#sgttrend'); assert.ok((await page.$$eval('.trcard', e => e.length)) >= 3, 'one chart per area');
-  assert.strictEqual(await page.$$eval('.trcard[data-cat="putting"] .trsvg circle', e => e.length), tests.length, 'one point per test');
-  await page.click('#sgttrendback'); await page.waitForSelector('#sgtresult'); await page.click('#sgtmenubtn'); await page.click('#sgtpdf');
+  await page.evaluate(() => { window.scrollTo(0, 0); }); await page.$eval('[data-act="grclose"]', e => e.click());
+  await page.click('#prback'); await page.waitForSelector('#mygame');
+  assert.deepStrictEqual(await page.$$eval('#pagebar .rbbtn span', e => e.map(x => x.textContent)), ['Tests', 'Practice', 'Trends', 'Stats'], 'v194: My Game bar');
+  await page.click('#pbsgtlast'); await page.waitForSelector('#sgtresult'); assert.match(await page.textContent('#sgtresult .topbar'), /Test/);
+  assert.strictEqual(await page.$('#sgtmenubtn'), null, 'no ☰ on the test'); assert.deepStrictEqual(await page.$$eval('#pagebar .rbbtn span', e => e.map(x => x.textContent)), ['History', 'Trend', 'Report', 'New test']);
+  await page.click('#pbsgttrend'); await page.waitForSelector('#sgttrend'); assert.ok((await page.$$eval('.trcard', e => e.length)) >= 3, 'one card per area');
+  assert.ok((await page.$$eval('.trcard[data-cat="putting"] .trrow', e => e.length)) >= 2, 'one line per station');
+  assert.strictEqual(await page.$$eval('.trcard[data-cat="putting"] .trrow:first-of-type .trsvg circle', e => e.length), tests.length, 'one point per test');
+  await page.click('#sgttrendback'); await page.waitForSelector('#sgtresult'); await page.click('#pbsgtpdf');
   await page.waitForFunction(() => window.__golf.lastPdf && window.__golf.lastPdf.kind === 'game' && !window.__golf.lastPdf.busy, null, { timeout: 120000 }); assert.ok(await page.$('#sgtresult [data-act="pdfshare"], #sgtresult .pdfsheet'), 'PDF panel on the test page');
-  await page.click('#sgtmenubtn'); await page.click('#sgtmenu [data-act="sgthub"]'); await page.waitForSelector('#sgtest'); console.log('  ✓ My Game ☰ › Tests; test ☰: Tests, Make PDF, Trend');
+  await page.click('[data-act="pdfclose"]').catch(() => {}); await page.click('#pbsgthub'); await page.waitForSelector('#sgtest'); console.log('  ✓ v194: My Game bar › Tests; test bar: History, Trend, Report, New test');
   assert.deepStrictEqual(errors, []); assert.deepStrictEqual(outside, [], 'no outside requests');
   console.log('coach', C.pages, 'pages · recruiting', R.pages, 'pages');
   await browser.close(); if (srv) srv.kill(); console.log('PASS gamereport-focused');

@@ -219,6 +219,8 @@
     else if (view.screen === 'bag') el.innerHTML = bagHTML();
     else if (view.screen === 'help') el.innerHTML = helpHTML(); // v128
     else if (view.screen === 'mygame') el.innerHTML = myGameHTML(); // v141
+    else if (view.screen === 'practice') el.innerHTML = practicePageHTML(); // v194
+    else if (view.screen === 'trends') el.innerHTML = trendsHTML(); // v194
     else if (view.screen === 'sgtest') el.innerHTML = SGTUI.html(); // v166
     else if (view.screen === 'profile') { view.screen = 'archive'; el.innerHTML = archiveHTML(); } // v102: old Profile → Settings
     else if (view.screen === 'wedges') el.innerHTML = wedgesHTML();
@@ -235,7 +237,9 @@
     if (view.screen !== 'hole') { view.holeMenu = false; view.exitAsk = false; }
     if (view.screen !== 'summary') view.rsMenu = null;
     var rbOn = liveOn(); if (rbOn) { if (entryHoleOn()) view.entryHole = view.hole; el.insertAdjacentHTML('beforeend', roundBarHTML() + (view.exitAsk && view.screen === 'hole' ? exitAskHTML() : '')); }
-    document.body.classList.toggle('hasrbar', rbOn);
+    // v194 (Scott): a bottom bar on My Game, Practice and the test result – the round bar wins during a round
+    var pb = rbOn ? '' : pageBarHTML(); if (pb) el.insertAdjacentHTML('beforeend', pb);
+    document.body.classList.toggle('hasrbar', rbOn || !!pb);
   }
   // v123: on the round-page map sheets, long legend sentences without a symbol ("Rings = feet from the hole…") move under the legend as a note, which infoize() puts behind ⓘ
   function legendNotes(root) {
@@ -2264,33 +2268,20 @@
   function myGameHTML() {
     var names = mgPlayers(), who = mgWho(), D = mgData(who), P = D.period;
     var h = '<div class="frostpage theme-sky mygamepage" id="mygame"><div class="topbar frost">' + (view.mgBack ? '<button class="txt frostbtn" data-act="mgback" id="mgback">‹ Round</button>' : '<button class="txt frostbtn" data-act="home">‹ Home</button>') + '<div class="title"><b>My Game</b><span>' +
-      (who ? esc(who) + ' · ' : '') + D.cur.rounds + ' round' + (D.cur.rounds === 1 ? '' : 's') + '</span></div><span class="tbbtns"><button class="glass plusbtn mgplus mgnav" data-act="mgnav" id="mgnav" aria-label="Menu: make a game report or go Home" aria-expanded="' + (view.mgMenu === 'nav') + '">' + ICON_MENU + '</button>' +
-      '<button class="glass plusbtn mgplus" data-act="mgplus" id="mgplus" aria-label="Start: log practice or the short game test" aria-expanded="' + (view.mgMenu === 'plus') + '">+</button></span></div>';
-    // v183 (Scott): the page's actions live in a + menu like Home's
-    // v191: + starts something (practice, a test); ☰ holds the rest (game report, Home)
-    if (view.mgMenu === 'plus') h += '<div class="sheet-back mgback" data-act="mgplus"></div><div class="hsheet glass mgmenu" id="mgmenu" role="menu"><button class="sheet-item" role="menuitem" data-act="prlog">Log practice</button>' +
-      '<button class="sheet-item" role="menuitem" data-act="sgtnew">Short game test</button></div>';
-    else if (view.mgMenu === 'nav') h += '<div class="sheet-back mgback" data-act="mgnav"></div><div class="hsheet glass mgmenu" id="mgnavmenu" role="menu"><button class="sheet-item" role="menuitem" data-act="sgtlast">Tests</button><button class="sheet-item" role="menuitem" data-act="grep">Make a game report</button>' +
-      '<button class="sheet-item" role="menuitem" data-act="home">Home</button></div>';
+      (who ? esc(who) + ' · ' : '') + D.cur.rounds + ' round' + (D.cur.rounds === 1 ? '' : 's') + '</span></div><span class="tbsp"></span></div>'; // v194: no ☰ / + – the bottom bar has Tests · Practice · Trends · Stats
     if (names.length > 1) h += '<div class="hchips" id="mgchips" role="group" aria-label="Player">' + names.map(function (nm) {
       var on = nm === who; return '<button class="frostchip' + (on ? ' sel' : '') + '" data-act="mgplayer" data-v="' + esc(nm) + '" aria-pressed="' + on + '">' + esc(nm) + '</button>'; }).join('') + '</div>';
     // v178 (Scott): My benchmark at the top – red until it is set, with a one-tap "use this one"
-    var bset = benchSet(who);
-    h += '<div class="glass mgblcard' + (bset ? '' : ' unset') + '" id="mgblcard">' + (bset ? '' : '<p class="mgblt"><i class="bang" aria-hidden="true">!</i>Set ' + (samePlayer(who, playerName()) ? 'your' : esc(who) + '’s') + ' benchmark – who should every shot be compared with?</p>') +
+    var bset = benchSet(who), blCard = '<div class="glass mgblcard' + (bset ? '' : ' unset') + '" id="mgblcard">' + (bset ? '' : '<p class="mgblt"><i class="bang" aria-hidden="true">!</i>Set ' + (samePlayer(who, playerName()) ? 'your' : esc(who) + '’s') + ' benchmark – who should every shot be compared with?</p>') +
       '<label class="mgbl">My benchmark ' + blSelect('mgbl', D.baseline) + '</label>' + (bset ? '' : '<button class="primary" data-act="mgblok" data-v="' + esc(D.baseline) + '" id="mgblok">Use ' + esc(blName(D.baseline)) + '</button>') +
       '<p class="help muted mgblhelp">Used everywhere: new rounds, My Game, the short game test and the reports.</p></div>';
+    if (!bset) h += blCard; // v194: red at the top until it's set, then down at the bottom
     h += '<div class="stseg mgseg" id="mgperiod" role="group" aria-label="Time frame">' + MYGAME.PERIODS.map(function (x) {
       var on = x.id === P.id; return '<button class="' + (on ? 'sel' : '') + '" data-act="mgperiod" data-v="' + x.id + '" aria-pressed="' + on + '">' + x.name.replace('Last ', '') + '</button>'; }).join('') + '</div>' +
       // v176 (Scott): or the last 2, 3 or 4 rounds – e.g. just a tournament
       '<div class="stseg mgseg mgrseg" id="mgrounds" role="group" aria-label="Last rounds"><span>Last rounds</span>' + MYGAME.ROUND_COUNTS.map(function (n) { var on = P.id === 'r' + n;
         return '<button class="' + (on ? 'sel' : '') + '" data-act="mgperiod" data-v="r' + n + '" aria-pressed="' + on + '">' + n + '</button>'; }).join('') + '</div>';
     h += prSheetHTML(who) + grSheetHTML() + (view.pdf && view.pdf.kind === 'game' ? pdfHTML() : ''); // v183: opened from the + menu
-    h += '<div class="mgchart frost"><h2 id="mghead">' + esc(D.headline) + '</h2><p id="mglede">' + esc(D.lede) + '</p>' +
-      MYGAME.radarSVG(D.cur, D.prev, { R: 96, aria: 'Game shape, ' + P.name }) +
-      mgKnowHTML(D) +
-      '<div class="mglegend"><span><i class="lc"></i>' + esc(P.name) + '</span>' + (D.prev ? '<span><i class="lp"></i>' + esc(D.prevLabel) + '</span>' : '') +
-      '<span><i class="lb"></i>' + esc(D.baselineName) + '</span>' + (D.cur.spokes.some(function (x) { return x.value != null && !x.solid; }) ? '<span><i class="ll"></i>Still learning</span>' : '') + '</div>' +
-      '</div>';
     var T = D.cur.tiles, Q = D.prev && D.prev.tiles;
     var tile = function (id, label, v, pv, f, better) {
       var ch = '';
@@ -2303,10 +2294,15 @@
     h += '<div class="mgtilewrap" id="mgtilewrap"><p class="mgtileh">' + esc(P.name) + ' · ' + D.cur.rounds + ' round' + (D.cur.rounds === 1 ? '' : 's') + (D.prev ? ' · arrows vs ' + esc(D.prevName) : '') + '</p>' +
       '<div class="mgtiles" id="mgtiles">' + tile('score', 'Score', T.score, Q && Q.score, n1, -1) + tile('sg', 'SG / round', T.sg, Q && Q.sg, sgf, 1) +
       tile('putts', 'Putts', T.putts, Q && Q.putts, n1, -1) + tile('gir', 'GIR', T.gir, Q && Q.gir, pc, 1) + '</div></div>';
-    h += SGTUI.cardHTML(who); // v166 the monthly short game test
+    h += '<div class="mgchart frost"><h2 id="mghead">' + esc(D.headline) + '</h2><p id="mglede">' + esc(D.lede) + '</p>' +
+      MYGAME.radarSVG(D.cur, D.prev, { R: 96, aria: 'Game shape, ' + P.name }) +
+      '<div class="mglegend"><span><i class="lc"></i>' + esc(P.name) + '</span>' + (D.prev ? '<span><i class="lp"></i>' + esc(D.prevLabel) + '</span>' : '') +
+      '<span><i class="lb"></i>' + esc(D.baselineName) + '</span>' + (D.cur.spokes.some(function (x) { return x.value != null && !x.solid; }) ? '<span><i class="ll"></i>Still learning</span>' : '') + '</div>' +
+      '</div>';
+    // v194 (Scott): the practice spider right under the game spider – does low practice line up with strokes lost?
+    h += practiceCardHTML(who, D, 'spider');
     h += cvtHTML(who, D); // v176 the course vs the test
-    h += practiceCardHTML(who, D);
-    h += playingCardHTML(who, D);
+    h += '<div class="mgknowwrap frost" id="mgknowwrap">' + mgKnowHTML(D) + '</div>' + (bset ? blCard : '');
     h += '<div class="tiprow" id="mginfo">' + tipBtn('mginfo', 'i', 'About My Game') + tipLbl('mginfo', 'How My Game works') + tipText('mginfo',
       'Each spoke is strokes gained per 18 holes in one skill: Driving (par 4 and 5 tee shots), Irons 100+ (approach shots from over 100 yd), Wedges (30–100 yd), Chipping (30 yd and in), Bunker (greenside bunkers, 50 yd and in), Lag putts (10 ft and over) and Short putts (under 10 ft). The six add up to your total. Further out is better; the dashed line is the ' + esc(D.baselineName) + ' average. The gray shape is the same length of time before this one. A hollow point is still learning: it needs ' + MYGAME.MIN_ROUNDS + ' rounds and enough shots in the period.') + '</div>';
     return h + '</div>';
@@ -2317,7 +2313,7 @@
   function prOpen(preset) {
     view.prLog = { date: localDayISO(), mins: {}, open: {} };
     if (preset) { view.prLog.mins[preset.spoke + '|' + preset.focus] = preset.min || 15; view.prLog.open[preset.spoke] = true; }
-    view.hmenu = null; view.mgMenu = null; view.screen = 'mygame'; render();
+    view.hmenu = null; view.mgMenu = null; view.screen = view.screen === 'practice' ? 'practice' : 'mygame'; render();
     var el = document.getElementById('prsheet'); if (el && el.scrollIntoView) el.scrollIntoView({ block: 'start' });
   }
   function prSheetHTML(who) {
@@ -2398,7 +2394,109 @@
     }
     return o + '</div>';
   }
-  function practiceCardHTML(who, D) {
+  // ---------- v194 (Scott): bottom bars for My Game, Practice and the test result ----------
+  var PB_IC = {
+    tests: '<path d="M8 4h8M9 4v3l-4 11a2 2 0 0 0 2 3h10a2 2 0 0 0 2-3L15 7V4" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linejoin="round"/><path d="M7 15h10" stroke="currentColor" stroke-width="1.6"/>',
+    practice: '<circle cx="12" cy="13" r="7.5" fill="none" stroke="currentColor" stroke-width="1.9"/><path d="M12 9v4l3 2M10 3h4" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/>',
+    trends: '<path d="M4 18l5-6 4 3 7-9" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/><path d="M15 6h5v5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>',
+    stats: '<path d="M5 19V12M10 19V7M15 19v-5M20 19V4" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/>',
+    plan: '<rect x="5" y="4" width="14" height="17" rx="2.5" fill="none" stroke="currentColor" stroke-width="1.9"/><path d="M8.5 9h7M8.5 13h7M8.5 17h4" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>',
+    report: '<path d="M7 3h7l4 4v14H7z" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linejoin="round"/><path d="M14 3v4h4M9.5 12h5M9.5 16h5" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>',
+    add: '<circle cx="12" cy="12" r="8.5" fill="none" stroke="currentColor" stroke-width="1.9"/><path d="M12 8v8M8 12h8" stroke="currentColor" stroke-width="2.1" stroke-linecap="round"/>',
+    history: '<path d="M5 7h14M5 12h14M5 17h9" stroke="currentColor" stroke-width="2.1" stroke-linecap="round"/>'
+  };
+  function pageBarHTML() {
+    var it = null, sg = view.sgt || {};
+    if (view.screen === 'mygame') it = [['tests', 'sgtlast', 'Tests'], ['practice', 'gopractice', 'Practice'], ['trends', 'gotrends', 'Trends'], ['stats', 'mgstats', 'Stats']];
+    else if (view.screen === 'practice') it = [['plan', 'prplan', 'Practice plan'], ['report', 'grep', 'Report'], ['trends', 'gotrends', 'Trend'], ['add', 'prlog', 'Log practice']];
+    else if (view.screen === 'sgtest' && (sg.mode === 'result' || sg.mode === 'trend')) it = [['history', 'sgthub', 'History'], ['trends', 'sgttrend', 'Trend', sg.mode === 'trend'], ['report', 'sgtpdf', 'Report'], ['add', 'sgtnew', 'New test']];
+    if (!it) return '';
+    return '<nav class="roundbar pagebar" id="pagebar" aria-label="' + esc(view.screen) + '">' + it.map(function (x) {
+      return '<button class="rbbtn' + (x[3] ? ' on' : '') + '" data-act="' + x[1] + '" id="pb' + x[1] + '"' + (x[3] ? ' aria-current="page"' : '') + '><svg viewBox="0 0 24 24" aria-hidden="true">' + PB_IC[x[0]] + '</svg><span>' + esc(x[2]) + '</span></button>'; }).join('') + '</nav>';
+  }
+  // ---------- v194: the Practice page ----------
+  function practicePageHTML() {
+    var who = mgWho(), D = mgData(who);
+    var h = '<div class="frostpage theme-sky mygamepage practicepage" id="practicepage"><div class="topbar frost"><button class="txt frostbtn" data-act="mygame" id="prback">‹ My Game</button><div class="title"><b>Practice</b><span>' + esc(who || '') + '</span></div><span class="tbsp"></span></div>';
+    h += prSheetHTML(who) + grSheetHTML() + (view.pdf && view.pdf.kind === 'game' ? pdfHTML() : '');
+    var rest = practiceCardHTML(who, D, 'rest');
+    h += rest || '<div class="mgchart frost"><p class="help">Nothing logged yet – tap <b>Log practice</b> below after a session.</p></div>';
+    h += playingCardHTML(who, D);
+    return h + '</div>';
+  }
+  // ---------- v194: the Trends page – practice vs strokes gained, and where each area is heading ----------
+  function trendsData(who) {
+    var all = rounds.filter(function (r) { return samePlayer(r.player || playerName(), who); }), bl = myBench(who);
+    // a test's strokes per shot × how many of those shots you face in a round (from your recent rounds)
+    var sh = MYGAME.build(all, SG, { period: '3m', baseline: bl }).cur, per = function (ks) { var n = 0; sh.spokes.forEach(function (x) { if (ks.indexOf(x.k) >= 0) n += x.n; }); return sh.rounds ? n / sh.rounds : 0; };
+    var mult = { putting: ['putt', per(['lag', 'short'])], chipping: ['chip', per(['chip'])], bunker: ['bunker', per(['bunker'])], wedge: ['wedges', per(['wedges'])] };
+    var tests = (SGTUI.trendTests ? SGTUI.trendTests(who) : []).map(function (t) { var a = {}; Object.keys(t.perShot).forEach(function (c) { var m = mult[c]; if (m && t.perShot[c] != null && m[1]) a[m[0]] = t.perShot[c] * m[1]; }); return { date: t.date, area: a }; });
+    return TRENDS.build(all, practiceOf(who), SG, MYGAME, { bl: bl, weeks: 26, tests: tests });
+  }
+  var TR_ZOOM = [['8', '8 weeks', 8], ['13', '3 months', 13], ['26', '6 months', 26]];
+  function trendsHTML() {
+    var who = view.trWho || mgWho(), TD = trendsData(who), z = TR_ZOOM.filter(function (x) { return x[0] === view.trZoom; })[0] || TR_ZOOM[0];
+    var h = '<div class="frostpage theme-sky mygamepage trendspage" id="trendspage"><div class="topbar frost"><button class="txt frostbtn" data-act="trback" id="trback">‹ ' + (view.trFrom === 'practice' ? 'Practice' : 'My Game') + '</button><div class="title"><b>Trends</b><span>' + esc(who || '') + '</span></div><span class="tbsp"></span></div>';
+    h += '<p class="trlede" id="trlede">Top line: strokes gained in your rounds. Bottom: practice. Ahead: the band is 25% more or less practice. Red = both below your normal.</p>';
+    h += '<div class="stseg mgseg trzoom" id="trzoom" role="group" aria-label="Zoom">' + TR_ZOOM.map(function (x) { var on = x === z; return '<button class="' + (on ? 'sel' : '') + '" data-act="trzoom" data-v="' + x[0] + '" aria-pressed="' + on + '">' + x[1] + '</button>'; }).join('') + '</div>';
+    var end = TD.weeks[TD.weeks.length - 1] + TRENDS.CFG.ahead * 7 * 864e5, endTxt = new Date(end).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+    var card = function (A, total) {
+      if (!A.ok) return '<div class="trcard2 frost trnone" data-k="' + A.k + '"><b>' + esc(A.name) + '</b><span>' + esc(A.reason === 'no practice logged' ? 'no practice logged yet' : A.reason === 'no variation' ? 'not enough rounds yet' : 'not enough yet · ' + A.dataWeeks + ' of 10 weeks') + '</span></div>';
+      var f = function (v) { return total ? Math.round(v * 10) / 10 + '' : (Math.abs(v) < 0.05 ? '0.0' : (v > 0 ? '+' : '−') + Math.abs(v).toFixed(1)); }, last = A.fc.length - 1;
+      var head = total ? f(A.fc[last]) + ' by ' + endTxt : f(A.fc[last]) + ' by ' + endTxt;
+      return '<div class="trcard2 frost" data-k="' + A.k + '"><div class="trh"><b>' + esc(total ? 'Practice vs score' : A.name) + '</b><span class="' + (A.heading ? 'bad' : '') + '">' + esc(head) + '</span></div>' +
+        trendChartSVG(A, TD.weeks, z[2], total) +
+        '<p class="trfoot">' + (A.link ? '<span class="up">' + f(A.up[last]) + '</span> with more · <span class="down">' + f(A.dn[last]) + '</span> with less' + (A.capped ? ' (your busiest week caps it)' : '') : 'No clear link with practice yet') +
+        ' · ' + esc(TRENDS.linkWord(A.r)) + ' link' + (A.link ? ', shows up ' + (A.lag ? '~' + A.lag + ' wk later' : 'the same week') : '') + '</p></div>';
+    };
+    h += card(TD.total, true) + TD.areas.map(function (A) { return card(A, false); }).join('');
+    h += '<p class="help muted trnote">Forecasts use your own rounds and practice, plus your last short game test for 3 weeks. Any one round can land well either side. A link isn\'t proof – but practice coming first points that way.</p>';
+    return h + '</div>';
+  }
+  function trendChartSVG(A, weeks, Z, total) {
+    var N0 = A.y.length, H0 = Math.max(0, N0 - Z), FW = A.fc.length, N = (N0 - H0) + FW, CW = 340, PH = 92, GAP = 18, T = 8, LX = 30, RX = 44, B = 22, H = T + PH * 2 + GAP + B;
+    var x = function (i) { return LX + (i - H0) * (CW - LX - RX) / (N - 1); }, hw = (CW - LX - RX) / (N - 1) / 2, last = N0 - 1, xt = x(last);
+    var yv = A.y.slice(H0).filter(function (v) { return v != null; }).concat(A.up, A.dn, [A.normY * (total ? -1 : 1)]), lo = Math.min.apply(null, yv), hi = Math.max.apply(null, yv), pad = Math.max(0.3, (hi - lo) * 0.12);
+    if (!total) { lo = Math.min(lo, -0.5); hi = Math.max(hi, 0.5); } lo -= pad; hi += pad;
+    var ys = function (v) { return T + (hi - v) * PH / (hi - lo); }, px = A.x.slice(H0).concat([A.upX]), pHi = Math.max(0.5, Math.max.apply(null, px)) * 1.12, yp = function (v) { return T + PH + GAP + (pHi - v) * PH / pHi; };
+    var P = function (pts) { return pts.map(function (p, k) { return (k ? 'L' : 'M') + p[0].toFixed(1) + ' ' + p[1].toFixed(1); }).join(''); }, f1 = function (v) { return v.toFixed(1); };
+    var normY = total ? -A.normY : A.normY, sm = A.sy.map(function (v) { return v == null ? null : total ? -v : v; });
+    var o = '<svg class="trchart" viewBox="0 0 ' + CW + ' ' + H + '" role="img" aria-label="' + esc(A.name) + ': rounds and practice by week, and the forecast">';
+    A.slip.forEach(function (r) { var a = Math.max(r[0], H0), b = r[1]; if (b < H0) return; o += '<rect x="' + f1(x(a) - hw) + '" y="' + (T - 2) + '" width="' + f1(x(b) - x(a) + 2 * hw) + '" height="' + (PH * 2 + GAP + 4) + '" rx="6" class="trslip"/>'; });
+    o += '<rect x="' + f1(xt) + '" y="' + (T - 2) + '" width="' + f1(CW - RX - xt + 4) + '" height="' + (PH * 2 + GAP + 4) + '" class="trfuture' + (A.heading ? ' bad' : '') + '"/>';
+    if (A.heading) o += '<text x="' + f1(CW - RX) + '" y="' + (T + PH + GAP / 2 + 4) + '" text-anchor="end" class="trtag bad">heading below normal</text>';
+    // scale: whole strokes (half strokes when the range is small); the score in steps of 2 or 5
+    var stp = total ? (hi - lo > 12 ? 5 : 2) : (hi - lo > 2.5 ? 1 : 0.5);
+    for (var g = Math.ceil(lo / stp) * stp; g <= hi + 1e-9; g += stp) { var gy = f1(ys(g)), zero = !total && Math.abs(g) < 1e-9;
+      o += '<line x1="' + LX + '" x2="' + (CW - RX) + '" y1="' + gy + '" y2="' + gy + '" class="' + (zero ? 'trzero' : 'trgrid2') + '"/><text x="' + (LX - 4) + '" y="' + f1(ys(g) + 3.5) + '" text-anchor="end" class="trax">' + (total ? g : g > 0 ? '+' + (stp < 1 ? g.toFixed(1) : g) : g < 0 ? '−' + (stp < 1 ? (-g).toFixed(1) : -g) : '0') + '</text>'; }
+    o += '<line x1="' + LX + '" x2="' + f1(xt) + '" y1="' + f1(ys(normY)) + '" y2="' + f1(ys(normY)) + '" class="trnorm"/>';
+    var hist = []; for (var i = H0; i <= last; i++) if (sm[i] != null) hist.push([x(i), ys(sm[i])]); if (hist.length > 1) o += '<path d="' + P(hist) + '" class="trsg"/>';
+    for (var j = H0; j <= last; j++) if (A.y[j] != null) o += '<circle cx="' + f1(x(j)) + '" cy="' + f1(ys(A.y[j])) + '" r="2.4" class="trdot"/>';
+    var st = [xt, ys(sm[last] != null ? sm[last] : (total ? A.formScore : A.form))], fut = function (arr) { return [st].concat(arr.map(function (v, k) { return [x(last + k + 1), ys(v)]; })); };
+    var U = fut(A.up), Dn = fut(A.dn), M = fut(A.fc);
+    if (A.link) o += '<path d="' + P(U) + Dn.slice().reverse().map(function (p) { return 'L' + f1(p[0]) + ' ' + f1(p[1]); }).join('') + 'Z" class="trband"/><path d="' + P(U) + '" class="trup"/><path d="' + P(Dn) + '" class="trdn"/>';
+    o += '<path d="' + P(M) + '" class="trmid"/>';
+    var tag = function (p, t, c, dy) { return '<text x="' + f1(p[0] + 4) + '" y="' + f1(p[1] + 3.5 + dy) + '" class="trtag ' + c + '">' + t + '</text>'; }, pm = Math.round(A.dX * 60 / 5) * 5;
+    if (A.link) { var uT = U[U.length - 1], dT = Dn[Dn.length - 1], gap = Math.abs(uT[1] - dT[1]) < 20; o += tag(uT, '+' + pm + ' min', 'up', gap ? (uT[1] < dT[1] ? -5 : 5) : 0) + tag(dT, '−' + pm + ' min', 'down', gap ? (uT[1] < dT[1] ? 5 : -5) : 0); }
+    else o += tag(M[M.length - 1], 'as now', '', 0);
+    o += '<line x1="' + f1(xt) + '" x2="' + f1(xt) + '" y1="' + (T - 4) + '" y2="' + (T + PH * 2 + GAP) + '" class="trtoday"/><text x="' + f1(xt + 3) + '" y="' + (T + 7) + '" class="trax">today</text>';
+    o += '<text x="' + (LX + 2) + '" y="' + (T + 10) + '" class="trpl">' + (total ? 'Score · lower is better' : 'Strokes gained / round') + '</text>';
+    // practice panel
+    o += '<line x1="' + LX + '" x2="' + (CW - RX) + '" y1="' + f1(yp(0)) + '" y2="' + f1(yp(0)) + '" class="trbase"/>';
+    [1, 2, 3, 5].forEach(function (v) { if (v < pHi && (pHi < 4 || v !== 1)) o += '<text x="' + (LX - 4) + '" y="' + f1(yp(v) + 3.5) + '" text-anchor="end" class="trax">' + v + 'h</text>'; });
+    o += '<line x1="' + LX + '" x2="' + f1(xt) + '" y1="' + f1(yp(A.normX)) + '" y2="' + f1(yp(A.normX)) + '" class="trnormp"/>';
+    var ph = []; for (var k = H0; k <= last; k++) ph.push([x(k), yp(A.sx[k])]); o += '<path d="' + P(ph) + '" class="trpr"/>';
+    for (var q = H0; q <= last; q++) o += '<circle cx="' + f1(x(q)) + '" cy="' + f1(yp(A.x[q])) + '" r="2.4" class="trdotp"/>';
+    var pf = function (v) { return [[xt, yp(A.sx[last])], [x(last + 1), yp(v)], [x(last + FW), yp(v)]]; };
+    if (A.link) o += '<path d="' + P(pf(A.upX)) + '" class="trup thin"/><path d="' + P(pf(A.dnX)) + '" class="trdn thin"/>';
+    o += '<path d="' + P(pf(A.nowX)) + '" class="trprmid"/>';
+    o += '<text x="' + (LX + 2) + '" y="' + (T + PH + GAP + 10) + '" class="trpl pr">Practice / week</text>';
+    var lab = function (t) { return new Date(t).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }); }, step = Math.max(1, Math.round((N0 - H0) / 4));
+    for (var w = H0; w < last - 1; w += step) o += '<text x="' + f1(x(w)) + '" y="' + (H - 6) + '" text-anchor="middle" class="trax">' + lab(weeks[w]) + '</text>';
+    o += '<text x="' + f1(xt) + '" y="' + (H - 6) + '" text-anchor="middle" class="trax now">' + lab(weeks[last]) + '</text>';
+    return o + '</svg>';
+  }
+  function practiceCardHTML(who, D, part) { // v194: part 'spider' = the My Practice card (My Game); 'rest' = Strokes lost vs practice + Recent practice (Practice page)
     var logs = practiceOf(who), PB = MYGAME.practiceBuild(logs, { period: D.period }), P = PB.period;
     // v155: the chart is your practice LEVEL (builds with each session, fades without practice) against your benchmark group's average
     var LT = MYGAME.practiceLevelText(logs, { period: P, bl: D.baseline }), ago = P.id === '30d' ? '30 days ago' : P.id === '3m' ? '3 months ago' : P.id === '1y' ? 'a year ago' : '';
@@ -2412,6 +2510,7 @@
       '<p>The dashed ring is what ' + esc(LT.level.bench.who) + ' practise, about ' + LT.level.bench.h + ' h a week, split 40% full swing and 60% short game and putting. ' +
       'The average club golfer practises about ' + LT.clubH + ' h a week.</p><p>Skill fades much more slowly than the habit: studies find about half of a learned skill’s gains are lost only after 6–12 months without use.</p></details>';
     o += '</div>';
+    if (part === 'spider') return o; if (part === 'rest') o = '';
     var V = MYGAME.practiceVsGame(D.cur, PB.cur);
     if (V) o += '<div class="mgchart prvs frost" id="prvs"><span class="tkeye">Strokes lost vs practice time</span><h2 id="prvshead">' + esc(V.headline) + '</h2><p id="prvslede">' + esc(V.lede) + '</p>' +
       '<div class="prbars">' + V.rows.map(function (r) {
@@ -5256,6 +5355,12 @@
       case 'grep': view.grep = view.grep && !view.mgMenu ? null : { preset: 'coach', parts: Object.assign({}, GR_PRESET.coach) }; view.mgMenu = null; view.pdf = null; render();
         var gs = document.getElementById('grsheet'); if (gs && gs.scrollIntoView) gs.scrollIntoView({ block: 'start' }); return;
       case 'mgplus': view.mgMenu = view.mgMenu === 'plus' ? null : 'plus'; render(); return; // v183
+      case 'gopractice': view.screen = 'practice'; view.mgMenu = null; render(); window.scrollTo(0, 0); return; // v194
+      case 'gotrends': view.trFrom = view.screen === 'practice' ? 'practice' : 'mygame'; view.trWho = mgWho(); view.screen = 'trends'; render(); window.scrollTo(0, 0); return;
+      case 'trback': view.screen = view.trFrom === 'practice' ? 'practice' : 'mygame'; render(); window.scrollTo(0, 0); return;
+      case 'trzoom': view.trZoom = v; render(); return;
+      case 'mgstats': { var sw = mgWho(); view.screen = 'stats'; view.stSel = null; view.stPlayer = sw; view.stOpen = {}; view.stPmB = 'all'; view.pdf = null; render(); window.scrollTo(0, 0); return; }
+      case 'prplan': toast('Practice plan – coming soon'); return;
       case 'mgnav': view.mgMenu = view.mgMenu === 'nav' ? null : 'nav'; render(); return; // v191
       case 'mgknow': view.mgKnowOpen = !view.mgKnowOpen; render(); return; // v183
       case 'grclose': view.grep = null; render(); return;

@@ -1,0 +1,114 @@
+// Strokewise – Trends (v194, Scott): does practice show up on the course, and where is each area heading?
+// Pure maths, no DOM. For each practice area (and total practice vs score) it lines up weeks of
+// strokes gained from rounds with logged practice, finds how many weeks practice takes to show up (0–3),
+// measures the link (Spearman r), and forecasts the next weeks:
+//   expected = (1 − w) × (recent form + b × (practice at the lag − normal practice)) + w × (short game test)
+//   b = your own strokes per extra weekly hour (from your history), w = test weight fading to 0 over 3 weeks.
+// The band is practice ±25 % of your normal (at least ±15 min, never above your busiest week on record).
+(function (root) {
+  'use strict';
+  var DAY = 86400000, WEEK = 7 * DAY;
+  var AREAS = [ // practice area → strokes gained area(s) from rounds (MYGAME spoke keys)
+    { k: 'drive', name: 'Driving', spokes: ['drive'] },
+    { k: 'irons', name: 'Irons 100+', spokes: ['irons'] },
+    { k: 'wedges', name: 'Wedges', spokes: ['wedges'] },
+    { k: 'chip', name: 'Chipping', spokes: ['chip'] },
+    { k: 'bunker', name: 'Bunker', spokes: ['bunker'] },
+    { k: 'putt', name: 'Putting', spokes: ['lag', 'short'] }
+  ];
+  var CFG = { weeks: 26, minWeeks: 10, maxLag: 3, ahead: 5, bandPct: 0.25, bandMinH: 0.25, testMax: 0.5, testDays: 21, halfLife: 4, minR: 0.2, slipWeeks: 2 };
+
+  function monday(t) { var d = new Date(t); d.setHours(0, 0, 0, 0); d.setDate(d.getDate() - (d.getDay() + 6) % 7); return d.getTime(); }
+  function mean(a) { var v = a.filter(function (x) { return x != null && !isNaN(x); }); return v.length ? v.reduce(function (s, x) { return s + x; }, 0) / v.length : null; }
+  function sd(a) { var m = mean(a); if (m == null) return null; var v = a.filter(function (x) { return x != null; }); return Math.sqrt(v.reduce(function (s, x) { return s + (x - m) * (x - m); }, 0) / Math.max(1, v.length - 1)); }
+  function ranks(a) { var s = a.map(function (v, i) { return [v, i]; }).sort(function (x, y) { return x[0] - y[0]; }), r = [];
+    for (var k = 0; k < s.length;) { var j = k; while (j + 1 < s.length && s[j + 1][0] === s[k][0]) j++; for (var m = k; m <= j; m++) r[s[m][1]] = (k + j) / 2 + 1; k = j + 1; } return r; }
+  function pearson(x, y) { var mx = mean(x), my = mean(y), n = 0, a = 0, b = 0;
+    for (var i = 0; i < x.length; i++) { n += (x[i] - mx) * (y[i] - my); a += (x[i] - mx) * (x[i] - mx); b += (y[i] - my) * (y[i] - my); }
+    return a && b ? n / Math.sqrt(a * b) : null; }
+  function spearman(x, y) { return x.length >= 3 ? pearson(ranks(x), ranks(y)) : null; }
+  function slope(x, y) { var mx = mean(x), my = mean(y), n = 0, d = 0; for (var i = 0; i < x.length; i++) { n += (x[i] - mx) * (y[i] - my); d += (x[i] - mx) * (x[i] - mx); } return d ? n / d : 0; }
+  function smooth(a) { return a.map(function (_, i) { return mean(a.slice(Math.max(0, i - 1), i + 2)); }); }
+
+  // ---- weekly series ----
+  // rounds → per week: strokes gained per 18 for each spoke, and the 18-hole score
+  function weekSeries(rounds, logs, SG, MYGAME, opts) {
+    var now = opts.now == null ? Date.now() : +opts.now, nW = opts.weeks || CFG.weeks, m0 = monday(now) - (nW - 1) * WEEK;
+    var wk = function (t) { var i = Math.round((monday(t) - m0) / WEEK); return i >= 0 && i < nW ? i : -1; };
+    var W = []; for (var i = 0; i < nW; i++) W.push({ i: i, start: m0 + i * WEEK, holes: 0, rounds: 0, sg: {}, n: {}, score: [], prac: {}, pracAll: 0 });
+    var SP = MYGAME.SPOKES;
+    (rounds || []).forEach(function (r) {
+      var t = Date.parse(r.date), i = isNaN(t) || t > now + DAY ? -1 : wk(t); if (i < 0) return;
+      var S = SG.summarize(r, opts.bl); if (!S.holesDone) return;
+      var w = W[i]; w.holes += S.holesDone; w.rounds++; if (S.holesDone === 18) w.score.push(S.strokes);
+      S.holes.forEach(function (h) { if (!h.done) return; h.shots.forEach(function (s) { if (s.layup) return;
+        for (var k = 0; k < SP.length; k++) if (SP[k].test(s)) { w.sg[SP[k].k] = (w.sg[SP[k].k] || 0) + s.sg; w.n[SP[k].k] = (w.n[SP[k].k] || 0) + 1; break; } }); });
+    });
+    (logs || []).forEach(function (e) { var t = Date.parse(String(e.date).length <= 10 ? e.date + 'T12:00:00' : e.date), i = isNaN(t) || t > now + DAY ? -1 : wk(t); if (i < 0 || !(e.min > 0)) return;
+      W[i].prac[e.spoke] = (W[i].prac[e.spoke] || 0) + e.min / 60; W[i].pracAll += e.min / 60; });
+    return W;
+  }
+
+  // ---- one area (or the total) ----
+  // y: per week, "higher is better" (strokes gained, or −score for the total); x: practice hours per week
+  function analyse(y, x, opt) {
+    opt = opt || {}; var n = y.length, have = y.filter(function (v) { return v != null; }).length, first = x.findIndex(function (v) { return v > 0; });
+    var out = { weeks: n, dataWeeks: have, practised: first >= 0, ok: false };
+    if (first < 0 || have < CFG.minWeeks) { out.reason = first < 0 ? 'no practice logged' : 'not enough weeks'; return out; }
+    // the lag that fits best (0–3 weeks), on raw weekly numbers
+    var best = null, byLag = [];
+    for (var L = 0; L <= CFG.maxLag; L++) { var xs = [], ys = [];
+      for (var i = Math.max(L, first); i < n; i++) if (y[i] != null) { xs.push(x[i - L]); ys.push(y[i]); }
+      var r = xs.length >= CFG.minWeeks - 2 ? spearman(xs, ys) : null; byLag.push({ lag: L, r: r, n: xs.length, b: xs.length ? slope(xs, ys) : 0 });
+      if (r != null && (best == null || r > best.r)) best = byLag[L]; }
+    if (!best) { out.reason = sd(y) > 1e-9 && sd(x) > 1e-9 ? 'not enough weeks' : 'no variation'; return out; }
+    var normX = mean(x.slice(first)), normY = mean(y), sdY = sd(y), maxX = Math.max.apply(null, x);
+    var link = best.r >= CFG.minR && best.b > 0, b = link ? best.b : 0; // a negative slope is usually "practised more after a bad week" – not used to forecast
+    var ewma = function (upto) { var num = 0, den = 0, k = 0; for (var i = upto; i >= 0; i--) { if (y[i] == null) continue; var wt = Math.pow(0.5, k / CFG.halfLife); num += wt * y[i]; den += wt; k++; } return den ? num / den : null; };
+    var last = n - 1, form = ewma(last), nowX = mean([x[last], x[last - 1]]), lag = best.lag;
+    // the band: ±25 % of normal practice, at least ±15 min, the top no higher than your busiest week
+    var dX = Math.max(normX * CFG.bandPct, CFG.bandMinH), upX = Math.min(nowX + dX, Math.max(maxX, nowX)), dnX = Math.max(0, nowX - dX);
+    var ramp = function (f) { return Math.max(0, Math.min(1, (f - lag) / 2)); };
+    var test = opt.test, testW = function (f) { if (!test) return 0; var days = (opt.now - test.t) / DAY + 7 * f; return Math.max(0, CFG.testMax * (1 - days / CFG.testDays)); };
+    var fc = function (f, X) { var j = last + f - lag, h = j <= last ? x[j] : nowX, base = form + b * (h - normX) + b * (X - nowX) * ramp(f), w = testW(f);
+      return w ? (1 - w) * base + w * test.v : base; };
+    var F = [], U = [], D = [], TW = []; for (var f = 1; f <= CFG.ahead; f++) { F.push(fc(f, nowX)); U.push(fc(f, upX)); D.push(fc(f, dnX)); TW.push(testW(f)); }
+    // self-check: forecast each past week from the weeks before it
+    var res = []; for (var i2 = Math.max(6, first + lag); i2 < n; i2++) { if (y[i2] == null) continue; var e = ewma(i2 - 1); if (e == null) continue; res.push(y[i2] - (e + b * (x[i2 - lag] - normX))); }
+    var spread = res.length >= 4 ? Math.sqrt(mean(res.map(function (v) { return v * v; }))) : sdY, tol = opt.hitTol || 0.5;
+    // "both slipping": strokes gained clearly below normal AND practice below normal, 2+ weeks running (smoothed)
+    var sy = smooth(y), sx = smooth(x), margin = 0.25 * (sdY || 0), slip = [];
+    for (var a = first; a < n;) { var low = function (k) { return sy[k] != null && sy[k] < normY - margin && sx[k] < normX; };
+      if (!low(a)) { a++; continue; } var z = a; while (z + 1 < n && low(z + 1)) z++; if (z - a + 1 >= CFG.slipWeeks) slip.push([a, z]); a = z + 1; }
+    return Object.assign(out, { ok: true, lag: lag, r: best.r, n: best.n, byLag: byLag, link: link, b: b, normY: normY, normX: normX, sdY: sdY, form: form, nowX: nowX,
+      upX: upX, dnX: dnX, dX: dX, capped: nowX + dX > upX + 1e-9, fc: F, up: U, dn: D, testW: TW, spread: spread, checks: res.length, hits: res.filter(function (v) { return Math.abs(v) <= tol; }).length,
+      slip: slip, heading: F[F.length - 1] < normY - margin, sy: sy, sx: sx });
+  }
+
+  // ---- everything for the Trends page ----
+  // tests: [{ date, area: { putt, chip, bunker, wedges } }] – strokes per round for that area from a short game test
+  function build(rounds, logs, SG, MYGAME, opts) {
+    opts = opts || {}; var now = opts.now == null ? Date.now() : +opts.now, W = weekSeries(rounds, logs, SG, MYGAME, Object.assign({}, opts, { now: now }));
+    var lastTest = (opts.tests || []).filter(function (t) { return !isNaN(Date.parse(t.date)) && Date.parse(t.date) <= now + DAY; }).sort(function (a, b) { return Date.parse(b.date) - Date.parse(a.date); })[0];
+    var areas = AREAS.map(function (A) {
+      var y = W.map(function (w) { var n = 0, s = 0; A.spokes.forEach(function (k) { if (w.n[k]) { n += w.n[k]; s += w.sg[k]; } }); return n && w.holes ? s / w.holes * 18 : null; });
+      var x = W.map(function (w) { return A.spokes.reduce(function (s, k) { return s + (w.prac[k] || 0); }, 0); });
+      var tv = lastTest && lastTest.area && lastTest.area[A.k] != null ? { t: Date.parse(lastTest.date), v: lastTest.area[A.k] } : null;
+      return Object.assign({ k: A.k, name: A.name, y: y, x: x }, analyse(y, x, { test: tv, now: now }));
+    });
+    // total practice vs score (18-hole rounds; lower score is better, so the maths uses −score)
+    var sc = W.map(function (w) { return w.score.length ? mean(w.score) : null; });
+    var tot = analyse(sc.map(function (v) { return v == null ? null : -v; }), W.map(function (w) { return w.pracAll; }), { now: now, hitTol: 2 });
+    var total = Object.assign({ k: 'total', name: 'Total practice vs score', y: sc, x: W.map(function (w) { return w.pracAll; }), lowerBetter: true }, tot);
+    if (total.ok) ['fc', 'up', 'dn'].forEach(function (k) { total[k] = total[k].map(function (v) { return -v; }); }), total.normScore = -total.normY, total.formScore = -total.form;
+    // worst forecast first (strokes below normal at the end of the forecast); areas without enough data last
+    var order = areas.slice().sort(function (a, b) { return (a.ok ? 0 : 1) - (b.ok ? 0 : 1) || (a.ok ? (a.fc[a.fc.length - 1] - a.normY) - (b.fc[b.fc.length - 1] - b.normY) : 0); });
+    return { weeks: W.map(function (w) { return w.start; }), now: now, areas: order, total: total, test: lastTest || null, cfg: CFG };
+  }
+
+  // the strength of a link in words
+  function linkWord(r) { var a = Math.abs(r || 0); return a >= 0.7 ? 'Strong' : a >= 0.4 ? 'Moderate' : a >= 0.2 ? 'Weak' : 'No clear'; }
+
+  var api = { AREAS: AREAS, CFG: CFG, build: build, analyse: analyse, weekSeries: weekSeries, spearman: spearman, pearson: pearson, slope: slope, linkWord: linkWord, monday: monday };
+  if (typeof module !== 'undefined' && module.exports) module.exports = api; else root.TRENDS = api;
+})(typeof self !== 'undefined' ? self : this);

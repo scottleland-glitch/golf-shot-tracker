@@ -2823,3 +2823,35 @@ html body .trsvg { display: block; width: 100%; height: auto; }
 .trsvg .trgrid { stroke: rgba(40, 60, 80, .12); stroke-width: 1; } .trsvg .trax { font-size: 10px; fill: #5b6b78; font-weight: 600; }
 .trsvg .trg { fill: #1f9d55; stroke: #fff; stroke-width: 1.5; } .trsvg .tra { fill: #e0a82e; stroke: #fff; stroke-width: 1.5; } .trsvg .trr { fill: #d0604f; stroke: #fff; stroke-width: 1.5; }
 html body .sgtpage .sgtmenubtn svg.menuic { width: 22px !important; height: 22px !important; min-width: 22px; flex: none; }
+/* v194 (Scott): redesign – bottom bars on My Game / Practice / Test, the Practice and Trends pages */
+html body .mygamepage .tbsp, html body .sgtpage .tbsp { min-width: 64px; }
+html body .mgknowwrap { margin: 12px 0 0; padding: 4px 6px; border-radius: 20px; }
+html body .mgknowwrap .mgknow { margin: 0; }
+html body .practicepage .mgchart, html body .practicepage .prlist, html body .practicepage .prvs { margin-top: 12px; }
+html body .trlede { margin: 10px 4px 6px; font-size: 13.5px; line-height: 1.4; color: #43525f; }
+html body .trzoom { margin: 4px 0 10px; }
+html body .trcard2 { padding: 12px 10px 8px; margin: 0 0 12px; border-radius: 20px; }
+html body .trcard2 .trh { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; margin: 0 4px 4px; }
+html body .trcard2 .trh b { font-size: 17px; } html body .trcard2 .trh span { font-size: 14px; font-weight: 700; color: #23384d; } html body .trcard2 .trh span.bad { color: #b0473f; }
+html body .trcard2 .trfoot { margin: 4px 4px 2px; font-size: 12.5px; color: #4a5866; line-height: 1.35; }
+html body .trcard2 .trfoot .up { color: #1f6b3a; font-weight: 700; } html body .trcard2 .trfoot .down { color: #b0473f; font-weight: 700; }
+html body .trcard2.trnone { display: flex; justify-content: space-between; align-items: baseline; padding: 12px 14px; }
+html body .trcard2.trnone b { font-size: 15.5px; } html body .trcard2.trnone span { font-size: 13px; color: #6b7b88; }
+html body .trnote { margin: 4px 6px 12px; font-size: 12px; }
+.trchart { display: block; width: 100%; height: auto; }
+.trchart .trax { font-size: 9.5px; fill: #5b6b78; font-weight: 600; } .trchart .trax.now { fill: #17301f; }
+.trchart .trpl { font-size: 10.5px; font-weight: 700; fill: #23384d; } .trchart .trpl.pr { fill: #2c5aa0; }
+.trchart .trslip { fill: rgba(208, 96, 79, .15); } .trchart .trfuture { fill: rgba(255, 255, 255, .35); } .trchart .trfuture.bad { fill: rgba(208, 96, 79, .10); }
+.trchart .trzero, .trchart .trbase { stroke: rgba(40, 60, 80, .28); stroke-width: 1; }
+.trchart .trnorm { stroke: #17301f; stroke-dasharray: 4 3; opacity: .4; } .trchart .trnormp { stroke: #2c5aa0; stroke-dasharray: 4 3; opacity: .5; }
+.trchart .trsg { fill: none; stroke: #17301f; stroke-width: 2.3; stroke-linejoin: round; } .trchart .trdot { fill: #17301f; opacity: .28; }
+.trchart .trpr { fill: none; stroke: #4a7fd0; stroke-width: 2.3; stroke-linejoin: round; } .trchart .trdotp { fill: #4a7fd0; opacity: .38; }
+.trchart .trband { fill: rgba(74, 127, 208, .13); } .trchart .trup { fill: none; stroke: #1f9d55; stroke-width: 1.6; } .trchart .trdn { fill: none; stroke: #d0604f; stroke-width: 1.6; }
+.trchart .trup.thin, .trchart .trdn.thin { stroke-width: 1.3; }
+.trchart .trmid { fill: none; stroke: #17301f; stroke-width: 2.3; stroke-dasharray: 6 4; } .trchart .trprmid { fill: none; stroke: #4a7fd0; stroke-width: 2.1; stroke-dasharray: 6 4; }
+.trchart .trtoday { stroke: #17301f; opacity: .3; }
+.trchart .trtag { font-size: 9.5px; font-weight: 700; fill: #17301f; } .trchart .trtag.up { fill: #1f6b3a; } .trchart .trtag.down, .trchart .trtag.bad { fill: #b0473f; }
+.trchart .trgrid2 { stroke: rgba(40, 60, 80, .09); stroke-width: 1; }
+html body .trcard .trcat { font-size: 18px; margin: 0 2px 4px; }
+html body .trrow { padding: 6px 0 2px; } html body .trrow + .trrow { border-top: 1px solid rgba(23, 48, 31, .08); }
+html body .trrow .trhead b { font-size: 15px; } html body .trrow .trhead span { font-size: 15px; font-weight: 700; }

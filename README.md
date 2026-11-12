@@ -25,6 +25,23 @@ Every Shot Counts Table 3.10). The other five are ESTIMATED: per-round gaps from
 Player Quality ladder, then spread over the PGA table. Full sources, method and caveats: in-app
 "About the numbers" and the BASELINES comment in `sg.js`.
 
+## Redesign: My Game, Practice, Trends, Test (v194)
+- **My Game:** ‹ Home · time frame · last rounds · the four tiles (Score, SG / round, Putts, GIR) · the "costs you most" spider ·
+  the practice spider (My Practice) right under it, so the two shapes can be compared · Course vs test · How well Strokewise
+  knows your game · My benchmark (at the top, red, until it's set). No ☰ / + and no short game test card: a bottom bar has
+  **Tests · Practice · Trends · Stats** (`pageBarHTML`). The round bar wins while a round is being entered.
+- **Practice** (new, `practicePageHTML`): Strokes lost vs practice time, Recent practice, Playing + practice by week (and
+  Tournament vs practice). Bar: **Practice plan** (coming soon) · **Report** (the game report) · **Trend** · **Log practice**.
+- **Trends** (new, `trendsHTML`, maths in `trends.js`): total practice vs score, then one card per area (Driving, Irons 100+,
+  Wedges, Chipping, Bunker, Putting), worst forecast first. Each: strokes gained from rounds over practice by week, the dashed
+  forecast with a band for 25 % more / less practice (at least ±15 min, capped at your busiest week), "+N / −N min" labels,
+  red "both slipping" stretches (both below normal 2+ weeks), a red tint + "heading below normal" when the forecast drops, and
+  one line: what more / less practice would do and how strong the link is. Zoom: 8 weeks · 3 months · 6 months.
+  The maths: the best lag (0–3 weeks, Spearman r), your own strokes per extra weekly hour (only used when the link is positive),
+  recent form (weighted to the newest weeks), the last short game test counting up to half and fading to nothing over 3 weeks.
+- **Test result:** ‹ My Game; Practice this month and Ask your coach moved to the bottom; bar **History · Trend · Report ·
+  New test** (no ☰). The test **Trend** is one simple line per station (up is always better), dots coloured by level.
+
 ## Test menu: Tests, Make PDF, Trend (v193)
 - My Game ☰ now starts with **Tests**, which opens your last finished short game test (or the tests list if there is none yet).
 - The test result page has its own ☰: **Tests** (the list), **Make PDF** (the game report with just this test in it – the
