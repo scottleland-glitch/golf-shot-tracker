@@ -2232,11 +2232,21 @@
     if (D && D.headline && D.headline !== 'Still learning your game') M.push({ k: 'game', kick: 'My Game · ' + D.period.name.toLowerCase(), title: D.headline, sub: D.lede || '', btn: ['Log practice', 'prlog'], tap: 'mygame' });
     // 3. Trends – the countdown, or the forecast once it's there
     if (fin.length) { var td = null; try { td = trendsData(who); } catch (e) {} var T = td && td.total;
-      if (T && T.ok) { var end = new Date(td.weeks[td.weeks.length - 1] + 5 * 7 * DAY).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
-        M.push({ k: 'trends', kick: 'Trends', title: 'Heading for about ' + Math.round(T.fc[T.fc.length - 1]) + ' by ' + end, sub: { low: 'Low confidence so far – it sharpens with every round', mid: 'Medium confidence – keep logging rounds and practice', high: 'High confidence' }[T.conf] || '', btn: ['See Trends', 'gotrends'] }); }
+      if (T && T.ok) { // v201 (Scott): plain words – holding steady, improving or slipping, from where you are now
+        var end = new Date(td.weeks[td.weeks.length - 1] + 5 * 7 * DAY).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+        var fc = T.fc[T.fc.length - 1], nowS = T.formScore, d = fc - nowS, ttl;
+        if (nowS == null || Math.abs(d) < 0.75) ttl = 'Holding steady around ' + Math.round(nowS != null ? nowS : fc);
+        // no "up" / "down" (Scott): a lower score is better play, so say improving / slipping
+        else if (d < 0) ttl = 'Improving – about ' + Math.round(fc) + ' by ' + end + ', from ' + Math.round(nowS) + ' now';
+        else ttl = 'Slipping a little – about ' + Math.round(fc) + ' by ' + end + ', from ' + Math.round(nowS) + ' now';
+        M.push({ k: 'trends', kick: 'Trends', title: ttl, sub: { low: 'An early read – it sharpens with every round', mid: 'Getting clearer with every round' }[T.conf] || '', btn: ['See Trends', 'gotrends'] }); }
       else if (T && T.reason === 'not enough weeks') { var left = Math.max(1, Math.ceil(T.need - (T.rounds || T.dataWeeks || 0)));
         M.push({ k: 'trends', kick: 'Trends', title: left === 1 ? '1 more round until your first forecast' : left + ' more rounds until your first forecast', sub: 'Trends learn how your practice turns into strokes', btn: ['See Trends', 'gotrends'] }); }
       else if (T && T.reason === 'no practice logged') M.push({ k: 'trends', kick: 'Trends', title: 'Log practice to unlock Trends', sub: 'See how your practice turns into strokes', btn: ['Log practice', 'prlog'] }); }
+    // 3b. v201 (Scott): an area that's slipping (not an expected dip after a lesson, not an early guess) – "keep an eye on chipping"
+    if (fin.length) { var tdw = null; try { tdw = td || trendsData(who); } catch (e) {}
+      var watch = tdw && tdw.areas.filter(function (A) { return A.ok && A.heading && A.conf !== 'low'; })[0];
+      if (watch) M.push({ k: 'watch', kick: 'Trends', title: 'Keep an eye on ' + watch.name.toLowerCase(), sub: 'It\'s slipping – a little practice there would help', btn: ['Log practice', 'prlog'] }); }
     // 4. the short game test – never taken, or due (4+ weeks)
     var tests = sgTestsOf(who).filter(function (t) { return t.done; }).sort(function (a, b) { return String(b.date || '').localeCompare(String(a.date || '')); }), lt = tests[0];
     if (fin.length && !lt) M.push({ k: 'test', kick: 'Short game test', title: 'See where your short game stands', sub: 'About 30 minutes on the practice green', btn: ['Start test', 'sgtopen'] });

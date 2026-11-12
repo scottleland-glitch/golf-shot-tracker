@@ -24,8 +24,11 @@ const ARC = require('/home/claude/golf-app/tests/fixtures/arcade-78.js');
   await page.evaluate(({ R, P }) => { localStorage.setItem('golfsg.player.v1', 'Scott'); localStorage.setItem('golfsg.nameasked.v1', '1'); localStorage.setItem('golfsg.rounds.v1', JSON.stringify(R)); localStorage.setItem('golfsg.practice.v1', JSON.stringify(P)); localStorage.setItem('golfsg.mybench.v1', JSON.stringify({ Scott: 'd1w' })); }, { R: rounds, P: prac });
   const ok = m => console.log('  ✓ ' + m);
   await page.reload(); await page.waitForSelector('#hcard');
-  const ks = await page.$$eval('.hcslide', e => e.map(x => x.dataset.k)); assert.deepStrictEqual(ks, ['round', 'game', 'trends', 'test'], 'last round, My Game, Trends, test (never taken)');
-  assert.strictEqual(await page.$$eval('.hcslide.on', e => e.length), 1); assert.strictEqual(await page.$$eval('.hcdots i', e => e.length), 4); ok('four messages, one showing, four dots');
+  const ks = (await page.$$eval('.hcslide', e => e.map(x => x.dataset.k))).filter(k => k !== 'watch'); assert.deepStrictEqual(ks, ['round', 'game', 'trends', 'test'], 'last round, My Game, Trends, test (never taken)');
+  // v201: plain words for the forecast
+  assert.match(await page.textContent('.hcslide[data-k="trends"] .hctitle'), /^(Holding steady around \d+|Improving – about \d+ by \w{3} \d+, from \d+ now|Slipping a little – about \d+ by \w{3} \d+, from \d+ now)$/);
+  const w = await page.$('.hcslide[data-k="watch"] .hctitle'); if (w) assert.match(await w.textContent(), /^Keep an eye on [a-z0-9+ ]+$/);
+  assert.strictEqual(await page.$$eval('.hcslide.on', e => e.length), 1); assert.strictEqual(await page.$$eval('.hcdots i', e => e.length), await page.$$eval('.hcslide', e => e.length)); ok('one showing, a dot each');
   const on = () => page.$eval('.hcslide.on', x => x.dataset.k);
   await page.waitForTimeout(7400); assert.strictEqual(await on(), 'game', 'moves on after ~7 s'); ok('rotates');
   await page.dispatchEvent('#hcard', 'pointerdown'); await page.waitForTimeout(7600); assert.strictEqual(await on(), 'game', 'touching it pauses'); ok('pauses when touched');

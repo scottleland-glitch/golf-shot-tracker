@@ -25,6 +25,14 @@ Every Shot Counts Table 3.10). The other five are ESTIMATED: per-round gaps from
 Player Quality ladder, then spread over the PGA table. Full sources, method and caveats: in-app
 "About the numbers" and the BASELINES comment in `sg.js`.
 
+## Home card: the forecast in plain words, "keep an eye on" (v201)
+- The Trends message compares the 5-week score forecast with your score now and never says "up" or "down" (a lower score is
+  better play): **Holding steady around 78** (within ¾ of a stroke), **Improving – about 77 by Dec 14, from 79 now**, or
+  **Slipping a little – about 81 by Dec 14, from 79 now**. Under it: "An early read – it sharpens with every round" (low
+  confidence) or "Getting clearer with every round" (medium); nothing once confidence is high.
+- **Keep an eye on chipping** – "It's slipping – a little practice there would help" · Log practice: the area whose forecast
+  is furthest below its normal, only when it isn't an expected dip after a lesson and confidence isn't low.
+
 ## Home: the rotating "next thing" card (v200)
 - The My Game shortcut card (now a tab) became a card of what to do next (`homeMsgs` / `homeCardHTML`), only the messages
   that apply, one at a time: **Last round** (a round in the last 3 days – score, course, what stood out · See round) ·
