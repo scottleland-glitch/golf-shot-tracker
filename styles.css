@@ -2884,3 +2884,9 @@ html body .trcard2.trearly .trfoot { margin-top: 4px; }
 .trchart .trdip { fill: rgba(107, 90, 166, .10); } .trchart .trtag.exp { fill: #5a4a96; }
 html body .trconf { margin: -2px 4px 2px; font-size: 12px; font-weight: 700; } html body .trconf.low { color: #b0473f; } html body .trconf.mid { color: #a06a12; } html body .trconf.high { color: #2f7a4c; }
 html body .trlede b.cl { color: #b0473f; } html body .trlede b.cm { color: #a06a12; } html body .trlede b.ch { color: #2f7a4c; }
+/* v197: tap a week's dot */
+.trchart .trhit { fill: transparent; cursor: pointer; } .trchart .trsel { fill: none; stroke: #17301f; stroke-width: 1.6; }
+html body .trwk { margin: 2px 4px 6px; padding: 8px 10px; border-radius: 14px; background: rgba(255, 255, 255, .6); }
+html body .trwkh { display: flex; align-items: center; justify-content: space-between; } html body .trwkh b { font-size: 13.5px; } html body .trwkh .txt { min-height: 32px; padding: 0 6px; }
+html body .trwk ul { list-style: none; margin: 4px 0 0; padding: 0; } html body .trwk li { display: flex; justify-content: space-between; gap: 10px; padding: 4px 0; font-size: 13.5px; border-top: 1px solid rgba(23, 48, 31, .08); }
+html body .trwk li span { color: #43525f; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; } html body .trwk li b { white-space: nowrap; }

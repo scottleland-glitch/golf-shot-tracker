@@ -25,6 +25,16 @@ Every Shot Counts Table 3.10). The other five are ESTIMATED: per-round gaps from
 Player Quality ladder, then spread over the PGA table. Full sources, method and caveats: in-app
 "About the numbers" and the BASELINES comment in `sg.js`.
 
+## Trends count rounds; tap a week (v197)
+- **Rounds, not weeks:** each week's number is still the average of its rounds (a weekend of 87 and 73 is 80), but the week
+  counts as two readings (holes ÷ 18, at most 3 a week) in the fit, recent form (halving every 4 rounds), the backtest and
+  readiness. The first forecast comes after **4 rounds spread over 3+ weeks**; confidence is low under 6 rounds, medium to 10,
+  high after (with 4 backtest checks). The practice effect is shrunk by rounds / (rounds + 6) and the band is
+  ×(1 + (10 − rounds) / 6) wide until 10 rounds. Cards say "Low confidence · 5 of 10 rounds", "3 of 4 rounds", "1 more round
+  until the first forecast".
+- **Tap a week's dot** to list its rounds under the chart: day, course and score (Practice vs score) or that area's strokes
+  gained per 18 (areas), with "Week of Nov 2 · average 80". The dot is ringed; tap it again or ✕ to close.
+
 ## Trends confidence: lines first, then a band that tightens (v196)
 - **Weeks 1–3:** just the lines – strokes gained from rounds and practice by week – with "2 of 4 weeks", a progress bar and
   "2 more weeks with a round until the first forecast". An area with rounds but no practice shows its rounds line and

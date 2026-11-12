@@ -124,5 +124,28 @@ test('few weeks hold the practice effect back toward "no effect"', () => {
   const { x, y } = stockSeries(26, 4, 1.2, 0.2, 5), now = Date.now();
   const cut = w => TR.analyse(y.map((v, i) => i >= 26 - w ? v : null), x.map((v, i) => i >= 26 - w ? v : 0), { now, model: 'lag' });
   const s6 = cut(6), all = TR.analyse(y, x, { now, model: 'lag' }); assert.ok(s6.link && all.link, 'linked both ways');
-  assert.ok(Math.abs(s6.b - s6.byLag[s6.lag].b * 6 / 10) < 1e-9, '6 weeks: ×6/10'); assert.ok(Math.abs(all.b - all.byLag[all.lag].b * 26 / 30) < 1e-9, '26 weeks: ×26/30');
+  assert.ok(Math.abs(s6.b - s6.byLag[s6.lag].b * 6 / 12) < 1e-9, '6 rounds: ×6/12'); assert.ok(Math.abs(all.b - all.byLag[all.lag].b * 26 / 32) < 1e-9, '26 rounds: ×26/32');
+});
+
+// ---- v197: rounds count, not just weeks ----
+test('rounds: a two-round week is two readings; the first forecast at 4 rounds over 3+ weeks; at most 3 a week', () => {
+  const { x, y } = stockSeries(26, 4, 1.2, 0.4, 3), now = Date.now(), keep = (w, a) => a.map((v, i) => i >= 26 - w ? v : (a === x ? 0 : null));
+  const two = keep(3, y).map(v => v == null ? 0 : 2), A = TR.analyse(keep(3, y), keep(3, x), { now, wt: two });
+  assert.ok(A.ok, '3 weeks × 2 rounds = 6 rounds → a forecast'); assert.strictEqual(A.rounds, 6); assert.strictEqual(A.conf, 'mid');
+  assert.strictEqual(TR.analyse(keep(2, y), keep(2, x), { now, wt: keep(2, y).map(v => v == null ? 0 : 3) }).ok, false, '6 rounds in only 2 weeks: not yet');
+  assert.strictEqual(TR.analyse(keep(3, y), keep(3, x), { now }).ok, false, '3 weeks × 1 round: not yet');
+  assert.strictEqual(TR.analyse(keep(4, y), keep(4, x), { now, wt: keep(4, y).map(v => v == null ? 0 : 6) }).rounds, 12, 'a 6-round week counts as 3');
+  const ten = TR.analyse(keep(5, y), keep(5, x), { now, wt: keep(5, y).map(v => v == null ? 0 : 2) }); assert.strictEqual(ten.rounds, 10); assert.ok(ten.widen === 1, 'full width at 10 rounds');
+});
+test('rounds: a week with more rounds pulls recent form harder', () => {
+  const y = Array(20).fill(0).map((_, i) => i === 19 ? 1 : i === 18 ? -1 : 0), x = Array(20).fill(1).map((v, i) => v + (i % 3) * 0.2), now = Date.now();
+  const even = TR.analyse(y, x, { now, model: 'lag' }), heavy = TR.analyse(y, x, { now, model: 'lag', wt: y.map((_, i) => i === 18 ? 3 : 1) });
+  assert.ok(heavy.form < even.form, 'three rounds at −1 outweigh one at +1: ' + even.form + ' → ' + heavy.form);
+});
+test('rounds: each week lists its rounds with course, score and strokes gained per area', () => {
+  const now = Date.parse('2026-11-11T12:00:00'), FAKE = { summarize: r => ({ holesDone: 18, strokes: r.sc, holes: [{ done: true, shots: [{ sg: r.p, kind: 'putt' }] }] }) };
+  const MY = { SPOKES: [{ k: 'short', test: s => s.kind === 'putt' }] };
+  const W = TR.weekSeries([{ id: 'a', date: '2026-11-08T10:00:00', course: 'Paradise Valley', sc: 73, p: 0.5 }, { id: 'b', date: '2026-11-07T10:00:00', course: 'Paradise Valley', sc: 87, p: -1 }], [], FAKE, MY, { now, weeks: 2 });
+  assert.deepStrictEqual(W[0].list.map(r => [r.id, r.course, r.score, r.sg.short]), [['b', 'Paradise Valley', 87, -1], ['a', 'Paradise Valley', 73, 0.5]], 'oldest first');
+  assert.deepStrictEqual(W[0].score.slice().sort(), [73, 87], 'both scores kept – the week averages 80');
 });
