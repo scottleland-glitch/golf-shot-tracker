@@ -25,6 +25,11 @@ Every Shot Counts Table 3.10). The other five are ESTIMATED: per-round gaps from
 Player Quality ladder, then spread over the PGA table. Full sources, method and caveats: in-app
 "About the numbers" and the BASELINES comment in `sg.js`.
 
+## Round in progress: always in Rounds, empty one discardable from Home (v199)
+- Rounds hid rounds with no shots entered, so an empty round in progress only showed as "Resume round · 0 holes done" on
+  Home and couldn't be found in the list. The round in progress is now always listed, and when it is still empty Home shows
+  **Discard this empty round** under the Resume pill (asks first, like Discard round in the round's ⋯ menu).
+
 ## Pinned tab bar (v198)
 - One bar on **Home, My Game, Rounds, Practice and Stats**: **My Game · Rounds · (+) · Practice · Stats** (`tabBarHTML`), the
   current tab highlighted. The raised green **+** in the middle opens New round / Log practice / Short game test (above the

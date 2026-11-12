@@ -16,7 +16,8 @@ const BASE = process.env.BASE_URL || 'http://127.0.0.1:8769/';
   await page.reload();
   assert.match(await page.textContent('[data-act="resume"]'), /0 holes done/);
   // empty rounds stay out of History and backups
-  await goHist(page); assert.deepStrictEqual(await page.$$eval('#histlist .hrow', r => r.map(x => x.getAttribute('data-id'))), ['real']);
+  // v199 (Scott): the empty round IN PROGRESS is listed (it was only findable on Home); backups still leave it out
+  await goHist(page); assert.deepStrictEqual((await page.$$eval('#histlist .hrow', r => r.map(x => x.getAttribute('data-id')))).sort(), ['empty', 'real']);
   await page.click('[data-act="home"] >> nth=0'); await page.click('#navbtn'); await page.click('#navmenu [data-act="archive"]'); // backup + discard live on Archive
   const [dl] = await Promise.all([page.waitForEvent('download'), page.click('[data-act="backup"]')]);
   assert.deepStrictEqual(JSON.parse(require('fs').readFileSync(await dl.path(), 'utf8')).rounds.map(r => r.id), ['real']);

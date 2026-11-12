@@ -1,4 +1,5 @@
 // Offline support: cache the whole app on install, serve cache-first.
+// v199: the round in progress is always listed in Rounds (even before a shot); an empty one can be discarded from Home.
 // v198: pinned tab bar on the main screens – My Game · Rounds · (+) · Practice · Stats; the + opens New round / Log practice / Short game test from any tab; page buttons moved onto the pages (My Game: Tests, Trends; Practice: + Log practice, Report, Trend, Plan; test result: History, Trend, Report, New test).
 // v197: Trends count rounds, not weeks – a two-round week is two readings (fit, form, backtest, readiness); first forecast after 4 rounds over 3+ weeks, high confidence from 10; tap a week's dot to list its rounds.
 // v196: Trends confidence – lines only for the first 3 weeks, a forecast from week 4 with a wide likely-range band that narrows to week 10 (red → amber → green); practice effect held back toward none early; no gain/loss colours, no slipping boxes.
@@ -91,7 +92,7 @@
 // v113: "Courses near me" (near.js). The course finder list (data/us-courses.json, ~1.0 MB, ~0.28 MB gzipped) is NOT in this cache:
 // the app downloads it on first use into its own cache 'pinhigh-courselist-v1', which a new version keeps (so no re-download).
 // GolfCore scorecards (through the Pin High relay, pinhigh-golfcore.pinhigh.workers.dev) go straight to the network; the app saves each picked course with the saved courses.
-const CACHE = 'golf-sg-v198';
+const CACHE = 'golf-sg-v199';
 const ASSETS = ['./', './img/home-bg.webp', './img/oriole.webp', './index.html', './styles.css', './sg.js', './trends.js', './birdie.js', './courses.js', './near.js', './bag.js', './wedges.js', './live.js', './share.js', './story.js', './insights.js', './mygame.js', './shortgame.js', './shortgame-ui.js', './gdrive.js', './app.js', './config.js', './vendor/jspdf.umd.min.js',
   './manifest.webmanifest', './icons/apple-touch-icon.png', './icons/icon-192.png',
   './icons/icon-512.png', './icons/icon-512-maskable.png'];

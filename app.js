@@ -1262,7 +1262,8 @@
   function historyHTML() {
     var P = playersIn(), names = Object.keys(P).sort(), multi = names.length + (savedRounds().some(function (r) { return !r.player; }) && names.length ? 1 : 0) > 1;
     if (!multi || (view.histPlayer && view.histPlayer !== '~none' && !P[view.histPlayer])) view.histPlayer = null;
-    var list = savedRounds().filter(function (r) { return !view.histPlayer || (view.histPlayer === '~none' ? !r.player : r.player === view.histPlayer); }).sort(function (a, b) { return String(b.date || '').localeCompare(String(a.date || '')); });
+    var curId = localStorage.getItem(CUR); // v199 (Scott): the round in progress is always listed, even before a shot is entered
+    var list = rounds.filter(function (r) { return !SG.roundEmpty(r) || r.id === curId; }).filter(function (r) { return !view.histPlayer || (view.histPlayer === '~none' ? !r.player : r.player === view.histPlayer); }).sort(function (a, b) { return String(b.date || '').localeCompare(String(a.date || '')); });
     var h = '<div class="frostpage theme-sky histpage"><div class="topbar frost"><button class="txt frostbtn" data-act="home">‹ Home</button><div class="title"><b>Rounds</b><span>' + list.length + ' round' + (list.length === 1 ? '' : 's') + ', newest first</span></div><span class="tbspace"></span></div>';
     // v102: compact player filter + one slim row of small tools, then a tight table-like list (score circle, holes, date, to par/SG, course)
     if (multi) h += '<div class="hchips" id="playerchips" role="group" aria-label="Filter by player">' + [''].concat(names).map(function (n) {
@@ -2184,7 +2185,9 @@
 ''; // v89: no Player row on Home (kept clean) – it lives in the New round sheet
     var bot = '';
     bot += mgHomeCardHTML(); // v141 My Game card
-    if (cur) { var S = SG.summarize(cur); bot += '<button class="glass pill" id="resumepill" data-act="resume">Resume round<small>' + (cur.course ? esc(cur.course) + ' · ' : '') + S.holesDone + ' holes done</small></button>'; }
+    if (cur) { var S = SG.summarize(cur); bot += '<button class="glass pill" id="resumepill" data-act="resume">Resume round<small>' + (cur.course ? esc(cur.course) + ' · ' : '') + S.holesDone + ' holes done</small></button>';
+      // v199 (Scott): an empty round in progress could only be removed from inside it – discard it right here
+      if (SG.roundEmpty(cur)) bot += '<button class="txt resumex" id="resumex" data-act="discard" data-id="' + esc(cur.id) + '">Discard this empty round</button>'; }
     // v102: no Archive pill – that page is Settings in the + menu
     h += '<div class="home-bottom">' + bot + '</div><div class="appver homever" id="homever" aria-label="App version">' + esc(APP_VER) + '</div>';
     if (view.nameSheet) h += nameSheetHTML();

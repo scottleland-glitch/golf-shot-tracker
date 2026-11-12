@@ -41,9 +41,12 @@ const BASE = 'http://127.0.0.1:8795/', OUT = '/workspace/golf-app/screenshots/';
   await page.click('[data-act="new"]'); await page.waitForSelector('.holecard');
   await (async () => { if (await page.$('#holemore') && !(await page.$('#holemenu'))) await page.click('#holemore'); return page.click('[data-act="home"]'); })() /* v188: Home + Discard are in ⋯ during a round */; await page.waitForSelector('#resumepill');
   const R = await page.evaluate(() => [...document.querySelectorAll('#home button')].map(x => x.id + ':' + x.innerText.replace(/\s+/g, ' ')));
-  assert.deepStrictEqual(R, ['navbtn:', 'resumepill:Resume round Lakeridge · 0 holes done']);
+  assert.deepStrictEqual(R, ['navbtn:', 'resumepill:Resume round Lakeridge · 0 holes done', 'resumex:Discard this empty round']);
   const pos = await page.evaluate(() => document.getElementById('resumepill').getBoundingClientRect().bottom);
-  assert.ok(pos > 700, 'resume pill at the bottom ' + pos);
+  assert.ok(pos > 640, 'resume pill at the bottom, above the tab bar ' + pos);
+  // v199: the empty round in progress is in Rounds too
+  await page.click('#tbrounds'); await page.waitForTimeout(200); const cid = await page.evaluate(() => localStorage.getItem('golfsg.current.v1'));
+  assert.ok(await page.$('[data-id="' + cid + '"], [data-r="' + cid + '"], [data-v="' + cid + '"]'), 'listed in Rounds'); await page.click('#tbmygame'); await page.click('[data-act="home"]'); await page.waitForSelector('#resumex');
   await page.waitForFunction(() => !document.querySelector('#toast.show') && getComputedStyle(document.getElementById('toast')).opacity < 0.05, null, { timeout: 8000 }).catch(() => {}); await page.waitForTimeout(3000);
   await shot('resume');
   await page.click('#resumepill'); await page.waitForSelector('.holecard');
