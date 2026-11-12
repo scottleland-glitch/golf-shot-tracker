@@ -48,7 +48,7 @@ const PORT = 8813, BASE = `http://127.0.0.1:${PORT}/`, OUT = '/workspace/golf-ap
   assert.ok(cached.length > 10 && !cached.some(u => /scan\.js|tesseract/.test(u)), 'offline cache has no scanner'); assert.ok(!loaded.some(u => /scan\.js|tesseract/.test(u)), 'scanner never loaded');
   assert.strictEqual(await page.evaluate(() => typeof window.SCAN), 'undefined');
   // New round sheet, no saved courses: name box + Type in, no scan button or photo input
-  await page.click('#plusbtn'); await page.click('[data-act="newform"]'); await page.waitForSelector('#ntype');
+  await page.click('#tbplus'); await page.click('[data-act="newform"]'); await page.waitForSelector('#ntype');
   assert.strictEqual(await page.$('#crspick'), null, 'no saved courses yet: no dropdown, just the name box'); assert.ok(await page.$('#course'));
   assert.match(await page.textContent('#ntype'), /Type in par & yardages/);
   const noScan = async () => { assert.strictEqual(await page.$('[data-act="scan"], [data-act="scanarch"], #cardfile, input[type=file][accept^="image"], .halfbar, .halfsteps'), null, 'no scan UI');
@@ -72,7 +72,7 @@ const PORT = 8813, BASE = `http://127.0.0.1:${PORT}/`, OUT = '/workspace/golf-ap
   const rd = await page.evaluate(() => JSON.parse(localStorage.getItem('golfsg.rounds.v1'))[0]); assert.strictEqual(rd.tee, 'White'); assert.strictEqual(rd.course, 'Pebble Creek');
   assert.deepStrictEqual(rd.holes.map(x => x.par), TRUE.par);
   // Rename tees or fix numbers from the New round sheet still opens the editor
-  await (async () => { if (await page.$('#holemore') && !(await page.$('#holemenu'))) await page.click('#holemore'); return page.click('[data-act="home"]'); })() /* v188: Home + Discard are in ⋯ during a round */; await page.click('#plusbtn'); await page.click('[data-act="newform"]'); await page.click('#crspick'); await page.click('#crslist [data-act="ncourse"]');
+  await (async () => { if (await page.$('#holemore') && !(await page.$('#holemenu'))) await page.click('#holemore'); return page.click('[data-act="home"]'); })() /* v188: Home + Discard are in ⋯ during a round */; await page.click('#tbplus'); await page.click('[data-act="newform"]'); await page.click('#crspick'); await page.click('#crslist [data-act="ncourse"]');
   await page.click('[data-act="nedit"]'); await page.waitForSelector('.revgrid'); assert.strictEqual((await page.textContent('.topbar .title b')).trim(), 'Edit course'); await noScan();
   await page.fill('[data-cf="tee"]', 'White Tees'); await page.click('[data-act="cardsave"]'); await page.waitForSelector('#ntees'); assert.match(await page.textContent('#ntees .sel'), /White Tees/);
   await page.click('.sheet-back', { position: { x: 30, y: 40 } });
@@ -93,8 +93,8 @@ const PORT = 8813, BASE = `http://127.0.0.1:${PORT}/`, OUT = '/workspace/golf-ap
   await page.waitForSelector('[data-act="rpgo"]'); await page.click('[data-act="rpgo"]'); await page.waitForSelector('#notice'); assert.match(await page.textContent('#notice'), /1 course/);
   assert.match(await page.textContent('.crsbtn'), /2 saved/);
   // offline: the app (and typing a course in) works with no network
-  await ctx.setOffline(true); await page.reload(); await page.waitForSelector('#plusbtn');
-  await page.click('#plusbtn'); await page.click('[data-act="newform"]'); await page.click('#crspick'); assert.strictEqual(await page.locator('#crslist [data-act="ncourse"]').count(), 2); await page.click('[data-act="crsnew"]');
+  await ctx.setOffline(true); await page.reload(); await page.waitForSelector('#tbplus');
+  await page.click('#tbplus'); await page.click('[data-act="newform"]'); await page.click('#crspick'); assert.strictEqual(await page.locator('#crslist [data-act="ncourse"]').count(), 2); await page.click('[data-act="crsnew"]');
   await page.click('[data-act="cardmanual"]'); await page.waitForSelector('.revgrid');
   assert.deepStrictEqual(outside, [], 'no outside network requests'); assert.deepStrictEqual(errors, []);
   console.log('COURSES (TYPED IN) OK'); await b.close(); srv.kill();

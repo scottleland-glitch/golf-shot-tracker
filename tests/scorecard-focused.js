@@ -32,7 +32,7 @@ const ok = m => console.log('ok - ' + m);
     // each row: label, then every cell's text (✓ / ✗ for the yes/no icons)
     const table = () => P.$$eval('#scorecard tr:not(.scgap)', trs => trs.map(t => [t.querySelector('th').textContent,
       ...[...t.querySelectorAll('td')].map(d => d.querySelector('svg.yes') ? '✓' : d.querySelector('svg.no') ? '✗' : d.textContent)]));
-    await P.goto(BASE + 'index.html'); await P.waitForSelector('#plusbtn');
+    await P.goto(BASE + 'index.html'); await P.waitForSelector('#tbplus');
     await openRound('arc78');
 
     // ---------- 1. one card, rows in order, no player-name row ----------

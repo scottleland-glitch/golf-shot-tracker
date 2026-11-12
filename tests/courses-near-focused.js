@@ -81,7 +81,7 @@ const ok = m => console.log('  ✓ ' + m), HOME = { lat: 36.5686, lng: -121.9497
     page.on('pageerror', e => errors.push(String(e))); page.on('console', m => m.type() === 'error' && !/favicon|ERR_INTERNET_DISCONNECTED|Failed to load resource|Failed to fetch/.test(m.text()) && errors.push(m.text()));
     const shot = async name => { await page.evaluate(() => { const t = document.getElementById('toast'); if (t) t.className = ''; }); await page.waitForTimeout(350); await page.screenshot({ path: OUT + name + '.png' }); };
     const store = () => page.evaluate(() => JSON.parse(localStorage.getItem('golfsg.courses.v1') || '[]'));
-    const openNew = async () => { await page.click('#plusbtn'); await page.click('[data-act="newform"]'); await page.waitForSelector('#nearbtn'); };
+    const openNew = async () => { await page.click('#tbplus'); await page.click('[data-act="newform"]'); await page.waitForSelector('#nearbtn'); };
     const light = async sel => { const w = await page.$eval(sel, e => [+getComputedStyle(e).fontWeight, parseFloat(getComputedStyle(e).fontSize)]); assert.ok(w[0] <= 400 && w[1] <= 16.5, sel + ' light/small ' + w); };
     await page.goto(BASE + '?x=' + Date.now());
     await page.evaluate(() => { localStorage.clear(); localStorage.setItem('golfsg.player.v1', 'Scott'); localStorage.setItem('golfsg.nameasked.v1', '1'); });

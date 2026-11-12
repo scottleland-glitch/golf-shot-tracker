@@ -131,7 +131,7 @@ const pct = (a, b) => (a / b - 1) * 100;
     const p60 = (await store()).clubs.find(c => c.code === '60'); await page.click('.bname[data-id="' + p60.id + '"]'); await page.click('#bagedit [data-v="remove"]');
     assert.strictEqual((await store()).clubs.length, 13); assert.match(dialogs.pop(), /Remove 60/);
     // in-round picker: bag clubs only (no putter), with the San Diego carries since "show in picker" is on
-    await (async (P) => { if (!(await P.$('.topbar [data-act="home"]')) && await P.$('#rsmenubtn')) await P.click('#rsmenubtn'); return P.click('.topbar [data-act="home"], #rsmenu [data-act="home"]'); })(page) /* v191: in ☰ on Round stats */; await page.click('#plusbtn'); await page.click('[data-act="newform"]'); await page.waitForSelector('[data-act="new"]');
+    await (async (P) => { if (!(await P.$('.topbar [data-act="home"]')) && await P.$('#rsmenubtn')) await P.click('#rsmenubtn'); return P.click('.topbar [data-act="home"], #rsmenu [data-act="home"]'); })(page) /* v191: in ☰ on Round stats */; await page.click('#tbplus'); await page.click('[data-act="newform"]'); await page.waitForSelector('[data-act="new"]');
     const cIn = await page.$('#course'); if (cIn) await page.fill('#course', 'Torrey Pines');
     await page.click('[data-act="new"]'); await page.waitForSelector('.holecard');
     const opts = await page.$$eval('select[data-f="club"][data-k="0"] option', e => e.map(o => [o.value, o.textContent]));

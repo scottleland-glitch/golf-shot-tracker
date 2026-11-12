@@ -15,16 +15,16 @@ const BASE = 'http://127.0.0.1:8795/', OUT = '/workspace/golf-app/screenshots/';
   const H = await page.evaluate(() => { const h = document.getElementById('home'), bg = getComputedStyle(h.querySelector('.home-bg'));
     return { btns: [...h.querySelectorAll('button')].map(x => x.id), text: h.innerText.replace(/\s+/g, ' ').trim(), bg: bg.backgroundImage, size: bg.backgroundSize, r: h.getBoundingClientRect().toJSON(),
       title: getComputedStyle(h.querySelector('.home-title')).color, inputs: h.querySelectorAll('input,select').length }; });
-  assert.deepStrictEqual(H.btns, ['navbtn', 'plusbtn'], 'home buttons'); assert.strictEqual(H.text, 'Strokewise + Strokewise ' + require('fs').readFileSync(__dirname + '/../sw.js', 'utf8').match(/golf-sg-(v\d+)/)[1], 'title, + and the small version line (v107)'); assert.strictEqual(H.inputs, 0);
+  assert.deepStrictEqual(H.btns, ['navbtn'], 'home buttons (v198: + in the tab bar)'); assert.strictEqual(H.text, 'Strokewise Strokewise ' + require('fs').readFileSync(__dirname + '/../sw.js', 'utf8').match(/golf-sg-(v\d+)/)[1], 'title, + and the small version line (v107)'); assert.strictEqual(H.inputs, 0);
   assert.ok(/home-bg\.webp/.test(H.bg) && H.size === 'cover' && H.r.width === 393 && H.r.height === 852, 'full-bleed photo ' + JSON.stringify(H));
   assert.strictEqual(H.title, 'rgb(255, 255, 255)');
   assert.ok(await page.evaluate(() => fetch('img/home-bg.webp').then(r => r.blob()).then(x => x.size < 250000)), 'photo under 250 KB');
   await shot('main');
   // + menu (v102): New round · My Bag (bag + wedge ladder) · Rounds · Settings
-  await page.click('#plusbtn'); assert.deepStrictEqual(await page.$$eval('#plusmenu button', x => x.map(e => e.textContent)), ['New round', 'Log practice', 'Short game test'], 'v191: + starts things');
-  await page.$eval('.sheet-back', e => e.click()); await page.click('#navbtn'); assert.deepStrictEqual(await page.$$eval('#navmenu button', x => x.map(e => e.textContent)), ['Rounds', 'Stats', 'My Game', 'My Bag', 'Settings', 'Help'], 'v191: ☰ places'); await page.$eval('.sheet-back', e => e.click()); await page.click('#plusbtn');
+  await page.click('#tbplus'); assert.deepStrictEqual(await page.$$eval('#plusmenu button', x => x.map(e => e.textContent)), ['New round', 'Log practice', 'Short game test'], 'v191: + starts things');
+  await page.$eval('.sheet-back', e => e.click()); await page.click('#navbtn'); assert.deepStrictEqual(await page.$$eval('#navmenu button', x => x.map(e => e.textContent)), ['Rounds', 'Stats', 'My Game', 'My Bag', 'Settings', 'Help'], 'v191: ☰ places'); await page.$eval('.sheet-back', e => e.click()); await page.click('#tbplus');
   await shot('plus');
-  await page.click('.sheet-back', { position: { x: 60, y: 600 } }); assert.strictEqual(await page.$('#plusmenu'), null, 'tap outside closes');
+  await page.click('.sheet-back', { position: { x: 60, y: 300 } }); assert.strictEqual(await page.$('#plusmenu'), null, 'tap outside closes');
   await page.click('#navbtn'); await page.click('#navmenu [data-act="history"]'); await page.waitForSelector('#histlist, .topbar'); assert.match(await page.textContent('.topbar'), /Rounds/);
   await page.click('[data-act="home"] >> nth=0'); await page.waitForSelector('#home'); assert.strictEqual(await page.$('#plusmenu'), null, 'menu closed after navigating');
   // Settings (was Archive): player name setup + data tools, Home button
@@ -37,11 +37,11 @@ const BASE = 'http://127.0.0.1:8795/', OUT = '/workspace/golf-app/screenshots/';
   assert.ok(await page.$('#archivepage, .topbar'), 'stays on Settings after saving the name');
   await (async () => { if (await page.$('#holemore') && !(await page.$('#holemenu'))) await page.click('#holemore'); return page.click('[data-act="home"]'); })() /* v188: Home + Discard are in ⋯ during a round */; await page.waitForSelector('#home');
   // new round from the + sheet
-  await page.click('#plusbtn'); await page.click('[data-act="newform"]'); await page.fill('#course', 'Lakeridge'); await page.selectOption('#newbl', { index: 0 });
+  await page.click('#tbplus'); await page.click('[data-act="newform"]'); await page.fill('#course', 'Lakeridge'); await page.selectOption('#newbl', { index: 0 });
   await page.click('[data-act="new"]'); await page.waitForSelector('.holecard');
   await (async () => { if (await page.$('#holemore') && !(await page.$('#holemenu'))) await page.click('#holemore'); return page.click('[data-act="home"]'); })() /* v188: Home + Discard are in ⋯ during a round */; await page.waitForSelector('#resumepill');
   const R = await page.evaluate(() => [...document.querySelectorAll('#home button')].map(x => x.id + ':' + x.innerText.replace(/\s+/g, ' ')));
-  assert.deepStrictEqual(R, ['navbtn:', 'plusbtn:+', 'resumepill:Resume round Lakeridge · 0 holes done']);
+  assert.deepStrictEqual(R, ['navbtn:', 'resumepill:Resume round Lakeridge · 0 holes done']);
   const pos = await page.evaluate(() => document.getElementById('resumepill').getBoundingClientRect().bottom);
   assert.ok(pos > 700, 'resume pill at the bottom ' + pos);
   await page.waitForFunction(() => !document.querySelector('#toast.show') && getComputedStyle(document.getElementById('toast')).opacity < 0.05, null, { timeout: 8000 }).catch(() => {}); await page.waitForTimeout(3000);

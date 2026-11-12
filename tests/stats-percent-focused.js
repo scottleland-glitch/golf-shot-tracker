@@ -17,7 +17,7 @@ const SEED = fs.readFileSync(__dirname + '/fixtures/stats-rounds.js', 'utf8');
   await page.evaluate(() => { const R = (dist, loc) => ({ dist, loc, dir: '', pen: false }), L = JSON.parse(localStorage.getItem('golfsg.rounds.v1'));
     L.push({ v: 3, dv: 2, id: 'p3', date: '2026-10-28T15:00:00.000Z', course: 'Par 3 Park', baseline: 'pga', player: 'Scott', holes: Array.from({ length: 9 }, (_, i) => ({ par: 3, finished: true, rows: [R(120 + 5 * i, 'tee'), R(6, 'green'), R(1, 'holed')] })) });
     localStorage.setItem('golfsg.rounds.v1', JSON.stringify(L)); });
-  await page.reload(); await page.waitForSelector('#plusbtn');
+  await page.reload(); await page.waitForSelector('#tbplus');
   const openRound = async id => { await page.click('#navbtn'); await page.click('#navmenu [data-act="history"]'); await page.click('#histlist [data-act="open"][data-id="' + id + '"]'); await page.waitForSelector('#stattiles'); };
   const rows = () => page.$$eval('#stattiles .stxh', h => h.map(x => { const b = x.querySelector('b'), s = x.querySelector('span'), em = b.querySelector('.stxp'), lh = parseFloat(getComputedStyle(b).lineHeight) || 22;
     return { v: x.closest('[data-stx]').dataset.stx, l: s.textContent, n: b.textContent, oneLine: b.getBoundingClientRect().height < lh * 1.5 && s.getBoundingClientRect().height < (parseFloat(getComputedStyle(s).lineHeight) || 22) * 1.5,

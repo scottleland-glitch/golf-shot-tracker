@@ -14,16 +14,16 @@ const REPO = path.join(__dirname, '..'), PORT = 8968, ARC = require('./fixtures/
   // Home: ☰ = places, + = start something
   assert.ok(await page.$('#navbtn svg.menuic'), '☰ icon'); await page.click('#navbtn');
   assert.deepStrictEqual(await page.$$eval('#navmenu .sheet-item', e => e.map(x => x.textContent)), ['Rounds', 'Stats', 'My Game', 'My Bag', 'Settings', 'Help']);
-  await page.$eval('.sheet-back', e => e.click()); await page.click('#plusbtn');
+  await page.$eval('.sheet-back', e => e.click()); await page.click('#tbplus');
   assert.deepStrictEqual(await page.$$eval('#plusmenu .sheet-item', e => e.map(x => x.textContent)), ['New round', 'Log practice', 'Short game test']); await page.$eval('.sheet-back', e => e.click()); ok('Home: ☰ places, + starts things');
   // v194: My Game has no ☰ / +, a bottom bar instead
   await page.click('#mgcard'); await page.waitForSelector('#mygame'); assert.strictEqual(await page.$('#mgplus, #mgnav'), null, 'no ☰ / + on My Game');
-  assert.deepStrictEqual(await page.$$eval('#pagebar .rbbtn span', e => e.map(x => x.textContent)), ['Tests', 'Practice', 'Trends', 'Stats']); assert.ok(await page.evaluate(() => document.body.classList.contains('hasrbar')), 'page padded for the bar');
-  await page.click('#pbgopractice'); await page.waitForSelector('#practicepage'); assert.deepStrictEqual(await page.$$eval('#pagebar .rbbtn span', e => e.map(x => x.textContent)), ['Practice plan', 'Report', 'Trend', 'Log practice']);
-  await page.click('#pbprplan'); await page.waitForTimeout(100); assert.ok(await page.$('#practicepage'), 'Practice plan: coming soon, stays put');
-  await page.click('#pbgotrends'); await page.waitForSelector('#trendspage'); assert.strictEqual(await page.$('#pagebar'), null, 'no bar on Trends');
-  await page.click('#trback'); await page.waitForSelector('#practicepage'); await page.click('#prback'); await page.waitForSelector('#mygame');
-  await page.click('#pbmgstats'); await page.waitForSelector('#stats, .statspage, #stplayer', { timeout: 5000 }).catch(() => {}); assert.strictEqual(await page.$('#mygame'), null, 'Stats left My Game');
+  assert.deepStrictEqual(await page.$$eval('#tabbar .tbbtn span', e => e.map(x => x.textContent)), ['My Game', 'Rounds', 'Practice', 'Stats']); assert.ok(await page.$('#tabbar #tbplus')); assert.deepStrictEqual(await page.$$eval('#mgqrow .qbtn span', e => e.map(x => x.textContent)), ['Tests', 'Trends']); assert.ok(await page.evaluate(() => document.body.classList.contains('hasrbar')), 'page padded for the bar');
+  await page.click('#tbpractice'); await page.waitForSelector('#practicepage'); assert.ok(await page.$('#prbig')); assert.deepStrictEqual(await page.$$eval('#prqrow .qbtn span', e => e.map(x => x.textContent)), ['Report', 'Trend', 'Plan']); assert.ok(await page.$('#tbpractice.on'), 'Practice tab on');
+  await page.click('#qprplan'); await page.waitForTimeout(100); assert.ok(await page.$('#practicepage'), 'Practice plan: coming soon, stays put');
+  await page.click('#qgotrends'); await page.waitForSelector('#trendspage'); assert.strictEqual(await page.$('#pagebar, #tabbar'), null, 'no bar on Trends');
+  await page.click('#trback'); await page.waitForSelector('#practicepage'); await page.click('#prback'); await page.waitForSelector('#home'); await page.click('#tbmygame'); await page.waitForSelector('#mygame');
+  await page.click('#tbstats'); await page.waitForSelector('#stats, .statspage, #stplayer', { timeout: 5000 }).catch(() => {}); assert.strictEqual(await page.$('#mygame'), null, 'Stats left My Game');
   await page.click('#navbtn').catch(() => {}); await page.goto(page.url()); await page.waitForSelector('#navbtn'); ok('v194: My Game / Practice bars');
   // Round stats: Edit round, quick view under the score, ☰ menu
   await page.click('#navbtn'); await page.click('#navmenu [data-act="history"]'); await page.waitForSelector('#histlist .hrow'); await page.click('.hrow .hist'); await page.waitForSelector('#rs-top');

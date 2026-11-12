@@ -32,7 +32,7 @@ const rnd = (id, player, date, extra, more) => { const r = Object.assign(ARC.rou
   let answer = false; P.on('dialog', d => { dialogs.push(d.message()); answer ? d.accept() : d.dismiss(); });
   const shot = async name => { await P.waitForFunction(() => !document.querySelector('#toast.show')); await P.waitForTimeout(400); await P.screenshot({ path: OUT + name }); };
   const LR = () => P.evaluate(() => JSON.parse(localStorage.getItem('golfsg.rounds.v1')));
-  await P.goto(BASE + 'index.html'); await P.waitForSelector('#plusbtn');
+  await P.goto(BASE + 'index.html'); await P.waitForSelector('#tbplus');
 
   // ---------- 1. the menu says Rounds ----------
   await P.click('#navbtn');
@@ -110,7 +110,7 @@ const rnd = (id, player, date, extra, more) => { const r = Object.assign(ARC.rou
   console.log('  select mode: tap toggles rows, trash hidden, moved t0 to Quincy');
 
   // ---------- 7. Settings (was Archive) button ----------
-  await (async (P) => { if (!(await P.$('.topbar [data-act="home"]')) && await P.$('#rsmenubtn')) await P.click('#rsmenubtn'); return P.click('.topbar [data-act="home"], #rsmenu [data-act="home"]'); })(P) /* v191: in ☰ on Round stats */; await P.waitForSelector('#plusbtn');
+  await (async (P) => { if (!(await P.$('.topbar [data-act="home"]')) && await P.$('#rsmenubtn')) await P.click('#rsmenubtn'); return P.click('.topbar [data-act="home"], #rsmenu [data-act="home"]'); })(P) /* v191: in ☰ on Round stats */; await P.waitForSelector('#tbplus');
   await P.click('#navbtn'); await P.click('#navmenu [data-act="archive"]'); await P.waitForSelector('.histbtn');
   assert(/📋 Rounds/.test(await P.textContent('.histbtn'))); console.log('  Settings: button says 📋 Rounds');
 

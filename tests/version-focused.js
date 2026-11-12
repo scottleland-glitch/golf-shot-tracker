@@ -12,7 +12,7 @@ assert.ok(swVer, 'sw.js has a golf-sg-vN cache name'); assert.strictEqual(cfgVer
 assert.ok(!/appVersion/.test(cfg), 'no version in config.js (it is network-first, so it would show a version the phone is not running yet)');
 const cfgVer = cfgVers[0].match(/'(v\d+)'/)[1];
 assert.strictEqual(cfgVer, swVer, 'sg.js VERSION (' + cfgVer + ') must equal the sw.js cache version (' + swVer + ')');
-assert.strictEqual(swVer, 'v197');
+assert.strictEqual(swVer, 'v198');
 assert.ok(!/(Pin High|Strokewise) v\d+/.test(app), 'no version typed into app.js – it reads SG.VERSION');
 ok('sg.js VERSION ' + cfgVer + ' = sw.js cache golf-sg-' + swVer);
 (async () => {
@@ -30,7 +30,7 @@ ok('sg.js VERSION ' + cfgVer + ' = sw.js cache golf-sg-' + swVer);
     const expect = 'Strokewise ' + swVer, light = (L, n) => { assert.ok(L && L.vis, n + ' shown'); assert.strictEqual(L.t, expect, n + ' text'); assert.ok(L.fs <= 12 && L.fw <= 300, n + ' small + light ' + JSON.stringify(L)); };
     // ---- 2. Home: bottom, small, light grey, not covering anything
     const H = await look('#homever'); light(H, 'Home version');
-    assert.ok(H.r.bottom <= 844 && H.r.top > 844 - 40, 'at the very bottom ' + JSON.stringify(H.r));
+    const TB = await page.evaluate(() => document.getElementById('tabbar').getBoundingClientRect().top); assert.ok(H.r.bottom <= TB && H.r.top > TB - 40, 'v198: just above the tab bar ' + JSON.stringify(H.r) + ' bar ' + TB);
     assert.strictEqual(await page.evaluate(() => SG.VERSION), swVer, 'running app reads the same constant');
     ok('Home: "' + H.t + '" ' + H.fs + 'px weight ' + H.fw + ', ' + H.col + ', ' + Math.round(844 - H.r.bottom) + 'px from the bottom');
     await page.waitForTimeout(400); await page.screenshot({ path: OUT + 'version-home.png' });

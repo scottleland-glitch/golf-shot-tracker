@@ -58,7 +58,7 @@ const OUT = '/workspace/golf-app/screenshots/', PORT = 8834, BASE = 'http://127.
     await page.evaluate(([p, rs]) => { localStorage.clear(); localStorage.setItem('golfsg.player.v1', p); localStorage.setItem('golfsg.nameasked.v1', '1'); localStorage.setItem('golfsg.rounds.v1', JSON.stringify(rs)); }, [player, rounds]);
     await page.reload(); return page;
   };
-  const hist = async p => { if (await p.$('#plusbtn')) await p.click('#navbtn'); await p.click('[data-act="history"]'); await p.waitForSelector('#histlist'); };
+  const hist = async p => { if (await p.$('#tbplus')) await p.click('#navbtn'); await p.click('[data-act="history"]'); await p.waitForSelector('#histlist'); };
   // Scott's phone: send
   const S = await phone('Scott', [R], true);
   await hist(S); await S.click('#histlist [data-act="open"][data-id="arc78"]'); await S.waitForSelector('#rs-top');

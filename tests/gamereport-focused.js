@@ -28,7 +28,7 @@ function make(id, date, q) { const t = T.blank(id, date, 'Scott', 'd1w');
   page.on('request', q => { const u = new URL(q.url()); if (!/^(127\.0\.0\.1|localhost)$/.test(u.hostname) && !/^(data|blob):/.test(q.url())) outside.push(q.url()); });
   await page.goto('http://127.0.0.1:' + PORT + '/?x=' + now);
   await page.evaluate(({ R, TS, PR }) => { localStorage.setItem('golfsg.player.v1', 'Scott'); localStorage.setItem('golfsg.rounds.v1', JSON.stringify(R)); localStorage.setItem('golfsg.sgtests.v1', JSON.stringify(TS)); localStorage.setItem('golfsg.practice.v1', JSON.stringify(PR)); }, { R: rounds, TS: tests, PR: practice });
-  await page.reload(); await page.waitForSelector('#plusbtn');
+  await page.reload(); await page.waitForSelector('#tbplus');
   // v178: no benchmark set yet – a red "!" on the Home card and beside My Game in the + menu, and a red card at the top of My Game
   assert.ok(await page.$('#mgcard .bangon'), 'Home card'); await page.click('#navbtn'); assert.ok(await page.$('.sheet-item.bangon[data-act="mygame"]'), '+ menu');
   await page.click('.sheet-item[data-act="mygame"]'); await page.waitForSelector('#mygame');
@@ -49,7 +49,7 @@ function make(id, date, q) { const t = T.blank(id, date, 'Scott', 'd1w');
   assert.match(await page.textContent('#mgcvt [data-k="putting"]'), /fine in both · test: downhill putts down on your usual|test below the benchmark/, 'putting gains on the course (+0.4); the test only notes the downhill slip');
   assert.ok((await page.$$('#mgcvt .cvtr')).length === 4);
   await page.click('#mgperiod [data-v="3m"]');
-  const openReport = async () => { if (!(await page.$('#practicepage'))) await page.click('#pbgopractice'); await page.waitForSelector('#practicepage'); await page.click('#pbgrep'); }; // v194: Report is on the Practice page's bar
+  const openReport = async () => { if (!(await page.$('#practicepage'))) await page.click('#tbpractice'); await page.waitForSelector('#practicepage'); await page.click('#qgrep'); }; // v194: Report is on the Practice page's bar
   // 1. the button and the sheet: coach preset ticks everything
   assert.strictEqual(await page.$('#grbtn'), null, 'v183: no report button on the page'); await openReport(); await page.waitForSelector('#grsheet');
   assert.deepStrictEqual(await page.$$eval('#grparts .grpart', e => e.map(b => b.getAttribute('aria-pressed'))), ['true', 'true', 'true', 'true']);
@@ -78,16 +78,16 @@ function make(id, date, q) { const t = T.blank(id, date, 'Scott', 'd1w');
   await page.click('#grgo'); assert.ok(await page.$('#grsheet'), 'the sheet stays open');
   // v193 (Scott): My Game ☰ › Tests opens the last test; the test's ☰ has Tests, Make PDF, Trend
   await page.evaluate(() => { window.scrollTo(0, 0); }); await page.$eval('[data-act="grclose"]', e => e.click());
-  await page.click('#prback'); await page.waitForSelector('#mygame');
-  assert.deepStrictEqual(await page.$$eval('#pagebar .rbbtn span', e => e.map(x => x.textContent)), ['Tests', 'Practice', 'Trends', 'Stats'], 'v194: My Game bar');
-  await page.click('#pbsgtlast'); await page.waitForSelector('#sgtresult'); assert.match(await page.textContent('#sgtresult .topbar'), /Test/);
-  assert.strictEqual(await page.$('#sgtmenubtn'), null, 'no ☰ on the test'); assert.deepStrictEqual(await page.$$eval('#pagebar .rbbtn span', e => e.map(x => x.textContent)), ['History', 'Trend', 'Report', 'New test']);
-  await page.click('#pbsgttrend'); await page.waitForSelector('#sgttrend'); assert.ok((await page.$$eval('.trcard', e => e.length)) >= 3, 'one card per area');
+  await page.click('#tbmygame'); await page.waitForSelector('#mygame');
+  assert.deepStrictEqual(await page.$$eval('#tabbar .tbbtn span', e => e.map(x => x.textContent)), ['My Game', 'Rounds', 'Practice', 'Stats'], 'v198: tab bar'); assert.deepStrictEqual(await page.$$eval('#mgqrow .qbtn span', e => e.map(x => x.textContent)), ['Tests', 'Trends']);
+  await page.click('#qsgtlast'); await page.waitForSelector('#sgtresult'); assert.match(await page.textContent('#sgtresult .topbar'), /Test/);
+  assert.strictEqual(await page.$('#sgtmenubtn'), null, 'no ☰ on the test'); assert.deepStrictEqual(await page.$$eval('#sgtqrow .qbtn span', e => e.map(x => x.textContent)), ['History', 'Trend', 'Report', 'New test']); assert.strictEqual(await page.$('#tabbar, #pagebar'), null, 'no bottom bar on the test');
+  await page.click('#qsgttrend'); await page.waitForSelector('#sgttrend'); assert.ok((await page.$$eval('.trcard', e => e.length)) >= 3, 'one card per area');
   assert.ok((await page.$$eval('.trcard[data-cat="putting"] .trrow', e => e.length)) >= 2, 'one line per station');
   assert.strictEqual(await page.$$eval('.trcard[data-cat="putting"] .trrow:first-of-type .trsvg circle', e => e.length), tests.length, 'one point per test');
-  await page.click('#sgttrendback'); await page.waitForSelector('#sgtresult'); await page.click('#pbsgtpdf');
+  await page.click('#sgttrendback'); await page.waitForSelector('#sgtresult'); await page.click('#qsgtpdf');
   await page.waitForFunction(() => window.__golf.lastPdf && window.__golf.lastPdf.kind === 'game' && !window.__golf.lastPdf.busy, null, { timeout: 120000 }); assert.ok(await page.$('#sgtresult [data-act="pdfshare"], #sgtresult .pdfsheet'), 'PDF panel on the test page');
-  await page.click('[data-act="pdfclose"]').catch(() => {}); await page.click('#pbsgthub'); await page.waitForSelector('#sgtest'); console.log('  ✓ v194: My Game bar › Tests; test bar: History, Trend, Report, New test');
+  await page.click('[data-act="pdfclose"]').catch(() => {}); await page.click('#qsgthub'); await page.waitForSelector('#sgtest'); console.log('  ✓ v194: My Game bar › Tests; test bar: History, Trend, Report, New test');
   assert.deepStrictEqual(errors, []); assert.deepStrictEqual(outside, [], 'no outside requests');
   console.log('coach', C.pages, 'pages · recruiting', R.pages, 'pages');
   await browser.close(); if (srv) srv.kill(); console.log('PASS gamereport-focused');

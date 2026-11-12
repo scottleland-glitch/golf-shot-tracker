@@ -76,6 +76,7 @@
     baselineOf: function (who) { return myBench(who); }, // v177: the player's benchmark (tests are scored against it, whatever they were taken with)
     render: function () { render(); }, toast: function (m) { toast(m); },
     // v193: a test's ☰ › Make PDF – the game report with just that test in it; the share panel shows on the test page
+    quickRow: function (id, it) { return quickRowHTML(id, it); }, // v198
     pdfPanel: function () { return view.pdf && view.pdf.kind === 'game' ? pdfHTML() : ''; },
     makePdf: function (who, id) { view.pdf = { busy: true, kind: 'game' }; render(); window.scrollTo(0, 0);
       makeGameReport(who, { test: true, testId: id }).then(function (o) { view.pdf = o; window.__golf.lastPdf = o; render(); }, function (e) { view.pdf = { kind: 'game', error: 'Could not make the PDF: ' + (e && e.message) }; render(); }); } });
@@ -238,7 +239,11 @@
     if (view.screen !== 'summary') view.rsMenu = null;
     var rbOn = liveOn(); if (rbOn) { if (entryHoleOn()) view.entryHole = view.hole; el.insertAdjacentHTML('beforeend', roundBarHTML() + (view.exitAsk && view.screen === 'hole' ? exitAskHTML() : '')); }
     // v194 (Scott): a bottom bar on My Game, Practice and the test result – the round bar wins during a round
-    var pb = rbOn || view.prLog ? '' : pageBarHTML(); /* v195: the log sheet has its own Save / Cancel */ if (pb) el.insertAdjacentHTML('beforeend', pb);
+    // v198: the tab bar / page bar live on <body>, not inside the page – an animating or blurred page would otherwise make
+    // iPhone Safari pin "fixed" to the page instead of the screen (Scott: the bar floated mid-screen on My Game)
+    ['tabbar', 'pagebar'].forEach(function (id) { var o = document.getElementById(id); if (o) o.remove(); });
+    var pb = rbOn || view.prLog || view.mv ? '' : pageBarHTML() || tabBarHTML(); /* v198: the Rounds move bar too */ /* v195: the log sheet has its own Save / Cancel */ if (pb) document.body.insertAdjacentHTML('beforeend', pb);
+    document.body.classList.toggle('hastab', !!(pb && pb.indexOf('id="tabbar"') >= 0));
     document.body.classList.toggle('hasrbar', rbOn || !!pb);
   }
   // v123: on the round-page map sheets, long legend sentences without a symbol ("Rings = feet from the hole…") move under the legend as a note, which infoize() puts behind ⓘ
@@ -2175,7 +2180,7 @@
     var h = '<div class="home" id="home"><div class="home-bg" aria-hidden="true"></div><div class="home-fade" aria-hidden="true"></div>' +
       '<h1 class="home-title">Strokewise</h1>' +
       '<button class="glass plusbtn navbtn' + benchBang() + '" id="navbtn" data-act="hnav" aria-label="Menu: rounds, stats, my game, my bag, settings or help" aria-expanded="' + (view.hmenu === 'nav') + '">' + ICON_MENU + '</button>' +
-      '<button class="glass plusbtn" id="plusbtn" data-act="plus" aria-label="Start: new round, log practice or short game test" aria-expanded="' + (view.hmenu === 'menu' || view.hmenu === 'new') + '">+</button>' +
+
 ''; // v89: no Player row on Home (kept clean) – it lives in the New round sheet
     var bot = '';
     bot += mgHomeCardHTML(); // v141 My Game card
@@ -2276,6 +2281,7 @@
       '<label class="mgbl">My benchmark ' + blSelect('mgbl', D.baseline) + '</label>' + (bset ? '' : '<button class="primary" data-act="mgblok" data-v="' + esc(D.baseline) + '" id="mgblok">Use ' + esc(blName(D.baseline)) + '</button>') +
       '<p class="help muted mgblhelp">Used everywhere: new rounds, My Game, the short game test and the reports.</p></div>';
     if (!bset) h += blCard; // v194: red at the top until it's set, then down at the bottom
+    h += quickRowHTML('mgqrow', [['tests', 'sgtlast', 'Tests'], ['trends', 'gotrends', 'Trends']]); // v198
     h += '<div class="stseg mgseg" id="mgperiod" role="group" aria-label="Time frame">' + MYGAME.PERIODS.map(function (x) {
       var on = x.id === P.id; return '<button class="' + (on ? 'sel' : '') + '" data-act="mgperiod" data-v="' + x.id + '" aria-pressed="' + on + '">' + x.name.replace('Last ', '') + '</button>'; }).join('') + '</div>' +
       // v176 (Scott): or the last 2, 3 or 4 rounds – e.g. just a tournament
@@ -2448,13 +2454,26 @@
     plan: '<rect x="5" y="4" width="14" height="17" rx="2.5" fill="none" stroke="currentColor" stroke-width="1.9"/><path d="M8.5 9h7M8.5 13h7M8.5 17h4" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>',
     report: '<path d="M7 3h7l4 4v14H7z" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linejoin="round"/><path d="M14 3v4h4M9.5 12h5M9.5 16h5" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>',
     add: '<circle cx="12" cy="12" r="8.5" fill="none" stroke="currentColor" stroke-width="1.9"/><path d="M12 8v8M8 12h8" stroke="currentColor" stroke-width="2.1" stroke-linecap="round"/>',
-    history: '<path d="M5 7h14M5 12h14M5 17h9" stroke="currentColor" stroke-width="2.1" stroke-linecap="round"/>'
+    history: '<path d="M5 7h14M5 12h14M5 17h9" stroke="currentColor" stroke-width="2.1" stroke-linecap="round"/>',
+    mygame: '<path d="M12 3l8 5.5-3 10H7l-3-10z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M12 8l4 3-1.6 4.5H9.6L8 11z" fill="currentColor" opacity=".55"/>', // v198
+    rounds: '<path d="M8 21V3l9 3.5L8 10" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linejoin="round" stroke-linecap="round"/><ellipse cx="9" cy="20.5" rx="5" ry="1.4" fill="none" stroke="currentColor" stroke-width="1.6"/>'
   };
+  // v198 (Scott): one pinned tab bar on every main screen – My Game · Rounds · (+) · Practice · Stats. The + starts a round
+  // (the same New round / Log practice / Short game test menu as before) from anywhere. Page buttons move onto the pages.
+  var TAB_SCREENS = { home: 1, mygame: 1, history: 1, practice: 1, stats: 1 };
+  function quickRowHTML(id, it) { return '<div class="qrow" id="' + id + '">' + it.map(function (x) {
+    return '<button class="qbtn frost' + (x[3] ? ' on' : '') + '" data-act="' + x[1] + '" id="q' + x[1] + '"' + (x[3] ? ' aria-current="page"' : '') + '><svg viewBox="0 0 24 24" aria-hidden="true">' + PB_IC[x[0]] + '</svg><span>' + esc(x[2]) + '</span></button>'; }).join('') + '</div>'; }
+  function tabBarHTML() {
+    if (!TAB_SCREENS[view.screen]) return '';
+    var it = [['mygame', 'mygame', 'My Game'], ['rounds', 'history', 'Rounds'], null, ['practice', 'gopractice', 'Practice'], ['stats', 'stats', 'Stats']];
+    var on = { mygame: 'mygame', history: 'history', practice: 'gopractice', stats: 'stats' }[view.screen];
+    return '<nav class="tabbar" id="tabbar" aria-label="Main">' + it.map(function (x) {
+      if (!x) return '<button class="tbplus" data-act="tbplus" id="tbplus" aria-label="Start: new round, log practice or short game test"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg></button>';
+      var c = x[1] === on; return '<button class="tbbtn' + (c ? ' on' : '') + '" data-act="' + x[1] + '" id="tb' + x[0] + '"' + (c ? ' aria-current="page"' : '') + '><svg viewBox="0 0 24 24" aria-hidden="true">' + PB_IC[x[0]] + '</svg><span>' + esc(x[2]) + '</span></button>'; }).join('') + '</nav>'; }
   function pageBarHTML() {
     var it = null, sg = view.sgt || {};
-    if (view.screen === 'mygame') it = [['tests', 'sgtlast', 'Tests'], ['practice', 'gopractice', 'Practice'], ['trends', 'gotrends', 'Trends'], ['stats', 'mgstats', 'Stats']];
-    else if (view.screen === 'practice') it = [['plan', 'prplan', 'Practice plan'], ['report', 'grep', 'Report'], ['trends', 'gotrends', 'Trend'], ['add', 'prlog', 'Log practice']];
-    else if (view.screen === 'sgtest' && (sg.mode === 'result' || sg.mode === 'trend')) it = [['history', 'sgthub', 'History'], ['trends', 'sgttrend', 'Trend', sg.mode === 'trend'], ['report', 'sgtpdf', 'Report'], ['add', 'sgtnew', 'New test']];
+    if (false) it = // v198: the test page's buttons are a row at its top now
+      [['history', 'sgthub', 'History'], ['trends', 'sgttrend', 'Trend', sg.mode === 'trend'], ['report', 'sgtpdf', 'Report'], ['add', 'sgtnew', 'New test']];
     if (!it) return '';
     return '<nav class="roundbar pagebar" id="pagebar" aria-label="' + esc(view.screen) + '">' + it.map(function (x) {
       return '<button class="rbbtn' + (x[3] ? ' on' : '') + '" data-act="' + x[1] + '" id="pb' + x[1] + '"' + (x[3] ? ' aria-current="page"' : '') + '><svg viewBox="0 0 24 24" aria-hidden="true">' + PB_IC[x[0]] + '</svg><span>' + esc(x[2]) + '</span></button>'; }).join('') + '</nav>';
@@ -2462,7 +2481,8 @@
   // ---------- v194: the Practice page ----------
   function practicePageHTML() {
     var who = mgWho(), D = mgData(who);
-    var h = '<div class="frostpage theme-sky mygamepage practicepage" id="practicepage"><div class="topbar frost"><button class="txt frostbtn" data-act="mygame" id="prback">‹ My Game</button><div class="title"><b>Practice</b><span>' + esc(who || '') + '</span></div><span class="tbsp"></span></div>';
+    var h = '<div class="frostpage theme-sky mygamepage practicepage" id="practicepage"><div class="topbar frost"><button class="txt frostbtn" data-act="home" id="prback">‹ Home</button><div class="title"><b>Practice</b><span>' + esc(who || '') + '</span></div><span class="tbsp"></span></div>';
+    h += '<button class="primary prbig" data-act="prlog" id="prbig">+ Log practice</button>' + quickRowHTML('prqrow', [['report', 'grep', 'Report'], ['trends', 'gotrends', 'Trend'], ['plan', 'prplan', 'Plan']]); // v198
     h += prSheetHTML(who) + grSheetHTML() + (view.pdf && view.pdf.kind === 'game' ? pdfHTML() : '');
     var rest = practiceCardHTML(who, D, 'rest');
     h += rest || '<div class="mgchart frost"><p class="help">Nothing logged yet – tap <b>Log practice</b> below after a session.</p></div>';
@@ -5442,7 +5462,8 @@
       case 'grep': view.grep = view.grep && !view.mgMenu ? null : { preset: 'coach', parts: Object.assign({}, GR_PRESET.coach) }; view.mgMenu = null; view.pdf = null; render();
         var gs = document.getElementById('grsheet'); if (gs && gs.scrollIntoView) gs.scrollIntoView({ block: 'start' }); return;
       case 'mgplus': view.mgMenu = view.mgMenu === 'plus' ? null : 'plus'; render(); return; // v183
-      case 'gopractice': view.screen = 'practice'; view.mgMenu = null; render(); window.scrollTo(0, 0); return; // v194
+      case 'gopractice': view.screen = 'practice'; view.mgMenu = null; view.hmenu = null; render(); window.scrollTo(0, 0); return; // v194
+      case 'tbplus': view.hmenu = view.screen === 'home' && view.hmenu === 'menu' ? null : 'menu'; view.screen = 'home'; render(); return; // v198: the + from any tab
       case 'gotrends': view.trFrom = view.screen === 'practice' ? 'practice' : 'mygame'; view.trWho = mgWho(); view.trTap = null; view.screen = 'trends'; render(); window.scrollTo(0, 0); return;
       case 'trback': view.screen = view.trFrom === 'practice' ? 'practice' : 'mygame'; render(); window.scrollTo(0, 0); return;
       case 'trzoom': view.trZoom = v; render(); return;

@@ -24,9 +24,9 @@ const srv = http.createServer((q, s) => {
   await ctx.addInitScript(rs => { if (!sessionStorage.getItem('seeded')) { sessionStorage.setItem('seeded', '1'); localStorage.setItem('golfsg.rounds.v1', JSON.stringify(rs));
     localStorage.setItem('golfsg.player.v1', 'Alex'); localStorage.setItem('golfsg.nameasked.v1', '1'); } }, R);
   const P = await ctx.newPage(); P.setDefaultTimeout(30000); P.on('pageerror', e => errors.push(String(e))); P.on('console', m => m.type() === 'error' && errors.push('console: ' + m.text()));
-  await P.goto(BASE + 'index.html'); await P.waitForSelector('#plusbtn');
+  await P.goto(BASE + 'index.html'); await P.waitForSelector('#tbplus');
   // let the service worker install + take control, then reload so it handles every request
-  await P.evaluate(() => navigator.serviceWorker.ready); await P.reload(); await P.waitForSelector('#plusbtn');
+  await P.evaluate(() => navigator.serviceWorker.ready); await P.reload(); await P.waitForSelector('#tbplus');
   assert.ok(await P.evaluate(() => !!navigator.serviceWorker.controller), 'service worker controls the page');
   await P.click('#navbtn'); await P.waitForSelector('#navmenu');
   const menu = await P.$$eval('#navmenu button', e => e.map(x => [x.textContent, x.dataset.act]));

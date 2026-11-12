@@ -1,5 +1,5 @@
 const { chromium } = require('playwright-core'); const assert = require('assert'); const { spawn, execSync } = require('child_process'); const fs = require('fs');
-const goHist = async p => { if (await p.$('#plusbtn')) await p.click('#navbtn'); await p.click('[data-act="history"]'); };
+const goHist = async p => { if (await p.$('#tbplus')) await p.click('#navbtn'); await p.click('[data-act="history"]'); };
 const BASE = 'http://127.0.0.1:8784/', OUT = '/workspace/pdf-preview';
 (async () => {
   const srv = spawn('python3', ['-m', 'http.server', '8784', '--bind', '127.0.0.1'], { cwd: '/workspace/golf-app', stdio: 'ignore' });

@@ -22,7 +22,7 @@ today.holes.forEach(h => { for (let k = 1; k < h.rows.length; k++) if (h.rows[k 
       await page.goto(BASE + '?x=' + Date.now());
       await page.evaluate(rs => { localStorage.clear(); localStorage.setItem('golfsg.player.v1', 'Scott'); localStorage.setItem('golfsg.nameasked.v1', '1'); localStorage.setItem('golfsg.rounds.v1', JSON.stringify(rs)); }, rounds);
       await page.reload(); await page.waitForSelector('#home');
-      if (await page.$('#plusbtn')) await page.click('#navbtn');
+      if (await page.$('#tbplus')) await page.click('#navbtn');
       await page.click('[data-act="history"]'); await page.click('#histlist [data-act="open"][data-id="' + id + '"]');
       await page.waitForSelector('#takeaway');
     };

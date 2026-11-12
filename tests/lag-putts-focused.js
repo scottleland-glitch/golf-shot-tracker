@@ -36,7 +36,7 @@ R2.holes = [{ par: 4, finished: true, rows: [R(400, 'tee'), R(150, 'fairway'), R
     const P = await ctx.newPage(); P.setDefaultTimeout(30000); P.on('pageerror', e => errors.push(String(e))); P.on('console', m => m.type() === 'error' && errors.push('console: ' + m.text()));
     const shot = async name => { await P.waitForFunction(() => !document.querySelector('#toast.show')); await P.waitForTimeout(400); await P.screenshot({ path: OUT + name }); };
     const open = async id => { if (!(await P.$(`[data-stx="${id}"].open`))) ((await P.$(`[data-act="stx"][data-v="${id}"]`)) && await P.click(`[data-act="stx"][data-v="${id}"]`)); };
-    await P.goto(BASE + 'index.html'); await P.waitForSelector('#plusbtn');
+    await P.goto(BASE + 'index.html'); await P.waitForSelector('#tbplus');
     await P.click('#navbtn'); await P.click('#navmenu [data-act="history"]'); await P.click('#histlist [data-act="open"][data-id="lag1"]'); await P.waitForSelector('#stattiles');
 
     // ---------- 1. the engine ----------

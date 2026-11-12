@@ -46,7 +46,7 @@ const Y = (b) => Array.from({ length: 18 }, (_, i) => b + i * 7), P = [4, 4, 3, 
   assert.deepStrictEqual(S.map(c => c.tees.map(t => t.yards)), OLD.map(c => c.tees.map(t => t.yards)));
   assert.strictEqual(await page.$('#namesheet'), null, 'name saved: no prompt');
   // dropdown: Add new first, then most recently used
-  await page.click('#plusbtn'); await page.click('[data-act="newform"]'); await page.waitForSelector('#crspick');
+  await page.click('#tbplus'); await page.click('[data-act="newform"]'); await page.waitForSelector('#crspick');
   assert.strictEqual((await page.textContent('#crspicked')).trim(), 'Choose a course'); assert.strictEqual(await page.$('#course'), null, 'no name box until Add new');
   await page.click('#crspick'); await page.waitForSelector('#crslist');
   const opts = () => page.$$eval('#crslist .crsopt', e => e.map(x => x.querySelector('b') ? x.querySelector('b').textContent : x.textContent.trim()));
@@ -65,7 +65,7 @@ const Y = (b) => Array.from({ length: 18 }, (_, i) => b + i * 7), P = [4, 4, 3, 
   assert.deepStrictEqual([rd.course, rd.courseId, rd.tee, rd.holes[0].rows[0].dist, rd.holes[2].par], ['Pebble Creek', 'p', 'White', 350, 3]);
   assert.match(await page.textContent('.topbar .title b'), /Pebble Creek/);
   // just played → Pebble Creek moves to the top
-  await (async () => { if (await page.$('#holemore') && !(await page.$('#holemenu'))) await page.click('#holemore'); return page.click('[data-act="home"]'); })() /* v188: Home + Discard are in ⋯ during a round */; await page.click('#plusbtn'); await page.click('[data-act="newform"]'); await page.click('#crspick');
+  await (async () => { if (await page.$('#holemore') && !(await page.$('#holemenu'))) await page.click('#holemore'); return page.click('[data-act="home"]'); })() /* v188: Home + Discard are in ⋯ during a round */; await page.click('#tbplus'); await page.click('[data-act="newform"]'); await page.click('#crspick');
   assert.deepStrictEqual(await opts(), ['+ Add new course', 'Pebble Creek', 'Arcade Creek', 'Lakeridge']);
   // one tee box: shown as the one in use; add another tee box with a name from the quick chips
   await page.click('#crslist [data-id="a"]'); assert.strictEqual((await page.textContent('#teelbl')).trim(), 'Playing from');
@@ -120,12 +120,12 @@ const Y = (b) => Array.from({ length: 18 }, (_, i) => b + i * 7), P = [4, 4, 3, 
   assert.strictEqual(await page.evaluate(() => localStorage.getItem('golfsg.player.v1')), 'Quincy');
   // v89: Home stays clean – no Player row; the player lives in the New round sheet
   const homeBtns = () => page.$$eval('#home button', e => e.map(x => x.id));
-  assert.strictEqual(await page.$('#playerrow'), null, 'no Player row on Home'); assert.deepStrictEqual(await homeBtns(), ['navbtn', 'plusbtn']);
+  assert.strictEqual(await page.$('#playerrow'), null, 'no Player row on Home'); assert.deepStrictEqual(await homeBtns(), ['navbtn']); assert.ok(await page.$('#tbplus'), 'v198: the + is in the tab bar');
   assert.doesNotMatch(await page.innerText('#home'), /Quincy|Player|golfer/i);
   await shot('home-clean');
   await page.reload(); await page.waitForSelector('#home'); assert.strictEqual(await page.$('#namesheet'), null, 'asked once');
   // New round sheet: Course, Compare my shots against, then Player with the current name
-  const openNew = async () => { await page.click('#plusbtn'); await page.click('[data-act="newform"]'); await page.waitForSelector('#nplayer'); };
+  const openNew = async () => { await page.click('#tbplus'); await page.click('[data-act="newform"]'); await page.waitForSelector('#nplayer'); };
   await openNew();
   const order = await page.$$eval('#plusmenu .lbl', e => e.map(x => x.textContent.trim())); assert.deepStrictEqual(order, ['Course', 'This round is', 'Compare my shots against', 'Player']);
   assert.strictEqual(await page.textContent('#npname'), 'Quincy'); assert.match(await page.textContent('#nplayer'), /Quincy\s*Change/);
@@ -155,7 +155,7 @@ const Y = (b) => Array.from({ length: 18 }, (_, i) => b + i * 7), P = [4, 4, 3, 
   await page.click('.sheet-back', { position: { x: 30, y: 40 } });
   // Not now: no nagging, Home stays clean, New round offers to add the name
   await seed({}); await page.reload(); await page.waitForSelector('#namesheet'); await page.click('[data-act="nameskip"]');
-  assert.strictEqual(await page.$('#namesheet'), null); assert.deepStrictEqual(await homeBtns(), ['navbtn', 'plusbtn']);
+  assert.strictEqual(await page.$('#namesheet'), null); assert.deepStrictEqual(await homeBtns(), ['navbtn']); assert.ok(await page.$('#tbplus'), 'v198: the + is in the tab bar');
   await page.reload(); await page.waitForSelector('#home'); assert.strictEqual(await page.$('#namesheet'), null, 'Not now is remembered');
   await openNew(); assert.match(await page.textContent('#nplayer'), /Add golfer’s name/);
   await page.click('#nplayer'); await page.fill('#pname', 'Quincy'); await page.click('#npeditrow [data-act="setname"]'); assert.strictEqual(await page.textContent('#npname'), 'Quincy');

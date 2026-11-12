@@ -13,7 +13,7 @@ const CATS = ['driver', 'approach', 'putting', 'chipping', 'bunker', 'scoring'];
   const page = await ctx.newPage(); page.setDefaultTimeout(30000);
   page.on('pageerror', e => errors.push(String(e))); page.on('console', m => { if (m.type() === 'error') errors.push(m.text()); });
   page.on('request', q => { const u = new URL(q.url()); if (!/^(127\.0\.0\.1|localhost)$/.test(u.hostname) && !/^(data|blob):/.test(q.url())) outside.push(q.url()); });
-  await page.goto(BASE + '?x=' + Date.now()); await page.evaluate(SEED); await page.reload(); await page.waitForSelector('#plusbtn');
+  await page.goto(BASE + '?x=' + Date.now()); await page.evaluate(SEED); await page.reload(); await page.waitForSelector('#tbplus');
   const shot = async (n, el, off) => { if (el) await page.$eval(el, (e, o) => { window.scrollTo(0, 0); window.scrollTo(0, e.getBoundingClientRect().top - o); }, off == null ? 64 : off); else await page.evaluate(() => window.scrollTo(0, 0));
     await page.waitForTimeout(200); await page.screenshot({ path: OUT + '/' + n }); };
   const goStats = async () => { if (!(await page.$('#plusmenu'))) await page.click('#navbtn'); await page.click('#navmenu [data-act="stats"]'); await page.waitForSelector('#statspage'); };

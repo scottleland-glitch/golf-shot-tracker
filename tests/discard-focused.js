@@ -1,5 +1,5 @@
 const { chromium } = require('playwright-core'); const assert = require('assert'); const { spawn } = require('child_process');
-const goHist = async p => { if (await p.$('#plusbtn')) await p.click('#navbtn'); await p.click('[data-act="history"]'); };
+const goHist = async p => { if (await p.$('#tbplus')) await p.click('#navbtn'); await p.click('[data-act="history"]'); };
 const BASE = process.env.BASE_URL || 'http://127.0.0.1:8769/';
 (async () => {
   const srv = process.env.NO_SERVER ? null : spawn('python3', ['-m', 'http.server', '8769', '--bind', '127.0.0.1'], { cwd: '/workspace/golf-app', stdio: 'ignore' });
@@ -33,7 +33,7 @@ const BASE = process.env.BASE_URL || 'http://127.0.0.1:8769/';
     assert.deepStrictEqual(await p2.evaluate(() => [localStorage.getItem('golfsg.current.v1'), JSON.parse(localStorage.getItem('golfsg.rounds.v1')).map(r => r.id)]), [null, ['real']]);
   }
   // discard from the round screen
-  await page.click('#plusbtn'); await page.click('[data-act="newform"]'); await page.fill('#course', 'Test'); await page.click('[data-act="new"]');
+  await page.click('#tbplus'); await page.click('[data-act="newform"]'); await page.fill('#course', 'Test'); await page.click('[data-act="new"]');
   await page.waitForSelector('#holemore'); await (async () => { if (await page.$('#holemore') && !(await page.$('#holemenu'))) await page.click('#holemore'); return page.click('[data-act="discard"]'); })() /* v188: Home + Discard are in ⋯ during a round */; await page.waitForSelector('#home');
   await page.reload(); assert.strictEqual(await page.$('[data-act="resume"]'), null);
   assert.deepStrictEqual(errors, []); console.log('DISCARD OK'); await b.close(); if (srv) srv.kill();

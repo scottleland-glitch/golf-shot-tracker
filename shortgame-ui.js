@@ -262,6 +262,7 @@
       // v193 (Scott): ☰ – Tests, Make PDF, Trend
       // v194 (Scott): the bottom bar has History · Trend · Report · New test (no ☰)
       var h = '<div class="frostpage theme-sky sgtpage sgtres" id="sgtresult">' + top('<button class="txt frostbtn" data-act="mygame" id="sgthubbtn">‹ My Game</button>', 'Test', dLong(test.date));
+      if (env.quickRow) h += env.quickRow('sgtqrow', [['history', 'sgthub', 'History'], ['trends', 'sgttrend', 'Trend'], ['report', 'sgtpdf', 'Report'], ['add', 'sgtnew', 'New test']]); // v198: on the page, not a bottom bar
       h += env.pdfPanel ? env.pdfPanel() : '';
       h += '<div class="sgtcard frost" id="sgtverdict"><h2 id="sgthead">' + esc(I.headline) + '</h2><p id="sgtsub">' + esc(I.sub) + '</p>' +
         '<p class="sgtnote">' + esc(s.who ? s.who + ' · ' : '') + esc('compared with ' + A.blName) + (cond ? ' · ' + esc(cond) : '') + (n < T.totalOf(test) ? ' · ' + n + ' of ' + T.totalOf(test) + ' shots entered' : '') + '</p>' +

@@ -22,7 +22,7 @@ const rounds = [at('p1', 2, 'practice'), nine(at('p2', 6, 'practice')), extraPut
     await page.evaluate(rs => { localStorage.clear(); localStorage.setItem('golfsg.player.v1', 'Scott'); localStorage.setItem('golfsg.nameasked.v1', '1'); localStorage.setItem('golfsg.rounds.v1', JSON.stringify(rs)); localStorage.setItem('golfsg.practice.v1', JSON.stringify([{ id: 'x1', date: new Date(Date.now() - 3 * 864e5).toISOString().slice(0, 10), player: 'Scott', spoke: 'chip', focus: '', min: 90 }, { id: 'x2', date: new Date(Date.now() - 20 * 864e5).toISOString().slice(0, 10), player: 'Scott', spoke: 'lag', focus: '', min: 60 }])); }, rounds);
     await page.reload(); await page.waitForSelector('#home');
     // My Game – v184 weekly play + practice in hours (18 holes = 5 h), sideways-scrolling weeks, benchmark only when asked for
-    await page.click('[data-act="mygame"]'); await page.waitForSelector('#mygame'); await page.click('[data-act="mgperiod"][data-v="30d"]'); await page.click('#pbgopractice'); await page.waitForSelector('#plweeks'); /* v194: on the Practice page */
+    await page.click('[data-act="mygame"]'); await page.waitForSelector('#mygame'); await page.click('[data-act="mgperiod"][data-v="30d"]'); await page.click('#tbpractice'); await page.waitForSelector('#plweeks'); /* v194: on the Practice page */
     assert.strictEqual(await page.textContent('#plhead'), '0.1 h of practice for every hour on the course');
     assert.strictEqual(await page.textContent('#pllede'), 'Last 12 weeks: 28 h on the course (5½ rounds) and 2½ h of practice.');
     assert.strictEqual(await page.$$eval('#plweeks .plbenchl', e => e.length), 0, 'no benchmark until asked'); assert.strictEqual(await page.getAttribute('#plbtog', 'aria-pressed'), 'false');
@@ -37,7 +37,7 @@ const rounds = [at('p1', 2, 'practice'), nine(at('p2', 6, 'practice')), extraPut
     assert.strictEqual(await page.$eval('#plscroll', e => e.scrollLeft), sl, 'tapping a week keeps the scroll'); ok('tap a week for its numbers');
     await page.click('#plbtog'); await page.waitForSelector('#plbtog.on');
     assert.strictEqual(await page.$$eval('#plweeks .plbenchl', e => e.length), 1, 'benchmark as a dashed line'); assert.match(await page.textContent('#pllede'), /PGA Tour players spend about \d+ h in tournament rounds/);
-    assert.ok(await page.$('#plhow')); await page.reload(); await page.click('[data-act="mygame"]'); await page.click('#pbgopractice'); await page.waitForSelector('#plbtog.on'); ok('benchmark comparison is opt-in and remembered');
+    assert.ok(await page.$('#plhow')); await page.reload(); await page.click('[data-act="mygame"]'); await page.click('#tbpractice'); await page.waitForSelector('#plbtog.on'); ok('benchmark comparison is opt-in and remembered');
     await page.click('#plbtog'); await page.waitForSelector('#plbtog:not(.on)');
     ok('weekly chart: hours on the course by type + practice logged');
     assert.match(await page.textContent('#pluntag'), /1 older round isn’t tagged/); ok('untagged rounds are pointed out, not guessed');
@@ -46,7 +46,7 @@ const rounds = [at('p1', 2, 'practice'), nine(at('p2', 6, 'practice')), extraPut
     assert.match(await page.textContent('#plcmpt thead'), /Practice\s*3 rounds.*Tournament\s*2 rounds/); ok('tournament vs practice: score, SG by area, worst area named');
     const box = await page.locator('#plcmp').boundingBox(); assert.ok(box.x >= 0 && box.x + box.width <= 390, 'comparison fits the phone');
     // Round list tag + Round type on Round stats
-    if (await page.$("#prback")) { await page.click("#prback"); await page.waitForSelector("#mygame"); } /* v194 */ await (async () => { if (await page.$('#holemore') && !(await page.$('#holemenu'))) await page.click('#holemore'); return page.click('[data-act="home"]'); })() /* v188: Home + Discard are in ⋯ during a round */; if (await page.$('#plusbtn')) await page.click('#navbtn'); await page.click('[data-act="history"]');
+    if (await page.$("#prback")) { await page.click("#tbmygame"); await page.waitForSelector("#mygame"); } /* v194 */ await (async () => { if (await page.$('#holemore') && !(await page.$('#holemenu'))) await page.click('#holemore'); return page.click('[data-act="home"]'); })() /* v188: Home + Discard are in ⋯ during a round */; if (await page.$('#tbplus')) await page.click('#navbtn'); await page.click('[data-act="history"]');
     assert.strictEqual(await page.$$eval('#histlist .htour', e => e.length), 2, 'trophy on the two tournament rounds');
     await page.click('#histlist [data-act="open"][data-id="u1"]'); await page.waitForSelector('#rsmenubtn'); await page.click('#rsmenubtn'); await page.waitForSelector('#rplay'); // v191: round type is in ☰
     assert.strictEqual(await page.$('#rplay button.sel'), null, 'untagged round: nothing picked');
@@ -55,12 +55,12 @@ const rounds = [at('p1', 2, 'practice'), nine(at('p2', 6, 'practice')), extraPut
     await page.click('#rplay [data-v="tournament"]'); await page.waitForSelector('#rplay [data-v="tournament"].sel');
     assert.strictEqual(await page.evaluate(() => window.__golf.rounds().find(r => r.id === 'u1').play), 'tournament'); ok('Round stats: Round type tags an older round');
     // New round sheet: remembers the last pick, keeps a typed course name
-    await (async () => { if (await page.$('#holemore') && !(await page.$('#holemenu'))) await page.click('#holemore'); return page.click('[data-act="home"]'); })() /* v188: Home + Discard are in ⋯ during a round */; if (await page.$('#plusbtn')) await page.click('#plusbtn'); await page.click('[data-act="newform"]'); await page.waitForSelector('#newplay');
+    await (async () => { if (await page.$('#holemore') && !(await page.$('#holemenu'))) await page.click('#holemore'); return page.click('[data-act="home"]'); })() /* v188: Home + Discard are in ⋯ during a round */; if (await page.$('#tbplus')) await page.click('#tbplus'); await page.click('[data-act="newform"]'); await page.waitForSelector('#newplay');
     assert.strictEqual(await page.getAttribute('#newplay [data-v="practice"]', 'aria-pressed'), 'true', 'practice by default');
     await page.fill('#course', 'Wolf Run'); await page.click('#newplay [data-v="tournament"]');
     assert.strictEqual(await page.inputValue('#course'), 'Wolf Run'); await page.click('[data-act="new"]'); await page.waitForSelector('#shotcard');
     let nr = await page.evaluate(() => window.__golf.rounds()[0]); assert.deepStrictEqual([nr.course, nr.play], ['Wolf Run', 'tournament']);
-    await (async () => { if (await page.$('#holemore') && !(await page.$('#holemenu'))) await page.click('#holemore'); return page.click('[data-act="home"]'); })() /* v188: Home + Discard are in ⋯ during a round */; if (await page.$('#plusbtn')) await page.click('#plusbtn'); await page.click('[data-act="newform"]'); await page.waitForSelector('#newplay');
+    await (async () => { if (await page.$('#holemore') && !(await page.$('#holemenu'))) await page.click('#holemore'); return page.click('[data-act="home"]'); })() /* v188: Home + Discard are in ⋯ during a round */; if (await page.$('#tbplus')) await page.click('#tbplus'); await page.click('[data-act="newform"]'); await page.waitForSelector('#newplay');
     assert.strictEqual(await page.getAttribute('#newplay [data-v="tournament"]', 'aria-pressed'), 'true', 'remembers the last pick');
     ok('new round: Practice / Tournament pick, remembered, saved on the round');
     assert.deepStrictEqual(errors, [], 'no page errors'); console.log('PASS playing-focused');

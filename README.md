@@ -25,6 +25,15 @@ Every Shot Counts Table 3.10). The other five are ESTIMATED: per-round gaps from
 Player Quality ladder, then spread over the PGA table. Full sources, method and caveats: in-app
 "About the numbers" and the BASELINES comment in `sg.js`.
 
+## Pinned tab bar (v198)
+- One bar on **Home, My Game, Rounds, Practice and Stats**: **My Game · Rounds · (+) · Practice · Stats** (`tabBarHTML`), the
+  current tab highlighted. The raised green **+** in the middle opens New round / Log practice / Short game test (above the
+  button) from any tab, so starting a round is always one tap; Home's top-right + is gone (the ☰ stays for My Bag, settings,
+  help). The round bar still takes over during a round; the bar hides while the log sheet is open.
+- Page buttons moved onto the pages (`quickRowHTML`): My Game – **Tests · Trends** under the title; Practice – a big
+  **+ Log practice** with **Report · Trend · Plan** under it (‹ Home, since Practice is a tab); test result – **History · Trend ·
+  Report · New test** at the top. Trends and the test pages keep their ‹ back buttons and no tab bar.
+
 ## Trends count rounds; tap a week (v197)
 - **Rounds, not weeks:** each week's number is still the average of its rounds (a weekend of 87 and 73 is 80), but the week
   counts as two readings (holes ÷ 18, at most 3 a week) in the fit, recent form (halving every 4 rounds), the backtest and

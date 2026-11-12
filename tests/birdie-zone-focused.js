@@ -30,7 +30,7 @@ const lastR = RS[RS.length - 1], L = BZ.scope([lastR]);
   const page = await (await b.newContext({ viewport: { width: 393, height: 852 }, deviceScaleFactor: 3, isMobile: true, hasTouch: true })).newPage();
   page.setDefaultTimeout(30000); page.on('pageerror', e => errors.push(String(e))); page.on('dialog', d => d.accept());
   const load = async rs => { await page.goto(BASE + '?x=' + Date.now()); await page.evaluate(rs => { localStorage.clear(); localStorage.setItem('golfsg.player.v1', 'Quincy'); localStorage.setItem('golfsg.rounds.v1', JSON.stringify(rs)); }, rs); await page.reload(); };
-  const goHist = async () => { if (await page.$('#plusbtn')) await page.click('#navbtn'); await page.click('[data-act="history"]'); };
+  const goHist = async () => { if (await page.$('#tbplus')) await page.click('#navbtn'); await page.click('[data-act="history"]'); };
   const state = () => page.evaluate(() => ({ count: document.getElementById('bzcount').textContent, ring: +document.getElementById('bzring').getAttribute('r'),
     zone: +document.getElementById('bzzone').getAttribute('r'), zoneVis: document.getElementById('bzzone').getAttribute('visibility'),
     sl: (s => ({ min: +s.min, max: +s.max, v: +s.value }))(document.getElementById('bzslider')),

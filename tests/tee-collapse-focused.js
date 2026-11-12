@@ -19,7 +19,7 @@ const course = (id, name, src) => Object.assign({ id, name, pars: PARS, updated:
     const page = await ctx.newPage(); page.setDefaultTimeout(15000);
     page.on('pageerror', e => errors.push(String(e))); page.on('console', m => m.type() === 'error' && !/favicon|Failed to load resource/.test(m.text()) && errors.push(m.text()));
     const shot = async name => { await page.evaluate(() => { const t = document.getElementById('toast'); if (t) t.className = ''; }); await page.waitForTimeout(350); await page.screenshot({ path: OUT + name + '.png' }); };
-    const openNew = async () => { await page.click('#plusbtn'); await page.click('[data-act="newform"]'); await page.waitForSelector('#nearbtn'); };
+    const openNew = async () => { await page.click('#tbplus'); await page.click('[data-act="newform"]'); await page.waitForSelector('#nearbtn'); };
     const pick = async id => { await page.click('#crspick'); await page.click('[data-act="ncourse"][data-id="' + id + '"]'); await page.waitForSelector('#ntees'); };
     const rows = () => page.$$eval('#ntees .ntee:not(.naddtee)', e => e.map(x => { const r = x.getBoundingClientRect(), n = x.querySelector('.tname'), s = x.querySelector('small'), c = getComputedStyle(x);
       return { n: n.textContent, h: r.height, w: Math.round(r.width), l: Math.round(r.left), ta: c.textAlign, jc: c.justifyContent, ws: c.whiteSpace, fw: +c.fontWeight, fs: parseFloat(c.fontSize),

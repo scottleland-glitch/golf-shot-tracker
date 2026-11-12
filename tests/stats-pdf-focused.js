@@ -15,7 +15,7 @@ const CATS = ['driver', 'approach', 'putting', 'chipping', 'bunker', 'scoring'];
   const page = await ctx.newPage(); page.setDefaultTimeout(60000);
   page.on('pageerror', e => errors.push(String(e))); page.on('console', m => { if (m.type() === 'error') errors.push(m.text()); });
   page.on('request', q => { const u = new URL(q.url()); if (!/^(127\.0\.0\.1|localhost)$/.test(u.hostname) && !/^(data|blob):/.test(q.url())) outside.push(q.url()); });
-  await page.goto(BASE + '?x=' + Date.now()); await page.evaluate(SEED); await page.reload(); await page.waitForSelector('#plusbtn');
+  await page.goto(BASE + '?x=' + Date.now()); await page.evaluate(SEED); await page.reload(); await page.waitForSelector('#tbplus');
   const goStats = async () => { if (!(await page.$('#plusmenu'))) await page.click('#navbtn'); await page.click('#navmenu [data-act="stats"]'); await page.waitForSelector('#statspage'); };
   const make = async () => { await page.click('#stpdf'); await page.waitForSelector('#pdfname'); return page.evaluate(async () => { const p = window.__golf.lastPdf;
     return { name: p.name, pages: p.pages, cats: p.cats, last: p.last, L: p.layout, b: Array.from(new Uint8Array(await p.blob.arrayBuffer())) }; }); };
@@ -107,7 +107,7 @@ const CATS = ['driver', 'approach', 'putting', 'chipping', 'bunker', 'scoring'];
   assert.strictEqual(R1.last, D.last, 'Scoring overlay still uses the newest finished round');
 
   // 6. no finished rounds (only the round in progress): no button
-  await page.evaluate(() => { const L = JSON.parse(localStorage.getItem('golfsg.rounds.v1')); localStorage.setItem('golfsg.rounds.v1', JSON.stringify(L.filter(r => r.id === 'c7'))); }); await page.reload(); await page.waitForSelector('#plusbtn'); await goStats();
+  await page.evaluate(() => { const L = JSON.parse(localStorage.getItem('golfsg.rounds.v1')); localStorage.setItem('golfsg.rounds.v1', JSON.stringify(L.filter(r => r.id === 'c7'))); }); await page.reload(); await page.waitForSelector('#tbplus'); await goStats();
   assert.strictEqual(await page.$('#stpdf'), null);
 
   assert.deepStrictEqual(errors, []); assert.deepStrictEqual(outside, [], 'no outside network calls');

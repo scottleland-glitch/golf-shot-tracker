@@ -23,10 +23,10 @@ const OUT = '/workspace/golf-app/screenshots/', PORT = 8840, BASE = 'http://127.
   P.on('dialog', d => d.accept());
   const shot = async name => { await P.waitForFunction(() => !document.querySelector('#toast.show')); await P.waitForTimeout(400); await P.screenshot({ path: OUT + name }); };
   const vis = () => P.evaluate(() => document.getElementById('app').innerText);
-  await P.goto(BASE + 'index.html'); await P.waitForSelector('#plusbtn');
+  await P.goto(BASE + 'index.html'); await P.waitForSelector('#tbplus');
 
   // ---------- 1. Home + menu ----------
-  assert.deepStrictEqual(await P.$$eval('#home button', e => e.map(x => x.id)), ['navbtn', 'plusbtn', 'mgcard'], 'Home: ☰, + and the My Game card (v191)');
+  assert.deepStrictEqual(await P.$$eval('#home button', e => e.map(x => x.id)), ['navbtn', 'mgcard'], 'Home: ☰ and the My Game card (v198: + in the tab bar)'); assert.ok(await P.$('#tabbar #tbplus'));
   assert.strictEqual(await P.$('#archivepill'), null); assert(!/Archive/.test(await vis()));
   await P.click('#navbtn'); await P.waitForSelector('#navmenu');
   assert.deepStrictEqual(await P.$$eval('#navmenu button', e => e.map(x => [x.textContent, x.dataset.act])), [['Rounds', 'history'], ['Stats', 'stats'], ['My Game', 'mygame'], ['My Bag', 'bag'], ['Settings', 'archive'], ['Help', 'help']]);

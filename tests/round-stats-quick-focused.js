@@ -16,7 +16,7 @@ const OUT = '/workspace/golf-app/screenshots/', PORT = 8833, BASE = 'http://127.
   await page.evaluate(() => { const r = window.__arc.exports.round(); localStorage.clear(); localStorage.setItem('golfsg.player.v1', 'Scott');
     localStorage.setItem('golfsg.rounds.v1', JSON.stringify([r])); });
   await page.reload();
-  if (await page.$('#plusbtn')) await page.click('#navbtn'); await page.click('[data-act="history"]');
+  if (await page.$('#tbplus')) await page.click('#navbtn'); await page.click('[data-act="history"]');
   await page.click('#histlist [data-act="open"][data-id="arc78"]'); await page.waitForSelector('#rs-top');
   const exp = await page.evaluate(() => { const r = window.__golf.rounds()[0], S = SG.summarize(r);
     return { strokes: S.strokes, toPar: S.toPar, putts: S.putts, fw: [S.fwHit, S.fwTotal], gir: [S.gir, S.girHoles], tee: S.cats.tee.sg, appr: S.cats.approach.sg, putt: S.cats.putting.sg }; });
@@ -68,7 +68,7 @@ const OUT = '/workspace/golf-app/screenshots/', PORT = 8833, BASE = 'http://127.
   // ---- unfinished round: "thru N" under the score
   await page.evaluate(() => { const r = window.__golf.rounds()[0]; r.holes[17].finished = false; r.holes[16].finished = false; r.id = 'arc16';
     localStorage.setItem('golfsg.rounds.v1', JSON.stringify([r])); });
-  await page.reload(); if (await page.$('#plusbtn')) await page.click('#navbtn'); await page.click('[data-act="history"]');
+  await page.reload(); if (await page.$('#tbplus')) await page.click('#navbtn'); await page.click('[data-act="history"]');
   await page.click('#histlist [data-act="open"][data-id="arc16"]'); await page.waitForSelector('#rs-top');
   assert.match(await page.textContent('#rs-score'), /^\d+thru 16$/); assert.ok(!/vs par|holes? done/i.test(await page.evaluate(() => document.querySelector('.roundpage').innerText)));
   assert.strictEqual(await page.$$eval('#stattiles .stxb', x => x.length), 0, 'a different round starts collapsed again');

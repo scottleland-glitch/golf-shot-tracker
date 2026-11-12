@@ -13,7 +13,7 @@ const ok = m => console.log('✓ ' + m);
     const errs = []; P.on('pageerror', e => errs.push(String(e)));
     await P.goto(BASE + '?x=' + Date.now()); const fix = fs.readFileSync(__dirname + '/fixtures/round-maps-rounds.js', 'utf8');
     await P.evaluate(src => { const m = { exports: {} }; new Function('module', src)(m); localStorage.clear(); localStorage.setItem('golfsg.player.v1', 'Scott'); localStorage.setItem('golfsg.rounds.v1', JSON.stringify(m.exports.all())); }, fix);
-    await P.reload(); if (await P.$('#plusbtn')) await P.click('#navbtn'); await P.click('[data-act="history"]'); await P.click('#histlist [data-act="open"][data-id="m1"]');
+    await P.reload(); if (await P.$('#tbplus')) await P.click('#navbtn'); await P.click('[data-act="history"]'); await P.click('#histlist [data-act="open"][data-id="m1"]');
     const open = async (stx, kind) => { if (!(await P.$('[data-stx="' + stx + '"].open'))) ((await P.$('[data-act="stx"][data-v="' + stx + '"]')) && await P.click('[data-act="stx"][data-v="' + stx + '"]')); await P.click('[data-stx="' + stx + '"] [data-act="map"][data-v="' + kind + '"]'); await P.waitForSelector('#mapview'); await P.waitForTimeout(100); };
     const close = () => P.click('#mapview .maphead [data-act="mapclose"]');
     const shot = async (name, scroll) => { await P.waitForTimeout(150); await P.locator('#mapview').evaluate(e => e.scrollTop = 0); await P.screenshot({ path: OUT + 'round-after-' + name + '-v123.png' });

@@ -11,7 +11,7 @@ const PORT = 8873, BASE = 'http://127.0.0.1:' + PORT + '/', ok = m => console.lo
     const page = await ctx.newPage(); page.setDefaultTimeout(20000); page.on('pageerror', e => errors.push(String(e)));
     await page.goto(BASE + '?x=' + Date.now());
     await page.evaluate(rs => { localStorage.clear(); localStorage.setItem('golfsg.player.v1', 'Scott'); localStorage.setItem('golfsg.nameasked.v1', '1'); localStorage.setItem('golfsg.rounds.v1', JSON.stringify(rs)); }, [Object.assign(ARC.round(), { player: 'Scott' })]);
-    await page.reload(); await page.waitForSelector('#home'); if (await page.$('#plusbtn')) await page.click('#navbtn');
+    await page.reload(); await page.waitForSelector('#home'); if (await page.$('#tbplus')) await page.click('#navbtn');
     await page.click('[data-act="history"]'); await page.click('#histlist [data-act="open"][data-id="arc78"]'); await page.waitForSelector('#prdrill');
     const toRound = async () => { await page.waitForSelector('#takeaway'); assert.ok(await page.$('#prdrill')); assert.strictEqual(await page.$('#mygame'), null); };
     // ‹ Round

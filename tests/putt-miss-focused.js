@@ -14,7 +14,7 @@ const DIR8 = ['longleft', 'long', 'longright', 'left', 'right', 'shortleft', 'sh
   const page = await ctx.newPage(); page.setDefaultTimeout(30000);
   page.on('pageerror', e => errors.push(String(e))); page.on('console', m => { if (m.type() === 'error') errors.push(m.text()); });
   page.on('request', q => { const u = new URL(q.url()); if (!/^(127\.0\.0\.1|localhost)$/.test(u.hostname) && !/^(data|blob):/.test(q.url())) outside.push(q.url()); });
-  await page.goto(BASE + '?x=' + Date.now()); await page.evaluate(SEED); await page.reload(); await page.waitForSelector('#plusbtn');
+  await page.goto(BASE + '?x=' + Date.now()); await page.evaluate(SEED); await page.reload(); await page.waitForSelector('#tbplus');
   const shot = async (n, el, off) => { await page.$eval(el, (e, o) => { window.scrollTo(0, 0); window.scrollTo(0, e.getBoundingClientRect().top + window.scrollY - o); }, off == null ? 64 : off);
     await page.waitForTimeout(200); await page.screenshot({ path: OUT + '/' + n }); };
   // expected numbers straight from the saved rounds (sg.js), not from the page

@@ -1,5 +1,5 @@
 const { chromium } = require('playwright-core'); const assert = require('assert'); const { spawn } = require('child_process');
-const goHist = async p => { if (await p.$('#plusbtn')) await p.click('#navbtn'); await p.click('[data-act="history"]'); };
+const goHist = async p => { if (await p.$('#tbplus')) await p.click('#navbtn'); await p.click('[data-act="history"]'); };
 const BASE = process.env.BASE_URL || 'http://127.0.0.1:8768/';
 (async () => {
   const srv = process.env.NO_SERVER ? null : spawn('python3', ['-m', 'http.server', '8768', '--bind', '127.0.0.1'], { cwd: '/workspace/golf-app', stdio: 'ignore' });

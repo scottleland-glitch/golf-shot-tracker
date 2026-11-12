@@ -11,7 +11,7 @@ const SEED = fs.readFileSync(__dirname + '/fixtures/stats-rounds.js', 'utf8');
   const page = await ctx.newPage(); page.setDefaultTimeout(30000);
   page.on('pageerror', e => errors.push(String(e))); page.on('console', m => { if (m.type() === 'error') errors.push(m.text()); });
   page.on('request', q => { const u = new URL(q.url()); if (!/^(127\.0\.0\.1|localhost)$/.test(u.hostname) && !/^(data|blob):/.test(q.url())) outside.push(q.url()); });
-  await page.goto(BASE + '?x=' + Date.now()); await page.evaluate(SEED); await page.reload(); await page.waitForSelector('#plusbtn');
+  await page.goto(BASE + '?x=' + Date.now()); await page.evaluate(SEED); await page.reload(); await page.waitForSelector('#tbplus');
   const shot = async (n, el) => { if (el) await page.$eval(el, e => { e.scrollIntoView({ block: 'start' }); window.scrollBy(0, -96); }); await page.waitForTimeout(150); await page.screenshot({ path: OUT + '/' + n }); };
 
   // 1. + menu: New round · Rounds · Stats · My Bag · Settings

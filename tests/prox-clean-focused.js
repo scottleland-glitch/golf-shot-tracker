@@ -14,7 +14,7 @@ const PORT = 8871, BASE = 'http://127.0.0.1:' + PORT + '/', OUT = '/workspace/go
     P.on('pageerror', e => errors.push(String(e))); P.on('request', r => { if (!r.url().startsWith(BASE) && !r.url().startsWith('data:')) outside.push(r.url()); });
     await P.goto(BASE + '?x=' + Date.now()); const fix = fs.readFileSync(__dirname + '/fixtures/prox-rounds.js', 'utf8');
     await P.evaluate(src => { const m = { exports: {} }; new Function('module', src)(m); localStorage.clear(); localStorage.setItem('golfsg.player.v1', 'Scott'); localStorage.setItem('golfsg.rounds.v1', JSON.stringify(m.exports.all())); }, fix);
-    await P.reload(); if (await P.$('#plusbtn')) await P.click('#navbtn'); await P.click('[data-act="history"]'); await P.click('#histlist [data-act="open"][data-id="p1"]');
+    await P.reload(); if (await P.$('#tbplus')) await P.click('#navbtn'); await P.click('[data-act="history"]'); await P.click('#histlist [data-act="open"][data-id="p1"]');
     if (!(await P.$('[data-stx="prox"].open'))) ((await P.$('[data-act="stx"][data-v="prox"]')) && await P.click('[data-act="stx"][data-v="prox"]')); await P.click('[data-stx="prox"] [data-act="map"][data-v="prox"]'); await P.waitForSelector('#proxrail');
     // page chrome = Club performance
     assert.ok(await P.$('#mapview.clubview.proxview'), 'prox page uses the compact page class');
