@@ -2855,3 +2855,25 @@ html body .trnote { margin: 4px 6px 12px; font-size: 12px; }
 html body .trcard .trcat { font-size: 18px; margin: 0 2px 4px; }
 html body .trrow { padding: 6px 0 2px; } html body .trrow + .trrow { border-top: 1px solid rgba(23, 48, 31, .08); }
 html body .trrow .trhead b { font-size: 15px; } html body .trrow .trhead span { font-size: 15px; font-weight: 700; }
+/* v195: Log practice – Practice / Lesson, how it went, kind of practice, lessons */
+.prsheet .prkind { margin: 8px 0 4px; }
+.prqs { padding: 0 0 10px 10px; }
+.prq { margin: 8px 0 5px; font-size: 13px; font-weight: 600; color: var(--frost-ink-soft); } .prq small { font-weight: 400; opacity: .8; }
+.prchips { display: flex; flex-wrap: wrap; gap: 6px; }
+.prchip { min-height: 36px; padding: 0 12px; border-radius: 999px; border: 1px solid rgba(23, 48, 31, .16); background: rgba(255, 255, 255, .55); color: var(--frost-ink); font: inherit; font-size: 14px; display: inline-flex; align-items: center; gap: 5px; }
+.prchip i { font-style: normal; font-size: 15px; }
+.prchip.on { background: #1f6f4a; border-color: #1f6f4a; color: #fff; font-weight: 600; }
+.prcoach { display: flex; align-items: center; gap: 10px; margin: 8px 0 2px; font-size: 14px; color: var(--frost-ink-soft); }
+.prcoach input { flex: 1; min-height: 40px; padding: 0 12px; border-radius: 12px; border: 1px solid rgba(23, 48, 31, .16); background: rgba(255, 255, 255, .7); font: inherit; font-size: 16px; color: var(--frost-ink); }
+.prsheet .prnote { margin: 8px 0 2px; font-size: 13px; line-height: 1.4; color: #a06a12; }
+.prlmin { margin-top: 10px; padding-left: 0; }
+/* v195: Trends – patience line, countdown cards, lessons, expected dips (amber, not red) */
+html body .trpatience { margin: 0 4px 10px; font-size: 13px; line-height: 1.4; color: #2f5a44; font-weight: 500; }
+html body .trcard2 .trh span.exp, html body .trcard2 .trh span.trsoon { color: #a06a12; }
+html body .trcard2.trearly .trfoot { margin-top: 4px; }
+.trprog { height: 6px; margin: 2px 6px 0; border-radius: 999px; background: rgba(23, 48, 31, .1); overflow: hidden; }
+.trprog i { display: block; height: 100%; border-radius: 999px; background: linear-gradient(90deg, #4f9d6d, #1f6f4a); }
+.trchart .trslip.exp { fill: rgba(222, 160, 40, .16); } .trchart .trdip { fill: rgba(222, 160, 40, .14); }
+.trchart .trtag.exp { fill: #a06a12; }
+.trchart .trles { stroke: #6b5aa6; stroke-width: 1; stroke-dasharray: 2 3; } .trchart .trles.big { stroke-width: 1.6; stroke-dasharray: none; }
+.trchart .trlestx { font-size: 8.5px; font-weight: 700; fill: #5a4a96; }

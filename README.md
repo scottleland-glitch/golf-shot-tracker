@@ -25,6 +25,28 @@ Every Shot Counts Table 3.10). The other five are ESTIMATED: per-round gaps from
 Player Quality ladder, then spread over the PGA table. Full sources, method and caveats: in-app
 "About the numbers" and the BASELINES comment in `sg.js`.
 
+## Trends learn how practice lasts; lessons; how practice felt (v195)
+- **Practice has a memory** (`trends.js`). Besides the v194 model (one best lag, a straight line), each area keeps a **practice
+  stock**: every week adds that week's practice and the stock fades with a half-life of 2, 4 or 8 weeks. Strokes follow
+  log(1 + stock), so the first hours are worth more than the next (diminishing returns). Last month's practice still counts
+  (remanence / residual effect), and skill builds and fades at its own pace (hysteresis). **Effective hours** weight how you
+  practised (path dependence): spread over 2 / 3+ days ×1.0 / ×1.05 vs one day ×0.9 (spacing), Game / pressure ×1.15, Mixed ×1,
+  Reps ×0.85 (contextual interference). These weights are cautious starting values, not measured ones.
+- **The better model wins.** Each model forecasts every past week from the weeks before it; the stock model (at the half-life that
+  did best) is used only if it beat the v194 model – otherwise nothing changes. The card says "practice keeps working ~N wk".
+- **Lessons:** Log practice has **Practice / Lesson**. A lesson has the day, coach (remembered), Fine-tune or **Big change**
+  (Grip, Posture, Setup, Swing plane, Putting stroke, Chipping, Bunker, Other – picking one fills the usual areas), the areas and
+  the length (split across the areas; saved as practice entries with `kind: 'lesson'`). A big change halves the old stock in
+  those areas and expects a **dip then recovery** (a gamma-shaped curve, deepest about 2 weeks in, mostly gone by 8; its depth
+  starts at half a normal week-to-week swing and is learned from your own weeks after big changes). On Trends: a marker at the
+  lesson, the dip shaded amber, "expected dip · grip" instead of "heading below normal", and slips inside it are amber, not red.
+- **How it went:** two optional taps per area after logging minutes – 😕 Off / 🙂 Okay / 🔥 Great and Reps / Mixed / Game.
+  Feel is only used once it has lined up with your next week (Spearman r ≥ 0.3 over 5+ weeks), then as a small nudge that fades.
+  Practice that feels great is often the easy kind, so feel alone never counts as better practice.
+- **Patience:** one line at the top of Trends ("about 10 weeks … sharper the longer you log"). An area that isn't ready shows
+  its history so far, "6 of 10 weeks", a progress bar and "4 more weeks with a round and the forecast unlocks".
+  The page bar hides while the log sheet is open (it has its own Save / Cancel).
+
 ## Redesign: My Game, Practice, Trends, Test (v194)
 - **My Game:** ‹ Home · time frame · last rounds · the four tiles (Score, SG / round, Putts, GIR) · the "costs you most" spider ·
   the practice spider (My Practice) right under it, so the two shapes can be compared · Course vs test · How well Strokewise

@@ -160,7 +160,11 @@
     return (Array.isArray(list) ? list : []).filter(function (e) {
       return e && typeof e.id === 'string' && e.id && SPOKE_KEYS.indexOf(e.spoke) >= 0 && typeof e.date === 'string' && !isNaN(Date.parse(e.date)) && Number(e.min) > 0 && Number(e.min) <= 600; })
       .map(function (e) { var f = String(e.focus || '').slice(0, 60);
-        return { id: e.id, date: e.date, player: String(e.player || ''), spoke: e.spoke === 'chip' && f === 'Bunker shots' ? 'bunker' : e.spoke, focus: f, min: Math.round(Number(e.min)) }; });
+        var o = { id: e.id, date: e.date, player: String(e.player || ''), spoke: e.spoke === 'chip' && f === 'Bunker shots' ? 'bunker' : e.spoke, focus: f, min: Math.round(Number(e.min)) };
+        // v195: how it felt, what kind of practice, and lessons (a big change resets the trend maths for those areas)
+        if (['off', 'ok', 'great'].indexOf(e.feel) >= 0) o.feel = e.feel; if (['reps', 'mixed', 'game'].indexOf(e.type) >= 0) o.type = e.type;
+        if (e.kind === 'lesson') { o.kind = 'lesson'; o.change = e.change === 'big' ? 'big' : 'tune'; if (e.what) o.what = String(e.what).slice(0, 30); if (e.coach) o.coach = String(e.coach).slice(0, 40); if (e.lesson) o.lesson = String(e.lesson).slice(0, 40); }
+        return o; });
   }
   // Union by id: entries already on the phone stay as they are.
   function mergePractice(existing, incoming) {
