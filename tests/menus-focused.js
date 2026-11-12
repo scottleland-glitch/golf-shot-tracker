@@ -17,7 +17,7 @@ const REPO = path.join(__dirname, '..'), PORT = 8968, ARC = require('./fixtures/
   await page.$eval('.sheet-back', e => e.click()); await page.click('#tbplus');
   assert.deepStrictEqual(await page.$$eval('#plusmenu .sheet-item', e => e.map(x => x.textContent)), ['New round', 'Log practice', 'Short game test']); await page.$eval('.sheet-back', e => e.click()); ok('Home: ☰ places, + starts things');
   // v194: My Game has no ☰ / +, a bottom bar instead
-  await page.click('#mgcard'); await page.waitForSelector('#mygame'); assert.strictEqual(await page.$('#mgplus, #mgnav'), null, 'no ☰ / + on My Game');
+  await page.click('#tbmygame'); await page.waitForSelector('#mygame'); assert.strictEqual(await page.$('#mgplus, #mgnav'), null, 'no ☰ / + on My Game');
   assert.deepStrictEqual(await page.$$eval('#tabbar .tbbtn span', e => e.map(x => x.textContent)), ['My Game', 'Rounds', 'Practice', 'Stats']); assert.ok(await page.$('#tabbar #tbplus')); assert.deepStrictEqual(await page.$$eval('#mgqrow .qbtn span', e => e.map(x => x.textContent)), ['Tests', 'Trends']); assert.ok(await page.evaluate(() => document.body.classList.contains('hasrbar')), 'page padded for the bar');
   await page.click('#tbpractice'); await page.waitForSelector('#practicepage'); assert.ok(await page.$('#prbig')); assert.deepStrictEqual(await page.$$eval('#prqrow .qbtn span', e => e.map(x => x.textContent)), ['Report', 'Trend', 'Plan']); assert.ok(await page.$('#tbpractice.on'), 'Practice tab on');
   await page.click('#qprplan'); await page.waitForTimeout(100); assert.ok(await page.$('#practicepage'), 'Practice plan: coming soon, stays put');

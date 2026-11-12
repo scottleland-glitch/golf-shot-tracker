@@ -30,7 +30,7 @@ function make(id, date, q) { const t = T.blank(id, date, 'Scott', 'd1w');
   await page.evaluate(({ R, TS, PR }) => { localStorage.setItem('golfsg.player.v1', 'Scott'); localStorage.setItem('golfsg.rounds.v1', JSON.stringify(R)); localStorage.setItem('golfsg.sgtests.v1', JSON.stringify(TS)); localStorage.setItem('golfsg.practice.v1', JSON.stringify(PR)); }, { R: rounds, TS: tests, PR: practice });
   await page.reload(); await page.waitForSelector('#tbplus');
   // v178: no benchmark set yet – a red "!" on the Home card and beside My Game in the + menu, and a red card at the top of My Game
-  assert.ok(await page.$('#mgcard .bangon'), 'Home card'); await page.click('#navbtn'); assert.ok(await page.$('.sheet-item.bangon[data-act="mygame"]'), '+ menu');
+  assert.ok(await page.$('#tbmygame.bangon'), 'v200: the "!" on the My Game tab'); await page.click('#navbtn'); assert.ok(await page.$('.sheet-item.bangon[data-act="mygame"]'), '+ menu');
   await page.click('.sheet-item[data-act="mygame"]'); await page.waitForSelector('#mygame');
   assert.ok(await page.$('#mgblcard.unset #mgblok')); await page.screenshot({ path: OUT + '/gr-bench-unset.png' });
   const order = await page.$$eval('#mygame > *', e => e.map(x => x.id || x.className)); assert.ok(order.indexOf('mgblcard') < order.indexOf('mgperiod'), 'at the top');

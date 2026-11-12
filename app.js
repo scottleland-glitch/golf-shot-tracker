@@ -243,7 +243,7 @@
     // iPhone Safari pin "fixed" to the page instead of the screen (Scott: the bar floated mid-screen on My Game)
     ['tabbar', 'pagebar'].forEach(function (id) { var o = document.getElementById(id); if (o) o.remove(); });
     var pb = rbOn || view.prLog || view.mv ? '' : pageBarHTML() || tabBarHTML(); /* v198: the Rounds move bar too */ /* v195: the log sheet has its own Save / Cancel */ if (pb) document.body.insertAdjacentHTML('beforeend', pb);
-    document.body.classList.toggle('hastab', !!(pb && pb.indexOf('id="tabbar"') >= 0));
+    document.body.classList.toggle('hastab', !!(pb && pb.indexOf('id="tabbar"') >= 0)); hcStart(); /* v200: the Home card's rotation */
     document.body.classList.toggle('hasrbar', rbOn || !!pb);
   }
   // v123: on the round-page map sheets, long legend sentences without a symbol ("Rings = feet from the hole…") move under the legend as a note, which infoize() puts behind ⓘ
@@ -2184,7 +2184,7 @@
 
 ''; // v89: no Player row on Home (kept clean) – it lives in the New round sheet
     var bot = '';
-    bot += mgHomeCardHTML(); // v141 My Game card
+    if (!cur) bot += homeCardHTML(); // v200: the "next thing" card (rotates); a round in progress pins Resume instead
     if (cur) { var S = SG.summarize(cur); bot += '<button class="glass pill" id="resumepill" data-act="resume">Resume round<small>' + (cur.course ? esc(cur.course) + ' · ' : '') + S.holesDone + ' holes done</small></button>';
       // v199 (Scott): an empty round in progress could only be removed from inside it – discard it right here
       if (SG.roundEmpty(cur)) bot += '<button class="txt resumex" id="resumex" data-act="discard" data-id="' + esc(cur.id) + '">Discard this empty round</button>'; }
@@ -2216,6 +2216,60 @@
     var bl = myBench(who); // v177: the player's benchmark (was: this page's pick, else the newest round's)
     var pid = periodId || view.mgPeriod || '3m', per = /^r\d$/.test(pid) ? MYGAME.roundPeriod(+pid.slice(1), list) : pid; // v176: last 2 / 3 / 4 rounds
     return MYGAME.build(list, SG, { period: per, baseline: bl, baselineName: SG.baseline(bl).name });
+  }
+  // v200 (Scott): Home's card is "the next thing" – only the messages that apply, one at a time, about 7 s each. Touching the
+  // card pauses it (long enough to tap Log practice), swiping moves it, dots show how many. Reduced motion: no auto-advance.
+  var HC_MS = 7000, HC_PAUSE = 15000;
+  function homeMsgs(who) {
+    var M = [], now = Date.now(), DAY = 864e5, fin = finishedRoundsOf(who).slice().sort(function (a, b) { return String(b.date || '').localeCompare(String(a.date || '')); });
+    var D = null; try { if (fin.length || practiceOf(who).length) D = mgData(who); } catch (e) {}
+    // 1. a round just played (today or the last 3 days)
+    var last = fin[0];
+    if (last && now - Date.parse(last.date) < 3 * DAY) { var S = SG.summarize(last), D1 = null; try { D1 = mgData(who, 'r1'); } catch (e) {}
+      M.push({ k: 'round', kick: 'Last round', title: (S.holesDone === 18 ? S.strokes + ' at ' : '') + (last.course || 'your last round'), sub: D1 && D1.headline !== 'Still learning your game' ? D1.headline : 'See how it went, shot by shot',
+        btn: ['See round', 'open', last.id] }); }
+    // 2. what costs (or gains) the most → practice it
+    if (D && D.headline && D.headline !== 'Still learning your game') M.push({ k: 'game', kick: 'My Game · ' + D.period.name.toLowerCase(), title: D.headline, sub: D.lede || '', btn: ['Log practice', 'prlog'], tap: 'mygame' });
+    // 3. Trends – the countdown, or the forecast once it's there
+    if (fin.length) { var td = null; try { td = trendsData(who); } catch (e) {} var T = td && td.total;
+      if (T && T.ok) { var end = new Date(td.weeks[td.weeks.length - 1] + 5 * 7 * DAY).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+        M.push({ k: 'trends', kick: 'Trends', title: 'Heading for about ' + Math.round(T.fc[T.fc.length - 1]) + ' by ' + end, sub: { low: 'Low confidence so far – it sharpens with every round', mid: 'Medium confidence – keep logging rounds and practice', high: 'High confidence' }[T.conf] || '', btn: ['See Trends', 'gotrends'] }); }
+      else if (T && T.reason === 'not enough weeks') { var left = Math.max(1, Math.ceil(T.need - (T.rounds || T.dataWeeks || 0)));
+        M.push({ k: 'trends', kick: 'Trends', title: left === 1 ? '1 more round until your first forecast' : left + ' more rounds until your first forecast', sub: 'Trends learn how your practice turns into strokes', btn: ['See Trends', 'gotrends'] }); }
+      else if (T && T.reason === 'no practice logged') M.push({ k: 'trends', kick: 'Trends', title: 'Log practice to unlock Trends', sub: 'See how your practice turns into strokes', btn: ['Log practice', 'prlog'] }); }
+    // 4. the short game test – never taken, or due (4+ weeks)
+    var tests = sgTestsOf(who).filter(function (t) { return t.done; }).sort(function (a, b) { return String(b.date || '').localeCompare(String(a.date || '')); }), lt = tests[0];
+    if (fin.length && !lt) M.push({ k: 'test', kick: 'Short game test', title: 'See where your short game stands', sub: 'About 30 minutes on the practice green', btn: ['Start test', 'sgtopen'] });
+    else if (lt) { // v200 (Scott): always say when the last one was and when the next is due (monthly)
+      var ld = Date.parse(lt.date), ldTxt = new Date(ld).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }), dueIn = Math.ceil((ld + 28 * DAY - now) / DAY);
+      if (dueIn <= 0) { var wk = Math.floor((now - ld) / (7 * DAY)); M.push({ k: 'test', kick: 'Short game test', title: 'Your monthly test is due', sub: 'Last one ' + ldTxt + ' – ' + wk + ' weeks ago', btn: ['Start test', 'sgtopen'] }); }
+      else M.push({ k: 'test', kick: 'Short game test', title: 'Next test ' + (dueIn === 1 ? 'tomorrow' : dueIn < 14 ? 'in ' + dueIn + ' days' : 'in ' + Math.round(dueIn / 7) + ' weeks'), sub: 'Last one ' + ldTxt, btn: ['See results', 'sgtlast'] }); }
+    if (!M.length && D) M.push({ k: 'game', kick: 'My Game', title: D.headline, sub: D.lede || '', btn: ['Open My Game', 'mygame'], tap: 'mygame' });
+    return M;
+  }
+  function homeCardHTML() {
+    var who = playerName(); if (!who) return ''; var M = homeMsgs(who); if (!M.length) return '';
+    var i = Math.max(0, Math.min(M.length - 1, view.hcIdx || 0)); view.hcIdx = i;
+    return '<div class="glass hcard" id="hcard" role="region" aria-roledescription="carousel" aria-label="What\'s next" data-n="' + M.length + '">' +
+      '<div class="hctrack">' + M.map(function (m, j) {
+        return '<div class="hcslide' + (j === i ? ' on' : '') + '" data-k="' + m.k + '" aria-hidden="' + (j !== i) + '"' + (m.tap ? ' data-act="' + m.tap + '" role="button" tabindex="' + (j === i ? 0 : -1) + '"' : '') + '>' +
+          '<small class="hckick">' + esc(m.kick) + '</small><b class="hctitle">' + esc(m.title) + '</b>' + (m.sub ? '<span class="hcsub">' + esc(m.sub) + '</span>' : '') +
+          '<button class="hcbtn" data-act="' + m.btn[1] + '"' + (m.btn[2] ? ' data-id="' + esc(m.btn[2]) + '"' : '') + ' tabindex="' + (j === i ? 0 : -1) + '">' + esc(m.btn[0]) + ' ›</button></div>'; }).join('') + '</div>' +
+      (M.length > 1 ? '<div class="hcdots" aria-hidden="true">' + M.map(function (m, j) { return '<i class="' + (j === i ? 'on' : '') + '"></i>'; }).join('') + '</div>' : '') + '</div>'; // the dots sit beside the button (v200: a shorter card)
+  }
+  // the rotation lives outside render(): it only swaps classes, so a tap mid-way never lands on a re-drawn card
+  var hcT = null, hcPausedTill = 0;
+  function hcShow(i) { var c = document.getElementById('hcard'); if (!c) return; var sl = c.querySelectorAll('.hcslide'), dt = c.querySelectorAll('.hcdots i'), n = sl.length; if (!n) return;
+    i = ((i % n) + n) % n; view.hcIdx = i;
+    for (var j = 0; j < n; j++) { var on = j === i; sl[j].classList.toggle('on', on); sl[j].setAttribute('aria-hidden', String(!on)); [].forEach.call(sl[j].querySelectorAll('button, [role="button"]'), function (x) { x.tabIndex = on ? 0 : -1; }); if (sl[j].getAttribute('role') === 'button') sl[j].tabIndex = on ? 0 : -1; if (dt[j]) dt[j].classList.toggle('on', on); } }
+  function hcStart() {
+    if (hcT) { clearInterval(hcT); hcT = null; } var c = document.getElementById('hcard'); if (!c || +c.getAttribute('data-n') < 2) return;
+    var still = false; try { still = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches; } catch (e) {}
+    if (!still) hcT = setInterval(function () { if (!document.getElementById('hcard')) { clearInterval(hcT); hcT = null; return; } if (Date.now() < hcPausedTill || document.hidden) return; hcShow((view.hcIdx || 0) + 1); }, HC_MS);
+    var x0 = null; c.addEventListener('touchstart', function (e) { hcPausedTill = Date.now() + HC_PAUSE; x0 = e.touches[0].clientX; }, { passive: true });
+    c.addEventListener('touchend', function (e) { if (x0 == null) return; var dx = e.changedTouches[0].clientX - x0; x0 = null; if (Math.abs(dx) > 40) { hcShow((view.hcIdx || 0) + (dx < 0 ? 1 : -1)); c.__swiped = Date.now(); } }, { passive: true });
+    c.addEventListener('pointerdown', function () { hcPausedTill = Date.now() + HC_PAUSE; });
+    c.addEventListener('click', function (e) { if (c.__swiped && Date.now() - c.__swiped < 400) { e.stopPropagation(); e.preventDefault(); } }, true); // a swipe isn't a tap
   }
   function mgHomeCardHTML() {
     var who = playerName(); if (!who || (!finishedRoundsOf(who).length && !practiceOf(who).length)) return '';
@@ -2472,7 +2526,7 @@
     var on = { mygame: 'mygame', history: 'history', practice: 'gopractice', stats: 'stats' }[view.screen];
     return '<nav class="tabbar" id="tabbar" aria-label="Main">' + it.map(function (x) {
       if (!x) return '<button class="tbplus" data-act="tbplus" id="tbplus" aria-label="Start: new round, log practice or short game test"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg></button>';
-      var c = x[1] === on; return '<button class="tbbtn' + (c ? ' on' : '') + '" data-act="' + x[1] + '" id="tb' + x[0] + '"' + (c ? ' aria-current="page"' : '') + '><svg viewBox="0 0 24 24" aria-hidden="true">' + PB_IC[x[0]] + '</svg><span>' + esc(x[2]) + '</span></button>'; }).join('') + '</nav>'; }
+      var c = x[1] === on; return '<button class="tbbtn' + (c ? ' on' : '') + (x[0] === 'mygame' ? benchBang() : '') + '" data-act="' + x[1] + '" id="tb' + x[0] + '"' + (c ? ' aria-current="page"' : '') + '><svg viewBox="0 0 24 24" aria-hidden="true">' + PB_IC[x[0]] + '</svg><span>' + esc(x[2]) + '</span></button>'; }).join('') + '</nav>'; }
   function pageBarHTML() {
     var it = null, sg = view.sgt || {};
     if (false) it = // v198: the test page's buttons are a row at its top now

@@ -24,13 +24,14 @@ for (let i = 0; i < 12; i++) {
       await page.evaluate(rs => { localStorage.clear(); localStorage.setItem('golfsg.player.v1', 'Scott'); localStorage.setItem('golfsg.nameasked.v1', '1'); localStorage.setItem('golfsg.rounds.v1', JSON.stringify(rs)); }, rs);
       await page.reload(); await page.waitForSelector('#home');
     };
-    await load([]); assert.strictEqual(await page.$('#mgcard'), null); ok('no finished rounds: no My Game card on Home');
+    await load([]); assert.strictEqual(await page.$('#hcard'), null); ok('no finished rounds: no card on Home');
     await load(rounds);
-    assert.match(await page.textContent('#mgcard'), /My Game\s*Chipping is improving\s*Last 3 months · 8 rounds/);
-    const card = await page.locator('#mgcard').boundingBox(); assert.ok(card.x >= 16 && card.x + card.width <= 374, 'card fits the screen');
+    // v200: Home's card rotates; its My Game message carries the headline and opens My Game
+    assert.match(await page.textContent('#hcard .hcslide[data-k="game"]'), /My Game · last 3 months\s*Chipping is improving/);
+    const card = await page.locator('#hcard').boundingBox(); assert.ok(card.x >= 16 && card.x + card.width <= 374, 'card fits the screen');
     await page.screenshot({ path: OUT + 'mygame-home.png' });
-    ok('Home card: mini shape, headline, 3 months · 8 rounds');
-    await page.click('#mgcard'); await page.waitForSelector('#mygame');
+    ok('Home card: the My Game message with the headline');
+    await page.click('#tbmygame'); await page.waitForSelector('#mygame');
     assert.strictEqual(await page.textContent('#mghead'), 'Chipping is improving');
     assert.match(await page.textContent('#mglede'), /^Chipping is \d\.\d strokes a round better than your usual\.$/);
     assert.ok(await page.$('#mygame .rcur') && await page.$('#mygame .rprev') && await page.$('#mygame .rbench'), 'current, previous and benchmark shapes');

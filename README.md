@@ -25,6 +25,16 @@ Every Shot Counts Table 3.10). The other five are ESTIMATED: per-round gaps from
 Player Quality ladder, then spread over the PGA table. Full sources, method and caveats: in-app
 "About the numbers" and the BASELINES comment in `sg.js`.
 
+## Home: the rotating "next thing" card (v200)
+- The My Game shortcut card (now a tab) became a card of what to do next (`homeMsgs` / `homeCardHTML`), only the messages
+  that apply, one at a time: **Last round** (a round in the last 3 days – score, course, what stood out · See round) ·
+  **My Game** (what costs or gains you most, with the numbers · Log practice; tap the text for My Game) · **Trends** ("N more
+  rounds until your first forecast", "Log practice to unlock Trends", or "Heading for about 77 by Dec 14" with its confidence ·
+  See Trends) · **Short game test** (never taken, or 4+ weeks since the last · Start test).
+- About 7 s each; touching the card pauses it for 15 s (time to tap the button), swiping moves it, dots show how many. With
+  "reduce motion" on it doesn't advance by itself. The rotation only swaps classes (no re-render), and it comes back on the
+  same message. A round in progress shows Resume round instead of the card.
+
 ## Round in progress: always in Rounds, empty one discardable from Home (v199)
 - Rounds hid rounds with no shots entered, so an empty round in progress only showed as "Resume round · 0 holes done" on
   Home and couldn't be found in the list. The round in progress is now always listed, and when it is still empty Home shows

@@ -32,17 +32,17 @@ function make(id, date, q) { const t = T.blank(id, date, 'Scott', 'd1w');
   const screen = () => page.evaluate(() => document.querySelector('#home') ? 'home' : document.querySelector('#mygame') ? 'mygame' : document.querySelector('#histlist') ? 'history' : document.querySelector('#sgtest') ? 'sgtest' : document.querySelector('#summary, .summarypage, [data-act="backHole"]') ? 'summary' : '?');
   assert.strictEqual(await page.evaluate(() => window.__golf.backTarget()), null, 'Home with nothing open: Back leaves the app');
   // Home → My Game → Back → Home
-  await page.click('#mgcard'); await page.waitForSelector('#mygame'); await page.waitForTimeout(100);
+  await page.click('#tbmygame'); await page.waitForSelector('#mygame'); await page.waitForTimeout(100);
   await back(); assert.strictEqual(await screen(), 'home'); assert.ok(page.url().startsWith('http://127.0.0.1'), 'still in the app'); ok('My Game → Back → Home');
   // a menu first closes, then the screen goes back
-  await page.click('#mgcard'); await page.waitForSelector('#mygame'); await page.click('#tbpractice'); await page.waitForSelector('#practicepage'); await page.waitForTimeout(100);
+  await page.click('#tbmygame'); await page.waitForSelector('#mygame'); await page.click('#tbpractice'); await page.waitForSelector('#practicepage'); await page.waitForTimeout(100);
   await back(); assert.strictEqual(await screen(), 'mygame'); await back(); assert.strictEqual(await screen(), 'home'); ok('v194: My Game → Practice → Back → My Game → Back → Home');
   // Scott's example: My Game → Practice → Log practice → Back closes the sheet → Back, Back = Home
-  await page.click('#mgcard'); await page.waitForSelector('#mygame'); await page.click('#tbpractice'); await page.click('#prbig'); await page.waitForSelector('#prsheet'); await page.waitForTimeout(150);
+  await page.click('#tbmygame'); await page.waitForSelector('#mygame'); await page.click('#tbpractice'); await page.click('#prbig'); await page.waitForSelector('#prsheet'); await page.waitForTimeout(150);
   await back(); assert.strictEqual(await page.$('#prsheet'), null, 'log sheet closed'); assert.ok(await page.$('#practicepage'));
   await back(); assert.strictEqual(await screen(), 'mygame'); await back(); assert.strictEqual(await screen(), 'home'); ok('Log practice: Back closes it, then Practice → My Game → Home');
   // Trends from My Game and back
-  await page.click('#mgcard'); await page.waitForSelector('#mygame'); await page.click('#qgotrends'); await page.waitForSelector('#trendspage'); await page.waitForTimeout(100);
+  await page.click('#tbmygame'); await page.waitForSelector('#mygame'); await page.click('#qgotrends'); await page.waitForSelector('#trendspage'); await page.waitForTimeout(100);
   await back(); assert.strictEqual(await screen(), 'mygame'); await back(); assert.strictEqual(await screen(), 'home'); ok('v194: Trends → Back → My Game');
   // Home's + menu
   await page.click('#tbplus'); await page.waitForSelector('.sheet-item'); await page.waitForTimeout(100); await back();
@@ -66,13 +66,13 @@ function make(id, date, q) { const t = T.blank(id, date, 'Scott', 'd1w');
   await page.click('#navbtn'); await page.click('.sheet-item[data-act="history"]'); await page.waitForSelector('#histlist'); await page.waitForTimeout(150);
   await back(); assert.strictEqual(await screen(), 'home'); assert.strictEqual(await page.$('.sheet-back'), null, 'menu not reopened'); ok('+ menu → Rounds → Back = Home');
   // Tests (My Game's bar) → Back → My Game
-  await page.click('#mgcard'); await page.waitForSelector('#mygame'); await page.click('#qsgtlast'); await page.waitForSelector('#sgtest, #sgtresult'); await page.waitForTimeout(100);
+  await page.click('#tbmygame'); await page.waitForSelector('#mygame'); await page.click('#qsgtlast'); await page.waitForSelector('#sgtest, #sgtresult'); await page.waitForTimeout(100);
   await back(); await page.waitForSelector('#mygame'); ok('v194: Tests → Back → My Game');
   // the app's own ‹ Home button leaves no spare step behind: one more Back from Home leaves
   await (async (P) => { if (!(await P.$('.topbar [data-act="home"]')) && await P.$('#rsmenubtn')) await P.click('#rsmenubtn'); return P.click('.topbar [data-act="home"], #rsmenu [data-act="home"]'); })(page) /* v191: in ☰ on Round stats */; await page.waitForSelector('#tbplus'); await page.waitForTimeout(300);
   assert.strictEqual(await page.evaluate(() => history.state.d), 0, 'spare entry dropped'); ok('on-screen Home: Back then leaves');
   // the app's own buttons keep the steps in line: My Game → ‹ Home leaves none; Rounds → round → ‹ Rounds → phone Back → Home
-  await page.click('#mgcard'); await page.waitForSelector('#mygame'); await page.waitForTimeout(150); assert.strictEqual(await page.evaluate(() => history.state.d), 1, 'one step for My Game');
+  await page.click('#tbmygame'); await page.waitForSelector('#mygame'); await page.waitForTimeout(150); assert.strictEqual(await page.evaluate(() => history.state.d), 1, 'one step for My Game');
   await (async (P) => { if (!(await P.$('.topbar [data-act="home"]')) && await P.$('#rsmenubtn')) await P.click('#rsmenubtn'); return P.click('.topbar [data-act="home"], #rsmenu [data-act="home"]'); })(page) /* v191: in ☰ on Round stats */; await page.waitForSelector('#tbplus'); await page.waitForTimeout(300); assert.strictEqual(await page.evaluate(() => history.state.d), 0);
   await page.click('#navbtn'); await page.click('.sheet-item[data-act="history"]'); await page.waitForSelector('#histlist .hrow'); await page.waitForTimeout(150);
   await page.click('.hrow .hist'); await page.waitForSelector('#editround'); await page.waitForTimeout(150);

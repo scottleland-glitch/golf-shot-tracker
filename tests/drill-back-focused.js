@@ -27,7 +27,7 @@ const PORT = 8873, BASE = 'http://127.0.0.1:' + PORT + '/', ok = m => console.lo
     await page.click('#rsmenubtn'); assert.ok(await page.$('#rsmenu [data-act="history"]')); await page.$eval('.rsback', e => e.click()); ok('the round still leads back to Rounds (☰)');
     // My Game opened normally still has ‹ Home
     await (async (P) => { if (!(await P.$('.topbar [data-act="home"]')) && await P.$('#rsmenubtn')) await P.click('#rsmenubtn'); return P.click('.topbar [data-act="home"], #rsmenu [data-act="home"]'); })(page) /* v191: in ☰ on Round stats */; await page.waitForSelector('#home');
-    await page.click('#mgcard'); await page.waitForSelector('#mygame'); assert.strictEqual(await page.$('#mgback'), null); assert.ok(await page.$('#mygame .topbar [data-act="home"]')); ok('My Game from Home keeps ‹ Home');
+    await page.click('#tbmygame'); await page.waitForSelector('#mygame'); assert.strictEqual(await page.$('#mgback'), null); assert.ok(await page.$('#mygame .topbar [data-act="home"]')); ok('My Game from Home keeps ‹ Home');
     assert.deepStrictEqual(errors, []); console.log('PASS drill-back-focused');
   } finally { await b.close(); srv.kill(); }
 })().catch(e => { console.error(e); process.exit(1); });
