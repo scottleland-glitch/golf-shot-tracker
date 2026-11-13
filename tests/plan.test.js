@@ -111,3 +111,31 @@ test('the week: minutes done per area against its target, Monday to Sunday', () 
   assert.strictEqual(new Date(W.start).getDay(), 1, 'starts Monday'); assert.ok(W.rows.length === 7 && W.rows.every(r => r.target >= 5)); assert.strictEqual(W.target, W.rows.reduce((t, r) => t + r.target, 0));
   assert.ok(W.rows[0].target >= W.rows[6].target, 'biggest target first'); assert.strictEqual(PLAN.week(P, L, NOW, 1).done, 0, 'last week');
 });
+// v208 (Scott): balance by group – at least 20 % each, the spare 20 % to the leak, fading 40 → 35 → 30 → 25 over 4 weeks, topped up by new evidence
+const G = P => Object.fromEntries(P.groups.map(g => [g.g, Math.round(g.share * 100)]));
+const at = ages => build([], { rounds: ages.map((d, i) => Object.assign(ARC.round(), { id: 'a' + i, date: iso(d) })) });
+test('balance: every group at least 20 %, one leak gets 40 %, shares add up to the week', () => {
+  const P = at([1, 7, 14, 21]), g = G(P); Object.values(g).forEach(v => assert.ok(v >= 20, JSON.stringify(g)));
+  assert.strictEqual(Math.max(...Object.values(g)), 40); assert.strictEqual(P.groups.filter(x => x.boost).length, 1);
+  const sum = Object.values(P.weekMin).reduce((t, v) => t + v, 0); assert.ok(Math.abs(sum - P.budget) <= 4, sum + ' vs ' + P.budget);
+  // no area inside a group starves: at least a quarter of its group
+  Object.entries(P.weekMin).forEach(([k, v]) => assert.ok(v >= P.budget * 0.2 * 0.25 - 1, k + ' ' + v));
+});
+test('balance: the extra fades a step a week – 40, 35, 30, then even 25', () => {
+  const lead = ages => Math.max(...Object.values(G(at(ages))));
+  assert.deepStrictEqual([[1, 30], [8, 40], [15, 45], [22, 50]].map(lead), [40, 35, 30, 25]);
+  assert.deepStrictEqual(Object.values(G(build([], { rounds: [] }))), [25, 25, 25, 25], 'no rounds → even');
+});
+test('balance: a new round that still shows the leak tops it back up', () => {
+  assert.strictEqual(Math.max(...Object.values(G(at([16, 40])))), 30); assert.strictEqual(Math.max(...Object.values(G(at([2, 16, 40])))), 40);
+});
+test('balance: two leaks split the spare – 30 / 30 / 20 / 20; a lesson counts as a leak', () => {
+  const les = [{ date: iso(2), spoke: 'lag', min: 30, kind: 'lesson', change: 'big', what: 'Putting stroke', lesson: 'L1' }];
+  const P = build(les, { rounds: [Object.assign(ARC.round(), { id: 'x', date: iso(1) })] }), g = G(P);
+  assert.deepStrictEqual(Object.values(g).sort((a, b) => b - a), [30, 30, 20, 20], JSON.stringify(g)); assert.strictEqual(g.putt, 30);
+  assert.ok(P.weekMin.lag >= P.weekMin.short * 2, 'the lesson area leads its group');
+});
+test('balance: a big tournament leans the spare to putting and short game, never below 20 %', () => {
+  const tour = { date: new Date(NOW + 4 * DAY).toISOString().slice(0, 10), big: true }, g = G(build([], { rounds: [Object.assign(ARC.round(), { id: 'x', date: iso(40) })], tour }));
+  Object.values(g).forEach(v => assert.ok(v >= 20)); assert.ok(g.putt > g.full && g.short > g.full, JSON.stringify(g));
+});

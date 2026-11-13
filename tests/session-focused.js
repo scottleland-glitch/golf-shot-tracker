@@ -45,6 +45,7 @@ const ARC = require('/home/claude/golf-app/tests/fixtures/arcade-78.js');
   // this week's bars
   const W = await page.$$eval('#weekcard .wkrow', e => e.map(x => x.dataset.k)); assert.strictEqual(W.length, 7); assert.match(await page.textContent('#wktot'), / of /);
   assert.ok(await page.$('#weekcard .wkrow[data-k="' + S[0][0] + '"] .wkfill'), 'bar'); assert.strictEqual(await page.$$eval('#weekcard .wkdots i', e => e.length), 6);
+  assert.match(await page.textContent('#wkbal'), /at least 20%|At least 20%/, 'v208: the balance line');
   // v206: swipe – the days of the week stacked by group, then 3 months by week
   assert.strictEqual(await page.$$eval('#wkpages .wkpage', e => e.length), 3); assert.strictEqual(await page.$$eval('#weekcard .wkpdots i', e => e.length), 3);
   assert.ok((await page.$$eval('#wkpages .wkpage[data-p="1"] rect[class^="pg"]', e => e.length)) >= 1, 'today stacked by group'); assert.ok(await page.$('#wkpages .wkpage[data-p="2"] path.band'), '3-month bands');

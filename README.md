@@ -25,6 +25,18 @@ Every Shot Counts Table 3.10). The other five are ESTIMATED: per-round gaps from
 Player Quality ladder, then spread over the PGA table. Full sources, method and caveats: in-app
 "About the numbers" and the BASELINES comment in `sg.js`.
 
+## Practice balance (v208)
+
+The practice plan now balances the week across four groups – Putting, Short game, Wedges and Full swing – so no part of your game fades:
+
+- Every group gets at least 20% of your practice time.
+- The spare 20% goes to your biggest leak (40/20/20/20). Two leaks split it (30/30/20/20).
+- The extra fades a step a week: 40 → 35 → 30 → back to an even 25.
+- A new round or test that still shows the same leak tops it back up. Lesson homework counts as a leak while it's active.
+- Inside a group, time still goes by need (lag vs short putts, chipping vs bunker, driving vs irons); every area keeps at least a quarter of its group.
+- A big tournament's sharpening week leans the spare toward putting and short game, but nothing drops below 20%.
+- The This week card says which group has extra time and when it eases back.
+
 ## This week full screen (v207)
 - Tap the This week card (anywhere but its ‹ › arrows) and it fills the screen: bigger type, taller charts, the same three
   views swiping left / right. Close it with a swipe down (from the top of the card, a mostly-down drag of 90 px+), the ✕ in

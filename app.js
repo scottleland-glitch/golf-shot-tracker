@@ -2635,6 +2635,14 @@
     if (pg) c.scrollLeft = pg * c.clientWidth;
     c.addEventListener('scroll', function () { var i = Math.round(c.scrollLeft / Math.max(1, c.clientWidth)); if (i === view.wkPage) return; view.wkPage = i;
       [].forEach.call(document.querySelectorAll('#weekcard .wkpdots i'), function (d, j) { d.classList.toggle('on', j === i); }); }, { passive: true }); }
+  // v208 (Scott): one line on why the time is split the way it is – every group at least 20 %, extra for the leak, fading over 4 weeks
+  function balanceLine(P) {
+    var G = (P.groups || []).filter(function (g) { return g.boost; }).sort(function (a, b) { return b.share - a.share; }), pc = function (v) { return Math.round(v * 20) * 5 + '%'; };
+    if (!G.length) return 'The line is each area\'s target. Time is spread evenly – at least 20% for each part of your game.';
+    var by = new Date(Math.max.apply(null, G.map(function (g) { return g.evenBy; }))).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+    return 'At least 20% for each part of your game. Extra now: ' + G.map(function (g) { return g.name + ' ' + pc(g.share) + (g.why === 'coach' ? ' (lesson)' : ''); }).join(', ') +
+      ' – back to even by ' + by + (G.every(function (g) { return g.why === 'coach'; }) ? '.' : ' unless your rounds still show it.');
+  }
   function weekCardHTML(who, P) {
     var off = view.wkOff || 0, L = practiceOf(who), W = PLAN.week(P, L, Date.now(), off), page = view.wkPage || 0;
     var lab = off === 0 ? 'This week' : off === 1 ? 'Last week' : 'Week of ' + new Date(W.start).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
@@ -2646,7 +2654,7 @@
     W.rows.forEach(function (r) { var got = r.done >= r.target;
       p1 += '<div class="wkrow' + (got ? ' got' : '') + '" data-k="' + r.k + '"><span class="wkname">' + esc(r.name) + '</span><span class="wkbar"><i class="wkfill" style="width:' + Math.min(100, r.done / mx * 100).toFixed(1) + '%"></i><i class="wktgt" style="left:' + (r.target / mx * 100).toFixed(1) + '%"></i></span>' +
         '<span class="wkval">' + (got ? '✓ ' : '') + (r.done ? hmS(r.done) : '–') + '<small> / ' + hmS(r.target) + '</small></span></div>'; });
-    p1 += '</div><p class="plintro wknote">The line is each area\'s target for the week, from what your game needs most.</p></div>';
+    p1 += '</div><p class="plintro wknote" id="wkbal">' + esc(balanceLine(P)) + '</p></div>';
     var p2 = '<div class="wkpage" data-p="1"><p class="wkpt">Each day, by group</p>' + weekDaysSVG(L, W, !!view.wkFull) + legend + '</div>';
     var p3 = '<div class="wkpage" data-p="2"><p class="wkpt">Last 3 months, by week</p>' + monthsSVG(L, who, P, !!view.wkFull) + legend + '<p class="plintro wknote">🏆 tournament week · <span class="leskey"></span> lesson · dashed line = your weekly target</p></div>';
     var full = !!view.wkFull; // v207 (Scott): tap the card → full screen; swipe down, ✕ or Back to close; left / right still swipe

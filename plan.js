@@ -22,13 +22,16 @@
   var CFG = {
     halfLifeDays: 45, tourW: 1.5, testWeeks: 6, testW: 0.6, defaultWeekMin: 120, minWeekMin: 30, windowDays: 14, owedHalfLife: 7,
     owedMin: 5, longSession: 75, longSessionW: 0.85, floorShare: 0.05, maxShare: 0.4, lean: 0.65,
-    coachBigDays: 28, coachTuneDays: 14, coachShare: 0.3, sharpenDays: 7, maxItems: 5
+    coachBigDays: 28, coachTuneDays: 14, coachShare: 0.3, sharpenDays: 7, maxItems: 5,
+    groupFloor: 0.2, fadeWeeks: 3, leakMin: 0.5, leakShare: 0.35, leakNear: 0.7, areaInGroup: 0.25, coachInGroup: 0.75 // v208: the balance
   };
   // the test's areas → plan areas, and shots a round of each (if your rounds can't say)
   var TEST_CAT = { putting: ['lag', 'short'], chipping: ['chip'], bunker: ['bunker'], wedge: ['wedges'] }, PER_ROUND = { lag: 14, short: 16, chip: 5, bunker: 1.5, wedges: 6 };
   var TEST_NOTE = { lag: 'lag', speed: 'lag', brk: 'short', short: 'short', wedge: 'wedges', flop: 'chip' };
   var TREND_K = { drive: 'drive', irons: 'irons', wedges: 'wedges', chip: 'chip', bunker: 'bunker', lag: 'putt', short: 'putt' };
   var SHARPEN = { lag: 1.5, short: 1.5, chip: 1.3, wedges: 1.3, bunker: 1.1, drive: 0.6, irons: 0.7 };
+  var GROUPS = [['putt', 'Putting', ['lag', 'short']], ['short', 'Short game', ['chip', 'bunker']], ['wedge', 'Wedges', ['wedges']], ['full', 'Full swing', ['drive', 'irons']]];
+  var SHARPEN_G = { putt: 1.5, short: 1.3, wedge: 1.3, full: 0.4 };
   var GENERIC = { drive: 'Driving – start line and contact', irons: 'Irons – distance and direction', wedges: 'Wedges – distance control', chip: 'Chipping – landing spot and roll',
     bunker: 'Bunker – out and on the green', lag: 'Lag putts – speed', short: 'Short putts – start line' };
 
@@ -95,16 +98,60 @@
   // ---- the whole plan ----
   // ctx: { rounds, logs, SG, MYGAME, bl, test: { date, perShot: {putting, chipping, bunker, wedge}, coach: [{k, text, ask}] } | null,
   //        trends: TRENDS.build(...) | null, now, tour: { date, big } | null }
-  function build(ctx) {
-    var now = ctx.now || Date.now(), A = areaNeeds(ctx.rounds || [], ctx.SG, ctx.MYGAME, ctx.bl, now), logs = (ctx.logs || []).filter(function (e) { return e && e.min > 0 && Date.parse(e.date) <= now + DAY; });
-    var keys = ctx.MYGAME.SPOKES.map(function (s) { return s.k; }), test = ctx.test, tAge = test ? (now - Date.parse(test.date)) / DAY : Infinity;
-    var tw = test ? CFG.testW * Math.max(0, 1 - tAge / (7 * CFG.testWeeks)) : 0;
-    // 1. need
+  // v208: the need step on its own, so the balance can ask "what was the biggest leak back then?"
+  function lostAt(ctx, keys, t) {
+    var rs = (ctx.rounds || []).filter(function (r) { return Date.parse(r.date) <= t; }), A = areaNeeds(rs, ctx.SG, ctx.MYGAME, ctx.bl, t);
+    var test = ctx.test && Date.parse(ctx.test.date) <= t ? ctx.test : null, tw = test ? CFG.testW * Math.max(0, 1 - (t - Date.parse(test.date)) / DAY / (7 * CFG.testWeeks)) : 0;
+    needValues(A, keys, test, tw); return A;
+  }
+  function needValues(A, keys, test, tw) {
     keys.forEach(function (k) { var a = A[k], vt = null;
       if (test && test.perShot) Object.keys(TEST_CAT).forEach(function (c) { if (TEST_CAT[c].indexOf(k) >= 0 && test.perShot[c] != null) vt = test.perShot[c] * (a.perRoundShots || PER_ROUND[k]); });
       var vr = a.perRound != null ? a.perRound * a.wr : null, wr = a.wr; // shrink toward even
       var v = vr == null && vt == null ? 0 : vt == null || !tw ? vr : vr == null ? vt : (wr * (a.perRound) + tw * vt) / (wr + tw) * Math.min(1, (wr + tw) / 0.6);
       a.value = v; a.testVal = vt; a.lost = Math.max(0, -(v || 0)); });
+  }
+  // which groups are leaking: clearly the biggest share of strokes lost, and enough strokes to matter
+  function leaksOf(A) {
+    var L = GROUPS.map(function (g) { return g[2].reduce(function (t, k) { return t + (A[k] ? A[k].lost : 0); }, 0); }), tot = L.reduce(function (t, v) { return t + v; }, 0), mx = Math.max.apply(null, L);
+    return GROUPS.map(function (g, i) { return { g: g[0], lost: L[i], leak: L[i] >= CFG.leakMin && tot > 0 && L[i] / tot >= CFG.leakShare && L[i] >= mx * CFG.leakNear }; });
+  }
+  function cs0(coach, tour) { return Object.keys(coach).filter(function (k) { return !(tour && tour.mode === 'sharpen' && coach[k].change === 'big'); }); }
+  function gOf(k) { for (var i = 0; i < GROUPS.length; i++) if (GROUPS[i][2].indexOf(k) >= 0) return i; return GROUPS.length - 1; }
+  function balance(ctx, keys, A, coach, cs, tour, now) {
+    var nG = GROUPS.length, spare = 1 - CFG.groupFloor * nG, charge = GROUPS.map(function () { return 0; }), since = GROUPS.map(function () { return null; }), w = GROUPS.map(function () { return 0; }), why = GROUPS.map(function () { return ''; });
+    var fade = function (d) { return Math.max(0, 1 - Math.floor(d / 7) / CFG.fadeWeeks); }; // d in days: week 1 full, then a third less each week
+    // evidence: every round and the test in the last 4 weeks, oldest first – the latest one that still shows the leak sets the charge
+    var ev = (ctx.rounds || []).map(function (r) { return Date.parse(r.date); }).concat(ctx.test ? [Date.parse(ctx.test.date)] : [])
+      .filter(function (t) { return t <= now && now - t < (CFG.fadeWeeks + 1) * 7 * DAY; }).sort(function (a, b) { return a - b; });
+    ev.forEach(function (t) { leaksOf(lostAt(ctx, keys, t)).forEach(function (x, i) { if (x.leak) { since[i] = t; w[i] = x.lost; why[i] = 'rounds'; } }); });
+    GROUPS.forEach(function (g, i) { if (since[i] != null) charge[i] = fade((now - since[i]) / DAY); });
+    // lesson homework: its group(s) get the boost from the lesson day, fading the same way
+    cs.forEach(function (k) { var i = gOf(k), t = Date.parse(coach[k].date), c = fade((now - t) / DAY);
+      if (c >= charge[i]) { charge[i] = c; since[i] = t; why[i] = 'coach'; } w[i] = Math.max(w[i], CFG.leakMin); });
+    var act = GROUPS.map(function (g, i) { return charge[i] > 0; }), nA = act.filter(Boolean).length || 1; // the spare splits evenly between the leaks
+    var extra = GROUPS.map(function (g, i) { return act[i] ? spare * charge[i] / nA : 0; }), left = spare - extra.reduce(function (t, v) { return t + v; }, 0);
+    // what's left of the spare: even – or, in a big tournament's sharpening week, toward putting, short game and wedges
+    var sw = GROUPS.map(function (g) { return tour && tour.mode === 'sharpen' ? SHARPEN_G[g[0]] : 1; }), sws = sw.reduce(function (t, v) { return t + v; }, 0);
+    var G = GROUPS.map(function (g, i) { var s = CFG.groupFloor + extra[i] + left * sw[i] / sws;
+      return { g: g[0], name: g[1], share: s, boost: act[i], charge: charge[i], why: act[i] ? why[i] : '', since: since[i], evenBy: act[i] ? since[i] + CFG.fadeWeeks * 7 * DAY : null }; });
+    // inside a group: by need, every area at least a quarter of it, lesson homework at least three quarters
+    var share = {}; GROUPS.forEach(function (g, i) { var ks = g[2].filter(function (k) { return keys.indexOf(k) >= 0; }); if (!ks.length) return;
+      var tot = ks.reduce(function (t, k) { return t + A[k].score; }, 0) || 1, f = {}; ks.forEach(function (k) { f[k] = A[k].score / tot; });
+      if (ks.length > 1) for (var it = 0; it < 3; it++) { var s2 = ks.reduce(function (t, k) { return t + f[k]; }, 0); ks.forEach(function (k) { f[k] = Math.max(CFG.areaInGroup, f[k] / s2); }); }
+      var ck = ks.filter(function (k) { return cs.indexOf(k) >= 0; });
+      if (ck.length && ck.length < ks.length) { var fc = ck.reduce(function (t, k) { return t + f[k]; }, 0), fo = ks.reduce(function (t, k) { return t + (ck.indexOf(k) < 0 ? f[k] : 0); }, 0), cf = Math.max(fc / (fc + fo), CFG.coachInGroup);
+        ks.forEach(function (k) { f[k] = ck.indexOf(k) >= 0 ? f[k] / fc * cf : f[k] / fo * (1 - cf); }); }
+      var s3 = ks.reduce(function (t, k) { return t + f[k]; }, 0); ks.forEach(function (k) { share[k] = G[i].share * f[k] / s3; }); });
+    return { share: share, groups: G };
+  }
+
+  function build(ctx) {
+    var now = ctx.now || Date.now(), A = areaNeeds(ctx.rounds || [], ctx.SG, ctx.MYGAME, ctx.bl, now), logs = (ctx.logs || []).filter(function (e) { return e && e.min > 0 && Date.parse(e.date) <= now + DAY; });
+    var keys = ctx.MYGAME.SPOKES.map(function (s) { return s.k; }), test = ctx.test, tAge = test ? (now - Date.parse(test.date)) / DAY : Infinity;
+    var tw = test ? CFG.testW * Math.max(0, 1 - tAge / (7 * CFG.testWeeks)) : 0;
+    // 1. need
+    needValues(A, keys, test, tw);
     // 2. cause – rounds, then the test's notes; agreeing on the same fault = surer
     var F = roundFindings(A);
     if (test && tw > 0) (test.coach || []).forEach(function (n) { var k = TEST_NOTE[n.k]; if (!k) return; var f = fam(k, n.text), cur = F[k];
@@ -140,12 +187,11 @@
     var typ = ctx.typical && ctx.typical.weekMin > 0 ? ctx.typical.weekMin : null, firstLog = logs.reduce(function (m, e) { var t = Date.parse(e.date); return t < m ? t : m; }, Infinity);
     var realF = firstLog === Infinity ? 0 : Math.max(0, Math.min(1, (now - firstLog) / DAY / 28)), budgetFrom = fromLogs ? '30 days' : 'default';
     if (typ != null && realF < 1) { B = realF * (m30 * 7 / Math.min(30, Math.max(1, (now - firstLog) / DAY + 1))) + (1 - realF) * typ; budgetFrom = realF > 0 ? 'blend' : 'typical'; }
-    // shares by need, a small floor for every area you play, no area more than 40 %
-    var tot = keys.reduce(function (t, k) { return t + A[k].score; }, 0) || 1, sh = {};
-    keys.forEach(function (k) { sh[k] = Math.max(CFG.floorShare, A[k].score / tot); });
-    var cs = Object.keys(coach).filter(function (k) { return !(tour && tour.mode === 'sharpen' && coach[k].change === 'big'); });
-    cs.forEach(function (k) { sh[k] = Math.max(sh[k], CFG.coachShare / cs.length); });
-    for (var it = 0; it < 3; it++) { var s2 = keys.reduce(function (t, k) { return t + sh[k]; }, 0); keys.forEach(function (k) { sh[k] = Math.min(CFG.maxShare, sh[k] / s2); }); }
+    // v208 (Scott): balance by group – Putting, Short game, Wedges, Full swing. Each gets at least 20 % of the week; the spare 20 %
+    // goes to the biggest leak (or leaks: two → 30/30/20/20) and fades back to even over 4 weeks (40 → 35 → 30 → 25). A new round
+    // or test that still shows the same leak tops it back up; a lesson's homework counts as a leak while it's active.
+    var BAL = balance(ctx, keys, A, coach, cs0(coach, tour), tour, now), sh = BAL.share;
+    var cs = cs0(coach, tour);
     // owed time: the last 14 days of "should have" minus what you did, recent days counting more
     var dw = function (d) { return d < 0 || d >= CFG.windowDays ? 0 : Math.pow(0.5, d / CFG.owedHalfLife); }, sumW = 0; for (var d = 0; d < CFG.windowDays; d++) sumW += dw(d);
     var today = new Date(now); today.setHours(0, 0, 0, 0);
@@ -175,7 +221,7 @@
     var nNeed = open.length; if (open.length < 3) done.slice().sort(function (a, b) { return (b.score - a.score) || ((b.lastDays == null ? 999 : b.lastDays) - (a.lastDays == null ? 999 : a.lastDays)); })
       .slice(0, 3 - open.length).forEach(function (x) { x.optional = true; x.min = Math.max(10, Math.min(tour && tour.mode === 'sharpen' ? 25 : 40, r5(x.weekMin / 2))); open.push(x); });
     var weekMin = {}; items.forEach(function (x) { weekMin[x.k] = x.weekMin; }); // v205: each area's weekly target, for the "This week" bars
-    return { budget: Math.round(B), budgetFrom: budgetFrom, realShare: realF, weekMin: weekMin, due: nNeed, items: open.slice(0, CFG.maxItems), more: open.slice(CFG.maxItems), done: done, ahead: ahead, extra: extra, tour: tour, areas: A, cfg: CFG };
+    return { budget: Math.round(B), budgetFrom: budgetFrom, realShare: realF, weekMin: weekMin, due: nNeed, items: open.slice(0, CFG.maxItems), more: open.slice(CFG.maxItems), done: done, ahead: ahead, extra: extra, tour: tour, areas: A, groups: BAL.groups, cfg: CFG };
   }
 
   // v205 (Scott): "how much time do you have?" – today's session from the top of the list: at most 3 items, at least 10 min each,
@@ -195,6 +241,6 @@
       .sort(function (x, y) { return y.target - x.target; });
     return { start: a, end: b - 1, rows: rows, done: tot, target: rows.reduce(function (t, r) { return t + r.target; }, 0) };
   }
-  var api = { CFG: CFG, build: build, session: session, week: week, roundFindings: roundFindings, areaNeeds: areaNeeds, GENERIC: GENERIC };
+  var api = { CFG: CFG, GROUPS: GROUPS, build: build, session: session, week: week, roundFindings: roundFindings, areaNeeds: areaNeeds, GENERIC: GENERIC };
   if (typeof module !== 'undefined' && module.exports) module.exports = api; else root.PLAN = api;
 })(this);
