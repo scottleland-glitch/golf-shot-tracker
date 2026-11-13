@@ -77,7 +77,7 @@ const hole1 = () => ({ par: 4, finished: true, rows: [R(467, 'tee', { club: 'Dri
     }
     require('./fixtures/birdie-data.js')().forEach(r => rounds.push(r)); // the Birdie-zone sample rounds too
     let cmp = 0;
-    const strip = o => JSON.parse(JSON.stringify(o, (k, v) => k === 'hk' || k === 'ang' || k === 'fromAng' || k === 'hit' || k === 'retee' || k === 'cat' || k === 'bucket' || k === 'cats' || k === 'buckets' ? undefined : v)); // v157: greenside bunker shots get their own category (cat / bucket) – every SG number must still match // hk = new internal helper field on shots; v156: ang (spot around the pin) is new and hit (distance hit) is now measured along the player's line on purpose
+    const strip = o => JSON.parse(JSON.stringify(o, (k, v) => k === 'hk' || k === 'rd' || k === 'ang' || k === 'fromAng' || k === 'hit' || k === 'retee' || k === 'cat' || k === 'bucket' || k === 'cats' || k === 'buckets' ? undefined : v)); // v157: greenside bunker shots get their own category (cat / bucket) – every SG number must still match // hk = new internal helper field on shots; v156: ang (spot around the pin) is new and hit (distance hit) is now measured along the player's line on purpose
     rounds.forEach(rr => {
       SG.BASELINES.forEach(b => { assert.deepStrictEqual(strip(SG.summarize(rr, b.id)), strip(OLD.summarize(rr, b.id)), 'round ' + rr.id + ' vs ' + b.id); cmp++; });
       rr.holes.forEach(h => assert.deepStrictEqual(strip(SG.analyzeHole(h)), strip(OLD.analyzeHole(h)))); });

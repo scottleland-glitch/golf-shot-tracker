@@ -467,6 +467,9 @@
     // Enter in the feet box = Save on the stations that have a plain Save
     function key(ev) { if (ev.key !== 'Enter' || !ev.target || ev.target.id !== 'sgtft') return; var s = S(), st = T.STATIONS[s.st]; if (st && (st.kind === 'leave' || st.kind === 'bunker')) { ev.preventDefault(); act('sgtsave', ''); } }
     function trendTests(who) { return mine(who).filter(function (t) { return t.done; }).map(function (t) { var A = analysed(t, who), p = {}; T.CATS.forEach(function (c) { var x = A.cur.cats[c.k]; p[c.k] = x && x.sg != null ? x.sg : null; }); return { date: t.date, perShot: p }; }); } // v194
-    return { html: html, act: act, cardHTML: cardHTML, key: key, reportData: reportData, testFlags: testFlags, trendTests: trendTests };
+    // v203: the last finished test for the practice plan – strokes per shot by area and the test's own notes
+    function planTest(who) { var t = mine(who).filter(function (x) { return x.done; })[0]; if (!t) return null; var A = analysed(t, who), p = {};
+      T.CATS.forEach(function (c) { var x = A.cur.cats[c.k]; p[c.k] = x && x.sg != null ? x.sg : null; }); return { date: t.date, perShot: p, coach: A.I.coach.map(function (c) { return { k: c.k, text: c.text, ask: c.ask }; }) }; }
+    return { html: html, act: act, cardHTML: cardHTML, key: key, reportData: reportData, testFlags: testFlags, trendTests: trendTests, planTest: planTest };
   };
 })(this);

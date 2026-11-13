@@ -383,7 +383,8 @@
       out.push({
         n: i + 1, start: start, end: end, pen: pen, penStrokes: penStrokes,
         side: s.side || dirSide(normDir(s.dir)), dir: normDir(s.dir || s.side), ob: !!s.ob, retee: !!s.retee, loc: s.loc || (pen === 'ob' ? 'ob' : s.lie), hk: s.hk, eStart: eStart, eEnd: eEnd, sg: sg,
-        cat: cat, bucket: bucket, hit: hit, club: clubOf(raw[i]), ang: ang, fromAng: prevAng
+        cat: cat, bucket: bucket, hit: hit, club: clubOf(raw[i]), ang: ang, fromAng: prevAng,
+        rd: start.lie === 'green' && raw[i] && /^(up|flat|down)-(l|s|r)$/.test(raw[i].rd) ? raw[i].rd : '' // v202: the putt's read (slope-break), '' = not entered
       });
       if (pen !== 'ob' && end.lie !== 'holed') prevAng = nearEnd ? ang : 270;
       // Layup tee shot: its strokes gained is left out entirely (0 toward Off the tee and the total; not counted as a tee shot).
@@ -918,7 +919,7 @@
     YARDS: YARDS, OFF_GREEN: OFF_GREEN, FEET: FEET, PUTTS: PUTTS,
     // v150: the ONE place the app version lives – must equal the sw.js cache name ('golf-sg-' + VERSION). It sits in a cached file,
     // so Settings shows the version of the code actually running (config.js is network-first and could run ahead).
-    VERSION: 'v201' };
+    VERSION: 'v203' };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else root.SG = api;
 })(this);

@@ -2546,10 +2546,42 @@
       return '<button class="rbbtn' + (x[3] ? ' on' : '') + '" data-act="' + x[1] + '" id="pb' + x[1] + '"' + (x[3] ? ' aria-current="page"' : '') + '><svg viewBox="0 0 24 24" aria-hidden="true">' + PB_IC[x[0]] + '</svg><span>' + esc(x[2]) + '</span></button>'; }).join('') + '</nav>';
   }
   // ---------- v194: the Practice page ----------
+  // v203 (Scott): the practice plan – a ranked "Practice next" list (plan.js), not a weekly schedule
+  var TOUR_KEY = 'golfsg.tour.v1';
+  function tourAll() { try { return JSON.parse(localStorage.getItem(TOUR_KEY) || '{}') || {}; } catch (e) { return {}; } }
+  function tourOf(who) { var T = tourAll(), k = String(who || '').toLowerCase(); return T[k] || null; }
+  function setTour(who, t) { var T = tourAll(), k = String(who || '').toLowerCase(); if (t) T[k] = t; else delete T[k]; try { localStorage.setItem(TOUR_KEY, JSON.stringify(T)); } catch (e) {} }
+  function planData(who) {
+    var td = null, tst = null; try { td = trendsData(who); } catch (e) {} try { tst = SGTUI.planTest(who); } catch (e) {}
+    return PLAN.build({ rounds: finishedRoundsOf(who), logs: practiceOf(who), SG: SG, MYGAME: MYGAME, bl: myBench(who), test: tst, trends: td, now: Date.now(), tour: tourOf(who) });
+  }
+  function planFocusKey(it) { var F = MYGAME.FOCUS[it.k] || [], f = /speed/i.test(it.focus) ? F.filter(function (x) { return /speed/i.test(x); })[0] : /start line/i.test(it.focus) ? F.filter(function (x) { return /start line/i.test(x); })[0] : /distance|short|long/i.test(it.focus) ? F.filter(function (x) { return /distance/i.test(x); })[0] : null; return f || F[0]; }
+  function planCardHTML(who) {
+    var P = planData(who), hm = MYGAME.hm, T = P.tour, ed = view.tourEdit;
+    var h = '<div class="card frost plancard" id="plancard"><div class="planhead"><b>Practice next</b><small>' + (P.budgetFrom === '30 days' ? 'Your usual: ' + hm(P.budget) + ' a week' : 'Log practice and this fits your week') + '</small></div>';
+    // the next tournament – Big shifts the last week to sharpening, Regular changes nothing
+    if (ed) h += '<div class="tourform" id="tourform"><label>Next tournament <input type="date" id="tourdate" min="' + localDayISO() + '" value="' + esc(ed.date || '') + '"></label>' +
+      '<div class="prchips" role="group" aria-label="How big">' + [['big', 'Big'], ['reg', 'Regular']].map(function (x) { var on = (ed.big ? 'big' : 'reg') === x[0]; return '<button class="prchip' + (on ? ' on' : '') + '" data-act="tourbig" data-v="' + x[0] + '" aria-pressed="' + on + '">' + x[1] + '</button>'; }).join('') + '</div>' +
+      '<p class="help tourhelp">Big (state, a college showcase): the last week sharpens – speed, short game, wedges. Regular: practice as normal.</p>' +
+      '<div class="tourbtns">' + (tourOf(who) ? '<button class="txt" data-act="tourdel">Remove</button>' : '') + '<button class="txt" data-act="tourcancel">Cancel</button><button class="primary" data-act="toursave" id="toursave"' + (ed.date ? '' : ' disabled') + '>Save</button></div></div>';
+    else h += T ? '<button class="tourrow" data-act="touredit" id="tourrow">🏆 ' + (T.big ? 'Big tournament' : 'Tournament') + ' · ' + esc(new Date(T.date + 'T12:00:00').toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })) + ' · ' + (T.days === 0 ? 'today' : T.days === 1 ? 'tomorrow' : 'in ' + T.days + ' days') + '<span>Edit</span></button>'
+      : '<button class="tourrow add" data-act="touredit" id="tourrow">+ Add your next tournament</button>';
+    if (T && T.msg) h += '<p class="planmsg' + (T.mode === 'sharpen' ? ' sharp' : '') + '" id="planmsg">' + esc(T.msg) + '</p>';
+    var row = function (it, i) { return '<li class="planitem' + (it.coach ? ' coach' : '') + (it.maint ? ' maint' : '') + '" data-k="' + it.k + '"><span class="pin">' + (i + 1) + '</span><div class="pltext"><small>' + esc(it.name) + (it.coach ? ' · coach homework' : it.maint ? ' · keep it sharp' : '') + '</small><b>' + esc(it.focus) + '</b>' +
+      (it.why ? '<span class="plwhy">' + esc(it.why) + '</span>' : '') + (it.coach && it.doneToday ? '<span class="pldoneit">✓ done today</span>' : '') + (it.typeTip ? '<span class="pltip">' + esc(it.typeTip) + '</span>' : '') + '</div>' +
+      '<div class="plright"><span class="plmin">' + it.min + ' min</span><button class="plbtn" data-act="planlog" data-v="' + it.k + '|' + esc(planFocusKey(it)) + '|' + it.min + '">Log</button></div></li>'; };
+    if (P.items.length) h += '<ol class="planlist" id="planlist">' + P.items.map(row).join('') + '</ol>';
+    else h += '<div class="planahead" id="planahead"><b>You\'re ahead this week 👍</b>' + (P.extra ? '<span>Optional: ' + esc(P.extra.name.toLowerCase()) + (P.extra.lastDays != null ? ' – last practised ' + P.extra.lastDays + ' days ago' : ' – not practised yet') + '</span>' : '') + '</div>';
+    var dn = P.done.filter(function (x) { return x.doneToday || (x.lastDays != null && x.lastDays <= 7); });
+    if (dn.length) h += '<p class="plddone" id="pldone">✓ ' + dn.map(function (x) { return esc(x.name) + (x.doneToday ? ' today' : ''); }).join(' · ') + '</p>';
+    h += '<p class="help plnote">Ranked by what costs you most and what you haven\'t practised lately. Skip one and it moves up; do it and it drops down.</p></div>';
+    return h;
+  }
   function practicePageHTML() {
     var who = mgWho(), D = mgData(who);
     var h = '<div class="frostpage theme-sky mygamepage practicepage" id="practicepage"><div class="topbar frost"><button class="txt frostbtn" data-act="home" id="prback">‹ Home</button><div class="title"><b>Practice</b><span>' + esc(who || '') + '</span></div><span class="tbsp"></span></div>';
-    h += '<button class="primary prbig" data-act="prlog" id="prbig">+ Log practice</button>' + quickRowHTML('prqrow', [['report', 'grep', 'Report'], ['trends', 'gotrends', 'Trend'], ['plan', 'prplan', 'Plan']]); // v198
+    h += '<button class="primary prbig" data-act="prlog" id="prbig">+ Log practice</button>' + quickRowHTML('prqrow', [['report', 'grep', 'Report'], ['trends', 'gotrends', 'Trend']]); // v198; v203: the plan is on the page
+    h += planCardHTML(who);
     h += prSheetHTML(who) + grSheetHTML() + (view.pdf && view.pdf.kind === 'game' ? pdfHTML() : '');
     var rest = practiceCardHTML(who, D, 'rest');
     h += rest || '<div class="mgchart frost"><p class="help">Nothing logged yet – tap <b>Log practice</b> below after a session.</p></div>';
@@ -3408,6 +3440,19 @@
     return fin ? '<div class="tline fin" data-k="' + k + '" role="group" aria-label="' + esc(lbl) + '">' + inner + '</div>'
       : '<button type="button" class="tline' + (bad ? ' bad' : '') + '" data-act="rowedit" data-k="' + k + '" aria-label="' + esc(lbl) + ' – tap to edit">' + inner + '</button>';
   }
+  // v202 (Scott): the read of a putt – uphill / flat / downhill × breaks left / straight / breaks right, one tap on a 3×3 pad.
+  // Optional (blank = not recorded, never "flat"); offered on the first putt and any putt over 3 ft. Stored as row.rd = 'up-l'…
+  var RD_S = [['up', 'Uphill'], ['flat', 'Flat'], ['down', 'Downhill']], RD_B = [['l', 'Breaks left'], ['s', 'Straight'], ['r', 'Breaks right']];
+  function rdName(v) { var p = String(v || '').split('-'), a = RD_S.filter(function (x) { return x[0] === p[0]; })[0], b = RD_B.filter(function (x) { return x[0] === p[1]; })[0]; return a && b ? a[1] + (p[1] === 's' ? ', straight' : ', ' + b[1].toLowerCase()) : ''; }
+  function readPadHTML(h, k, row, dis) {
+    var first = SG.lieOf(h.rows, k - 1) !== 'green'; if (!first && !(+row.dist > 3)) return '';
+    var cur = row.rd || '', BR = { l: '<path d="M16 19C16 12 13 8 6 6M6 6l1.5 4M6 6l4 -.5"/>', s: '<path d="M12 19V5M12 5l-3 3M12 5l3 3"/>', r: '<path d="M8 19C8 12 11 8 18 6M18 6l-1.5 4M18 6l-4 -.5"/>' };
+    var o = '<div class="readpad" data-k="' + k + '" role="group" aria-label="Read of putt ' + (k + 1) + '"><div class="rphead"><small>The putt</small><b id="rdtxt' + k + '">' + esc(rdName(cur) || 'tap the read (optional)') + '</b></div><div class="rpgrid"><i class="rps">Breaks</i>' +
+      RD_B.map(function (b) { var t = b[1].replace('Breaks ', ''); return '<i>' + t.charAt(0).toUpperCase() + t.slice(1) + '</i>'; }).join('');
+    RD_S.forEach(function (sl) { o += '<i class="rps">' + sl[1] + '</i>' + RD_B.map(function (b) { var v = sl[0] + '-' + b[0], on = v === cur;
+      return '<button class="rpc ' + sl[0] + (on ? ' on' : '') + '" data-act="setread" data-k="' + k + '" data-v="' + v + '" aria-pressed="' + on + '" aria-label="' + esc(rdName(v)) + '"' + dis + '><svg viewBox="0 0 24 24" aria-hidden="true">' + BR[b[0]] + '</svg></button>'; }).join(''); });
+    return o + '</div></div>';
+  }
   function rowHTML(h, a, row, k, fin) {
     var ob = row.loc === 'ob', bad = !fin && a.bad === k, shotNo = k + 1, dis = fin ? ' disabled' : '';
     var out = '<div class="srow' + (bad ? ' bad' : '') + (view.vflash && view.vflash.indexOf(k) >= 0 ? ' vflash' : '') + '" data-k="' + k + '">';
@@ -3436,7 +3481,7 @@
       out += '<div class="clubrow" data-club="' + k + '"><label class="clublbl"><span>Club</span><select data-f="club" data-k="' + k + '" aria-label="Club row ' + shotNo + '"' + dis + '><option value=""' + (row.club ? '' : ' selected') + '>–</option>' +
         clubChoices(row.club).map(function (c) { return '<option value="' + esc(c.code) + '"' + (row.club === c.code ? ' selected' : '') + '>' + esc(c.label) + '</option>'; }).join('') + '</select></label>' +
         (k === 0 && Number(h.par) !== 3 ? '<label class="layup"><input type="checkbox" data-f="layup" data-k="0"' + (row.layup ? ' checked' : '') + dis + '> Layup <small>(not in SG)</small></label>' : '') + hoBox + '</div>';
-    } else if (row.loc === 'green') out += '<div class="clubrow putter" data-club="' + k + '"><small>Putter</small>' + hoBox + '</div>';
+    } else if (row.loc === 'green') out += '<div class="clubrow putter" data-club="' + k + '"><small>Putter</small>' + hoBox + '</div>' + readPadHTML(h, k, row, dis);
     out += '<div class="sinfo" data-info="' + k + '">' + infoHTML(a.shots[k]) + '</div>'; // (only the shot being entered has this line now)
     if (view.menu === k && !fin) {
       out += '<div class="rowmenu">' + (k > 0 ? '<button data-act="insBefore" data-k="' + k + '">Insert shot above</button>' : '') +
@@ -3528,6 +3573,7 @@
       '<div class="sc-fin"><span class="sc-lbl">Finished</span>' + finSel + (plus ? '<i class="tpen">+1</i>' : '') + '</div></div>';
     // the wedge chart picks the club for wedge shots (its own row, as before)
     if (!green && row.loc !== 'holed' && wLadderFor(row)) out += '<div class="sc-sec sc-clubsec">' + ladderRowHTML(h, k, row, n, '', '') + '</div>';
+    if (green) out += readPadHTML(h, k, row, ''); // v202: the read of the putt
     // direction under Finished
     if (fin && fin !== 'in' && nx) { var dv = SG.normDir(nx.dir), obx = nx.loc === 'ob';
       out += '<div class="sc-dirrow"><select class="dd sc-dirsel" data-f="dir" data-k="' + (k + 1) + '" aria-label="Shot ' + n + ' direction">' +
@@ -5529,6 +5575,12 @@
       case 'grep': view.grep = view.grep && !view.mgMenu ? null : { preset: 'coach', parts: Object.assign({}, GR_PRESET.coach) }; view.mgMenu = null; view.pdf = null; render();
         var gs = document.getElementById('grsheet'); if (gs && gs.scrollIntoView) gs.scrollIntoView({ block: 'start' }); return;
       case 'mgplus': view.mgMenu = view.mgMenu === 'plus' ? null : 'plus'; render(); return; // v183
+      case 'planlog': { var pq = String(v || '').split('|'); prOpen({ spoke: pq[0], focus: pq[1], min: +pq[2] || 15 }); return; } // v203
+      case 'touredit': { var tw = mgWho(), to = tourOf(tw); view.tourEdit = { date: to ? to.date : '', big: to ? !!to.big : true }; render(); return; }
+      case 'tourbig': if (view.tourEdit) view.tourEdit.big = v === 'big'; render(); return;
+      case 'tourcancel': view.tourEdit = null; render(); return;
+      case 'tourdel': setTour(mgWho(), null); view.tourEdit = null; toast('Tournament removed'); render(); return;
+      case 'toursave': if (view.tourEdit && view.tourEdit.date) { setTour(mgWho(), { date: view.tourEdit.date, big: !!view.tourEdit.big }); view.tourEdit = null; toast('Tournament saved'); } render(); return;
       case 'gopractice': view.screen = 'practice'; view.mgMenu = null; view.hmenu = null; render(); window.scrollTo(0, 0); return; // v194
       case 'tbplus': view.hmenu = view.screen === 'home' && view.hmenu === 'menu' ? null : 'menu'; view.screen = 'home'; render(); return; // v198: the + from any tab
       case 'gotrends': view.trFrom = view.screen === 'practice' ? 'practice' : 'mygame'; view.trWho = mgWho(); view.trTap = null; view.screen = 'trends'; render(); window.scrollTo(0, 0); return;
@@ -5697,6 +5749,7 @@
         break;
       }
       case 'reopen': h.finished = false; view.edk = null; save(); break;
+      case 'setread': if (h.rows[k].rd === v) delete h.rows[k].rd; else h.rows[k].rd = v; save(); break; // v202
       case 'pen': h.rows[k].pen = !h.rows[k].pen; save(); if (view.penInfo === k && h.rows[k].pen) view.penInfo = null; break;
       case 'peninfo': view.penInfo = view.penInfo === k ? null : k; break;
       case 'del':
@@ -5776,6 +5829,7 @@
     if (ev.target && ev.target.id === 'nearq' && view.near) { view.near.q = ev.target.value; var nr = document.getElementById('nearres'), html = nearResHTML(); if (nr) nr.outerHTML = html || '<span id="nearres"></span>'; else ev.target.insertAdjacentHTML('afterend', html); } });
   document.addEventListener('change', function (ev) { if (ev.target && ev.target.id === 'newbl') view.newBl = ev.target.value; });
   document.addEventListener('input', function (ev) { if (ev.target && ev.target.id === 'prcoach' && view.prLog) view.prLog.coach = ev.target.value; }); // v195
+  document.addEventListener('change', function (ev) { if (ev.target && ev.target.id === 'tourdate' && view.tourEdit) { view.tourEdit.date = ev.target.value; var sb = document.getElementById('toursave'); if (sb) sb.disabled = !ev.target.value; } }); // v203
   document.addEventListener('change', function (ev) { if (ev.target && ev.target.id === 'prdate' && view.prLog && /^\d{4}-\d\d-\d\d$/.test(ev.target.value)) view.prLog.date = ev.target.value; }); // v142
   document.addEventListener('keydown', function (ev) { if (ev.key === 'Enter' && ev.target && ev.target.id === 'pname' && !ev.isComposing) { ev.preventDefault(); setName(ev.target.value); } });
   document.addEventListener('input', function (ev) {

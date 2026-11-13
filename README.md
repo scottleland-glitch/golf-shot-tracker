@@ -25,6 +25,35 @@ Every Shot Counts Table 3.10). The other five are ESTIMATED: per-round gaps from
 Player Quality ladder, then spread over the PGA table. Full sources, method and caveats: in-app
 "About the numbers" and the BASELINES comment in `sg.js`.
 
+## The practice plan: "Practice next" (v203)
+- Not a weekly schedule – a ranked list on the Practice page (`plan.js`, `planCardHTML`): each item an area, one focus, minutes,
+  a one-line reason, and **Log** (opens the log sheet on that area with the minutes in). Do the top one whenever you have time.
+- **Need:** strokes lost per round against your benchmark per area – recent rounds count more (half-life 45 days), tournament
+  rounds ×1.5, few shots pulled toward even – blended with the last short game test (counts 60 %, fading to nothing over 6 weeks).
+- **Cause:** pattern detectors on your rounds – tee shots missing left / right, penalties off the tee, approaches and wedges
+  finishing short / long or missing left / right, chips short / long, bunker shots staying in, lag speed (and downhill / uphill
+  speed), short putts' start line, breaking putts missed on the high / low side (needs the putt's read, v202) – and the test's
+  notes. A lean needs 65 %+ of enough shots; rounds and test agreeing add "– and your test agrees". No pattern: "About 2.7
+  strokes a round lost here", or "Not practised in 12 days – a little keeps it sharp".
+- **Momentum and feel:** slipping in Trends ×1.3, an area that responds to practice ×1.1, two "off" sessions ×1.1; "great" every
+  time on plain reps → "try a game or pressure version".
+- **Coach homework** stays at the top – one item per lesson with its areas – for 4 weeks after a big change, 2 after a fine-tune.
+- **Time:** your average week over the last 30 days (2 h until there's enough logged). Each area gets a share by need (at least 5 %,
+  at most 40 %; coach homework at least 30 % between them). Owed time = the last 14 days of its share (recent days count more,
+  half-life 7 days) minus what you did there; a session of 75 min+ counts ×0.85. Credit is capped at a week of the share. Items
+  owed over 5 min are listed (5 at most), the rest show as "✓ … today" or done this week; nothing owed → "You're ahead this week 👍".
+- **Next tournament** (date + Big / Regular, per player): Big within 7 days → "sharpening" – putting ×1.5, chipping and wedges
+  ×1.3, driving ×0.6, irons ×0.7 (order and minutes), long-game sessions ≤ 15 min, no big-change homework; the day before and the
+  day itself get a light warm-up message. Regular → "practice as normal".
+
+## The read of a putt (v202)
+- A putt's shot card has **The putt**: a 3×3 pad – rows Uphill / Flat / Downhill, columns Breaks left / Straight / Breaks
+  right ("breaks right" = the ball curves right as you look at the hole). One tap records both; the heading says it
+  ("Downhill, breaks right"); tap it again to clear. Shown on the first putt of the hole and any putt over 3 ft.
+- Optional – blank means not entered, never "flat". Saved on the row the putt is played from (`row.rd = 'down-r'`, slope
+  `up|flat|down`, break `l|s|r`) and carried onto the analysed putt (`shot.rd`) for Stats and the practice plan: misses on the
+  high or low side, speed by slope, make rate by type.
+
 ## Home card: the forecast in plain words, "keep an eye on" (v201)
 - The Trends message compares the 5-week score forecast with your score now and never says "up" or "down" (a lower score is
   better play): **Holding steady around 78** (within ¾ of a stroke), **Improving – about 77 by Dec 14, from 79 now**, or

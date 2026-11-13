@@ -19,8 +19,8 @@ const REPO = path.join(__dirname, '..'), PORT = 8968, ARC = require('./fixtures/
   // v194: My Game has no ☰ / +, a bottom bar instead
   await page.click('#tbmygame'); await page.waitForSelector('#mygame'); assert.strictEqual(await page.$('#mgplus, #mgnav'), null, 'no ☰ / + on My Game');
   assert.deepStrictEqual(await page.$$eval('#tabbar .tbbtn span', e => e.map(x => x.textContent)), ['My Game', 'Rounds', 'Practice', 'Stats']); assert.ok(await page.$('#tabbar #tbplus')); assert.deepStrictEqual(await page.$$eval('#mgqrow .qbtn span', e => e.map(x => x.textContent)), ['Tests', 'Trends']); assert.ok(await page.evaluate(() => document.body.classList.contains('hasrbar')), 'page padded for the bar');
-  await page.click('#tbpractice'); await page.waitForSelector('#practicepage'); assert.ok(await page.$('#prbig')); assert.deepStrictEqual(await page.$$eval('#prqrow .qbtn span', e => e.map(x => x.textContent)), ['Report', 'Trend', 'Plan']); assert.ok(await page.$('#tbpractice.on'), 'Practice tab on');
-  await page.click('#qprplan'); await page.waitForTimeout(100); assert.ok(await page.$('#practicepage'), 'Practice plan: coming soon, stays put');
+  await page.click('#tbpractice'); await page.waitForSelector('#practicepage'); assert.ok(await page.$('#prbig')); assert.deepStrictEqual(await page.$$eval('#prqrow .qbtn span', e => e.map(x => x.textContent)), ['Report', 'Trend']); assert.ok(await page.$('#tbpractice.on'), 'Practice tab on');
+  assert.ok(await page.$('#plancard'), 'v203: the practice plan is on the page');
   await page.click('#qgotrends'); await page.waitForSelector('#trendspage'); assert.strictEqual(await page.$('#pagebar, #tabbar'), null, 'no bar on Trends');
   await page.click('#trback'); await page.waitForSelector('#practicepage'); await page.click('#prback'); await page.waitForSelector('#home'); await page.click('#tbmygame'); await page.waitForSelector('#mygame');
   await page.click('#tbstats'); await page.waitForSelector('#stats, .statspage, #stplayer', { timeout: 5000 }).catch(() => {}); assert.strictEqual(await page.$('#mygame'), null, 'Stats left My Game');
