@@ -1,4 +1,5 @@
 // Offline support: cache the whole app on install, serve cache-first.
+// v207: tap the This week card for full screen (taller charts, swipe left / right still works); swipe down, ✕ or Back to close.
 // v206: This week – nothing falls off (short times, no wrapping); swipe for each day of the week stacked by group (Putting · Short game · Wedges · Full swing) and the last 3 months as a stacked area by week with the weekly target, tournament weeks and lessons.
 // v205: your typical week (practice hours, rounds a month) as a starting baseline that real logs take over from over 4 weeks; ▶ Start a session – how much time do you have? → today's session (≤3 items, 10+ min, by need), logged in one tap; This week – a bar per area against its target, past weeks, 6-week dots.
 // v204: Practice next is never empty – a one-line how-to on top, at least 3 items with Log ("When you have time" after what's due; "You're ahead" when nothing is), and an area is due relative to its own share, so a light practice week still lists things.
@@ -99,7 +100,7 @@
 // v113: "Courses near me" (near.js). The course finder list (data/us-courses.json, ~1.0 MB, ~0.28 MB gzipped) is NOT in this cache:
 // the app downloads it on first use into its own cache 'pinhigh-courselist-v1', which a new version keeps (so no re-download).
 // GolfCore scorecards (through the Pin High relay, pinhigh-golfcore.pinhigh.workers.dev) go straight to the network; the app saves each picked course with the saved courses.
-const CACHE = 'golf-sg-v206';
+const CACHE = 'golf-sg-v207';
 const ASSETS = ['./', './img/home-bg.webp', './img/oriole.webp', './index.html', './styles.css', './sg.js', './trends.js', './plan.js', './birdie.js', './courses.js', './near.js', './bag.js', './wedges.js', './live.js', './share.js', './story.js', './insights.js', './mygame.js', './shortgame.js', './shortgame-ui.js', './gdrive.js', './app.js', './config.js', './vendor/jspdf.umd.min.js',
   './manifest.webmanifest', './icons/apple-touch-icon.png', './icons/icon-192.png',
   './icons/icon-512.png', './icons/icon-512-maskable.png'];

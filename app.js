@@ -2588,28 +2588,28 @@
   var PRG = [['putt', 'Putting', ['lag', 'short']], ['short', 'Short game', ['chip', 'bunker']], ['wedge', 'Wedges', ['wedges']], ['full', 'Full swing', ['drive', 'irons']]];
   function pgOf(k) { for (var i = 0; i < PRG.length; i++) if (PRG[i][2].indexOf(k) >= 0) return i; return 3; }
   function hmS(min) { min = Math.round(min); var h = Math.floor(min / 60), m = min % 60; return h ? h + 'h' + (m ? ' ' + m + 'm' : '') : m + 'm'; } // short: "1h 5m"
-  function weekDaysSVG(L, W) {
+  function weekDaysSVG(L, W, tall) { var VH = tall ? 380 : 172; // v207: taller in full screen
     var DAY = 864e5, days = [0, 1, 2, 3, 4, 5, 6].map(function (i) { return { t: W.start + i * DAY, g: [0, 0, 0, 0], tot: 0 }; });
     L.forEach(function (e) { var t = Date.parse(e.date); if (t < W.start || t > W.end || !(e.min > 0)) return; var d = days[Math.min(6, Math.floor((t - W.start) / DAY))]; d.g[pgOf(e.spoke)] += e.min; d.tot += e.min; });
     var mx = Math.max(30, Math.max.apply(null, days.map(function (d) { return d.tot; }))), step = mx > 150 ? 60 : 30, top = Math.ceil(mx / step) * step;
-    var VW = 340, X0 = 34, X1 = 332, Y0 = 18, Y1 = 150, bw = (X1 - X0) / 7, y = function (m) { return Y1 - m / top * (Y1 - Y0); }, today = new Date(); today.setHours(0, 0, 0, 0);
-    var o = '<svg class="wkchart" viewBox="0 0 ' + VW + ' 172" role="img" aria-label="Practice each day this week, by group">';
+    var VW = 340, X0 = 34, X1 = 332, Y0 = 18, Y1 = VH - 22, bw = (X1 - X0) / 7, y = function (m) { return Y1 - m / top * (Y1 - Y0); }, today = new Date(); today.setHours(0, 0, 0, 0);
+    var o = '<svg class="wkchart" viewBox="0 0 ' + VW + ' ' + VH + '" role="img" aria-label="Practice each day this week, by group">';
     for (var t = 0; t <= top; t += step) o += '<line x1="' + X0 + '" x2="' + X1 + '" y1="' + y(t).toFixed(1) + '" y2="' + y(t).toFixed(1) + '" class="wkgrid"/><text x="' + (X0 - 4) + '" y="' + (y(t) + 3.5).toFixed(1) + '" class="wkax" text-anchor="end">' + (t >= 60 ? t / 60 + 'h' : t + 'm') + '</text>';
     days.forEach(function (d, i) { var x = X0 + i * bw + bw * 0.18, w = bw * 0.64, acc = 0;
       d.g.forEach(function (m, gi) { if (!m) return; var a = y(acc), b2 = y(acc + m); o += '<rect x="' + x.toFixed(1) + '" y="' + b2.toFixed(1) + '" width="' + w.toFixed(1) + '" height="' + Math.max(1, a - b2).toFixed(1) + '" class="pg' + gi + '"/>'; acc += m; });
       if (d.tot) o += '<text x="' + (x + w / 2).toFixed(1) + '" y="' + (y(d.tot) - 4).toFixed(1) + '" class="wkdtot" text-anchor="middle">' + hmS(d.tot) + '</text>';
-      o += '<text x="' + (x + w / 2).toFixed(1) + '" y="166" class="wkax' + (d.t === today.getTime() ? ' now' : '') + '" text-anchor="middle">' + ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'][i] + '</text>'; });
+      o += '<text x="' + (x + w / 2).toFixed(1) + '" y="' + (VH - 6) + '" class="wkax' + (d.t === today.getTime() ? ' now' : '') + '" text-anchor="middle">' + ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'][i] + '</text>'; });
     return o + '<line x1="' + X0 + '" x2="' + X1 + '" y1="' + Y1 + '" y2="' + Y1 + '" class="wkbase"/></svg>';
   }
-  function monthsSVG(L, who, P) {
+  function monthsSVG(L, who, P, tall) { var VH = tall ? 380 : 172;
     var DAY = 864e5, WK = 7 * DAY, N = 13, d0 = new Date(); d0.setHours(0, 0, 0, 0); d0.setDate(d0.getDate() - ((d0.getDay() + 6) % 7)); var start = d0.getTime() - (N - 1) * WK;
     var wks = []; for (var i = 0; i < N; i++) wks.push({ t: start + i * WK, g: [0, 0, 0, 0], tot: 0, tour: false, les: false });
     var at = function (t) { var i = Math.floor((t - start) / WK); return i >= 0 && i < N ? wks[i] : null; };
     L.forEach(function (e) { var w = at(Date.parse(e.date)); if (!w || !(e.min > 0)) return; w.g[pgOf(e.spoke)] += e.min; w.tot += e.min; if (e.kind === 'lesson') w.les = true; });
     finishedRoundsOf(who).forEach(function (r) { if (MYGAME.playOf(r) !== 'tournament') return; var w = at(Date.parse(r.date)); if (w) w.tour = true; });
     var tgt = P.budget, mx = Math.max(60, tgt, Math.max.apply(null, wks.map(function (w) { return w.tot; }))), step = mx > 420 ? 120 : 60, top = Math.ceil(mx / step) * step;
-    var X0 = 34, X1 = 332, Y0 = 26, Y1 = 150, x = function (i) { return X0 + i / (N - 1) * (X1 - X0); }, y = function (m) { return Y1 - m / top * (Y1 - Y0); };
-    var o = '<svg class="wkchart" viewBox="0 0 340 172" role="img" aria-label="Practice by week, last 3 months, by group, with tournaments and lessons">';
+    var X0 = 34, X1 = 332, Y0 = 26, Y1 = VH - 22, x = function (i) { return X0 + i / (N - 1) * (X1 - X0); }, y = function (m) { return Y1 - m / top * (Y1 - Y0); };
+    var o = '<svg class="wkchart" viewBox="0 0 340 ' + VH + '" role="img" aria-label="Practice by week, last 3 months, by group, with tournaments and lessons">';
     for (var t = 0; t <= top; t += step) o += '<line x1="' + X0 + '" x2="' + X1 + '" y1="' + y(t).toFixed(1) + '" y2="' + y(t).toFixed(1) + '" class="wkgrid"/><text x="' + (X0 - 4) + '" y="' + (y(t) + 3.5).toFixed(1) + '" class="wkax" text-anchor="end">' + t / 60 + 'h</text>';
     // the bands: each group stacked on the ones below it
     var base = wks.map(function () { return 0; });
@@ -2620,11 +2620,18 @@
     if (tgt > 0) o += '<line x1="' + X0 + '" x2="' + X1 + '" y1="' + y(tgt).toFixed(1) + '" y2="' + y(tgt).toFixed(1) + '" class="wktgtline"/><text x="' + X1 + '" y="' + (y(tgt) - 4).toFixed(1) + '" class="wkax wktgtlab" text-anchor="end">target ' + hmS(tgt) + '</text>';
     wks.forEach(function (w, i) { if (w.les) o += '<line x1="' + x(i).toFixed(1) + '" x2="' + x(i).toFixed(1) + '" y1="' + Y0 + '" y2="' + Y1 + '" class="wkles"/>';
       if (w.tour) o += '<text x="' + x(i).toFixed(1) + '" y="' + (Y0 - 8) + '" class="wktour" text-anchor="middle">🏆</text>'; });
-    var lastM = -1; wks.forEach(function (w, i) { var d = new Date(w.t), m = d.getMonth(); if (m !== lastM && d.getDate() <= 7) { o += '<text x="' + x(i).toFixed(1) + '" y="166" class="wkax" text-anchor="middle">' + d.toLocaleDateString(undefined, { month: 'short' }) + '</text>'; } lastM = m; });
+    var lastM = -1; wks.forEach(function (w, i) { var d = new Date(w.t), m = d.getMonth(); if (m !== lastM && d.getDate() <= 7) { o += '<text x="' + x(i).toFixed(1) + '" y="' + (VH - 6) + '" class="wkax" text-anchor="middle">' + d.toLocaleDateString(undefined, { month: 'short' }) + '</text>'; } lastM = m; });
     return o + '<line x1="' + X0 + '" x2="' + X1 + '" y1="' + Y1 + '" y2="' + Y1 + '" class="wkbase"/></svg>';
   }
   // v206: the three views swipe (CSS scroll-snap); this keeps the dots in step and the view across re-renders
   function wkStart() { var c = document.getElementById('wkpages'); if (!c) return; var pg = view.wkPage || 0;
+    document.body.classList.toggle('wkopen', !!view.wkFull); // v207: no page scroll behind the full-screen card
+    var card = document.getElementById('weekcard'), old = document.querySelectorAll('body > .weekcard'); [].forEach.call(old, function (x) { if (x !== card) x.remove(); });
+    if (view.wkFull && card && card.parentNode !== document.body) { var ph = document.createElement('div'); ph.className = 'wkph'; ph.style.height = card.offsetHeight + 'px'; card.parentNode.insertBefore(ph, card); document.body.appendChild(card); } // on <body>: iPhone pins "fixed" to the screen, not the page
+    if (view.wkFull && card) { var y0 = null, x0 = 0, dy = 0; // swipe down to close (only from the top, and only a mostly-down drag)
+      card.addEventListener('touchstart', function (e) { if (card.scrollTop > 0) { y0 = null; return; } y0 = e.touches[0].clientY; x0 = e.touches[0].clientX; dy = 0; }, { passive: true });
+      card.addEventListener('touchmove', function (e) { if (y0 == null) return; dy = e.touches[0].clientY - y0; var dx = Math.abs(e.touches[0].clientX - x0); if (dx > Math.abs(dy)) { y0 = null; card.style.transform = ''; return; } if (dy > 0) card.style.transform = 'translateY(' + Math.min(dy, 240) * 0.6 + 'px)'; }, { passive: true });
+      card.addEventListener('touchend', function () { if (y0 == null) return; y0 = null; if (dy > 90) { view.wkFull = false; render(); } else card.style.transform = ''; }, { passive: true }); }
     if (pg) c.scrollLeft = pg * c.clientWidth;
     c.addEventListener('scroll', function () { var i = Math.round(c.scrollLeft / Math.max(1, c.clientWidth)); if (i === view.wkPage) return; view.wkPage = i;
       [].forEach.call(document.querySelectorAll('#weekcard .wkpdots i'), function (d, j) { d.classList.toggle('on', j === i); }); }, { passive: true }); }
@@ -2640,9 +2647,11 @@
       p1 += '<div class="wkrow' + (got ? ' got' : '') + '" data-k="' + r.k + '"><span class="wkname">' + esc(r.name) + '</span><span class="wkbar"><i class="wkfill" style="width:' + Math.min(100, r.done / mx * 100).toFixed(1) + '%"></i><i class="wktgt" style="left:' + (r.target / mx * 100).toFixed(1) + '%"></i></span>' +
         '<span class="wkval">' + (got ? '✓ ' : '') + (r.done ? hmS(r.done) : '–') + '<small> / ' + hmS(r.target) + '</small></span></div>'; });
     p1 += '</div><p class="plintro wknote">The line is each area\'s target for the week, from what your game needs most.</p></div>';
-    var p2 = '<div class="wkpage" data-p="1"><p class="wkpt">Each day, by group</p>' + weekDaysSVG(L, W) + legend + '</div>';
-    var p3 = '<div class="wkpage" data-p="2"><p class="wkpt">Last 3 months, by week</p>' + monthsSVG(L, who, P) + legend + '<p class="plintro wknote">🏆 tournament week · <span class="leskey"></span> lesson · dashed line = your weekly target</p></div>';
-    return '<div class="card frost weekcard" id="weekcard"><div class="planhead">' + nav + '<small id="wktot">' + hmS(W.done) + ' of ' + hmS(W.target) + '</small></div>' +
+    var p2 = '<div class="wkpage" data-p="1"><p class="wkpt">Each day, by group</p>' + weekDaysSVG(L, W, !!view.wkFull) + legend + '</div>';
+    var p3 = '<div class="wkpage" data-p="2"><p class="wkpt">Last 3 months, by week</p>' + monthsSVG(L, who, P, !!view.wkFull) + legend + '<p class="plintro wknote">🏆 tournament week · <span class="leskey"></span> lesson · dashed line = your weekly target</p></div>';
+    var full = !!view.wkFull; // v207 (Scott): tap the card → full screen; swipe down, ✕ or Back to close; left / right still swipe
+    return '<div class="card frost weekcard' + (full ? ' isfull' : '') + '" id="weekcard"' + (full ? ' role="dialog" aria-modal="true" aria-label="This week, full screen"' : ' data-act="wkfull" role="button" tabindex="0" aria-label="This week – tap for full screen"') + '>' +
+      (full ? '<div class="wkgrab" aria-hidden="true"></div><button class="wkx" data-act="wkclose" id="wkclose" aria-label="Close">✕</button>' : '') + '<div class="planhead">' + nav + '<small id="wktot">' + hmS(W.done) + ' of ' + hmS(W.target) + '</small></div>' +
       '<div class="wkpages" id="wkpages" data-page="' + page + '">' + p1 + p2 + p3 + '</div>' +
       '<div class="wkpdots" aria-hidden="true">' + [0, 1, 2].map(function (i) { return '<i class="' + (i === page ? 'on' : '') + '"></i>'; }).join('') + '</div></div>';
   }
@@ -5684,6 +5693,8 @@
         SS.list.forEach(function (it, i) { var e = { id: 'pr-' + st5 + '-' + i, date: localDayISO() + 'T12:00:00', player: who5, spoke: it.k, focus: planFocusKey(it), min: it.min }; if (SS.feel[i]) e.feel = SS.feel[i]; lst5.push(e); });
         savePractice(lst5); view.sess = null; toast('Session logged – ' + MYGAME.hm(SS.min) + ' 👍'); render(); window.scrollTo(0, 0); return; }
       case 'wkoff': view.wkOff = Math.max(0, Math.min(25, (view.wkOff || 0) + k)); render(); return;
+      case 'wkfull': if (!view.wkFull) { view.wkFull = true; render(); } return; // v207
+      case 'wkclose': view.wkFull = false; render(); var wc = document.getElementById('weekcard'); if (wc && wc.scrollIntoView) wc.scrollIntoView({ block: 'center' }); return;
       case 'planlog': { var pq = String(v || '').split('|'); prOpen({ spoke: pq[0], focus: pq[1], min: +pq[2] || 15 }); return; } // v203
       case 'touredit': { var tw = mgWho(), to = tourOf(tw); view.tourEdit = { date: to ? to.date : '', big: to ? !!to.big : true }; render(); return; }
       case 'tourbig': if (view.tourEdit) view.tourEdit.big = v === 'big'; render(); return;
@@ -6040,7 +6051,7 @@
   // The app is one page, so Back used to leave it. Now, whenever there's somewhere to go back to (a sheet or picture open, or
   // any screen but Home), one extra history entry sits on top; Back pops it and we press the app's own back/close for that
   // spot, then put the entry back if there's still somewhere to go. On Home with nothing open, Back leaves as before.
-  var BACK_OVERLAY = ['exitno', 'storyfullclose', 'storyclose', 'pdfclose', 'mapclose', 'rpgreenback', 'rpclose', 'rpback', 'mvcancel', 'mvclose', 'sendclose', 'liveclose',
+  var BACK_OVERLAY = ['exitno', 'wkclose', 'storyfullclose', 'storyclose', 'pdfclose', 'mapclose', 'rpgreenback', 'rpclose', 'rpback', 'mvcancel', 'mvclose', 'sendclose', 'liveclose',
     'gdrback', 'gdrclose', 'dirclose', 'pinclose', 'nearclose', 'addclose', 'grclose', 'prcancel', 'npcancel', 'namecancel', 'sgtintroback'];
   function shown(el) { return !!(el && el.getClientRects().length); }
   function backTarget() {

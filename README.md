@@ -25,6 +25,12 @@ Every Shot Counts Table 3.10). The other five are ESTIMATED: per-round gaps from
 Player Quality ladder, then spread over the PGA table. Full sources, method and caveats: in-app
 "About the numbers" and the BASELINES comment in `sg.js`.
 
+## This week full screen (v207)
+- Tap the This week card (anywhere but its ‹ › arrows) and it fills the screen: bigger type, taller charts, the same three
+  views swiping left / right. Close it with a swipe down (from the top of the card, a mostly-down drag of 90 px+), the ✕ in
+  the corner, or Back. While open the page behind doesn't scroll and the tab bar hides. The card moves onto `<body>` when it
+  opens, so iPhone Safari pins it to the screen.
+
 ## This week: swipe for the days and the last 3 months (v206)
 - Scott: words fell off the card. Times are short now ("1h 5m / 3h 10m"), the header doesn't wrap, the minutes column sizes
   to fit.

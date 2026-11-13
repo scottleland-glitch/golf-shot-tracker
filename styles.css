@@ -3000,3 +3000,14 @@ html body .pglegend { display: flex; flex-wrap: wrap; justify-content: center; g
 html body .pglegend span { display: inline-flex; align-items: center; gap: 5px; } html body .pglegend i { width: 10px; height: 10px; border-radius: 3px; display: inline-block; }
 html body .leskey { display: inline-block; width: 0; height: 11px; border-left: 2px dashed #6b5aa6; vertical-align: -1px; margin: 0 2px; }
 html body .wkchart .wktgtlab { paint-order: stroke; stroke: rgba(255, 255, 255, .9); stroke-width: 3px; stroke-linejoin: round; fill: #17301f; font-weight: 600; }
+/* v207 (Scott): the This week card full screen – tap to open, swipe down / ✕ / Back to close */
+html body .weekcard:not(.isfull) { cursor: pointer; }
+html body .card.weekcard.isfull { position: fixed; z-index: 95; left: 0; right: 0; top: 0; bottom: 0; margin: 0; border-radius: 0; overflow-y: auto; -webkit-overflow-scrolling: touch;
+  padding: calc(env(safe-area-inset-top) + 34px) 18px calc(env(safe-area-inset-bottom) + 24px); background: linear-gradient(180deg, #eef3f6, #f6f1e4); transition: transform .18s ease; }
+html body.wkopen { overflow: hidden; } html body.wkopen .tabbar { display: none; }
+html body .weekcard .wkgrab { position: absolute; left: 50%; top: calc(env(safe-area-inset-top) + 10px); width: 40px; height: 5px; margin-left: -20px; border-radius: 3px; background: rgba(23, 48, 31, .25); }
+html body .weekcard .wkx { position: absolute; right: 14px; top: calc(env(safe-area-inset-top) + 8px); width: 36px; height: 36px; min-height: 36px; padding: 0; border-radius: 50%; border: 0; background: rgba(23, 48, 31, .08); font-size: 16px; color: #17301f; }
+html body .weekcard.isfull .planhead { margin-top: 8px; } html body .weekcard.isfull .wknav b { font-size: 22px; } html body .weekcard.isfull .planhead small { font-size: 15px; }
+html body .weekcard.isfull .wkrow { grid-template-columns: 104px minmax(60px, 1fr) auto; } html body .weekcard.isfull .wkname, html body .weekcard.isfull .wkval { font-size: 14.5px; } html body .weekcard.isfull .wkbar { height: 18px; border-radius: 9px; } html body .weekcard.isfull .wkfill { border-radius: 9px; }
+html body .weekcard.isfull .wkbars { gap: 14px; margin-top: 6px; } html body .weekcard.isfull .wkpt { font-size: 13px; margin-top: 8px; } html body .weekcard.isfull .pglegend { font-size: 14px; margin-top: 12px; }
+html body .weekcard.isfull .wkpdots { margin-top: 16px; } html body .weekcard.isfull .wkpdots i { width: 8px; height: 8px; } html body .weekcard.isfull .wkpdots i.on { width: 22px; }

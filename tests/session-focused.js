@@ -54,6 +54,15 @@ const ARC = require('/home/claude/golf-app/tests/fixtures/arcade-78.js');
   assert.strictEqual(await page.$$eval('#weekcard .wkpdots i', e => e.findIndex(x => x.classList.contains('on'))), 2, 'dots follow the swipe');
   await page.evaluate(() => { document.getElementById('wkpages').scrollLeft = 0; }); await page.waitForTimeout(200);
   assert.strictEqual(ov, 0, 'nothing falls off the card'); ok('swipe: days of the week, 3 months; dots follow; nothing falls off');
+  // v207: tap → full screen (on <body>, covering the screen, no tab bar); the views still swipe; ✕ and Back close it
+  await page.click('#weekcard .wkchart, #weekcard .wkbars'); await page.waitForSelector('#weekcard.isfull');
+  const fr = await page.evaluate(() => { const c = document.getElementById('weekcard'), r = c.getBoundingClientRect(); return [c.parentNode === document.body, Math.round(r.top), Math.round(r.height), innerHeight, !!document.getElementById('tabbar') && getComputedStyle(document.getElementById('tabbar')).display]; });
+  assert.ok(fr[0], 'on the body'); assert.strictEqual(fr[1], 0); assert.strictEqual(fr[2], fr[3], 'fills the screen'); assert.ok(!fr[4] || fr[4] === 'none', 'tab bar hidden');
+  await page.evaluate(() => { const c = document.getElementById('wkpages'); c.scrollLeft = c.clientWidth; }); await page.waitForTimeout(300);
+  assert.strictEqual(await page.$$eval('#weekcard .wkpdots i', e => e.findIndex(x => x.classList.contains('on'))), 1, 'swipes in full screen');
+  await page.click('#wkclose'); await page.waitForTimeout(150); assert.strictEqual(await page.$('#weekcard.isfull'), null); assert.strictEqual(await page.$$eval('#weekcard', e => e.length), 1, 'one card again');
+  await page.click('#weekcard .wkchart, #weekcard .wkbars'); await page.waitForSelector('#weekcard.isfull'); await page.goBack(); await page.waitForTimeout(300);
+  assert.strictEqual(await page.$('#weekcard.isfull'), null, 'Back closes it'); assert.ok(await page.$('#practicepage'), 'still on Practice'); ok('full screen: fills the screen, swipes, ✕ and Back close it');
   await page.click('[data-act="wkoff"][data-k="1"]'); assert.match(await page.textContent('#weekcard .wknav b'), /Last week/); ok('this week: a bar per area against its target, ‹ › through past weeks, 6 dots');
   assert.deepStrictEqual(errs, []); await b.close(); srv.kill ? srv.kill() : srv.close(); console.log('PASS session-focused'); process.exit(0);
 })().catch(e => { console.error(e); process.exit(1); });
