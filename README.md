@@ -25,6 +25,26 @@ Every Shot Counts Table 3.10). The other five are ESTIMATED: per-round gaps from
 Player Quality ladder, then spread over the PGA table. Full sources, method and caveats: in-app
 "About the numbers" and the BASELINES comment in `sg.js`.
 
+## Start a session, your typical week, this week's bars (v205)
+- **Your typical week** (asked on the Practice page until there are four weeks of logging; Skip, or edit later from the plan
+  header): practice hours a week (½ h steps) and rounds a month. The plan's weekly time starts from it, and real logs take
+  over by how many days they cover – a week of logging is ¼ real, four weeks all real ("About 3 h a week ›"). Rounds a month
+  gives the Trends countdown a pace on Home ("About 2 weeks at your usual 4 rounds a month").
+- **▶ Start a session** (beside **+ Log practice**): "How much time do you have?" – 15 · 30 · 45 · 1 h · 1 h 30 or your own
+  minutes (10+). Today's session comes from the top of Practice next: at most 3 items, at least 10 min each, split by what
+  they're owed, adding up exactly (`PLAN.session`). Optional how-it-went per item; **Log this session** saves it all in one tap.
+- **This week** (Monday–Sunday, `PLAN.week`): a horizontal bar per area – minutes done – with a line at its target (its share of
+  your week, from what your game needs); ✓ when reached; "2 h 58 min of 3 h 45 min"; ‹ › through earlier weeks; six dots for
+  the last six weeks (filled = hit the total, half = 70 %+).
+
+## Practice next: never empty, says how it works (v204)
+- Scott saw an empty list with nothing to tap: with a light 30-day average every area's share is a few minutes, so almost
+  nothing passed the "owed 5+ min" bar, and the "You're ahead" message had no buttons. Now an area is due when it's owed more
+  than 40 % of its own weekly share (or 5 min), the list always has at least 3 items with **Log** – the extras under **When you
+  have time** – and "You're ahead this week 👍 – if you have time, these help most" when nothing is overdue.
+- A line on top: "Start at the top whenever you have time, then tap Log. Skip one and it moves up; do it and it drops down."
+  (The old Plan button is gone – the list is on the Practice page itself.)
+
 ## The practice plan: "Practice next" (v203)
 - Not a weekly schedule – a ranked list on the Practice page (`plan.js`, `planCardHTML`): each item an area, one focus, minutes,
   a one-line reason, and **Log** (opens the log sheet on that area with the minutes in). Do the top one whenever you have time.

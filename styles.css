@@ -2960,3 +2960,25 @@ html body .planahead { display: flex; flex-direction: column; gap: 4px; padding:
 html body .plddone { margin: 6px 0 2px; font-size: 13px; color: #2f7a4c; font-weight: 600; } html body .plnote { margin: 8px 0 0; font-size: 12.5px; }
 html body .pldoneit { font-size: 12.5px; color: #2f7a4c; font-weight: 700; }
 html body .card.plancard { display: block; } html body .plancard .planlist, html body .plancard .tourrow { width: 100%; }
+/* v204: the plan explains itself and is never empty */
+html body .plintro { margin: -2px 0 10px; font-size: 13.5px; line-height: 1.4; color: #43525f; } html body .plintro b { color: #1f6f4a; }
+html body .planlist .plsep { margin: 6px 0 0; padding: 8px 0 2px; border-top: 1px solid rgba(23, 48, 31, .09); font-size: 12px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; color: #8a9aa6; }
+html body .planlist .plsep + .planitem { border-top: 0; } html body .planahead { padding: 2px 0 6px; }
+/* v205: start a session, your typical week, this week's bars */
+html body .prtop { display: flex; gap: 8px; margin: 0 0 10px; } html body .prtop .prbig { flex: 1.4; width: auto; margin: 0; } html body .prtop .prbig2 { flex: 1; min-height: 54px; border-radius: 18px; font: inherit; font-size: 15px; font-weight: 700; color: #17301f; }
+html body .card.typcard, html body .card.weekcard { display: block; padding: 14px 14px 10px; } html body .typcard > b { font-size: 18px; } html body .typrow { padding-left: 0; margin-top: 6px; }
+html body .typcard .tourbtns { margin-top: 10px; }
+html body .typedit { padding: 0; min-height: 0; font-size: 12.5px; color: #1f6f4a; font-weight: 600; background: none; border: 0; }
+html body .sesssheet .sesst { margin: 10px 0 6px; } html body .sesssheet .sesst .prchip { min-height: 44px; padding: 0 16px; font-size: 15px; font-weight: 600; }
+html body .sesssheet .sesslist .prchips { margin-top: 6px; } html body .sesssheet .sesslist .prchip { min-height: 32px; padding: 0 10px; font-size: 13px; } html body .sesssheet .prfoot .primary { margin-left: auto; }
+html body .wknav { display: flex; align-items: center; gap: 2px; } html body .wknav b { font-size: 18px; min-width: 0; } html body .wknav .txt { min-height: 34px; min-width: 30px; padding: 0 6px; font-size: 20px; color: #1f6f4a; background: none; border: 0; box-shadow: none; }
+html body .wknav .txt:disabled { opacity: .3; } html body .weekcard .planhead small { font-size: 14px; font-weight: 700; color: #17301f; }
+html body .wkdots { display: flex; gap: 6px; margin: 0 0 12px 4px; } html body .wkdots i { width: 10px; height: 10px; border-radius: 50%; border: 1.5px solid #1f6f4a; }
+html body .wkdots i.full { background: #1f6f4a; } html body .wkdots i.half { background: linear-gradient(90deg, #1f6f4a 50%, transparent 50%); } html body .wkdots i.cur { box-shadow: 0 0 0 2px rgba(31, 111, 74, .25); }
+html body .wkbars { display: flex; flex-direction: column; gap: 9px; } html body .wkrow { display: grid; grid-template-columns: 88px 1fr 92px; align-items: center; gap: 8px; }
+html body .wkname { font-size: 13px; font-weight: 600; color: #2f4a3a; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+html body .wkbar { position: relative; display: block; height: 14px; border-radius: 7px; background: rgba(23, 48, 31, .08); } html body .wkfill { position: absolute; left: 0; top: 0; bottom: 0; border-radius: 7px; background: #6fae86; }
+html body .wkrow.got .wkfill { background: #1f6f4a; } html body .wktgt { position: absolute; top: -3px; bottom: -3px; width: 2.5px; margin-left: -1px; border-radius: 1px; background: #17301f; }
+html body .wkval { font-size: 12.5px; font-weight: 700; white-space: nowrap; text-align: right; } html body .wkval small { font-weight: 500; color: #5b6b78; } html body .wkrow.got .wkval { color: #1f6f4a; }
+html body .wknote { margin: 10px 0 0; font-size: 12.5px; }
+html body .typcard .typrow .prstep { width: 40px; height: 40px; min-height: 40px; min-width: 40px; padding: 0; } html body .typcard .typrow { min-height: 48px; } html body .typcard .typrow .prval { min-width: 92px; text-align: center; }

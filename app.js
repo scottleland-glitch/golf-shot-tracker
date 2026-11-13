@@ -242,7 +242,7 @@
     // v198: the tab bar / page bar live on <body>, not inside the page – an animating or blurred page would otherwise make
     // iPhone Safari pin "fixed" to the page instead of the screen (Scott: the bar floated mid-screen on My Game)
     ['tabbar', 'pagebar'].forEach(function (id) { var o = document.getElementById(id); if (o) o.remove(); });
-    var pb = rbOn || view.prLog || view.mv ? '' : pageBarHTML() || tabBarHTML(); /* v198: the Rounds move bar too */ /* v195: the log sheet has its own Save / Cancel */ if (pb) document.body.insertAdjacentHTML('beforeend', pb);
+    var pb = rbOn || view.prLog || view.mv || view.sess ? '' : pageBarHTML() || tabBarHTML(); /* v198: the Rounds move bar too */ /* v195: the log sheet has its own Save / Cancel */ if (pb) document.body.insertAdjacentHTML('beforeend', pb);
     document.body.classList.toggle('hastab', !!(pb && pb.indexOf('id="tabbar"') >= 0)); hcStart(); /* v200: the Home card's rotation */
     document.body.classList.toggle('hasrbar', rbOn || !!pb);
   }
@@ -2241,7 +2241,7 @@
         else ttl = 'Slipping a little – about ' + Math.round(fc) + ' by ' + end + ', from ' + Math.round(nowS) + ' now';
         M.push({ k: 'trends', kick: 'Trends', title: ttl, sub: { low: 'An early read – it sharpens with every round', mid: 'Getting clearer with every round' }[T.conf] || '', btn: ['See Trends', 'gotrends'] }); }
       else if (T && T.reason === 'not enough weeks') { var left = Math.max(1, Math.ceil(T.need - (T.rounds || T.dataWeeks || 0)));
-        M.push({ k: 'trends', kick: 'Trends', title: left === 1 ? '1 more round until your first forecast' : left + ' more rounds until your first forecast', sub: 'Trends learn how your practice turns into strokes', btn: ['See Trends', 'gotrends'] }); }
+        M.push({ k: 'trends', kick: 'Trends', title: left === 1 ? '1 more round until your first forecast' : left + ' more rounds until your first forecast', sub: (function () { var ty = typicalOf(who), r = ty && ty.roundsMonth; if (!r) return 'Trends learn how your practice turns into strokes'; var wk = Math.max(1, Math.ceil(left / (r / 4.33))); return 'About ' + (wk === 1 ? 'a week' : wk + ' weeks') + ' at your usual ' + r + ' round' + (r === 1 ? '' : 's') + ' a month'; })() /* v205: the pace, from "your typical week" */, btn: ['See Trends', 'gotrends'] }); }
       else if (T && T.reason === 'no practice logged') M.push({ k: 'trends', kick: 'Trends', title: 'Log practice to unlock Trends', sub: 'See how your practice turns into strokes', btn: ['Log practice', 'prlog'] }); }
     // 3b. v201 (Scott): an area that's slipping (not an expected dip after a lesson, not an early guess) – "keep an eye on chipping"
     if (fin.length) { var tdw = null; try { tdw = td || trendsData(who); } catch (e) {}
@@ -2551,14 +2551,56 @@
   function tourAll() { try { return JSON.parse(localStorage.getItem(TOUR_KEY) || '{}') || {}; } catch (e) { return {}; } }
   function tourOf(who) { var T = tourAll(), k = String(who || '').toLowerCase(); return T[k] || null; }
   function setTour(who, t) { var T = tourAll(), k = String(who || '').toLowerCase(); if (t) T[k] = t; else delete T[k]; try { localStorage.setItem(TOUR_KEY, JSON.stringify(T)); } catch (e) {} }
+  // v205 (Scott): "your typical week" – a starting baseline (practice hours, rounds a month) until real practice takes over
+  var TYP_KEY = 'golfsg.typical.v1';
+  function typAll() { try { return JSON.parse(localStorage.getItem(TYP_KEY) || '{}') || {}; } catch (e) { return {}; } }
+  function typicalOf(who) { return typAll()[String(who || '').toLowerCase()] || null; }
+  function setTypical(who, t) { var T = typAll(); T[String(who || '').toLowerCase()] = t; try { localStorage.setItem(TYP_KEY, JSON.stringify(T)); } catch (e) {} }
   function planData(who) {
     var td = null, tst = null; try { td = trendsData(who); } catch (e) {} try { tst = SGTUI.planTest(who); } catch (e) {}
-    return PLAN.build({ rounds: finishedRoundsOf(who), logs: practiceOf(who), SG: SG, MYGAME: MYGAME, bl: myBench(who), test: tst, trends: td, now: Date.now(), tour: tourOf(who) });
+    return PLAN.build({ rounds: finishedRoundsOf(who), logs: practiceOf(who), SG: SG, MYGAME: MYGAME, bl: myBench(who), test: tst, trends: td, now: Date.now(), tour: tourOf(who), typical: typicalOf(who) });
   }
+  function typicalCardHTML(who, P) {
+    var T = typicalOf(who), E = view.typEdit; if (T && !E) return '';
+    if (!E) { if (T || P.realShare >= 1) return ''; E = view.typEdit = { h: 3, r: 4, auto: true }; } // asked until there are four weeks of logging
+    var step = function (act, v, txt, lab) { return '<div class="prrow on typrow"><span>' + lab + '</span><button class="prstep" data-act="' + act + '" data-k="-1" aria-label="Less"' + (v > 0 ? '' : ' disabled') + '>−</button><b class="prval">' + txt + '</b><button class="prstep" data-act="' + act + '" data-k="1" aria-label="More">+</button></div>'; };
+    return '<div class="card frost typcard" id="typcard"><b>Your typical week</b><p class="plintro">A starting point for your plan. As you log practice it takes over from this.</p>' +
+      step('typh', E.h, (E.h % 1 ? E.h.toFixed(1) : E.h) + '<small> h practice</small>', 'Practice a week') + step('typr', E.r, E.r + '<small> rounds</small>', 'Rounds a month') +
+      '<div class="tourbtns">' + (T ? '<button class="txt" data-act="typcancel">Cancel</button>' : '<button class="txt" data-act="typskip">Skip</button>') + '<button class="primary" data-act="typsave" id="typsave">Save</button></div></div>';
+  }
+  // v205: "how much time do you have?" → today's session from the top of the list, logged in one tap
+  var SESS_T = [15, 30, 45, 60, 90];
+  function sessSheetHTML(who) {
+    var S = view.sess; if (!S) return '';
+    var h = '<div class="prsheet frost sesssheet" id="sesssheet"><div class="prhead"><b>' + (S.list ? 'Today\'s session · ' + MYGAME.hm(S.min) : 'How much time do you have?') + '</b><span>' + esc(who || '') + '</span></div>';
+    if (!S.list) return h + '<div class="prchips sesst" role="group" aria-label="Minutes">' + SESS_T.map(function (m) { return '<button class="prchip" data-act="sesst" data-v="' + m + '">' + MYGAME.hm(m) + '</button>'; }).join('') + '</div>' +
+      '<label class="prcoach">Or <input type="text" inputmode="numeric" pattern="[0-9]*" maxlength="3" id="sessmin" placeholder="minutes"><button class="txt" data-act="sesst" data-v="" id="sessgo">Go</button></label>' +
+      '<div class="prfoot"><span></span><button class="txt" data-act="sesscancel">Cancel</button></div></div>';
+    h += '<ol class="planlist sesslist">' + S.list.map(function (it, i) { return '<li class="planitem' + (it.coach ? ' coach' : '') + '" data-k="' + it.k + '"><span class="pin">' + (i + 1) + '</span><div class="pltext"><small>' + esc(it.name) + '</small><b>' + esc(it.focus) + '</b>' +
+      prChips('sessfeel', String(i), PR_FEEL, S.feel[i], 'How ' + it.name + ' went') + '</div><div class="plright"><span class="plmin">' + it.min + ' min</span></div></li>'; }).join('') + '</ol>' +
+      '<p class="plintro">Do these in order. When you\'re done, log it in one tap – how it went is optional.</p>' +
+      '<div class="prfoot"><button class="txt" data-act="sessback">Change time</button><button class="txt" data-act="sesscancel">Cancel</button><button class="primary" data-act="sesslog" id="sesslog">Log this session</button></div></div>';
+    return h;
+  }
+  // v205: this week's practice against each area's target (Monday to Sunday), with the last 6 weeks as dots
+  function weekCardHTML(who, P) {
+    var off = view.wkOff || 0, L = practiceOf(who), W = PLAN.week(P, L, Date.now(), off), hm = MYGAME.hm;
+    var lab = off === 0 ? 'This week' : off === 1 ? 'Last week' : 'Week of ' + new Date(W.start).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+    var dots = []; for (var i = 5; i >= 0; i--) { var w = PLAN.week(P, L, Date.now(), i), q = w.target ? w.done / w.target : 0; dots.push('<i class="' + (q >= 1 ? 'full' : q >= 0.7 ? 'half' : '') + (i === off ? ' cur' : '') + '" title="' + (i === 0 ? 'This week' : i + ' weeks ago') + ': ' + hm(w.done) + '"></i>'); }
+    var mx = Math.max.apply(null, W.rows.map(function (r) { return Math.max(r.target, r.done); }).concat([10]));
+    var h = '<div class="card frost weekcard" id="weekcard"><div class="planhead"><span class="wknav"><button class="txt" data-act="wkoff" data-k="1" aria-label="Earlier week"' + (off >= 25 ? ' disabled' : '') + '>‹</button><b>' + esc(lab) + '</b><button class="txt" data-act="wkoff" data-k="-1" aria-label="Later week"' + (off ? '' : ' disabled') + '>›</button></span>' +
+      '<small id="wktot">' + hm(W.done) + ' of ' + hm(W.target) + '</small></div><div class="wkdots" aria-hidden="true">' + dots.join('') + '</div><div class="wkbars">';
+    W.rows.forEach(function (r) { var got = r.done >= r.target;
+      h += '<div class="wkrow' + (got ? ' got' : '') + '" data-k="' + r.k + '"><span class="wkname">' + esc(r.name) + '</span><span class="wkbar"><i class="wkfill" style="width:' + Math.min(100, r.done / mx * 100).toFixed(1) + '%"></i><i class="wktgt" style="left:' + (r.target / mx * 100).toFixed(1) + '%"></i></span>' +
+        '<span class="wkval">' + (got ? '✓ ' : '') + (r.done ? hm(r.done) : '–') + '<small> / ' + hm(r.target) + '</small></span></div>'; });
+    return h + '</div><p class="plintro wknote">The line is each area\'s target for the week, from what your game needs most.</p></div>';
+  }
+  function planData0(who) { return planData(who); }
   function planFocusKey(it) { var F = MYGAME.FOCUS[it.k] || [], f = /speed/i.test(it.focus) ? F.filter(function (x) { return /speed/i.test(x); })[0] : /start line/i.test(it.focus) ? F.filter(function (x) { return /start line/i.test(x); })[0] : /distance|short|long/i.test(it.focus) ? F.filter(function (x) { return /distance/i.test(x); })[0] : null; return f || F[0]; }
-  function planCardHTML(who) {
-    var P = planData(who), hm = MYGAME.hm, T = P.tour, ed = view.tourEdit;
-    var h = '<div class="card frost plancard" id="plancard"><div class="planhead"><b>Practice next</b><small>' + (P.budgetFrom === '30 days' ? 'Your usual: ' + hm(P.budget) + ' a week' : 'Log practice and this fits your week') + '</small></div>';
+  function planCardHTML(who, P) {
+    P = P || planData(who); var hm = MYGAME.hm, T = P.tour, ed = view.tourEdit;
+    var h = '<div class="card frost plancard" id="plancard"><div class="planhead"><b>Practice next</b><small>' + (P.budgetFrom === '30 days' ? 'Your usual: ' + hm(P.budget) + ' a week' : P.budgetFrom === 'typical' ? '<button class="txt typedit" data-act="typedit">Your estimate: ' + hm(P.budget) + ' a week ›</button>' : P.budgetFrom === 'blend' ? '<button class="txt typedit" data-act="typedit">About ' + hm(P.budget) + ' a week ›</button>' : 'Log practice and this fits your week') + '</small></div>' +
+      '<p class="plintro" id="plintro">Start at the top whenever you have time, then tap <b>Log</b>. Skip one and it moves up; do it and it drops down.</p>'; // v204
     // the next tournament – Big shifts the last week to sharpening, Regular changes nothing
     if (ed) h += '<div class="tourform" id="tourform"><label>Next tournament <input type="date" id="tourdate" min="' + localDayISO() + '" value="' + esc(ed.date || '') + '"></label>' +
       '<div class="prchips" role="group" aria-label="How big">' + [['big', 'Big'], ['reg', 'Regular']].map(function (x) { var on = (ed.big ? 'big' : 'reg') === x[0]; return '<button class="prchip' + (on ? ' on' : '') + '" data-act="tourbig" data-v="' + x[0] + '" aria-pressed="' + on + '">' + x[1] + '</button>'; }).join('') + '</div>' +
@@ -2567,21 +2609,22 @@
     else h += T ? '<button class="tourrow" data-act="touredit" id="tourrow">🏆 ' + (T.big ? 'Big tournament' : 'Tournament') + ' · ' + esc(new Date(T.date + 'T12:00:00').toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })) + ' · ' + (T.days === 0 ? 'today' : T.days === 1 ? 'tomorrow' : 'in ' + T.days + ' days') + '<span>Edit</span></button>'
       : '<button class="tourrow add" data-act="touredit" id="tourrow">+ Add your next tournament</button>';
     if (T && T.msg) h += '<p class="planmsg' + (T.mode === 'sharpen' ? ' sharp' : '') + '" id="planmsg">' + esc(T.msg) + '</p>';
-    var row = function (it, i) { return '<li class="planitem' + (it.coach ? ' coach' : '') + (it.maint ? ' maint' : '') + '" data-k="' + it.k + '"><span class="pin">' + (i + 1) + '</span><div class="pltext"><small>' + esc(it.name) + (it.coach ? ' · coach homework' : it.maint ? ' · keep it sharp' : '') + '</small><b>' + esc(it.focus) + '</b>' +
+    var row = function (it, i) { return '<li class="planitem' + (it.coach ? ' coach' : '') + (it.maint ? ' maint' : '') + '" data-k="' + it.k + '"><span class="pin">' + (i + 1) + '</span><div class="pltext"><small>' + esc(it.name) + (it.coach ? ' · coach homework' : it.optional ? '' : it.maint ? ' · keep it sharp' : '') + '</small><b>' + esc(it.focus) + '</b>' +
       (it.why ? '<span class="plwhy">' + esc(it.why) + '</span>' : '') + (it.coach && it.doneToday ? '<span class="pldoneit">✓ done today</span>' : '') + (it.typeTip ? '<span class="pltip">' + esc(it.typeTip) + '</span>' : '') + '</div>' +
       '<div class="plright"><span class="plmin">' + it.min + ' min</span><button class="plbtn" data-act="planlog" data-v="' + it.k + '|' + esc(planFocusKey(it)) + '|' + it.min + '">Log</button></div></li>'; };
-    if (P.items.length) h += '<ol class="planlist" id="planlist">' + P.items.map(row).join('') + '</ol>';
-    else h += '<div class="planahead" id="planahead"><b>You\'re ahead this week 👍</b>' + (P.extra ? '<span>Optional: ' + esc(P.extra.name.toLowerCase()) + (P.extra.lastDays != null ? ' – last practised ' + P.extra.lastDays + ' days ago' : ' – not practised yet') + '</span>' : '') + '</div>';
-    var dn = P.done.filter(function (x) { return x.doneToday || (x.lastDays != null && x.lastDays <= 7); });
+    if (!P.due) h += '<div class="planahead" id="planahead"><b>You\'re ahead this week 👍</b><span>Nothing\'s overdue. If you have time, these help most:</span></div>';
+    if (P.items.length) h += '<ol class="planlist" id="planlist">' + P.items.map(function (it, i) { return P.due && it.optional && !P.items[i - 1].optional ? '<li class="plsep">When you have time</li>' + row(it, i) : row(it, i); }).join('') + '</ol>';
+    var dn = P.done.filter(function (x) { return !x.optional && (x.doneToday || (x.lastDays != null && x.lastDays <= 7)); }); // v204: not the ones listed above
     if (dn.length) h += '<p class="plddone" id="pldone">✓ ' + dn.map(function (x) { return esc(x.name) + (x.doneToday ? ' today' : ''); }).join(' · ') + '</p>';
-    h += '<p class="help plnote">Ranked by what costs you most and what you haven\'t practised lately. Skip one and it moves up; do it and it drops down.</p></div>';
+    h += '</div>';
     return h;
   }
   function practicePageHTML() {
     var who = mgWho(), D = mgData(who);
     var h = '<div class="frostpage theme-sky mygamepage practicepage" id="practicepage"><div class="topbar frost"><button class="txt frostbtn" data-act="home" id="prback">‹ Home</button><div class="title"><b>Practice</b><span>' + esc(who || '') + '</span></div><span class="tbsp"></span></div>';
-    h += '<button class="primary prbig" data-act="prlog" id="prbig">+ Log practice</button>' + quickRowHTML('prqrow', [['report', 'grep', 'Report'], ['trends', 'gotrends', 'Trend']]); // v198; v203: the plan is on the page
-    h += planCardHTML(who);
+    var P = planData(who);
+    h += '<div class="prtop"><button class="primary prbig" data-act="sessopen" id="prsess">▶ Start a session</button><button class="glass prbig2" data-act="prlog" id="prbig">+ Log practice</button></div>' + quickRowHTML('prqrow', [['report', 'grep', 'Report'], ['trends', 'gotrends', 'Trend']]); // v198; v205: start a session
+    h += sessSheetHTML(who) + typicalCardHTML(who, P) + planCardHTML(who, P) + weekCardHTML(who, P);
     h += prSheetHTML(who) + grSheetHTML() + (view.pdf && view.pdf.kind === 'game' ? pdfHTML() : '');
     var rest = practiceCardHTML(who, D, 'rest');
     h += rest || '<div class="mgchart frost"><p class="help">Nothing logged yet – tap <b>Log practice</b> below after a session.</p></div>';
@@ -5575,6 +5618,21 @@
       case 'grep': view.grep = view.grep && !view.mgMenu ? null : { preset: 'coach', parts: Object.assign({}, GR_PRESET.coach) }; view.mgMenu = null; view.pdf = null; render();
         var gs = document.getElementById('grsheet'); if (gs && gs.scrollIntoView) gs.scrollIntoView({ block: 'start' }); return;
       case 'mgplus': view.mgMenu = view.mgMenu === 'plus' ? null : 'plus'; render(); return; // v183
+      case 'typh': case 'typr': { var TE = view.typEdit || (view.typEdit = { h: 3, r: 4 }); if (act === 'typh') TE.h = Math.max(0, Math.min(20, TE.h + k * 0.5)); else TE.r = Math.max(0, Math.min(30, TE.r + k)); TE.auto = false; render(); return; } // v205
+      case 'typedit': { var T0 = typicalOf(mgWho()); view.typEdit = { h: T0 ? T0.weekMin / 60 : 3, r: T0 ? T0.roundsMonth : 4 }; render(); var tc = document.getElementById('typcard'); if (tc && tc.scrollIntoView) tc.scrollIntoView({ block: 'center' }); return; }
+      case 'typsave': { var TS = view.typEdit || { h: 3, r: 4 }; setTypical(mgWho(), { weekMin: Math.round(TS.h * 60), roundsMonth: TS.r, set: localDayISO() }); view.typEdit = null; toast('Saved – your plan starts from ' + MYGAME.hm(Math.round(TS.h * 60)) + ' a week'); render(); return; }
+      case 'typskip': setTypical(mgWho(), { weekMin: 0, roundsMonth: 0, skipped: true, set: localDayISO() }); view.typEdit = null; render(); return;
+      case 'typcancel': view.typEdit = null; render(); return;
+      case 'sessopen': view.sess = { min: 0, list: null, feel: {} }; view.prLog = null; render(); var ss = document.getElementById('sesssheet'); if (ss && ss.scrollIntoView) ss.scrollIntoView({ block: 'start' }); return;
+      case 'sesst': { var mm = v ? +v : +((document.getElementById('sessmin') || {}).value || 0); if (!(mm >= 10)) { toast('At least 10 minutes'); return; } mm = Math.min(240, Math.round(mm));
+        var SL = PLAN.session(planData(mgWho()), mm); if (!SL.length) { toast('Log a round or some practice first'); return; } view.sess = { min: mm, list: SL, feel: {} }; render(); return; }
+      case 'sessfeel': { var fq = String(v).split('|'); if (view.sess) view.sess.feel[fq[0]] = view.sess.feel[fq[0]] === fq[1] ? null : fq[1]; render(); return; }
+      case 'sessback': if (view.sess) view.sess = { min: 0, list: null, feel: {} }; render(); return;
+      case 'sesscancel': view.sess = null; render(); return;
+      case 'sesslog': { var SS = view.sess; if (!SS || !SS.list) return; var who5 = mgWho(), lst5 = practice(), st5 = Date.now().toString(36);
+        SS.list.forEach(function (it, i) { var e = { id: 'pr-' + st5 + '-' + i, date: localDayISO() + 'T12:00:00', player: who5, spoke: it.k, focus: planFocusKey(it), min: it.min }; if (SS.feel[i]) e.feel = SS.feel[i]; lst5.push(e); });
+        savePractice(lst5); view.sess = null; toast('Session logged – ' + MYGAME.hm(SS.min) + ' 👍'); render(); window.scrollTo(0, 0); return; }
+      case 'wkoff': view.wkOff = Math.max(0, Math.min(25, (view.wkOff || 0) + k)); render(); return;
       case 'planlog': { var pq = String(v || '').split('|'); prOpen({ spoke: pq[0], focus: pq[1], min: +pq[2] || 15 }); return; } // v203
       case 'touredit': { var tw = mgWho(), to = tourOf(tw); view.tourEdit = { date: to ? to.date : '', big: to ? !!to.big : true }; render(); return; }
       case 'tourbig': if (view.tourEdit) view.tourEdit.big = v === 'big'; render(); return;

@@ -135,6 +135,11 @@
     // the time: your average week over the last 30 days
     var m30 = logs.filter(function (e) { return now - Date.parse(e.date) <= 30 * DAY; }).reduce(function (t, e) { return t + e.min; }, 0), B = m30 * 7 / 30, fromLogs = B >= CFG.minWeekMin;
     if (!fromLogs) B = CFG.defaultWeekMin;
+    // v205 (Scott): a starting baseline – "your typical week" – until real practice takes over: real logs count by how many days
+    // they cover (a week of logging = ¼ real, four weeks = all real), so the number doesn't jump around
+    var typ = ctx.typical && ctx.typical.weekMin > 0 ? ctx.typical.weekMin : null, firstLog = logs.reduce(function (m, e) { var t = Date.parse(e.date); return t < m ? t : m; }, Infinity);
+    var realF = firstLog === Infinity ? 0 : Math.max(0, Math.min(1, (now - firstLog) / DAY / 28)), budgetFrom = fromLogs ? '30 days' : 'default';
+    if (typ != null && realF < 1) { B = realF * (m30 * 7 / Math.min(30, Math.max(1, (now - firstLog) / DAY + 1))) + (1 - realF) * typ; budgetFrom = realF > 0 ? 'blend' : 'typical'; }
     // shares by need, a small floor for every area you play, no area more than 40 %
     var tot = keys.reduce(function (t, k) { return t + A[k].score; }, 0) || 1, sh = {};
     keys.forEach(function (k) { sh[k] = Math.max(CFG.floorShare, A[k].score / tot); });
@@ -159,15 +164,37 @@
     // sharpening week: the order leans to putting, short game and wedges too (not only the minutes)
     var key = function (x) { return x.owed * (tour && tour.mode === 'sharpen' ? SHARPEN[x.k] : 1); };
     // coach homework stays on the list while it's active (one item per lesson, its areas together)
-    var open = items.filter(function (x) { return x.owed > CFG.owedMin || x.coach; }).sort(function (a, b) { return (b.coach - a.coach) || (a.maint - b.maint) || (key(b) - key(a)) || (b.score - a.score); });
+    var due = function (x) { return x.owed > Math.min(CFG.owedMin, x.weekMin * 0.4); }; // v204: relative to its share, so a light practice week still lists things
+    var open = items.filter(function (x) { return due(x) || x.coach; }).sort(function (a, b) { return (b.coach - a.coach) || (a.maint - b.maint) || (key(b) - key(a)) || (b.score - a.score); });
     var byLesson = {}; open = open.filter(function (x) { if (!x.coach) return true; var c = coach[x.k], id = c.lesson || c.id; if (!byLesson[id]) { byLesson[id] = x; x.areas = [x.name]; return true; }
       var m = byLesson[id]; m.areas.push(x.name); m.min = Math.max(m.min, x.min); m.doneToday = m.doneToday && x.doneToday; return false; });
     open.forEach(function (x) { if (x.coach && x.areas.length > 1) x.name = x.areas.join(', ').replace(/, ([^,]*)$/, ' and $1'); });
-    var done = items.filter(function (x) { return x.owed <= CFG.owedMin && !x.coach; }).sort(function (a, b) { return (b.doneToday - a.doneToday) || ((a.lastDays == null ? 999 : a.lastDays) - (b.lastDays == null ? 999 : b.lastDays)); });
+    var done = items.filter(function (x) { return !due(x) && !x.coach; }).sort(function (a, b) { return (b.doneToday - a.doneToday) || ((a.lastDays == null ? 999 : a.lastDays) - (b.lastDays == null ? 999 : b.lastDays)); });
     var ahead = !open.length, extra = ahead ? items.slice().sort(function (a, b) { return (b.lastDays == null ? 999 : b.lastDays) - (a.lastDays == null ? 999 : a.lastDays); })[0] : null;
-    return { budget: Math.round(B), budgetFrom: fromLogs ? '30 days' : 'default', items: open.slice(0, CFG.maxItems), more: open.slice(CFG.maxItems), done: done, ahead: ahead, extra: extra, tour: tour, areas: A, cfg: CFG };
+    // v204 (Scott: "it's empty, nothing to click"): never fewer than 3 – top up with the most needed of the rest, marked "when you have time"
+    var nNeed = open.length; if (open.length < 3) done.slice().sort(function (a, b) { return (b.score - a.score) || ((b.lastDays == null ? 999 : b.lastDays) - (a.lastDays == null ? 999 : a.lastDays)); })
+      .slice(0, 3 - open.length).forEach(function (x) { x.optional = true; x.min = Math.max(10, Math.min(tour && tour.mode === 'sharpen' ? 25 : 40, r5(x.weekMin / 2))); open.push(x); });
+    var weekMin = {}; items.forEach(function (x) { weekMin[x.k] = x.weekMin; }); // v205: each area's weekly target, for the "This week" bars
+    return { budget: Math.round(B), budgetFrom: budgetFrom, realShare: realF, weekMin: weekMin, due: nNeed, items: open.slice(0, CFG.maxItems), more: open.slice(CFG.maxItems), done: done, ahead: ahead, extra: extra, tour: tour, areas: A, cfg: CFG };
   }
 
-  var api = { CFG: CFG, build: build, roundFindings: roundFindings, areaNeeds: areaNeeds, GENERIC: GENERIC };
+  // v205 (Scott): "how much time do you have?" – today's session from the top of the list: at most 3 items, at least 10 min each,
+  // split by what they're owed (or a third of their week), in 5-minute steps, adding up to the time you have
+  function session(P, T) {
+    T = Math.max(10, Math.round(T || 0)); var L = (P.items || []).filter(function (x) { return x.min > 0; }), n = Math.max(1, Math.min(3, Math.floor(T / 10), L.length)); if (!L.length) return [];
+    var pick = L.slice(0, n), w = pick.map(function (x) { return Math.max(1, x.owed > 0 ? x.owed : x.weekMin / 3); }), tw = w.reduce(function (t, v) { return t + v; }, 0);
+    var mins = w.map(function (v) { return Math.max(10, Math.round(T * v / tw / 5) * 5); }), diff = T - mins.reduce(function (t, v) { return t + v; }, 0);
+    for (var g = 0; diff !== 0 && g < 40; g++) { var j = diff > 0 ? 0 : mins.indexOf(Math.max.apply(null, mins)); var step = Math.abs(diff) >= 5 ? 5 : Math.abs(diff); if (diff < 0 && mins[j] - step < 10) break; mins[j] += diff > 0 ? step : -step; diff += diff > 0 ? -step : step; }
+    return pick.map(function (x, i) { return { k: x.k, name: x.name, focus: x.focus, min: mins[i], coach: x.coach }; });
+  }
+  // v205: a week's practice against each area's target (Monday to Sunday); off = 0 this week, 1 last week…
+  function week(P, logs, now, off) {
+    var d = new Date(now); d.setHours(0, 0, 0, 0); d.setDate(d.getDate() - ((d.getDay() + 6) % 7) - 7 * (off || 0)); var a = d.getTime(), b = a + 7 * DAY, did = {}, tot = 0;
+    (logs || []).forEach(function (e) { var t = Date.parse(e.date); if (t >= a && t < b && e.min > 0) { did[e.spoke] = (did[e.spoke] || 0) + e.min; tot += e.min; } });
+    var rows = Object.keys(P.weekMin).map(function (k) { return { k: k, name: (P.areas[k] || {}).name || k, target: Math.max(5, Math.round(P.weekMin[k] / 5) * 5), done: did[k] || 0 }; })
+      .sort(function (x, y) { return y.target - x.target; });
+    return { start: a, end: b - 1, rows: rows, done: tot, target: rows.reduce(function (t, r) { return t + r.target; }, 0) };
+  }
+  var api = { CFG: CFG, build: build, session: session, week: week, roundFindings: roundFindings, areaNeeds: areaNeeds, GENERIC: GENERIC };
   if (typeof module !== 'undefined' && module.exports) module.exports = api; else root.PLAN = api;
 })(this);

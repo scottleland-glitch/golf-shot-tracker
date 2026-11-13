@@ -1,4 +1,6 @@
 // Offline support: cache the whole app on install, serve cache-first.
+// v205: your typical week (practice hours, rounds a month) as a starting baseline that real logs take over from over 4 weeks; ▶ Start a session – how much time do you have? → today's session (≤3 items, 10+ min, by need), logged in one tap; This week – a bar per area against its target, past weeks, 6-week dots.
+// v204: Practice next is never empty – a one-line how-to on top, at least 3 items with Log ("When you have time" after what's due; "You're ahead" when nothing is), and an area is due relative to its own share, so a light practice week still lists things.
 // v203: the practice plan – "Practice next" on the Practice page (plan.js): ranked by need (rounds + test, miss patterns, Trends, feel, coach homework), owed time from your 30-day average, the next tournament (Big sharpens the last week).
 // v202: the read of a putt – uphill / flat / downhill × breaks left / straight / breaks right, one tap on a 3×3 pad on the putt's shot card (first putt and putts over 3 ft); saved as row.rd and on the analysed putt (shot.rd).
 // v201: Home's Trends message in plain words – Holding steady around 78 / Improving – about 77 by Dec 14, from 79 now / Slipping a little …; a "Keep an eye on chipping" message when an area is slipping (not an expected dip, not low confidence).
@@ -96,7 +98,7 @@
 // v113: "Courses near me" (near.js). The course finder list (data/us-courses.json, ~1.0 MB, ~0.28 MB gzipped) is NOT in this cache:
 // the app downloads it on first use into its own cache 'pinhigh-courselist-v1', which a new version keeps (so no re-download).
 // GolfCore scorecards (through the Pin High relay, pinhigh-golfcore.pinhigh.workers.dev) go straight to the network; the app saves each picked course with the saved courses.
-const CACHE = 'golf-sg-v203';
+const CACHE = 'golf-sg-v205';
 const ASSETS = ['./', './img/home-bg.webp', './img/oriole.webp', './index.html', './styles.css', './sg.js', './trends.js', './plan.js', './birdie.js', './courses.js', './near.js', './bag.js', './wedges.js', './live.js', './share.js', './story.js', './insights.js', './mygame.js', './shortgame.js', './shortgame-ui.js', './gdrive.js', './app.js', './config.js', './vendor/jspdf.umd.min.js',
   './manifest.webmanifest', './icons/apple-touch-icon.png', './icons/icon-192.png',
   './icons/icon-512.png', './icons/icon-512-maskable.png'];

@@ -83,3 +83,31 @@ test('feel: easy every time on plain reps → try a game or pressure version', (
   const L = [0, 2, 4].map(d => ({ date: iso(d), spoke: 'short', min: 15, feel: 'great', type: 'reps' }));
   assert.match(build(L).areas.short.typeTip, /game or pressure/); assert.strictEqual(build(L.map(e => Object.assign({}, e, { type: 'game' }))).areas.short.typeTip, '');
 });
+// v204 (Scott: "it's empty, nothing to click"): never fewer than 3 items, each with minutes
+test('never empty: a light practice week still lists 3+, and "ahead" lists what helps most', () => {
+  const light = build([0, 8, 16, 24].map(d => ({ date: iso(d), spoke: 'lag', min: 15 }))); assert.ok(light.budget < 30 || light.items.length >= 3, 'light week'); assert.ok(light.items.length >= 3, JSON.stringify(light.items.map(x => [x.k, x.owed, x.weekMin])));
+  const lots = []; MY.SPOKES.forEach(s => { [0, 1, 2].forEach(d => lots.push({ date: iso(d), spoke: s.k, min: 60 })); });
+  const A = build(lots); assert.strictEqual(A.due, 0, 'nothing overdue'); assert.ok(A.items.length >= 3 && A.items.every(x => x.optional && x.min >= 10), 'ahead: 3 optional items');
+  const mid = build(steady('chip', 25)); assert.ok(mid.items.length >= 3); assert.ok(mid.due >= 1 && !mid.items[0].optional);
+});
+// ---- v205: the starting baseline, "how much time do you have?", the week's bars ----
+test('your typical week: used until real practice takes over, blending in over four weeks', () => {
+  const typ = { weekMin: 180 };
+  const none = build([], { typical: typ }); assert.strictEqual(none.budget, 180); assert.strictEqual(none.budgetFrom, 'typical');
+  const wk1 = build([0, 2, 4, 6].map(d => ({ date: iso(d), spoke: 'lag', min: 15 })), { typical: typ }); assert.strictEqual(wk1.budgetFrom, 'blend');
+  assert.ok(wk1.realShare > 0.2 && wk1.realShare < 0.3, 'a week of logs ≈ ¼ real: ' + wk1.realShare); assert.ok(wk1.budget < 180 && wk1.budget > 100, 'mostly the estimate still: ' + wk1.budget);
+  const full = build(steady(null, 15), { typical: typ }); assert.strictEqual(full.budgetFrom, '30 days', 'four weeks of logs: all real'); assert.strictEqual(full.budget, build(steady(null, 15)).budget);
+});
+test('a session for the time you have: up to 3 items, 10+ min each, adding up exactly', () => {
+  const P = build(steady('chip', 10));
+  [15, 20, 30, 45, 60, 90, 37].forEach(T => { const S = PLAN.session(P, T), sum = S.reduce((t, x) => t + x.min, 0);
+    assert.ok(S.length >= 1 && S.length <= 3, T + ': ' + S.length); assert.ok(S.every(x => x.min >= 10), T + ' min each'); assert.strictEqual(sum, T, T + ' adds up: ' + JSON.stringify(S));
+    assert.strictEqual(S[0].k, P.items[0].k, 'starts from the top'); });
+  assert.strictEqual(PLAN.session(P, 15).length, 1, '15 min: one thing'); assert.strictEqual(PLAN.session(P, 60).length, 3);
+});
+test('the week: minutes done per area against its target, Monday to Sunday', () => {
+  const L = [{ date: iso(0), spoke: 'lag', min: 20 }, { date: iso(0), spoke: 'lag', min: 10 }, { date: iso(30), spoke: 'lag', min: 99 }], P = build(L);
+  const W = PLAN.week(P, L, NOW, 0), lag = W.rows.find(r => r.k === 'lag'); assert.strictEqual(lag.done, 30); assert.strictEqual(W.done, 30);
+  assert.strictEqual(new Date(W.start).getDay(), 1, 'starts Monday'); assert.ok(W.rows.length === 7 && W.rows.every(r => r.target >= 5)); assert.strictEqual(W.target, W.rows.reduce((t, r) => t + r.target, 0));
+  assert.ok(W.rows[0].target >= W.rows[6].target, 'biggest target first'); assert.strictEqual(PLAN.week(P, L, NOW, 1).done, 0, 'last week');
+});

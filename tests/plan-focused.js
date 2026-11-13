@@ -32,7 +32,8 @@ const ARC = require('/home/claude/golf-app/tests/fixtures/arcade-78.js');
   // Log the first non-coach item → the sheet opens on that area with the minutes in; save → it drops
   const it = L.find(x => !x.coach); await page.click('.planitem[data-k="' + it.k + '"] .plbtn'); await page.waitForSelector('#prsheet');
   const tot = await page.textContent('#prtotal'); assert.ok(!/^0|Nothing/.test(tot), 'minutes filled in: ' + tot); await page.click('#prsave'); await page.waitForSelector('#plancard');
-  L = await items(); assert.ok(!L.some(x => x.k === it.k && !x.coach) || L.findIndex(x => x.k === it.k) > 0, 'it dropped down'); assert.match(await page.textContent('#pldone'), new RegExp(it.k === 'chip' ? 'Chipping today' : 'today')); ok('Log from the item; after saving it drops, ✓ today');
+  L = await items(); assert.ok(!L.some(x => x.k === it.k && !x.coach) || L.findIndex(x => x.k === it.k) > 0, 'it dropped down'); const shown = await page.$$eval('.planlist > li', e => e.map(x => x.classList.contains('plsep') ? '|sep' : x.dataset.k)); const dt = await page.$eval('#pldone', x => x.textContent).catch(() => '');
+  assert.ok(/today/.test(dt) || shown.indexOf(it.k) > shown.indexOf('|sep'), 'done today, or only under "When you have time": ' + dt + ' ' + shown); // v204 ok('Log from the item; after saving it drops, ✓ today');
   // the next tournament: Big in 4 days → sharpening message; Regular → practice as normal; remove
   await page.click('#tourrow'); await page.waitForSelector('#tourform'); assert.ok(await page.$eval('#toursave', x => x.disabled), 'needs a date');
   const d = await page.evaluate(() => { const t = new Date(Date.now() + 4 * 864e5); return t.getFullYear() + '-' + String(t.getMonth() + 1).padStart(2, '0') + '-' + String(t.getDate()).padStart(2, '0'); });
