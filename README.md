@@ -25,6 +25,21 @@ Every Shot Counts Table 3.10). The other five are ESTIMATED: per-round gaps from
 Player Quality ladder, then spread over the PGA table. Full sources, method and caveats: in-app
 "About the numbers" and the BASELINES comment in `sg.js`.
 
+## Just stats, or stats + practice (v209)
+
+Each player chooses how they use Strokewise:
+
+- **Track my stats** – rounds, strokes gained, My Game, Trends and fun facts. No practice list, practice nudges or test reminders.
+- **Stats + practice plan** – everything, as before (the default).
+
+It's asked once on first launch (in "Who's playing?") and can be changed any time in Settings or at the bottom of the Practice page. Turning practice off only hides it – nothing is deleted.
+
+With practice off:
+- Trends takes the Practice spot in the tab bar, and the + starts a new round straight away.
+- Trends forecasts from your rounds alone, without the practice half of each chart.
+- My Game drops the My Practice card.
+- Home's card rotates fun facts, all from your own rounds, each only when there's enough data behind it: "Make 80% from 5–10 ft → 0.9 strokes a round", "One fewer 3-putt a round = a stroke", last round's best in N rounds, the longest putt holed this month, a streak under a round number, your last 5 rounds against the 5 before (only when better), the best part of your game, and "Halve your 3 biggest leaks → N strokes a round".
+
 ## Practice balance (v208)
 
 The practice plan now balances the week across four groups – Putting, Short game, Wedges and Full swing – so no part of your game fades:

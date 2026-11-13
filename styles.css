@@ -3011,3 +3011,15 @@ html body .weekcard.isfull .planhead { margin-top: 8px; } html body .weekcard.is
 html body .weekcard.isfull .wkrow { grid-template-columns: 104px minmax(60px, 1fr) auto; } html body .weekcard.isfull .wkname, html body .weekcard.isfull .wkval { font-size: 14.5px; } html body .weekcard.isfull .wkbar { height: 18px; border-radius: 9px; } html body .weekcard.isfull .wkfill { border-radius: 9px; }
 html body .weekcard.isfull .wkbars { gap: 14px; margin-top: 6px; } html body .weekcard.isfull .wkpt { font-size: 13px; margin-top: 8px; } html body .weekcard.isfull .pglegend { font-size: 14px; margin-top: 12px; }
 html body .weekcard.isfull .wkpdots { margin-top: 16px; } html body .weekcard.isfull .wkpdots i { width: 8px; height: 8px; } html body .weekcard.isfull .wkpdots i.on { width: 22px; }
+/* v209: just stats or stats + practice – the first-launch choice and the Practice plan switch */
+.modepick { display: grid; gap: 8px; margin: 4px 0 6px; }
+.modeopt { display: block; width: 100%; text-align: left; padding: 11px 14px; border-radius: 14px; border: 2px solid rgba(0,0,0,.12); background: rgba(255,255,255,.75); font: inherit; color: inherit; }
+.modeopt b { display: block; font-size: 16px; }
+.modeopt span { display: block; font-size: 13.5px; color: #5b6660; margin-top: 2px; }
+.modeopt.on { border-color: #1f6b45; background: #eef6f0; }
+.namehelp.modeq { margin: 12px 0 4px; font-weight: 600; }
+.namehelp.modenote { font-size: 13px; margin: 2px 0 8px; }
+.moderow { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 14px; border-radius: 16px; margin: 12px 0; }
+.moderow b { display: block; font-size: 16px; }
+.moderow small { display: block; font-size: 13px; color: #5b6660; margin-top: 2px; }
+.moderow .prchips { flex: none; display: flex; gap: 6px; }

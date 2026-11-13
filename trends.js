@@ -95,12 +95,13 @@
   // opt.feel: per week how practice felt (−1…+1, or null), opt.lessons: per week the lessons, opt.test: { t, v }
   function rms(a) { return a.length ? Math.sqrt(mean(a.map(function (v) { return v * v; }))) : null; }
   // the v194 model: the best single lag 0–3 weeks, a straight line
-  function lagModel(y, x, first, have, wt, E) {
+  function lagModel(y, x, first, have, wt, E, ro) {
     var n = y.length, best = null, byLag = [], maxL = Math.max(0, Math.min(CFG.maxLag, Math.floor(((have || n) - 3) / 2))); // 4 weeks: same week only; 10: up to 3
     for (var L = 0; L <= maxL; L++) { var xs = [], ys = [], ws = [];
       for (var i = Math.max(L, first); i < n; i++) if (y[i] != null) { xs.push(x[i - L]); ys.push(y[i]); ws.push(wt[i] || 1); }
       var r = xs.length >= 3 ? spearman(xs, ys) : null; byLag.push({ lag: L, r: r, n: xs.length, b: xs.length ? wslope(xs, ys, ws) : 0 });
       if (r != null && (best == null || r > best.r)) best = byLag[L]; }
+    if (!best && ro && byLag[0] && byLag[0].n >= 3) best = { lag: 0, r: 0, n: byLag[0].n, b: 0 }; // v209: no practice – form alone
     if (!best) return null;
     var normX = mean(x.slice(first)), link = best.r >= CFG.minR && best.b > 0, b = link ? best.b * shrink(E) : 0, lag = best.lag, last = n - 1; // a negative slope is usually "practised more after a bad week" – not used
     var ewma = function (upto) { return ewmaR(y, wt, upto); };
@@ -140,8 +141,9 @@
     var normY = mean(y), sdY = sd(y) || 0, sy = smooth(y), sx = smooth(x), normX = first >= 0 ? mean(x.slice(first)) : 0, dips = [];
     big.forEach(function (w, i) { if (w) dips.push({ a: i, b: i + 6, what: w }); });
     Object.assign(out, { normY: normY, normX: normX, sdY: sdY, sy: sy, sx: sx, dips: dips, lessons: opt.lessons || [] });
+    if (first < 0 && opt.roundsOnly) first = y.findIndex(function (v) { return v != null; }); // v209: practice off → the rounds alone (no practice link)
     if (first < 0 || have < CFG.minWeeks || E < CFG.minRounds - 1e-9) { out.reason = first < 0 ? 'no practice logged' : 'not enough weeks'; return out; }
-    var L = lagModel(y, x, first, have, wt, E);
+    var L = lagModel(y, x, first, have, wt, E, opt.roundsOnly);
     if (!L) { out.reason = sdY > 1e-9 && sd(x) > 1e-9 ? 'not enough weeks' : 'no variation'; return out; }
     // the stock model wins only if it would have predicted your past weeks better
     var models = [L].concat(CFG.stockHL.map(function (hl) { return stockModel(y, x, eff, big, first, hl, sdY, have, wt, E); })), M = L;
@@ -162,7 +164,7 @@
     var widen = 1 + Math.max(0, CFG.fullRounds - E) / 6, half = function (f) { return spread * widen * Math.sqrt(1 + 0.15 * (f - 1)); };
     var conf = E < CFG.midRounds ? 'low' : E < CFG.fullRounds || M.res.length < 4 ? 'mid' : 'high';
     // "both slipping": strokes gained clearly below normal AND practice below normal, 2+ weeks running (smoothed); inside an expected dip it is expected, not a warning
-    var margin = 0.25 * sdY, slip = [], inDip = function (i) { return dips.some(function (d) { return i >= d.a && i <= d.b; }); };
+    var margin = Math.max(0.25 * sdY, 0.05), slip = [], inDip = function (i) { return dips.some(function (d) { return i >= d.a && i <= d.b; }); };
     for (var a = first; a < n;) { var low = function (k) { return sy[k] != null && sy[k] < normY - margin && sx[k] < normX; };
       if (!low(a)) { a++; continue; } var z2 = a; while (z2 + 1 < n && low(z2 + 1)) z2++; if (z2 - a + 1 >= CFG.slipWeeks) slip.push([a, z2, inDip(a) || inDip(z2)]); a = z2 + 1; }
     var heading = F[F.length - 1] < normY - margin, dipNow = dips.filter(function (d) { return last >= d.a && last <= d.b; })[0];
@@ -187,13 +189,13 @@
       var big = W.map(function (w) { var b = null; A.spokes.forEach(function (k) { if (w.big[k]) b = w.big[k]; }); return b; });
       var feel = W.map(function (w) { var a = 0, h = 0; A.spokes.forEach(function (k) { if (w.feel[k]) { a += w.feel[k][0]; h += w.feel[k][1]; } }); return h ? a / h : null; });
       var les = W.map(function (w) { return w.lessons.filter(function (L) { return A.spokes.indexOf(L.spoke) >= 0; }); });
-      return Object.assign({ k: A.k, name: A.name, y: y, x: x }, analyse(y, x, { test: tv, now: now, eff: eff, big: big, feel: feel, lessons: les, wt: W.map(function (w) { return w.holes / 18; }) }));
+      return Object.assign({ k: A.k, name: A.name, y: y, x: x }, analyse(y, x, { test: tv, now: now, eff: eff, big: big, feel: feel, lessons: les, wt: W.map(function (w) { return w.holes / 18; }), roundsOnly: !!opts.roundsOnly }));
     });
     // total practice vs score (18-hole rounds; lower score is better, so the maths uses −score)
     var sc = W.map(function (w) { return w.score.length ? mean(w.score) : null; });
     var tBig = W.map(function (w) { var k = Object.keys(w.big); return k.length ? w.big[k[0]] : null; }), tLes = W.map(function (w) { var seen = {}; return w.lessons.filter(function (L) { if (seen[L.id]) return false; seen[L.id] = 1; return true; }); });
     var tFeel = W.map(function (w) { var a = 0, h = 0; Object.keys(w.feel).forEach(function (k) { a += w.feel[k][0]; h += w.feel[k][1]; }); return h ? a / h : null; });
-    var tot = analyse(sc.map(function (v) { return v == null ? null : -v; }), W.map(function (w) { return w.pracAll; }), { now: now, hitTol: 2, eff: W.map(function (w) { return w.effAll; }), big: tBig, feel: tFeel, lessons: tLes, wt: W.map(function (w) { return w.score.length; }) });
+    var tot = analyse(sc.map(function (v) { return v == null ? null : -v; }), W.map(function (w) { return w.pracAll; }), { now: now, hitTol: 2, roundsOnly: !!opts.roundsOnly, eff: W.map(function (w) { return w.effAll; }), big: tBig, feel: tFeel, lessons: tLes, wt: W.map(function (w) { return w.score.length; }) });
     var total = Object.assign({ k: 'total', name: 'Total practice vs score', y: sc, x: W.map(function (w) { return w.pracAll; }), lowerBetter: true }, tot);
     if (total.ok) ['fc', 'up', 'dn'].forEach(function (k) { total[k] = total[k].map(function (v) { return -v; }); }), total.lo = total.hi.map(function (v) { return -v; }), total.hi = total.lo.map(function (v, k) { return total.fc[k] + (total.fc[k] - v); }), total.normScore = -total.normY, total.formScore = -total.form;
     else if (total.normY != null) total.normScore = -total.normY;
