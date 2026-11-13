@@ -25,6 +25,17 @@ Every Shot Counts Table 3.10). The other five are ESTIMATED: per-round gaps from
 Player Quality ladder, then spread over the PGA table. Full sources, method and caveats: in-app
 "About the numbers" and the BASELINES comment in `sg.js`.
 
+## This week: swipe for the days and the last 3 months (v206)
+- Scott: words fell off the card. Times are short now ("1h 5m / 3h 10m"), the header doesn't wrap, the minutes column sizes
+  to fit.
+- The card swipes (scroll-snap; dots under it follow): **1** the bars per area against their targets · **2** each day of the
+  week (Mon–Sun, the ‹ › week), a vertical bar stacked by group with the day's total on top · **3** the last 3 months by week, a
+  stacked area by group – its top edge is the total – with the dashed weekly target, 🏆 on tournament weeks and a purple
+  dashed line on lesson weeks.
+- Four groups, one colour each, on both charts: **Putting** (lag + short putts) · **Short game** (chipping + bunker) ·
+  **Wedges** · **Full swing** (driving + irons). A line per area was too busy over 13 weeks; the stacked area shows the total
+  and the mix in one shape.
+
 ## Start a session, your typical week, this week's bars (v205)
 - **Your typical week** (asked on the Practice page until there are four weeks of logging; Skip, or edit later from the plan
   header): practice hours a week (½ h steps) and rounds a month. The plan's weekly time starts from it, and real logs take

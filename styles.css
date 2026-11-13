@@ -2982,3 +2982,21 @@ html body .wkrow.got .wkfill { background: #1f6f4a; } html body .wktgt { positio
 html body .wkval { font-size: 12.5px; font-weight: 700; white-space: nowrap; text-align: right; } html body .wkval small { font-weight: 500; color: #5b6b78; } html body .wkrow.got .wkval { color: #1f6f4a; }
 html body .wknote { margin: 10px 0 0; font-size: 12.5px; }
 html body .typcard .typrow .prstep { width: 40px; height: 40px; min-height: 40px; min-width: 40px; padding: 0; } html body .typcard .typrow { min-height: 48px; } html body .typcard .typrow .prval { min-width: 92px; text-align: center; }
+/* v206 (Scott): This week – nothing falls off; swipe for the days of the week and the last 3 months */
+html body .weekcard .planhead { flex-wrap: nowrap; } html body .wknav b { white-space: nowrap; font-size: 17px; } html body .weekcard .planhead small { white-space: nowrap; font-size: 13px; }
+html body .wkrow { grid-template-columns: 82px minmax(40px, 1fr) auto; gap: 7px; } html body .wkval { font-size: 12.5px; } html body .wkval small { font-size: 11.5px; }
+html body .wkpages { display: flex; overflow-x: auto; scroll-snap-type: x mandatory; scrollbar-width: none; -webkit-overflow-scrolling: touch; margin: 0 -2px; }
+html body .wkpages::-webkit-scrollbar { display: none; } html body .wkpage { flex: 0 0 100%; min-width: 0; scroll-snap-align: start; padding: 0 2px; box-sizing: border-box; }
+html body .wkpdots { display: flex; justify-content: center; gap: 6px; margin-top: 8px; } html body .wkpdots i { width: 6px; height: 6px; border-radius: 50%; background: rgba(23, 48, 31, .2); transition: width .2s, background .2s; }
+html body .wkpdots i.on { width: 16px; border-radius: 3px; background: #1f6f4a; }
+html body .wkpt { margin: 0 0 4px; font-size: 12px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; color: #5b6b78; }
+html body .wkchart { display: block; width: 100%; height: auto; } html body .wkchart .wkgrid { stroke: rgba(23, 48, 31, .09); } html body .wkchart .wkbase { stroke: rgba(23, 48, 31, .35); }
+html body .wkchart .wkax { font-size: 9.5px; fill: #5b6b78; } html body .wkchart .wkax.now { fill: #17301f; font-weight: 700; } html body .wkchart .wkdtot { font-size: 9px; font-weight: 700; fill: #17301f; }
+html body .wkchart .pg0, html body .pglegend .pg0 { fill: #3f7fbf; background: #3f7fbf; } html body .wkchart .pg1, html body .pglegend .pg1 { fill: #d39b2a; background: #d39b2a; }
+html body .wkchart .pg2, html body .pglegend .pg2 { fill: #3f9a63; background: #3f9a63; } html body .wkchart .pg3, html body .pglegend .pg3 { fill: #7a5ab0; background: #7a5ab0; }
+html body .wkchart .band { fill-opacity: .78; stroke: #fff; stroke-width: .6; } html body .wkchart .wktotal { fill: none; stroke: #17301f; stroke-width: 1.4; }
+html body .wkchart .wktgtline { stroke: #17301f; stroke-width: 1; stroke-dasharray: 4 3; } html body .wkchart .wkles { stroke: #6b5aa6; stroke-width: 1.4; stroke-dasharray: 2 2; } html body .wkchart .wktour { font-size: 11px; }
+html body .pglegend { display: flex; flex-wrap: wrap; justify-content: center; gap: 4px 12px; margin-top: 6px; font-size: 12px; color: #2f4a3a; font-weight: 600; }
+html body .pglegend span { display: inline-flex; align-items: center; gap: 5px; } html body .pglegend i { width: 10px; height: 10px; border-radius: 3px; display: inline-block; }
+html body .leskey { display: inline-block; width: 0; height: 11px; border-left: 2px dashed #6b5aa6; vertical-align: -1px; margin: 0 2px; }
+html body .wkchart .wktgtlab { paint-order: stroke; stroke: rgba(255, 255, 255, .9); stroke-width: 3px; stroke-linejoin: round; fill: #17301f; font-weight: 600; }
