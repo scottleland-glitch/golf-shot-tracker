@@ -2995,13 +2995,13 @@
     else if (L) h += '<p class="csp" id="cshared">Sharing with <b>' + esc(L.coachName || 'your coach') + '</b>' + (L.teamName ? ' · ' + esc(L.teamName) : '') + '</p><p class="csmuted" id="csstat">' + esc(shareStatus(L)) + '</p>' +
       (view.csStop ? '<p class="csp">Stop sharing? Your coach\'s copy is deleted. Your rounds stay on this phone.</p><div class="csrow"><button class="cswarn" data-act="csstopyes" id="csstopyes">Stop sharing</button><button class="cssec" data-act="csstopno">Keep sharing</button></div>'
         : '<button class="txt cslink" data-act="csstop" id="csstop">Stop sharing</button>');
-    else h += '<p class="csp">Your coach sees your rounds, tests and practice automatically – nothing to send.</p><button class="cspri" data-act="csopen" id="csopen">Connect to a coach</button>';
+    else h += '<p class="csp">Share your rounds with your coach automatically.</p><button class="cspri" data-act="csopen" id="csopen">Connect to a coach</button>';
     h += '</div>';
     h += '<div class="card frost cshare" id="coachcard">' + (c ? '<p class="csp">Coach account: <b>' + esc(c.email || '') + '</b>' + (c.teamName ? '<br>' + esc(c.teamName) + ' · code <b>' + esc(c.code || '') + '</b>' : '') + '</p>' +
       '<div class="csrow"><button class="cspri" data-act="athletes" id="coathletes">Athletes</button><button class="cssec" data-act="copw" id="copw">Change password</button></div>' +
       (view.coPw ? '<div class="csform"><input type="password" id="copwnew" placeholder="New password (6+ characters)" autocomplete="new-password"><button class="cspri" data-act="copwsave" id="copwsave">Save</button></div>' : '') +
       '<div class="csrow"><button class="txt cslink" data-act="coout" id="coout">Sign out</button>' + (view.coDel ? '<button class="cswarn" data-act="codelyes" id="codelyes">Delete account and team</button><button class="txt cslink" data-act="codelno">Cancel</button>' : '<button class="txt cslink" data-act="codel" id="codel">Delete coach account</button>') + '</div>'
-      : '<p class="csp">Coach other golfers? See your athletes\' rounds, tests and practice in one place.</p><button class="cssec" data-act="coopen" id="coopen">I\'m a coach</button>') + '</div>';
+      : '<p class="csp">Coach other golfers? See them all in one place.</p><button class="cssec" data-act="coopen" id="coopen">I\'m a coach</button>') + '</div>';
     return h;
   }
   // the sheets live on <body> (a fixed sheet inside the page would float on iPhone, like the tab bar did)

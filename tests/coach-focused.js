@@ -24,7 +24,7 @@ const ARC = require('/home/claude/golf-app/tests/fixtures/arcade-78.js'), FF = r
   if (N > 8) ['drive', 'irons', 'wedges'].forEach((sp, j) => prac.push({ id: 'les' + j, date: new Date(now - 17 * day).toISOString().slice(0, 10), player: 'Quincy', spoke: sp, focus: 'Lesson · Grip', min: 20, kind: 'lesson', change: 'big', what: 'Grip', coach: 'Jo', lesson: 'L1' }));
 
   const b = await chromium.launch({ executablePath: '/usr/bin/google-chrome', args: ['--no-sandbox'] }), errs = [];
-  const fs = require('fs'), conf = fs.readFileSync('/home/claude/golf-app/config.js', 'utf8').replace("firebaseKey: ''", "firebaseKey: 'test', authBase: '" + cfg.authBase + "', tokenBase: '" + cfg.tokenBase + "'").replace(/liveDb: '[^']*'/, "liveDb: '" + cfg.db + "'");
+  const fs = require('fs'), conf = fs.readFileSync('/home/claude/golf-app/config.js', 'utf8').replace(/firebaseKey: '[^']*'/, "firebaseKey: 'test', authBase: '" + cfg.authBase + "', tokenBase: '" + cfg.tokenBase + "'").replace(/liveDb: '[^']*'/, "liveDb: '" + cfg.db + "'");
   async function phone(name, data) {
     const ctx = await b.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true });
     await ctx.route('**/config.js*', r => r.fulfill({ contentType: 'application/javascript', body: conf }));
