@@ -7,6 +7,9 @@ window.GOLF_CONFIG = {
   // Live sharing: Firebase Realtime Database (free plan). Rounds are written only under /live/<secret token>.
   // Leave empty to hide "Share live".
   liveDb: 'https://pin-high-live-default-rtdb.firebaseio.com',
+  // v212 coach sharing: the Firebase project's Web API key (public – it only identifies the project; database.rules.json is what
+  // protects the data). Leave empty to hide coach sharing.
+  firebaseKey: '',
   // v113 "Courses near me": scorecards come from GolfCore (golfcore.org, free plan) through Pin High's own relay
   // (a small Cloudflare Worker that mirrors api.golfcore.org/v1 and adds the GolfCore key on the server, so no key is ever in the app).
   GOLFCORE_BASE: 'https://pinhigh-golfcore.pinhigh.workers.dev/v1'

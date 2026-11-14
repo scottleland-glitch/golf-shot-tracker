@@ -3037,3 +3037,49 @@ html body .prchart .wkx { position: absolute; right: 14px; top: calc(env(safe-ar
 html body .prchart.isfull .prpages { cursor: default; } html body .prchart.isfull .prh { font-size: 28px; } html body .prchart.isfull .prlede2 { font-size: 16px; }
 html body .prchart.isfull .wkpdots { margin-top: 16px; } html body .prchart.isfull .wkpdots i { width: 8px; height: 8px; } html body .prchart.isfull .wkpdots i.on { width: 22px; }
 html body .prchart.isfull .prpage { padding-top: 6px; } html body .prchart.isfull .radar { margin: 10px 0 6px; } html body .prchart.isfull .prhow { margin-top: 18px; }
+/* v212: coach sharing – the Athletes screen, the switcher, and the Coach card in Settings */
+html body .cmlist { padding: 0 14px calc(env(safe-area-inset-bottom) + 40px); }
+html body .cmcode { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 10px 14px; border-radius: 16px; background: rgba(255, 255, 255, .72); border: 1px solid rgba(23, 48, 31, .12); margin: 10px 0 8px; }
+html body .cmcode small { display: block; font-size: 12px; color: #5b6660; letter-spacing: .04em; text-transform: uppercase; } html body .cmcode b { font-size: 21px; letter-spacing: .12em; color: #17301f; }
+html body .cmcode button { border: 0; border-radius: 999px; padding: 9px 16px; background: #1f6f4a; color: #fff; font: inherit; font-weight: 700; font-size: 15px; min-height: 0; }
+html body .cmsearch { width: 100%; box-sizing: border-box; padding: 10px 14px; border-radius: 12px; border: 1px solid rgba(23, 48, 31, .14); background: rgba(255, 255, 255, .7); font: inherit; font-size: 16px; margin: 0 0 6px; }
+html body .cmstat { margin: 2px 4px 4px; font-size: 13px; color: #3f5a48; min-height: 18px; }
+html body .cmsec { font-size: 12.5px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; color: #3f5a48; margin: 10px 4px 6px; }
+html body .cmcard { display: grid; grid-template-columns: 46px 1fr auto; gap: 2px 12px; align-items: center; width: 100%; text-align: left; padding: 12px 14px; border-radius: 18px; background: rgba(255, 255, 255, .82); border: 1px solid rgba(23, 48, 31, .1); margin: 0 0 10px; box-shadow: 0 2px 10px rgba(23, 48, 31, .06); font: inherit; color: inherit; min-height: 0; }
+html body .cmav { grid-column: 1; grid-row: 1 / 3; width: 46px; height: 46px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 19px; color: #fff; }
+html body .cmname { grid-column: 2; grid-row: 1; font-weight: 800; font-size: 17px; color: #17301f; } html body .cmwhen { grid-column: 2; grid-row: 2; font-size: 13.5px; color: #5b6660; }
+html body .cmscore { grid-column: 3; grid-row: 1 / 3; text-align: right; } html body .cmscore b { display: block; font-size: 22px; color: #17301f; } html body .cmscore small { font-size: 12.5px; font-weight: 700; }
+html body .cmup { color: #1f7a44; } html body .cmdn { color: #c0392b; } html body .cmflat { color: #6b7d71; }
+html body .cmflags { grid-column: 1 / 4; display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; } html body .cmflag { font-size: 13px; font-weight: 700; padding: 4px 10px; border-radius: 999px; }
+html body .cmred { background: #fde8e6; color: #b03024; } html body .cmgreen { background: #e4f3ea; color: #1f6f4a; } html body .cmamber { background: #fdf1dc; color: #8a5a10; } html body .cmnew { background: #1f73c9; color: #fff; } html body .cmflat2 { background: #eef1ee; color: #3f5a48; }
+html body .cmempty { margin: 14px 0; padding: 16px; border-radius: 18px; background: rgba(255, 255, 255, .78); } html body .cmempty p { margin: 6px 0 0; color: #3f5a48; font-size: 15px; line-height: 1.45; }
+html body .cmfoot { text-align: center; color: #5b6660; font-size: 13px; margin: 12px 0; }
+html body .cmsw { display: inline-flex; align-items: center; gap: 4px; } html body .cmsw i { font-style: normal; font-size: 13px; opacity: .7; } html body #coswitch { cursor: pointer; }
+html body .cmdim { position: fixed; inset: 0; z-index: 98; background: rgba(0, 0, 0, .25); }
+html body .cmdrop { position: fixed; z-index: 99; left: 14px; right: 14px; top: calc(env(safe-area-inset-top) + 86px); max-height: 60vh; overflow-y: auto; border-radius: 18px; background: #fff; box-shadow: 0 12px 40px rgba(0, 0, 0, .25); padding: 6px; }
+html body .cmdrop button { display: flex; width: 100%; align-items: center; gap: 10px; padding: 12px; border: 0; border-radius: 12px; background: none; font: inherit; font-size: 16px; color: #17301f; text-align: left; min-height: 0; }
+html body .cmdrop button.on { background: #eef6f0; font-weight: 800; } html body .cmdrop small { margin-left: auto; color: #5b6660; font-size: 13px; }
+html body .tbspace { flex: 0 0 64px; }
+html body .cshare { display: block; padding: 14px; margin: 8px 0 12px; } html body .cshare .csp { margin: 0 0 8px; font-size: 15.5px; line-height: 1.4; } html body .cshare .csmuted { margin: 0 0 8px; font-size: 13.5px; color: #5b6660; }
+html body .csrow { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-top: 6px; } html body .cslink { color: #3f5a48; text-decoration: underline; }
+html body .cswarn { border: 0; border-radius: 999px; padding: 9px 14px; background: #c0392b; color: #fff; font: inherit; font-weight: 700; min-height: 0; }
+html body .csform { display: flex; gap: 8px; margin-top: 8px; } html body .csform input { flex: 1; min-width: 0; }
+html body .cssheet input[type=text], html body .cssheet input[type=email], html body .cssheet input[type=password] { width: 100%; box-sizing: border-box; margin: 6px 0; padding: 12px 14px; border-radius: 14px; border: 1px solid rgba(23, 48, 31, .2); font: inherit; font-size: 17px; background: #fff; }
+html body .cssheet .cscode { font-size: 24px; letter-spacing: .2em; text-align: center; text-transform: uppercase; }
+html body .cssheet .csteam { margin: 8px 0 10px; padding: 12px 14px; border-radius: 14px; background: #eef6f0; } html body .cssheet .csteam b { font-size: 17px; } html body .cssheet .csteam p { margin: 6px 0 0; color: #3f5a48; font-size: 15px; line-height: 1.4; }
+html body .cssheet .csage { display: grid; gap: 8px; margin: 6px 0 10px; } html body .cserr { color: #b03024; font-size: 14.5px; margin: 6px 2px; } html body .csok { color: #1f6f4a; font-size: 14.5px; margin: 6px 2px; }
+html body .cssheet .cotabs { margin: 4px 0 8px; } html body .cssheet .csp { margin: 0 0 6px; color: #3f5a48; }
+html body .csback { position: fixed; inset: 0; z-index: 99; background: rgba(10, 20, 15, .35); }
+html body .cssheet { position: fixed; z-index: 100; left: 0; right: 0; bottom: 0; max-height: 90vh; overflow-y: auto; -webkit-overflow-scrolling: touch; background: #fbfaf6; color: #17301f; border-radius: 24px 24px 0 0; padding: 18px 16px calc(env(safe-area-inset-bottom) + 18px); box-shadow: 0 -10px 40px rgba(0, 0, 0, .2); }
+html body .cssheet .cshead { font-size: 21px; font-weight: 800; margin: 0 0 8px; }
+html body .cspri { display: block; border: 0; border-radius: 999px; padding: 12px 18px; background: #2f6b3f; color: #fff; font: inherit; font-size: 16.5px; font-weight: 700; min-height: 0; box-shadow: none; }
+html body .cspri:disabled { opacity: .45; } html body .cssheet .csgo { width: 100%; margin-top: 10px; }
+html body .cssec { display: block; border: 1.5px solid rgba(23, 48, 31, .3); border-radius: 999px; padding: 10px 16px; background: rgba(255, 255, 255, .85); color: #17301f; font: inherit; font-size: 15.5px; font-weight: 700; min-height: 0; box-shadow: none; }
+html body .cslink, html body .cslink2 { border: 0; background: none; box-shadow: none; padding: 8px 4px; min-height: 0; color: #3f5a48; font: inherit; font-size: 15px; text-decoration: underline; }
+html body .cslink2 { display: block; width: 100%; text-align: center; margin-top: 4px; text-decoration: none; font-weight: 600; }
+html body .cssheet .csopt { color: #17301f; background: #fff; } html body .cssheet .csopt b { color: #17301f; font-size: 16px; } html body .cssheet .csopt.on { background: #eef6f0; border-color: #1f6f4a; }
+html body .cssheet .cotabs .prchip { color: #17301f; } html body .cssheet .cotabs .prchip.on { background: #17301f; color: #fff; }
+html body .cshare .csrow .cslink { padding: 8px 2px; }
+html body .cmdrop .cmrmbtn { color: #b03024; font-weight: 600; border-top: 1px solid rgba(23, 48, 31, .1); border-radius: 0 0 12px 12px; margin-top: 4px; }
+html body .cmdrop .cmrm { padding: 12px; border-top: 1px solid rgba(23, 48, 31, .1); } html body .cmdrop .cmrm p { margin: 0 0 8px; font-size: 15px; color: #17301f; line-height: 1.4; }
+html body .cmdrop .cmrm .cswarn, html body .cmdrop .cmrm .cssec { width: auto; display: inline-block; padding: 9px 16px; }

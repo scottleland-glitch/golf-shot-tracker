@@ -25,6 +25,18 @@ Every Shot Counts Table 3.10). The other five are ESTIMATED: per-round gaps from
 Player Quality ladder, then spread over the PGA table. Full sources, method and caveats: in-app
 "About the numbers" and the BASELINES comment in `sg.js`.
 
+## Coach sharing (v212)
+
+Athletes connect to a coach once with a team code; from then on their rounds, short game tests, practice and lessons reach the coach by themselves. The coach just taps a name.
+
+- **Athlete:** Settings → Coach → **Connect to a coach** → enter the code (or tap the coach's invite link) → see who the coach is and what's shared → I'm 18 or older / I'm under 18 and a parent or guardian agrees → **Share**. No sign-up: each player on the phone gets a quiet device account. Every change goes up a few seconds later (offline → it waits and goes next time). **Stop sharing** deletes the online copy.
+- **Coach:** Settings → Coach → **I'm a coach** → name, team name, email, password → the **Athletes** screen: team code + Invite, one card per athlete (average of the last 5 rounds with its direction, what came in and when, **New** until opened, and flags: an area slipping, short game test due, no rounds in 3 weeks, lesson homework). Tap a card → that athlete's My Game, Rounds, Trends and Stats, read-only; the header **‹ Athletes · Name ▾** switches athletes on the same screen (or swipe it). The app opens on Athletes for a signed-in coach; the list is kept on the phone (IndexedDB) so it shows at once and works without a signal.
+- **Remove from team:** on an athlete's pages, the name drop-down ends with *Remove … from team* (with a confirm). The athlete's phone notices on its next send, stops sending, deletes its online copy, and Settings says the coach removed them; their rounds stay on their phone and they can rejoin with the code.
+- **Coach account:** sign in on any device (phone, laptop); Change password, Forgot password (Firebase emails a reset link), Sign out, Delete coach account (removes the team and its code).
+- **How:** `sync.js` talks to Firebase over plain REST – Authentication for sign-in, the Realtime Database (the same one as live sharing) for data. `database.rules.json`: an athlete writes only their own data; a coach reads only their own team's athletes; nobody else reads anything. Items are stored as JSON text so they come back exactly as sent.
+- **Switched on by** `firebaseKey` in config.js (the project's public Web API key). Empty = hidden.
+- Tests: `tests/sync.test.js` and `tests/coach-focused.js` run against `tests/fakefirebase.js`, a local stand-in that checks access the same way as the rules.
+
 ## iPhone app (Capacitor)
 
 The iPhone app is the same web app, bundled inside a native app with [Capacitor](https://capacitorjs.com) so it works fully offline and uses iOS's own share sheet. The website is unchanged and needs none of this.

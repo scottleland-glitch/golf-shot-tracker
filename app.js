@@ -18,22 +18,22 @@
   // v92 My Bag: clubs + carries + playing conditions (bag.js), stored on the phone and in backups
   var BGK = 'golfsg.bag.v1';
   function bag() { try { return BAG.norm(JSON.parse(localStorage.getItem(BGK) || 'null')); } catch (e) { return BAG.blank(); } }
-  function saveBag(b, quiet) { b.updated = new Date().toISOString(); localStorage.setItem(BGK, JSON.stringify(BAG.norm(b))); if (!quiet) backupDirty(3000); else backupDirty(20000); }
+  function saveBag(b, quiet) { if (typeof roGuard === 'function' && roGuard()) return; b.updated = new Date().toISOString(); localStorage.setItem(BGK, JSON.stringify(BAG.norm(b))); if (!quiet) backupDirty(3000); else backupDirty(20000); }
   function bagForBackup() { var b = bag(); return b.clubs.length ? b : null; }
   // v142 practice log: [{ id, date, player, spoke, focus, min }] – minutes per skill, per player, in the backups
   var PRK = 'golfsg.practice.v1';
-  function practice() { try { return MYGAME.validPractice(JSON.parse(localStorage.getItem(PRK) || '[]')); } catch (e) { return []; } }
-  function savePractice(list) { localStorage.setItem(PRK, JSON.stringify(list)); backupDirty(3000); }
+  function practice() { if (typeof CO !== 'undefined' && CO && CO.ctx) return MYGAME.validPractice(CO.ctx.practice || []); try { return MYGAME.validPractice(JSON.parse(localStorage.getItem(PRK) || '[]')); } catch (e) { return []; } }
+  function savePractice(list) { if (typeof roGuard === 'function' && roGuard()) return; localStorage.setItem(PRK, JSON.stringify(list)); backupDirty(3000); }
   function practiceOf(who) { return practice().filter(function (e) { return samePlayer(e.player || playerName(), who); }); }
   // v166 short game tests (shortgame.js): [{ id, date, player, baseline, cond, done, shots }] – per player, in the backups
   var SGK = 'golfsg.sgtests.v1';
-  function sgTests() { try { return SGTEST.validTests(JSON.parse(localStorage.getItem(SGK) || '[]')); } catch (e) { return []; } }
-  function saveSgTests(list) { localStorage.setItem(SGK, JSON.stringify(list)); backupDirty(3000); }
+  function sgTests() { if (typeof CO !== 'undefined' && CO && CO.ctx) return SGTEST.validTests(CO.ctx.tests || []); try { return SGTEST.validTests(JSON.parse(localStorage.getItem(SGK) || '[]')); } catch (e) { return []; } }
+  function saveSgTests(list) { if (typeof roGuard === 'function' && roGuard()) return; localStorage.setItem(SGK, JSON.stringify(list)); backupDirty(3000); }
   function sgTestsOf(who) { return sgTests().filter(function (t) { return samePlayer(t.player || playerName(), who); }); }
   // v93 Wedges: chart of 40–110 yd (wedges.js), stored on the phone and in backups
   var WGK = 'golfsg.wedges.v1';
   function wedges() { try { return WEDGES.norm(JSON.parse(localStorage.getItem(WGK) || 'null')); } catch (e) { return WEDGES.blank(); } }
-  function saveWedges(w) { w.updated = new Date().toISOString(); localStorage.setItem(WGK, JSON.stringify(WEDGES.norm(w))); backupDirty(20000); }
+  function saveWedges(w) { if (typeof roGuard === 'function' && roGuard()) return; w.updated = new Date().toISOString(); localStorage.setItem(WGK, JSON.stringify(WEDGES.norm(w))); backupDirty(20000); }
   function wedgesForBackup() { var w = wedges(); return WEDGES.count(w) ? w : null; } // both flights, incl. entries kept from the 5-yard draft
   function courseById(id) { return courses().filter(function (c) { return c.id === id; })[0]; }
   // v178 (Scott): the tee's course rating and slope (from the course search – GolfCore – when the course came from there), and the
@@ -124,15 +124,15 @@
   // Until it is set it is the benchmark most of the player's rounds use (else PGA Tour). A page that is showing anything
   // else says so, with a one-tap way back.
   var MYBLK = 'golfsg.mybench.v1';
-  function myBenchMap() { try { var o = JSON.parse(localStorage.getItem(MYBLK) || '{}'); return o && typeof o === 'object' ? o : {}; } catch (e) { return {}; } }
+  function myBenchMap() { if (typeof CO !== 'undefined' && CO && CO.ctx && CO.ctx.profile && CO.ctx.profile.bench) { var o0 = {}; o0[CO.ctx.name] = CO.ctx.profile.bench; return o0; } try { var o = JSON.parse(localStorage.getItem(MYBLK) || '{}'); return o && typeof o === 'object' ? o : {}; } catch (e) { return {}; } }
   function myBench(who) { who = who || playerName() || ''; var m = myBenchMap(), k = Object.keys(m).filter(function (n) { return samePlayer(n, who); })[0];
     if (k && SG.BASELINES.some(function (b) { return b.id === m[k]; })) return m[k];
     var c = {}; savedRounds().filter(function (r) { return samePlayer(r.player || playerName(), who); }).forEach(function (r) { var b = blOf(r); c[b] = (c[b] || 0) + 1; });
     return Object.keys(c).sort(function (a, b) { return c[b] - c[a]; })[0] || 'pga'; }
   // v178 (Scott): has the player picked their benchmark yet? Until then My Game wears a red "!" (+ menu, Home card)
   function benchSet(who) { who = who || playerName() || ''; var m = myBenchMap(); return Object.keys(m).some(function (n) { return samePlayer(n, who); }); }
-  function benchBang() { return benchSet(playerName()) ? '' : ' bangon'; } // a class: the "!" is drawn by CSS, so the label text stays "My Game"
-  function setMyBench(who, id) { var m = myBenchMap(); Object.keys(m).forEach(function (n) { if (samePlayer(n, who)) delete m[n]; }); m[who] = id; try { localStorage.setItem(MYBLK, JSON.stringify(m)); } catch (e) {} }
+  function benchBang() { return (typeof CO !== 'undefined' && CO && CO.view) || benchSet(playerName()) ? '' : ' bangon'; } // a class: the "!" is drawn by CSS, so the label text stays "My Game"
+  function setMyBench(who, id) { if (typeof roGuard === 'function' && roGuard()) return; var m = myBenchMap(); Object.keys(m).forEach(function (n) { if (samePlayer(n, who)) delete m[n]; }); m[who] = id; try { localStorage.setItem(MYBLK, JSON.stringify(m)); } catch (e) {} }
   // the note a page shows when it is not using the player's benchmark
   function notMineHTML(shown, who, act) { var mb = myBench(who); if (!shown || shown === mb) return '';
     return '<p class="blwarn" data-bl="' + esc(shown) + '">Compared with ' + esc(blName(shown)) + ' – not your benchmark (' + esc(blName(mb)) + '). <button class="txt" data-act="' + act + '" data-v="' + esc(mb) + '">Use ' + esc(blName(mb)) + '</button></p>'; }
@@ -143,7 +143,7 @@
     return '<select id="' + id + '" class="blsel" data-f="baseline" aria-label="Compare against">' + SG.BASELINES.map(function (b) {
       return '<option value="' + b.id + '"' + (b.id === sel ? ' selected' : '') + '>' + blLabel(b.id) + '</option>'; }).join('') + '</select>';
   }
-  function save() { var cr = !view.preview && round(); if (cr) cr.updated = new Date().toISOString(); localStorage.setItem(KEY, JSON.stringify(rounds)); backupDirty(60000); if (live) live.touch(); }
+  function save() { if (typeof roGuard === 'function' && roGuard()) return; var cr = !view.preview && round(); if (cr) cr.updated = new Date().toISOString(); localStorage.setItem(KEY, JSON.stringify(rounds)); backupDirty(60000); if (live) live.touch(); }
   function round() { if (view.preview) return view.preview; return rounds.filter(function (r) { return r.id === view.roundId; })[0]; }
   // v188 (Scott): a round being entered gets a pinned bar – Back · Scorecard · Stats · Holes – on its hole, scorecard and stats screens
   // v189: the bar stays on every screen you reach during the round (replay, maps, About, My Game…) until you go Home
@@ -226,6 +226,7 @@
     else if (view.screen === 'profile') { view.screen = 'archive'; el.innerHTML = archiveHTML(); } // v102: old Profile → Settings
     else if (view.screen === 'wedges') el.innerHTML = wedgesHTML();
     else if (view.screen === 'birdie') { view.bzD = null; el.innerHTML = birdieHTML(); }
+    else if (view.screen === 'athletes') el.innerHTML = coachOn() ? athletesHTML() : homeHTML(); // v212 coach
     else if (view.screen === 'home' || !round()) el.innerHTML = homeHTML();
     else if (view.screen === 'hole') el.innerHTML = '<div class="frostpage roundpage holepage' + roundTheme() + '">' + holeHTML() + (view.pinOpen ? pinHTML() : '') + (view.replay != null ? replayHTML() : '') + '</div>';
     else if (view.screen === 'about') el.innerHTML = aboutHTML();
@@ -243,7 +244,7 @@
     // iPhone Safari pin "fixed" to the page instead of the screen (Scott: the bar floated mid-screen on My Game)
     ['tabbar', 'pagebar'].forEach(function (id) { var o = document.getElementById(id); if (o) o.remove(); });
     var pb = rbOn || view.prLog || view.mv || view.sess ? '' : pageBarHTML() || tabBarHTML(); /* v198: the Rounds move bar too */ /* v195: the log sheet has its own Save / Cancel */ if (pb) document.body.insertAdjacentHTML('beforeend', pb);
-    document.body.classList.toggle('hastab', !!(pb && pb.indexOf('id="tabbar"') >= 0)); hcStart(); /* v200: the Home card's rotation */ wkStart(); /* v206 */
+    document.body.classList.toggle('hastab', !!(pb && pb.indexOf('id="tabbar"') >= 0)); hcStart(); /* v200: the Home card's rotation */ wkStart(); /* v206 */ coDecorate(); coSearch(); coSheets(); /* v212 */
     document.body.classList.toggle('hasrbar', rbOn || !!pb);
   }
   // v123: on the round-page map sheets, long legend sentences without a symbol ("Rings = feet from the hole…") move under the legend as a note, which infoize() puts behind ⓘ
@@ -1985,7 +1986,7 @@
   }
   // ---------- v101: OneDrive backup removed – Google Drive (below) is the only automatic backup ----------
   var CFG = window.GOLF_CONFIG || {};
-  function backupDirty(delay) { gdDirty(delay); } // every change to rounds, courses, My Bag or Wedges → Google Drive soon
+  function backupDirty(delay) { gdDirty(delay); if (typeof syncDirty === 'function') syncDirty(); } // v212: and to the coach // every change to rounds, courses, My Bag or Wedges → Google Drive soon
   // A phone that had OneDrive connected: quietly forget the old OneDrive state and Microsoft sign-in cache ON THIS PHONE
   // (nothing in OneDrive itself is touched), and drop a leftover Microsoft sign-in return (#code=…) from the address bar.
   (function () {
@@ -2201,7 +2202,7 @@
       if (view.hmenu === 'new') h += '<div class="sheet-h">New round</div>' + newCourseHTML() +
         playPickHTML('newplay', view.newPlay || lastPlay(), 'This round is') + '<label class="lbl" for="newbl">Compare my shots against</label>' + blSelect('newbl', view.newBl || myBench(playerName())) + newPlayerHTML() +
         '<button class="sheet-go" data-act="new">Start round</button><button class="sheet-item muted" data-act="plus">Back</button>';
-      else if (view.hmenu === 'nav') h += '<button class="sheet-item" role="menuitem" data-act="history">Rounds</button><button class="sheet-item" role="menuitem" data-act="stats">Stats</button><button class="sheet-item' + benchBang() + '" role="menuitem" data-act="mygame">My Game</button><button class="sheet-item" role="menuitem" data-act="bag">My Bag</button><button class="sheet-item" role="menuitem" data-act="archive">Settings</button><button class="sheet-item" role="menuitem" data-act="help">Help</button>';
+      else if (view.hmenu === 'nav') h += (coachOn() ? '<button class="sheet-item" role="menuitem" data-act="athletes" id="navathletes">Athletes</button>' : '') + '<button class="sheet-item" role="menuitem" data-act="history">Rounds</button><button class="sheet-item" role="menuitem" data-act="stats">Stats</button><button class="sheet-item' + benchBang() + '" role="menuitem" data-act="mygame">My Game</button><button class="sheet-item" role="menuitem" data-act="bag">My Bag</button><button class="sheet-item" role="menuitem" data-act="archive">Settings</button><button class="sheet-item" role="menuitem" data-act="help">Help</button>';
       else h += '<button class="sheet-item" role="menuitem" data-act="newform">New round</button><button class="sheet-item" role="menuitem" data-act="prlog">Log practice</button><button class="sheet-item" role="menuitem" data-act="sgtopen">Short game test</button>';
       h += '</div>';
     }
@@ -2214,7 +2215,7 @@
     return savedRounds().filter(function (r) { return samePlayer(r.player || playerName(), who); }).filter(function (r) {
       var S = SG.summarize(r); return S.holesDone === r.holes.length && r.holes.length > 0 && r.id !== cur; });
   }
-  function mgPlayers() { var o = {}; savedRounds().forEach(function (r) { var n = r.player || playerName(); if (n) o[n] = 1; }); if (playerName()) o[playerName()] = 1; return Object.keys(o).sort(); }
+  function mgPlayers() { if (typeof CO !== 'undefined' && CO && CO.view && CO.ctx) return [CO.ctx.name]; var o = {}; savedRounds().forEach(function (r) { var n = r.player || playerName(); if (n) o[n] = 1; }); if (playerName()) o[playerName()] = 1; return Object.keys(o).sort(); }
   function mgWho() { var names = mgPlayers(); if (!view.mgPlayer || names.indexOf(view.mgPlayer) < 0) view.mgPlayer = playerName() || names[0] || ''; return view.mgPlayer; }
   function mgData(who, periodId) {
     var list = finishedRoundsOf(who), newest = list.slice().sort(function (a, b) { return String(b.date || '').localeCompare(String(a.date || '')); })[0];
@@ -2543,10 +2544,12 @@
   function quickRowHTML(id, it) { return '<div class="qrow" id="' + id + '">' + it.map(function (x) {
     return '<button class="qbtn frost' + (x[3] ? ' on' : '') + '" data-act="' + x[1] + '" id="q' + x[1] + '"' + (x[3] ? ' aria-current="page"' : '') + '><svg viewBox="0 0 24 24" aria-hidden="true">' + PB_IC[x[0]] + '</svg><span>' + esc(x[2]) + '</span></button>'; }).join('') + '</div>'; }
   function tabBarHTML() {
-    var pr = practiceOn(); if (!TAB_SCREENS[view.screen] && !(view.screen === 'trends' && !pr)) return ''; // v209: Trends is a tab when practice is off
+    var pr = practiceOn(); if (CO.view) pr = false; // v212: on an athlete's pages: My Game · Rounds · Trends · Stats, no +
+    if (!TAB_SCREENS[view.screen] && !(view.screen === 'trends' && !pr)) return ''; // v209: Trends is a tab when practice is off
     var it = [['mygame', 'mygame', 'My Game'], ['rounds', 'history', 'Rounds'], null, pr ? ['practice', 'gopractice', 'Practice'] : ['trends', 'gotrends', 'Trends'], ['stats', 'stats', 'Stats']]; // v209: no practice → Trends
     var on = { mygame: 'mygame', history: 'history', practice: 'gopractice', stats: 'stats', trends: pr ? '' : 'gotrends' }[view.screen];
     return '<nav class="tabbar" id="tabbar" aria-label="Main">' + it.map(function (x) {
+      if (!x && CO.view) return '<span class="tbspace" aria-hidden="true"></span>'; // v212: nothing to add on an athlete's pages
       if (!x) return '<button class="tbplus" data-act="tbplus" id="tbplus" aria-label="' + (pr ? 'Start: new round, log practice or short game test' : 'Start a new round') + '"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg></button>';
       var c = x[1] === on; return '<button class="tbbtn' + (c ? ' on' : '') + (x[0] === 'mygame' ? benchBang() : '') + '" data-act="' + x[1] + '" id="tb' + x[0] + '"' + (c ? ' aria-current="page"' : '') + '><svg viewBox="0 0 24 24" aria-hidden="true">' + PB_IC[x[0]] + '</svg><span>' + esc(x[2]) + '</span></button>'; }).join('') + '</nav>'; }
   function pageBarHTML() {
@@ -2560,26 +2563,26 @@
   // ---------- v194: the Practice page ----------
   // v203 (Scott): the practice plan – a ranked "Practice next" list (plan.js), not a weekly schedule
   var TOUR_KEY = 'golfsg.tour.v1';
-  function tourAll() { try { return JSON.parse(localStorage.getItem(TOUR_KEY) || '{}') || {}; } catch (e) { return {}; } }
+  function tourAll() { if (typeof CO !== 'undefined' && CO && CO.ctx) { var o1 = {}; if (CO.ctx.profile && CO.ctx.profile.tour) o1[String(CO.ctx.name).toLowerCase()] = CO.ctx.profile.tour; return o1; } try { return JSON.parse(localStorage.getItem(TOUR_KEY) || '{}') || {}; } catch (e) { return {}; } }
   function tourOf(who) { var T = tourAll(), k = String(who || '').toLowerCase(); return T[k] || null; }
-  function setTour(who, t) { var T = tourAll(), k = String(who || '').toLowerCase(); if (t) T[k] = t; else delete T[k]; try { localStorage.setItem(TOUR_KEY, JSON.stringify(T)); } catch (e) {} }
+  function setTour(who, t) { if (typeof roGuard === 'function' && roGuard()) return; var T = tourAll(), k = String(who || '').toLowerCase(); if (t) T[k] = t; else delete T[k]; try { localStorage.setItem(TOUR_KEY, JSON.stringify(T)); } catch (e) {} }
   // v205 (Scott): "your typical week" – a starting baseline (practice hours, rounds a month) until real practice takes over
   // v209 (Scott): two ways to use the app, per player – 'stats' (rounds, stats, My Game, Trends, fun facts; no practice) or 'full' (+ the practice plan).
   // Turning practice off only hides it – nothing is deleted, and turning it back on picks up from the rounds straight away.
   var MODE_KEY = 'golfsg.mode.v1';
-  function modeAll() { try { return JSON.parse(localStorage.getItem(MODE_KEY) || '{}') || {}; } catch (e) { return {}; } }
+  function modeAll() { if (typeof CO !== 'undefined' && CO && CO.ctx) { var o1 = {}; if (CO.ctx.profile && CO.ctx.profile.mode) o1[String(CO.ctx.name).toLowerCase()] = CO.ctx.profile.mode; return o1; } try { return JSON.parse(localStorage.getItem(MODE_KEY) || '{}') || {}; } catch (e) { return {}; } }
   function modeOf(who) { return modeAll()[String(who || '').toLowerCase()] || 'full'; }
   function practiceOn(who) { return modeOf(who === undefined ? playerName() : who) !== 'stats'; }
-  function setMode(who, m) { var A = modeAll(); A[String(who || '').toLowerCase()] = m === 'stats' ? 'stats' : 'full'; try { localStorage.setItem(MODE_KEY, JSON.stringify(A)); } catch (e) {} }
+  function setMode(who, m) { if (typeof roGuard === 'function' && roGuard()) return; var A = modeAll(); A[String(who || '').toLowerCase()] = m === 'stats' ? 'stats' : 'full'; try { localStorage.setItem(MODE_KEY, JSON.stringify(A)); } catch (e) {} }
   function modeRowHTML(who, id) {
     var on = practiceOn(who);
     return '<div class="moderow frost" id="' + (id || 'moderow') + '"><div><b>Practice plan</b><small>' + (on ? 'A practice list built from your rounds and tests' : 'Off – just stats, rounds and fun facts') + '</small></div>' +
       '<div class="prchips" role="group" aria-label="Practice plan">' + [['full', 'On'], ['stats', 'Off']].map(function (x) { var sel = (on ? 'full' : 'stats') === x[0]; return '<button class="prchip' + (sel ? ' on' : '') + '" data-act="setmode" data-v="' + x[0] + '" aria-pressed="' + sel + '">' + x[1] + '</button>'; }).join('') + '</div></div>';
   }
   var TYP_KEY = 'golfsg.typical.v1';
-  function typAll() { try { return JSON.parse(localStorage.getItem(TYP_KEY) || '{}') || {}; } catch (e) { return {}; } }
+  function typAll() { if (typeof CO !== 'undefined' && CO && CO.ctx) { var o1 = {}; if (CO.ctx.profile && CO.ctx.profile.typical) o1[String(CO.ctx.name).toLowerCase()] = CO.ctx.profile.typical; return o1; } try { return JSON.parse(localStorage.getItem(TYP_KEY) || '{}') || {}; } catch (e) { return {}; } }
   function typicalOf(who) { return typAll()[String(who || '').toLowerCase()] || null; }
-  function setTypical(who, t) { var T = typAll(); T[String(who || '').toLowerCase()] = t; try { localStorage.setItem(TYP_KEY, JSON.stringify(T)); } catch (e) {} }
+  function setTypical(who, t) { if (typeof roGuard === 'function' && roGuard()) return; var T = typAll(); T[String(who || '').toLowerCase()] = t; try { localStorage.setItem(TYP_KEY, JSON.stringify(T)); } catch (e) {} }
   function planData(who) {
     var td = null, tst = null; try { td = trendsData(who); } catch (e) {} try { tst = SGTUI.planTest(who); } catch (e) {}
     return PLAN.build({ rounds: finishedRoundsOf(who), logs: practiceOf(who), SG: SG, MYGAME: MYGAME, bl: myBench(who), test: tst, trends: td, now: Date.now(), tour: tourOf(who), typical: typicalOf(who) });
@@ -2881,6 +2884,212 @@
         '<button class="prx" data-act="prdel" data-v="' + esc(e.id) + '" aria-label="Remove ' + esc(e.focus || sp.name) + ' ' + e.min + ' min">×</button></div>'; }).join('') + '</div>';
     return o;
   }
+  // ---------- v212 (Scott): coach sharing – athletes' rounds, tests and practice reach their coach automatically ----------
+  // sync.js does the talking to Firebase; this part is the screens. An athlete connects once with the team code; after that every
+  // change goes up by itself (offline → it waits). A coach signs in, sees the Athletes list, taps a name, and is on that athlete's
+  // My Game / Rounds / Trends / Stats – read-only, with "‹ Athletes · Name ▾" to jump to the next athlete on the same screen.
+  var SYNCX = window.SYNC ? SYNC.create({ cfg: { apiKey: CFG.firebaseKey || '', db: CFG.liveDb || '', authBase: CFG.authBase, tokenBase: CFG.tokenBase } }) : null;
+  var CO = { cache: {}, loaded: false, view: null, ctx: null, busy: false, err: null, last: 0, roToast: 0 };
+  function syncOn() { return !!(SYNCX && SYNCX.ready()); }
+  function coachOn() { return syncOn() && !!SYNCX.coach(); }
+  function agoTxt(t) { var m = Math.round((Date.now() - t) / 60000); return m < 1 ? 'just now' : m < 60 ? m + ' min ago' : m < 60 * 24 ? Math.round(m / 60) + ' h ago' : Math.round(m / 1440) === 1 ? 'yesterday' : Math.round(m / 1440) + ' days ago'; }
+  // ---- athlete: what goes up, and when ----
+  function syncSnap(who) {
+    var fill = function (x) { if (x && !x.player) { x = JSON.parse(JSON.stringify(x)); x.player = who; } return x; };
+    return { profile: { bench: myBench(who), typical: typicalOf(who), tour: tourOf(who), mode: modeOf(who) },
+      rounds: finishedRoundsOf(who).map(fill), tests: sgTestsOf(who).map(fill), practice: practiceOf(who).map(fill) };
+  }
+  var syncT = null;
+  function syncDirty(delay) { if (!syncOn() || CO.view || !Object.keys(SYNCX.state().links).length) return; clearTimeout(syncT); syncT = setTimeout(syncNow, delay == null ? 4000 : delay); }
+  function syncNow() {
+    if (!syncOn() || CO.view) return Promise.resolve(); var L = SYNCX.state().links;
+    return Promise.all(Object.keys(L).map(function (k) { var who = L[k].player; return SYNCX.check(who).then(function (on) { return on ? SYNCX.flush(who, syncSnap(who)) : null; }).catch(function () {}); }))
+      .then(function () { var s = document.getElementById('csstat'); if (s) s.textContent = shareStatus(SYNCX.link(playerName())); });
+  }
+  function shareStatus(L) { return !L ? '' : L.removed ? 'Your coach removed you from the team.' : L.pending ? 'Waiting for a signal to send…' : L.sent ? 'Up to date · sent ' + agoTxt(L.sent) : 'Up to date'; }
+  // ---- read-only while a coach looks at an athlete: every save on this phone is skipped ----
+  function roGuard() { if (!CO.view) return false; if (Date.now() - CO.roToast > 3000) { CO.roToast = Date.now(); toast('Viewing ' + (CO.ctx && CO.ctx.name || 'an athlete') + ' – read only'); } return true; }
+  // ---- coach: the athletes on this phone (kept in IndexedDB – too big for localStorage with a whole team) ----
+  function idb() { return new Promise(function (ok, no) { try { var r = indexedDB.open('golfsg-coach', 1); r.onupgradeneeded = function () { r.result.createObjectStore('kv'); }; r.onsuccess = function () { ok(r.result); }; r.onerror = function () { no(r.error); }; } catch (e) { no(e); } }); }
+  function idbGet(k) { return idb().then(function (d) { return new Promise(function (ok) { var q = d.transaction('kv').objectStore('kv').get(k); q.onsuccess = function () { ok(q.result || null); }; q.onerror = function () { ok(null); }; }); }).catch(function () { return null; }); }
+  function idbSet(k, v) { return idb().then(function (d) { return new Promise(function (ok) { var t = d.transaction('kv', 'readwrite'); t.objectStore('kv').put(v, k); t.oncomplete = ok; t.onerror = ok; }); }).catch(function () {}); }
+  function coKey() { var c = SYNCX && SYNCX.coach(); return c ? 'athletes:' + c.acc.uid : null; }
+  function coSave() { var k = coKey(); if (k) idbSet(k, CO.cache); }
+  function coLoad() { var k = coKey(); if (!k) return Promise.resolve(); return idbGet(k).then(function (v) { if (v && !CO.loaded) CO.cache = v; CO.loaded = true; }); }
+  function coPull(quiet) {
+    if (!coachOn() || CO.busy) return Promise.resolve(); CO.busy = true; if (!quiet && view.screen === 'athletes') coStatus();
+    return coLoad().then(function () { return SYNCX.coachPull(CO.cache); }).then(function (P) {
+      CO.busy = false; CO.err = null; CO.last = Date.now(); Object.keys(P.athletes).forEach(function (u) { var o = CO.cache[u]; if (o && o.seenAt && !P.athletes[u].seenAt) P.athletes[u].seenAt = o.seenAt; });
+      CO.cache = P.athletes; coSave();
+      if (CO.view && !CO.cache[CO.view]) { exitAthlete(); view.screen = 'athletes'; render(); return; }
+      if (CO.view && P.changed.indexOf(CO.view) >= 0) { rounds = (CO.cache[CO.view].rounds || []).slice(); CO.ctx = CO.cache[CO.view]; render(); return; }
+      if (view.screen === 'athletes') render();
+    }, function (e) { CO.busy = false; CO.err = e && e.code === 'offline' ? 'No signal – showing what was here last time.' : e && e.code === 'denied' ? 'Please sign in again.' : 'Couldn\'t update: ' + (e && e.message || 'error'); if (view.screen === 'athletes') coStatus(); });
+  }
+  function coStatus() { var s = document.getElementById('costat'); if (s) s.textContent = CO.busy ? 'Updating…' : CO.err || (CO.last ? 'Updated ' + agoTxt(CO.last) : ''); }
+  function coList() { return Object.keys(CO.cache).map(function (u) { return CO.cache[u]; }).sort(function (a, b) { return coLatest(b) - coLatest(a) || String(a.name).localeCompare(String(b.name)); }); }
+  function itemT(x) { return Date.parse(x.updated || '') || Date.parse(x.date || '') || 0; }
+  function coLatest(A) { var t = 0; ['rounds', 'tests', 'practice'].forEach(function (k) { (A[k] || []).forEach(function (x) { t = Math.max(t, itemT(x)); }); }); return t || (A.member && A.member.at) || 0; }
+  // look at one athlete's data with all of the app's own maths: their rounds stand in for this phone's while fn runs
+  function withAthlete(A, fn) { var keep = rounds, prev = CO.ctx; CO.ctx = A; rounds = (A.rounds || []).slice(); try { return fn(A.name); } finally { rounds = keep; CO.ctx = prev; } }
+  function enterAthlete(uid) { var A = CO.cache[uid]; if (!A) return; exitAthlete(); CO.view = uid; CO.ctx = A; rounds = (A.rounds || []).slice(); A.seenAt = Date.now(); coSave(); view.mgPlayer = A.name; view.trWho = A.name; view.coSw = false; }
+  function exitAthlete() { if (!CO.view) return; CO.view = null; CO.ctx = null; rounds = load(); view.mgPlayer = null; view.trWho = null; view.coSw = false; }
+  // one card: last-5 average with its direction, what came in, and the flags worth a look
+  function athleteCard(A) {
+    return withAthlete(A, function (who) {
+      var fin = finishedRoundsOf(who).slice().sort(function (a, b) { return String(b.date || '').localeCompare(String(a.date || '')); }), DAY = 864e5, now = Date.now();
+      var full = fin.map(function (r) { return SG.summarize(r); }).filter(function (S) { return S.holesDone === 18; }).map(function (S) { return S.strokes; });
+      var avg = function (a) { return a.reduce(function (t, x) { return t + x; }, 0) / a.length; }, a5 = full.length ? avg(full.slice(0, 5)) : null, p5 = full.length >= 6 ? avg(full.slice(5, 10)) : null;
+      var arrow = a5 == null || p5 == null ? '' : a5 < p5 - 0.3 ? '<small class="cmup">↓ ' + (p5 - a5).toFixed(1) + '</small>' : a5 > p5 + 0.3 ? '<small class="cmdn">↑ ' + (a5 - p5).toFixed(1) + '</small>' : '<small class="cmflat">→ ' + Math.abs(a5 - p5).toFixed(1) + '</small>';
+      var seen = A.seenAt || 0, nw = { rounds: 0, tests: 0, practice: 0 }; ['rounds', 'tests', 'practice'].forEach(function (k) { (A[k] || []).forEach(function (x) { if (itemT(x) > seen) nw[k]++; }); });
+      var plural = function (n, w) { return n + ' ' + w + (n === 1 ? '' : 's'); };
+      var newTxt = [nw.rounds ? plural(nw.rounds, 'round') : '', nw.tests ? plural(nw.tests, 'test') : '', nw.practice ? plural(nw.practice, 'practice log') : ''].filter(Boolean).join(', ');
+      var lt = coLatest(A), what = !lt ? 'Joined ' + agoTxt(A.member && A.member.at || now) : (function () { var best = null, kind = ''; ['rounds', 'tests', 'practice'].forEach(function (k) { (A[k] || []).forEach(function (x) { if (!best || itemT(x) > itemT(best)) { best = x; kind = k; } }); });
+        return (kind === 'rounds' ? 'Round' : kind === 'tests' ? 'Short game test' : 'Practice logged') + ' · ' + agoTxt(itemT(best)); })();
+      var flags = []; if (newTxt) flags.push(['New: ' + newTxt, 'cmnew']);
+      try { var T = trendsData(who), w = T && T.areas && T.areas.filter(function (x) { return x.ok && x.heading && x.conf !== 'low'; })[0]; if (w) flags.push([w.name + ' slipping', 'cmred']); } catch (e) {}
+      if (!flags.some(function (f) { return f[1] === 'cmred'; })) try { var D = fin.length >= 3 ? mgData(who) : null; if (D && D.headline) flags.push([D.headline, /slipp|worse|down/i.test(D.headline) ? 'cmred' : /better|improv|up/i.test(D.headline) ? 'cmgreen' : 'cmflat2']); } catch (e) {}
+      var tl = sgTestsOf(who).filter(function (t) { return t.done; }).map(function (t) { return Date.parse(t.date) || 0; }).sort(function (a, b) { return b - a; })[0];
+      if (fin.length && (!tl || now - tl > 35 * DAY)) flags.push(['Short game test due', 'cmamber']);
+      if (fin.length && now - itemT(fin[0]) > 21 * DAY) flags.push(['No rounds in ' + Math.floor((now - itemT(fin[0])) / (7 * DAY)) + ' weeks', 'cmamber']);
+      var les = practiceOf(who).filter(function (e) { return e.kind === 'lesson'; }).sort(function (a, b) { return String(b.date).localeCompare(String(a.date)); })[0];
+      if (les) { var left = (les.change === 'big' ? 28 : 14) - Math.floor((now - Date.parse(les.date)) / DAY); if (left > 0) flags.push(['Lesson homework: ' + (left >= 7 ? Math.round(left / 7) + ' wk' + (Math.round(left / 7) === 1 ? '' : 's') : left + ' day' + (left === 1 ? '' : 's')) + ' left', 'cmamber']); }
+      var hs = 0, sid = String(who).toLowerCase(); for (var q = 0; q < sid.length; q++) hs = (hs * 7 + sid.charCodeAt(q)) % 6007; var col = ['#7a5ab0', '#3f7fbf', '#d39b2a', '#3f9a63', '#b0505a', '#2f8f8f', '#c0662b'][hs % 7]; // a colour per name
+      return '<button class="cmcard" data-act="copen" data-v="' + esc(A.uid) + '" data-name="' + esc(who.toLowerCase()) + '"><span class="cmav" style="background:' + col + '">' + esc(String(who).charAt(0).toUpperCase()) + '</span>' +
+        '<span class="cmname">' + esc(who) + '</span><span class="cmscore">' + (a5 != null ? '<b>' + a5.toFixed(1) + '</b>' + arrow : '<b>–</b>') + '</span><span class="cmwhen">' + esc(what) + '</span>' +
+        (flags.length ? '<span class="cmflags">' + flags.slice(0, 3).map(function (f) { return '<span class="cmflag ' + f[1] + '">' + esc(f[0]) + '</span>'; }).join('') + '</span>' : '') + '</button>';
+    });
+  }
+  function athletesHTML() {
+    var c = SYNCX.coach(), L = coList(), n = L.length;
+    var h = '<div class="frostpage theme-sky cmpage" id="cmpage"><div class="topbar frost"><button class="txt frostbtn" data-act="home" id="cmhome">‹ My golf</button><div class="title"><b>Athletes</b><span>' + esc(c.teamName || '') + ' · ' + n + ' athlete' + (n === 1 ? '' : 's') + '</span></div><button class="txt frostbtn" data-act="copull" id="copull">↻</button></div><div class="cmlist">';
+    h += '<div class="cmcode"><div><small>Team code</small><b id="cmcode">' + esc(c.code || '') + '</b></div><button data-act="coinvite" id="coinvite">Invite</button></div>';
+    if (n > 6) h += '<input type="search" class="cmsearch" id="cmsearch" placeholder="Search athletes" aria-label="Search athletes">';
+    h += '<p class="cmstat" id="costat">' + esc(CO.busy ? 'Updating…' : CO.err || (CO.last ? 'Updated ' + agoTxt(CO.last) : '')) + '</p>';
+    if (!n) h += '<div class="cmempty" id="cmempty"><b>No athletes yet</b><p>Send your athletes the code <b>' + esc(c.code || '') + '</b> (tap Invite). Each one enters it once in Settings → Connect to a coach, and their rounds show up here by themselves.</p></div>';
+    else h += '<div class="cmsec">Latest activity</div>' + L.map(athleteCard).join('') + '<p class="cmfoot">Score = average of the last 5 rounds · arrow = against the 5 before (↓ is better)</p>';
+    return h + '</div></div>';
+  }
+  // the switcher on an athlete's pages: "‹ Athletes · Name ▾", tap for the list, swipe for the next one
+  function coDecorate() {
+    if (!CO.view) return; var A = CO.ctx, L = coList(), i = L.map(function (x) { return x.uid; }).indexOf(CO.view);
+    var tb = document.querySelector('#app .topbar'); if (!tb) return;
+    var b0 = tb.querySelector('button'); if (b0) { b0.textContent = '‹ Athletes'; b0.setAttribute('data-act', 'coback'); b0.id = 'coback'; }
+    var t = tb.querySelector('.title'); if (t) { t.setAttribute('data-act', 'coswitch'); t.id = 'coswitch'; t.setAttribute('role', 'button');
+      t.innerHTML = '<b class="cmsw">' + esc(A.name) + ' <i>▾</i></b><span>' + (i + 1) + ' of ' + L.length + ' · ' + esc({ mygame: 'My Game', history: 'Rounds', trends: 'Trends', stats: 'Stats' }[view.screen] || '') + '</span>';
+      var x0 = null; t.addEventListener('touchstart', function (e) { x0 = e.touches[0].clientX; }, { passive: true });
+      t.addEventListener('touchend', function (e) { if (x0 == null) return; var dx = e.changedTouches[0].clientX - x0; x0 = null; if (Math.abs(dx) < 60 || L.length < 2) return;
+        var j = (i + (dx < 0 ? 1 : -1) + L.length) % L.length; enterAthlete(L[j].uid); render(); }, { passive: true }); }
+    var old = document.getElementById('coswsheet'); if (old) old.remove();
+    if (view.coSw) document.body.insertAdjacentHTML('beforeend', '<div id="coswsheet"><div class="cmdim" data-act="coswitch"></div><div class="cmdrop" role="menu">' + L.map(function (x) {
+      return '<button class="' + (x.uid === CO.view ? 'on' : '') + '" data-act="copick" data-v="' + esc(x.uid) + '" role="menuitem"><span>' + esc(x.name) + '</span><small>' + (x.uid === CO.view ? 'Viewing' : '') + '</small></button>'; }).join('') +
+      (view.coRm ? '<div class="cmrm" id="cmrm"><p>Remove ' + esc(A.name) + ' from your team? You\'ll stop seeing their rounds. Their own data stays on their phone, and they can rejoin with the code.</p><div class="csrow"><button class="cswarn" data-act="coremoveyes" id="coremoveyes">Remove</button><button class="cssec" data-act="coremoveno">Cancel</button></div></div>'
+        : '<button class="cmrmbtn" data-act="coremove" id="coremove" role="menuitem">Remove ' + esc(A.name) + ' from team…</button>') + '</div></div>');
+  }
+  function coSearch() { var s = document.getElementById('cmsearch'); if (!s) return; s.addEventListener('input', function () { var q = s.value.trim().toLowerCase(); [].forEach.call(document.querySelectorAll('#cmpage .cmcard'), function (c) { c.style.display = !q || c.getAttribute('data-name').indexOf(q) >= 0 ? '' : 'none'; }); }); }
+  // ---- Settings: the Coach card (athlete side + coach account) ----
+  function coachCardHTML() {
+    if (!syncOn()) return '';
+    var who = playerName(), L = who ? SYNCX.link(who) : null, c = SYNCX.coach(), h = '<h2>Coach</h2><div class="card frost cshare" id="cshare">';
+    if (!who) h += '<p class="csp">Add your name above first – your coach sees rounds under that name.</p>';
+    else if (L) h += '<p class="csp" id="cshared">Sharing with <b>' + esc(L.coachName || 'your coach') + '</b>' + (L.teamName ? ' · ' + esc(L.teamName) : '') + '</p><p class="csmuted" id="csstat">' + esc(shareStatus(L)) + '</p>' +
+      (view.csStop ? '<p class="csp">Stop sharing? Your coach\'s copy is deleted. Your rounds stay on this phone.</p><div class="csrow"><button class="cswarn" data-act="csstopyes" id="csstopyes">Stop sharing</button><button class="cssec" data-act="csstopno">Keep sharing</button></div>'
+        : '<button class="txt cslink" data-act="csstop" id="csstop">Stop sharing</button>');
+    else h += '<p class="csp">Your coach sees your rounds, tests and practice automatically – nothing to send.</p><button class="cspri" data-act="csopen" id="csopen">Connect to a coach</button>';
+    h += '</div>';
+    h += '<div class="card frost cshare" id="coachcard">' + (c ? '<p class="csp">Coach account: <b>' + esc(c.email || '') + '</b>' + (c.teamName ? '<br>' + esc(c.teamName) + ' · code <b>' + esc(c.code || '') + '</b>' : '') + '</p>' +
+      '<div class="csrow"><button class="cspri" data-act="athletes" id="coathletes">Athletes</button><button class="cssec" data-act="copw" id="copw">Change password</button></div>' +
+      (view.coPw ? '<div class="csform"><input type="password" id="copwnew" placeholder="New password (6+ characters)" autocomplete="new-password"><button class="cspri" data-act="copwsave" id="copwsave">Save</button></div>' : '') +
+      '<div class="csrow"><button class="txt cslink" data-act="coout" id="coout">Sign out</button>' + (view.coDel ? '<button class="cswarn" data-act="codelyes" id="codelyes">Delete account and team</button><button class="txt cslink" data-act="codelno">Cancel</button>' : '<button class="txt cslink" data-act="codel" id="codel">Delete coach account</button>') + '</div>'
+      : '<p class="csp">Coach other golfers? See your athletes\' rounds, tests and practice in one place.</p><button class="cssec" data-act="coopen" id="coopen">I\'m a coach</button>') + '</div>';
+    return h;
+  }
+  // the sheets live on <body> (a fixed sheet inside the page would float on iPhone, like the tab bar did)
+  function coSheets() { var o = document.getElementById('cosheets'); if (o) o.remove(); var x = view.screen === 'archive' ? connectSheetHTML() + coachSheetHTML() : ''; if (x) document.body.insertAdjacentHTML('beforeend', '<div id="cosheets">' + x + '</div>'); document.body.classList.toggle('cosheet', !!x); }
+  function sheetWrap(id, inner, closeAct) { return '<div class="csback" data-act="' + closeAct + '"></div><div class="cssheet" id="' + id + '" role="dialog" aria-modal="true">' + inner + '</div>'; }
+  function connectSheetHTML() {
+    var S = view.cs; if (!S) return '';
+    if (S.step !== 'confirm') return sheetWrap('cssheet', '<div class="cshead">Connect to your coach</div><p class="csp">Enter the code your coach gave you.</p>' +
+      '<input type="text" id="cscode" class="cscode" value="' + esc(S.code || '') + '" placeholder="ABC-123" autocapitalize="characters" autocomplete="off" maxlength="8" aria-label="Team code">' +
+      (S.err ? '<p class="cserr" id="cserr">' + esc(S.err) + '</p>' : '') + '<button class="cspri csgo" data-act="csfind" id="csfind"' + (S.busy ? ' disabled' : '') + '>' + (S.busy ? 'Looking…' : 'Find my coach') + '</button><button class="cslink2" data-act="cscancel">Cancel</button>', 'cscancel');
+    var T = S.T, ok = S.age === 'adult' || S.age === 'parent';
+    return sheetWrap('cssheet', '<div class="cshead">Connect to your coach</div><div class="csteam"><b id="csteam">' + esc(T.coachName || 'Your coach') + (T.name ? ' · ' + esc(T.name) : '') + '</b>' +
+      '<p>Will see your rounds, short game tests, practice and lessons – automatically, as you add them. You can stop sharing any time in Settings.</p></div>' +
+      '<div class="csage" role="radiogroup" aria-label="Age">' + [['adult', 'I\'m 18 or older'], ['parent', 'I\'m under 18 and a parent or guardian agrees']].map(function (x) {
+        return '<button class="modeopt csopt' + (S.age === x[0] ? ' on' : '') + '" data-act="csage" data-v="' + x[0] + '" role="radio" aria-checked="' + (S.age === x[0]) + '"><b>' + x[1] + '</b></button>'; }).join('') + '</div>' +
+      (S.err ? '<p class="cserr" id="cserr">' + esc(S.err) + '</p>' : '') + '<button class="cspri csgo" data-act="csjoin" id="csjoin"' + (ok && !S.busy ? '' : ' disabled') + '>' + (S.busy ? 'Connecting…' : 'Share with ' + esc(T.coachName || 'my coach')) + '</button><button class="cslink2" data-act="cscancel">Cancel</button>', 'cscancel');
+  }
+  function coachSheetHTML() {
+    var S = view.co; if (!S) return ''; var up = S.tab !== 'in';
+    return sheetWrap('cosheet', '<div class="cshead">' + (up ? 'Set up coach mode' : 'Coach sign in') + '</div><div class="prchips cotabs"><button class="prchip' + (up ? ' on' : '') + '" data-act="cotab" data-v="up">New coach</button><button class="prchip' + (up ? '' : ' on') + '" data-act="cotab" data-v="in">I have an account</button></div>' +
+      (up ? '<input type="text" id="coname" placeholder="Your name (athletes see this)" autocomplete="name" value="' + esc(S.name || playerName()) + '"><input type="text" id="coteam" placeholder="Team name, e.g. Reno Golf Academy" value="' + esc(S.team || '') + '">' : '') +
+      '<input type="email" id="coemail" placeholder="Email" autocomplete="email" value="' + esc(S.email || '') + '"><input type="password" id="copass" placeholder="Password' + (up ? ' (6+ characters)' : '') + '" autocomplete="' + (up ? 'new-password' : 'current-password') + '">' +
+      (S.err ? '<p class="cserr" id="coerr">' + esc(S.err) + '</p>' : '') + (S.msg ? '<p class="csok" id="comsg">' + esc(S.msg) + '</p>' : '') +
+      '<button class="cspri csgo" data-act="' + (up ? 'cosignup' : 'cosignin') + '" id="cogo"' + (S.busy ? ' disabled' : '') + '>' + (S.busy ? 'One moment…' : up ? 'Create my team' : 'Sign in') + '</button>' +
+      (up ? '' : '<button class="cslink2" data-act="coforgot" id="coforgot">Forgot password?</button>') + '<button class="cslink2" data-act="coclose">Cancel</button>', 'coclose');
+  }
+  function authMsg(e) { var m = String(e && (e.message || e.code) || ''); return /EMAIL_EXISTS/.test(m) ? 'That email already has a coach account – tap "I have an account".' : /INVALID_LOGIN|INVALID_PASSWORD|EMAIL_NOT_FOUND/.test(m) ? 'Email or password doesn\'t match.' :
+    /WEAK_PASSWORD/.test(m) ? 'The password needs at least 6 characters.' : /INVALID_EMAIL/.test(m) ? 'That email doesn\'t look right.' : /TOO_MANY/.test(m) ? 'Too many tries – wait a few minutes.' : e && e.code === 'offline' ? 'No connection – try again with a signal.' : /nocode/.test(e && e.code) ? 'No team with that code – check it with your coach.' : /badcode/.test(e && e.code) ? 'The code is 6 letters and numbers, like QK7-4MZ.' : 'Something went wrong: ' + m; }
+  function val(id) { var x = document.getElementById(id); return x ? x.value : ''; }
+  // the actions; returns true when it handled one
+  function coAct(act, v, el) {
+    var who = playerName();
+    switch (act) {
+      case 'csopen': view.cs = { step: 'code' }; render(); setTimeout(function () { var i = document.getElementById('cscode'); if (i) i.focus(); }, 50); return true;
+      case 'cscancel': view.cs = null; render(); return true;
+      case 'csfind': { var code = val('cscode'); view.cs = { step: 'code', code: code, busy: true }; render();
+        SYNCX.lookup(who, code).then(function (T) { view.cs = { step: 'confirm', T: T }; render(); }, function (e) { view.cs = { step: 'code', code: code, err: authMsg(e) }; render(); }); return true; }
+      case 'csage': view.cs.age = v; render(); return true;
+      case 'csjoin': { var S = view.cs; if (!S || !S.T || !(S.age === 'adult' || S.age === 'parent')) return true; S.busy = true; S.err = null; render();
+        SYNCX.join(who, S.T, { parentOk: S.age === 'parent' }).then(function () { view.cs = null; toast('Sharing with ' + (S.T.coachName || 'your coach')); render(); syncNow(); }, function (e) { S.busy = false; S.err = authMsg(e); render(); }); return true; }
+      case 'csstop': view.csStop = true; render(); return true;
+      case 'csstopno': view.csStop = false; render(); return true;
+      case 'csstopyes': view.csStop = false; SYNCX.leave(who).then(function () { toast('Stopped sharing'); render(); }, function (e) { toast(authMsg(e)); render(); }); return true;
+      case 'coopen': view.co = { tab: 'up' }; render(); return true;
+      case 'coclose': view.co = null; render(); return true;
+      case 'cotab': view.co = { tab: v, email: val('coemail'), name: val('coname'), team: val('coteam') }; render(); return true;
+      case 'cosignup': case 'cosignin': {
+        var C0 = view.co, email = val('coemail'), pw = val('copass'), nm = val('coname'), tm = val('coteam');
+        C0.email = email; C0.name = nm; C0.team = tm; C0.err = null; C0.msg = null;
+        if (act === 'cosignup' && (!nm.trim() || !tm.trim())) { C0.err = 'Add your name and a team name.'; render(); return true; }
+        C0.busy = true; render();
+        (act === 'cosignup' ? SYNCX.coachSignUp(email, pw, nm, tm) : SYNCX.coachSignIn(email, pw)).then(function (c) {
+          view.co = null; CO.cache = {}; CO.loaded = false;
+          if (!c.team) { toast('Signed in – no team yet'); view.screen = 'archive'; render(); return; }
+          view.screen = 'athletes'; render(); coPull(); }, function (e) { C0.busy = false; C0.err = authMsg(e); render(); }); return true; }
+      case 'coforgot': { var em = val('coemail'), C1 = view.co; if (!em.trim()) { C1.err = 'Type your email first.'; render(); return true; }
+        SYNCX.coachReset(em).then(function () { C1.err = null; C1.msg = 'Check your email for a link to set a new password.'; C1.email = em; render(); }, function (e) { C1.err = authMsg(e); render(); }); return true; }
+      case 'copw': view.coPw = !view.coPw; render(); return true;
+      case 'copwsave': SYNCX.coachPassword(val('copwnew')).then(function () { view.coPw = false; toast('Password changed'); render(); }, function (e) { toast(authMsg(e)); }); return true;
+      case 'coout': exitAthlete(); SYNCX.coachSignOut(); CO.cache = {}; CO.loaded = false; view.screen = 'archive'; toast('Signed out'); render(); return true;
+      case 'codel': view.coDel = true; render(); return true;
+      case 'codelno': view.coDel = false; render(); return true;
+      case 'codelyes': view.coDel = false; var k0 = coKey(); SYNCX.coachDelete().then(function () { if (k0) idbSet(k0, {}); CO.cache = {}; toast('Coach account deleted'); view.screen = 'archive'; render(); }, function (e) { toast(authMsg(e)); }); return true;
+      case 'athletes': exitAthlete(); view.screen = 'athletes'; view.hmenu = null; render(); window.scrollTo(0, 0); coPull(); return true;
+      case 'copull': coPull(); return true;
+      case 'coinvite': { var c2 = SYNCX.coach(), url = 'https://scottleland-glitch.github.io/golf-shot-tracker/?team=' + encodeURIComponent(c2.code),
+          txt = 'Join ' + (c2.teamName || 'my team') + ' on Strokewise so I can see your rounds. Open Strokewise → Settings → Connect to a coach and enter ' + c2.code + ', or tap ' + url;
+        if (navigator.share) navigator.share({ title: 'Strokewise team code', text: txt }).catch(function () {}); else { try { navigator.clipboard.writeText(txt); toast('Invite copied'); } catch (e) { toast('Code: ' + c2.code); } } return true; }
+      case 'copen': enterAthlete(v); view.screen = 'mygame'; render(); window.scrollTo(0, 0); return true;
+      case 'coback': exitAthlete(); view.screen = 'athletes'; render(); window.scrollTo(0, 0); return true;
+      case 'coswitch': view.coSw = !view.coSw; view.coRm = false; render(); return true;
+      case 'coremove': view.coRm = true; render(); return true;
+      case 'coremoveno': view.coRm = false; render(); return true;
+      case 'coremoveyes': { var ru = CO.view, rn = CO.ctx && CO.ctx.name; view.coRm = false;
+        SYNCX.coachRemove(ru).then(function () { delete CO.cache[ru]; coSave(); exitAthlete(); view.screen = 'athletes'; toast((rn || 'Athlete') + ' removed'); render(); window.scrollTo(0, 0); }, function (e) { toast(authMsg(e)); }); return true; }
+      case 'copick': { var keep = view.screen; enterAthlete(v); view.screen = keep; render(); window.scrollTo(0, 0); return true; }
+    }
+    return false;
+  }
+  function coInit() {
+    if (!syncOn()) return;
+    var m = /[?&]team=([A-Za-z0-9-]{6,8})/.exec(location.search); // an invite link: open Connect with the code filled in
+    if (m) { view.screen = 'archive'; view.cs = { step: 'code', code: m[1] }; try { history.replaceState(null, '', location.pathname); } catch (e) {} }
+    else if (coachOn()) { view.screen = 'athletes'; coLoad().then(function () { if (view.screen === 'athletes') render(); coPull(); }); }
+    syncDirty(1500);
+    window.addEventListener('online', function () { syncDirty(500); if (coachOn()) coPull(true); });
+    document.addEventListener('visibilitychange', function () { if (document.visibilityState !== 'visible') return; syncDirty(1000); if (coachOn() && (view.screen === 'athletes' || CO.view)) coPull(true); });
+  }
   function archiveHTML() {
     var cur = rounds.filter(function (r) { return r.id === localStorage.getItem(CUR); })[0], nSaved = savedRounds().length;
     var h = '<div class="frostpage theme-sky archivepage"><div class="topbar frost"><button class="txt frostbtn" data-act="home">‹ Home</button><div class="title"><b>Settings</b><span>' + nSaved + ' saved round' + (nSaved === 1 ? '' : 's') + '</span></div><span></span></div>';
@@ -2889,6 +3098,7 @@
     h += '<button class="big frostbtn crsbtn" data-act="courses">⛳ Courses<small>' + (nC ? nC + ' saved' : 'add par &amp; yardages') + '</small></button>';
     if (cur) h += '<button class="danger discard frostdanger" data-act="discard" data-id="' + esc(cur.id) + '">🗑 Discard round in progress' + (cur.course ? ' – ' + esc(cur.course) : '') + '</button>';
     h += '<h2>Your data</h2>' + playerHTML() + (playerName() ? modeRowHTML(playerName(), 'setmoderow') : ''); // v209
+    h += coachCardHTML(); // v212
     if (view.notice) h += '<p class="notice ' + (view.notice.bad ? 'bad' : 'good') + '" id="notice" role="status">' + esc(view.notice.text) + '</p>';
     h += gdCardHTML();
     var rem = gdOn && gdState.connected ? '' : backupReminder(); if (rem) h += '<div class="tiprow" id="bkremind">' + tipBtn('bktip', '💡', 'Backup tip') + tipLbl('bktip', 'Backup tip') + tipText('bktip', esc(rem)) + '</div>';
@@ -5659,6 +5869,8 @@
     var b = ev.target.closest('[data-act]'); if (!b || b.disabled) return;
     var act = b.getAttribute('data-act'), v = b.getAttribute('data-v'), k = +b.getAttribute('data-k');
     var r = round(), h = r && r.holes[view.hole];
+    if (coAct(act, v, b)) return; // v212 coach sharing
+    if (CO.view && act === 'home') { exitAthlete(); view.screen = 'athletes'; render(); window.scrollTo(0, 0); return; } // an athlete's ‹ Home → back to the list
     if (/^sgt/.test(act) && act !== 'sgtoggle') { SGTUI.act(act, v, b); return; } // v166 short game test (v167: not Round stats' Strokes gained toggle, 'sgtoggle')
     switch (act) {
       case 'liveshare': if (!live || !r) return; live.start(r.id); view.liveCard = true; render(); liveSend(r); return;
@@ -6090,7 +6302,7 @@
     return 17;
   }
 
-  gdReturn(); render(); gdInit();
+  gdReturn(); coInit(); render(); gdInit(); // v212: coInit opens a coach's Athletes / an invite link
   if ('serviceWorker' in navigator && location.protocol !== 'file:') {
     // When a new version is installed, reload once so the update shows right away.
     var hadController = !!navigator.serviceWorker.controller, reloaded = false;

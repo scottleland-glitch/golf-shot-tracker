@@ -1,0 +1,43 @@
+{
+  "rules": {
+    "live": {
+      "$id": {
+        ".read": "$id.length >= 24",
+        ".write": "$id.length >= 24"
+      }
+    },
+    "codes": {
+      "$code": {
+        ".read": "auth != null",
+        ".write": "auth != null && ((!data.exists() && newData.isString() && root.child('teams/' + newData.val() + '/info/coach').val() === auth.uid) || (!newData.exists() && root.child('teams/' + data.val() + '/info/coach').val() === auth.uid))"
+      }
+    },
+    "teams": {
+      "$team": {
+        "info": {
+          ".read": "auth != null",
+          ".write": "auth != null && ((!data.exists() && newData.child('coach').val() === auth.uid) || data.child('coach').val() === auth.uid)"
+        },
+        "members": {
+          ".read": "auth != null && root.child('teams/' + $team + '/info/coach').val() === auth.uid",
+          "$uid": {
+            ".read": "auth != null && auth.uid === $uid",
+            ".write": "auth != null && root.child('teams/' + $team + '/info').exists() && (auth.uid === $uid || root.child('teams/' + $team + '/info/coach').val() === auth.uid)"
+          }
+        }
+      }
+    },
+    "data": {
+      "$uid": {
+        ".read": "auth != null && (auth.uid === $uid || (root.child('teams/' + data.child('team').val() + '/info/coach').val() === auth.uid && root.child('teams/' + data.child('team').val() + '/members/' + $uid).exists()))",
+        ".write": "auth != null && auth.uid === $uid"
+      }
+    },
+    "coaches": {
+      "$uid": {
+        ".read": "auth != null && auth.uid === $uid",
+        ".write": "auth != null && auth.uid === $uid"
+      }
+    }
+  }
+}
