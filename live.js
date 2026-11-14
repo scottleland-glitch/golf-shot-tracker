@@ -7,7 +7,7 @@
   'use strict';
   var ALPHA = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
   var TOKEN_LEN = 32; // 62^32 ≈ 2^190 possibilities
-  var PAGE = 'https://scottleland-glitch.github.io/golf-shot-tracker/';
+  var PAGE = 'https://app.strokewise.app/';
   function token(cryptoObj, len) {
     var c = cryptoObj || (root.crypto && root.crypto.getRandomValues ? root.crypto : null) || (typeof require !== 'undefined' ? require('crypto').webcrypto : null);
     if (!c || !c.getRandomValues) throw new Error('No secure random numbers available');

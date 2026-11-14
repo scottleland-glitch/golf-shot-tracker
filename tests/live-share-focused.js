@@ -22,7 +22,7 @@ const noNullsInArrays = o => JSON.stringify(o, (k, v) => { if (Array.isArray(v))
   const t = L.token(fake); assert.ok(calls >= 1 && t.length === 32, 'uses crypto.getRandomValues');
   assert.throws(() => L.token({}), /secure random/, 'no weak fallback');
   assert.strictEqual(L.watchId('?watch=' + t), t); assert.strictEqual(L.watchId('?x=1&watch=short'), null, 'short ids rejected'); assert.strictEqual(L.watchId(''), null);
-  assert.strictEqual(L.link(t), 'https://scottleland-glitch.github.io/golf-shot-tracker/?watch=' + t);
+  assert.strictEqual(L.link(t), 'https://app.strokewise.app/?watch=' + t);
   assert.strictEqual(L.dbUrl(DB + '/', t), DB + '/live/' + t + '.json'); }
 // ---------- 1b. v139: a hole whose tee distance was only pre-filled from the scorecard is NOT started ----------
 { const r = makeRound(); r.holes[5].rows = [R(380, 'tee')]; r.holes[6].rows = [R(160, 'tee', '', '7i')];
@@ -124,7 +124,7 @@ function rig(o) {
   await page.click('[data-act="liveshare"]'); await page.waitForSelector('.livesheet');
   const shared = await page.evaluate(() => window.__shared); assert.strictEqual(shared.length, 1, 'share sheet opened');
   const tok = L.watchId(new URL(shared[0].url).search); assert.ok(tok && tok.length === 32, shared[0].url);
-  assert.ok(shared[0].url.startsWith('https://scottleland-glitch.github.io/golf-shot-tracker/?watch='));
+  assert.ok(shared[0].url.startsWith('https://app.strokewise.app/?watch='));
   assert.strictEqual(shared[0].text, 'Watch Quincy’s round live at Haggin Oaks – the scorecard updates hole by hole.');
   assert.strictEqual(await page.inputValue('#livelink'), shared[0].url);
   await page.waitForFunction(() => /Up to date/.test(document.querySelector('.livesheet .livenote').textContent));

@@ -25,6 +25,10 @@ Every Shot Counts Table 3.10). The other five are ESTIMATED: per-round gaps from
 Player Quality ladder, then spread over the PGA table. Full sources, method and caveats: in-app
 "About the numbers" and the BASELINES comment in `sg.js`.
 
+## New address: app.strokewise.app (v213)
+
+The app now lives at **https://app.strokewise.app/** (GitHub Pages custom domain, `CNAME`); the home page, privacy policy and support pages are at **https://strokewise.app/** (repository strokewise-site). The old scottleland-glitch.github.io address redirects to the new one. Live-share links and coach invite links use the new address. Saved rounds belong to the address they were saved at, so each person moves them once: Back up rounds on the old address before the switch, Restore from backup on the new one.
+
 ## Coach sharing (v212)
 
 Athletes connect to a coach once with a team code; from then on their rounds, short game tests, practice and lessons reach the coach by themselves. The coach just taps a name.

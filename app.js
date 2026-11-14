@@ -3067,7 +3067,7 @@
       case 'codelyes': view.coDel = false; var k0 = coKey(); SYNCX.coachDelete().then(function () { if (k0) idbSet(k0, {}); CO.cache = {}; toast('Coach account deleted'); view.screen = 'archive'; render(); }, function (e) { toast(authMsg(e)); }); return true;
       case 'athletes': exitAthlete(); view.screen = 'athletes'; view.hmenu = null; render(); window.scrollTo(0, 0); coPull(); return true;
       case 'copull': coPull(); return true;
-      case 'coinvite': { var c2 = SYNCX.coach(), url = 'https://scottleland-glitch.github.io/golf-shot-tracker/?team=' + encodeURIComponent(c2.code),
+      case 'coinvite': { var c2 = SYNCX.coach(), url = 'https://app.strokewise.app/?team=' + encodeURIComponent(c2.code),
           txt = 'Join ' + (c2.teamName || 'my team') + ' on Strokewise so I can see your rounds. Open Strokewise → Settings → Connect to a coach and enter ' + c2.code + ', or tap ' + url;
         if (navigator.share) navigator.share({ title: 'Strokewise team code', text: txt }).catch(function () {}); else { try { navigator.clipboard.writeText(txt); toast('Invite copied'); } catch (e) { toast('Code: ' + c2.code); } } return true; }
       case 'copen': enterAthlete(v); view.screen = 'mygame'; render(); window.scrollTo(0, 0); return true;
