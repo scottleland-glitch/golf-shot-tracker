@@ -270,6 +270,37 @@
     });
     return o + '</svg>';
   }
+  // v211 (Scott): My Practice in three time frames – this week (real minutes, Monday to today), the last 30 days and the last 3 months
+  // (average a week) – each against the period before and the benchmark group's week. Before you entered "your typical week", it fills
+  // the 30-day and 3-month pages (less anything already logged then); the week page is real logs only.
+  function localDay(str) { var m = /^(\d{4})-(\d{2})-(\d{2})/.exec(str || ''); return m ? new Date(+m[1], +m[2] - 1, +m[3], 12).getTime() : Date.parse(str); }
+  function practiceWindows(logs, opts) {
+    opts = opts || {}; var now = opts.now == null ? Date.now() : +opts.now, B = practiceBench(opts.bl), V = validPractice(logs), typ = opts.typical;
+    var t0 = new Date(now); t0.setHours(0, 0, 0, 0); var mon = t0.getTime() - ((t0.getDay() + 6) % 7) * DAY, end = t0.getTime() + DAY;
+    var tot = B.spokes.reduce(function (x, s) { return x + s.wk; }, 0) || 1, set = typ && typ.weekMin > 0 ? localDay(typ.set) : NaN, base = 0;
+    if (!isNaN(set)) { var before = V.reduce(function (x, e) { var te = localDay(e.date); return te < set && te >= set - 56 * DAY ? x + e.min : x; }, 0) / 8; base = Math.max(0, typ.weekMin - before); }
+    function win(from, to, weeks, fill) {
+      var by = {}; SPOKES.forEach(function (s) { by[s.k] = 0; });
+      V.forEach(function (e) { var te = localDay(e.date); if (te >= from && te < to) by[e.spoke] += e.min; });
+      var filled = 0; if (fill && base > 0) { filled = Math.max(0, Math.min(to, set) - from) / DAY; if (filled > 0) SPOKES.forEach(function (s, i) { by[s.k] += base / 7 * filled * B.spokes[i].wk / tot; }); }
+      var spokes = SPOKES.map(function (s, i) { var wk = by[s.k] / weeks, target = B.spokes[i].wk; return { k: s.k, name: s.name, wk: wk, target: target, frac: target ? wk / target : 0 }; });
+      return { wk: spokes.reduce(function (x, s) { return x + s.wk; }, 0), spokes: spokes, bench: B, filled: filled };
+    }
+    var defs = [['week', 'This week', mon, end, 1, false, 'Last week', 'last week'], ['30d', 'Last 30 days', end - 30 * DAY, end, 30 / 7, true, 'The 30 days before', 'the 30 days before'],
+      ['3m', 'Last 3 months', end - 91 * DAY, end, 13, true, 'The 3 months before', 'the 3 months before']];
+    return defs.map(function (d) {
+      var len = d[3] - d[2], cur = win(d[2], d[3], d[4], d[5]), prev = win(d[2] - (d[0] === 'week' ? 7 * DAY : len), d[2], d[4], d[5]), head, lede = '';
+      var top = cur.spokes.filter(function (x) { return x.wk >= 1; }).sort(function (a, b) { return b.wk - a.wk; });
+      var cmp = prev.wk >= 1 ? (Math.abs(cur.wk - prev.wk) < Math.max(5, prev.wk * 0.05) ? 'About the same as ' + d[7] + ' (' + hm(prev.wk) + (d[0] === 'week' ? '' : ' a week') + ').' :
+        (cur.wk > prev.wk ? 'Up from ' : 'Down from ') + hm(prev.wk) + (d[0] === 'week' ? ' last week.' : ' a week in ' + d[7] + '.')) : '';
+      if (d[0] === 'week') {
+        head = cur.wk >= 1 ? hm(cur.wk) : 'New week';
+        lede = cur.wk >= 1 ? (top.length === 1 ? 'All ' + top[0].name.toLowerCase() + '. ' : 'Mostly ' + top[0].name.toLowerCase() + ' and ' + top[1].name.toLowerCase() + '. ') + cmp
+          : prev.wk >= 1 ? 'Last week: ' + hm(prev.wk) + '.' : 'Nothing logged yet this week.';
+      } else { head = cur.wk >= 1 ? hm(cur.wk) + ' a week' : 'Nothing logged yet'; lede = cur.wk >= 1 ? cmp : ''; }
+      return { id: d[0], label: d[1], from: d[2], to: d[3], cur: cur, prev: prev.wk >= 1 ? prev : null, prevName: d[6], head: head, lede: lede, typicalUntil: cur.filled > 0 ? set : null };
+    });
+  }
   // What the level card says: level now, vs the benchmark, and whether this week is building it up or letting it fade.
   function practiceLevelText(logs, opts) {
     opts = opts || {}; var now = opts.now == null ? Date.now() : +opts.now, p = period(opts.period);
@@ -509,7 +540,7 @@
   }
 
   var FOCUS_HINT = { Mechanics: 'takeaway, swing plane, weight transfer…' };
-  var API = { TAU: TAU, TAU_ACUTE: TAU_ACUTE, PRAC_BENCH: PRAC_BENCH, PRAC_SPLIT: PRAC_SPLIT, CLUB_AVG_H: CLUB_AVG_H, practiceBench: practiceBench, practiceLevel: practiceLevel, practiceLevelSVG: practiceLevelSVG, practiceLevelText: practiceLevelText,
+  var API = { TAU: TAU, TAU_ACUTE: TAU_ACUTE, PRAC_BENCH: PRAC_BENCH, PRAC_SPLIT: PRAC_SPLIT, CLUB_AVG_H: CLUB_AVG_H, practiceBench: practiceBench, practiceLevel: practiceLevel, practiceLevelSVG: practiceLevelSVG, practiceWindows: practiceWindows, practiceLevelText: practiceLevelText,
     STRONG: STRONG, FOCUS: FOCUS, FOCUS_HINT: FOCUS_HINT, validPractice: validPractice, mergePractice: mergePractice, practiceShape: practiceShape, practiceBuild: practiceBuild, practiceSVG: practiceSVG,
     practiceVsGame: practiceVsGame, drillFocus: drillFocus, hm: hm,
     SEASON_BENCH: SEASON_BENCH, seasonBuild: seasonBuild, seasonSVG: seasonSVG, playWeeksBuild: playWeeksBuild, playWeeksSVG: playWeeksSVG, playWeeksAxis: playWeeksAxis, ROUND_H: ROUND_H,     PLAY_KINDS: PLAY_KINDS, playOf: playOf, playTally: playTally, playingBuild: playingBuild, kindCompare: kindCompare, holesText: holesText, MIN_EACH: MIN_EACH, CMP_AREAS: CMP_AREAS,

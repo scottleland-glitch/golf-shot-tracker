@@ -3023,3 +3023,17 @@ html body .weekcard.isfull .wkpdots { margin-top: 16px; } html body .weekcard.is
 .moderow b { display: block; font-size: 16px; }
 .moderow small { display: block; font-size: 13px; color: #5b6660; margin-top: 2px; }
 .moderow .prchips { flex: none; display: flex; gap: 6px; }
+/* v211: My Practice in three time frames – this week, last 30 days, last 3 months; tap for full screen */
+html body .prchart .prpages { cursor: pointer; }
+html body .prchart .prper { display: block; font-size: 13px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: #1f6f4a; margin-top: 4px; }
+html body .prchart .prh { margin: 2px 0 4px; }
+html body .prchart .prlede2 { margin: 0 0 4px; color: #3f5a48; font-size: 15px; min-height: 20px; }
+html body .prchart .prtyp { color: #6b7d71; font-size: 13px; }
+html body .prchart .prpage .mglegend { flex-wrap: wrap; justify-content: center; }
+html body .mgchart.prchart.isfull { position: fixed; z-index: 95; left: 0; right: 0; top: 0; bottom: 0; margin: 0; border-radius: 0; overflow-y: auto; -webkit-overflow-scrolling: touch;
+  padding: calc(env(safe-area-inset-top) + 34px) 18px calc(env(safe-area-inset-bottom) + 24px); background: linear-gradient(180deg, #eef3f6, #f6f1e4); transition: transform .18s ease; }
+html body .prchart .wkgrab { position: absolute; left: 50%; top: calc(env(safe-area-inset-top) + 10px); width: 40px; height: 5px; margin-left: -20px; border-radius: 3px; background: rgba(23, 48, 31, .25); }
+html body .prchart .wkx { position: absolute; right: 14px; top: calc(env(safe-area-inset-top) + 8px); width: 36px; height: 36px; min-height: 36px; padding: 0; border-radius: 50%; border: 0; background: rgba(23, 48, 31, .08); font-size: 16px; color: #17301f; }
+html body .prchart.isfull .prpages { cursor: default; } html body .prchart.isfull .prh { font-size: 28px; } html body .prchart.isfull .prlede2 { font-size: 16px; }
+html body .prchart.isfull .wkpdots { margin-top: 16px; } html body .prchart.isfull .wkpdots i { width: 8px; height: 8px; } html body .prchart.isfull .wkpdots i.on { width: 22px; }
+html body .prchart.isfull .prpage { padding-top: 6px; } html body .prchart.isfull .radar { margin: 10px 0 6px; } html body .prchart.isfull .prhow { margin-top: 18px; }

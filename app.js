@@ -2648,17 +2648,18 @@
     return o + '<line x1="' + X0 + '" x2="' + X1 + '" y1="' + Y1 + '" y2="' + Y1 + '" class="wkbase"/></svg>';
   }
   // v206: the three views swipe (CSS scroll-snap); this keeps the dots in step and the view across re-renders
-  function wkStart() { var c = document.getElementById('wkpages'); if (!c) return; var pg = view.wkPage || 0;
-    document.body.classList.toggle('wkopen', !!view.wkFull); // v207: no page scroll behind the full-screen card
-    var card = document.getElementById('weekcard'), old = document.querySelectorAll('body > .weekcard'); [].forEach.call(old, function (x) { if (x !== card) x.remove(); });
-    if (view.wkFull && card && card.parentNode !== document.body) { var ph = document.createElement('div'); ph.className = 'wkph'; ph.style.height = card.offsetHeight + 'px'; card.parentNode.insertBefore(ph, card); document.body.appendChild(card); } // on <body>: iPhone pins "fixed" to the screen, not the page
-    if (view.wkFull && card) { var y0 = null, x0 = 0, dy = 0; // swipe down to close (only from the top, and only a mostly-down drag)
+  function wkStart() { swipeCard('weekcard', 'wkpages', 'wkFull', 'wkPage'); swipeCard('prcard', 'prpages', 'prFull', 'prPage'); document.body.classList.toggle('wkopen', !!(view.wkFull || view.prFull)); }
+  // v211: the swipe pages, full screen on body and swipe down to close – shared by This week and My Practice
+  function swipeCard(cardId, pagesId, FK, PK) { var c = document.getElementById(pagesId); if (!c) return; var pg = view[PK] || 0;
+    var card = document.getElementById(cardId), old = document.querySelectorAll('body > #' + cardId); [].forEach.call(old, function (x) { if (x !== card) x.remove(); });
+    if (view[FK] && card && card.parentNode !== document.body) { var ph = document.createElement('div'); ph.className = 'wkph'; ph.style.height = card.offsetHeight + 'px'; card.parentNode.insertBefore(ph, card); document.body.appendChild(card); } // on <body>: iPhone pins "fixed" to the screen, not the page
+    if (view[FK] && card) { var y0 = null, x0 = 0, dy = 0; // swipe down to close (only from the top, and only a mostly-down drag)
       card.addEventListener('touchstart', function (e) { if (card.scrollTop > 0) { y0 = null; return; } y0 = e.touches[0].clientY; x0 = e.touches[0].clientX; dy = 0; }, { passive: true });
       card.addEventListener('touchmove', function (e) { if (y0 == null) return; dy = e.touches[0].clientY - y0; var dx = Math.abs(e.touches[0].clientX - x0); if (dx > Math.abs(dy)) { y0 = null; card.style.transform = ''; return; } if (dy > 0) card.style.transform = 'translateY(' + Math.min(dy, 240) * 0.6 + 'px)'; }, { passive: true });
-      card.addEventListener('touchend', function () { if (y0 == null) return; y0 = null; if (dy > 90) { view.wkFull = false; render(); } else card.style.transform = ''; }, { passive: true }); }
+      card.addEventListener('touchend', function () { if (y0 == null) return; y0 = null; if (dy > 90) { view[FK] = false; render(); } else card.style.transform = ''; }, { passive: true }); }
     if (pg) c.scrollLeft = pg * c.clientWidth;
-    c.addEventListener('scroll', function () { var i = Math.round(c.scrollLeft / Math.max(1, c.clientWidth)); if (i === view.wkPage) return; view.wkPage = i;
-      [].forEach.call(document.querySelectorAll('#weekcard .wkpdots i'), function (d, j) { d.classList.toggle('on', j === i); }); }, { passive: true }); }
+    c.addEventListener('scroll', function () { var i = Math.round(c.scrollLeft / Math.max(1, c.clientWidth)); if (i === view[PK]) return; view[PK] = i;
+      [].forEach.call(document.querySelectorAll('#' + cardId + ' .wkpdots i'), function (d, j) { d.classList.toggle('on', j === i); }); }, { passive: true }); }
   // v208 (Scott): one line on why the time is split the way it is – every group at least 20 %, extra for the leak, fading over 4 weeks
   function balanceLine(P) {
     var G = (P.groups || []).filter(function (g) { return g.boost; }).sort(function (a, b) { return b.share - a.share; }), pc = function (v) { return Math.round(v * 20) * 5 + '%'; };
@@ -2845,15 +2846,25 @@
     var logs = practiceOf(who), PB = MYGAME.practiceBuild(logs, { period: D.period }), P = PB.period;
     // v155: the chart is your practice LEVEL (builds with each session, fades without practice) against your benchmark group's average
     var LT = MYGAME.practiceLevelText(logs, { period: P, bl: D.baseline, typical: typicalOf(who) }), ago = P.id === '30d' ? '30 days ago' : P.id === '3m' ? '3 months ago' : P.id === '1y' ? 'a year ago' : '';
-    var o = '<div class="mgchart prchart frost" id="prcard"><div class="prcardh"><span class="tkeye">My Practice</span><button class="mgadd" data-act="prlog" id="prplus" aria-label="Log practice">+</button></div><h2 id="prhead">' + esc(LT.headline) + '</h2><p id="prlede">' + esc(LT.lede) + (LT.trend ? ' ' + esc(LT.trend) : '') + '</p>';
-    o += MYGAME.practiceLevelSVG(LT.level, LT.prev, { R: 96, aria: 'Practice level by skill, against ' + LT.level.bench.who }) +
-      '<div class="mglegend"><span><i class="lpc"></i>Your level now</span>' + (LT.prev && ago ? '<span><i class="lp"></i>' + ago + '</span>' : '') +
-      '<span><i class="lb"></i>' + esc(LT.level.bench.who.charAt(0).toUpperCase() + LT.level.bench.who.slice(1)) + ' avg</span></div>' +
-      '<p class="prlog" id="prlogged">' + esc(P.name) + ': ' + (PB.cur.total ? esc(PB.headline) + ' logged' : 'nothing logged') + '.</p>' +
-      '<details class="prhow" id="prhow"><summary>How the level works</summary><p>Each session adds to your level and it fades when you stop – the same way sports scientists track training load ' +
-      '(a 42-day average). Practise steadily and it is about two-thirds built after 6 weeks and nearly full after 3 months; stop and it halves in about 4 weeks.</p>' +
-      '<p>The dashed ring is what ' + esc(LT.level.bench.who) + ' practise, about ' + LT.level.bench.h + ' h a week, split 40% full swing and 60% short game and putting. ' +
-      'The average club golfer practises about ' + LT.clubH + ' h a week.</p><p>Skill fades much more slowly than the habit: studies find about half of a learned skill’s gains are lost only after 6–12 months without use.</p></details>';
+    // v211 (Scott): three time frames – this week first, swipe for the last 30 days and the last 3 months; tap for full screen
+    var PW = MYGAME.practiceWindows(logs, { bl: D.baseline, typical: typicalOf(who) }), pg = Math.min(2, view.prPage || 0), full = !!view.prFull, bw = LT.level.bench.who;
+    var short = function (t) { return t.replace(/ h /, 'h ').replace(/ min/, 'm').replace(/^(\d+) h$/, '$1h'); };
+    var o = '<div class="mgchart prchart frost' + (full ? ' isfull' : '') + '" id="prcard"' + (full ? ' role="dialog" aria-modal="true" aria-label="My Practice, full screen"' : '') + '>' +
+      (full ? '<div class="wkgrab" aria-hidden="true"></div><button class="wkx" data-act="prclose" id="prclose" aria-label="Close">✕</button>' : '') +
+      '<div class="prcardh"><span class="tkeye">My Practice</span>' + (full ? '' : '<button class="mgadd" data-act="prlog" id="prplus" aria-label="Log practice">+</button>') + '</div>' +
+      '<div class="wkpages prpages" id="prpages"' + (full ? '' : ' data-act="prfull" role="button" tabindex="0" aria-label="My Practice – tap for full screen"') + '>';
+    PW.forEach(function (W, i) {
+      var svg = MYGAME.practiceLevelSVG(W.cur, W.prev, { R: 96, aria: W.label + ': practice by skill, against ' + bw });
+      if (W.id === 'week') svg = svg.replace(/(<text class="plv"[^>]*>)([^<]*)\/wk</g, function (m0, t, v) { return t + v + '<'; }); // this week: real minutes, not a rate
+      svg = svg.replace(/(<text class="plv"[^>]*>)([^<]*)</g, function (m0, t, v) { return t + short(v) + '<'; });
+      o += '<div class="wkpage prpage" data-p="' + W.id + '"><small class="prper">' + esc(W.label) + '</small><h2' + (i === 0 ? ' id="prhead"' : '') + ' class="prh">' + esc(W.head) + '</h2>' +
+        '<p class="prlede2"' + (i === 0 ? ' id="prlede"' : '') + '>' + esc(W.lede) + (W.typicalUntil ? ' <span class="prtyp">Uses your typical week before ' + esc(new Date(W.typicalUntil).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })) + '.</span>' : '') + '</p>' + svg +
+        '<div class="mglegend"><span><i class="lpc"></i>' + esc(W.label) + '</span>' + (W.prev ? '<span><i class="lp"></i>' + esc(W.prevName) + '</span>' : '') +
+        '<span><i class="lb"></i>' + esc(bw.charAt(0).toUpperCase() + bw.slice(1)) + ' a week</span></div></div>'; });
+    o += '</div><div class="wkpdots prdots" aria-hidden="true">' + [0, 1, 2].map(function (i) { return '<i class="' + (i === pg ? 'on' : '') + '"></i>'; }).join('') + '</div>' +
+      '<details class="prhow" id="prhow"' + (full ? ' open' : '') + '><summary>How these work</summary><p>This week is real minutes, Monday to today. The 30-day and 3-month pages are your average a week. The grey shape is the period before, so you can see what changed.</p>' +
+      '<p>Before you entered your typical week, it fills in the 30-day and 3-month pages (less anything you’d already logged), so a new start doesn’t look empty. This week is your real logs only.</p>' +
+      '<p>The dashed ring is what ' + esc(bw) + ' practise in a week, about ' + LT.level.bench.h + ' h, split 40% full swing and 60% short game and putting. The average club golfer practises about ' + LT.clubH + ' h a week.</p></details>';
     o += '</div>';
     if (part === 'spider') return o; if (part === 'rest') o = '';
     var V = MYGAME.practiceVsGame(D.cur, PB.cur);
@@ -5730,6 +5741,8 @@
         savePractice(lst5); view.sess = null; toast('Session logged – ' + MYGAME.hm(SS.min) + ' 👍'); render(); window.scrollTo(0, 0); return; }
       case 'wkoff': view.wkOff = Math.max(0, Math.min(25, (view.wkOff || 0) + k)); render(); return;
       case 'wkfull': if (!view.wkFull) { view.wkFull = true; render(); } return; // v207
+      case 'prfull': if (!view.prFull) { view.prFull = true; render(); } return; // v211
+      case 'prclose': view.prFull = false; render(); var pc0 = document.getElementById('prcard'); if (pc0 && pc0.scrollIntoView) pc0.scrollIntoView({ block: 'center' }); return;
       case 'wkclose': view.wkFull = false; render(); var wc = document.getElementById('weekcard'); if (wc && wc.scrollIntoView) wc.scrollIntoView({ block: 'center' }); return;
       case 'planlog': { var pq = String(v || '').split('|'); prOpen({ spoke: pq[0], focus: pq[1], min: +pq[2] || 15 }); return; } // v203
       case 'touredit': { var tw = mgWho(), to = tourOf(tw); view.tourEdit = { date: to ? to.date : '', big: to ? !!to.big : true }; render(); return; }
@@ -6090,7 +6103,7 @@
   // The app is one page, so Back used to leave it. Now, whenever there's somewhere to go back to (a sheet or picture open, or
   // any screen but Home), one extra history entry sits on top; Back pops it and we press the app's own back/close for that
   // spot, then put the entry back if there's still somewhere to go. On Home with nothing open, Back leaves as before.
-  var BACK_OVERLAY = ['exitno', 'wkclose', 'storyfullclose', 'storyclose', 'pdfclose', 'mapclose', 'rpgreenback', 'rpclose', 'rpback', 'mvcancel', 'mvclose', 'sendclose', 'liveclose',
+  var BACK_OVERLAY = ['exitno', 'wkclose', 'prclose', 'storyfullclose', 'storyclose', 'pdfclose', 'mapclose', 'rpgreenback', 'rpclose', 'rpback', 'mvcancel', 'mvclose', 'sendclose', 'liveclose',
     'gdrback', 'gdrclose', 'dirclose', 'pinclose', 'nearclose', 'addclose', 'grclose', 'prcancel', 'npcancel', 'namecancel', 'sgtintroback'];
   function shown(el) { return !!(el && el.getClientRects().length); }
   function backTarget() {

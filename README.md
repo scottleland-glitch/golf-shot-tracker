@@ -25,6 +25,16 @@ Every Shot Counts Table 3.10). The other five are ESTIMATED: per-round gaps from
 Player Quality ladder, then spread over the PGA table. Full sources, method and caveats: in-app
 "About the numbers" and the BASELINES comment in `sg.js`.
 
+## My Practice: this week, 30 days, 3 months (v211)
+
+The My Practice card on My Game now has three pages – swipe between them, tap for full screen (swipe down or ✕ to close):
+
+1. **This week** (first) – real minutes per skill, Monday to today, against last week. "New week" on a Monday before anything is logged.
+2. **Last 30 days** – average a week per skill (matches the monthly test), against the 30 days before.
+3. **Last 3 months** – average a week per skill, against the 3 months before.
+
+Each page shows the same dashed benchmark ring (your benchmark group's week), so they compare directly. The plain amounts replace the old fading "practice level" on this card – easier to read, and the pages themselves show whether practice is building or fading. Your typical week fills in the 30-day and 3-month pages for the days before you entered it (less anything already logged); this week is real logs only.
+
 ## Practice level starts from your typical week (v210)
 
 The My Practice level (the radar on My Game) is a 6-week rolling average, so a few logged sessions used to read as a tiny level even for someone who practises a lot. It now starts from "your typical week":

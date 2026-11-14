@@ -221,3 +221,20 @@ test('practice level: the typical week counts until you entered it, then hands o
   const B = M.practiceLevelText([{ id: 'x', date: d(20), spoke: 'lag', min: 480 }], { bl: 'd1w', now: NOW }).level.wk;
   assert.ok(A - B < 0.2 * 60 + 1, 'typical 1 h/wk already covered by 8 h logged: ' + (A - B));
 });
+
+// v211 (Scott): My Practice in three time frames
+test('practice windows: this week (real minutes), last 30 days and last 3 months (a week), each against the period before', () => {
+  const now = new Date(2026, 10, 13, 18).getTime(), ld = (n) => { const t = new Date(now - n * day); return t.getFullYear() + '-' + String(t.getMonth() + 1).padStart(2, '0') + '-' + String(t.getDate()).padStart(2, '0'); }; // a Friday
+  const logs = [[0, 'short', 60], [2, 'lag', 60], [6, 'chip', 30], [20, 'irons', 210], [50, 'drive', 120]].map((x, i) => ({ id: 'w' + i, date: ld(x[0]), spoke: x[1], min: x[2] }));
+  const W = M.practiceWindows(logs, { bl: 'd1w', now });
+  assert.deepStrictEqual(W.map((w) => w.id), ['week', '30d', '3m']);
+  assert.strictEqual(Math.round(W[0].cur.wk), 120, 'Mon–Fri: 2 h (Saturday before is last week)'); assert.strictEqual(W[0].head, '2 h');
+  assert.match(W[0].lede, /^Mostly (short putts and lag putts|lag putts and short putts)\. Up from 30 min last week\.$/);
+  assert.strictEqual(Math.round(W[1].cur.wk), Math.round(360 / (30 / 7)), '6 h over 30 days, a week'); assert.match(W[1].lede, /^Up from 28 min a week in the 30 days before\.$/);
+  assert.strictEqual(Math.round(W[2].cur.wk), Math.round(480 / 13)); assert.strictEqual(W[2].prev, null, 'nothing in the 3 months before');
+  const mon = M.practiceWindows([{ id: 'x', date: ld(6), spoke: 'chip', min: 30 }], { bl: 'd1w', now: new Date(2026, 10, 9, 8).getTime() })[0];
+  assert.strictEqual(mon.head, 'New week'); // Monday morning: nothing yet
+  // the typical week fills the 30-day and 3-month pages before you entered it – never this week
+  const T = M.practiceWindows(logs, { bl: 'd1w', now, typical: { weekMin: 360, set: ld(2) } });
+  assert.strictEqual(Math.round(T[0].cur.wk), 120); assert.ok(T[1].cur.wk > 300 && T[1].cur.wk < 420, T[1].cur.wk); assert.ok(T[1].typicalUntil);
+});

@@ -39,10 +39,13 @@ for (let i = 0; i < 6; i++) rounds.push(Object.assign(ARC.round(), { id: 'g' + i
     const saved = await page.evaluate(() => JSON.parse(localStorage.getItem('golfsg.practice.v1')));
     assert.strictEqual(saved.length, 3); assert.ok(saved.every(e => e.player === 'Scott' && /T12:00:00$/.test(e.date)));
     assert.deepStrictEqual(saved.map(e => e.focus + ' ' + e.min).sort(), ['Green-side chipping 30', 'Lag putting 20', 'Putting speed control 10']);
-    // v155: the card shows the practice LEVEL (42-day decaying average) against the benchmark; 1 h today ≈ 10 min a week
-    assert.strictEqual(await page.textContent('#prhead'), 'Practice level: 10 min a week');
-    assert.match(await page.textContent('#prlede'), /average about \d+ h a week – you are at (under 1|\d+)% of that\. This week’s pace .* is building it up\.$/);
-    assert.strictEqual(await page.textContent('#prlogged'), 'Last 3 months: 1 h in 1 session logged.');
+    // v211: three time frames – this week first (real minutes), then the last 30 days and the last 3 months (average a week)
+    assert.strictEqual(await page.textContent('#prhead'), '1 h');
+    assert.match(await page.textContent('#prlede'), /^(Mostly (green-side )?chipping and \w[\w ]*\.|All chipping\.) ?$/i);
+    assert.deepStrictEqual(await page.$$eval('#prpages .prper', e => e.map(x => x.textContent)), ['This week', 'Last 30 days', 'Last 3 months']);
+    assert.deepStrictEqual(await page.$$eval('#prpages .prh', e => e.map(x => x.textContent)), ['1 h', '14 min a week', '5 min a week']);
+    await page.click('#prpages'); await page.waitForSelector('#prcard.isfull'); assert.ok(await page.evaluate(() => document.getElementById('prcard').parentNode === document.body), 'full screen on body');
+    await page.click('#prclose'); await page.waitForTimeout(250); assert.strictEqual(await page.$('#prcard.isfull'), null); // v211: tap → full screen, ✕ closes
     assert.ok(await page.$('#prcard .pbench'), 'benchmark ring drawn');
     assert.ok(await page.$('#prcard .pcur'), 'practice shape drawn');
     assert.strictEqual(await page.$('#prlist'), null, 'v194: the list is on the Practice page'); await page.click('#tbpractice'); await page.waitForSelector('#practicepage');
