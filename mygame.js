@@ -230,11 +230,21 @@
   function practiceBench(bl) { var b = PRAC_BENCH[bl] || PRAC_BENCH.pga; return { id: PRAC_BENCH[bl] ? bl : 'pga', h: b.h, who: b.who,
     spokes: SPOKES.map(function (s) { return { k: s.k, wk: b.h * 60 * PRAC_SPLIT[s.k] }; }) }; }
   // Level (minutes a week) per skill on the day `at`, from every session on or before it.
-  function practiceLevel(logs, at, tau, bl) {
+  function practiceLevel(logs, at, tau, bl, typ) {
     tau = tau || TAU; var t = at == null ? Date.now() : +at, a = 1 - Math.exp(-1 / tau), by = {}, B = practiceBench(bl);
     SPOKES.forEach(function (s) { by[s.k] = 0; });
-    validPractice(logs).forEach(function (e) { var te = Date.parse(e.date); if (!(te <= t + DAY / 2)) return;
+    var V = validPractice(logs);
+    V.forEach(function (e) { var te = Date.parse(e.date); if (!(te <= t + DAY / 2)) return;
       var d = Math.max(0, Math.round((t - te) / DAY)); by[e.spoke] += e.min * a * Math.exp(-d / tau); });
+    // v210 (Scott): "your typical week" is how much you practised before the app knew – it counts in full up to the day you entered it
+    // (less anything you'd already logged then, so nothing counts twice), then hands over to real logs over 4 weeks, split across
+    // skills like your benchmark group's practice.
+    if (typ && typ.weekMin > 0) {
+      var from = Date.parse(typ.set); if (isNaN(from)) from = V.reduce(function (m, e) { var te = Date.parse(e.date); return te < m ? te : m; }, t); from = Math.min(from, t);
+      var before = V.reduce(function (x, e) { var te = Date.parse(e.date); return te < from && te >= from - 56 * DAY ? x + e.min : x; }, 0) / 8, base = Math.max(0, typ.weekMin - before);
+      var tot = B.spokes.reduce(function (x, s) { return x + s.wk; }, 0) || 1, w = 0;
+      for (var d = 0; d < 8 * tau; d++) { var day = t - d * DAY, f = day < from ? 1 : Math.max(0, 1 - (day - from) / DAY / 28); if (f > 0) w += f * a * Math.exp(-d / tau); }
+      SPOKES.forEach(function (s, i) { by[s.k] += base / 7 * B.spokes[i].wk / tot * w; }); }
     var spokes = SPOKES.map(function (s, i) { var wk = by[s.k] * 7, target = B.spokes[i].wk; return { k: s.k, name: s.name, wk: wk, target: target, frac: target ? wk / target : 0 }; });
     var wk = spokes.reduce(function (x, s) { return x + s.wk; }, 0);
     return { wk: wk, frac: wk / (B.h * 60), bench: B, spokes: spokes };
@@ -263,7 +273,7 @@
   // What the level card says: level now, vs the benchmark, and whether this week is building it up or letting it fade.
   function practiceLevelText(logs, opts) {
     opts = opts || {}; var now = opts.now == null ? Date.now() : +opts.now, p = period(opts.period);
-    var L = practiceLevel(logs, now, TAU, opts.bl), A = practiceLevel(logs, now, TAU_ACUTE, opts.bl), P = p.days ? practiceLevel(logs, now - p.days * DAY, TAU, opts.bl) : null;
+    var L = practiceLevel(logs, now, TAU, opts.bl, opts.typical), A = practiceLevel(logs, now, TAU_ACUTE, opts.bl), P = p.days ? practiceLevel(logs, now - p.days * DAY, TAU, opts.bl, opts.typical) : null; // v210: the level starts from your typical week; this week's pace is real logs only
     var pc = Math.round(L.frac * 100), lvl = L.wk >= 1 ? hm(L.wk) + ' a week' : 'nothing yet';
     var headline = L.wk >= 1 ? 'Practice level: ' + lvl : 'No practice level yet';
     var lede = L.bench.who.charAt(0).toUpperCase() + L.bench.who.slice(1) + ' average about ' + L.bench.h + ' h a week' + (L.wk >= 1 ? ' – you are at ' + (pc < 1 ? 'under 1' : pc) + '% of that.' : '.');

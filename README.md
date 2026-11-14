@@ -25,6 +25,15 @@ Every Shot Counts Table 3.10). The other five are ESTIMATED: per-round gaps from
 Player Quality ladder, then spread over the PGA table. Full sources, method and caveats: in-app
 "About the numbers" and the BASELINES comment in `sg.js`.
 
+## Practice level starts from your typical week (v210)
+
+The My Practice level (the radar on My Game) is a 6-week rolling average, so a few logged sessions used to read as a tiny level even for someone who practises a lot. It now starts from "your typical week":
+
+- Your typical week counts as your practice up to the day you entered it (less anything you'd already logged in the 8 weeks before, so nothing counts twice).
+- From that day it hands over to your real logs over 4 weeks – the same as the practice plan's time budget.
+- It's split across skills like your benchmark group's practice until your logs show your own split.
+- "This week's pace" is still real logs only.
+
 ## Just stats, or stats + practice (v209)
 
 Each player chooses how they use Strokewise:

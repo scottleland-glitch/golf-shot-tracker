@@ -204,3 +204,20 @@ test('v184 weekly play + practice: rounds as hours (18 holes = 5 h), Monday week
   assert.strictEqual(M.playWeeksBuild([], [], SG, { now }).weeks.length, 16, 'at least 16 weeks'); assert.strictEqual(M.playWeeksBuild([], [], SG, { now }).headline, 'Nothing played or practised in the last 12 weeks');
   const B = M.playWeeksBuild([], [], SG, { now, baseline: 'd1w', bench: true }); assert.ok(B.weeks.some((w) => w.bench > 0)); assert.match(B.lede, /D1 college women spend about/);
 });
+
+// v210 (Scott): the practice level starts from "your typical week" – a few logged sessions no longer read as a tiny level
+test('practice level: the typical week counts until you entered it, then hands over to real logs over 4 weeks', () => {
+  const d = (n) => new Date(NOW - n * day).toISOString().slice(0, 10);
+  const logs = [[60, 'lag', 150], [30, 'irons', 150], [5, 'short', 120], [3, 'wedges', 120], [1, 'lag', 120]].map((x, i) => ({ id: 'p' + i, date: d(x[0]), spoke: x[1], min: x[2] }));
+  const lvl = (typ) => M.practiceLevelText(logs, { bl: 'd1w', now: NOW, typical: typ }).level.wk;
+  const none = lvl(null), six = lvl({ weekMin: 360, set: d(2) });
+  assert.ok(none < 90, 'logs alone, built up slowly: ' + none);
+  assert.ok(six > 330 && six < 420, '6 h typical + this week: ' + six);
+  assert.ok(lvl({ weekMin: 360, set: d(30) }) < six && lvl({ weekMin: 360, set: d(60) }) < lvl({ weekMin: 360, set: d(30) }), 'hands over as real logs take over');
+  assert.ok(Math.abs(M.practiceLevelText([], { bl: 'd1w', now: NOW, typical: { weekMin: 360, set: d(0) } }).level.wk - 360) < 5, 'no logs yet: your typical week');
+  assert.strictEqual(lvl({ weekMin: 0, skipped: true, set: d(2) }), none, 'skipped: logs only');
+  // anything logged in the 8 weeks before you set it isn't counted twice
+  const A = M.practiceLevelText([{ id: 'x', date: d(20), spoke: 'lag', min: 480 }], { bl: 'd1w', now: NOW, typical: { weekMin: 60, set: d(2) } }).level.wk;
+  const B = M.practiceLevelText([{ id: 'x', date: d(20), spoke: 'lag', min: 480 }], { bl: 'd1w', now: NOW }).level.wk;
+  assert.ok(A - B < 0.2 * 60 + 1, 'typical 1 h/wk already covered by 8 h logged: ' + (A - B));
+});

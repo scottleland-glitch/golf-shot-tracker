@@ -510,7 +510,7 @@
       if (!doPrac) return null;
       // ---- My Practice ----
       doc.addPage(); var y2 = H.header('My Practice – ' + P.name);
-      var LT = MYGAME.practiceLevelText(logs, { period: P, bl: D.baseline }); // v155: practice level vs the benchmark group
+      var LT = MYGAME.practiceLevelText(logs, { period: P, bl: D.baseline, typical: typicalOf(who) }); // v155: practice level vs the benchmark group
       y2 = pdfLines(doc, H, SG.pdfSafe(LT.headline), M, y2, W, 17, 25, 21) + 2;
       y2 = pdfLines(doc, H, SG.pdfSafe(LT.lede + (LT.trend ? ' ' + LT.trend : '') + ' ' + P.name + ': ' + (PB.cur.total ? PB.headline + ' logged.' : 'nothing logged.')), M, y2, W, 11, 80, 14.5) + 8;
       var jobs = [];
@@ -1045,7 +1045,7 @@
   function makeGameReport(who, parts) {
     if (!who) return Promise.reject(new Error('Pick a player first'));
     parts = parts || GR_PRESET.coach;
-    var D = mgData(who), PER = D.period, logs = practiceOf(who), LT = MYGAME.practiceLevelText(logs, { period: PER, bl: D.baseline }), PB = MYGAME.practiceBuild(logs, { period: PER });
+    var D = mgData(who), PER = D.period, logs = practiceOf(who), LT = MYGAME.practiceLevelText(logs, { period: PER, bl: D.baseline, typical: typicalOf(who) }), PB = MYGAME.practiceBuild(logs, { period: PER });
     var TR = SGTUI.reportData(who, parts.testId), V = MYGAME.practiceVsGame(D.cur, PB.cur), now = new Date(), P = SG.pdfSafe;
     var dateTxt = now.toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' }), dLong = function (iso) { return new Date(iso).toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' }); };
     if (parts.test && !TR) parts = Object.assign({}, parts, { test: false });
@@ -2844,7 +2844,7 @@
   function practiceCardHTML(who, D, part) { // v194: part 'spider' = the My Practice card (My Game); 'rest' = Strokes lost vs practice + Recent practice (Practice page)
     var logs = practiceOf(who), PB = MYGAME.practiceBuild(logs, { period: D.period }), P = PB.period;
     // v155: the chart is your practice LEVEL (builds with each session, fades without practice) against your benchmark group's average
-    var LT = MYGAME.practiceLevelText(logs, { period: P, bl: D.baseline }), ago = P.id === '30d' ? '30 days ago' : P.id === '3m' ? '3 months ago' : P.id === '1y' ? 'a year ago' : '';
+    var LT = MYGAME.practiceLevelText(logs, { period: P, bl: D.baseline, typical: typicalOf(who) }), ago = P.id === '30d' ? '30 days ago' : P.id === '3m' ? '3 months ago' : P.id === '1y' ? 'a year ago' : '';
     var o = '<div class="mgchart prchart frost" id="prcard"><div class="prcardh"><span class="tkeye">My Practice</span><button class="mgadd" data-act="prlog" id="prplus" aria-label="Log practice">+</button></div><h2 id="prhead">' + esc(LT.headline) + '</h2><p id="prlede">' + esc(LT.lede) + (LT.trend ? ' ' + esc(LT.trend) : '') + '</p>';
     o += MYGAME.practiceLevelSVG(LT.level, LT.prev, { R: 96, aria: 'Practice level by skill, against ' + LT.level.bench.who }) +
       '<div class="mglegend"><span><i class="lpc"></i>Your level now</span>' + (LT.prev && ago ? '<span><i class="lp"></i>' + ago + '</span>' : '') +
