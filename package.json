@@ -1,0 +1,21 @@
+{
+  "name": "strokewise",
+  "private": true,
+  "description": "Strokewise – the iPhone app is the same web app wrapped with Capacitor. The website needs none of this (no build step).",
+  "scripts": {
+    "build:www": "bash native/build-www.sh",
+    "ios:setup": "bash native/ios-setup.sh"
+  },
+  "dependencies": {
+    "@capacitor/core": "^8.0.0",
+    "@capacitor/ios": "^8.0.0",
+    "@capacitor/share": "^8.0.0",
+    "@capacitor/filesystem": "^8.0.0",
+    "@capacitor/splash-screen": "^8.0.0",
+    "@capacitor/status-bar": "^8.0.0"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "^8.0.0",
+    "@capacitor/assets": "^3.0.5"
+  }
+}

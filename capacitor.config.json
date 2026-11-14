@@ -1,0 +1,15 @@
+{
+  "appId": "com.strokewise.app",
+  "appName": "Strokewise",
+  "webDir": "www",
+  "ios": {
+    "contentInset": "never",
+    "backgroundColor": "#0b5d1e",
+    "limitsNavigationsToAppBoundDomains": false
+  },
+  "plugins": {
+    "CapacitorHttp": { "enabled": true },
+    "SplashScreen": { "launchShowDuration": 600, "backgroundColor": "#0b5d1e", "showSpinner": false },
+    "StatusBar": { "overlaysWebView": true, "style": "DARK" }
+  }
+}

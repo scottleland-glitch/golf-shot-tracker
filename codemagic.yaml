@@ -1,0 +1,42 @@
+# Strokewise iPhone app – built on Codemagic's Macs (free plan), sent to TestFlight. Started by hand from Codemagic (no automatic builds).
+# Before the first build (one time, in Codemagic): add the App Store Connect API key under Team → Integrations with the name
+# "Strokewise ASC", and the Apple Distribution certificate + App Store profile for com.strokewise.app under Code signing identities.
+workflows:
+  ios-testflight:
+    name: Strokewise iOS → TestFlight
+    instance_type: mac_mini_m2
+    max_build_duration: 60
+    integrations:
+      app_store_connect: Strokewise ASC
+    environment:
+      ios_signing:
+        distribution_type: app_store
+        bundle_identifier: com.strokewise.app
+      node: 22
+      xcode: latest
+    scripts:
+      - name: Install Capacitor
+        script: npm install --no-audit --no-fund
+      - name: Build the iPhone project (web files, icon, splash, settings)
+        script: bash native/ios-setup.sh
+      - name: Use the signing profile
+        script: xcode-project use-profiles
+      - name: Version 1.0, build number from Codemagic
+        script: |
+          cd ios/App
+          agvtool new-marketing-version 1.0
+          agvtool new-version -all $((BUILD_NUMBER + 1))
+      - name: Build the app
+        script: |
+          if [ -d ios/App/App.xcworkspace ]; then
+            xcode-project build-ipa --workspace ios/App/App.xcworkspace --scheme App
+          else
+            xcode-project build-ipa --project ios/App/App.xcodeproj --scheme App
+          fi
+    artifacts:
+      - build/ios/ipa/*.ipa
+      - /tmp/xcodebuild_logs/*.log
+    publishing:
+      app_store_connect:
+        auth: integration
+        submit_to_testflight: true

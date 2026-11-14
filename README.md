@@ -25,6 +25,17 @@ Every Shot Counts Table 3.10). The other five are ESTIMATED: per-round gaps from
 Player Quality ladder, then spread over the PGA table. Full sources, method and caveats: in-app
 "About the numbers" and the BASELINES comment in `sg.js`.
 
+## iPhone app (Capacitor)
+
+The iPhone app is the same web app, bundled inside a native app with [Capacitor](https://capacitorjs.com) so it works fully offline and uses iOS's own share sheet. The website is unchanged and needs none of this.
+
+- **App:** Strokewise · bundle ID `com.strokewise.app` · iPhone only, portrait · version 1.0
+- **What's different in the app:** Google Drive backup is hidden (Google blocks its sign-in inside apps – backup by file through the share sheet still works); sharing goes through the Share + Filesystem plugins (`native/native.js`); no service worker (the files are already on the phone); web requests go through Capacitor's native HTTP.
+- **Files:** `package.json`, `capacitor.config.json`, `codemagic.yaml`, `native/` (build scripts, `native.js`, icon and splash). `www/`, `ios/` and `node_modules/` are made on the build Mac and not kept in the repo.
+- **Building:** on Codemagic (free plan, no Mac needed): `npm install` → `native/ios-setup.sh` (copies the web app into `www/`, creates the iOS project, icon, splash, Info.plist settings) → signed build → TestFlight. Started by hand.
+- **Updates:** each change to the iPhone app needs a new Codemagic build and, for the App Store, Apple's review (usually 1–2 days). The website still updates the moment it's pushed.
+- **Data:** the app and the website keep separate rounds. Move them once with Back up rounds (file) → open the file in the app.
+
 ## My Practice: this week, 30 days, 3 months (v211)
 
 The My Practice card on My Game now has three pages – swipe between them, tap for full screen (swipe down or ✕ to close):
