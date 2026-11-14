@@ -521,6 +521,7 @@
         var keyL = pdfWrap(doc, H, 'Blue = your practice level now (minutes a week, builds over ~6 weeks, fades without practice)' + (LT.prev ? ' · gray = ' + (P.id === '1y' ? 'a year ago' : P.id === '30d' ? '30 days ago' : '3 months ago') : '') + ' · dashed ring = ' + LT.level.bench.who + ' avg (~' + LT.level.bench.h + ' h a week)', W, 8.5);
         H.ink(100); keyL.forEach(function (l, k) { H.T(l, M + W / 2, y2 + k * 11, { align: 'center' }); }); H.ink(); y2 += 26 + (keyL.length - 1) * 11; }
       var V = MYGAME.practiceVsGame(D.cur, PB.cur);
+      if (V && !recsOn(who) && /^Practice more /.test(V.headline)) V.headline = V.gap.name + ': ' + Math.round(V.gap.lostShare * 100) + '% of lost strokes, ' + Math.round(V.gap.timeShare * 100) + '% of practice'; // v215: the comparison, no advice
       if (V) {
         H.font(12.5); H.ink(30); H.T('Strokes lost vs practice time', M, y2); y2 += 16;
         y2 = pdfLines(doc, H, V.headline + ' – ' + V.lede, M, y2, W, 10, 70, 13) + 8;
@@ -2158,10 +2159,8 @@
       '<div class="sheet-h" id="namesh">' + (first ? 'Who’s playing?' : 'Player') + '</div>' +
       '<p class="namehelp" id="namehelp">' + (first ? 'Enter the golfer’s name. It goes on each round, the reports and the live scorecard.' : 'The golfer using this phone. It goes on each round, the reports and the live scorecard.') + '</p>' +
       '<input type="text" id="pname" value="' + esc(n) + '" placeholder="Golfer’s name" autocomplete="name" maxlength="40" aria-label="Golfer’s name">' +
-      (first ? '<p class="namehelp modeq" id="modeq">How do you want to use Strokewise?</p><div class="modepick" id="modepick" role="radiogroup" aria-label="How you\'ll use Strokewise">' +
-        [['stats', 'Track my stats', 'Rounds, strokes gained, trends and fun facts. No practice reminders.'], ['full', 'Stats + practice plan', 'Everything above, plus a practice list built from your rounds and tests.']].map(function (x) {
-          var sel = (view.firstMode || 'full') === x[0]; return '<button class="modeopt' + (sel ? ' on' : '') + '" data-act="firstmode" data-v="' + x[0] + '" role="radio" aria-checked="' + sel + '"><b>' + x[1] + '</b><span>' + x[2] + '</span></button>'; }).join('') +
-        '</div><p class="namehelp modenote">You can change this any time in Settings.</p>' : '') +
+      (first ? '<p class="namehelp modeq" id="modeq">How do you want to use Strokewise?</p><div class="modepick" id="modepick">' + modeSwitchesHTML(view.firstMode || 'full', 'first', 'first') +
+        '</div><p class="namehelp modenote">You can change these any time in Settings.</p>' : '') +
       '<button class="sheet-go" data-act="setname">Save</button>' +
       '<button class="sheet-item muted" data-act="' + (first ? 'nameskip' : 'namecancel') + '">' + (first ? 'Not now' : 'Cancel') + '</button></div>';
   }
@@ -2252,7 +2251,7 @@
     // 3b. v201 (Scott): an area that's slipping (not an expected dip after a lesson, not an early guess) – "keep an eye on chipping"
     if (fin.length) { var tdw = null; try { tdw = td || trendsData(who); } catch (e) {}
       var watch = tdw && tdw.areas.filter(function (A) { return A.ok && A.heading && A.conf !== 'low'; })[0];
-      if (watch) M.push(pr ? { k: 'watch', kick: 'Trends', title: 'Keep an eye on ' + watch.name.toLowerCase(), sub: 'It\'s slipping – a little practice there would help', btn: ['Log practice', 'prlog'] } :
+      if (watch) M.push(pr && recsOn(who) ? { k: 'watch', kick: 'Trends', title: 'Keep an eye on ' + watch.name.toLowerCase(), sub: 'It\'s slipping – a little practice there would help', btn: ['Log practice', 'prlog'] } :
         { k: 'watch', kick: 'Trends', title: watch.name + ' is slipping a little', sub: 'Trends sees it in your recent rounds', btn: ['See Trends', 'gotrends'] }); }
     // 4. the short game test – never taken, or due (4+ weeks)
     if (!pr) { // v209: just stats – no practice or test nudges; fun facts from your own rounds instead (after the round and Trends, before the rest)
@@ -2573,12 +2572,21 @@
   function modeAll() { if (typeof CO !== 'undefined' && CO && CO.ctx) { var o1 = {}; if (CO.ctx.profile && CO.ctx.profile.mode) o1[String(CO.ctx.name).toLowerCase()] = CO.ctx.profile.mode; return o1; } try { return JSON.parse(localStorage.getItem(MODE_KEY) || '{}') || {}; } catch (e) { return {}; } }
   function modeOf(who) { return modeAll()[String(who || '').toLowerCase()] || 'full'; }
   function practiceOn(who) { return modeOf(who === undefined ? playerName() : who) !== 'stats'; }
-  function setMode(who, m) { if (typeof roGuard === 'function' && roGuard()) return; var A = modeAll(); A[String(who || '').toLowerCase()] = m === 'stats' ? 'stats' : 'full'; try { localStorage.setItem(MODE_KEY, JSON.stringify(A)); } catch (e) {} }
-  function modeRowHTML(who, id) {
-    var on = practiceOn(who);
-    return '<div class="moderow frost" id="' + (id || 'moderow') + '"><div><b>Practice plan</b><small>' + (on ? 'A practice list built from your rounds and tests' : 'Off – just stats, rounds and fun facts') + '</small></div>' +
-      '<div class="prchips" role="group" aria-label="Practice plan">' + [['full', 'On'], ['stats', 'Off']].map(function (x) { var sel = (on ? 'full' : 'stats') === x[0]; return '<button class="prchip' + (sel ? ' on' : '') + '" data-act="setmode" data-v="' + x[0] + '" aria-pressed="' + sel + '">' + x[1] + '</button>'; }).join('') + '</div></div>';
+  function setMode(who, m) { if (typeof roGuard === 'function' && roGuard()) return; var A = modeAll(); A[String(who || '').toLowerCase()] = m === 'stats' || m === 'log' ? m : 'full'; try { localStorage.setItem(MODE_KEY, JSON.stringify(A)); } catch (e) {} }
+  // v215 (Scott): two switches – Log practice (the log, My Practice charts, practice in Trends) and Practice recommendations
+  // (the Practice next list, sessions, weekly targets, tournament sharpening). Recommendations need the log, so logging off turns them off.
+  // Stored per player as 'full' (both) · 'log' (logging, no recommendations) · 'stats' (neither).
+  function recsOn(who) { return modeOf(who === undefined ? playerName() : who) === 'full'; }
+  function nextMode(cur, what, on) { if (what === 'log') return on ? 'full' : 'stats'; return on ? 'full' : (cur === 'stats' ? 'stats' : 'log'); }
+  function swHTML(id, act, on, title, sub, dis) {
+    return '<div class="swrow' + (dis ? ' dis' : '') + '"><div><b>' + title + '</b><small>' + sub + '</small></div><button class="sw' + (on ? ' on' : '') + '" role="switch" aria-checked="' + on + '" aria-label="' + title + '" data-act="' + act + '" data-v="' + (on ? '0' : '1') + '" id="' + id + '"' + (dis ? ' disabled' : '') + '><i></i></button></div>';
   }
+  function modeSwitchesHTML(m, id, pre) {
+    var log = m !== 'stats', rec = m === 'full';
+    return swHTML(id + 'log', pre + 'log', log, 'Log practice', 'Your practice log, My Practice charts and practice in Trends') +
+      swHTML(id + 'recs', pre + 'recs', rec, 'Practice recommendations', log ? 'A practice list built from your game, sessions and weekly targets' : 'Needs Log practice', !log);
+  }
+  function modeRowHTML(who, id) { return '<div class="moderow2 frost" id="' + (id || 'moderow') + '">' + modeSwitchesHTML(modeOf(who), id || 'moderow', 'set') + '</div>'; }
   var TYP_KEY = 'golfsg.typical.v1';
   function typAll() { if (typeof CO !== 'undefined' && CO && CO.ctx) { var o1 = {}; if (CO.ctx.profile && CO.ctx.profile.typical) o1[String(CO.ctx.name).toLowerCase()] = CO.ctx.profile.typical; return o1; } try { return JSON.parse(localStorage.getItem(TYP_KEY) || '{}') || {}; } catch (e) { return {}; } }
   function typicalOf(who) { return typAll()[String(who || '').toLowerCase()] || null; }
@@ -2628,13 +2636,13 @@
       o += '<text x="' + (x + w / 2).toFixed(1) + '" y="' + (VH - 6) + '" class="wkax' + (d.t === today.getTime() ? ' now' : '') + '" text-anchor="middle">' + ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'][i] + '</text>'; });
     return o + '<line x1="' + X0 + '" x2="' + X1 + '" y1="' + Y1 + '" y2="' + Y1 + '" class="wkbase"/></svg>';
   }
-  function monthsSVG(L, who, P, tall) { var VH = tall ? 380 : 172;
+  function monthsSVG(L, who, P, tall, nr) { var VH = tall ? 380 : 172;
     var DAY = 864e5, WK = 7 * DAY, N = 13, d0 = new Date(); d0.setHours(0, 0, 0, 0); d0.setDate(d0.getDate() - ((d0.getDay() + 6) % 7)); var start = d0.getTime() - (N - 1) * WK;
     var wks = []; for (var i = 0; i < N; i++) wks.push({ t: start + i * WK, g: [0, 0, 0, 0], tot: 0, tour: false, les: false });
     var at = function (t) { var i = Math.floor((t - start) / WK); return i >= 0 && i < N ? wks[i] : null; };
     L.forEach(function (e) { var w = at(Date.parse(e.date)); if (!w || !(e.min > 0)) return; w.g[pgOf(e.spoke)] += e.min; w.tot += e.min; if (e.kind === 'lesson') w.les = true; });
     finishedRoundsOf(who).forEach(function (r) { if (MYGAME.playOf(r) !== 'tournament') return; var w = at(Date.parse(r.date)); if (w) w.tour = true; });
-    var tgt = P.budget, mx = Math.max(60, tgt, Math.max.apply(null, wks.map(function (w) { return w.tot; }))), step = mx > 420 ? 120 : 60, top = Math.ceil(mx / step) * step;
+    var tgt = nr ? 0 : P.budget, mx = Math.max(60, tgt, Math.max.apply(null, wks.map(function (w) { return w.tot; }))), step = mx > 420 ? 120 : 60, top = Math.ceil(mx / step) * step;
     var X0 = 34, X1 = 332, Y0 = 26, Y1 = VH - 22, x = function (i) { return X0 + i / (N - 1) * (X1 - X0); }, y = function (m) { return Y1 - m / top * (Y1 - Y0); };
     var o = '<svg class="wkchart" viewBox="0 0 340 ' + VH + '" role="img" aria-label="Practice by week, last 3 months, by group, with tournaments and lessons">';
     for (var t = 0; t <= top; t += step) o += '<line x1="' + X0 + '" x2="' + X1 + '" y1="' + y(t).toFixed(1) + '" y2="' + y(t).toFixed(1) + '" class="wkgrid"/><text x="' + (X0 - 4) + '" y="' + (y(t) + 3.5).toFixed(1) + '" class="wkax" text-anchor="end">' + t / 60 + 'h</text>';
@@ -2671,23 +2679,24 @@
     return 'At least 20% for each part of your game. Extra now: ' + G.map(function (g) { return g.name + ' ' + pc(g.share) + (g.why === 'coach' ? ' (lesson)' : ''); }).join(', ') +
       ' – back to even by ' + by + (G.every(function (g) { return g.why === 'coach'; }) ? '.' : ' unless your rounds still show it.');
   }
-  function weekCardHTML(who, P) {
+  function weekCardHTML(who, P, nr) {
     var off = view.wkOff || 0, L = practiceOf(who), W = PLAN.week(P, L, Date.now(), off), page = view.wkPage || 0;
     var lab = off === 0 ? 'This week' : off === 1 ? 'Last week' : 'Week of ' + new Date(W.start).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
     var dots = []; for (var i = 5; i >= 0; i--) { var w = PLAN.week(P, L, Date.now(), i), q = w.target ? w.done / w.target : 0; dots.push('<i class="' + (q >= 1 ? 'full' : q >= 0.7 ? 'half' : '') + (i === off ? ' cur' : '') + '" title="' + (i === 0 ? 'This week' : i + ' weeks ago') + ': ' + MYGAME.hm(w.done) + '"></i>'); }
+    if (nr) { W.rows = W.rows.map(function (r) { return { k: r.k, name: r.name, done: r.done, target: 0 }; }); dots = []; } // v215: just what was done
     var mx = Math.max.apply(null, W.rows.map(function (r) { return Math.max(r.target, r.done); }).concat([10]));
     var nav = '<span class="wknav"><button class="txt" data-act="wkoff" data-k="1" aria-label="Earlier week"' + (off >= 25 ? ' disabled' : '') + '>‹</button><b>' + esc(lab) + '</b><button class="txt" data-act="wkoff" data-k="-1" aria-label="Later week"' + (off ? '' : ' disabled') + '>›</button></span>';
     var legend = '<div class="pglegend">' + PRG.map(function (g, gi) { return '<span><i class="pg' + gi + '"></i>' + g[1] + '</span>'; }).join('') + '</div>';
     var p1 = '<div class="wkpage" data-p="0"><div class="wkdots" aria-hidden="true">' + dots.join('') + '</div><div class="wkbars">';
-    W.rows.forEach(function (r) { var got = r.done >= r.target;
-      p1 += '<div class="wkrow' + (got ? ' got' : '') + '" data-k="' + r.k + '"><span class="wkname">' + esc(r.name) + '</span><span class="wkbar"><i class="wkfill" style="width:' + Math.min(100, r.done / mx * 100).toFixed(1) + '%"></i><i class="wktgt" style="left:' + (r.target / mx * 100).toFixed(1) + '%"></i></span>' +
-        '<span class="wkval">' + (got ? '✓ ' : '') + (r.done ? hmS(r.done) : '–') + '<small> / ' + hmS(r.target) + '</small></span></div>'; });
-    p1 += '</div><p class="plintro wknote" id="wkbal">' + esc(balanceLine(P)) + '</p></div>';
+    W.rows.forEach(function (r) { var got = !nr && r.done >= r.target;
+      p1 += '<div class="wkrow' + (got ? ' got' : '') + '" data-k="' + r.k + '"><span class="wkname">' + esc(r.name) + '</span><span class="wkbar"><i class="wkfill" style="width:' + Math.min(100, r.done / mx * 100).toFixed(1) + '%"></i>' + (nr ? '' : '<i class="wktgt" style="left:' + (r.target / mx * 100).toFixed(1) + '%"></i>') + '</span>' +
+        '<span class="wkval">' + (got ? '✓ ' : '') + (r.done ? hmS(r.done) : '–') + (nr ? '' : '<small> / ' + hmS(r.target) + '</small>') + '</span></div>'; });
+    p1 += '</div>' + (nr ? '' : '<p class="plintro wknote" id="wkbal">' + esc(balanceLine(P)) + '</p>') + '</div>';
     var p2 = '<div class="wkpage" data-p="1"><p class="wkpt">Each day, by group</p>' + weekDaysSVG(L, W, !!view.wkFull) + legend + '</div>';
-    var p3 = '<div class="wkpage" data-p="2"><p class="wkpt">Last 3 months, by week</p>' + monthsSVG(L, who, P, !!view.wkFull) + legend + '<p class="plintro wknote">🏆 tournament week · <span class="leskey"></span> lesson · dashed line = your weekly target</p></div>';
+    var p3 = '<div class="wkpage" data-p="2"><p class="wkpt">Last 3 months, by week</p>' + monthsSVG(L, who, P, !!view.wkFull, nr) + legend + '<p class="plintro wknote">🏆 tournament week · <span class="leskey"></span> lesson' + (nr ? '' : ' · dashed line = your weekly target') + '</p></div>';
     var full = !!view.wkFull; // v207 (Scott): tap the card → full screen; swipe down, ✕ or Back to close; left / right still swipe
     return '<div class="card frost weekcard' + (full ? ' isfull' : '') + '" id="weekcard"' + (full ? ' role="dialog" aria-modal="true" aria-label="This week, full screen"' : ' data-act="wkfull" role="button" tabindex="0" aria-label="This week – tap for full screen"') + '>' +
-      (full ? '<div class="wkgrab" aria-hidden="true"></div><button class="wkx" data-act="wkclose" id="wkclose" aria-label="Close">✕</button>' : '') + '<div class="planhead">' + nav + '<small id="wktot">' + hmS(W.done) + ' of ' + hmS(W.target) + '</small></div>' +
+      (full ? '<div class="wkgrab" aria-hidden="true"></div><button class="wkx" data-act="wkclose" id="wkclose" aria-label="Close">✕</button>' : '') + '<div class="planhead">' + nav + '<small id="wktot">' + hmS(W.done) + (nr ? ' logged' : ' of ' + hmS(W.target)) + '</small></div>' +
       '<div class="wkpages" id="wkpages" data-page="' + page + '">' + p1 + p2 + p3 + '</div>' +
       '<div class="wkpdots" aria-hidden="true">' + [0, 1, 2].map(function (i) { return '<i class="' + (i === page ? 'on' : '') + '"></i>'; }).join('') + '</div></div>';
   }
@@ -2718,9 +2727,9 @@
   function practicePageHTML() {
     var who = mgWho(), D = mgData(who);
     var h = '<div class="frostpage theme-sky mygamepage practicepage" id="practicepage"><div class="topbar frost"><button class="txt frostbtn" data-act="home" id="prback">‹ Home</button><div class="title"><b>Practice</b><span>' + esc(who || '') + '</span></div><span class="tbsp"></span></div>';
-    var P = planData(who);
-    h += '<div class="prtop"><button class="primary prbig" data-act="sessopen" id="prsess">▶ Start a session</button><button class="glass prbig2" data-act="prlog" id="prbig">+ Log practice</button></div>' + quickRowHTML('prqrow', [['report', 'grep', 'Report'], ['trends', 'gotrends', 'Trend']]); // v198; v205: start a session
-    h += sessSheetHTML(who) + typicalCardHTML(who, P) + planCardHTML(who, P) + weekCardHTML(who, P);
+    var P = planData(who), rc = recsOn(who);
+    h += '<div class="prtop">' + (rc ? '<button class="primary prbig" data-act="sessopen" id="prsess">▶ Start a session</button><button class="glass prbig2" data-act="prlog" id="prbig">+ Log practice</button>' : '<button class="primary prbig" data-act="prlog" id="prbig">+ Log practice</button>') + '</div>' + quickRowHTML('prqrow', [['report', 'grep', 'Report'], ['trends', 'gotrends', 'Trend']]); // v198; v205: start a session
+    h += rc ? sessSheetHTML(who) + typicalCardHTML(who, P) + planCardHTML(who, P) + weekCardHTML(who, P) : typicalCardHTML(who, P) + weekCardHTML(who, P, true); // v215: no list, sessions or targets
     h += prSheetHTML(who) + grSheetHTML() + (view.pdf && view.pdf.kind === 'game' ? pdfHTML() : '');
     var rest = practiceCardHTML(who, D, 'rest');
     h += rest || '<div class="mgchart frost"><p class="help">Nothing logged yet – tap <b>Log practice</b> below after a session.</p></div>';
@@ -2871,6 +2880,7 @@
     o += '</div>';
     if (part === 'spider') return o; if (part === 'rest') o = '';
     var V = MYGAME.practiceVsGame(D.cur, PB.cur);
+    if (V && !recsOn(who) && /^Practice more /.test(V.headline)) V.headline = V.gap.name + ': ' + Math.round(V.gap.lostShare * 100) + '% of lost strokes, ' + Math.round(V.gap.timeShare * 100) + '% of practice'; // v215: the comparison, no advice
     if (V) o += '<div class="mgchart prvs frost" id="prvs"><span class="tkeye">Strokes lost vs practice time</span><h2 id="prvshead">' + esc(V.headline) + '</h2><p id="prvslede">' + esc(V.lede) + '</p>' +
       '<div class="prbars">' + V.rows.map(function (r) {
         return '<div class="prbar' + (r.k === V.gap.k && V.gap.lostShare - V.gap.timeShare >= 0.15 ? ' gap' : '') + '" data-spoke="' + r.k + '"><span>' + esc(r.name) + '</span>' +
@@ -5965,8 +5975,10 @@
       case 'gopractice': view.screen = 'practice'; view.mgMenu = null; view.hmenu = null; render(); window.scrollTo(0, 0); return; // v194
       case 'tbplus': if (!practiceOn()) { view.hmenu = view.screen === 'home' && view.hmenu === 'new' ? null : 'new'; view.screen = 'home'; render(); return; } // v209: just stats → straight to a new round
         view.hmenu = view.screen === 'home' && view.hmenu === 'menu' ? null : 'menu'; view.screen = 'home'; render(); return; // v198: the + from any tab
-      case 'firstmode': view.firstMode = v; var pn0 = (document.getElementById('pname') || {}).value; render(); var pi0 = document.getElementById('pname'); if (pi0 && pn0 != null) pi0.value = pn0; return;
-      case 'setmode': setMode(view.screen === 'practice' || view.screen === 'trends' ? mgWho() : playerName(), v); if (view.screen === 'practice' && !practiceOn(mgWho())) view.screen = 'home'; toast(v === 'stats' ? 'Practice plan off – just stats' : 'Practice plan on'); render(); return;
+      case 'firstlog': case 'firstrecs': view.firstMode = nextMode(view.firstMode || 'full', act === 'firstlog' ? 'log' : 'recs', v === '1'); var pn0 = (document.getElementById('pname') || {}).value; render(); var pi0 = document.getElementById('pname'); if (pi0 && pn0 != null) pi0.value = pn0; return;
+      case 'setlog': case 'setrecs': { var mw = view.screen === 'practice' || view.screen === 'trends' ? mgWho() : playerName(), on1 = v === '1', what = act === 'setlog' ? 'log' : 'recs';
+        setMode(mw, nextMode(modeOf(mw), what, on1)); if (view.screen === 'practice' && !practiceOn(mgWho())) view.screen = 'home';
+        toast(what === 'log' ? (on1 ? 'Practice logging on' : 'Practice logging off – just stats') : (on1 ? 'Practice recommendations on' : 'Practice recommendations off')); render(); return; }
       case 'gotrends': view.trFrom = view.screen === 'practice' ? 'practice' : !practiceOn() && view.screen !== 'mygame' ? 'home' : 'mygame'; /* v209: a tab when practice is off */ view.trWho = mgWho(); view.trTap = null; view.screen = 'trends'; render(); window.scrollTo(0, 0); return;
       case 'trback': view.screen = view.trFrom === 'practice' ? 'practice' : view.trFrom === 'home' ? 'home' : 'mygame'; render(); window.scrollTo(0, 0); return;
       case 'trzoom': view.trZoom = v; render(); return;

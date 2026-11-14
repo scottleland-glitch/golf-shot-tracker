@@ -25,9 +25,15 @@ const ARC = require('/home/claude/golf-app/tests/fixtures/arcade-78.js');
   const ok = m => console.log('  ✓ ' + m);
   // practice on (the default): Practice tab, the + menu, the switch at the bottom of Practice
   await page.reload(); await page.waitForSelector('#hcard');
-  assert.ok(await page.$('#tbpractice')); await page.click('#tbpractice'); await page.waitForSelector('#prmode'); assert.match(await page.textContent('#prmode'), /Practice plan/);
+  assert.ok(await page.$('#tbpractice')); await page.click('#tbpractice'); await page.waitForSelector('#prmode'); assert.match(await page.textContent('#prmode'), /Log practice.*Practice recommendations/);
   // turn it off → Home, Trends instead of Practice, no practice or test nudges, fun facts instead
-  await page.click('#prmode [data-v="stats"]'); await page.waitForSelector('#home'); await page.waitForTimeout(300);
+  // v215: recommendations off, logging on → the log and charts stay; no list, sessions or targets
+  await page.click('#prmoderecs'); await page.waitForSelector('#prmode'); await page.waitForTimeout(200);
+  assert.strictEqual(await page.evaluate(() => localStorage.getItem('golfsg.mode.v1')), '{"scott":"log"}');
+  assert.strictEqual(await page.$('#prsess'), null); assert.strictEqual(await page.$('#plancard'), null); assert.ok(await page.$('#prbig'), 'Log practice stays');
+  assert.match(await page.textContent('#wktot'), /logged$/); assert.strictEqual(await page.$('#weekcard .wktgt'), null); assert.strictEqual(await page.$('#wkbal'), null);
+  assert.ok(await page.$('#tbpractice'), 'the Practice tab stays'); assert.strictEqual(await page.getAttribute('#prmoderecs', 'aria-checked'), 'false'); ok('recommendations off: log, charts and week card stay; no list, sessions or targets');
+  await page.click('#prmodelog'); await page.waitForSelector('#home'); await page.waitForTimeout(300);
   assert.strictEqual(await page.evaluate(() => localStorage.getItem('golfsg.mode.v1')), '{"scott":"stats"}');
   assert.deepStrictEqual(await page.$$eval('#tabbar span', e => e.map(x => x.textContent)), ['My Game', 'Rounds', 'Trends', 'Stats']); ok('off: Trends takes the Practice tab');
   const S = await page.$$eval('.hcslide', e => e.map(x => [x.dataset.k, x.querySelector('.hcbtn').getAttribute('data-act'), x.textContent]));
@@ -42,12 +48,12 @@ const ARC = require('/home/claude/golf-app/tests/fixtures/arcade-78.js');
   await page.click('#tbmygame'); await page.waitForSelector('#mgtilewrap'); assert.ok(!(await page.$('#prcard')), 'no My Practice card'); ok('My Game: no practice card');
   // Settings: turn it back on
   await page.click('#tbstats').catch(() => {}); await page.evaluate(() => { const b = document.querySelector('[data-act="home"]'); if (b) b.click(); }); await page.waitForSelector('#home');
-  await page.click('#navbtn'); await page.click('[data-act="archive"]'); await page.waitForSelector('#setmoderow'); await page.click('#setmoderow [data-v="full"]'); await page.waitForTimeout(200);
+  await page.click('#navbtn'); await page.click('[data-act="archive"]'); await page.waitForSelector('#setmoderow'); await page.click('#setmoderowlog'); await page.waitForTimeout(200);
   assert.strictEqual(await page.evaluate(() => localStorage.getItem('golfsg.mode.v1')), '{"scott":"full"}'); ok('Settings: back on');
   // first launch: the choice is in the "Who's playing?" sheet; Stats + practice is picked unless you change it
   await page.evaluate(() => { localStorage.clear(); }); await page.reload(); await page.waitForSelector('#modepick');
-  assert.strictEqual(await page.getAttribute('.modeopt.on', 'data-v'), 'full');
-  await page.fill('#pname', 'Amber'); await page.click('[data-act="firstmode"][data-v="stats"]'); assert.strictEqual(await page.inputValue('#pname'), 'Amber', 'the name survives the choice');
+  assert.strictEqual(await page.getAttribute('#firstlog', 'aria-checked'), 'true'); assert.strictEqual(await page.getAttribute('#firstrecs', 'aria-checked'), 'true');
+  await page.fill('#pname', 'Amber'); await page.click('#firstlog'); assert.ok(await page.$eval('#firstrecs', x => x.disabled), 'recommendations need logging'); assert.strictEqual(await page.inputValue('#pname'), 'Amber', 'the name survives the choice');
   if (OUT) await page.screenshot({ path: OUT + '/stats-first-launch.png' });
   await page.click('[data-act="setname"]'); await page.waitForTimeout(300);
   assert.strictEqual(await page.evaluate(() => localStorage.getItem('golfsg.mode.v1')), '{"amber":"stats"}'); assert.ok(await page.$('#tbtrends')); ok('first launch: Track my stats');

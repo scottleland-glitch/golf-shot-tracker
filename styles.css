@@ -3083,3 +3083,13 @@ html body .cshare .csrow .cslink { padding: 8px 2px; }
 html body .cmdrop .cmrmbtn { color: #b03024; font-weight: 600; border-top: 1px solid rgba(23, 48, 31, .1); border-radius: 0 0 12px 12px; margin-top: 4px; }
 html body .cmdrop .cmrm { padding: 12px; border-top: 1px solid rgba(23, 48, 31, .1); } html body .cmdrop .cmrm p { margin: 0 0 8px; font-size: 15px; color: #17301f; line-height: 1.4; }
 html body .cmdrop .cmrm .cswarn, html body .cmdrop .cmrm .cssec { width: auto; display: inline-block; padding: 9px 16px; }
+/* v215: Log practice / Practice recommendations switches (first launch, Settings, bottom of Practice) */
+html body .moderow2 { display: block; padding: 4px 14px; border-radius: 16px; margin: 12px 0; }
+html body .swrow { display: flex; align-items: center; justify-content: space-between; gap: 14px; padding: 10px 0; }
+html body .swrow + .swrow { border-top: 1px solid rgba(23, 48, 31, .1); }
+html body .swrow b { display: block; font-size: 16px; } html body .swrow small { display: block; font-size: 13px; color: #5b6660; margin-top: 2px; }
+html body .swrow.dis b { opacity: .5; }
+html body .sw { flex: none; position: relative; width: 52px; height: 32px; min-height: 0; padding: 0; border: 0; border-radius: 999px; background: #c9d1c7; box-shadow: none; transition: background .15s; }
+html body .sw i { position: absolute; top: 3px; left: 3px; width: 26px; height: 26px; border-radius: 50%; background: #fff; box-shadow: 0 1px 3px rgba(0, 0, 0, .25); transition: left .15s; }
+html body .sw.on { background: #2f9a52; } html body .sw.on i { left: 23px; } html body .sw:disabled { opacity: .45; }
+html body .modepick .swrow { padding: 10px 2px; } html body .modepick { margin: 4px 0 4px; }

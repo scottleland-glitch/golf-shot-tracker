@@ -25,6 +25,15 @@ Every Shot Counts Table 3.10). The other five are ESTIMATED: per-round gaps from
 Player Quality ladder, then spread over the PGA table. Full sources, method and caveats: in-app
 "About the numbers" and the BASELINES comment in `sg.js`.
 
+## Log practice / Practice recommendations (v215)
+
+Two switches replace the single Practice plan on/off – asked when a new player is added, and in Settings and at the bottom of the Practice page:
+
+- **Log practice** – the practice log, My Practice charts, the week card, practice comparisons and practice in Trends. Off = just stats (as v209).
+- **Practice recommendations** – the Practice next list, Start a session, weekly targets, tournament sharpening and practice advice ("Practice more irons", "a little practice there would help"). Needs Log practice; off = see everything you practise and how it compares, with no advice.
+
+Stored per player as 'full' (both on), 'log' (logging only) or 'stats' (neither).
+
 ## Coach sharing switched on (v214)
 
 config.js now has the Firebase project's Web API key, so **Coach** shows in Settings (I'm a coach / Connect to a coach).
