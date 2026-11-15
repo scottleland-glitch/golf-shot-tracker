@@ -22,15 +22,15 @@ const ARC = require('/home/claude/golf-app/tests/fixtures/arcade-78.js');
   await page.evaluate(({ R, P }) => { localStorage.setItem('golfsg.player.v1', 'Scott'); localStorage.setItem('golfsg.nameasked.v1', '1'); localStorage.setItem('golfsg.rounds.v1', JSON.stringify(R)); localStorage.setItem('golfsg.practice.v1', JSON.stringify(P)); localStorage.setItem('golfsg.mybench.v1', JSON.stringify({ Scott: 'd1w' })); }, { R: rounds, P: prac });
   await page.reload(); await page.waitForSelector('#home'); await page.click('#tbmygame'); await page.waitForSelector('#mygame');
   const ok = m => console.log('  ✓ ' + m);
-  await page.click('#qgotrends'); await page.waitForSelector('#trendspage'); assert.match(await page.textContent('#trback'), /My Game/); assert.match(await page.textContent('#trpatience'), /after 4 rounds \(over 3\+ weeks\)\. Confidence builds to about 10 rounds/);
+  await page.click('#qgotrends'); await page.waitForSelector('#trendspage'); assert.match(await page.textContent('#trback'), /My Game/); assert.match(await page.textContent('#trpatience'), /The dashed line starts after 3 rounds/); assert.match(await page.textContent('#trlede'), /next 3 weeks/);
   const keys = await page.$$eval('#trendspage .trcard2', e => e.map(x => x.dataset.k)); assert.strictEqual(keys[0], 'total', 'total practice vs score first'); assert.strictEqual(keys.length, 7, 'total + six areas ' + keys);
   assert.deepStrictEqual(keys.slice(1).sort(), ['bunker', 'chip', 'drive', 'irons', 'putt', 'wedges'].sort());
-  const lag = await page.$('#trendspage .trcard2[data-k="putt"]:not(.trnone)'); assert.ok(lag, 'putting has a trend'); assert.ok(await lag.$('.trband, path'), 'forecast band drawn');
-  assert.match(await page.textContent('#trendspage .trcard2[data-k="bunker"]'), /Log bunker practice/, 'no bunker practice: the rounds line, no forecast'); ok('Trends: total first, six areas, putting drawn, bunker waits for practice');
-  // v196: the band is confidence; no red / green for better or worse
-  assert.strictEqual(await page.getAttribute('#trendspage .trcard2[data-k="putt"]', 'data-conf'), 'high'); assert.ok(await page.$('#trendspage .trcard2[data-k="putt"] .trband.high'));
-  assert.strictEqual(await page.$$eval('#trendspage .trslip, #trendspage .trtag.bad, #trendspage .trtag.up, #trendspage .trtag.down, #trendspage .trfoot .up, #trendspage .trfoot .down', e => e.length), 0, 'no gain / loss colours, no slipping boxes');
-  ok('band coloured by confidence, no gain / loss colours');
+  const lag = await page.$('#trendspage .trcard2[data-k="putt"]:not(.trnone)'); assert.ok(lag, 'putting has a trend'); assert.strictEqual(await lag.$$eval('.trmid', e => e.length), 1, 'one dashed line'); assert.ok(await lag.$('.trend'), 'end dot');
+  assert.strictEqual(await page.$$eval('#trendspage .trband, #trendspage .trwhat, #trendspage .trconf, #trendspage .trprmid, #trendspage .trdip', e => e.length), 0, 'no band, no ± practice lines, no confidence, no dips');
+  assert.match(await page.textContent('#trendspage .trcard2[data-k="putt"] .trh span'), /^[+−]\d\.\d|^0\.0/); assert.match(await page.textContent('#trendspage .trcard2[data-k="total"] .trh span'), /^≈ \d+ by \w{3} \d+$/);
+  assert.match(await page.textContent('#trendspage .trcard2[data-k="putt"] .trwhy'), /^Why: (Holding steady|Improving|Slipping) – recent rounds [+−]\d\.\d · practice/);
+  assert.ok(await page.$('#trendspage .trcard2[data-k="total"] .trdot.pr'), 'open dots for practice-round weeks');
+  ok('Trends: total first, six areas, one dashed line each with a Why line, no band or confidence');
   // v197: tap a week's dot → its rounds (the weekly number is their average)
   await page.locator('#trendspage .trcard2[data-k="total"] .trhit').last().dispatchEvent('click'); await page.waitForSelector('#trwk');
   const wk = await page.$$eval('#trwk li', e => e.map(x => [x.querySelector('span').textContent, x.querySelector('b') && x.querySelector('b').textContent]));
@@ -57,23 +57,15 @@ const ARC = require('/home/claude/golf-app/tests/fixtures/arcade-78.js');
   assert.deepStrictEqual(L.map(x => [x.spoke, x.min, x.change, x.what, x.coach, x.focus]), [['lag', 23, 'big', 'Putting stroke', 'Jo', 'Lesson · Putting stroke'], ['short', 23, 'big', 'Putting stroke', 'Jo', 'Lesson · Putting stroke']]);
   assert.strictEqual(L[0].lesson, L[1].lesson, 'one lesson id'); assert.strictEqual(await page.evaluate(() => localStorage.getItem('golfsg.coach.v1')), 'Jo'); ok('lesson: coach, big change, areas, split minutes');
   await page.click('#qgotrends'); await page.waitForSelector('#trendspage'); const pc = '#trendspage .trcard2[data-k="putt"]';
-  assert.ok(await page.$(pc + ' .trles.big'), 'lesson marker'); assert.match(await page.textContent(pc + ' .trlestx'), /Putting stroke/); assert.ok(await page.$(pc + ' .trdip'), 'expected dip shaded');
-  assert.ok(!(await page.$(pc + ' .trtag.bad')), 'not "heading below normal" during the expected dip'); ok('Trends: lesson marker + expected dip');
+  assert.ok(await page.$(pc + ' .trles.big'), 'lesson marker'); assert.match(await page.textContent(pc + ' .trlestx'), /Putting stroke/); ok('Trends: lesson marker');
   await page.click('#trback');
-  // a new player: 6 weeks in → countdown cards with their history so far
-  await page.evaluate(() => { const R = JSON.parse(localStorage.getItem('golfsg.rounds.v1')), P = JSON.parse(localStorage.getItem('golfsg.practice.v1')), cut = Date.now() - 6 * 7 * 864e5 + 3 * 864e5;
-    localStorage.setItem('golfsg.rounds.v1', JSON.stringify(R.filter(r => Date.parse(r.date) > cut))); localStorage.setItem('golfsg.practice.v1', JSON.stringify(P.filter(p => Date.parse(p.date) > cut && p.kind !== 'lesson'))); });
-  await page.reload(); await page.click('#tbmygame'); await page.click('#qgotrends'); await page.waitForSelector('#trendspage');
-  const six = await page.$$eval('#trendspage .trcard2[data-conf]', e => e.map(x => [x.dataset.k, x.dataset.conf, x.querySelector('.trconf').textContent]));
-  assert.ok(six.length >= 3, JSON.stringify(six)); six.forEach(r => { assert.strictEqual(r[1], 'mid'); assert.match(r[2], /^Medium confidence · 6 of 10 rounds$/); });
-  assert.ok(await page.$('#trendspage .trband.mid'), 'amber band'); ok('6 weeks: forecasts with medium confidence');
-  // 3 weeks: just the lines and a countdown
-  await page.evaluate(() => { const R = JSON.parse(localStorage.getItem('golfsg.rounds.v1')), P = JSON.parse(localStorage.getItem('golfsg.practice.v1')), cut = Date.now() - 3 * 7 * 864e5 + 3 * 864e5;
+  // a new player: 2 rounds → just the lines and a countdown to the dashed line
+  await page.evaluate(() => { const R = JSON.parse(localStorage.getItem('golfsg.rounds.v1')), P = JSON.parse(localStorage.getItem('golfsg.practice.v1')), cut = Date.now() - 2 * 7 * 864e5 + 3 * 864e5;
     localStorage.setItem('golfsg.rounds.v1', JSON.stringify(R.filter(r => Date.parse(r.date) > cut))); localStorage.setItem('golfsg.practice.v1', JSON.stringify(P.filter(p => Date.parse(p.date) > cut))); });
   await page.reload(); await page.click('#tbmygame'); await page.click('#qgotrends'); await page.waitForSelector('#trendspage');
-  const early = await page.$$eval('#trendspage .trcard2.trearly', e => e.map(x => [x.dataset.k, x.querySelector('.trsoon').textContent, !!x.querySelector('svg .trsg'), x.querySelector('.trfoot').textContent, !!x.querySelector('.trband')]));
-  const waiting = early.filter(r => !/practice/.test(r[3])); assert.ok(waiting.length >= 3, JSON.stringify(early));
-  waiting.forEach(r => { assert.match(r[1], /^[23] of 4 rounds$/); assert.ok(r[2], 'history line drawn'); assert.ok(!r[4], 'no forecast band'); assert.match(r[3], /more rounds?.* until the first forecast\.$/); });
-  assert.ok(await page.$('#trendspage .trearly .trprog'), 'progress bar'); ok('3 weeks: ' + waiting.length + ' cards with just the lines and a countdown');
+  const early = await page.$$eval('#trendspage .trcard2.trearly', e => e.map(x => [x.dataset.k, x.querySelector('.trsoon').textContent, !!x.querySelector('svg .trsg'), x.querySelector('.trfoot').textContent, !!x.querySelector('.trmid')]));
+  assert.ok(early.length >= 3, JSON.stringify(early));
+  early.forEach(r => { assert.match(r[1], /^2 of 3 rounds$/); assert.ok(r[2], 'history line drawn'); assert.ok(!r[4], 'no dashed line yet'); assert.strictEqual(r[3], '1 more round until the dashed line.'); });
+  ok('2 rounds: ' + early.length + ' cards with just the lines and a countdown');
   assert.deepStrictEqual(errs, []); await b.close(); srv.kill(); console.log('PASS trends-focused');
 })().catch(e => { console.error(e); process.exit(1); });

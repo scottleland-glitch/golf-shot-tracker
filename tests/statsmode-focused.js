@@ -44,7 +44,7 @@ const ARC = require('/home/claude/golf-app/tests/fixtures/arcade-78.js');
   await page.evaluate(() => document.querySelector('.sheet-back').click()); await page.waitForTimeout(200);
   await page.waitForTimeout(300); await page.click('#tbtrends'); await page.waitForSelector('#trendspage', { timeout: 8000 }).catch(async e => { console.log('ERRS', errs, await page.evaluate(() => document.body.className + ' ' + (document.querySelector('.hsheet') ? 'sheet' : '') + ' ' + !!document.getElementById('tbtrends') + ' ' + (document.activeElement && document.activeElement.id))); await page.screenshot({ path: '/tmp/claude-0/-home-claude/b6d800b2-3e44-56cb-807c-acf9ed20076d/scratchpad/dbg.png' }); throw e; }); assert.ok(await page.$('#tabbar')); assert.strictEqual(await page.$$eval('.trpl.pr', e => e.length), 0, 'no practice panel');
   assert.ok(!/practice/i.test(await page.textContent('#trlede'))); assert.ok(!/Practice vs score/.test(await page.textContent('#trendspage'))); assert.match(await page.textContent('#trback'), /Home/);
-  assert.ok(await page.$('.trcard2[data-k="total"] .trband'), 'a forecast from rounds alone'); ok('Trends: from rounds alone, no practice panel');
+  assert.ok(await page.$('.trcard2[data-k="total"] .trmid'), 'a forecast from rounds alone'); ok('Trends: from rounds alone, no practice panel');
   await page.click('#tbmygame'); await page.waitForSelector('#mgtilewrap'); assert.ok(!(await page.$('#prcard')), 'no My Practice card'); ok('My Game: no practice card');
   // Settings: turn it back on
   await page.click('#tbstats').catch(() => {}); await page.evaluate(() => { const b = document.querySelector('[data-act="home"]'); if (b) b.click(); }); await page.waitForSelector('#home');
