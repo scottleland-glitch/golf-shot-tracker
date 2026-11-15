@@ -173,10 +173,10 @@
     round.holes.forEach(function (h, i) {
       var a = SG.analyzeHole(h);
       if (a.done) { done++; strokes += a.liveStrokes; par += h.par || 4; }
-      if (i === cur || h.rows.length > 1 || h.finished) holes.push(holeOut1(h, i));
+      if (i === cur || i === cur + 1 || h.rows.length > 1 || h.finished) holes.push(holeOut1(h, i));
     });
     return { v: VERSION, ts: Date.now(), roundId: round.id, course: round.course || '', tee: round.tee || '', player: round.player || '',
-      hole: cur, pars: round.holes.map(function (h) { return h.par || 4; }), holes: holes, holesDone: done, strokesDone: strokes, parDone: par,
+      upd: Date.parse(round.updated || round.date) || 0, over: done >= 18, hole: cur, pars: round.holes.map(function (h) { return h.par || 4; }), holes: holes, holesDone: done, strokesDone: strokes, parDone: par,
       acks: (acks || []).slice(-ACK_SENT) };
   }
   function pushAck(acks, id, ok, why) { acks = (acks || []).filter(function (a) { return a.id !== id; }); acks.push(ok ? { id: id, ok: 1 } : { id: id, ok: 0, why: why || '' }); return acks.slice(-ACK_MAX); }

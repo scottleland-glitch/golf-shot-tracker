@@ -13,7 +13,7 @@ const VEC = [];  // scenarios for the Swift check: { name, par, rows, events, ex
 function run(name, h0, events, extra) {
   const r = round(h0, extra && extra.holes), start = JSON.parse(JSON.stringify(r.holes[0])), expect = [], res = [];
   events.forEach(e => { const o = W.applyEvent(r, e); res.push(o); expect.push({ ok: o.ok, reason: o.reason || '', hole: o.hole == null ? -1 : o.hole, finished: !!r.holes[e.hole].finished, rows: rowsOf(r, e.hole) }); });
-  VEC.push({ name, start, prev: extra && extra.holes && extra.holes[1] ? extra.holes[1] : null, events, expect });
+  VEC.push({ name, start, events: events.map((e, i) => Object.assign({ seq: i + 1, t: 0 }, e)), expect });
   return { r, res };
 }
 
@@ -83,8 +83,8 @@ function run(name, h0, events, extra) {
   const s2 = run('set a distance on ob is refused', mk([R('tee', 400), R('ob', '', { dir: 'left' })]), [ev('setdist', 0, { k: 1, dist: 100 })]); assert.strictEqual(s2.res[0].reason, 'bad'); ok('set a distance; not on an OB / re-tee row'); }
 // ---- 8. the state the watch is given ----
 { const rr = round(mk([R('tee', 400), R('fairway', 150), R('green', 12, { holeOut: true })], 4, { finished: true }));
-  const st = W.buildState(rr, [{ id: 'a', ok: 1 }]); assert.strictEqual(st.hole, 1); assert.strictEqual(st.holesDone, 1); assert.strictEqual(st.strokesDone, 3); assert.strictEqual(st.parDone, 4); assert.strictEqual(st.roundId, 'r1');
-  assert.deepStrictEqual(st.holes.map(h => h.i), [0, 1]); assert.strictEqual(st.pars.length, 18); assert.deepStrictEqual(st.holes[0].rows[2], { loc: 'green', dist: 12, holeOut: true });
+  const st = W.buildState(rr, [{ id: 'a', ok: 1 }]); assert.strictEqual(st.hole, 1); assert.strictEqual(st.holesDone, 1); assert.strictEqual(st.strokesDone, 3); assert.strictEqual(st.parDone, 4); assert.strictEqual(st.roundId, 'r1'); assert.strictEqual(st.over, false); assert.strictEqual(st.upd, Date.parse('2026-11-14T10:00:00.000Z'), 'when the round last changed (the watch only auto-starts the workout for a fresh round)');
+  assert.deepStrictEqual(st.holes.map(h => h.i), [0, 1, 2], 'finished + open + the next hole (so the watch can move on offline)'); assert.strictEqual(st.pars.length, 18); assert.deepStrictEqual(st.holes[0].rows[2], { loc: 'green', dist: 12, holeOut: true });
   assert.ok(JSON.stringify(st).length < 4000, 'small enough for the watch context: ' + JSON.stringify(st).length); assert.deepStrictEqual(W.buildState(null, []).roundId, null);
   const ob = round(mk([R('tee', 400), R('ob', '', { dir: 'left', lost: true })])); const s2 = W.buildState(ob, []); assert.deepStrictEqual(s2.holes[0].rows[1], { loc: 'ob', dir: 'left', lost: true });
   let ack = []; for (let i = 0; i < 100; i++) ack = W.pushAck(ack, 'x' + i, i % 2, 'why'); assert.strictEqual(ack.length, W.ACK_MAX); assert.ok(W.knows(ack, 'x99') && !W.knows(ack, 'x1'));

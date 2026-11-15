@@ -13,9 +13,10 @@
     }
    ]
   },
-  "prev": null,
   "events": [
    {
+    "seq": 1,
+    "t": 0,
     "id": "e1",
     "roundId": "r1",
     "type": "shot",
@@ -26,6 +27,8 @@
     "dist": 150
    },
    {
+    "seq": 2,
+    "t": 0,
     "id": "e2",
     "roundId": "r1",
     "type": "shot",
@@ -36,6 +39,8 @@
     "dist": 12
    },
    {
+    "seq": 3,
+    "t": 0,
     "id": "e3",
     "roundId": "r1",
     "type": "shot",
@@ -134,9 +139,10 @@
     }
    ]
   },
-  "prev": null,
   "events": [
    {
+    "seq": 1,
+    "t": 0,
     "id": "e4",
     "roundId": "r1",
     "type": "shot",
@@ -184,9 +190,10 @@
     }
    ]
   },
-  "prev": null,
   "events": [
    {
+    "seq": 1,
+    "t": 0,
     "id": "e5",
     "roundId": "r1",
     "type": "shot",
@@ -197,6 +204,8 @@
     "dist": 150
    },
    {
+    "seq": 2,
+    "t": 0,
     "id": "e5",
     "roundId": "r1",
     "type": "shot",
@@ -207,6 +216,8 @@
     "dist": 150
    },
    {
+    "seq": 3,
+    "t": 0,
     "id": "e6",
     "roundId": "r1",
     "type": "shot",
@@ -300,9 +311,10 @@
     }
    ]
   },
-  "prev": null,
   "events": [
    {
+    "seq": 1,
+    "t": 0,
     "id": "e7",
     "roundId": "r1",
     "type": "shot",
@@ -311,6 +323,8 @@
     "fin": "in"
    },
    {
+    "seq": 2,
+    "t": 0,
     "id": "e8",
     "roundId": "r1",
     "type": "shot",
@@ -385,9 +399,10 @@
     }
    ]
   },
-  "prev": null,
   "events": [
    {
+    "seq": 1,
+    "t": 0,
     "id": "e13",
     "roundId": "r1",
     "type": "shot",
@@ -397,6 +412,8 @@
     "dir": "short"
    },
    {
+    "seq": 2,
+    "t": 0,
     "id": "e14",
     "roundId": "r1",
     "type": "shot",
@@ -470,9 +487,10 @@
     }
    ]
   },
-  "prev": null,
   "events": [
    {
+    "seq": 1,
+    "t": 0,
     "id": "e15",
     "roundId": "r1",
     "type": "shot",
@@ -519,9 +537,10 @@
     }
    ]
   },
-  "prev": null,
   "events": [
    {
+    "seq": 1,
+    "t": 0,
     "id": "e16",
     "roundId": "r1",
     "type": "shot",
@@ -569,9 +588,10 @@
     }
    ]
   },
-  "prev": null,
   "events": [
    {
+    "seq": 1,
+    "t": 0,
     "id": "e17",
     "roundId": "r1",
     "type": "shot",
@@ -619,9 +639,10 @@
     }
    ]
   },
-  "prev": null,
   "events": [
    {
+    "seq": 1,
+    "t": 0,
     "id": "e18",
     "roundId": "r1",
     "type": "shot",
@@ -668,9 +689,10 @@
     }
    ]
   },
-  "prev": null,
   "events": [
    {
+    "seq": 1,
+    "t": 0,
     "id": "e19",
     "roundId": "r1",
     "type": "shot",
@@ -718,9 +740,10 @@
     }
    ]
   },
-  "prev": null,
   "events": [
    {
+    "seq": 1,
+    "t": 0,
     "id": "e20",
     "roundId": "r1",
     "type": "shot",
@@ -768,9 +791,10 @@
     }
    ]
   },
-  "prev": null,
   "events": [
    {
+    "seq": 1,
+    "t": 0,
     "id": "e21",
     "roundId": "r1",
     "type": "shot",
@@ -819,9 +843,10 @@
     }
    ]
   },
-  "prev": null,
   "events": [
    {
+    "seq": 1,
+    "t": 0,
     "id": "e22",
     "roundId": "r1",
     "type": "shot",
@@ -881,9 +906,10 @@
     }
    ]
   },
-  "prev": null,
   "events": [
    {
+    "seq": 1,
+    "t": 0,
     "id": "e23",
     "roundId": "r1",
     "type": "shot",
@@ -936,9 +962,10 @@
     }
    ]
   },
-  "prev": null,
   "events": [
    {
+    "seq": 1,
+    "t": 0,
     "id": "e24",
     "roundId": "r1",
     "type": "shot",
@@ -978,9 +1005,10 @@
     }
    ]
   },
-  "prev": null,
   "events": [
    {
+    "seq": 1,
+    "t": 0,
     "id": "e25",
     "roundId": "r1",
     "type": "shot",
@@ -989,6 +1017,8 @@
     "fin": "in"
    },
    {
+    "seq": 2,
+    "t": 0,
     "id": "e26",
     "roundId": "r1",
     "type": "shot",
@@ -1049,9 +1079,10 @@
     }
    ]
   },
-  "prev": null,
   "events": [
    {
+    "seq": 1,
+    "t": 0,
     "id": "e27",
     "roundId": "r1",
     "type": "undo",
@@ -1102,9 +1133,10 @@
     }
    ]
   },
-  "prev": null,
   "events": [
    {
+    "seq": 1,
+    "t": 0,
     "id": "e28",
     "roundId": "r1",
     "type": "undo",
@@ -1154,9 +1186,10 @@
     }
    ]
   },
-  "prev": null,
   "events": [
    {
+    "seq": 1,
+    "t": 0,
     "id": "e29",
     "roundId": "r1",
     "type": "undo",
@@ -1213,9 +1246,10 @@
     }
    ]
   },
-  "prev": null,
   "events": [
    {
+    "seq": 1,
+    "t": 0,
     "id": "e33",
     "roundId": "r1",
     "type": "shot",
@@ -1296,9 +1330,10 @@
     }
    ]
   },
-  "prev": null,
   "events": [
    {
+    "seq": 1,
+    "t": 0,
     "id": "e34",
     "roundId": "r1",
     "type": "shot",
@@ -1365,9 +1400,10 @@
     }
    ]
   },
-  "prev": null,
   "events": [
    {
+    "seq": 1,
+    "t": 0,
     "id": "e35",
     "roundId": "r1",
     "type": "delete",
@@ -1438,9 +1474,10 @@
     }
    ]
   },
-  "prev": null,
   "events": [
    {
+    "seq": 1,
+    "t": 0,
     "id": "e36",
     "roundId": "r1",
     "type": "delete",
@@ -1511,9 +1548,10 @@
     }
    ]
   },
-  "prev": null,
   "events": [
    {
+    "seq": 1,
+    "t": 0,
     "id": "e37",
     "roundId": "r1",
     "type": "delete",
@@ -1590,9 +1628,10 @@
     }
    ]
   },
-  "prev": null,
   "events": [
    {
+    "seq": 1,
+    "t": 0,
     "id": "e38",
     "roundId": "r1",
     "type": "insert",
@@ -1675,9 +1714,10 @@
     }
    ]
   },
-  "prev": null,
   "events": [
    {
+    "seq": 1,
+    "t": 0,
     "id": "e39",
     "roundId": "r1",
     "type": "insert",
@@ -1685,6 +1725,8 @@
     "k": 1
    },
    {
+    "seq": 2,
+    "t": 0,
     "id": "e40",
     "roundId": "r1",
     "type": "shot",
@@ -1810,9 +1852,10 @@
     }
    ]
   },
-  "prev": null,
   "events": [
    {
+    "seq": 1,
+    "t": 0,
     "id": "e41",
     "roundId": "r1",
     "type": "insert",
@@ -1876,9 +1919,10 @@
     }
    ]
   },
-  "prev": null,
   "events": [
    {
+    "seq": 1,
+    "t": 0,
     "id": "e42",
     "roundId": "r1",
     "type": "setdist",
@@ -1924,9 +1968,10 @@
     }
    ]
   },
-  "prev": null,
   "events": [
    {
+    "seq": 1,
+    "t": 0,
     "id": "e43",
     "roundId": "r1",
     "type": "setdist",
