@@ -42,6 +42,8 @@ precondition(m.currentHole == 1 && m.holesDone == 1 && m.strokesDone == 3 && m.p
 precondition(st.acks?.count == 2 && st.acks?[1].why == "stale", "acks")
 let e = WatchEvent(id: "x", seq: 1, t: 0, roundId: "r1", type: "shot", hole: 1, k: 0, fin: "fairway", dir: "", dist: 150)
 precondition(m.apply(e).ok && m.hole(1).rows.count == 2 && m.hole(1).rows[1].dist == 150, "optimistic apply")
+var mEnd = m; let endEv = WatchEvent(id: "end1", seq: 2, t: 0, roundId: "r1", type: "end", hole: 1)
+precondition(mEnd.apply(endEv).ok && mEnd.hole(1).rows.count == m.hole(1).rows.count, "an end note changes no rows")
 let enc = String(data: try JSONEncoder().encode(e), encoding: .utf8)!
 precondition(enc.contains("\"fin\":\"fairway\"") && !enc.contains("\"hz\""), "event encodes without nils: \(enc)")
 // the file the watch keeps: a confirmed shot is on disk right away and comes back exactly after a "relaunch"

@@ -25,7 +25,7 @@ When a round is in progress, the watch starts a **Golf workout** (outdoor, via H
 - The first time, the watch asks for Health permission. Say **Allow**. If you say no, the app still works, but watchOS may close it mid-round.
 - Every confirmed shot and the round state are written to the watch's storage immediately. If the app is killed or the watch restarts, reopening StrokeWise puts you back on the exact hole and shot, and the workout is picked up again.
 - The workout ends by itself when the round is finished on the watch or on the phone (or when the round is deleted/discarded on the phone).
-- To end it by hand from the watch: on the hole screen scroll down and tap **End round** (it asks you to confirm). There is also a **Start workout** button if you ever need to restart one.
+- To end it by hand from the watch: on the hole screen scroll down and tap **End round** (it asks you to confirm). It stops the workout, saves it to Health, tells the phone, shows **Round saved** for about 1.5 seconds, and from then on the watch shows **No round** for that round. There is no "Start workout" button anywhere: the phone starts the round, and the workout follows it.
 - The workout is saved in Apple Health as a Golf workout (time and heart rate/calories as the watch measures them). Nothing is read from or sent anywhere else.
 
 ### The watch app opens by itself when a round starts
@@ -35,7 +35,17 @@ When a new round starts on the iPhone, the phone wakes the watch app (`HKHealthS
 - **First time only:** the iPhone shows the Health permission sheet when you start a round (Workouts: share; Heart Rate, Active Energy, Walking + Running Distance: read). Tap **Turn On All** and **Allow**. The watch does not ask again.
 - **The iPhone App ID needs HealthKit too.** developer.apple.com > Identifiers > `com.strokewise.app` > tick **HealthKit** > Save, then regenerate/re-download the `com.strokewise.app` App Store profile and upload it in Codemagic (replacing the old one). If the profile has no HealthKit, the watch workflow says so in the log ("check the iPhone profile has HealthKit"), builds without it, and the watch app simply isn't launched automatically (Settings > Apple Watch says why).
 - Where it lives: `native/watch.js` (`maybeLaunch`), the plugin's `StrokewiseWatchLauncher.swift`, the entitlement in `native/add-watch-target.rb`, the two Health strings in `native/ios-setup.sh`, the check in `native/check-phone-healthkit.sh`. All of it only runs in the `ios-testflight-watch` workflow. `STROKEWISE_PHONE_HEALTHKIT=0` turns it off.
+- If the first attempt is refused (watch out of reach, Health not allowed yet) the phone retries on a later update of the same round, up to 3 times 20 s apart; only an accepted launch is remembered, so a round never wakes the watch twice.
 - On the watch, `AppDelegate.handle(_ workoutConfiguration:)` starts the workout right away and attaches it to the round when the phone's picture arrives (waits up to 90 s).
+
+### Closing the app (and testing auto-launch from a closed app)
+
+watchOS gives apps no way to quit themselves, so StrokeWise does the closest legitimate thing:
+
+- **End round** (hole screen, or the round menu) ends the Golf workout, saves it, shows "Round saved", then drops to the plain **No round / Start a round on your iPhone** screen. The round is remembered as ended on the watch, so nothing restarts a workout for it (a new round on the phone has a new id and starts normally). The card also says "Press the Digital Crown to leave". With no workout running, watchOS no longer keeps the app in front, and puts it away when you lower your wrist or return to the watch face (how soon depends on the watch's own Settings > General > Return to Clock).
+- **Close** (on the "No round" screen, and in the round menu under End round) does the same thing: ends any workout and takes the same exit path.
+- **Force-quit** also works any time: press the side button, swipe left on StrokeWise in the app switcher, tap the red X (watchOS 10: press the side button, swipe the StrokeWise card left, tap X).
+- **To test auto-launch from a closed app:** end the round on the watch (or Close), then force-quit StrokeWise from the app switcher. Start a **new** round on the iPhone. Within a few seconds the watch should open StrokeWise by itself, start the Golf workout, and show the new round's hole screen. The phone only tries once per round (it retries up to 3 times, 20 seconds apart, only if the first attempt was refused; Settings > Apple Watch shows "watch app launched" or the reason it was not). Keep the watch on your wrist and unlocked for the test; watchOS decides when a launched app is brought to the front.
 
 ## Your one-time steps (about 15 minutes, in a browser)
 

@@ -75,7 +75,16 @@ const FAKE = () => { // what the native plugin does: a queue until acked, state 
       await page.addScriptTag({ path: ROOT + 'native/watch-core.js' }); await page.addScriptTag({ path: ROOT + 'native/watch.js' }); await page.waitForFunction(() => window.__fake.launched === 1);
       await page.waitForFunction(() => window.STROKEWISE_WATCH.log().some(l => /NOT launched/.test(l.m)));
       assert.ok((await page.evaluate(() => window.STROKEWISE_WATCH.log())).some(l => /NOT launched: no HealthKit/.test(l.m)), 'a refused launch is explained in the Settings log'); ok('a new round launches it once, and a refusal is written to the Settings → Apple Watch log');
-      await page.context().close(); }
+            // a refused launch is retried on a later push (20 s apart); once the system accepts it, it is never repeated for the round
+      await page.evaluate(() => { const d = Date.now; window.__t = 30000; Date.now = () => d.call(Date) + window.__t; window.__fake.launchAnswer = { ok: true, reason: '' }; });
+      await page.evaluate(() => window.STROKEWISE_WATCH.push(true)); await page.waitForFunction(() => window.__fake.launched === 2 && window.STROKEWISE_WATCH.log().some(l => /launched$/.test(l.m)));
+      await page.evaluate(() => { window.__t = 90000; return window.STROKEWISE_WATCH.push(true); }); assert.strictEqual(await page.evaluate(() => window.__fake.launched), 2); ok('a refused launch is retried (once accepted: never again for that round)');
+      // "end" from the watch (End round / Close): acked, logged, and the phone's round is untouched
+      const before = JSON.stringify(await page.evaluate(() => JSON.parse(localStorage.getItem('golfsg.rounds.v1'))));
+      await page.evaluate(() => window.__fake.send({ id: 'end1', seq: 99, roundId: 'w2', type: 'end', hole: 0, t: Date.now() })); await page.evaluate(() => window.STROKEWISE_WATCH.drain());
+      await page.waitForFunction(() => window.__fake.pending.length === 0); st = await page.evaluate(() => window.__fake.pushed.slice(-1)[0]);
+      assert.ok(st.acks.find(a => a.id === 'end1' && a.ok), 'the end note is acked as applied'); assert.strictEqual(JSON.stringify(await page.evaluate(() => JSON.parse(localStorage.getItem('golfsg.rounds.v1')))), before, 'the round is unchanged');
+      ok('the watch\'s "round ended" note is acked and leaves the phone\'s round alone'); await page.context().close(); }
     // ---- 3. same as the phone's own controls ----
     const scenarios = [
       ['fairway right 150', [{ k: 0, fin: 'fairway', dir: 'right', dist: 150 }], [{ sel: ['fin', 0, 'fairway'] }, { sel: ['dir', 1, 'right'] }, { click: '[data-act="nextshot"][data-k="0"]' }, { fill: [1, '150'] }]],

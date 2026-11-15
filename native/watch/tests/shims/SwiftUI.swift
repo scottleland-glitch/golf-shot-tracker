@@ -100,9 +100,10 @@ public struct Text: PrimitiveView {
 }
 public struct Image: PrimitiveView { public init(systemName: String) {} }
 public struct Spacer: PrimitiveView { public init(minLength: CGFloat? = nil) {} }
-public struct ProgressView: PrimitiveView { public init(value: Double?) {} }
+public struct ProgressView: PrimitiveView { public init(value: Double?) {}; public init() {} }
 public struct VStack<C: View>: PrimitiveView { public init(alignment: HorizontalAlignment = .center, spacing: CGFloat? = nil, @ViewBuilder content: () -> C) {} }
 public struct HStack<C: View>: PrimitiveView { public init(alignment: VerticalAlignment = .center, spacing: CGFloat? = nil, @ViewBuilder content: () -> C) {} }
+public struct ZStack<C: View>: PrimitiveView { public init(alignment: Alignment = .center, @ViewBuilder content: () -> C) {} }
 public struct ScrollView<C: View>: PrimitiveView { public init(@ViewBuilder content: () -> C) {} }
 public struct List<C: View>: PrimitiveView { public init(@ViewBuilder content: () -> C) {} }
 public struct ForEach<D: RandomAccessCollection, ID: Hashable, C: View>: PrimitiveView {
@@ -144,7 +145,10 @@ public struct DragGesture: Gesture {
 public enum DigitalCrownRotationalSensitivity { case low, medium, high }
 
 // MARK: modifiers
+public struct AnyTransition { public static var opacity: AnyTransition { AnyTransition() } }
 extension View {
+    public func ignoresSafeArea() -> some View { self }
+    public func transition(_ t: AnyTransition) -> some View { self }
     public func font(_ f: Font?) -> some View { self }
     public func lineLimit(_ number: Int?) -> some View { self }
     public func minimumScaleFactor(_ factor: CGFloat) -> some View { self }

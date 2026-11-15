@@ -37,6 +37,7 @@ public class HKLiveWorkoutBuilder: NSObject {
     public func beginCollection(withStart startDate: Date, completion: @escaping (Bool, Error?) -> Void) {}
     public func endCollection(withEnd endDate: Date, completion: @escaping (Bool, Error?) -> Void) {}
     public func finishWorkout(completion: @escaping (HKWorkout?, Error?) -> Void) {}
+    public func discardWorkout() {}
 }
 public class HKWorkoutSession: NSObject {
     public init(healthStore: HKHealthStore, configuration: HKWorkoutConfiguration) throws {}

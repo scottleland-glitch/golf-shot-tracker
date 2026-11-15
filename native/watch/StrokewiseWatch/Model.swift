@@ -90,7 +90,7 @@ struct WatchEvent: Codable, Equatable, Identifiable {
     var seq: Int
     var t: Double
     var roundId: String
-    var type: String        // shot | setdist | undo | delete | insert
+    var type: String        // shot | setdist | undo | delete | insert | end (information only: the golfer ended the round on the watch)
     var hole: Int
     var k: Int? = nil
     var fin: String? = nil  // fairway rough deep bunker green trees hazard ob unp lost in

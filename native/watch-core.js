@@ -127,6 +127,7 @@
     if (!round || !ev || !round.holes) return { ok: false, reason: 'noround' };
     if (ev.roundId && round.id !== ev.roundId) return { ok: false, reason: 'noround' };
     var hi = ev.hole, h = round.holes[hi];
+    if (ev.type === 'end') return { ok: true, hole: hi }; // "the golfer ended the round on the watch (workout saved)": information only – the phone owns the round and nothing in it changes
     if (ev.type === 'undo') {
       if (!h) return { ok: false, reason: 'badhole' };
       var u = applyUndo(round, hi); if (u.why) return { ok: false, reason: u.why };

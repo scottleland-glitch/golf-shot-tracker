@@ -6,6 +6,17 @@ struct RootView: View {
     @StateObject private var nav = Nav()
 
     var body: some View {
+        ZStack {
+            stack
+            if let phase = store.exitPhase { ExitView(phase: phase).transition(.opacity) }   // End round / Close: "Saving…", then "Round saved"
+        }
+        .environmentObject(nav)
+        .onChange(of: store.exitPhase) { phase in
+            if phase != nil { nav.home() }   // behind the card: back to the home screen, which shows "No round" for an ended round
+        }
+    }
+
+    private var stack: some View {
         NavigationStack(path: $nav.path) {
             HoleScreen()
                 .navigationDestination(for: Route.self) { route in
@@ -24,6 +35,5 @@ struct RootView: View {
                     }
                 }
         }
-        .environmentObject(nav)
     }
 }

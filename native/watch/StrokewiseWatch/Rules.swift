@@ -109,6 +109,7 @@ enum Rules {
     static func apply(_ ev: WatchEvent, holes: inout [Int: HoleState], pars: [Int]) -> Result {
         let hi = ev.hole
         func fail(_ why: String) -> Result { Result(ok: false, reason: why, hole: -1) }
+        if ev.type == "end" { return Result(ok: true, reason: "", hole: hi) }   // "the golfer ended the round on the watch": information only, the rows don't change
         if ev.type == "undo" {
             guard hi >= 0 && hi <= 17 else { return fail("badhole") }
             return undo(&holes, hi, pars)

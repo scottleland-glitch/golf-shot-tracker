@@ -55,16 +55,22 @@
   // A round just started on the phone: wake the watch app once for that round (the plugin asks for Health access the first time and calls
   // HKHealthStore.startWatchApp; the watch app starts its Golf workout). Remembered per round id, so later shots, relaunches and the
   // Settings "send now" button never do it again. Rounds that are over, or untouched for 6 h, never launch it.
-  var LAUNCH_KEY = 'golfsg.watchlaunch.v1';
+  var LAUNCH_KEY = 'golfsg.watchlaunch.v1', launchBusy = false, tries = { id: '', n: 0, at: 0 };
   function maybeLaunch(r, st) {
-    if (!st.roundId || st.over || !P.startWatchApp) return;
+    if (!st.roundId || st.over || !P.startWatchApp || launchBusy) return;
     var seen = ''; try { seen = localStorage.getItem(LAUNCH_KEY) || ''; } catch (e) {}
     if (seen === st.roundId) return;
     if (st.upd && Date.now() - st.upd > 6 * 3600 * 1000) return;
-    try { localStorage.setItem(LAUNCH_KEY, st.roundId); } catch (e) {}
-    log('new round: waking the watch app');
-    Promise.resolve(P.startWatchApp()).then(function (res) { log(res && res.ok ? 'watch app launched' : 'watch app NOT launched: ' + (res && res.reason || 'no answer')); refreshInfo(); },
-      function (e) { log('watch app launch failed: ' + (e && e.message || e)); });
+    // A refused launch (watch out of reach, Health not allowed yet) is tried again on a later push for the same round: at most 3 times, 20 s apart.
+    // Only a launch the system accepted is remembered, so one round never wakes the watch twice.
+    if (tries.id !== st.roundId) tries = { id: st.roundId, n: 0, at: 0 };
+    if (tries.n >= 3 || Date.now() - tries.at < 20000) return;
+    tries.n++; tries.at = Date.now(); launchBusy = true;
+    log('new round: waking the watch app' + (tries.n > 1 ? ' (try ' + tries.n + ')' : ''));
+    Promise.resolve(P.startWatchApp()).then(function (res) {
+      if (res && res.ok) { try { localStorage.setItem(LAUNCH_KEY, st.roundId); } catch (e) {} }
+      log(res && res.ok ? 'watch app launched' : 'watch app NOT launched: ' + (res && res.reason || 'no answer')); launchBusy = false; refreshInfo();
+    }, function (e) { launchBusy = false; log('watch app launch failed: ' + (e && e.message || e)); });
   }
   function push(force) {
     var r = currentRound(), st = Core.buildState(r, loadAcks()), body = JSON.stringify(st), same = JSON.stringify(Object.assign({}, st, { ts: 0 }));
@@ -87,7 +93,8 @@
       var r = A && A.rounds().filter(function (x) { return x.id === e.roundId; })[0], res;
       if (!A || !r || A.current() !== e.roundId) res = { ok: false, reason: 'noround' };
       else { try { res = Core.applyEvent(r, e); } catch (x) { res = { ok: false, reason: 'bad' }; } }
-      if (res.ok) touched[e.roundId] = r;
+      if (e.type === 'end') { if (res.ok) log('the watch ended its round tracking (workout saved); the round itself stays open on the phone'); }
+      else if (res.ok) touched[e.roundId] = r;
       acks = Core.pushAck(acks, e.id, res.ok, res.reason);
     });
     Object.keys(touched).forEach(function (id) { A.commit(touched[id]); }); // the app's own save() + redraw (live sharing, backup)

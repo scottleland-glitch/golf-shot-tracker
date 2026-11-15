@@ -34,7 +34,7 @@ struct HoleScreen: View {
                     Banner(text: "\(store.pendingCount) shot\(store.pendingCount == 1 ? "" : "s") queued",
                            detail: "Phone out of range. They sync when it's back.")
                 }
-                if !store.hasRound {
+                if !store.roundOnWatch {
                     noRound
                 } else if let j = store.justFinished {
                     HoleFinishedView(hole: j)
@@ -50,23 +50,24 @@ struct HoleScreen: View {
         .navigationTitle(screenTitle)
         .simultaneousGesture(
             DragGesture(minimumDistance: 24).onEnded { v in
-                if v.translation.width > 50 && abs(v.translation.height) < 40 { nav.push(.holes) }   // swipe right: finished holes
+                if store.roundOnWatch && v.translation.width > 50 && abs(v.translation.height) < 40 { nav.push(.holes) }   // swipe right: finished holes
             }
         )
     }
 
     private var screenTitle: String {
         // with a round showing, the course is the small green label in the content instead (shotView)
-        return store.hasRound ? "" : "StrokeWise"
+        return store.roundOnWatch ? "" : "StrokeWise"
     }
 
+    /// No round on the watch (nothing started on the iPhone yet, or the round was ended here). Never a workout start: the phone starts rounds.
     private var noRound: some View {
         VStack(spacing: 6) {
             Image(systemName: "figure.golf").font(.title2).foregroundColor(Theme.greenBright)
-            Text("No round yet").font(.headline)
-            Text("Start a round in StrokeWise on your iPhone. It shows up here by itself.")
-                .font(.footnote).foregroundColor(.secondary).multilineTextAlignment(.center)
+            Text("No round").font(.headline)
+            Text("Start a round on your iPhone.").font(.footnote).foregroundColor(.secondary).multilineTextAlignment(.center)
             Button("Check phone") { Connectivity.shared.refresh() }.buttonStyle(TileStyle(small: true))
+            Button("Close") { store.endRoundAndExit() }.buttonStyle(TileStyle(small: true))
         }.padding(.top, 8)
     }
 
@@ -159,16 +160,16 @@ struct HoleScreen: View {
     private var footer: some View {
         VStack(spacing: 6) {
             linkLine
-            if store.hasRound, store.undoTarget() != nil {
+            if store.roundOnWatch, store.undoTarget() != nil {
                 Button("Undo last shot") { nav.push(.undo) }.buttonStyle(TileStyle(small: true))
             }
-            if store.hasRound {
+            if store.roundOnWatch {
                 HStack(spacing: 4) {
                     Circle().fill(workout.running ? Theme.greenBright : Color.gray).frame(width: 6, height: 6)
                     Text(workout.running ? "Round tracking on" : (workout.note.isEmpty ? "Workout off" : workout.note))
                         .font(.system(size: 10)).foregroundColor(.secondary)
                 }
-                Button(workout.running ? "End round" : "Start workout") { nav.push(.endRound) }
+                Button(workout.running ? "End round" : "Close") { nav.push(.endRound) }
                     .buttonStyle(TileStyle(small: true))
             }
         }.padding(.top, 4)

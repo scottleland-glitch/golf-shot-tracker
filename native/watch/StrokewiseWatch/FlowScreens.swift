@@ -254,6 +254,7 @@ struct UndoScreen: View {
 }
 
 /// End the round's Golf workout from the watch (it also ends by itself when all 18 holes are done, or the phone discards the round).
+/// The round menu: End round (and Close) go through the one exit path, WatchStore.endRoundAndExit().
 struct EndRoundScreen: View {
     @EnvironmentObject var store: WatchStore
     @EnvironmentObject var nav: Nav
@@ -261,19 +262,37 @@ struct EndRoundScreen: View {
     var body: some View {
         ScrollView {
             VStack(spacing: 6) {
-                if workout.running {
-                    Text("End round?").font(.headline)
-                    Text("Stops the Golf workout and saves it to Health. Your shots stay saved.")
-                        .font(.footnote).foregroundColor(.secondary).multilineTextAlignment(.center)
-                    BigButton(title: "End round", fill: Theme.red) { store.endWorkout(markEnded: true); nav.home() }
-                } else {
-                    Text("Start tracking?").font(.headline)
-                    Text("Starts a Golf workout so StrokeWise stays on your wrist for the whole round.")
-                        .font(.footnote).foregroundColor(.secondary).multilineTextAlignment(.center)
-                    BigButton(title: "Start workout") { store.startWorkout(); nav.home() }
-                }
+                Text("End round?").font(.headline)
+                Text(workout.running
+                     ? "Stops the Golf workout and saves it to Health, then closes StrokeWise. Your shots stay saved."
+                     : "Closes StrokeWise. Your shots stay saved.")
+                    .font(.footnote).foregroundColor(.secondary).multilineTextAlignment(.center)
+                BigButton(title: "End round", fill: Theme.red) { store.endRoundAndExit() }
+                Button("Close") { store.endRoundAndExit() }.buttonStyle(TileStyle(small: true))
                 Button("Cancel") { nav.home() }.buttonStyle(TileStyle(small: true))
             }.padding(.horizontal, 4)
         }
+    }
+}
+
+/// Full-screen card shown while End round / Close runs: "Saving…", then "Round saved" for about 1.5 s.
+struct ExitView: View {
+    let phase: WatchStore.ExitPhase
+    var body: some View {
+        VStack(spacing: 6) {
+            switch phase {
+            case .ending:
+                ProgressView()
+                Text("Saving…").font(.headline)
+            case .saved(let workout, let round):
+                Image(systemName: "checkmark.circle.fill").font(.system(size: 34)).foregroundColor(Theme.greenBright)
+                Text(round ? (workout ? "Round saved" : "Round ended") : "Closed").font(.headline)
+                if workout { Text("Workout saved to Health").font(.footnote).foregroundColor(.secondary) }
+                Text("Press the Digital Crown to leave").font(.system(size: 10)).foregroundColor(.secondary).multilineTextAlignment(.center)
+            }
+        }
+        .padding(.horizontal, 6)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(Color.black.ignoresSafeArea())
     }
 }

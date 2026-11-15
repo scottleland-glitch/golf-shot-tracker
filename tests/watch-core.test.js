@@ -55,6 +55,9 @@ function run(name, h0, events, extra) {
   const a = run('ace', mk([R('tee', 160)], 3), [ev('shot', 0, { k: 0, fin: 'in' })]); assert.strictEqual(rowsOf(a.r)[0].loc, 'holedx'); assert.ok(a.r.holes[0].finished && SG.analyzeHole(a.r.holes[0]).strokes === 1); ok('an ace: row 1 becomes holedx, 1 stroke, finished');
   const nd = run('no tee distance', mk([R('tee', '')]), [ev('shot', 0, { k: 0, fin: 'in' }), ev('shot', 0, { k: 0, fin: 'in', dist: 160 })]);
   assert.ok(!nd.r.holes[0].finished || SG.analyzeHole(nd.r.holes[0]).complete); ok('an ace with no tee distance stays unfinished until the distance is known'); }
+// ---- 5b. "end" (the golfer ended the round on the watch): information only ----
+{ const r = round(); const before = JSON.stringify(r); const o = W.applyEvent(r, ev('end', 0)); assert.ok(o.ok); assert.strictEqual(JSON.stringify(r), before);
+  assert.strictEqual(W.applyEvent(r, ev('end', 0, { roundId: 'other' })).reason, 'noround'); ok('an "end" note changes nothing in the round'); }
 // ---- 6. undo ----
 { const r0 = mk([R('tee', 400), R('fairway', 150, { dir: 'right' })]);
   const u1 = run('undo a shot', r0, [ev('undo', 0)]); assert.deepStrictEqual(rowsOf(u1.r), [R('tee', 400)]);
