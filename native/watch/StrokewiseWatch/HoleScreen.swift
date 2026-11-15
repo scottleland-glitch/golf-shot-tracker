@@ -56,8 +56,8 @@ struct HoleScreen: View {
     }
 
     private var screenTitle: String {
-        let course = store.state?.course ?? ""
-        return (store.hasRound && !course.isEmpty) ? course : "StrokeWise"
+        // with a round showing, the course is the small green label in the content instead (shotView)
+        return store.hasRound ? "" : "StrokeWise"
     }
 
     private var noRound: some View {
@@ -88,33 +88,53 @@ struct HoleScreen: View {
         let dist = h.rows.isEmpty ? nil : Rules.distOf(h.rows, k)
         let unit = h.rows.isEmpty ? "yd" : Rules.unit(h.rows, k)
         let draft = ShotDraft(hole: c, k: k, edit: false, base: 0)
-        return VStack(alignment: .leading, spacing: 6) {
-            HStack(alignment: .top) {
-                VStack(alignment: .leading, spacing: 0) {
-                    Text("Hole \(c + 1)").font(.title2.bold())
-                    if let d = dist {
-                        Text("\(d) \(unit) to pin").font(.footnote.weight(.semibold))
-                    } else {
-                        Button("Set distance") {
-                            var d0 = draft; d0.mode = "set"; d0.edit = false; d0.base = 0
-                            nav.push(.distance(d0))
-                        }.buttonStyle(TileStyle(fill: Theme.amber, small: true)).foregroundColor(.black)
-                    }
+        let lieText = k == 0 ? "Tee" : Labels.lie(row.loc)
+        let course = store.state?.course ?? ""
+        return VStack(alignment: .leading, spacing: 4) {
+            // 1. the course: a tiny green label (it used to be the screen title)
+            if !course.isEmpty {
+                HStack(spacing: 4) {
+                    Circle().fill(Theme.greenBright).frame(width: 5, height: 5)
+                    Text(course.uppercased()).font(.system(size: 9, weight: .bold)).foregroundColor(Theme.greenBright)
+                        .lineLimit(1).minimumScaleFactor(0.6)
                 }
-                Spacer()
-                VStack(alignment: .trailing, spacing: 0) {
-                    Text("Par \(h.par)").font(.caption.weight(.bold))
-                        .padding(.horizontal, 6).padding(.vertical, 2)
-                        .background(Capsule().fill(Theme.tile))
-                    Text("Shot \(k + 1) · \(k == 0 ? "Tee" : Labels.lie(row.loc))").font(.system(size: 10)).foregroundColor(.secondary)
-                    if m.holesDone > 0 {
-                        Text("Thru \(m.holesDone): \(m.strokesDone) (\(Labels.toPar(m.strokesDone - m.parDone)))")
-                            .font(.system(size: 10)).foregroundColor(.secondary)
-                    }
+            }
+            // 2. hole and par: one small line
+            Text("Hole \(c + 1) · Par \(h.par)").font(.system(size: 12, weight: .semibold)).foregroundColor(Theme.dim)
+                .lineLimit(1).minimumScaleFactor(0.7)
+            // 3. the hero: "Shot 2" big, bold, white – "from Green" beside it on the same line (both shrink before they wrap or cut off)
+            HStack(alignment: .firstTextBaseline, spacing: 6) {
+                Text("Shot \(k + 1)").font(.system(size: 30, weight: .heavy, design: .rounded)).foregroundColor(.white)
+                    .lineLimit(1).minimumScaleFactor(0.6).layoutPriority(1)
+                Text("from \(lieText)").font(.system(size: 17, weight: .semibold)).foregroundColor(Theme.lieText)
+                    .lineLimit(1).minimumScaleFactor(0.5)
+            }
+            // 4. distance and score so far: secondary, one line
+            if let d = dist {
+                HStack(spacing: 4) {
+                    Text("\(d) \(unit) to pin").font(.system(size: 12, weight: .semibold)).foregroundColor(.white)
+                        .lineLimit(1).minimumScaleFactor(0.7)
+                    Spacer(minLength: 2)
+                    thruText(m)
                 }
+            } else {
+                Button("Set distance") {
+                    var d0 = draft; d0.mode = "set"; d0.edit = false; d0.base = 0
+                    nav.push(.distance(d0))
+                }.buttonStyle(TileStyle(fill: Theme.amber, small: true)).foregroundColor(.black)
+                HStack { Spacer(minLength: 0); thruText(m) }
             }
             Text("Where did it finish?").font(.footnote).foregroundColor(.secondary)
             LieGrid(draft: draft)
+        }
+    }
+
+    /// "Thru 2: 8 (E)" – small and muted; nothing before the first finished hole.
+    @ViewBuilder private func thruText(_ m: RoundModel) -> some View {
+        if m.holesDone > 0 {
+            Text("Thru \(m.holesDone): \(m.strokesDone) (\(Labels.toPar(m.strokesDone - m.parDone)))")
+                .font(.system(size: 11, weight: .medium)).foregroundColor(Theme.dim)
+                .lineLimit(1).minimumScaleFactor(0.6)
         }
     }
 

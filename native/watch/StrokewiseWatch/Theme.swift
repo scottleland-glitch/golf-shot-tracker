@@ -6,6 +6,8 @@ enum Theme {
     static let greenBright = Color(red: 0.16, green: 0.62, blue: 0.27)
     static let tile = Color(white: 0.17)
     static let amber = Color(red: 0.95, green: 0.68, blue: 0.15)
+    static let dim = Color(white: 0.62)            // secondary text (hole/par, thru)
+    static let lieText = Color(white: 0.92)        // "from Green": light and readable, a little under the white of Shot N
     static let red = Color(red: 0.75, green: 0.18, blue: 0.16)
 }
 
