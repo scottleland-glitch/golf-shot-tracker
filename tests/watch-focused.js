@@ -10,9 +10,9 @@ const seed = r => { localStorage.clear(); localStorage.setItem('golfsg.player.v1
   localStorage.setItem('golfsg.rounds.v1', JSON.stringify([r])); localStorage.setItem('golfsg.current.v1', r.id); };
 const FAKE = () => { // what the native plugin does: a queue until acked, state pushes recorded
   const f = window.__fake = { pending: [], pushed: [], acked: [], n: 0, listeners: {} };
-  window.Capacitor = { isNativePlatform: () => true, isPluginAvailable: n => n === 'StrokewiseWatch',
-    registerPlugin: () => ({ getPending: async () => ({ items: f.pending.slice() }), ack: async o => { f.acked.push(...o.qids); f.pending = f.pending.filter(i => !o.qids.includes(i.qid)); },
-      pushState: async o => { f.pushed.push(JSON.parse(o.json)); }, addListener: (n, cb) => { f.listeners[n] = cb; } }) };
+  window.Capacitor = { isNativePlatform: () => true, isPluginAvailable: n => n === 'StrokewiseWatch', // as native-bridge.js: Plugins.<name>, no registerPlugin
+    Plugins: { StrokewiseWatch: ({ getPending: async () => ({ items: f.pending.slice() }), ack: async o => { f.acked.push(...o.qids); f.pending = f.pending.filter(i => !o.qids.includes(i.qid)); },
+      pushState: async o => { f.pushed.push(JSON.parse(o.json)); }, addListener: (n, cb) => { f.listeners[n] = cb; return Promise.resolve({ remove() {} }); } }) } };
   f.send = e => { f.pending.push({ qid: 'q' + (++f.n), json: JSON.stringify(e) }); };
 };
 (async () => {

@@ -11,12 +11,40 @@
   'use strict';
   var C = window.Capacitor;
   if (!C || !C.isNativePlatform || !C.isNativePlatform()) return;
-  var Core = window.StrokewiseWatchCore;
-  if (!Core || !C.registerPlugin) return;
-  try { if (C.isPluginAvailable && !C.isPluginAvailable('StrokewiseWatch')) return; } catch (e) { return; }
-  var P = C.registerPlugin('StrokewiseWatch');
+  var Core = window.StrokewiseWatchCore, P = null, missing = '';
+  // This app has no JS bundler, so window.Capacitor is only the native bridge: plugins are on Capacitor.Plugins (registerPlugin is part of
+  // @capacitor/core's JS, which isn't loaded here – asking for it first made this whole file stop silently and the watch never got anything).
+  try { P = (C.Plugins && C.Plugins.StrokewiseWatch) || (C.registerPlugin ? C.registerPlugin('StrokewiseWatch') : null); } catch (e) { P = null; }
+  if (!Core) missing = 'watch-core.js did not load';
+  else if (!P) missing = 'the StrokewiseWatch plugin is not in this build (plugins found: ' + Object.keys(C.Plugins || {}).join(', ') + ')';
   var ACK_KEY = 'golfsg.watchacks.v1', lastPush = '', timer = null, busy = false, again = false;
   var app = function () { return window.STROKEWISE_APP; };
+  // ---- a small debug log (Settings → Apple Watch shows it): what the phone tried, and what the native side said ----
+  var LOG_KEY = 'golfsg.watchlog.v1', logs = [], info = null, infoAt = 0;
+  try { var old = JSON.parse(localStorage.getItem(LOG_KEY) || '[]'); if (Array.isArray(old)) logs = old.slice(-40); } catch (e) {}
+  function log(m) { logs.push({ t: Date.now(), m: String(m).slice(0, 200) }); logs = logs.slice(-40); try { localStorage.setItem(LOG_KEY, JSON.stringify(logs)); } catch (e) {} }
+  function refreshInfo() {
+    if (missing || !P.getInfo) { info = { missing: missing || 'no getInfo' }; paint(); return Promise.resolve(info); }
+    return Promise.resolve(P.getInfo()).then(function (i) { info = i || null; infoAt = Date.now(); paint(); return info; }, function (e) { log('getInfo failed: ' + (e && e.message || e)); info = null; paint(); });
+  }
+  function ago(t) { var s = Math.max(0, Math.round((Date.now() - t) / 1000)); return s < 90 ? s + 's ago' : Math.round(s / 60) + ' min ago'; }
+  function esc(x) { return String(x).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); }
+  function yn(v) { return v ? 'yes' : 'no'; }
+  function panelHTML() {
+    var i = info, rows = logs.slice(-8).reverse().map(function (l) { return '<div>' + esc(ago(l.t)) + ' · ' + esc(l.m) + '</div>'; }).join('');
+    var st = !i ? 'checking…' : i.missing ? 'NOT WORKING: ' + esc(i.missing) : (i.supported === false ? 'this iPhone cannot pair a watch' : 'paired: ' + yn(i.paired) + ' · watch app installed: ' + yn(i.installed) + ' · link active: ' + yn(i.activated) + ' · reachable now: ' + yn(i.reachable));
+    return '<div id="watchpanel" class="tiprow" style="display:block;margin:12px 0;font-size:12px;line-height:1.45"><b>Apple Watch</b><div>' + st + '</div>' +
+      '<button class="big frostbtn" id="watchsend" type="button" style="margin:6px 0">Send this round to the watch now</button>' +
+      '<div style="opacity:.75">' + (rows || 'Nothing yet.') + '</div></div>';
+  }
+  function paint() { var el = document.getElementById('watchpanel'); if (el) { var d = document.createElement('div'); d.innerHTML = panelHTML(); el.parentNode.replaceChild(d.firstChild, el); } }
+  function panel() { setTimeout(refreshInfo, 0); return panelHTML(); }
+  document.addEventListener('click', function (e) { var t = e.target; if (t && t.id === 'watchsend' && !missing) { log('manual send'); push(true).then(refreshInfo); } });
+  if (missing) { // say so in Settings → Apple Watch instead of doing nothing
+    log(missing); info = { missing: missing };
+    window.STROKEWISE_WATCH = { changed: function () {}, drain: function () { return Promise.resolve(); }, push: function () { return Promise.resolve(); }, process: function () { return Promise.resolve(); }, panel: panelHTML, log: function () { return logs.slice(); } };
+    return;
+  }
   function loadAcks() { try { var a = JSON.parse(localStorage.getItem(ACK_KEY) || '[]'); return Array.isArray(a) ? a : []; } catch (e) { return []; } }
   function saveAcks(a) { try { localStorage.setItem(ACK_KEY, JSON.stringify(a)); } catch (e) {} }
   function currentRound() { var A = app(); if (!A) return null; var id = A.current(); return id ? (A.rounds().filter(function (r) { return r.id === id; })[0] || null) : null; }
@@ -26,7 +54,8 @@
     var r = currentRound(), st = Core.buildState(r, loadAcks()), body = JSON.stringify(st), same = JSON.stringify(Object.assign({}, st, { ts: 0 }));
     if (!force && same === lastPush) return Promise.resolve();
     lastPush = same;
-    return P.pushState({ json: body }).catch(function () { lastPush = ''; });
+    return P.pushState({ json: body }).then(function () { log('pushed ' + (st.roundId ? 'round ' + st.roundId + ' hole ' + ((st.hole || 0) + 1) : 'no round') + ' (' + body.length + ' bytes)'); },
+      function (e) { lastPush = ''; log('push FAILED: ' + (e && e.message || e)); });
   }
   function soon() { clearTimeout(timer); timer = setTimeout(function () { push(false); }, 500); }
 
@@ -51,14 +80,17 @@
   function drain() {
     if (busy) { again = true; return Promise.resolve(); }
     busy = true;
-    return P.getPending().then(function (res) { return process(res && res.items); }).catch(function () {}).then(function () { busy = false; if (again) { again = false; return drain(); } });
+    return P.getPending().then(function (res) { if (res && res.items && res.items.length) log('from the watch: ' + res.items.length + ' message(s)'); return process(res && res.items); }).catch(function (e) { log('getPending failed: ' + (e && e.message || e)); }).then(function () { busy = false; if (again) { again = false; return drain(); } });
   }
 
-  window.STROKEWISE_WATCH = { changed: soon, drain: drain, push: push, process: process };
+  window.STROKEWISE_WATCH = { changed: soon, drain: drain, push: push, process: process, panel: panel, log: function () { return logs.slice(); } };
+  log('watch link started');
   try {
-    P.addListener('watchMessage', function () { drain(); });
-    P.addListener('watchHello', function () { push(true); });
+    P.addListener('watchMessage', function () { log('watch message arrived'); drain(); });
+    P.addListener('watchHello', function () { log('watch said hello'); push(true); });
+    P.addListener('watchReachability', function (e) { log('watch reachable: ' + yn(e && e.reachable)); paint(); });
   } catch (e) {}
+  refreshInfo().then(function (i) { if (i) log('link: ' + (i.supported === false ? 'unsupported' : 'paired ' + yn(i.paired) + ', watch app installed ' + yn(i.installed) + ', active ' + yn(i.activated))); });
   document.addEventListener('visibilitychange', function () { if (document.visibilityState === 'visible') { drain().then(function () { push(true); }); } });
   window.addEventListener('focus', function () { drain(); });
   var start = function () { drain().then(function () { push(true); }); };

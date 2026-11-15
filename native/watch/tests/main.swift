@@ -56,5 +56,16 @@ precondition(m2.currentHole == 1 && m2.hole(1).rows.count == 2 && m2.hole(1).row
 try? FileManager.default.removeItem(at: tmp)
 precondition(Persistence(url: tmp).load() == Snapshot(), "missing file = empty snapshot")
 precondition(Labels.outcome(m2.hole(1).rows, 0) == "Fairway · 150 yd" && Labels.toPar(-1) == "-1" && Labels.score(m.hole(0)) == "3 (-1)", "labels: \(Labels.outcome(m2.hole(1).rows, 0))")
+// the states the REAL app bundle pushed (tests/watch-bundle-focused.js writes them): every one must decode on the watch, or the watch shows nothing
+let realPath = CommandLine.arguments.count > 2 ? CommandLine.arguments[2] : "tests/fixtures/watch-state-real.json"
+if let rd = FileManager.default.contents(atPath: realPath) {
+    let objs = try JSONSerialization.jsonObject(with: rd) as! [[String: Any]]
+    for (i, o) in objs.enumerated() {
+        let d = try JSONSerialization.data(withJSONObject: o)
+        do { let s = try JSONDecoder().decode(PhoneState.self, from: d); _ = RoundModel(state: s) }
+        catch { print("FAIL real state #\(i) does not decode: \(error)"); fails += 1 }
+    }
+    print("real app states decoded: \(objs.count)")
+}
 print("swift rules: \(vectors.count) scenarios, \(steps) steps, \(fails) failures; state decode, event encode, disk round-trip ok")
 exit(fails == 0 ? 0 : 1)
