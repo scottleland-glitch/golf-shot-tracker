@@ -25,6 +25,15 @@ Every Shot Counts Table 3.10). The other five are ESTIMATED: per-round gaps from
 Player Quality ladder, then spread over the PGA table. Full sources, method and caveats: in-app
 "About the numbers" and the BASELINES comment in `sg.js`.
 
+## 9-hole rounds (v219)
+
+- On **hole 9**, while holes 10–18 are untouched, **⛳ End round after 9 – see stats** sits under Finish hole. It finishes hole 9 if it's complete, saves the round as a 9-hole round and opens Round stats.
+- A 9-hole round counts like any other:
+  - **Strokes gained** (My Game, the practice plan, Trends) are per hole, so 9 holes count as half a round of evidence.
+  - **Scores** for averages and the Trends score line use the 18-hole equivalent (the 9-hole score doubled), at half weight in Trends.
+  - Rounds list shows 9 holes, not "unfinished". Handicap differentials stay 18-hole only.
+- Changed your mind? Open the round on hole 9 → **Add the back 9 ⊕** brings holes 10–18 back.
+
 ## Trends: one dashed line, 3 weeks out (v218)
 
 The forecast is now a single dashed line running 3 weeks past today (a week beyond the ~2-week practice lag). No shaded band, no confidence labels, no ± practice lines, no "with more / with less". Under each chart, a **Why** line says what's moving it.
