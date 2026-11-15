@@ -1,3 +1,5 @@
 node_modules/
 www/
 ios/
+# the watch plugin has its own ios/ folder (Swift sources) that must be committed; ios/ above is only the generated Capacitor project
+!native/strokewise-watch-plugin/ios/
