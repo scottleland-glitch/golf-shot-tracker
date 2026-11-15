@@ -97,6 +97,10 @@ public struct Text: PrimitiveView {
     public init(_ key: String) {}
     public enum DateStyle { case time, date, relative }
     public init(_ date: Date, style: DateStyle) {}
+    // Real SwiftUI: these return Text (so Text + Text and colored runs type-check).
+    public func foregroundColor(_ c: Color?) -> Text { self }
+    public func font(_ f: Font?) -> Text { self }
+    public static func + (lhs: Text, rhs: Text) -> Text { lhs }
 }
 public struct Image: PrimitiveView { public init(systemName: String) {} }
 public struct Spacer: PrimitiveView { public init(minLength: CGFloat? = nil) {} }

@@ -90,6 +90,8 @@ struct HoleScreen: View {
         let unit = h.rows.isEmpty ? "yd" : Rules.unit(h.rows, k)
         let draft = ShotDraft(hole: c, k: k, edit: false, base: 0)
         let lieText = k == 0 ? "Tee" : Labels.lie(row.loc)
+        let shot = k + 1
+        let playing = Rules.playingAs(h.rows, k)
         let course = store.state?.course ?? ""
         return VStack(alignment: .leading, spacing: 4) {
             // 1. the course: a tiny green label (it used to be the screen title)
@@ -103,9 +105,11 @@ struct HoleScreen: View {
             // 2. hole and par: one small line
             Text("Hole \(c + 1) · Par \(h.par)").font(.system(size: 12, weight: .semibold)).foregroundColor(Theme.dim)
                 .lineLimit(1).minimumScaleFactor(0.7)
-            // 3. the hero: "Shot 2" big, bold, white – "from Green" beside it on the same line (both shrink before they wrap or cut off)
+            // 3. the hero: "Shot 2" big, bold, white – or "Shot 2 (3)" with the playing-as number in red after a penalty –
+            //    "from Green" beside it on the same line (both shrink before they wrap or cut off)
             HStack(alignment: .firstTextBaseline, spacing: 6) {
-                Text("Shot \(k + 1)").font(.system(size: 30, weight: .heavy, design: .rounded)).foregroundColor(.white)
+                Theme.shotNumber(shot, playingAs: playing)
+                    .font(.system(size: 30, weight: .heavy, design: .rounded))
                     .lineLimit(1).minimumScaleFactor(0.6).layoutPriority(1)
                 Text("from \(lieText)").font(.system(size: 17, weight: .semibold)).foregroundColor(Theme.lieText)
                     .lineLimit(1).minimumScaleFactor(0.5)

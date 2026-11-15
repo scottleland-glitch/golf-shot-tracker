@@ -96,5 +96,25 @@ function run(name, h0, events, extra) {
 { const holes = []; for (let i = 0; i < 18; i++) holes.push(mk([R('tee', 400), R('fairway', 150, { dir: 'right' }), R('green', 25, { dir: 'short' }), R('green', 3, { holeOut: true })], 4, { finished: true }));
   const rr = round(holes[0], holes); const len = JSON.stringify(W.buildState(rr, [])).length; assert.ok(len < 12000, 'size ' + len); ok('a whole round is ' + len + ' bytes of JSON'); }
 
+// playing-as number the watch shows (Rules.playingAs): SG.rowStrokes of rows through k. Equals k+1 with no penalty.
+function playingAs(rows, k) { return SG.rowStrokes(rows.slice(0, k + 1)); }
+{ const tee = [R('tee', 400)]; assert.strictEqual(playingAs(tee, 0), 1);
+  const afterFw = run('playingAs fairway', mk([R('tee', 400)]), [ev('shot', 0, { k: 0, fin: 'fairway', dir: 'right', dist: 150 })]);
+  assert.strictEqual(playingAs(rowsOf(afterFw.r), 1), 2, 'no penalty: Shot 2');
+  const afterOb = run('playingAs OB', mk([R('tee', 400)]), [ev('shot', 0, { k: 0, fin: 'ob', dir: 'left' })]);
+  assert.strictEqual(playingAs(rowsOf(afterOb.r), 1), 3, 'OB re-hit: Shot 2 (3)');
+  const afterObFw = run('playingAs after OB', mk([R('tee', 400)]), [ev('shot', 0, { k: 0, fin: 'ob', dir: 'left' }), ev('shot', 0, { k: 1, fin: 'fairway', dist: 140 })]);
+  assert.strictEqual(playingAs(rowsOf(afterObFw.r), 2), 4, 'approach after OB: Shot 3 (4)');
+  const hzD = run('playingAs hz drop', mk([R('tee', 400)]), [ev('shot', 0, { k: 0, fin: 'hazard', hz: 'drop', dist: 120 })]);
+  const hzR = run('playingAs hz retee', mk([R('tee', 400)]), [ev('shot', 0, { k: 0, fin: 'hazard', hz: 'retee' })]);
+  const hzP = run('playingAs hz play', mk([R('tee', 400)]), [ev('shot', 0, { k: 0, fin: 'hazard', hz: 'play', dist: 90 })]);
+  assert.strictEqual(playingAs(rowsOf(hzD.r), 1), 3); assert.strictEqual(playingAs(rowsOf(hzR.r), 1), 3); assert.strictEqual(playingAs(rowsOf(hzP.r), 1), 2);
+  const unp = run('playingAs unp', mk([R('tee', 400)]), [ev('shot', 0, { k: 0, fin: 'unp', dist: 150 })]);
+  const lost = run('playingAs lost', mk([R('tee', 400)]), [ev('shot', 0, { k: 0, fin: 'lost', dir: 'left' })]);
+  assert.strictEqual(playingAs(rowsOf(unp.r), 1), 3); assert.strictEqual(playingAs(rowsOf(lost.r), 1), 3);
+  const two = run('playingAs two OB', mk([R('tee', 400)]), [ev('shot', 0, { k: 0, fin: 'ob', dir: 'left' }), ev('shot', 0, { k: 1, fin: 'ob', dir: 'right' })]);
+  assert.strictEqual(playingAs(rowsOf(two.r), 2), 5, 'two OBs: Shot 3 (5)');
+  ok('playingAs: OB/hazard-drop/retee/unp/lost Shot 2 (3); after OB Shot 3 (4); played-it unchanged; two OBs Shot 3 (5)'); }
+
 if (process.argv.includes('--write-vectors')) { fs.writeFileSync(path.join(__dirname, 'fixtures/watch-vectors.json'), JSON.stringify(VEC, null, 1) + '\n'); console.log('  wrote tests/fixtures/watch-vectors.json (' + VEC.length + ' scenarios)'); }
 console.log('watch-core: all passed');

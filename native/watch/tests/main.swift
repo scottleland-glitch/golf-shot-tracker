@@ -69,5 +69,53 @@ if let rd = FileManager.default.contents(atPath: realPath) {
     }
     print("real app states decoded: \(objs.count)")
 }
+// playing-as number: rowStrokes of rows through k (penalties included). Equals k+1 when there is no penalty.
+func ev(_ type: String, hole: Int, k: Int? = nil, fin: String? = nil, dir: String? = nil, dist: Int? = nil, hz: String? = nil, drop: String? = nil) -> WatchEvent {
+    WatchEvent(id: "t", seq: 1, t: 0, roundId: "r1", type: type, hole: hole, k: k, fin: fin, dir: dir, dist: dist, hz: hz, drop: drop)
+}
+func play(_ events: [WatchEvent], start: [Row] = [Row(loc: "tee", dist: 400)]) -> [Row] {
+    var holes: [Int: HoleState] = [0: HoleState(i: 0, par: 4, fin: false, complete: false, strokes: 1, rows: start)]
+    for e in events { let r = Rules.apply(e, holes: &holes, pars: Array(repeating: 4, count: 18)); precondition(r.ok, "event failed: \(r.reason)") }
+    return holes[0]!.rows
+}
+func checkPlayingAs(_ name: String, _ rows: [Row], _ k: Int, _ want: Int) {
+    let got = Rules.playingAs(rows, k)
+    if got != want { fails += 1; print("FAIL playingAs \(name): got \(got) want \(want) for k=\(k) rows=\(rows)") }
+}
+// no penalty: Shot N only
+checkPlayingAs("tee", [Row(loc: "tee", dist: 400)], 0, 1)
+let fairway = play([ev("shot", hole: 0, k: 0, fin: "fairway", dir: "right", dist: 150)])
+checkPlayingAs("after fairway (shot 2)", fairway, 1, 2)
+precondition(Rules.playingAs(fairway, 1) == 1 + 1, "no-penalty playingAs equals shot count")
+// OB off the tee (stroke and distance): about to re-hit is Shot 2 (3)
+let ob = play([ev("shot", hole: 0, k: 0, fin: "ob", dir: "left")])
+checkPlayingAs("OB re-hit", ob, 1, 3)
+precondition(ob.count == 2 && ob[1].loc == "ob", "OB writes the next row")
+// after that re-hit finds the fairway, the approach is Shot 3 (4)
+let obThenFairway = play([
+    ev("shot", hole: 0, k: 0, fin: "ob", dir: "left"),
+    ev("shot", hole: 0, k: 1, fin: "fairway", dir: "", dist: 140)
+])
+checkPlayingAs("approach after OB", obThenFairway, 2, 4)
+// hazard drop / re-tee: Shot 2 (3); played it: Shot 2 (no paren)
+let hzDrop = play([ev("shot", hole: 0, k: 0, fin: "hazard", dist: 120, hz: "drop")])
+let hzRe = play([ev("shot", hole: 0, k: 0, fin: "hazard", hz: "retee")])
+let hzPlay = play([ev("shot", hole: 0, k: 0, fin: "hazard", dist: 90, hz: "play")])
+checkPlayingAs("hazard drop", hzDrop, 1, 3)
+checkPlayingAs("hazard re-tee", hzRe, 1, 3)
+checkPlayingAs("hazard played it", hzPlay, 1, 2)
+// unplayable and lost ball are the same +1 as a drop / OB
+let unp = play([ev("shot", hole: 0, k: 0, fin: "unp", dist: 150)])
+let lost = play([ev("shot", hole: 0, k: 0, fin: "lost", dir: "left")])
+checkPlayingAs("unplayable", unp, 1, 3)
+checkPlayingAs("lost ball", lost, 1, 3)
+// two OBs: the third ball is Shot 3 (5)
+let twoOb = play([
+    ev("shot", hole: 0, k: 0, fin: "ob", dir: "left"),
+    ev("shot", hole: 0, k: 1, fin: "ob", dir: "right")
+])
+checkPlayingAs("second OB re-hit", twoOb, 2, 5)
+if fails == 0 { print("playingAs: tee=1, fairway shot 2=2, OB/hazard-drop/retee/unp/lost shot 2=(3), after OB approach=(4), two OBs shot 3=(5)") }
+
 print("swift rules: \(vectors.count) scenarios, \(steps) steps, \(fails) failures; state decode, event encode, disk round-trip ok")
 exit(fails == 0 ? 0 : 1)

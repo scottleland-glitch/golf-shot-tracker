@@ -36,7 +36,9 @@ struct HoleEditScreen: View {
             ForEach(Array(h.rows.indices), id: \.self) { k in
                 NavigationLink(value: Route.shotEdit(hole: hole, k: k)) {
                     VStack(alignment: .leading, spacing: 1) {
-                        Text("\(k + 1)  \(k == 0 ? "Tee" : Labels.lie(h.rows[k].loc))\(distText(h.rows, k))").font(.footnote.weight(.semibold))
+                        (Theme.shotIndex(k + 1, playingAs: Rules.playingAs(h.rows, k))
+                            + Text("  \(k == 0 ? "Tee" : Labels.lie(h.rows[k].loc))\(distText(h.rows, k))"))
+                            .font(.footnote.weight(.semibold))
                         Text("→ \(Labels.outcome(h.rows, k))").font(.system(size: 11)).foregroundColor(.secondary)
                     }
                 }
@@ -65,7 +67,7 @@ struct ShotEditScreen: View {
         ScrollView {
             VStack(spacing: 6) {
                 if k < h.rows.count {
-                    Text("Shot \(k + 1)").font(.headline)
+                    Theme.shotNumber(k + 1, playingAs: Rules.playingAs(h.rows, k)).font(.headline)
                     Text("\(k == 0 ? "Tee" : Labels.lie(h.rows[k].loc)) → \(Labels.outcome(h.rows, k))")
                         .font(.footnote).multilineTextAlignment(.center)
                         .padding(8).frame(maxWidth: .infinity)

@@ -201,7 +201,7 @@ struct ConfirmScreen: View {
             VStack(alignment: .leading, spacing: 6) {
                 Text("Save this shot?").font(.headline)
                 VStack(alignment: .leading, spacing: 3) {
-                    Text("SHOT \(k + 1)").font(.system(size: 9, weight: .bold)).foregroundColor(.secondary)
+                    confirmShotLabel(k, rows).font(.system(size: 9, weight: .bold))
                     Text("\(k == 0 ? "Tee" : Labels.lie(rows[safe: k]?.loc ?? "")) → \(Labels.lie(draft.fin))").font(.footnote.weight(.bold))
                     if let d = fromDist ?? draft.dist, holed { line("Holed from", "\(draft.dist ?? d) \(fromUnit)") }
                     else if let d = fromDist { line("From", "\(d) \(fromUnit)") }
@@ -222,6 +222,13 @@ struct ConfirmScreen: View {
             }.padding(.horizontal, 4)
         }
         .navigationTitle("Shot \(k + 1)")
+    }
+    private func confirmShotLabel(_ k: Int, _ rows: [Row]) -> Text {
+        let shot = k + 1
+        let playing = rows.isEmpty ? shot : Rules.playingAs(rows, k)
+        let base = Text("SHOT \(shot)").foregroundColor(.secondary)
+        guard playing != shot else { return base }
+        return base + Text(" (\(playing))").foregroundColor(Theme.red)
     }
     private func line(_ a: String, _ b: String) -> some View {
         HStack { Text(a).font(.system(size: 11)).foregroundColor(.secondary); Spacer(); Text(b).font(.system(size: 11, weight: .semibold)) }

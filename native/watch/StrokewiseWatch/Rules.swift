@@ -36,6 +36,14 @@ enum Rules {
         for (k, r) in rows.enumerated() { n += 1 + (isPenalty(r, k) ? 1 : 0) }
         return n
     }
+    /// The scoring stroke being played when hitting row k (1-based). Each earlier row counts as 1, plus 1 for each penalty
+    /// (OB, lost ball, re-tee, unplayable, hazard drop) including a penalty attached to this row. Equals k+1 when there are
+    /// no penalties. Same total the phone uses (SG.rowStrokes) for the score of these rows.
+    static func playingAs(_ rows: [Row], _ k: Int) -> Int {
+        if rows.isEmpty { return 1 }
+        let i = min(max(k, 0), rows.count - 1)
+        return rowStrokes(Array(rows[0...i]))
+    }
     /// Every stroke has its lie and distance and the last one went in (the phone's "complete").
     static func isComplete(_ rows: [Row]) -> Bool {
         if rows.isEmpty { return false }

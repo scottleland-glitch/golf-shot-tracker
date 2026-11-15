@@ -9,6 +9,19 @@ enum Theme {
     static let dim = Color(white: 0.62)            // secondary text (hole/par, thru)
     static let lieText = Color(white: 0.92)        // "from Green": light and readable, a little under the white of Shot N
     static let red = Color(red: 0.75, green: 0.18, blue: 0.16)
+
+    /// "Shot 3" in white, or "Shot 3 (4)" with the playing-as number in red when a penalty has been incurred on the hole.
+    static func shotNumber(_ shot: Int, playingAs: Int) -> Text {
+        let base = Text("Shot \(shot)").foregroundColor(.white)
+        guard playingAs != shot else { return base }
+        return base + Text(" (\(playingAs))").foregroundColor(red)
+    }
+    /// Compact "3" or "3 (4)" for lists; only the playing-as number is red.
+    static func shotIndex(_ shot: Int, playingAs: Int) -> Text {
+        let base = Text("\(shot)")
+        guard playingAs != shot else { return base }
+        return base + Text(" (\(playingAs))").foregroundColor(red)
+    }
 }
 
 struct TileStyle: ButtonStyle {
