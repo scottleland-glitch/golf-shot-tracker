@@ -78,6 +78,11 @@ workflows:
           agvtool new-version -all $((BUILD_NUMBER + 1))
           cd ../..
           ruby native/add-watch-target.rb --set-version 1.0 $((BUILD_NUMBER + 1))
+      - name: Project details for the log (what Xcode sees; nothing is changed here)
+        script: |
+          echo "objectVersion: $(grep -m1 objectVersion ios/App/App.xcodeproj/project.pbxproj)"
+          xcodebuild -project ios/App/App.xcodeproj -list 2>&1 | tail -50
+          xcodebuild -project ios/App/App.xcodeproj -scheme App -showBuildSettings 2>&1 | grep -E "^ +(PRODUCT_BUNDLE_IDENTIFIER|CODE_SIGN_STYLE|PROVISIONING_PROFILE_SPECIFIER|DEVELOPMENT_TEAM|MARKETING_VERSION|CURRENT_PROJECT_VERSION) =|error|Error" | head -30 || true
       - name: Build the app (the watch app is built and embedded with it)
         script: |
           if [ -d ios/App/App.xcworkspace ]; then

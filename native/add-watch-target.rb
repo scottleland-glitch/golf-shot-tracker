@@ -73,6 +73,14 @@ end
 
 # 2. the target
 watch = project.new_target(:application, WATCH_NAME, :watchos, '9.0', project.products_group, :swift, 'StrokeWise')
+# new_target links Foundation.framework with a hard-coded SDK path (…/WatchOS26.0.sdk/…) that does not exist on a Mac with another Xcode: drop it
+# (Swift links Foundation by itself when the code imports it)
+watch.frameworks_build_phase.files.to_a.each(&:remove_from_project)
+fw = project.main_group['Frameworks']
+if fw
+  fw.children.to_a.select { |c| c.respond_to?(:display_name) && c.display_name == 'watchOS' }.each(&:remove_from_project)
+  fw.remove_from_project if fw.children.empty?
+end
 group = project.main_group.new_group(WATCH_NAME, WATCH_NAME)   # path relative to ios/App
 Dir.glob(File.join(DEST, '*.swift')).sort.each do |f|
   ref = group.new_file(File.basename(f))

@@ -7,7 +7,8 @@
 set -euo pipefail
 SRC="$(cd "$(dirname "$0")/../../.." && pwd)"
 T=$(mktemp -d); cd "$T"
-tar -C "$SRC" --exclude=.git --exclude=node_modules --exclude=ios --exclude=www -cf - . | tar -xf -
+# only what git would commit (tracked + new files that are not ignored): a file hidden by .gitignore must NOT be there, like on the build Mac
+( cd "$SRC" && git ls-files -co --exclude-standard -z | xargs -0 tar -cf - ) | tar -xf -
 npm install --no-audit --no-fund >/dev/null 2>&1
 # normal build: nothing of the watch anywhere
 bash native/build-www.sh >/dev/null
@@ -20,11 +21,14 @@ grep -q 'watch-core.js' www/index.html && grep -q 'watch.js' www/index.html || {
 npm pkg set "dependencies.strokewise-watch-plugin=file:native/strokewise-watch-plugin" >/dev/null
 npm install --no-audit --no-fund >/dev/null 2>&1
 npx cap add ios >/dev/null 2>&1
-npx cap sync ios >/dev/null 2>&1
+npx cap sync ios > cap-sync.log 2>&1 || { cat cap-sync.log; echo "FAIL: cap sync"; exit 1; }
+! grep -qiE "ENOENT|error" cap-sync.log || { cat cap-sync.log; echo "FAIL: cap sync reported errors"; exit 1; }
+grep -q '"StrokewiseWatchPlugin"' ios/App/App/capacitor.config.json || { echo "FAIL: plugin class not in packageClassList"; exit 1; }
 grep -q 'StrokewiseWatchPlugin' ios/App/CapApp-SPM/Package.swift || { echo "FAIL: plugin not in Package.swift"; exit 1; }
 mkdir -p ios/App/App/Assets.xcassets/AppIcon.appiconset && [ -f ios/App/App/Assets.xcassets/AppIcon.appiconset/AppIcon-512@2x.png ] || \
   python3 -c "import zlib,struct;w=h=16;raw=b''.join(b'\x00'+b'\x0b\x5d\x1e'*w for _ in range(h));c=lambda t,d:struct.pack('>I',len(d))+t+d+struct.pack('>I',zlib.crc32(t+d)&0xffffffff);open('ios/App/App/Assets.xcassets/AppIcon.appiconset/AppIcon-512@2x.png','wb').write(b'\x89PNG\r\n\x1a\n'+c(b'IHDR',struct.pack('>IIBBBBB',w,h,8,2,0,0,0))+c(b'IDAT',zlib.compress(raw))+c(b'IEND',b''))"
 ruby native/add-watch-target.rb >/dev/null
+ruby native/check-pbxproj.rb ios/App/App.xcodeproj
 ruby native/add-watch-target.rb --set-version 1.0 7 >/dev/null
 ruby -rxcodeproj -e '
 p = Xcodeproj::Project.open("ios/App/App.xcodeproj")
@@ -46,5 +50,11 @@ grep -q 'StrokewiseWatchBridge.shared.activate()' ios/App/App/AppDelegate.swift 
 for f in Info.plist StrokewiseWatch.entitlements; do [ -f ios/App/StrokewiseWatch/$f ] || { echo "FAIL: $f missing"; exit 1; }; done
 grep -q "workout-processing" ios/App/StrokewiseWatch/Info.plist && grep -q "com.apple.developer.healthkit" ios/App/StrokewiseWatch/StrokewiseWatch.entitlements || { echo "FAIL: workout/HealthKit settings"; exit 1; }
 [ -f ios/App/StrokewiseWatch/Assets.xcassets/AppIcon.appiconset/AppIcon-1024.png ] || { echo "FAIL: watch icon"; exit 1; }
+# the Swift packages must resolve (this is what Xcode does first; a package with missing sources fails here with "invalid custom path")
+if command -v swift >/dev/null 2>&1; then
+  ( cd ios/App/CapApp-SPM && swift package describe >/dev/null ) || { echo "FAIL: swift package describe (CapApp-SPM)"; exit 1; }
+  ( cd native/strokewise-watch-plugin && swift package describe | grep -q StrokewiseWatchBridge.swift ) || { echo "FAIL: plugin package has no sources"; exit 1; }
+  echo "swift packages resolve"
+fi
 echo "build integration ok"
 rm -rf "$T"
