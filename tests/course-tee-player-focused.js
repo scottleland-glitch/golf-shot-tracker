@@ -113,7 +113,7 @@ const Y = (b) => Array.from({ length: 18 }, (_, i) => b + i * 7), P = [4, 4, 3, 
   await page.click('[data-act="crsnew"]'); await page.fill('#course', 'lakeridge'); await page.click('[data-act="new"]'); await page.waitForSelector('.holecard');
   rd = await page.evaluate(() => JSON.parse(localStorage.getItem('golfsg.rounds.v1'))[0]); assert.deepStrictEqual([rd.course, rd.courseId, rd.tee, rd.holes[0].rows[0].dist], ['Lakeridge', 'l', 'Main tees', 310]);
   // ---- player: first open on a new phone ----
-  await seed({}); await page.reload(); await page.waitForSelector('#namesheet');
+  await seed({}); await page.reload(); await page.waitForSelector('#welcome'); await page.click('#rolego'); await page.waitForSelector('#namesheet');
   assert.strictEqual((await page.textContent('#namesh')).trim(), 'Who’s playing?'); assert.match(await page.textContent('#namehelp'), /Enter the golfer’s name/);
   await shot('player-prompt');
   await page.fill('#pname', 'Quincy'); await page.click('#namesheet [data-act="setname"]'); await page.waitForSelector('#namesheet', { state: 'detached' });
@@ -154,7 +154,7 @@ const Y = (b) => Array.from({ length: 18 }, (_, i) => b + i * 7), P = [4, 4, 3, 
   await page.click('#nplayer [data-act="npedit"]'); await page.click('.sheet-back', { position: { x: 30, y: 40 } }); await openNew(); assert.strictEqual(await page.$('#npeditrow'), null);
   await page.click('.sheet-back', { position: { x: 30, y: 40 } });
   // Not now: no nagging, Home stays clean, New round offers to add the name
-  await seed({}); await page.reload(); await page.waitForSelector('#namesheet'); await page.click('[data-act="nameskip"]');
+  await seed({}); await page.reload(); await page.waitForSelector('#welcome'); await page.click('#rolego'); await page.waitForSelector('#namesheet'); await page.click('[data-act="nameskip"]');
   assert.strictEqual(await page.$('#namesheet'), null); assert.deepStrictEqual(await homeBtns(), ['navbtn']); assert.ok(await page.$('#tbplus'), 'v198: the + is in the tab bar');
   await page.reload(); await page.waitForSelector('#home'); assert.strictEqual(await page.$('#namesheet'), null, 'Not now is remembered');
   await openNew(); assert.match(await page.textContent('#nplayer'), /Add golfer’s name/);

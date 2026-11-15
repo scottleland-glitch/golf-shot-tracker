@@ -2141,6 +2141,8 @@
     localStorage.setItem(PN, n); localStorage.setItem(NA, '1'); view.editName = false; view.needName = null; view.nameSheet = null; view.newPEdit = false;
     rounds.forEach(function (r) { if (!r.player || r.player === old) r.player = n; });
     save(); gdDirty(800);
+    var code = String((document.getElementById('pcode') || {}).value || '').trim(); view.firstCode = null;
+    if (code && syncOn()) { csAuto(code); return; } // v217: "Have a coach code?" on the first screen
     toast('Player name: ' + n); render();
   }
   function playerHTML() {
@@ -2153,14 +2155,30 @@
   }
   // First open on a new phone (no name, no rounds yet): ask who's playing once. 'Not now' doesn't ask again – the Player row in the New round sheet does it any time.
   function needFirstName() { return !playerName() && !localStorage.getItem(NA) && !rounds.length; }
+  // v217 (Scott): the very first screen asks "I play" or "I coach" (only when coach sharing is switched on)
+  var ROLE = 'golfsg.role.v1';
+  function needRole() { var r = null; try { r = localStorage.getItem(ROLE); } catch (e) {} return !r && syncOn(); }
+  function welcomeHTML() {
+    var r = view.role || 'play';
+    return '<div class="sheet-back"></div><div class="hsheet glass namesheet welcome" id="welcome" role="dialog" aria-modal="true" aria-labelledby="welh">' +
+      '<div class="sheet-h" id="welh">Welcome to Strokewise</div><p class="namehelp">How will you use it?</p><div class="rolepick" role="radiogroup" aria-label="How will you use Strokewise">' +
+      [['play', '⛳', 'I play', 'Track my rounds and practice'], ['coach', '📋', 'I coach', 'See my athletes’ rounds in one place']].map(function (x) {
+        return '<button class="roleopt' + (r === x[0] ? ' on' : '') + '" id="role' + x[0] + '" data-act="rolepick" data-v="' + x[0] + '" role="radio" aria-checked="' + (r === x[0]) + '"><i aria-hidden="true">' + x[1] + '</i><span><b>' + x[2] + '</b><small>' + x[3] + '</small></span></button>'; }).join('') +
+      '</div><button class="sheet-go" data-act="rolego" id="rolego">Continue</button><p class="namehelp modenote">Coach and play too? Pick I play – add coaching later in Settings.</p></div>';
+  }
+  // open the share sheet for a team code and look the coach up straight away
+  function csAuto(code) { view.screen = 'archive'; view.cs = { step: 'code', code: code, busy: true }; render(); window.scrollTo(0, 0);
+    SYNCX.lookup(playerName(), code).then(function (T) { view.cs = { step: 'confirm', T: T }; render(); }, function (e) { view.cs = { step: 'code', code: code, err: authMsg(e) }; render(); }); }
   function nameSheetHTML() {
     var n = playerName(), first = view.nameSheet !== 'change';
+    if (first && needRole()) return welcomeHTML();
     return '<div class="sheet-back"' + (first ? '' : ' data-act="namecancel"') + '></div><div class="hsheet glass namesheet" id="namesheet" role="dialog" aria-modal="true" aria-labelledby="namesh">' +
       '<div class="sheet-h" id="namesh">' + (first ? 'Who’s playing?' : 'Player') + '</div>' +
       '<p class="namehelp" id="namehelp">' + (first ? 'Enter the golfer’s name. It goes on each round, the reports and the live scorecard.' : 'The golfer using this phone. It goes on each round, the reports and the live scorecard.') + '</p>' +
       '<input type="text" id="pname" value="' + esc(n) + '" placeholder="Golfer’s name" autocomplete="name" maxlength="40" aria-label="Golfer’s name">' +
       (first ? '<p class="namehelp modeq" id="modeq">How do you want to use Strokewise?</p><div class="modepick" id="modepick">' + modeSwitchesHTML(view.firstMode || 'full', 'first', 'first') +
         '</div><p class="namehelp modenote">You can change these any time in Settings.</p>' : '') +
+      (first && syncOn() ? '<label class="namehelp modeq" for="pcode">Have a coach code? <span>(optional)</span></label><input type="text" id="pcode" class="cscode" value="' + esc(view.firstCode || '') + '" placeholder="ABC-123" autocapitalize="characters" autocomplete="off" maxlength="8" aria-label="Coach code (optional)">' : '') +
       '<button class="sheet-go" data-act="setname">Save</button>' +
       '<button class="sheet-item muted" data-act="' + (first ? 'nameskip' : 'namecancel') + '">' + (first ? 'Not now' : 'Cancel') + '</button></div>';
   }
@@ -3036,11 +3054,11 @@
   }
   function athletesHTML() {
     var c = SYNCX.coach(), L = coList(), n = L.length;
-    var h = '<div class="frostpage theme-sky cmpage" id="cmpage"><div class="topbar frost"><button class="txt frostbtn" data-act="home" id="cmhome">‹ My golf</button><div class="title"><b>Athletes</b><span>' + esc(c.teamName || '') + ' · ' + n + ' athlete' + (n === 1 ? '' : 's') + '</span></div><button class="txt frostbtn" data-act="copull" id="copull">↻</button></div><div class="cmlist">';
-    h += '<div class="cmcode"><div><small>Team code</small><b id="cmcode">' + esc(c.code || '') + '</b></div><button data-act="coinvite" id="coinvite">Invite</button></div>';
+    var h = '<div class="frostpage theme-sky cmpage" id="cmpage"><div class="topbar frost"><button class="txt frostbtn" data-act="home" id="cmhome">‹ My golf</button><div class="title"><b>Athletes</b><span class="cmteam">' + esc(c.teamName || '') + '</span></div><button class="frostbtn cminv" data-act="coinvite" id="coinvite" aria-label="Invite an athlete">+ Invite</button></div><div class="cmlist">';
+    h += '<div class="cmcode"><div><small>Team code</small><b id="cmcode">' + esc(c.code || '') + '</b></div><small>Athletes enter this once</small></div>';
     if (n > 6) h += '<input type="search" class="cmsearch" id="cmsearch" placeholder="Search athletes" aria-label="Search athletes">';
-    h += '<p class="cmstat" id="costat">' + esc(CO.busy ? 'Updating…' : CO.err || (CO.last ? 'Updated ' + agoTxt(CO.last) : '')) + '</p>';
-    if (!n) h += '<div class="cmempty" id="cmempty"><b>No athletes yet</b><p>Send your athletes the code <b>' + esc(c.code || '') + '</b> (tap Invite). Each one enters it once in Settings → Connect to a coach, and their rounds show up here by themselves.</p></div>';
+    h += '<p class="cmstat"><span id="costat">' + esc(CO.busy ? 'Updating…' : CO.err || (CO.last ? 'Updated ' + agoTxt(CO.last) : '')) + '</span><button class="cmref" data-act="copull" id="copull" aria-label="Check for new rounds">↻</button></p>';
+    if (!n) h += '<div class="cmempty" id="cmempty"><div class="cmwave" aria-hidden="true">👋</div><b>No athletes yet</b><p>Send your athletes an invite. When they tap it and say yes, their rounds show up here by themselves.</p><button class="cspri" data-act="coinvite" id="coinvite1">Invite your first athlete</button></div>';
     else h += '<div class="cmsec">Latest activity</div>' + L.map(athleteCard).join('') + '<p class="cmfoot">Score = average of the last 5 rounds · arrow = against the 5 before (↓ is better)</p>';
     return h + '</div></div>';
   }
@@ -3087,11 +3105,11 @@
       '<input type="text" id="cscode" class="cscode" value="' + esc(S.code || '') + '" placeholder="ABC-123" autocapitalize="characters" autocomplete="off" maxlength="8" aria-label="Team code">' +
       (S.err ? '<p class="cserr" id="cserr">' + esc(S.err) + '</p>' : '') + '<button class="cspri csgo" data-act="csfind" id="csfind"' + (S.busy ? ' disabled' : '') + '>' + (S.busy ? 'Looking…' : 'Find my coach') + '</button><button class="cslink2" data-act="cscancel">Cancel</button>', 'cscancel');
     var T = S.T, ok = S.age === 'adult' || S.age === 'parent';
-    return sheetWrap('cssheet', '<div class="cshead">Connect to your coach</div><div class="csteam"><b id="csteam">' + esc(T.coachName || 'Your coach') + (T.name ? ' · ' + esc(T.name) : '') + '</b>' +
-      '<p>Will see your rounds, short game tests, practice and lessons – automatically, as you add them. You can stop sharing any time in Settings.</p></div>' +
+    return sheetWrap('cssheet', '<div class="cshead" id="cshead">Share with ' + esc(T.coachName || 'your coach') + '?</div><div class="csteam"><b id="csteam">' + esc(T.coachName || 'Your coach') + (T.name ? ' · ' + esc(T.name) : '') + '</b>' +
+      '<ul class="cssees"><li>✓ Your rounds and stats</li><li>✓ Practice and short-game tests</li><li class="no">✕ They can’t change anything</li></ul><p>Stop any time in Settings – your shared copy is deleted.</p></div>' +
       '<div class="csage" role="radiogroup" aria-label="Age">' + [['adult', 'I\'m 18 or older'], ['parent', 'I\'m under 18 and a parent or guardian agrees']].map(function (x) {
         return '<button class="modeopt csopt' + (S.age === x[0] ? ' on' : '') + '" data-act="csage" data-v="' + x[0] + '" role="radio" aria-checked="' + (S.age === x[0]) + '"><b>' + x[1] + '</b></button>'; }).join('') + '</div>' +
-      (S.err ? '<p class="cserr" id="cserr">' + esc(S.err) + '</p>' : '') + '<button class="cspri csgo" data-act="csjoin" id="csjoin"' + (ok && !S.busy ? '' : ' disabled') + '>' + (S.busy ? 'Connecting…' : 'Share with ' + esc(T.coachName || 'my coach')) + '</button><button class="cslink2" data-act="cscancel">Cancel</button>', 'cscancel');
+      (S.err ? '<p class="cserr" id="cserr">' + esc(S.err) + '</p>' : '') + '<button class="cspri csgo" data-act="csjoin" id="csjoin"' + (ok && !S.busy ? '' : ' disabled') + '>' + (S.busy ? 'Connecting…' : 'Share my rounds') + '</button><button class="cslink2" data-act="cscancel">Not now</button>', 'cscancel');
   }
   function coachSheetHTML() {
     var S = view.co; if (!S) return ''; var up = S.tab !== 'in';
@@ -3120,7 +3138,7 @@
       case 'csstopno': view.csStop = false; render(); return true;
       case 'csstopyes': view.csStop = false; SYNCX.leave(who).then(function () { toast('Stopped sharing'); render(); }, function (e) { toast(authMsg(e)); render(); }); return true;
       case 'coopen': view.co = { tab: 'up' }; render(); return true;
-      case 'coclose': view.co = null; render(); return true;
+      case 'coclose': view.co = null; if (view.coFirst) { view.coFirst = false; try { localStorage.removeItem(ROLE); localStorage.removeItem(NA); } catch (e) {} view.screen = 'home'; } render(); return true;
       case 'cotab': view.co = { tab: v, email: val('coemail'), name: val('coname'), team: val('coteam') }; render(); return true;
       case 'cosignup': case 'cosignin': {
         var C0 = view.co, email = val('coemail'), pw = val('copass'), nm = val('coname'), tm = val('coteam');
@@ -3128,7 +3146,7 @@
         if (act === 'cosignup' && (!nm.trim() || !tm.trim())) { C0.err = 'Add your name and a team name.'; render(); return true; }
         C0.busy = true; render();
         (act === 'cosignup' ? SYNCX.coachSignUp(email, pw, nm, tm) : SYNCX.coachSignIn(email, pw)).then(function (c) {
-          view.co = null; CO.cache = {}; CO.loaded = false;
+          view.co = null; view.coFirst = false; CO.cache = {}; CO.loaded = false;
           if (!c.team) { toast('Signed in – no team yet'); view.screen = 'archive'; render(); return; }
           view.screen = 'athletes'; render(); coPull(); }, function (e) { C0.busy = false; C0.err = authMsg(e); render(); }); return true; }
       case 'coforgot': { var em = val('coemail'), C1 = view.co; if (!em.trim()) { C1.err = 'Type your email first.'; render(); return true; }
@@ -3142,7 +3160,7 @@
       case 'athletes': exitAthlete(); view.screen = 'athletes'; view.hmenu = null; render(); window.scrollTo(0, 0); coPull(); return true;
       case 'copull': coPull(); return true;
       case 'coinvite': { var c2 = SYNCX.coach(), url = 'https://app.strokewise.app/?team=' + encodeURIComponent(c2.code),
-          txt = 'Join ' + (c2.teamName || 'my team') + ' on Strokewise so I can see your rounds. Open Strokewise → Settings → Connect to a coach and enter ' + c2.code + ', or tap ' + url;
+          txt = 'Join ' + (c2.teamName || 'my team') + ' on Strokewise so I can see your rounds. Tap ' + url + ' – or in the Strokewise app enter the coach code ' + c2.code + ' (Settings → Connect to a coach).';
         if (navigator.share) navigator.share({ title: 'Strokewise team code', text: txt }).catch(function () {}); else { try { navigator.clipboard.writeText(txt); toast('Invite copied'); } catch (e) { toast('Code: ' + c2.code); } } return true; }
       case 'copen': enterAthlete(v); view.screen = 'mygame'; render(); window.scrollTo(0, 0); return true;
       case 'coback': exitAthlete(); view.screen = 'athletes'; render(); window.scrollTo(0, 0); return true;
@@ -3158,7 +3176,8 @@
   function coInit() {
     if (!syncOn()) return;
     var m = /[?&]team=([A-Za-z0-9-]{6,8})/.exec(location.search); // an invite link: open Connect with the code filled in
-    if (m) { view.screen = 'archive'; view.cs = { step: 'code', code: m[1] }; try { history.replaceState(null, '', location.pathname); } catch (e) {} }
+    if (m) { try { history.replaceState(null, '', location.pathname); } catch (e) {}
+      if (needFirstName()) { try { localStorage.setItem(ROLE, 'play'); } catch (e) {} view.firstCode = m[1]; } else csAuto(m[1]); } // v217: invite link → share sheet
     else if (coachOn()) { view.screen = 'athletes'; coLoad().then(function () { if (view.screen === 'athletes') render(); coPull(); }); }
     syncDirty(1500);
     window.addEventListener('online', function () { syncDirty(500); if (coachOn()) coPull(true); });
@@ -5976,6 +5995,10 @@
       case 'npcancel': view.newPEdit = false; render(); return;
       case 'namechange': view.nameSheet = playerName() ? 'change' : 'first'; view.hmenu = null; render(); var pn2 = document.getElementById('pname'); if (pn2) pn2.focus(); return;
       case 'nameskip': localStorage.setItem(NA, '1'); view.nameSheet = null; render(); return;
+      case 'rolepick': view.role = v; render(); return;
+      case 'rolego': { var rl = view.role || 'play'; try { localStorage.setItem(ROLE, rl); } catch (e) {}
+        if (rl === 'coach') { localStorage.setItem(NA, '1'); view.nameSheet = null; view.coFirst = true; view.screen = 'archive'; view.co = { tab: 'up' }; }
+        render(); setTimeout(function () { var i = document.getElementById(rl === 'coach' ? 'coname' : 'pname'); if (i) i.focus(); }, 60); return; }
       case 'namecancel': view.nameSheet = null; render(); return;
       case 'history': view.hmenu = null; view.mv = null; view.screen = 'history'; view.notice = null; render(); window.scrollTo(0, 0); return;
       case 'backup': backupRounds(); return;
