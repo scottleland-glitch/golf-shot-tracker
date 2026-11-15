@@ -25,6 +25,12 @@ Every Shot Counts Table 3.10). The other five are ESTIMATED: per-round gaps from
 Player Quality ladder, then spread over the PGA table. Full sources, method and caveats: in-app
 "About the numbers" and the BASELINES comment in `sg.js`.
 
+## Practice by the week, and practice by the day (v216)
+
+- **What to practise next** now follows this week. Each area has a weekly target. Areas still short of it go to the top, the furthest behind first; areas that have met it drop off. Half of last week's shortfall carries over. Any practice you log counts, whether or not you started it from the list, and an area you practised today moves down for the rest of the day.
+- **This week:** tap a day on the chart to see that day's practice as a short recap – area, minutes, kind and how it went.
+- **Recent practice:** one line per day (date, total, areas). Tap to open it; each entry has **Edit** (date, minutes, kind, how it went) and **×** (asks before deleting). "Show earlier days" adds more.
+
 ## Log practice / Practice recommendations (v215)
 
 Two switches replace the single Practice plan on/off – asked when a new player is added, and in Settings and at the bottom of the Practice page:

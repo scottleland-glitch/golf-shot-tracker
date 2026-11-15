@@ -3093,3 +3093,27 @@ html body .sw { flex: none; position: relative; width: 52px; height: 32px; min-h
 html body .sw i { position: absolute; top: 3px; left: 3px; width: 26px; height: 26px; border-radius: 50%; background: #fff; box-shadow: 0 1px 3px rgba(0, 0, 0, .25); transition: left .15s; }
 html body .sw.on { background: #2f9a52; } html body .sw.on i { left: 23px; } html body .sw:disabled { opacity: .45; }
 html body .modepick .swrow { padding: 10px 2px; } html body .modepick { margin: 4px 0 4px; }
+/* v216: tap a day on This week → its recap; Recent practice one line per day, open for edit / delete */
+html body .wkchart .wkhit { fill: transparent; cursor: pointer; } html body .wkchart .wkhit:focus { outline: none; fill: rgba(23, 48, 31, .06); }
+html body #prsheets .csback { z-index: 119; } html body #prsheets .cssheet { z-index: 120; }
+html body .dysheet { padding-top: 22px; } html body .dysheet .wkx { position: absolute; right: 14px; top: 14px; width: 36px; height: 36px; min-height: 36px; padding: 0; border-radius: 50%; border: 0; background: rgba(23, 48, 31, .08); color: #17301f; font-size: 16px; box-shadow: none; }
+html body .dysheet .cshead { padding-right: 44px; } html body .dytot { margin: 0 0 8px; font-size: 15px; color: #3f5a48; } html body .dytot b { font-size: 26px; color: #17301f; margin-right: 4px; }
+html body .dybar { display: flex; height: 10px; border-radius: 6px; overflow: hidden; background: rgba(23, 48, 31, .08); margin: 0 0 10px; } html body .dybar i { display: block; height: 100%; }
+html body .dylist { list-style: none; margin: 0; padding: 0; } html body .dylist li { display: flex; align-items: center; gap: 12px; padding: 12px 0; border-top: 1px solid rgba(23, 48, 31, .1); }
+html body .dylist li span { flex: 1; display: grid; gap: 2px; } html body .dylist b { font-size: 17px; } html body .dylist small { font-size: 13.5px; color: #5b6660; } html body .dylist em { font-style: normal; font-weight: 700; font-size: 17px; }
+html body .pgdot { width: 12px; height: 12px; border-radius: 50%; flex: none; }
+html body .pgdot.pg0, html body .dybar .pg0 { background: #3f7fbf; } html body .pgdot.pg1, html body .dybar .pg1 { background: #d39b2a; } html body .pgdot.pg2, html body .dybar .pg2 { background: #3f9a63; } html body .pgdot.pg3, html body .dybar .pg3 { background: #7a5ab0; }
+html body .prday { border-top: 1px solid rgba(23, 48, 31, .1); }
+html body .prdayh { display: flex; align-items: center; gap: 10px; width: 100%; padding: 10px 0; border: 0; background: none; box-shadow: none; min-height: 0; color: inherit; font: inherit; text-align: left; border-radius: 0; }
+html body .prdayh span { flex: 1; display: grid; min-width: 0; } html body .prdayh b { font-size: 15px; font-weight: 600; } html body .prdayh small { font-size: 12px; color: var(--frost-ink-soft); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+html body .prdayh em { font-style: normal; font-weight: 600; font-size: 15px; } html body .prchev { font-style: normal; font-size: 20px; color: var(--frost-ink-soft); transition: transform .15s; width: 14px; text-align: center; } html body .prday.open .prchev { transform: rotate(90deg); }
+html body .prdayb { padding: 0 0 8px 6px; } html body .pritem2 { display: flex; align-items: center; gap: 10px; padding: 7px 0; }
+html body .pritem2 > span:not(.pract) { flex: 1; display: grid; min-width: 0; } html body .pritem2 b { font-size: 14.5px; font-weight: 600; } html body .pritem2 small { font-size: 12px; color: var(--frost-ink-soft); } html body .pritem2 em { font-style: normal; font-size: 14.5px; font-weight: 600; }
+html body .pract { display: flex; gap: 6px; align-items: center; } html body .pred { border: 0; border-radius: 999px; padding: 7px 12px; min-height: 0; background: rgba(23, 48, 31, .08); color: inherit; font: inherit; font-size: 13.5px; font-weight: 600; box-shadow: none; }
+html body .pract .cswarn { padding: 7px 12px; font-size: 13.5px; } html body .pract .cslink { font-size: 13.5px; padding: 6px 2px; }
+html body .prmore { display: block; width: 100%; border: 0; background: none; box-shadow: none; min-height: 0; padding: 10px 0 6px; color: inherit; font: inherit; font-size: 14px; font-weight: 600; text-decoration: underline; border-top: 1px solid rgba(23, 48, 31, .1); }
+html body .edrow { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 0; border-top: 1px solid rgba(23, 48, 31, .1); font-size: 16px; font-weight: 600; }
+html body .edrow input { font: inherit; font-size: 16px; padding: 6px 8px; border-radius: 10px; border: 1px solid rgba(23, 48, 31, .25); background: #fff; color: #17301f; }
+html body .edstep { display: flex; align-items: center; gap: 12px; } html body .edstep .cssec { width: 40px; height: 40px; padding: 0; font-size: 20px; } html body .edstep b { min-width: 36px; text-align: center; font-size: 18px; }
+html body #presheet .prq { margin: 12px 0 6px; font-size: 14px; font-weight: 600; color: #3f5a48; } html body #presheet .prchip { color: #17301f; } html body #presheet .prchip.on { background: #17301f; color: #fff; }
+html body .pract { flex: none; flex-wrap: nowrap; } html body .pract button { width: auto; flex: none; margin: 0; } html body .pract .prx { width: 34px; height: 34px; min-height: 34px; }

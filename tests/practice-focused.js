@@ -49,15 +49,17 @@ for (let i = 0; i < 6; i++) rounds.push(Object.assign(ARC.round(), { id: 'g' + i
     assert.ok(await page.$('#prcard .pbench'), 'benchmark ring drawn');
     assert.ok(await page.$('#prcard .pcur'), 'practice shape drawn');
     assert.strictEqual(await page.$('#prlist'), null, 'v194: the list is on the Practice page'); await page.click('#tbpractice'); await page.waitForSelector('#practicepage');
-    assert.strictEqual(await page.$$eval('#prlist .pritem', x => x.length), 3);
+    assert.strictEqual(await page.$$eval('#prlist .prday', x => x.length), 1, 'v216: one line for the day'); assert.match(await page.textContent('#prlist .prdayh'), /1 h/);
+    await page.click('#prlist .prdayh'); assert.strictEqual(await page.$$eval('#prlist .pritem2', x => x.length), 3, 'tap → the day opens');
     ok('saved per player; My Practice: 1 h in 1 session, chipping 50%, 3 recent entries');
     assert.strictEqual(await page.textContent('#prvshead'), 'Practice more irons 100+');
     assert.match(await page.textContent('#prvslede'), /^Irons 100\+ is \d+% of your lost strokes but 0% of your practice\.$/);
     assert.ok(await page.$('.prbar.gap[data-spoke="irons"]'));
     ok('strokes lost vs practice time: irons flagged');
     assert.strictEqual(await page.evaluate(() => document.documentElement.scrollWidth <= 390), true, 'no sideways scroll');
-    await page.click('#prlist .prx'); assert.strictEqual(await page.$$eval('#prlist .pritem', x => x.length), 2);
-    ok('× removes an entry');
+    await page.click('#prlist .prx'); assert.ok(await page.$('#prlist [data-act="prdelyes"]'), 'v216: asks first'); await page.click('#prlist [data-act="prdelno"]'); assert.strictEqual(await page.$$eval('#prlist .pritem2', x => x.length), 3, 'Keep');
+    await page.click('#prlist .prx'); await page.click('#prlist [data-act="prdelyes"]'); assert.strictEqual(await page.$$eval('#prlist .pritem2', x => x.length), 2);
+    ok('× then Delete removes an entry');
     await page.click('#prbig'); await page.waitForSelector('#prsheet'); assert.ok(await page.$('#practicepage'), 'Log practice stays on the Practice page'); await page.click('[data-act="prcancel"]'); await page.click('#tbmygame'); await page.waitForSelector('#mygame');
     // Log this drill from the newest round's takeaway
     await (async () => { if (await page.$('#holemore') && !(await page.$('#holemenu'))) await page.click('#holemore'); return page.click('[data-act="home"]'); })() /* v188: Home + Discard are in ⋯ during a round */; await page.click('#navbtn'); await page.click('#navmenu [data-act="history"]');

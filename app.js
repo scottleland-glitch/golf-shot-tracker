@@ -244,7 +244,7 @@
     // iPhone Safari pin "fixed" to the page instead of the screen (Scott: the bar floated mid-screen on My Game)
     ['tabbar', 'pagebar'].forEach(function (id) { var o = document.getElementById(id); if (o) o.remove(); });
     var pb = rbOn || view.prLog || view.mv || view.sess ? '' : pageBarHTML() || tabBarHTML(); /* v198: the Rounds move bar too */ /* v195: the log sheet has its own Save / Cancel */ if (pb) document.body.insertAdjacentHTML('beforeend', pb);
-    document.body.classList.toggle('hastab', !!(pb && pb.indexOf('id="tabbar"') >= 0)); hcStart(); /* v200: the Home card's rotation */ wkStart(); /* v206 */ coDecorate(); coSearch(); coSheets(); /* v212 */
+    document.body.classList.toggle('hastab', !!(pb && pb.indexOf('id="tabbar"') >= 0)); hcStart(); /* v200: the Home card's rotation */ wkStart(); /* v206 */ coDecorate(); coSearch(); coSheets(); prSheets(); /* v212, v216 */
     document.body.classList.toggle('hasrbar', rbOn || !!pb);
   }
   // v123: on the round-page map sheets, long legend sentences without a symbol ("Rings = feet from the hole…") move under the legend as a note, which infoize() puts behind ⓘ
@@ -2633,7 +2633,8 @@
     days.forEach(function (d, i) { var x = X0 + i * bw + bw * 0.18, w = bw * 0.64, acc = 0;
       d.g.forEach(function (m, gi) { if (!m) return; var a = y(acc), b2 = y(acc + m); o += '<rect x="' + x.toFixed(1) + '" y="' + b2.toFixed(1) + '" width="' + w.toFixed(1) + '" height="' + Math.max(1, a - b2).toFixed(1) + '" class="pg' + gi + '"/>'; acc += m; });
       if (d.tot) o += '<text x="' + (x + w / 2).toFixed(1) + '" y="' + (y(d.tot) - 4).toFixed(1) + '" class="wkdtot" text-anchor="middle">' + hmS(d.tot) + '</text>';
-      o += '<text x="' + (x + w / 2).toFixed(1) + '" y="' + (VH - 6) + '" class="wkax' + (d.t === today.getTime() ? ' now' : '') + '" text-anchor="middle">' + ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'][i] + '</text>'; });
+      o += '<text x="' + (x + w / 2).toFixed(1) + '" y="' + (VH - 6) + '" class="wkax' + (d.t === today.getTime() ? ' now' : '') + '" text-anchor="middle">' + ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'][i] + '</text>';
+      if (d.tot) o += '<rect class="wkhit" x="' + (X0 + i * bw).toFixed(1) + '" y="0" width="' + bw.toFixed(1) + '" height="' + VH + '" data-act="wkday" data-v="' + d.t + '" role="button" aria-label="' + ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'][i] + ': ' + hmS(d.tot) + ' – see the practice"><title>See ' + ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'][i] + '</title></rect>'; }); // v216: tap a day for its recap
     return o + '<line x1="' + X0 + '" x2="' + X1 + '" y1="' + Y1 + '" y2="' + Y1 + '" class="wkbase"/></svg>';
   }
   function monthsSVG(L, who, P, tall, nr) { var VH = tall ? 380 : 172;
@@ -2854,6 +2855,73 @@
     o += '<text x="' + f1(xt) + '" y="' + (H - 6) + '" text-anchor="middle" class="trax now">' + lab(weeks[last]) + '</text>';
     return o + '</svg>';
   }
+  // ---------- v216 (Scott): practice by day – the recap from This week, Recent practice one line per day, edit and delete ----------
+  function dayKey(e) { return String(e.date || '').slice(0, 10); }
+  function dayLabel(k, long) { var p = k.split('-'), d = new Date(+p[0], +p[1] - 1, +p[2]); return d.toLocaleDateString(undefined, long ? { weekday: 'long', month: 'long', day: 'numeric' } : { weekday: 'short', month: 'short', day: 'numeric' }); }
+  function spokeOf(k) { return MYGAME.SPOKES.filter(function (x) { return x.k === k; })[0] || { k: k, name: k }; }
+  function prWords(e) { var t = PR_TYPE.filter(function (x) { return x[0] === e.type; })[0], f = PR_FEEL.filter(function (x) { return x[0] === e.feel; })[0];
+    return [e.kind === 'lesson' ? 'Lesson' + (e.coach ? ' with ' + e.coach : '') + (e.change === 'big' ? ' · big change' : '') : '', t ? t[1] : '', f ? f[1] + ' ' + f[2] : ''].filter(Boolean).join(' · '); }
+  function prTitle(e) { var sp = spokeOf(e.spoke), f = String(e.focus || ''); return f && f !== sp.name ? f : sp.name; }
+  function byDay(logs) { var D = {}; logs.forEach(function (e) { if (!(e.min > 0)) return; var k = dayKey(e); (D[k] = D[k] || []).push(e); });
+    return Object.keys(D).sort().reverse().map(function (k) { var L = D[k].sort(function (a, b) { return MYGAME.SPOKES.map(function (x) { return x.k; }).indexOf(a.spoke) - MYGAME.SPOKES.map(function (x) { return x.k; }).indexOf(b.spoke); });
+      return { k: k, list: L, tot: L.reduce(function (t, e) { return t + e.min; }, 0) }; }); }
+  // a thin bar of the day by group, in the This week colours
+  function dayBarHTML(L, tot) { var g = [0, 0, 0, 0]; L.forEach(function (e) { g[pgOf(e.spoke)] += e.min; });
+    return '<span class="dybar">' + g.map(function (m, i) { return m ? '<i class="pg' + i + '" style="width:' + (m / tot * 100).toFixed(1) + '%"></i>' : ''; }).join('') + '</span>'; }
+  function recentDaysHTML(logs) {
+    var D = byDay(logs), n = view.prDays || 10, shown = D.slice(0, n); if (!D.length) return '';
+    var o = '<div class="prlist prdays frost" id="prlist"><span class="tkeye">Recent practice</span>';
+    shown.forEach(function (d) { var open = view.prOpen && view.prOpen[d.k], areas = [];
+      d.list.forEach(function (e) { var nm = spokeOf(e.spoke).name; if (areas.indexOf(nm) < 0) areas.push(nm); });
+      o += '<div class="prday' + (open ? ' open' : '') + '"><button class="prdayh" data-act="prday" data-v="' + d.k + '" aria-expanded="' + !!open + '"><span><b>' + esc(dayLabel(d.k)) + '</b><small>' + esc(areas.join(' · ')) + '</small></span><em>' + MYGAME.hm(d.tot) + '</em><i class="prchev" aria-hidden="true">›</i></button>';
+      if (open) { o += '<div class="prdayb">' + d.list.map(function (e) { var sp = spokeOf(e.spoke), ask = view.prAsk === e.id;
+        return '<div class="pritem2" data-id="' + esc(e.id) + '"><i class="pgdot pg' + pgOf(e.spoke) + '"></i><span><b>' + esc(sp.name) + '</b><small>' + esc([prTitle(e) !== sp.name ? prTitle(e) : '', prWords(e)].filter(Boolean).join(' · ')) + '</small></span><em>' + MYGAME.hm(e.min) + '</em>' +
+          (typeof CO !== 'undefined' && CO.view ? '' : ask ? '<span class="pract"><button class="cswarn" data-act="prdelyes" data-v="' + esc(e.id) + '">Delete</button><button class="cslink" data-act="prdelno">Keep</button></span>'
+            : '<span class="pract"><button class="pred" data-act="predit" data-v="' + esc(e.id) + '" aria-label="Edit ' + esc(prTitle(e)) + '">Edit</button><button class="prx" data-act="prdelask" data-v="' + esc(e.id) + '" aria-label="Delete ' + esc(prTitle(e)) + ' ' + e.min + ' min">×</button></span>') + '</div>'; }).join('') + '</div>'; }
+      o += '</div>'; });
+    if (D.length > n) o += '<button class="prmore" data-act="prmoredays" id="prmoredays">Show earlier days</button>';
+    return o + '</div>';
+  }
+  // the recap of one day (tap a day on This week) and the edit sheet – both live on <body>
+  function prSheets() {
+    var old = document.getElementById('prsheets'); if (old) old.remove(); var x = '';
+    if (view.wkDay != null && view.screen === 'practice') {
+      var k = localDayISO(new Date(+view.wkDay)), D = byDay(practiceOf(mgWho()).filter(function (e) { return dayKey(e) === k; }))[0];
+      if (D) x = '<div class="csback" data-act="wkdayclose"></div><div class="cssheet dysheet" id="dysheet" role="dialog" aria-modal="true" aria-label="Practice on ' + esc(dayLabel(k, true)) + '"><button class="wkx" data-act="wkdayclose" aria-label="Close">✕</button>' +
+        '<div class="cshead">' + esc(dayLabel(k, true)) + '</div><p class="dytot"><b>' + MYGAME.hm(D.tot) + '</b> of practice</p>' + dayBarHTML(D.list, D.tot) +
+        '<ul class="dylist">' + D.list.map(function (e) { var sp = spokeOf(e.spoke), w = prWords(e);
+          return '<li><i class="pgdot pg' + pgOf(e.spoke) + '"></i><span><b>' + esc(sp.name) + '</b>' + (prTitle(e) !== sp.name ? '<small>' + esc(prTitle(e)) + '</small>' : '') + (w ? '<small>' + esc(w) + '</small>' : '') + '</span><em>' + MYGAME.hm(e.min) + '</em></li>'; }).join('') + '</ul></div>';
+    }
+    var E = view.prEdit; if (E && view.screen === 'practice') {
+      var sp2 = spokeOf(E.spoke);
+      x += '<div class="csback" data-act="preditx"></div><div class="cssheet" id="presheet" role="dialog" aria-modal="true"><div class="cshead">' + esc(sp2.name) + '</div>' + (E.focus && E.focus !== sp2.name ? '<p class="csp">' + esc(E.focus) + '</p>' : '') +
+        '<label class="edrow"><span>Date</span><input type="date" id="predate" value="' + esc(E.date) + '" max="' + localDayISO() + '"></label>' +
+        '<div class="edrow"><span>Minutes</span><span class="edstep"><button class="cssec" data-act="predmin" data-v="-5" aria-label="5 minutes less">−</button><b id="predmin">' + E.min + '</b><button class="cssec" data-act="predmin" data-v="5" aria-label="5 minutes more">+</button></span></div>' +
+        (E.kind === 'lesson' ? '' : '<p class="prq">Kind of practice</p>' + prChips('predtype', 'x', PR_TYPE, E.type, 'Kind of practice') + '<p class="prq">How did it go?</p>' + prChips('predfeel', 'x', PR_FEEL, E.feel, 'How it went')) +
+        '<button class="cspri csgo" data-act="predsave" id="predsave">Save</button><button class="cslink2" data-act="preditx">Cancel</button></div>';
+    }
+    if (x) document.body.insertAdjacentHTML('beforeend', '<div id="prsheets">' + x + '</div>');
+  }
+  function prDayAct(act, v) {
+    switch (act) {
+      case 'wkday': view.wkDay = +v; render(); return true;
+      case 'wkdayclose': view.wkDay = null; render(); return true;
+      case 'prday': view.prOpen = view.prOpen || {}; view.prOpen[v] = !view.prOpen[v]; view.prAsk = null; render(); return true;
+      case 'prmoredays': view.prDays = (view.prDays || 10) + 10; render(); return true;
+      case 'prdelask': view.prAsk = v; render(); return true;
+      case 'prdelno': view.prAsk = null; render(); return true;
+      case 'prdelyes': savePractice(practice().filter(function (e) { return e.id !== v; })); view.prAsk = null; toast('Practice deleted'); render(); return true;
+      case 'predit': { var e = practice().filter(function (x) { return x.id === v; })[0]; if (!e) return true;
+        view.prEdit = { id: e.id, spoke: e.spoke, focus: e.focus || '', kind: e.kind || 'practice', date: dayKey(e), min: e.min, type: e.type || null, feel: e.feel || null }; render(); return true; }
+      case 'preditx': view.prEdit = null; render(); return true;
+      case 'predmin': { var E = view.prEdit; E.date = (document.getElementById('predate') || {}).value || E.date; E.min = Math.max(5, Math.min(300, E.min + +v)); render(); return true; }
+      case 'predtype': case 'predfeel': { var E2 = view.prEdit, val = String(v).split('|')[1], f = act === 'predtype' ? 'type' : 'feel'; E2.date = (document.getElementById('predate') || {}).value || E2.date; E2[f] = E2[f] === val ? null : val; render(); return true; }
+      case 'predsave': { var E3 = view.prEdit, dt = (document.getElementById('predate') || {}).value || E3.date; if (!/^\d{4}-\d\d-\d\d$/.test(dt)) return true;
+        savePractice(practice().map(function (x) { if (x.id !== E3.id) return x; var y = Object.assign({}, x, { date: dt + 'T12:00:00', min: E3.min }); if (E3.kind !== 'lesson') { if (E3.type) y.type = E3.type; else delete y.type; if (E3.feel) y.feel = E3.feel; else delete y.feel; } return y; }));
+        view.prEdit = null; view.prOpen = view.prOpen || {}; view.prOpen[dt] = true; toast('Practice updated'); render(); return true; }
+    }
+    return false;
+  }
   function practiceCardHTML(who, D, part) { // v194: part 'spider' = the My Practice card (My Game); 'rest' = Strokes lost vs practice + Recent practice (Practice page)
     var logs = practiceOf(who), PB = MYGAME.practiceBuild(logs, { period: D.period }), P = PB.period;
     // v155: the chart is your practice LEVEL (builds with each session, fades without practice) against your benchmark group's average
@@ -2887,11 +2955,7 @@
           '<i class="bl"><u style="width:' + Math.round(r.lostShare * 100) + '%"></u></i><em>' + Math.round(r.lostShare * 100) + '%</em>' +
           '<i class="bt"><u style="width:' + Math.round(r.timeShare * 100) + '%"></u></i><em>' + Math.round(r.timeShare * 100) + '%</em></div>'; }).join('') +
       '</div><div class="mglegend"><span><i class="lls"></i>Share of strokes lost</span><span><i class="lpc"></i>Share of practice time</span></div></div>';
-    var recent = logs.slice().sort(function (a, b) { return b.date.localeCompare(a.date) || b.id.localeCompare(a.id); }).slice(0, 6);
-    if (recent.length) o += '<div class="prlist frost" id="prlist"><span class="tkeye">Recent practice</span>' + recent.map(function (e) {
-      var sp = MYGAME.SPOKES.filter(function (x) { return x.k === e.spoke; })[0];
-      return '<div class="pritem"><span><b>' + esc(e.focus || sp.name) + '</b><small>' + esc(new Date(Date.parse(e.date)).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })) + ' · ' + esc(sp.name) + '</small></span><em>' + MYGAME.hm(e.min) + '</em>' +
-        '<button class="prx" data-act="prdel" data-v="' + esc(e.id) + '" aria-label="Remove ' + esc(e.focus || sp.name) + ' ' + e.min + ' min">×</button></div>'; }).join('') + '</div>';
+    o += recentDaysHTML(logs);
     return o;
   }
   // ---------- v212 (Scott): coach sharing – athletes' rounds, tests and practice reach their coach automatically ----------
@@ -5880,6 +5944,7 @@
     var act = b.getAttribute('data-act'), v = b.getAttribute('data-v'), k = +b.getAttribute('data-k');
     var r = round(), h = r && r.holes[view.hole];
     if (coAct(act, v, b)) return; // v212 coach sharing
+    if (prDayAct(act, v)) return; // v216 practice by day
     if (CO.view && act === 'home') { exitAthlete(); view.screen = 'athletes'; render(); window.scrollTo(0, 0); return; } // an athlete's ‹ Home → back to the list
     if (/^sgt/.test(act) && act !== 'sgtoggle') { SGTUI.act(act, v, b); return; } // v166 short game test (v167: not Round stats' Strokes gained toggle, 'sgtoggle')
     switch (act) {

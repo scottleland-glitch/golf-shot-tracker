@@ -20,7 +20,7 @@
   'use strict';
   var DAY = 864e5;
   var CFG = {
-    halfLifeDays: 45, tourW: 1.5, testWeeks: 6, testW: 0.6, defaultWeekMin: 120, minWeekMin: 30, windowDays: 14, owedHalfLife: 7,
+    halfLifeDays: 45, tourW: 1.5, testWeeks: 6, testW: 0.6, defaultWeekMin: 120, minWeekMin: 30, carry: 0.5, /* v216: share of last week's shortfall that carries over */
     owedMin: 5, longSession: 75, longSessionW: 0.85, floorShare: 0.05, maxShare: 0.4, lean: 0.65,
     coachBigDays: 28, coachTuneDays: 14, coachShare: 0.3, sharpenDays: 7, maxItems: 5,
     groupFloor: 0.2, fadeWeeks: 3, leakMin: 0.5, leakShare: 0.35, leakNear: 0.7, areaInGroup: 0.25, coachInGroup: 0.75 // v208: the balance
@@ -192,26 +192,32 @@
     // or test that still shows the same leak tops it back up; a lesson's homework counts as a leak while it's active.
     var BAL = balance(ctx, keys, A, coach, cs0(coach, tour), tour, now), sh = BAL.share;
     var cs = cs0(coach, tour);
-    // owed time: the last 14 days of "should have" minus what you did, recent days counting more
-    var dw = function (d) { return d < 0 || d >= CFG.windowDays ? 0 : Math.pow(0.5, d / CFG.owedHalfLife); }, sumW = 0; for (var d = 0; d < CFG.windowDays; d++) sumW += dw(d);
+    // v216 (Scott): what's still needed THIS week (Monday to Sunday), the same week the "This week" card shows – an area whose target
+    // is met drops off the list, whatever was done before. Half of last week's shortfall carries over, so a week that skipped something
+    // starts with it near the top (only once there's practice logged before this week – a new player starts clean).
     var today = new Date(now); today.setHours(0, 0, 0, 0);
-    var items = keys.map(function (k) { var a = A[k], wk = sh[k] * B, did = 0, doneToday = false, last = null;
-      logs.forEach(function (e) { if (e.spoke !== k) return; var t = Date.parse(e.date), dd = Math.floor((today.getTime() + DAY - 1 - t) / DAY); if (dd < 0) dd = 0;
-        did += dw(dd) * e.min * (e.min >= CFG.longSession ? CFG.longSessionW : 1); if (t >= today.getTime()) doneToday = true; if (last == null || t > last) last = t; });
-      var owed = Math.max(-wk, wk / 7 * sumW - did), c = coach[k] && cs.indexOf(k) >= 0 ? coach[k] : null;
+    var wkStart = today.getTime() - ((today.getDay() + 6) % 7) * DAY, lastStart = wkStart - 7 * DAY, daysLeft = 7 - (today.getDay() + 6) % 7;
+    var before = logs.some(function (e) { return Date.parse(e.date) < wkStart; });
+    var items = keys.map(function (k) { var a = A[k], wk = sh[k] * B, did = 0, lastDid = 0, doneToday = false, last = null;
+      logs.forEach(function (e) { if (e.spoke !== k) return; var t = Date.parse(e.date), m = e.min * (e.min >= CFG.longSession ? CFG.longSessionW : 1);
+        if (t >= wkStart) did += m; else if (t >= lastStart) lastDid += m; if (t >= today.getTime()) doneToday = true; if (last == null || t > last) last = t; });
+      var carry = before ? Math.min(wk, Math.max(0, wk - lastDid)) * CFG.carry : 0;
+      var owed = Math.max(-wk, wk - did + carry), c = coach[k] && cs.indexOf(k) >= 0 ? coach[k] : null;
       var ld = last == null ? null : Math.floor((now - last) / DAY);
       if (!a.why) a.why = a.lost >= 0.15 ? 'About ' + (Math.round(a.lost * 10) / 10).toFixed(1) + ' strokes a round lost here' + (a.notes.length ? ' – ' + a.notes.join(', ') : '') :
         ld == null ? 'Not practised yet – a little keeps it sharp' : ld >= 10 ? 'Not practised in ' + ld + ' days – a little keeps it sharp' : a.notes.length ? cap(a.notes.join(', ')) : '';
       return { k: k, name: a.name, focus: c ? 'Coach: ' + (c.what || 'lesson') + (c.coach ? ' (' + c.coach + ')' : '') : a.focus, why: c ? 'Lesson homework from ' + new Date(Date.parse(c.date)).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) + (c.change === 'big' ? ' – a big change takes reps' : '') + (a.focus !== GENERIC[k] ? '. The numbers: ' + a.focus.toLowerCase() : '') : a.why,
         coach: !!c, src: a.src, conf: a.conf, lost: a.lost, score: a.score, weekMin: Math.round(wk), owed: Math.round(owed), doneToday: doneToday, lastDays: last == null ? null : Math.floor((now - last) / DAY),
         maint: !c && a.lost < 0.1, // nothing lost there – a "keep it sharp" item, after the real needs
-        min: Math.max(10, Math.min(tour && tour.mode === 'sharpen' ? (SHARPEN[k] < 1 ? 15 : 25) : 40, r5(Math.max(owed, wk / 3)))), notes: a.notes, typeTip: a.typeTip };
+        min: Math.max(10, Math.min(tour && tour.mode === 'sharpen' ? (SHARPEN[k] < 1 ? 15 : 25) : 40, r5(daysLeft <= 2 ? owed : Math.max(owed / 2, wk / 3)))), notes: a.notes, typeTip: a.typeTip,
+        weekDone: Math.round(did), carry: Math.round(carry) };
     });
     // sharpening week: the order leans to putting, short game and wedges too (not only the minutes)
-    var key = function (x) { return x.owed * (tour && tour.mode === 'sharpen' ? SHARPEN[x.k] : 1); };
+    // v216: how far behind each area is against its own week (1 = nothing done yet, 1.5 = also skipped last week), then the minutes
+    var key = function (x) { return (Math.round(x.owed / Math.max(1, x.weekMin) * 20) / 20 + x.owed / 1e4) * (tour && tour.mode === 'sharpen' ? SHARPEN[x.k] : 1); };
     // coach homework stays on the list while it's active (one item per lesson, its areas together)
     var due = function (x) { return x.owed > Math.min(CFG.owedMin, x.weekMin * 0.4); }; // v204: relative to its share, so a light practice week still lists things
-    var open = items.filter(function (x) { return due(x) || x.coach; }).sort(function (a, b) { return (b.coach - a.coach) || (a.maint - b.maint) || (key(b) - key(a)) || (b.score - a.score); });
+    var open = items.filter(function (x) { return due(x) || x.coach; }).sort(function (a, b) { return (b.coach - a.coach) || (a.doneToday - b.doneToday) || (a.maint - b.maint) || (key(b) - key(a)) || (b.score - a.score); });
     var byLesson = {}; open = open.filter(function (x) { if (!x.coach) return true; var c = coach[x.k], id = c.lesson || c.id; if (!byLesson[id]) { byLesson[id] = x; x.areas = [x.name]; return true; }
       var m = byLesson[id]; m.areas.push(x.name); m.min = Math.max(m.min, x.min); m.doneToday = m.doneToday && x.doneToday; return false; });
     open.forEach(function (x) { if (x.coach && x.areas.length > 1) x.name = x.areas.join(', ').replace(/, ([^,]*)$/, ' and $1'); });

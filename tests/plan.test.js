@@ -17,7 +17,8 @@ test('budget: your average week over the last 30 days, a default when there is l
 test('an area you skip climbs to the top; the ones you did drop down', () => {
   const P = build(steady('chip', 25)); assert.strictEqual(P.items[0].k, 'chip', JSON.stringify(P.items.map(x => [x.k, x.owed])));
   assert.ok(P.done.some(x => x.k === 'lag'));
-  const Q = build(steady('chip', 25).concat([{ date: iso(0), spoke: 'chip', min: 30 }])); assert.ok(!keysOf(Q).includes('chip') || Q.items[0].k !== 'chip', 'did it today → it drops');
+  const Q = build(steady('chip', 25).concat([{ date: iso(0), spoke: 'chip', min: 30 }])); assert.ok(Math.abs(Q.items[0].owed - (P.items[0].owed - 30)) <= 1, 'v216: 30 min today → 30 min less to go');
+  const R = build(steady('chip', 25).concat([{ date: iso(0), spoke: 'chip', min: P.items[0].owed }])); const rc = R.items.concat(R.done).find(x => x.k === 'chip'); assert.ok(rc.owed < P.items[0].owed / 3 && R.items[0].k !== 'chip', 'most of its week covered → no longer first (logging also lifts the budget a little)');
 });
 test('a big day: done today with a tick; extra time is a small credit, capped at a week of its share', () => {
   const P = build([{ date: iso(0), spoke: 'lag', min: 600 }]), lag = P.done.find(x => x.k === 'lag');
@@ -138,4 +139,28 @@ test('balance: two leaks split the spare – 30 / 30 / 20 / 20; a lesson counts 
 test('balance: a big tournament leans the spare to putting and short game, never below 20 %', () => {
   const tour = { date: new Date(NOW + 4 * DAY).toISOString().slice(0, 10), big: true }, g = G(build([], { rounds: [Object.assign(ARC.round(), { id: 'x', date: iso(40) })], tour }));
   Object.values(g).forEach(v => assert.ok(v >= 20)); assert.ok(g.putt > g.full && g.short > g.full, JSON.stringify(g));
+});
+
+// v216 (Scott): the list follows the same Monday–Sunday week as the "This week" card
+test('this week: a met target drops off; what is still short goes to the top, most first; doing it today moves it down', () => {
+  const SUN = Date.parse('2026-11-15T09:00:00'), d = (iso, k, m) => ({ date: iso + 'T12:00:00', spoke: k, min: m }); // Sunday: one day left
+  const base = (logs) => PLAN.build({ rounds, logs, SG, MYGAME: MY, bl: 'pga', now: SUN });
+  const P0 = base([]); const wk = P0.weekMin;
+  const logs = [d('2026-11-10', 'short', wk.short + 10), d('2026-11-11', 'lag', wk.lag), d('2026-11-12', 'chip', wk.chip), d('2026-11-13', 'bunker', wk.bunker), d('2026-11-13', 'irons', wk.irons)];
+  const P = base(logs), ks = P.items.filter(x => !x.optional).map(x => x.k);
+  assert.ok(!ks.includes('short'), 'short putts met → off the list: ' + JSON.stringify(P.items.map(x => [x.k, x.owed])));
+  assert.deepStrictEqual(ks.slice(0, 2).sort(), ['drive', 'wedges'].sort(), 'the two still short lead');
+  assert.ok(P.items[0].owed / P.items[0].weekMin >= P.items[1].owed / P.items[1].weekMin - 1e-9, 'furthest behind first');
+  const sp = P.done.concat(P.items).find(x => x.k === 'short'); assert.strictEqual(sp.weekDone, wk.short + 10);
+  // done some driving today: it moves behind wedges for the rest of today, and needs less
+  const Q = base(logs.concat([d('2026-11-15', 'drive', 5)])), qk = Q.items.map(x => x.k);
+  assert.ok(qk.indexOf('wedges') < qk.indexOf('drive'), JSON.stringify(qk)); assert.ok(Q.items.find(x => x.k === 'drive').owed < P.items.find(x => x.k === 'drive').owed);
+});
+test('last week: half of a skipped area carries over; a brand-new player starts clean', () => {
+  const MON = Date.parse('2026-11-16T09:00:00'), d = (iso, k, m) => ({ date: iso + 'T12:00:00', spoke: k, min: m });
+  const B = PLAN.build({ rounds, logs: [], SG, MYGAME: MY, bl: 'pga', now: MON }); const wk = B.weekMin;
+  const lastWeek = MY.SPOKES.filter(s => s.k !== 'chip').map(s => d('2026-11-11', s.k, wk[s.k]));
+  const P = PLAN.build({ rounds, logs: lastWeek, SG, MYGAME: MY, bl: 'pga', now: MON }), chip = P.items.find(x => x.k === 'chip');
+  assert.strictEqual(P.items[0].k, 'chip', 'skipped last week → top this Monday'); assert.ok(Math.abs(chip.carry - Math.round(wk.chip * 0.5)) <= 1);
+  assert.ok(B.items.every(x => !x.carry), 'nothing logged before this week → no carry-over');
 });
