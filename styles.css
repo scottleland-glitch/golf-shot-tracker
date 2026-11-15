@@ -3117,3 +3117,17 @@ html body .edrow input { font: inherit; font-size: 16px; padding: 6px 8px; borde
 html body .edstep { display: flex; align-items: center; gap: 12px; } html body .edstep .cssec { width: 40px; height: 40px; padding: 0; font-size: 20px; } html body .edstep b { min-width: 36px; text-align: center; font-size: 18px; }
 html body #presheet .prq { margin: 12px 0 6px; font-size: 14px; font-weight: 600; color: #3f5a48; } html body #presheet .prchip { color: #17301f; } html body #presheet .prchip.on { background: #17301f; color: #fff; }
 html body .pract { flex: none; flex-wrap: nowrap; } html body .pract button { width: auto; flex: none; margin: 0; } html body .pract .prx { width: 34px; height: 34px; min-height: 34px; }
+/* v217: first screen "I play / I coach"; coach code on the name screen; Athletes + Invite; share sheet list */
+html body .welcome .rolepick { display: grid; gap: 10px; margin: 12px 0 14px; }
+html body .roleopt { display: flex; align-items: center; gap: 14px; width: 100%; text-align: left; padding: 16px 14px; border-radius: 18px; border: 2px solid rgba(23, 48, 31, .12); background: rgba(255, 255, 255, .75); color: #17301f; font: inherit; min-height: 0; box-shadow: none; }
+html body .roleopt.on { border-color: #1f6f4a; background: #fff; } html body .roleopt i { font-style: normal; font-size: 30px; } html body .roleopt span { display: grid; gap: 2px; } html body .roleopt b { font-size: 18px; } html body .roleopt small { font-size: 13.5px; color: #4c5a51; }
+html body .namesheet #pcode { margin-top: 2px; } html body .namesheet label.modeq span { font-weight: 400; opacity: .75; }
+html body .cmcode > small { text-transform: none; letter-spacing: 0; max-width: 120px; text-align: right; }
+html body .cminv { border: 0; border-radius: 999px; padding: 9px 14px; background: #0b4a22; color: #fff; font: inherit; font-weight: 700; font-size: 15px; min-height: 0; white-space: nowrap; }
+html body .cmstat { display: flex; align-items: center; justify-content: space-between; } html body .cmref { border: 0; background: none; box-shadow: none; min-height: 0; padding: 2px 8px; font-size: 17px; color: #3f5a48; }
+html body .cmempty { text-align: center; padding: 22px 16px; } html body .cmwave { font-size: 40px; } html body .cmempty b { display: block; font-size: 18px; margin-top: 4px; }
+html body .cmempty .cspri { width: 100%; margin-top: 14px; }
+html body .cssees { list-style: none; margin: 8px 0; padding: 0; } html body .cssees li { font-size: 15px; padding: 3px 0; } html body .cssees li.no { color: #5b6660; }
+html body #cmpage .topbar .cminv { background: #0b4a22; color: #fff; border: 0; font-weight: 700; padding: 9px 14px; }
+html body #cmpage .topbar .cmteam { display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 150px; margin: 0 auto; }
+html body #cmpage .topbar #cmhome { white-space: nowrap; } html body #cmpage .topbar .cmteam { max-width: 170px; }
