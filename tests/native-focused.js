@@ -23,7 +23,7 @@ const { chromium } = require('playwright-core'); const { spawn, execSync } = req
   assert.deepStrictEqual(r.calls[1], ['share', { title: 'Backup', files: ['file:///cache/strokewise backup.json'] }]); assert.strictEqual(r.name, 'AbortError', 'a cancelled share sheet reads as cancelled');
   ok('sharing: file → cache folder → iOS share sheet; cancel = AbortError');
   // the website: no Capacitor → nothing changes
-  const p2 = await (await b.newContext()).newPage(); await p2.goto('http://127.0.0.1:' + (PORT + 1) + '/'); await p2.waitForSelector('#home, #namesheet');
+  const p2 = await (await b.newContext()).newPage(); await p2.goto('http://127.0.0.1:' + (PORT + 1) + '/'); await p2.waitForSelector('#home, #namesheet, #welcome');
   assert.ok(!(await p2.evaluate(() => window.STROKEWISE_NATIVE))); assert.ok((await p2.evaluate(() => window.GOLF_CONFIG.googleClientId)).length > 10); ok('website unchanged');
   assert.deepStrictEqual(errs, []); await b.close(); srv.kill(); web.kill(); fs.rmSync(WWW, { recursive: true, force: true }); console.log('native OK'); process.exit(0);
 })().catch(e => { console.error(e); process.exit(1); });

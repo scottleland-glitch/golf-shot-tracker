@@ -25,6 +25,14 @@ Every Shot Counts Table 3.10). The other five are ESTIMATED: per-round gaps from
 Player Quality ladder, then spread over the PGA table. Full sources, method and caveats: in-app
 "About the numbers" and the BASELINES comment in `sg.js`.
 
+## I play / I coach (v217)
+
+- **First screen** on a new phone: **I play** or **I coach** (shown once, only when coach sharing is switched on).
+  - **I play** → name, the two practice switches, and an optional **Have a coach code?** box.
+  - **I coach** → create a coach account or sign in → the **Athletes** screen. Cancel goes back to the first screen.
+- **Athletes:** **+ Invite** in the top bar; a big **Invite your first athlete** button when the list is empty; team code below.
+- **Invite link** (`?team=CODE`): a set-up phone goes straight to **Share with Coach …?**; a new phone asks the name first with the code already filled in.
+
 ## Practice by the week, and practice by the day (v216)
 
 - **What to practise next** now follows this week. Each area has a weekly target. Areas still short of it go to the top, the furthest behind first; areas that have met it drop off. Half of last week's shortfall carries over. Any practice you log counts, whether or not you started it from the list, and an area you practised today moves down for the rest of the day.

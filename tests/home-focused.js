@@ -10,7 +10,7 @@ const BASE = 'http://127.0.0.1:8795/', OUT = '/workspace/golf-app/screenshots/';
   await page.goto(BASE + '?x=' + Date.now()); await page.evaluate(() => localStorage.clear()); await page.reload();
   const shot = async n => { await page.waitForTimeout(400); await page.screenshot({ path: OUT + 'home-' + n + '.png' }); };
   // first open on a new phone: "Who's playing?" – Not now leaves a clean Home (Player lives in the New round sheet)
-  await page.waitForSelector('#namesheet'); assert.match(await page.textContent('#namesh'), /Who’s playing\?/); await page.click('[data-act="nameskip"]');
+  await page.waitForSelector('#welcome'); await page.click('#rolego'); await page.waitForSelector('#namesheet'); assert.match(await page.textContent('#namesh'), /Who’s playing\?/); await page.click('[data-act="nameskip"]');
   // home: only title and + (v102: Archive pill gone – it's Settings in the + menu)
   const H = await page.evaluate(() => { const h = document.getElementById('home'), bg = getComputedStyle(h.querySelector('.home-bg'));
     return { btns: [...h.querySelectorAll('button')].map(x => x.id), text: h.innerText.replace(/\s+/g, ' ').trim(), bg: bg.backgroundImage, size: bg.backgroundSize, r: h.getBoundingClientRect().toJSON(),

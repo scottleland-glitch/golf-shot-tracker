@@ -88,5 +88,29 @@ const ARC = require('/home/claude/golf-app/tests/fixtures/arcade-78.js'), FF = r
   await laptop.fill('#coemail', 'mike@example.com'); await laptop.click('#coforgot'); await laptop.waitForSelector('#comsg'); assert.deepStrictEqual(fb.sent.slice(-1)[0], { type: 'PASSWORD_RESET', email: 'mike@example.com' });
   await laptop.fill('#copass', 'wrong'); await laptop.click('#cogo'); await laptop.waitForSelector('#coerr'); assert.match(await laptop.textContent('#coerr'), /doesn't match/);
   await laptop.fill('#copass', 'secret12'); await laptop.click('#cogo'); await laptop.waitForSelector('#cmpage #cmcode'); assert.strictEqual(await laptop.textContent('#cmcode'), code); ok('sign in on another device → same team; forgot password sends the email');
+  // 6. v217: a brand-new phone – first screen "I play / I coach"
+  async function fresh(path) { const ctx = await b.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true });
+    await ctx.route('**/config.js*', r => r.fulfill({ contentType: 'application/javascript', body: conf }));
+    const p = await ctx.newPage(); p.on('pageerror', e => errs.push('fresh: ' + e)); await p.goto('http://127.0.0.1:' + PORT + (path || '/')); return p; }
+  const nc = await fresh(); await nc.waitForSelector('#welcome'); assert.strictEqual(await nc.getAttribute('#roleplay', 'aria-checked'), 'true', 'I play is picked');
+  if (OUT) await nc.screenshot({ path: OUT + '/welcome.png' });
+  await nc.click('#rolecoach'); await nc.click('#rolego'); await nc.waitForSelector('#cosheet'); await nc.click('#cosheet [data-act="coclose"]');
+  await nc.waitForSelector('#welcome'); ok('I coach → coach account sheet; Cancel → back to the first screen');
+  await nc.click('#rolecoach'); await nc.click('#rolego'); await nc.click('[data-act="cotab"][data-v="in"]'); await nc.fill('#coemail', 'mike@example.com'); await nc.fill('#copass', 'secret12'); await nc.click('#cogo');
+  await nc.waitForSelector('#cmpage #cmempty'); assert.strictEqual((await nc.textContent('#coinvite')).trim(), '+ Invite'); assert.ok(await nc.$('#cmempty #coinvite1'), 'big Invite button when empty');
+  if (OUT) await nc.screenshot({ path: OUT + '/coach-empty-v217.png' });
+  await nc.reload(); await nc.waitForSelector('#cmpage'); assert.strictEqual(await nc.$('#welcome'), null, 'asked once'); ok('coach signs in → Athletes with + Invite; not asked again');
+  // the invite link on a new phone: name (code filled in) → "Share with Coach Mike?"
+  const na = await fresh('/?team=' + code); await na.waitForSelector('#namesheet'); assert.strictEqual(await na.$('#welcome'), null, 'an invite means a player');
+  assert.strictEqual(await na.inputValue('#pcode'), code); await na.fill('#pname', 'Lily'); await na.click('#namesheet [data-act="setname"]');
+  await na.waitForSelector('#csjoin'); assert.strictEqual(await na.textContent('#cshead'), 'Share with Coach Mike?'); assert.strictEqual((await na.textContent('#csjoin')).trim(), 'Share my rounds');
+  await na.click('[data-act="csage"][data-v="adult"]'); if (OUT) await na.screenshot({ path: OUT + '/invite-share.png' });
+  await na.click('#csjoin'); await na.waitForSelector('#cshared'); ok('invite link on a new phone → name → Share with Coach Mike? → shared');
+  // the invite link on a phone already set up: straight to the question
+  const ex = await phone('Zoe'); await ex.goto('http://127.0.0.1:' + PORT + '/?team=' + code); await ex.waitForSelector('#csjoin'); assert.strictEqual(await ex.textContent('#cshead'), 'Share with Coach Mike?');
+  assert.ok(!/team=/.test(await ex.evaluate(() => location.search)), 'link tidied'); ok('invite link on a set-up phone → straight to Share with Coach Mike?');
+  // a coach code typed on the first screen
+  const ty = await fresh(); await ty.waitForSelector('#welcome'); await ty.click('#rolego'); await ty.waitForSelector('#pcode'); await ty.fill('#pname', 'Max'); await ty.fill('#pcode', code.toLowerCase());
+  await ty.click('#namesheet [data-act="setname"]'); await ty.waitForSelector('#csjoin'); ok('I play → name + coach code → Share with Coach Mike?');
   assert.deepStrictEqual(errs, []); await b.close(); srv.kill(); fb.close(); console.log('coach-sharing OK'); process.exit(0);
 })().catch(e => { console.error(e); process.exit(1); });
