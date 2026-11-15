@@ -34,6 +34,8 @@
     var i = info, rows = logs.slice(-8).reverse().map(function (l) { return '<div>' + esc(ago(l.t)) + ' · ' + esc(l.m) + '</div>'; }).join('');
     var st = !i ? 'checking…' : i.missing ? 'NOT WORKING: ' + esc(i.missing) : (i.supported === false ? 'this iPhone cannot pair a watch' : 'paired: ' + yn(i.paired) + ' · watch app installed: ' + yn(i.installed) + ' · link active: ' + yn(i.activated) + ' · reachable now: ' + yn(i.reachable));
     return '<div id="watchpanel" class="tiprow" style="display:block;margin:12px 0;font-size:12px;line-height:1.45"><b>Apple Watch</b><div>' + st + '</div>' +
+      (i && !i.missing && i.lastSend ? '<div>last send: ' + esc(i.lastSend) + (i.sent ? ' · sent ' + esc(i.sent) + '×' : '') + '</div>' : '') +
+      (i && i.lastError ? '<div>last problem: ' + esc(i.lastError) + '</div>' : '') +
       '<button class="big frostbtn" id="watchsend" type="button" style="margin:6px 0">Send this round to the watch now</button>' +
       '<div style="opacity:.75">' + (rows || 'Nothing yet.') + '</div></div>';
   }

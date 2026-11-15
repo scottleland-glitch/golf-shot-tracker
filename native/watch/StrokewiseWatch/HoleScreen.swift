@@ -66,6 +66,7 @@ struct HoleScreen: View {
             Text("No round yet").font(.headline)
             Text("Start a round in StrokeWise on your iPhone. It shows up here by itself.")
                 .font(.footnote).foregroundColor(.secondary).multilineTextAlignment(.center)
+            Button("Check phone") { Connectivity.shared.refresh() }.buttonStyle(TileStyle(small: true))
         }.padding(.top, 8)
     }
 
@@ -117,8 +118,27 @@ struct HoleScreen: View {
         }
     }
 
+    /// Always visible: is the iPhone link up, and when did the phone last send a picture of the round.
+    private var linkLine: some View {
+        VStack(spacing: 1) {
+            HStack(spacing: 4) {
+                Circle().fill(store.reachable ? Theme.greenBright : Color.gray).frame(width: 6, height: 6)
+                Text(store.linkSummary).font(.system(size: 10)).foregroundColor(.secondary)
+            }
+            if let d = store.lastPhoneAt {
+                HStack(spacing: 3) {
+                    Text("Last update from phone").font(.system(size: 9)).foregroundColor(.secondary)
+                    Text(d, style: .time).font(.system(size: 9)).foregroundColor(.secondary)
+                }
+            } else {
+                Text("Nothing received from the phone yet").font(.system(size: 9)).foregroundColor(.secondary)
+            }
+        }
+    }
+
     private var footer: some View {
         VStack(spacing: 6) {
+            linkLine
             if store.hasRound, store.undoTarget() != nil {
                 Button("Undo last shot") { nav.push(.undo) }.buttonStyle(TileStyle(small: true))
             }

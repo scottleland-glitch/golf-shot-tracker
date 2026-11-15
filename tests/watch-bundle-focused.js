@@ -16,7 +16,7 @@ const ROOT = __dirname + '/../', PORT = 8853, BASE = 'http://127.0.0.1:' + PORT 
     await ctx.addInitScript(() => { const f = window.__fake = { pushed: [], pending: [], calls: [] };
       // exactly what native-bridge.js gives a bundler-less app: Capacitor.Plugins.<jsName>, isPluginAvailable, isNativePlatform – and NO registerPlugin
       window.Capacitor = { isNativePlatform: () => true, getPlatform: () => 'ios', isPluginAvailable: n => n === 'StrokewiseWatch',
-        Plugins: { StrokewiseWatch: ({ getInfo: async () => ({ supported: true, activated: true, paired: true, installed: true, reachable: false }), getPending: async () => ({ items: f.pending }), ack: async () => {},
+        Plugins: { StrokewiseWatch: ({ getInfo: async () => ({ supported: true, activated: true, paired: true, installed: true, reachable: false, lastSend: 'ok (fake)', sent: 2, hasState: true }), getPending: async () => ({ items: f.pending }), ack: async () => {},
           pushState: async o => { f.pushed.push(JSON.parse(o.json)); }, addListener: () => Promise.resolve({ remove() {} }) }) } }; });
     const page = await ctx.newPage(); page.setDefaultTimeout(15000); page.on('pageerror', e => errors.push(String(e)));
     await page.goto(BASE + '?x=' + Date.now()); await page.evaluate(() => { localStorage.clear(); localStorage.setItem('golfsg.player.v1', 'Scott'); localStorage.setItem('golfsg.nameasked.v1', '1'); });
@@ -33,6 +33,15 @@ const ROOT = __dirname + '/../', PORT = 8853, BASE = 'http://127.0.0.1:' + PORT 
     fs.writeFileSync(ROOT + 'tests/fixtures/watch-state-real.json', JSON.stringify(await page.evaluate(() => window.__fake.pushed), null, 1)); // what the app really sends – the Swift test decodes it
     const log = await page.evaluate(() => window.STROKEWISE_WATCH.log && window.STROKEWISE_WATCH.log());
     assert.ok(Array.isArray(log) && log.some(l => /pushed/.test(l.m)), 'debug log records the pushes'); ok('the debug log shows the pushes: ' + log.slice(-2).map(l => l.m).join(' | '));
+    // Settings → Apple Watch shows the link status and the log
+    const p2 = await ctx.newPage(); p2.setDefaultTimeout(15000); await p2.goto(BASE + '?x=' + Date.now()); await p2.waitForSelector('#home'); await p2.click('#navbtn'); await p2.click('#navmenu [data-act="archive"]'); await p2.waitForSelector('#watchpanel');
+    await p2.waitForFunction(() => /paired: yes/.test(document.getElementById('watchpanel').innerText)); const pt = await p2.innerText('#watchpanel');
+    assert.ok(/Apple Watch/.test(pt) && /watch app installed: yes/.test(pt) && /last send: ok/.test(pt), pt); ok('Settings has an Apple Watch box: ' + pt.replace(/\s+/g, ' ').slice(0, 150)); await p2.close();
+    // a build WITHOUT the plugin must say so (not silently do nothing)
+    const ctx2 = await b.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, serviceWorkers: 'block' });
+    await ctx2.addInitScript(() => { window.Capacitor = { isNativePlatform: () => true, getPlatform: () => 'ios', isPluginAvailable: () => false, Plugins: { Share: {} } }; });
+    const p3 = await ctx2.newPage(); await p3.goto(BASE + '?x=' + Date.now()); await p3.waitForSelector('#home');
+    const pm = await p3.evaluate(() => window.STROKEWISE_WATCH.panel()); assert.ok(/NOT WORKING: the StrokewiseWatch plugin is not in this build \(plugins found: Share\)/.test(pm), pm); ok('without the plugin, Settings says NOT WORKING and why');
     assert.deepStrictEqual(errors, []);
   } finally { await b.close(); srv.kill(); }
   console.log('PASS watch-bundle-focused');

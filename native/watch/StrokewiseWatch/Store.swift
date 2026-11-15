@@ -9,6 +9,14 @@ final class WatchStore: ObservableObject {
     @Published private(set) var snapshot: Snapshot
     @Published private(set) var model = RoundModel()
     @Published private(set) var reachable = false
+    /// How the link to the iPhone looks right now – shown on the watch so a silent link can be seen at a glance.
+    @Published private(set) var link = Link()
+    @Published private(set) var lastPhoneAt: Date? = nil
+    struct Link: Equatable {
+        var activated = false
+        var companion: Bool? = nil     // is the StrokeWise iPhone app installed on the paired phone
+        var error = ""
+    }
     /// The hole just holed out (shows the hole-finished screen, then moves on by itself).
     @Published var justFinished: Int? = nil
 
@@ -40,7 +48,12 @@ final class WatchStore: ObservableObject {
     // MARK: from the phone
 
     func receive(json: String) {
-        guard let data = json.data(using: .utf8), let st = try? JSONDecoder().decode(PhoneState.self, from: data) else { return }
+        guard let data = json.data(using: .utf8), let st = try? JSONDecoder().decode(PhoneState.self, from: data) else {
+            if link.error != "Couldn't read the phone's data" { link.error = "Couldn't read the phone's data" }
+            return
+        }
+        lastPhoneAt = Date()
+        if !link.error.isEmpty { link.error = "" }
         if let old = snapshot.state, let a = old.ts, let b = st.ts, b < a, old.roundId == st.roundId { return }   // an older picture arriving late
         let acked = Set((st.acks ?? []).map { $0.id })
         snapshot.state = st
@@ -49,6 +62,17 @@ final class WatchStore: ObservableObject {
         evaluateWorkout()
     }
     func setReachable(_ r: Bool) { if reachable != r { reachable = r } }
+    func setLink(activated: Bool, companion: Bool?) {
+        let l = Link(activated: activated, companion: companion, error: link.error)
+        if link != l { link = l }
+    }
+    /// One line for the idle screen and the foot of the hole screen.
+    var linkSummary: String {
+        if !link.activated { return "Phone: starting…" }
+        if link.companion == false { return "Phone: StrokeWise isn't installed on the iPhone" }
+        if !link.error.isEmpty { return "Phone: " + link.error }
+        return reachable ? "Phone: connected" : "Phone: waiting (open StrokeWise on the iPhone)"
+    }
 
     // MARK: from the golfer
 

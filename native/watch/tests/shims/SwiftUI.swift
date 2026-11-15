@@ -95,6 +95,8 @@ public func withAnimation<R>(_ a: Animation? = nil, _ body: () throws -> R) reth
 public struct Text: PrimitiveView {
     public init<S: StringProtocol>(_ s: S) {}
     public init(_ key: String) {}
+    public enum DateStyle { case time, date, relative }
+    public init(_ date: Date, style: DateStyle) {}
 }
 public struct Image: PrimitiveView { public init(systemName: String) {} }
 public struct Spacer: PrimitiveView { public init() {} }

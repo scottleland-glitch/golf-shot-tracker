@@ -33,6 +33,7 @@ public class WCSession: NSObject {
     public var receivedApplicationContext: [String: Any] = [:]
     public var isPaired = false
     public var isWatchAppInstalled = false
+    public var isCompanionAppInstalled = false   // watchOS only
     public func activate() {}
     public func updateApplicationContext(_ applicationContext: [String: Any]) throws {}
     public func sendMessage(_ message: [String: Any], replyHandler: (([String: Any]) -> Void)?, errorHandler: ((Error) -> Void)? = nil) {}

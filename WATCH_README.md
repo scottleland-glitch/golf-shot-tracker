@@ -46,6 +46,15 @@ The watch app is a second "app" inside StrokeWise, so Apple needs a second ID an
 
 If step 4 complains it can't find a profile for the watch, open `codemagic.yaml`, find the commented lines under `ios-testflight-watch` > `ios_signing`, and list both profiles (iPhone and watch) there explicitly. That's the one part I couldn't confirm without running it.
 
+## If the watch shows nothing
+
+Two places tell you what is going on:
+
+- **On the iPhone: Settings → Apple Watch** (near the bottom). It shows whether a watch is paired, whether the StrokeWise watch app is installed, whether the link is active, what was last sent, and a short log. **"Send this round to the watch now"** pushes the round again. If it says **NOT WORKING** followed by a reason, that reason is the problem (for example the watch plugin is missing from the build).
+- **On the watch: the status line at the bottom of the hole screen** ("Phone: connected", "Phone: waiting (open StrokeWise on the iPhone)", "Phone: starting…") and the time of the last update from the phone. With no round, the **Check phone** button re-reads what the phone last sent and asks it for a fresh copy.
+
+Things to try, in this order: open StrokeWise on the iPhone (keep it in front), start or resume a round, then raise the watch and open StrokeWise on the watch. The round normally appears within a few seconds. If the watch says "Phone: waiting", the iPhone app is not reachable right now: bring it to the front. The phone keeps the latest round picture and sends it again when the watch connects, so nothing is lost.
+
 ## How the watch and phone stay in sync
 
 - Phone to watch: the phone sends the current round state (current hole, next hole, finished holes, shots, pars) whenever anything changes.
@@ -72,7 +81,8 @@ Tested (on Linux, in this repo):
 - `node tests/watch-core.test.js`: 29 scenarios for the shared rules (fairway, OB, lost ball, unplayable, hazard drop/re-tee, chip-in, undo across holes, edits, deletes, inserts, duplicate and stale events).
 - `node tests/watch-focused.js`: drives the real phone UI with the same shots and checks the watch rules give identical rows.
 - `bash native/watch/tests/run-linux.sh`: compiles the Swift rules/model/storage with the Linux Swift compiler and runs the same 29 scenarios through the Swift port (0 differences), plus state decoding, event encoding and a save/reload round trip.
-- `bash native/watch/tests/typecheck-linux.sh`: type-checks the store, connectivity and plugin code against stand-ins for Apple's frameworks.
+- `bash native/watch/tests/typecheck-linux.sh`: type-checks every watch Swift file and the plugin against stand-ins for SwiftUI, HealthKit, WatchKit, WatchConnectivity and Capacitor.
+- `node tests/watch-bundle-focused.js`: loads the real iPhone web bundle (as built for the watch workflow) with a pretend native plugin shaped like Capacitor's own bridge, starts a round and enters a shot, and checks each one is pushed to the watch and shows in Settings → Apple Watch.
 - `bash native/watch/tests/check-build-integration.sh`: builds a scratch Capacitor project and runs the watch-target script; checks the watch target, bundle id `com.strokewise.app.watchkitapp`, HealthKit entitlement, workout-processing background mode, "Embed Watch Content" phase, dependency, and plugin wiring.
 - The repo's existing tests that touch hole entry, finish, hole-out, undo/back, scorecard, native app wrapper, tee, discard, version still pass. (`live-share-focused` fails on `main` too, same assertion, not caused by this branch.)
 

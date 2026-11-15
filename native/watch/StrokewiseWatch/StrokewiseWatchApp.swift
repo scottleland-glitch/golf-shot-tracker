@@ -18,8 +18,7 @@ struct StrokewiseWatchApp: App {
                 .onAppear { store.evaluateWorkout() }
                 .onChange(of: scenePhase) { phase in
                     if phase == .active {
-                        Connectivity.shared.flush()
-                        Connectivity.shared.requestState()
+                        Connectivity.shared.refresh()
                         store.evaluateWorkout()
                     }
                 }

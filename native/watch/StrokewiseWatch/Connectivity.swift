@@ -43,6 +43,26 @@ final class Connectivity: NSObject, WCSessionDelegate {
         WatchStore.shared.markSent(id)
     }
 
+    /// Publishes how the link looks (activated, phone app installed, reachable) to the store, for the status line on the watch.
+    private func publishLink() {
+        guard let s = wc else { return }
+        let active = s.activationState == .activated, reachable = s.isReachable, companion = s.isCompanionAppInstalled
+        DispatchQueue.main.async {
+            WatchStore.shared.setReachable(reachable)
+            WatchStore.shared.setLink(activated: active, companion: companion)
+        }
+    }
+
+    /// "Check phone": read the last picture the phone left, and ask for a fresh one. Call on the main thread.
+    func refresh() {
+        guard let s = wc else { return }
+        if s.activationState != .activated { s.activate(); return }
+        publishLink()
+        if let json = s.receivedApplicationContext["state"] as? String { WatchStore.shared.receive(json: json) }
+        flush()
+        requestState()
+    }
+
     /// Ask the phone for the latest picture (when the watch app opens or the phone comes back).
     func requestState() {
         guard let s = wc, s.activationState == .activated, s.isReachable else { return }
@@ -54,21 +74,24 @@ final class Connectivity: NSObject, WCSessionDelegate {
     // MARK: WCSessionDelegate
 
     func session(_ session: WCSession, activationDidCompleteWith activationState: WCSessionActivationState, error: Error?) {
+        publishLink()
         DispatchQueue.main.async {
-            WatchStore.shared.setReachable(session.isReachable)
             if let json = session.receivedApplicationContext["state"] as? String { WatchStore.shared.receive(json: json) }
             self.flush()
             self.requestState()
         }
+    }
+    /// The phone's picture sent straight to a running watch app (the same data as the application context).
+    func session(_ session: WCSession, didReceiveMessage message: [String: Any]) {
+        guard let json = message["state"] as? String else { return }
+        DispatchQueue.main.async { WatchStore.shared.receive(json: json) }
     }
     func session(_ session: WCSession, didReceiveApplicationContext applicationContext: [String: Any]) {
         guard let json = applicationContext["state"] as? String else { return }
         DispatchQueue.main.async { WatchStore.shared.receive(json: json) }
     }
     func sessionReachabilityDidChange(_ session: WCSession) {
-        DispatchQueue.main.async {
-            WatchStore.shared.setReachable(session.isReachable)
-            if session.isReachable { self.flush(); self.requestState() }
-        }
+        publishLink()
+        if session.isReachable { DispatchQueue.main.async { self.flush(); self.requestState() } }
     }
 }
