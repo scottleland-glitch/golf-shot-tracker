@@ -185,7 +185,7 @@
     goHole(0, true);
   }
   function goHole(i, focus) {
-    view.screen = 'hole'; view.hole = Math.max(0, Math.min(17, i)); view.menu = null; if (!view.preview && view.from !== 'history' && view.roundId === localStorage.getItem(CUR)) view.inRound = true; // v189 view.edk = null; view.parEdit = null; view.liveCard = false; view.dirk = null; view.pinOpen = false;
+    view.screen = 'hole'; view.hole = Math.max(0, Math.min(round().holes.length - 1, i)); /* v219: a 9-hole round stops at 9 */ view.menu = null; if (!view.preview && view.from !== 'history' && view.roundId === localStorage.getItem(CUR)) view.inRound = true; // v189 view.edk = null; view.parEdit = null; view.liveCard = false; view.dirk = null; view.pinOpen = false;
     render(); window.scrollTo(0, 0);
     var h = round().holes[view.hole];
     if (focus && h.rows.length === 1 && h.rows[0].dist === '') focusDist(0);
@@ -2249,7 +2249,7 @@
     // 1. a round just played (today or the last 3 days)
     var last = fin[0];
     if (last && now - Date.parse(last.date) < 3 * DAY) { var S = SG.summarize(last), D1 = null; try { D1 = mgData(who, 'r1'); } catch (e) {}
-      M.push({ k: 'round', kick: 'Last round', title: (S.holesDone === 18 ? S.strokes + ' at ' : '') + (last.course || 'your last round'), sub: D1 && D1.headline !== 'Still learning your game' ? D1.headline : 'See how it went, shot by shot',
+      M.push({ k: 'round', kick: 'Last round', title: (S.holesDone === 18 || (S.holesDone === 9 && last.holes.length === 9) ? S.strokes + (S.holesDone === 9 ? ' (9) at ' : ' at ') : '') + (last.course || 'your last round'), sub: D1 && D1.headline !== 'Still learning your game' ? D1.headline : 'See how it went, shot by shot',
         btn: ['See round', 'open', last.id] }); }
     // 2. what costs (or gains) the most → practice it
     if (D && D.headline && D.headline !== 'Still learning your game') M.push({ k: 'game', kick: 'My Game · ' + D.period.name.toLowerCase(), title: D.headline, sub: D.lede || '', btn: pr ? ['Log practice', 'prlog'] : ['See My Game', 'mygame'], tap: 'mygame' });
@@ -3017,7 +3017,7 @@
   function athleteCard(A) {
     return withAthlete(A, function (who) {
       var fin = finishedRoundsOf(who).slice().sort(function (a, b) { return String(b.date || '').localeCompare(String(a.date || '')); }), DAY = 864e5, now = Date.now();
-      var full = fin.map(function (r) { return SG.summarize(r); }).filter(function (S) { return S.holesDone === 18; }).map(function (S) { return S.strokes; });
+      var full = fin.map(function (r) { return SG.summarize(r); }).map(function (S) { return SG.score18(S); }).filter(function (v) { return v != null; }); // v219: 9-hole rounds ×2
       var avg = function (a) { return a.reduce(function (t, x) { return t + x; }, 0) / a.length; }, a5 = full.length ? avg(full.slice(0, 5)) : null, p5 = full.length >= 6 ? avg(full.slice(5, 10)) : null;
       var arrow = a5 == null || p5 == null ? '' : a5 < p5 - 0.3 ? '<small class="cmup">↓ ' + (p5 - a5).toFixed(1) + '</small>' : a5 > p5 + 0.3 ? '<small class="cmdn">↑ ' + (a5 - p5).toFixed(1) + '</small>' : '<small class="cmflat">→ ' + Math.abs(a5 - p5).toFixed(1) + '</small>';
       var seen = A.seenAt || 0, nw = { rounds: 0, tests: 0, practice: 0 }; ['rounds', 'tests', 'practice'].forEach(function (k) { (A[k] || []).forEach(function (x) { if (itemT(x) > seen) nw[k]++; }); });
@@ -3726,7 +3726,7 @@
     var out = '<div class="topbar frost"><button class="frostbtn" data-act="prev" aria-label="Previous hole"' + (view.hole === 0 ? ' disabled' : '') + '>‹</button>' +
       '<div class="title"><b>' + (r.course ? esc(r.course) : 'Round') + '</b><span>' +
       (S.holesDone ? 'Total ' + S.strokes + ' (' + toPar(S.toPar) + ') thru ' + S.holesDone : 'No holes finished yet') + '<br>SG vs ' + esc(blName(blOf(r))) + '</span></div>' +
-      '<button class="frostbtn" data-act="next" aria-label="Next hole"' + (view.hole === 17 ? ' disabled' : '') + '>›</button></div>';
+      '<button class="frostbtn" data-act="next" aria-label="Next hole"' + (view.hole >= r.holes.length - 1 ? ' disabled' : '') + '>›</button></div>';
     // v154: reviewing a hole (opened from Round stats, or a round that is not the one in progress) → an obvious way back
     var reviewing = !!view.holeFrom || (r.id !== localStorage.getItem(CUR) && !view.preview);
     var lv = liveOn();
@@ -3760,10 +3760,13 @@
       out += '<button class="finish big" data-act="finish"' + (a.complete && h.par ? '' : ' disabled') + '>✓ Finish hole</button>';
       out += '<div id="hint" class="hint">' + hintText(h, a) + '</div>';
     }
+    // v219 (Scott): end the round after 9 – on hole 9, while holes 10–18 are untouched
+    var can9 = view.hole === 8 && r.holes.length === 18 && !r.holes.slice(9).some(started);
+    if (can9) out += '<button class="big frostbtn end9" data-act="finish9" id="finish9"' + (fin || (a.complete && h.par) ? '' : ' disabled') + '>⛳ End round after 9 – see stats</button>';
     out += '</div>';
-    var nxt = view.hole < 17
+    var nxt = view.hole < r.holes.length - 1
       ? '<button class="' + (fin ? 'primary ' : 'frostbtn ') + 'big" data-act="next">' + (started(r.holes[view.hole + 1]) ? 'Hole ' + (view.hole + 2) + ' ›' : 'Add Hole ' + (view.hole + 2) + ' ⊕') + '</button>'
-      : '<button class="primary big" data-act="summary" data-end="1">Finish round – see stats</button>';
+      : '<button class="primary big" data-act="summary" data-end="1">Finish round – see stats</button>' + (r.holes.length === 9 && r.nine ? '<button class="big frostbtn" data-act="addback9" id="addback9">Add the back 9 ⊕</button>' : '');
     if (lv) out += '<div class="nextrow" id="nextrow">' + (view.hole > 0 ? '<button class="frostbtn big" data-act="prev" id="prevhole">‹ Hole ' + view.hole + '</button>' : '') + nxt + '</div>'; // v188: previous + next hole at the bottom; Home / Scorecard & stats are in the bar and ⋯
     else {
       out += nxt + '<button class="big rpbtn frostbtn" data-act="replay" data-v="' + view.hole + '">▶ Hole replay</button>';
@@ -6175,8 +6178,12 @@
         rounds = rounds.filter(function (x) { return x !== r; }); save();
         if (localStorage.getItem(CUR) === r.id) localStorage.removeItem(CUR);
         view.screen = view.from === 'history' ? 'history' : 'home'; break;
+      case 'addback9': { var rb = round(); for (var j = 0; j < 9; j++) rb.holes.push(emptyHole()); delete rb.nine; save(); goHole(9, true); return; } // v219: changed your mind
+      case 'finish9': { var r9 = round(), h9 = r9.holes[8], a9 = SG.analyzeHole(h9); if (r9.holes.slice(9).some(started)) return; // v219: keep the 9 played, mark it a 9-hole round
+        if (!h9.finished && h9.par && a9.complete) h9.finished = true; r9.holes = r9.holes.slice(0, 9); r9.nine = true; save(); }
+        /* falls through: finish the round */
       case 'summary':
-        if (b.getAttribute('data-end') === '1') { // Finish round: mark every holed-out hole finished, keep the round in History, clear 'Continue round'
+        if (b.getAttribute('data-end') === '1' || act === 'finish9') { // Finish round: mark every holed-out hole finished, keep the round in History, clear 'Continue round'
           var rr = round(); rr.holes.forEach(function (hh) { if (!hh.finished && hh.par && SG.analyzeHole(hh).complete) hh.finished = true; });
           if (live) live.finish(rr.id);
           var F2 = SG.foldStubs(rounds); rounds = F2.rounds; if (localStorage.getItem(CUR) === rr.id) localStorage.removeItem(CUR);
@@ -6385,8 +6392,8 @@
   }
 
   function firstOpenHole(r) {
-    for (var i = 0; i < 18; i++) { if (!SG.analyzeHole(r.holes[i]).done) return i; }
-    return 17;
+    for (var i = 0; i < r.holes.length; i++) { if (!SG.analyzeHole(r.holes[i]).done) return i; }
+    return r.holes.length - 1;
   }
 
   gdReturn(); coInit(); render(); gdInit(); // v212: coInit opens a coach's Athletes / an invite link

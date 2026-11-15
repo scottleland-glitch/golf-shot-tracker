@@ -49,7 +49,7 @@
     list.forEach(function (r) {
       var S = SG.summarize(r, bl); if (!S.holesDone) return;
       holes += S.holesDone; sgTot += S.sgTotal; putts += S.putts; gir += S.gir; girHoles += S.girHoles;
-      if (S.holesDone === 18) strokes18.push(S.strokes);
+      var s18 = SG.score18 ? SG.score18(S) : (S.holesDone === 18 ? S.strokes : null); if (s18 != null) strokes18.push(s18); // v219: a 9-hole round counts, doubled
       S.holes.forEach(function (h) {
         if (!h.done) return;
         h.shots.forEach(function (s) { if (s.layup) return; for (var i = 0; i < SPOKES.length; i++) if (SPOKES[i].test(s)) { acc[SPOKES[i].k].n++; acc[SPOKES[i].k].sg += s.sg; break; } });
