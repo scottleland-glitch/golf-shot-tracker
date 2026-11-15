@@ -143,7 +143,7 @@
     return '<select id="' + id + '" class="blsel" data-f="baseline" aria-label="Compare against">' + SG.BASELINES.map(function (b) {
       return '<option value="' + b.id + '"' + (b.id === sel ? ' selected' : '') + '>' + blLabel(b.id) + '</option>'; }).join('') + '</select>';
   }
-  function save() { if (typeof roGuard === 'function' && roGuard()) return; var cr = !view.preview && round(); if (cr) cr.updated = new Date().toISOString(); localStorage.setItem(KEY, JSON.stringify(rounds)); backupDirty(60000); if (live) live.touch(); }
+  function save() { if (typeof roGuard === 'function' && roGuard()) return; var cr = !view.preview && round(); if (cr) cr.updated = new Date().toISOString(); localStorage.setItem(KEY, JSON.stringify(rounds)); backupDirty(60000); if (live) live.touch(); try { if (window.STROKEWISE_WATCH) window.STROKEWISE_WATCH.changed(); } catch (e) {} } // watch: tell the Apple Watch link (native/watch.js – only present in the iPhone app's watch build)
   function round() { if (view.preview) return view.preview; return rounds.filter(function (r) { return r.id === view.roundId; })[0]; }
   // v188 (Scott): a round being entered gets a pinned bar – Back · Scorecard · Stats · Holes – on its hole, scorecard and stats screens
   // v189: the bar stays on every screen you reach during the round (replay, maps, About, My Game…) until you go Home
@@ -6379,6 +6379,19 @@
     return 17;
   }
 
+  // Apple Watch link (watch-app branch): the few things native/watch.js needs from the app. Only the iPhone app's watch build loads watch.js;
+  // on the website nothing calls these, so they change nothing.
+  window.STROKEWISE_APP = {
+    rounds: function () { return rounds; },
+    current: function () { return localStorage.getItem(CUR); },
+    commit: function (r) { // a watch event changed round r: save it exactly like a phone edit and redraw (not while someone is typing)
+      if (typeof roGuard === 'function' && roGuard()) return;
+      r.updated = new Date().toISOString();
+      if (!view.preview && view.roundId === r.id) { view.edk = null; view.menu = null; view.hzPend = null; view.dirk = null; }
+      save();
+      var ae = document.activeElement; if (!(ae && /^(INPUT|TEXTAREA|SELECT)$/.test(ae.tagName))) render();
+    }
+  };
   gdReturn(); coInit(); render(); gdInit(); // v212: coInit opens a coach's Athletes / an invite link
   if ('serviceWorker' in navigator && location.protocol !== 'file:') {
     // When a new version is installed, reload once so the update shows right away.
