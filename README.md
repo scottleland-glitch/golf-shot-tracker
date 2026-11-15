@@ -25,6 +25,17 @@ Every Shot Counts Table 3.10). The other five are ESTIMATED: per-round gaps from
 Player Quality ladder, then spread over the PGA table. Full sources, method and caveats: in-app
 "About the numbers" and the BASELINES comment in `sg.js`.
 
+## Trends: one dashed line, 3 weeks out (v218)
+
+The forecast is now a single dashed line running 3 weeks past today (a week beyond the ~2-week practice lag). No shaded band, no confidence labels, no ± practice lines, no "with more / with less". Under each chart, a **Why** line says what's moving it.
+
+- **Where you are (the solid line):** recent strokes gained, newest rounds counting most (half-life 4 rounds). Tournament rounds count fully, practice rounds half (open dots).
+- **Short-game test – γ (gamma):** the share of an area's line that comes from your last test. 50% on the test day, easing to 25% at 4 weeks and staying there until the next test.
+- **Practice time:** the last 2 weeks against your normal week, ramping in over 2 weeks. Worth 0.1 strokes per round per extra weekly hour to start (0.25 for the score); your own history (practice 2 weeks before each round) takes over as it builds. Never predicted to hurt.
+- **Room to improve:** in an area where you lose strokes (rounds and test together), extra practice counts up to double.
+- **Feel:** a light nudge – a great fortnight counts like a fifth of an extra hour.
+- The line starts after 3 rounds. Practice off → rounds and test only.
+
 ## I play / I coach (v217)
 
 - **First screen** on a new phone: **I play** or **I coach** (shown once, only when coach sharing is switched on).

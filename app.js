@@ -2256,19 +2256,19 @@
     // 3. Trends – the countdown, or the forecast once it's there
     if (fin.length) { var td = null; try { td = trendsData(who); } catch (e) {} var T = td && td.total;
       if (T && T.ok) { // v201 (Scott): plain words – holding steady, improving or slipping, from where you are now
-        var end = new Date(td.weeks[td.weeks.length - 1] + 5 * 7 * DAY).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+        var end = new Date(td.now + TRENDS.CFG.ahead * 7 * DAY).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
         var fc = T.fc[T.fc.length - 1], nowS = T.formScore, d = fc - nowS, ttl;
         if (nowS == null || Math.abs(d) < 0.75) ttl = 'Holding steady around ' + Math.round(nowS != null ? nowS : fc);
         // no "up" / "down" (Scott): a lower score is better play, so say improving / slipping
         else if (d < 0) ttl = 'Improving – about ' + Math.round(fc) + ' by ' + end + ', from ' + Math.round(nowS) + ' now';
         else ttl = 'Slipping a little – about ' + Math.round(fc) + ' by ' + end + ', from ' + Math.round(nowS) + ' now';
-        M.push({ k: 'trends', kick: 'Trends', title: ttl, sub: { low: 'An early read – it sharpens with every round', mid: 'Getting clearer with every round' }[T.conf] || '', btn: ['See Trends', 'gotrends'] }); }
-      else if (T && T.reason === 'not enough weeks') { var left = Math.max(1, Math.ceil(T.need - (T.rounds || T.dataWeeks || 0)));
-        M.push({ k: 'trends', kick: 'Trends', title: left === 1 ? '1 more round until your first forecast' : left + ' more rounds until your first forecast', sub: (function () { var ty = typicalOf(who), r = ty && ty.roundsMonth; if (!r) return pr ? 'Trends learn how your practice turns into strokes' : 'Every round sharpens it'; var wk = Math.max(1, Math.ceil(left / (r / 4.33))); return 'About ' + (wk === 1 ? 'a week' : wk + ' weeks') + ' at your usual ' + r + ' round' + (r === 1 ? '' : 's') + ' a month'; })() /* v205: the pace, from "your typical week" */, btn: ['See Trends', 'gotrends'] }); }
-      else if (pr && T && T.reason === 'no practice logged') M.push({ k: 'trends', kick: 'Trends', title: 'Log practice to unlock Trends', sub: 'See how your practice turns into strokes', btn: ['Log practice', 'prlog'] }); }
+        M.push({ k: 'trends', kick: 'Trends', title: ttl, sub: 'Where you\'re heading over the next ' + TRENDS.CFG.ahead + ' weeks', btn: ['See Trends', 'gotrends'] }); }
+      else if (T && T.reason === 'not enough rounds') { var left = Math.max(1, Math.ceil(T.need - (T.rounds || 0)));
+        M.push({ k: 'trends', kick: 'Trends', title: left === 1 ? '1 more round until your Trends line' : left + ' more rounds until your Trends line', sub: (function () { var ty = typicalOf(who), r = ty && ty.roundsMonth; if (!r) return pr ? 'Trends learn how your practice turns into strokes' : 'Every round sharpens it'; var wk = Math.max(1, Math.ceil(left / (r / 4.33))); return 'About ' + (wk === 1 ? 'a week' : wk + ' weeks') + ' at your usual ' + r + ' round' + (r === 1 ? '' : 's') + ' a month'; })() /* v205: the pace, from "your typical week" */, btn: ['See Trends', 'gotrends'] }); }
+    }
     // 3b. v201 (Scott): an area that's slipping (not an expected dip after a lesson, not an early guess) – "keep an eye on chipping"
     if (fin.length) { var tdw = null; try { tdw = td || trendsData(who); } catch (e) {}
-      var watch = tdw && tdw.areas.filter(function (A) { return A.ok && A.heading && A.conf !== 'low'; })[0];
+      var watch = tdw && tdw.areas.filter(function (A) { return A.ok && A.heading; })[0];
       if (watch) M.push(pr && recsOn(who) ? { k: 'watch', kick: 'Trends', title: 'Keep an eye on ' + watch.name.toLowerCase(), sub: 'It\'s slipping – a little practice there would help', btn: ['Log practice', 'prlog'] } :
         { k: 'watch', kick: 'Trends', title: watch.name + ' is slipping a little', sub: 'Trends sees it in your recent rounds', btn: ['See Trends', 'gotrends'] }); }
     // 4. the short game test – never taken, or due (4+ weeks)
@@ -2781,62 +2781,58 @@
   function trendsHTML() {
     var who = view.trWho || mgWho(), TD = trendsData(who), np = TR_NP = !practiceOn(who), z = TR_ZOOM.filter(function (x) { return x[0] === view.trZoom; })[0] || TR_ZOOM[0];
     var h = '<div class="frostpage theme-sky mygamepage trendspage" id="trendspage"><div class="topbar frost"><button class="txt frostbtn" data-act="trback" id="trback">‹ ' + (view.trFrom === 'practice' ? 'Practice' : view.trFrom === 'home' ? 'Home' : 'My Game') + '</button><div class="title"><b>Trends</b><span>' + esc(who || '') + '</span></div><span class="tbsp"></span></div>';
-    // v196 (Scott): the band is how sure the forecast is – red while it's learning you, amber, then green; no colour for better / worse
-    h += '<p class="trlede" id="trlede">' + (np ? 'Strokes gained in your rounds, by week' : 'Top: strokes gained in your rounds. Bottom: practice') + '. Ahead, the shaded band is the likely range – <b class="cl">red</b> while Trends is still learning you, <b class="cm">amber</b>, then <b class="ch">green</b>.' + (np ? '' : ' Thin lines: 25% more or less practice.') + '</p>';
-    h += '<p class="trpatience" id="trpatience">The first forecast comes after ' + TRENDS.CFG.minRounds + ' rounds (over ' + TRENDS.CFG.minWeeks + '+ weeks). Confidence builds to about ' + TRENDS.CFG.fullRounds + ' rounds – and keeps sharpening the longer you log. Tap a week to see its rounds.</p>';
+    // v218 (Scott): one dashed line, 3 weeks out – no band, no confidence
+    h += '<p class="trlede" id="trlede">Solid: your rounds' + (np ? '' : ', practice underneath') + '. Dashed: where you\'re heading over the next ' + TRENDS.CFG.ahead + ' weeks. Filled dots are tournaments' + (np ? ', open dots other rounds' : ', open dots practice rounds') + '.</p>';
+    h += '<p class="trpatience" id="trpatience">The dashed line starts after ' + TRENDS.CFG.minRounds + ' rounds. Tap a week to see its rounds.</p>';
     h += '<div class="stseg mgseg trzoom" id="trzoom" role="group" aria-label="Zoom">' + TR_ZOOM.map(function (x) { var on = x === z; return '<button class="' + (on ? 'sel' : '') + '" data-act="trzoom" data-v="' + x[0] + '" aria-pressed="' + on + '">' + x[1] + '</button>'; }).join('') + '</div>';
-    var end = TD.weeks[TD.weeks.length - 1] + TRENDS.CFG.ahead * 7 * 864e5, endTxt = new Date(end).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+    var end = TD.now + TRENDS.CFG.ahead * 7 * 864e5, endTxt = new Date(end).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
     var card = function (A, total) {
+      var nm = total ? 'Score' : A.name;
       if (!A.ok) {
-        // v197: counted in rounds (a tournament weekend is two); it also needs rounds in 3 different weeks
-        var nm = total ? (np ? 'Score' : 'Practice vs score') : A.name, rN = Math.floor(A.rounds + 1e-9), left = Math.max(0, Math.ceil(A.need - A.rounds - 1e-9)), wkLeft = Math.max(0, A.needWeeks - A.dataWeeks), pct = Math.round(100 * Math.min(1, A.rounds / A.need));
-        var noPr = A.reason === 'no practice logged';
-        if (A.dataWeeks < 2) return '<div class="trcard2 frost trnone" data-k="' + A.k + '"><b>' + esc(nm) + '</b><span>' +
-          esc(noPr ? 'Log ' + (total ? 'practice' : A.name.toLowerCase() + ' practice') + ' to start this trend' : total ? 'Play a few rounds to start this trend' : 'Needs a few rounds with ' + A.name.toLowerCase() + ' shots') + '</span></div>';
-        // early: your history so far, and a countdown to the forecast
-        var full = !noPr && !left && !wkLeft; // enough rounds and weeks, but your rounds or practice haven't changed enough to measure anything
-        return '<div class="trcard2 frost trearly" data-k="' + A.k + '"><div class="trh"><b>' + esc(nm) + '</b><span class="trsoon">' + (noPr ? 'no practice yet' : full ? 'learning' : Math.min(rN, A.need) + ' of ' + A.need + ' rounds') + '</span></div>' +
+        var left = Math.max(1, A.need - Math.floor(A.rounds + 1e-9));
+        if (A.dataWeeks < 1) return '<div class="trcard2 frost trnone" data-k="' + A.k + '"><b>' + esc(nm) + '</b><span>' + esc(total ? 'Play a few rounds to start this trend' : 'Needs a few rounds with ' + A.name.toLowerCase() + ' shots') + '</span></div>';
+        return '<div class="trcard2 frost trearly" data-k="' + A.k + '"><div class="trh"><b>' + esc(nm) + '</b><span class="trsoon">' + Math.min(A.rounds, A.need) + ' of ' + A.need + ' rounds</span></div>' +
           trendChartSVG(A, TD.weeks, z[2], total) + trWeekHTML(TD, A, total) +
-          (full || noPr ? '' : '<div class="trprog" role="progressbar" aria-valuemin="0" aria-valuemax="' + A.need + '" aria-valuenow="' + Math.min(rN, A.need) + '"><i style="width:' + pct + '%"></i></div>') +
-          '<p class="trfoot">' + esc(noPr ? 'Log ' + (total ? 'practice' : A.name.toLowerCase() + ' practice') + ' to see how it connects.' : full ? 'Not enough change yet to measure – it needs some ups and downs in your rounds' + (np ? '.' : ' and practice.') : left ? (left === 1 ? '1 more round' : left + ' more rounds') + (wkLeft > 1 ? ', over ' + wkLeft + ' more weeks,' : wkLeft ? ' in another week' : '') + ' until the first forecast.' : (wkLeft === 1 ? 'A round in 1 more week' : 'Rounds in ' + wkLeft + ' more weeks') + ' until the first forecast.') + '</p></div>';
+          '<p class="trfoot">' + (left === 1 ? '1 more round' : left + ' more rounds') + ' until the dashed line.</p></div>';
       }
-      var f = function (v) { return total ? Math.round(v * 10) / 10 + '' : (Math.abs(v) < 0.05 ? '0.0' : (v > 0 ? '+' : '−') + Math.abs(v).toFixed(1)); }, last = A.fc.length - 1;
-      var head = f(A.fc[last]) + ' by ' + endTxt, CW = { low: 'Low confidence', mid: 'Medium confidence', high: 'High confidence' }[A.conf];
-      return '<div class="trcard2 frost" data-k="' + A.k + '" data-conf="' + A.conf + '"><div class="trh"><b>' + esc(total ? (np ? 'Score' : 'Practice vs score') : A.name) + '</b><span>' + esc(head) + '</span></div>' +
-        '<p class="trconf ' + A.conf + '">' + esc(CW) + (A.conf === 'high' ? '' : ' · ' + Math.floor(A.rounds + 1e-9) + ' of ' + TRENDS.CFG.fullRounds + ' rounds') + '</p>' +
-        trendChartSVG(A, TD.weeks, z[2], total) + trWeekHTML(TD, A, total) +
-        (np ? '<p class="trfoot">' + (A.conf === 'low' ? 'An early read from your rounds – it sharpens with every round' : 'From your rounds') + '</p></div>' : // v209: no practice link to show
-        '<p class="trfoot">' + (A.link ? f(A.up[last]) + ' with more · ' + f(A.dn[last]) + ' with less' + (A.capped ? ' (your busiest week caps it)' : '') : 'No clear link with practice yet') +
-        (A.conf === 'low' ? ' · too early to say how strong the link is' : ' · ' + esc(TRENDS.linkWord(A.r)) + ' link' + (A.conf === 'mid' ? ' so far' : '')) + (A.link && A.conf !== 'low' ? (A.model === 'stock' ? ', practice keeps working ~' + A.halfLife + ' wk' : ', shows up ' + (A.lag ? '~' + A.lag + ' wk later' : 'the same week')) : '') +
-        (A.feel && A.feel.used ? ' · your practice feel counts' : '') + '</p></div>');
+      var f = function (v) { return total ? String(Math.round(v)) : (Math.abs(v) < 0.05 ? '0.0' : (v > 0 ? '+' : '−') + Math.abs(v).toFixed(1)); }, last = A.fc.length - 1;
+      return '<div class="trcard2 frost" data-k="' + A.k + '"><div class="trh"><b>' + esc(nm) + '</b><span>' + (total ? '≈ ' : '') + esc(f(A.fc[last])) + ' by ' + esc(endTxt) + '</span></div>' +
+        trendChartSVG(A, TD.weeks, z[2], total) + trWeekHTML(TD, A, total) + '<p class="trfoot trwhy"><b>Why:</b> ' + esc(trWhy(A, total)) + '</p></div>';
     };
     h += card(TD.total, true) + TD.areas.map(function (A) { return card(A, false); }).join('');
-    h += np ? '<p class="help muted trnote">Forecasts use your own rounds, plus your last short game test for 3 weeks. Any one round can land well either side.</p>' : '<p class="help muted trnote">Forecasts use your own rounds and practice, plus your last short game test for 3 weeks. Any one round can land well either side. A link isn\'t proof – but practice coming first points that way.</p>';
+    h += '<p class="help muted trnote">The line starts from your recent rounds (tournaments count fully, ' + (np ? 'other' : 'practice') + ' rounds half) and leans toward your last short game test' + (np ? '' : ', then bends with your practice over the last 2 weeks – more so in an area where you\'re losing strokes') + '. Any one round can land well either side.</p>';
     return h + '</div>';
+  }
+  // v218: the "Why" under each line, in plain words
+  function trWhy(A, total) {
+    var P = [], sgf = function (v) { return (v >= 0 ? '+' : '−') + Math.abs(v).toFixed(1); }, end = A.fc[A.fc.length - 1], from = total ? A.formScore : A.form, d = total ? from - end : end - from;
+    P.push(total ? 'recent rounds ≈ ' + Math.round(from * 10) / 10 : 'recent rounds ' + sgf(from));
+    if (A.test) { var age = Math.round((Date.now() - A.test.t) / 864e5 / 7); P.push('test ' + sgf(A.test.v) + (age >= 1 ? ', ' + age + ' wk old' : ', this week') + ' (counts ' + Math.round(A.gammaNow * 100) + '%)'); }
+    if (A.usePr) { var m = Math.round(A.dX * 60 / 5) * 5; P.push(Math.abs(m) < 10 ? 'practice about normal' : 'practice ' + (m > 0 ? 'up ' : 'down ') + Math.abs(m) + ' min/week');
+      if (Math.abs(m) >= 10 && A.room > 1.15) P.push('a weak spot, so it counts more'); }
+    if (A.feelLast != null && Math.abs(A.feelLast) >= 0.5) P.push(A.feelLast > 0 ? 'sessions felt good' : 'sessions felt off');
+    var lead = Math.abs(d) < (total ? 0.5 : 0.1) ? 'Holding steady – ' : d > 0 ? 'Improving – ' : 'Slipping – ';
+    return lead + P.join(' · ');
   }
   var TR_NP = false; // v209: practice off → no practice panel under the chart
   function trendChartSVG(A, weeks, Z, total) {
-    var np = TR_NP, early = !A.ok, FC = A.fc || [], UP = A.up || [], DN = A.dn || [], LO = A.lo || [], HI = A.hi || [];
+    var np = TR_NP, early = !A.ok, FC = A.fc || [], UP = [], DN = [], LO = [], HI = [];
     var N0 = A.y.length, H0 = Math.max(0, N0 - Z), FW = FC.length, N = Math.max(2, (N0 - H0) + FW), CW = 340, PH = 92, GAP = 18, T = 8, LX = 30, RX = 44, B = 22, H = T + PH * 2 + GAP + B, BOT = T + PH * 2 + GAP; if (np) { H = T + PH + B; BOT = T + PH; }
     var x = function (i) { return LX + (i - H0) * (CW - LX - RX) / (N - 1); }, hw = (CW - LX - RX) / (N - 1) / 2, last = N0 - 1, xt = x(last);
-    var yv = A.y.slice(H0).filter(function (v) { return v != null; }).concat(UP, DN, LO, HI, [A.normY * (total ? -1 : 1)]), lo = Math.min.apply(null, yv), hi = Math.max.apply(null, yv), pad = Math.max(0.3, (hi - lo) * 0.12);
+    var yv = A.y.slice(H0).filter(function (v) { return v != null; }).concat(FC, [A.normY * (total ? -1 : 1)]), lo = Math.min.apply(null, yv), hi = Math.max.apply(null, yv), pad = Math.max(0.3, (hi - lo) * 0.12);
     if (!total) { lo = Math.min(lo, -0.5); hi = Math.max(hi, 0.5); } lo -= pad; hi += pad;
-    var ys = function (v) { return T + (hi - v) * PH / (hi - lo); }, px = A.x.slice(H0).concat([A.upX || 0]), pHi = Math.max(0.5, Math.max.apply(null, px)) * 1.12, yp = function (v) { return T + PH + GAP + (pHi - v) * PH / pHi; };
+    var ys = function (v) { return T + (hi - v) * PH / (hi - lo); }, px = A.x.slice(H0), pHi = Math.max(0.5, Math.max.apply(null, px)) * 1.12, yp = function (v) { return T + PH + GAP + (pHi - v) * PH / pHi; };
     var P = function (pts) { return pts.map(function (p, k) { return (k ? 'L' : 'M') + p[0].toFixed(1) + ' ' + p[1].toFixed(1); }).join(''); }, f1 = function (v) { return v.toFixed(1); };
-    var normY = total ? -A.normY : A.normY, sm = A.sy.map(function (v) { return v == null ? null : total ? -v : v; });
+    var normY = total ? -A.normY : A.normY, sm = (A.fy || A.sy).map(function (v) { return v == null ? null : total ? -v : v; }); // v218: the solid line is your form
     var o = '<svg class="trchart" viewBox="0 0 ' + CW + ' ' + H + '" role="img" aria-label="' + esc(A.name) + ': rounds and practice by week, and the forecast">';
-    // v195: after a big change a dip is expected (shaded in the lesson colour)
-    (A.dips || []).forEach(function (d) { var a = Math.max(d.a, H0), b = Math.min(d.b, last + FW); if (b < H0 || a > b) return;
-      o += '<rect x="' + f1(x(a) - hw) + '" y="' + (T - 2) + '" width="' + f1(x(b) - x(a) + 2 * hw) + '" height="' + (PH + 4) + '" rx="6" class="trdip"/>'; });
     if (!early) o += '<rect x="' + f1(xt) + '" y="' + (T - 2) + '" width="' + f1(CW - RX - xt + 4) + '" height="' + (BOT - T + 4) + '" class="trfuture"/>';
-    if (A.expected) o += '<text x="' + f1(CW - RX) + '" y="' + (T + PH + GAP / 2 + 4) + '" text-anchor="end" class="trtag exp">expected dip · ' + esc(String(A.expected).toLowerCase()) + '</text>';
     // scale: whole strokes (half strokes when the range is small); the score in steps of 2 or 5
     var stp = total ? (hi - lo > 12 ? 5 : 2) : (hi - lo > 2.5 ? 1 : 0.5);
     for (var g = Math.ceil(lo / stp) * stp; g <= hi + 1e-9; g += stp) { var gy = f1(ys(g)), zero = !total && Math.abs(g) < 1e-9;
       o += '<line x1="' + LX + '" x2="' + (CW - RX) + '" y1="' + gy + '" y2="' + gy + '" class="' + (zero ? 'trzero' : 'trgrid2') + '"/><text x="' + (LX - 4) + '" y="' + f1(ys(g) + 3.5) + '" text-anchor="end" class="trax">' + (total ? g : g > 0 ? '+' + (stp < 1 ? g.toFixed(1) : g) : g < 0 ? '−' + (stp < 1 ? (-g).toFixed(1) : -g) : '0') + '</text>'; }
     o += '<line x1="' + LX + '" x2="' + f1(xt) + '" y1="' + f1(ys(normY)) + '" y2="' + f1(ys(normY)) + '" class="trnorm"/>';
     var hist = []; for (var i = H0; i <= last; i++) if (sm[i] != null) hist.push([x(i), ys(sm[i])]); if (hist.length > 1) o += '<path d="' + P(hist) + '" class="trsg"/>';
-    for (var j = H0; j <= last; j++) if (A.y[j] != null) o += '<circle cx="' + f1(x(j)) + '" cy="' + f1(ys(A.y[j])) + '" r="2.4" class="trdot"/>';
+    for (var j = H0; j <= last; j++) if (A.y[j] != null) o += '<circle cx="' + f1(x(j)) + '" cy="' + f1(ys(A.y[j])) + '" r="' + (A.prWeek && A.prWeek[j] ? '2.6' : '2.4') + '" class="trdot' + (A.prWeek && A.prWeek[j] ? ' pr' : '') + '"/>'; // v218: open = practice rounds only
     // v197 (Scott): tap a week's dot to see its rounds
     var sel = view.trTap && view.trTap.k === A.k ? view.trTap.i : -1;
     if (sel >= H0 && sel <= last && A.y[sel] != null) o += '<circle cx="' + f1(x(sel)) + '" cy="' + f1(ys(A.y[sel])) + '" r="5.5" class="trsel"/>';
@@ -2846,15 +2842,9 @@
       o += '<line x1="' + lx + '" x2="' + lx + '" y1="' + (T - 2) + '" y2="' + BOT + '" class="trles' + (bigL ? ' big' : '') + '"/><text x="' + lx + '" y="' + (T + PH - 3) + '" text-anchor="middle" class="trlestx">' + esc(bigL ? bigL.what || 'Big change' : 'Lesson') + '</text>'; });
     if (early) { o += '<text x="' + (LX + 2) + '" y="' + (T + 10) + '" class="trpl">' + (total ? 'Score · lower is better' : 'Strokes gained / round') + '</text>'; }
     if (!early) {
-    var st = [xt, ys(sm[last] != null ? sm[last] : (total ? A.formScore : A.form))], fut = function (arr) { return [st].concat(arr.map(function (v, k) { return [x(last + k + 1), ys(v)]; })); };
-    var U = fut(A.up), Dn = fut(A.dn), M = fut(A.fc), Hb = fut(HI), Lb = fut(LO);
-    // v196: the likely range, coloured by confidence; the 25% more / less practice paths as thin neutral lines
-    o += '<path d="' + P(Hb) + Lb.slice().reverse().map(function (p) { return 'L' + f1(p[0]) + ' ' + f1(p[1]); }).join('') + 'Z" class="trband ' + A.conf + '"/>';
-    if (A.link) o += '<path d="' + P(U) + '" class="trwhat"/><path d="' + P(Dn) + '" class="trwhat"/>';
-    o += '<path d="' + P(M) + '" class="trmid"/>';
-    var tag = function (p, t, c, dy) { return '<text x="' + f1(p[0] + 4) + '" y="' + f1(p[1] + 3.5 + dy) + '" class="trtag ' + c + '">' + t + '</text>'; }, pm = Math.round(A.dX * 60 / 5) * 5;
-    if (A.link) { var uT = U[U.length - 1], dT = Dn[Dn.length - 1], gap = Math.abs(uT[1] - dT[1]) < 20; o += tag(uT, '+' + pm + ' min', 'what', gap ? (uT[1] < dT[1] ? -5 : 5) : 0) + tag(dT, '−' + pm + ' min', 'what', gap ? (uT[1] < dT[1] ? 5 : -5) : 0); }
-    else o += tag(M[M.length - 1], 'as now', '', 0);
+    // v218: one dashed line from where you are now, 3 weeks out
+    var st = [xt, ys(total ? A.formScore : A.form)], M = [st].concat(A.fc.map(function (v, k) { return [x(last + k + 1), ys(v)]; })), eP = M[M.length - 1];
+    o += '<path d="' + P(M) + '" class="trmid"/><circle cx="' + f1(eP[0]) + '" cy="' + f1(eP[1]) + '" r="4" class="trend"/>';
     }
     o += '<line x1="' + f1(xt) + '" x2="' + f1(xt) + '" y1="' + (T - 4) + '" y2="' + BOT + '" class="trtoday"/><text x="' + f1(xt + 3) + '" y="' + (T + 7) + '" class="trax">today</text>';
     if (!early) o += '<text x="' + (LX + 2) + '" y="' + (T + 10) + '" class="trpl">' + (total ? 'Score · lower is better' : 'Strokes gained / round') + '</text>';
@@ -2864,9 +2854,6 @@
     o += '<line x1="' + LX + '" x2="' + f1(xt) + '" y1="' + f1(yp(A.normX)) + '" y2="' + f1(yp(A.normX)) + '" class="trnormp"/>';
     var ph = []; for (var k = H0; k <= last; k++) ph.push([x(k), yp(A.sx[k])]); o += '<path d="' + P(ph) + '" class="trpr"/>';
     for (var q = H0; q <= last; q++) o += '<circle cx="' + f1(x(q)) + '" cy="' + f1(yp(A.x[q])) + '" r="2.4" class="trdotp"/>';
-    var pf = function (v) { return [[xt, yp(A.sx[last])], [x(last + 1), yp(v)], [x(last + FW), yp(v)]]; };
-    if (A.link) o += '<path d="' + P(pf(A.upX)) + '" class="trwhat thin"/><path d="' + P(pf(A.dnX)) + '" class="trwhat thin"/>';
-    if (!early) o += '<path d="' + P(pf(A.nowX)) + '" class="trprmid"/>';
     o += '<text x="' + (LX + 2) + '" y="' + (T + PH + GAP + 10) + '" class="trpl pr">Practice / week</text>'; }
     var lab = function (t) { return new Date(t).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }); }, step = Math.max(1, Math.round((N0 - H0) / 4));
     for (var w = H0; w < last - 1; w += step) o += '<text x="' + f1(x(w)) + '" y="' + (H - 6) + '" text-anchor="middle" class="trax">' + lab(weeks[w]) + '</text>';
@@ -3039,7 +3026,7 @@
       var lt = coLatest(A), what = !lt ? 'Joined ' + agoTxt(A.member && A.member.at || now) : (function () { var best = null, kind = ''; ['rounds', 'tests', 'practice'].forEach(function (k) { (A[k] || []).forEach(function (x) { if (!best || itemT(x) > itemT(best)) { best = x; kind = k; } }); });
         return (kind === 'rounds' ? 'Round' : kind === 'tests' ? 'Short game test' : 'Practice logged') + ' · ' + agoTxt(itemT(best)); })();
       var flags = []; if (newTxt) flags.push(['New: ' + newTxt, 'cmnew']);
-      try { var T = trendsData(who), w = T && T.areas && T.areas.filter(function (x) { return x.ok && x.heading && x.conf !== 'low'; })[0]; if (w) flags.push([w.name + ' slipping', 'cmred']); } catch (e) {}
+      try { var T = trendsData(who), w = T && T.areas && T.areas.filter(function (x) { return x.ok && x.heading; })[0]; if (w) flags.push([w.name + ' slipping', 'cmred']); } catch (e) {}
       if (!flags.some(function (f) { return f[1] === 'cmred'; })) try { var D = fin.length >= 3 ? mgData(who) : null; if (D && D.headline) flags.push([D.headline, /slipp|worse|down/i.test(D.headline) ? 'cmred' : /better|improv|up/i.test(D.headline) ? 'cmgreen' : 'cmflat2']); } catch (e) {}
       var tl = sgTestsOf(who).filter(function (t) { return t.done; }).map(function (t) { return Date.parse(t.date) || 0; }).sort(function (a, b) { return b - a; })[0];
       if (fin.length && (!tl || now - tl > 35 * DAY)) flags.push(['Short game test due', 'cmamber']);
