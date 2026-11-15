@@ -1,4 +1,5 @@
 // StrokeWise watch – app entry. A dependent companion of the iPhone app (com.strokewise.app).
+import Foundation
 import SwiftUI
 import WatchKit
 

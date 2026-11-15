@@ -10,10 +10,10 @@ final class Connectivity: NSObject, WCSessionDelegate {
     static let shared = Connectivity()
     private var inFlight = Set<String>()
 
-    private var session: WCSession? { WCSession.isSupported() ? WCSession.default : nil }
+    private var wc: WCSession? { WCSession.isSupported() ? WCSession.default : nil }   // (not `session`: the delegate methods below are called session(_:…))
 
     func activate() {
-        guard let s = session else { return }
+        guard let s = wc else { return }
         s.delegate = self
         s.activate()
     }
@@ -24,7 +24,7 @@ final class Connectivity: NSObject, WCSessionDelegate {
     }
 
     private func deliver(_ ev: WatchEvent) {
-        guard let s = session, s.activationState == .activated, !inFlight.contains(ev.id),
+        guard let s = wc, s.activationState == .activated, !inFlight.contains(ev.id),
               let data = try? JSONEncoder().encode(ev), let json = String(data: data, encoding: .utf8) else { return }
         let payload: [String: Any] = ["event": json]
         if s.isReachable {
@@ -39,13 +39,13 @@ final class Connectivity: NSObject, WCSessionDelegate {
         }
     }
     private func queue(_ payload: [String: Any], _ id: String) {
-        session?.transferUserInfo(payload)
+        wc?.transferUserInfo(payload)
         WatchStore.shared.markSent(id)
     }
 
     /// Ask the phone for the latest picture (when the watch app opens or the phone comes back).
     func requestState() {
-        guard let s = session, s.activationState == .activated, s.isReachable else { return }
+        guard let s = wc, s.activationState == .activated, s.isReachable else { return }
         s.sendMessage(["hello": 1], replyHandler: { reply in
             if let json = reply["state"] as? String, !json.isEmpty { DispatchQueue.main.async { WatchStore.shared.receive(json: json) } }
         }, errorHandler: { _ in })

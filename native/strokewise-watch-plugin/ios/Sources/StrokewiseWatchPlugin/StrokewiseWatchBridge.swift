@@ -105,7 +105,7 @@ public final class StrokewiseWatchBridge: NSObject, WCSessionDelegate {
     public func session(_ session: WCSession, didReceiveMessage message: [String: Any]) {
         _ = handle(message)
     }
-    public func session(_ session: WCSession, didReceiveUserInfo userInfo: [String: Any] = [:]) {
+    public func session(_ session: WCSession, didReceiveUserInfo userInfo: [String: Any]) {
         _ = handle(userInfo)
     }
 }

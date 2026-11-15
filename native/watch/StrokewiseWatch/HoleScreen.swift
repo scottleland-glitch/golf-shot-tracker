@@ -47,12 +47,17 @@ struct HoleScreen: View {
             }
             .padding(.horizontal, 4)
         }
-        .navigationTitle(store.hasRound && !(store.state?.course ?? "").isEmpty ? (store.state?.course ?? "StrokeWise") : "StrokeWise")
+        .navigationTitle(screenTitle)
         .simultaneousGesture(
             DragGesture(minimumDistance: 24).onEnded { v in
                 if v.translation.width > 50 && abs(v.translation.height) < 40 { nav.push(.holes) }   // swipe right: finished holes
             }
         )
+    }
+
+    private var screenTitle: String {
+        let course = store.state?.course ?? ""
+        return (store.hasRound && !course.isEmpty) ? course : "StrokeWise"
     }
 
     private var noRound: some View {
@@ -147,9 +152,8 @@ struct HoleFinishedView: View {
             Text(Labels.scoreName(h.strokes, par: h.par)).font(.footnote.weight(.semibold))
             Text("Thru \(m.holesDone): \(m.strokesDone) (\(Labels.toPar(m.strokesDone - m.parDone)))").font(.system(size: 10)).foregroundColor(.secondary)
             if !m.roundOver {
-                let nh = m.hole(m.currentHole)
                 VStack(spacing: 3) {
-                    Text("Next: Hole \(m.currentHole + 1) · Par \(nh.par)\(nh.rows.first?.dist.map { " · \($0) yd" } ?? "")").font(.system(size: 10))
+                    Text(nextLine(m)).font(.system(size: 10))
                     ProgressView(value: progress).tint(Theme.greenBright)
                 }
                 .padding(6).background(RoundedRectangle(cornerRadius: 8).fill(Theme.tile))
@@ -164,6 +168,12 @@ struct HoleFinishedView: View {
             try? await Task.sleep(nanoseconds: 6_000_000_000)
             if store.justFinished == hole { store.dismissFinished() }
         }
+    }
+    private func nextLine(_ m: RoundModel) -> String {
+        let nh = m.hole(m.currentHole)
+        var s = "Next: Hole \(m.currentHole + 1) · Par \(nh.par)"
+        if let first = nh.rows.first, let d = first.dist { s += " · \(d) yd" }
+        return s
     }
     private func undo() {
         if let t = store.undoTarget() { store.send(store.makeEvent("undo", hole: t.hole)) }

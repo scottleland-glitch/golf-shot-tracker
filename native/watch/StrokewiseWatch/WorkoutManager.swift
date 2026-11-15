@@ -66,7 +66,8 @@ final class WorkoutManager: NSObject, ObservableObject, HKWorkoutSessionDelegate
         s.end()
     }
 
-    private func finalize() {
+    // (not called finalize: that is an NSObject method and the name clashes)
+    private func finishWorkoutSession() {
         guard let b = builder else { reset(); return }
         b.endCollection(withEnd: Date()) { _, _ in
             b.finishWorkout { _, _ in DispatchQueue.main.async { self.reset() } }
@@ -107,7 +108,7 @@ final class WorkoutManager: NSObject, ObservableObject, HKWorkoutSessionDelegate
         DispatchQueue.main.async {
             switch toState {
             case .running: self.running = true
-            case .ended: self.finalize()
+            case .ended: self.finishWorkoutSession()
             default: break
             }
         }

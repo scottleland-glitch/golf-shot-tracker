@@ -14,7 +14,7 @@ struct TileStyle: ButtonStyle {
     var small = false
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
-            .font(small ? .footnote.weight(.semibold) : .body.weight(.semibold))
+            .font(small ? Font.footnote.weight(.semibold) : Font.body.weight(.semibold))
             .frame(maxWidth: .infinity, minHeight: small ? 34 : 44)
             .background(RoundedRectangle(cornerRadius: 12).fill(fill))
             .opacity(configuration.isPressed ? 0.7 : 1)
