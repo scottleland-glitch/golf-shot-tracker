@@ -40,3 +40,62 @@ workflows:
       app_store_connect:
         auth: integration
         submit_to_testflight: true
+
+  # ---------------------------------------------------------------------------------------------------------------------------------------
+  # Strokewise iPhone app + Apple Watch app → TestFlight. A SEPARATE workflow (the one above is untouched and builds exactly as before).
+  # Extra one-time setup, in plain English, is in WATCH_README.md: register the App ID com.strokewise.app.watchkitapp (with the HealthKit
+  # capability ticked), make an App Store profile for it on the same Apple Distribution certificate, and add that profile in Codemagic.
+  # ---------------------------------------------------------------------------------------------------------------------------------------
+  ios-testflight-watch:
+    name: Strokewise iOS + Apple Watch → TestFlight
+    instance_type: mac_mini_m2
+    max_build_duration: 60
+    integrations:
+      app_store_connect: Strokewise ASC
+    environment:
+      ios_signing:
+        distribution_type: app_store
+        bundle_identifier: com.strokewise.app
+        # If the build says it cannot find a profile for com.strokewise.app.watchkitapp, list both profiles by the names they have in
+        # Codemagic (Team → Code signing identities) instead of bundle_identifier, e.g.:
+        #   provisioning_profiles: [Strokewise App Store, Strokewise Watch App Store]
+        #   certificates: [Strokewise Distribution]
+      vars:
+        STROKEWISE_WATCH: "1"       # turns on the watch link in the web files, the watch plugin and the watch target (native/ios-setup.sh)
+      node: 22
+      xcode: latest
+    scripts:
+      - name: Install Capacitor
+        script: npm install --no-audit --no-fund
+      - name: Build the iPhone project + add the Apple Watch app (web files, watch plugin, icon, settings, watch target)
+        script: bash native/ios-setup.sh
+      - name: Use the signing profiles (iPhone app and watch app)
+        script: xcode-project use-profiles
+      - name: Version 1.0, build number from Codemagic (iPhone app and watch app must match)
+        script: |
+          cd ios/App
+          agvtool new-marketing-version 1.0
+          agvtool new-version -all $((BUILD_NUMBER + 1))
+          cd ../..
+          ruby native/add-watch-target.rb --set-version 1.0 $((BUILD_NUMBER + 1))
+      - name: Build the app (the watch app is built and embedded with it)
+        script: |
+          if [ -d ios/App/App.xcworkspace ]; then
+            xcode-project build-ipa --workspace ios/App/App.xcworkspace --scheme App
+          else
+            xcode-project build-ipa --project ios/App/App.xcodeproj --scheme App
+          fi
+      - name: Check the watch app is inside the iPhone app
+        script: |
+          if unzip -l build/ios/ipa/*.ipa | grep -qE "Payload/App.app/Watch/.*\.app/"; then
+            echo "watch app found inside the iPhone app"
+          else
+            echo "The watch app is not inside the .ipa"; exit 1
+          fi
+    artifacts:
+      - build/ios/ipa/*.ipa
+      - /tmp/xcodebuild_logs/*.log
+    publishing:
+      app_store_connect:
+        auth: integration
+        submit_to_testflight: true
