@@ -28,6 +28,15 @@ When a round is in progress, the watch starts a **Golf workout** (outdoor, via H
 - To end it by hand from the watch: on the hole screen scroll down and tap **End round** (it asks you to confirm). There is also a **Start workout** button if you ever need to restart one.
 - The workout is saved in Apple Health as a Golf workout (time and heart rate/calories as the watch measures them). Nothing is read from or sent anywhere else.
 
+### The watch app opens by itself when a round starts
+
+When a new round starts on the iPhone, the phone wakes the watch app (`HKHealthStore.startWatchApp`, golf / outdoor) and the watch starts its Golf workout, like Strava or Nike Run Club. It happens once per round (never per shot), and not when you reopen the app mid-round.
+
+- **First time only:** the iPhone shows the Health permission sheet when you start a round (Workouts: share; Heart Rate, Active Energy, Walking + Running Distance: read). Tap **Turn On All** and **Allow**. The watch does not ask again.
+- **The iPhone App ID needs HealthKit too.** developer.apple.com > Identifiers > `com.strokewise.app` > tick **HealthKit** > Save, then regenerate/re-download the `com.strokewise.app` App Store profile and upload it in Codemagic (replacing the old one). If the profile has no HealthKit, the watch workflow says so in the log ("check the iPhone profile has HealthKit"), builds without it, and the watch app simply isn't launched automatically (Settings > Apple Watch says why).
+- Where it lives: `native/watch.js` (`maybeLaunch`), the plugin's `StrokewiseWatchLauncher.swift`, the entitlement in `native/add-watch-target.rb`, the two Health strings in `native/ios-setup.sh`, the check in `native/check-phone-healthkit.sh`. All of it only runs in the `ios-testflight-watch` workflow. `STROKEWISE_PHONE_HEALTHKIT=0` turns it off.
+- On the watch, `AppDelegate.handle(_ workoutConfiguration:)` starts the workout right away and attaches it to the round when the phone's picture arrives (waits up to 90 s).
+
 ## Your one-time steps (about 15 minutes, in a browser)
 
 The watch app is a second "app" inside StrokeWise, so Apple needs a second ID and a second signing profile for it.

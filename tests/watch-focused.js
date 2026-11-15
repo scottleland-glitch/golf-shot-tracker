@@ -5,14 +5,14 @@
 const { chromium } = require('playwright-core'); const assert = require('assert'); const { spawn } = require('child_process'); const fs = require('fs');
 const ROOT = __dirname + '/../', PORT = 8851, BASE = 'http://127.0.0.1:' + PORT + '/', ok = m => console.log('  ✓ ' + m);
 const holes = () => Array.from({ length: 18 }, (_, i) => ({ par: 4, finished: false, rows: [{ loc: 'tee', dist: i === 0 ? 400 : 380, dir: '', pen: false }] }));
-const R = { v: 3, dv: 2, id: 'w1', date: '2026-11-14T17:00:00.000Z', course: 'Ridgeview', tee: 'White', player: 'Scott', baseline: 'pga', holes: holes() };
+const R = { v: 3, dv: 2, id: 'w1', date: new Date().toISOString(), course: 'Ridgeview', tee: 'White', player: 'Scott', baseline: 'pga', holes: holes() };
 const seed = r => { localStorage.clear(); localStorage.setItem('golfsg.player.v1', 'Scott'); localStorage.setItem('golfsg.nameasked.v1', '1');
   localStorage.setItem('golfsg.rounds.v1', JSON.stringify([r])); localStorage.setItem('golfsg.current.v1', r.id); };
 const FAKE = () => { // what the native plugin does: a queue until acked, state pushes recorded
-  const f = window.__fake = { pending: [], pushed: [], acked: [], n: 0, listeners: {} };
+  const f = window.__fake = { pending: [], pushed: [], acked: [], n: 0, listeners: {}, launched: 0, launchAnswer: { ok: true, reason: '' } };
   window.Capacitor = { isNativePlatform: () => true, isPluginAvailable: n => n === 'StrokewiseWatch', // as native-bridge.js: Plugins.<name>, no registerPlugin
     Plugins: { StrokewiseWatch: ({ getPending: async () => ({ items: f.pending.slice() }), ack: async o => { f.acked.push(...o.qids); f.pending = f.pending.filter(i => !o.qids.includes(i.qid)); },
-      pushState: async o => { f.pushed.push(JSON.parse(o.json)); }, addListener: (n, cb) => { f.listeners[n] = cb; return Promise.resolve({ remove() {} }); } }) } };
+      pushState: async o => { f.pushed.push(JSON.parse(o.json)); }, startWatchApp: async () => { f.launched++; return f.launchAnswer; }, addListener: (n, cb) => { f.listeners[n] = cb; return Promise.resolve({ remove() {} }); } }) } };
   f.send = e => { f.pending.push({ qid: 'q' + (++f.n), json: JSON.stringify(e) }); };
 };
 (async () => {
@@ -39,6 +39,8 @@ const FAKE = () => { // what the native plugin does: a queue until acked, state 
       await page.waitForFunction(() => window.__fake.pushed.length >= 1); // the first push: nothing waiting, round in progress
       let st = await page.evaluate(() => window.__fake.pushed.slice(-1)[0]); assert.strictEqual(st.roundId, 'w1'); assert.strictEqual(st.hole, 0); assert.deepStrictEqual(st.holes[0].rows, [{ loc: 'tee', dist: 400 }]);
       ok('the round in progress is pushed to the watch (hole 1, tee 400)');
+      assert.strictEqual(await page.evaluate(() => window.__fake.launched), 1, 'a round the phone has not woken the watch for yet: the watch app is launched once');
+      ok('the watch app is launched (startWatchApp) once for the round');
       const send = e => page.evaluate(e => window.__fake.send(e), Object.assign({ roundId: 'w1', t: Date.now() }, e));
       await send({ id: 'a1', seq: 1, type: 'shot', hole: 0, k: 0, fin: 'fairway', dir: 'right', dist: 150 });
       await send({ id: 'a2', seq: 2, type: 'shot', hole: 0, k: 1, fin: 'green', dir: '', dist: 12 });
@@ -62,7 +64,18 @@ const FAKE = () => { // what the native plugin does: a queue until acked, state 
       await send({ id: 'a5', seq: 6, type: 'shot', hole: 0, k: 2, fin: 'green', dir: 'short', dist: 3, edit: true }); await send({ id: 'a6', seq: 7, type: 'shot', hole: 0, k: 3, fin: 'in' });
       await page.evaluate(() => window.STROKEWISE_WATCH.drain()); await page.waitForFunction(() => window.__fake.pending.length === 0); h0 = await stored(page);
       assert.deepStrictEqual(h0.rows.map(r => [r.loc, +r.dist, r.dir, !!r.holeOut]).slice(2), [['green', 12, '', false], ['green', 3, 'short', true]]); assert.ok(h0.finished); ok('an edited putt and a new hole-out are applied in order (edit then hole-out), hole finished again');
-      assert.strictEqual(await page.evaluate(() => JSON.parse(localStorage.getItem('golfsg.watchacks.v1')).length), 7); await page.context().close(); }
+      assert.strictEqual(await page.evaluate(() => JSON.parse(localStorage.getItem('golfsg.watchacks.v1')).length), 7);
+      assert.strictEqual(await page.evaluate(() => window.__fake.launched), 1, 'every later shot / push / manual send leaves it at one launch'); await page.evaluate(() => window.STROKEWISE_WATCH.push(true));
+      assert.strictEqual(await page.evaluate(() => window.__fake.launched), 1); ok('later shots, pushes and "send now" never launch the watch app again');
+      // the app is reopened mid-round: same round id, so no second launch; a different round does launch; a finished round does not
+      await page.reload(); await page.waitForSelector('#home'); await page.addScriptTag({ path: ROOT + 'native/watch-core.js' }); await page.addScriptTag({ path: ROOT + 'native/watch.js' });
+      await page.waitForFunction(() => window.__fake.pushed.length >= 1); assert.strictEqual(await page.evaluate(() => window.__fake.launched), 0); ok('reopening the app in the same round does not launch it again');
+      await page.evaluate(() => { const r = JSON.parse(localStorage.getItem('golfsg.rounds.v1')); const n = JSON.parse(JSON.stringify(r[0])); n.id = 'w2'; n.date = new Date().toISOString(); n.holes.forEach(h => { h.finished = false; h.rows = [h.rows[0]]; }); r.push(n); localStorage.setItem('golfsg.rounds.v1', JSON.stringify(r)); localStorage.setItem('golfsg.current.v1', 'w2'); });
+      await page.reload(); await page.waitForSelector('#home'); await page.evaluate(() => { window.__fake.launchAnswer = { ok: false, reason: 'no HealthKit in this build' }; });
+      await page.addScriptTag({ path: ROOT + 'native/watch-core.js' }); await page.addScriptTag({ path: ROOT + 'native/watch.js' }); await page.waitForFunction(() => window.__fake.launched === 1);
+      await page.waitForFunction(() => window.STROKEWISE_WATCH.log().some(l => /NOT launched/.test(l.m)));
+      assert.ok((await page.evaluate(() => window.STROKEWISE_WATCH.log())).some(l => /NOT launched: no HealthKit/.test(l.m)), 'a refused launch is explained in the Settings log'); ok('a new round launches it once, and a refusal is written to the Settings → Apple Watch log');
+      await page.context().close(); }
     // ---- 3. same as the phone's own controls ----
     const scenarios = [
       ['fairway right 150', [{ k: 0, fin: 'fairway', dir: 'right', dist: 150 }], [{ sel: ['fin', 0, 'fairway'] }, { sel: ['dir', 1, 'right'] }, { click: '[data-act="nextshot"][data-k="0"]' }, { fill: [1, '150'] }]],

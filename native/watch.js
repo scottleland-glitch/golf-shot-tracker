@@ -52,10 +52,25 @@
   function currentRound() { var A = app(); if (!A) return null; var id = A.current(); return id ? (A.rounds().filter(function (r) { return r.id === id; })[0] || null) : null; }
 
   // ---- phone → watch ----
+  // A round just started on the phone: wake the watch app once for that round (the plugin asks for Health access the first time and calls
+  // HKHealthStore.startWatchApp; the watch app starts its Golf workout). Remembered per round id, so later shots, relaunches and the
+  // Settings "send now" button never do it again. Rounds that are over, or untouched for 6 h, never launch it.
+  var LAUNCH_KEY = 'golfsg.watchlaunch.v1';
+  function maybeLaunch(r, st) {
+    if (!st.roundId || st.over || !P.startWatchApp) return;
+    var seen = ''; try { seen = localStorage.getItem(LAUNCH_KEY) || ''; } catch (e) {}
+    if (seen === st.roundId) return;
+    if (st.upd && Date.now() - st.upd > 6 * 3600 * 1000) return;
+    try { localStorage.setItem(LAUNCH_KEY, st.roundId); } catch (e) {}
+    log('new round: waking the watch app');
+    Promise.resolve(P.startWatchApp()).then(function (res) { log(res && res.ok ? 'watch app launched' : 'watch app NOT launched: ' + (res && res.reason || 'no answer')); refreshInfo(); },
+      function (e) { log('watch app launch failed: ' + (e && e.message || e)); });
+  }
   function push(force) {
     var r = currentRound(), st = Core.buildState(r, loadAcks()), body = JSON.stringify(st), same = JSON.stringify(Object.assign({}, st, { ts: 0 }));
     if (!force && same === lastPush) return Promise.resolve();
     lastPush = same;
+    if (r) maybeLaunch(r, st);
     return P.pushState({ json: body }).then(function () { log('pushed ' + (st.roundId ? 'round ' + st.roundId + ' hole ' + ((st.hole || 0) + 1) : 'no round') + ' (' + body.length + ' bytes)'); },
       function (e) { lastPush = ''; log('push FAILED: ' + (e && e.message || e)); });
   }

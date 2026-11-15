@@ -73,7 +73,7 @@ public struct Color: PrimitiveView, ShapeStyle {
 }
 public protocol ShapeStyle {}
 public struct Font {
-    public enum Weight { case regular, semibold, bold }
+    public enum Weight { case ultraLight, thin, light, regular, medium, semibold, bold, heavy, black }
     public enum Design { case `default`, rounded }
     public static let title2 = Font(), title3 = Font(), footnote = Font(), body = Font(), headline = Font(), caption = Font(), caption2 = Font()
     public static func system(size: CGFloat, weight: Weight = .regular, design: Design = .default) -> Font { Font() }
@@ -84,7 +84,7 @@ public enum Edge { public struct Set: OptionSet { public let rawValue: Int; publ
     public static let horizontal = Set(rawValue: 1), vertical = Set(rawValue: 2), all = Set(rawValue: 3), top = Set(rawValue: 4), bottom = Set(rawValue: 8), leading = Set(rawValue: 16), trailing = Set(rawValue: 32) } }
 public struct Alignment { public static let leading = Alignment(), trailing = Alignment(), center = Alignment() }
 public struct HorizontalAlignment { public static let leading = HorizontalAlignment(), trailing = HorizontalAlignment(), center = HorizontalAlignment() }
-public struct VerticalAlignment { public static let top = VerticalAlignment(), center = VerticalAlignment(), lastTextBaseline = VerticalAlignment() }
+public struct VerticalAlignment { public static let top = VerticalAlignment(), center = VerticalAlignment(), lastTextBaseline = VerticalAlignment(), firstTextBaseline = VerticalAlignment() }
 public enum TextAlignment { case leading, center, trailing }
 public enum Visibility { case automatic, visible, hidden }
 public enum ButtonRole { case destructive, cancel }
@@ -99,7 +99,7 @@ public struct Text: PrimitiveView {
     public init(_ date: Date, style: DateStyle) {}
 }
 public struct Image: PrimitiveView { public init(systemName: String) {} }
-public struct Spacer: PrimitiveView { public init() {} }
+public struct Spacer: PrimitiveView { public init(minLength: CGFloat? = nil) {} }
 public struct ProgressView: PrimitiveView { public init(value: Double?) {} }
 public struct VStack<C: View>: PrimitiveView { public init(alignment: HorizontalAlignment = .center, spacing: CGFloat? = nil, @ViewBuilder content: () -> C) {} }
 public struct HStack<C: View>: PrimitiveView { public init(alignment: VerticalAlignment = .center, spacing: CGFloat? = nil, @ViewBuilder content: () -> C) {} }
@@ -146,6 +146,9 @@ public enum DigitalCrownRotationalSensitivity { case low, medium, high }
 // MARK: modifiers
 extension View {
     public func font(_ f: Font?) -> some View { self }
+    public func lineLimit(_ number: Int?) -> some View { self }
+    public func minimumScaleFactor(_ factor: CGFloat) -> some View { self }
+    public func layoutPriority(_ value: Double) -> some View { self }
     public func foregroundColor(_ c: Color?) -> some View { self }
     public func padding(_ edges: Edge.Set = .all, _ length: CGFloat? = nil) -> some View { self }
     public func padding(_ length: CGFloat) -> some View { self }

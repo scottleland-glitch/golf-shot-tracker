@@ -10,7 +10,8 @@ public class StrokewiseWatchPlugin: CAPPlugin, CAPBridgedPlugin, StrokewiseWatch
         CAPPluginMethod(name: "getInfo", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "pushState", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "getPending", returnType: CAPPluginReturnPromise),
-        CAPPluginMethod(name: "ack", returnType: CAPPluginReturnPromise)
+        CAPPluginMethod(name: "ack", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "startWatchApp", returnType: CAPPluginReturnPromise)
     ]
 
     override public func load() {
@@ -33,6 +34,11 @@ public class StrokewiseWatchPlugin: CAPPlugin, CAPBridgedPlugin, StrokewiseWatch
         let qids = (call.getArray("qids") as? [String]) ?? []
         StrokewiseWatchBridge.shared.ack(qids)
         call.resolve()
+    }
+
+    /// A round just started: wake the watch app (and ask for Health access the first time). Always resolves; ok/reason say how it went.
+    @objc func startWatchApp(_ call: CAPPluginCall) {
+        StrokewiseWatchLauncher.shared.launch { result in call.resolve(result) }
     }
 
     // MARK: StrokewiseWatchListener (called on WatchConnectivity's queue)

@@ -47,12 +47,24 @@ srcs = w.source_build_phase.files.map { |f| f.file_ref.path }
 abort("FAIL: assets") unless w.resources_build_phase.files.any? { |f| f.file_ref.path == "Assets.xcassets" }
 puts "project ok: #{w.name} (#{bid[0]}) embedded in App, #{srcs.size} Swift files"'
 grep -q 'StrokewiseWatchBridge.shared.activate()' ios/App/App/AppDelegate.swift || { echo "FAIL: AppDelegate not patched"; exit 1; }
+# iPhone app: HealthKit entitlement (wakes the watch app at round start), on the App target only; --no-phone-healthkit takes it off again
+grep -q "com.apple.developer.healthkit" ios/App/App/App.entitlements || { echo "FAIL: iPhone app has no HealthKit entitlements file"; exit 1; }
+ruby -rxcodeproj -e 'p = Xcodeproj::Project.open("ios/App/App.xcodeproj"); a = p.targets.find { |t| t.name == "App" }
+abort("FAIL: App CODE_SIGN_ENTITLEMENTS") unless a.build_configurations.all? { |c| c.build_settings["CODE_SIGN_ENTITLEMENTS"] == "App/App.entitlements" }
+abort("FAIL: App.entitlements not in the project") unless p.main_group["App"].files.any? { |f| f.path == "App.entitlements" }'
+cp -r ios /tmp/ios-keep-$$ 2>/dev/null; ruby native/add-watch-target.rb --no-phone-healthkit >/dev/null
+[ ! -e ios/App/App/App.entitlements ] || { echo "FAIL: --no-phone-healthkit left the entitlements file"; exit 1; }
+ruby -rxcodeproj -e 'p = Xcodeproj::Project.open("ios/App/App.xcodeproj"); a = p.targets.find { |t| t.name == "App" }
+abort("FAIL: --no-phone-healthkit left CODE_SIGN_ENTITLEMENTS") if a.build_configurations.any? { |c| c.build_settings["CODE_SIGN_ENTITLEMENTS"] }'
+rm -rf ios && mv /tmp/ios-keep-$$ ios
+echo "iPhone HealthKit entitlement ok (on, and off again with --no-phone-healthkit)"
 for f in Info.plist StrokewiseWatch.entitlements; do [ -f ios/App/StrokewiseWatch/$f ] || { echo "FAIL: $f missing"; exit 1; }; done
 grep -q "workout-processing" ios/App/StrokewiseWatch/Info.plist && grep -q "com.apple.developer.healthkit" ios/App/StrokewiseWatch/StrokewiseWatch.entitlements || { echo "FAIL: workout/HealthKit settings"; exit 1; }
 [ -f ios/App/StrokewiseWatch/Assets.xcassets/AppIcon.appiconset/AppIcon-1024.png ] || { echo "FAIL: watch icon"; exit 1; }
 # the Swift packages must resolve (this is what Xcode does first; a package with missing sources fails here with "invalid custom path")
 if command -v swift >/dev/null 2>&1; then
   ( cd ios/App/CapApp-SPM && swift package describe >/dev/null ) || { echo "FAIL: swift package describe (CapApp-SPM)"; exit 1; }
+  ( cd native/strokewise-watch-plugin && swift package describe | grep -q StrokewiseWatchLauncher.swift ) || { echo "FAIL: plugin package has no launcher"; exit 1; }
   ( cd native/strokewise-watch-plugin && swift package describe | grep -q StrokewiseWatchBridge.swift ) || { echo "FAIL: plugin package has no sources"; exit 1; }
   echo "swift packages resolve"
 fi

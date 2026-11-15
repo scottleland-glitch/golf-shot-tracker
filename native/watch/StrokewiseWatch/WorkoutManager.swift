@@ -14,16 +14,23 @@ final class WorkoutManager: NSObject, ObservableObject, HKWorkoutSessionDelegate
     private var builder: HKLiveWorkoutBuilder?
     private var starting = false
     private var recovering = false
+    private var startConfig: HKWorkoutConfiguration?     // the configuration the iPhone launched us with (nil: the usual outdoor golf one)
 
     @Published private(set) var running = false
     @Published private(set) var note = ""     // shown on the hole screen when the workout could not start
 
     var isActive: Bool { session != nil || starting }
 
+    /// The workout was started by the iPhone launching this app (handle(_ workoutConfiguration:)), not by a round we already knew about.
+    /// The store attaches it to the round when the phone's picture arrives (WatchStore.evaluateWorkout).
+    private(set) var launchedByPhone = false
+    func markLaunchedByPhone(_ v: Bool) { launchedByPhone = v }
+
     // MARK: start
 
-    func start() {
+    func start(config: HKWorkoutConfiguration? = nil) {
         guard !isActive else { return }
+        startConfig = config
         guard HKHealthStore.isHealthDataAvailable() else { note = "Health isn't available"; return }
         starting = true
         let share: Set<HKSampleType> = [HKObjectType.workoutType()]
@@ -37,9 +44,10 @@ final class WorkoutManager: NSObject, ObservableObject, HKWorkoutSessionDelegate
     }
 
     private func begin() {
-        let config = HKWorkoutConfiguration()
+        let config = startConfig ?? HKWorkoutConfiguration()
         config.activityType = .golf
         config.locationType = .outdoor
+        startConfig = nil
         do {
             let s = try HKWorkoutSession(healthStore: health, configuration: config)
             let b = s.associatedWorkoutBuilder()
@@ -74,6 +82,7 @@ final class WorkoutManager: NSObject, ObservableObject, HKWorkoutSessionDelegate
         }
     }
     private func reset() {
+        launchedByPhone = false
         session = nil
         builder = nil
         starting = false

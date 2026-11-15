@@ -5,6 +5,8 @@
 #
 #   ruby native/add-watch-target.rb                      add the watch target, embed it, link the bridge into AppDelegate
 #   ruby native/add-watch-target.rb --set-version 1.0 42 set MARKETING_VERSION / CURRENT_PROJECT_VERSION on every target
+#   ruby native/add-watch-target.rb --no-phone-healthkit  take the HealthKit entitlement off the iPhone app again (used by native/check-phone-healthkit.sh
+#                                                         when the iPhone app's signing profile has no HealthKit; the watch app is not auto-launched then)
 #
 # What it builds: a watchOS app target "StrokewiseWatch" (product StrokeWise.app, bundle id com.strokewise.app.watchkitapp, watchOS 9+),
 # sources from native/watch/StrokewiseWatch, copied to ios/App/StrokewiseWatch; an "Embed Watch Content" copy phase in the App target
@@ -45,7 +47,47 @@ def patch_app_delegate
   puts 'AppDelegate: watch bridge activated at launch'
 end
 
+# iPhone app: the HealthKit entitlement, which HKHealthStore.startWatchApp needs (it wakes the watch app when a round starts; see
+# native/strokewise-watch-plugin StrokewiseWatchLauncher.swift). The two Health usage strings go into Info.plist in native/ios-setup.sh.
+# This is only reached in the watch workflow (ios-testflight-watch); the normal ios-testflight build never runs this script.
+# STROKEWISE_PHONE_HEALTHKIT=0 leaves it out. The App ID com.strokewise.app and its "Strokewise App Store" profile must have the HealthKit
+# capability, or signing fails ("profile doesn't include the com.apple.developer.healthkit entitlement").
+PHONE_ENTITLEMENTS = File.join(IOS, 'App', 'App.entitlements')
+def phone_healthkit(project, on)
+  app = project.targets.find { |t| t.name == 'App' } or abort('App target not found')
+  if on
+    unless File.exist?(PHONE_ENTITLEMENTS)
+      File.write(PHONE_ENTITLEMENTS, <<~PLIST)
+        <?xml version="1.0" encoding="UTF-8"?>
+        <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+        <plist version="1.0">
+        <dict>
+        \t<key>com.apple.developer.healthkit</key>
+        \t<true/>
+        \t<key>com.apple.developer.healthkit.access</key>
+        \t<array/>
+        </dict>
+        </plist>
+      PLIST
+    end
+    group = project.main_group['App']
+    group.new_file('App.entitlements') if group && group.files.none? { |f| f.path == 'App.entitlements' }
+    app.build_configurations.each { |c| c.build_settings['CODE_SIGN_ENTITLEMENTS'] = 'App/App.entitlements' }
+    puts 'iPhone app: HealthKit entitlement added (App/App.entitlements)'
+  else
+    app.build_configurations.each { |c| c.build_settings.delete('CODE_SIGN_ENTITLEMENTS') }
+    FileUtils.rm_f(PHONE_ENTITLEMENTS)
+    puts 'iPhone app: HealthKit entitlement removed'
+  end
+  project.save
+end
+
 project = Xcodeproj::Project.open(PROJECT)
+
+if ARGV[0] == '--no-phone-healthkit'
+  phone_healthkit(project, false)
+  exit 0
+end
 
 if ARGV[0] == '--set-version'
   set_versions(project, ARGV[1] || '1.0', ARGV[2] || '1')
@@ -55,6 +97,7 @@ end
 abort("watch sources not found: #{SRC}") unless Dir.exist?(SRC)
 if project.targets.any? { |t| t.name == WATCH_NAME }
   puts 'watch target already present'
+  phone_healthkit(project, true) unless ENV['STROKEWISE_PHONE_HEALTHKIT'] == '0'
   patch_app_delegate
   exit 0
 end
@@ -125,4 +168,5 @@ build_file.settings = { 'ATTRIBUTES' => %w[RemoveHeadersOnCopy] }
 
 project.save
 puts "watch target added: #{WATCH_NAME} (#{WATCH_BUNDLE}), embedded in App"
+phone_healthkit(project, true) unless ENV['STROKEWISE_PHONE_HEALTHKIT'] == '0'
 patch_app_delegate

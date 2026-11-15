@@ -40,6 +40,12 @@ if [ "${STROKEWISE_WATCH:-}" = "1" ]; then
   done
   grep -q '"StrokewiseWatchPlugin"' ios/App/App/capacitor.config.json || { echo "ERROR: the watch plugin is not in capacitor.config.json packageClassList (cap sync did not pick it up)"; exit 1; }
   grep -q 'StrokewiseWatchPlugin' ios/App/CapApp-SPM/Package.swift || { echo "ERROR: the watch plugin is not in ios/App/CapApp-SPM/Package.swift"; exit 1; }
+  # iPhone app + HealthKit (wakes the watch app when a round starts): the two Health strings here, the entitlement in add-watch-target.rb.
+  # STROKEWISE_PHONE_HEALTHKIT=0 turns both off. Needs the HealthKit capability on the App ID com.strokewise.app and its profile (WATCH_README.md).
+  if [ "${STROKEWISE_PHONE_HEALTHKIT:-1}" != "0" ]; then
+    set_plist NSHealthShareUsageDescription "StrokeWise reads your heart rate and activity during a round so the Golf workout on your Apple Watch is complete." string
+    set_plist NSHealthUpdateUsageDescription "StrokeWise saves your round as a Golf workout in Health and opens the watch app for you when you start a round." string
+  fi
   ruby native/add-watch-target.rb
   ruby native/check-pbxproj.rb ios/App/App.xcodeproj
   echo "Apple Watch app added"

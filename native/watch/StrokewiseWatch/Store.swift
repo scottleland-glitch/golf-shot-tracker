@@ -2,6 +2,7 @@
 // has not acknowledged yet. Every change is written to disk straight away (Persistence), so a relaunch restores the exact hole and shot.
 import Foundation
 import SwiftUI
+import HealthKit
 
 final class WatchStore: ObservableObject {
     static let shared = WatchStore()
@@ -117,8 +118,40 @@ final class WatchStore: ObservableObject {
 
     // MARK: the golf workout follows the round
 
+    /// The phone launched the app to start the round's workout. Start it now (even before the round's picture has arrived); once the picture
+    /// shows a round in play, evaluateWorkout() attaches the workout to it. If no round shows up within 90 s the workout is ended again.
+    private var phoneLaunchAt: Date?
+    func phoneLaunchedWorkout(_ config: HKWorkoutConfiguration) {
+        let w = WorkoutManager.shared
+        Connectivity.shared.refresh()                    // ask for the round right away
+        guard !w.isActive else { evaluateWorkout(); return }
+        phoneLaunchAt = Date()
+        w.markLaunchedByPhone(true)
+        snapshot.workoutRound = nil
+        persistence.save(snapshot)
+        w.start(config: config)
+        DispatchQueue.main.asyncAfter(deadline: .now() + 91) { [weak self] in self?.evaluateWorkout() }
+    }
+    private var awaitingPhoneRound: Bool {
+        guard let t = phoneLaunchAt, WorkoutManager.shared.launchedByPhone, snapshot.workoutRound == nil else { return false }
+        return Date().timeIntervalSince(t) < 90
+    }
+
     func evaluateWorkout() {
         let w = WorkoutManager.shared
+        // a workout the phone launched is waiting for its round: attach it to a round that is in play and fresh, else keep waiting (up to 90 s)
+        if w.isActive, w.launchedByPhone, snapshot.workoutRound == nil {
+            if let st = snapshot.state, let id = st.roundId, !model.roundOver, !snapshot.ended.contains(id),
+               Date().timeIntervalSince1970 * 1000 - (st.upd ?? 0) < 6 * 3600 * 1000 {
+                snapshot.workoutRound = id
+                persistence.save(snapshot)
+                w.markLaunchedByPhone(false)
+                phoneLaunchAt = nil
+                return
+            }
+            if awaitingPhoneRound { return }
+            if snapshot.state == nil { endWorkout(markEnded: false); return }   // nothing ever arrived: don't leave a workout running for no round
+        }
         guard let st = snapshot.state else { return }
         // the round is gone (phone discarded it), a different round started, or all 18 holes are done: end the workout
         if w.isActive, snapshot.workoutRound != st.roundId || model.roundOver {

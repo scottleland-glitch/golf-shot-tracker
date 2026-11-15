@@ -5,12 +5,12 @@
 set -euo pipefail
 cd "$(dirname "$0")/../../.."
 W=native/watch/StrokewiseWatch; S=native/watch/tests/shims; OUT=$(mktemp -d)
-for m in Combine SwiftUI WatchConnectivity WatchKit HealthKit Capacitor; do
+for m in Combine SwiftUI WatchConnectivity HealthKit WatchKit Capacitor; do
   swiftc -emit-module -emit-module-path "$OUT/$m.swiftmodule" -module-name "$m" -parse-as-library -I "$OUT" "$S/$m.swift" -o /dev/null
 done
 swiftc -typecheck -I "$OUT" $W/*.swift
 P=native/strokewise-watch-plugin/ios/Sources/StrokewiseWatchPlugin
 # Linux has no Objective-C runtime, so the @objc markers are stripped from a temporary copy first
 sed -e 's/@objc(StrokewiseWatchPlugin)//' -e 's/@objc //' $P/StrokewiseWatchPlugin.swift > "$OUT/StrokewiseWatchPlugin.swift"
-swiftc -typecheck -I "$OUT" $P/StrokewiseWatchBridge.swift "$OUT/StrokewiseWatchPlugin.swift"
-echo "typecheck ok (all watch Swift files; iPhone plugin: Bridge, Plugin)"
+swiftc -typecheck -I "$OUT" $P/StrokewiseWatchBridge.swift $P/StrokewiseWatchLauncher.swift "$OUT/StrokewiseWatchPlugin.swift"
+echo "typecheck ok (all watch Swift files; iPhone plugin: Bridge, Launcher, Plugin)"

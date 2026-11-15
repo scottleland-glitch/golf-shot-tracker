@@ -19,6 +19,7 @@ public class HKWorkout: NSObject {}
 public class HKHealthStore: NSObject {
     public static func isHealthDataAvailable() -> Bool { true }
     public func requestAuthorization(toShare typesToShare: Set<HKSampleType>?, read typesToRead: Set<HKObjectType>?, completion: @escaping (Bool, Error?) -> Void) {}
+    public func startWatchApp(with workoutConfiguration: HKWorkoutConfiguration, completion: @escaping (Bool, Error?) -> Void) {}
     public func recoverActiveWorkoutSession(completion: @escaping (HKWorkoutSession?, Error?) -> Void) {}
 }
 public protocol HKWorkoutSessionDelegate: NSObjectProtocol {

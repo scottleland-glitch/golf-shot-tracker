@@ -2,6 +2,7 @@
 import Foundation
 import SwiftUI
 import WatchKit
+import HealthKit
 
 @main
 struct StrokewiseWatchApp: App {
@@ -29,6 +30,11 @@ struct StrokewiseWatchApp: App {
 final class AppDelegate: NSObject, WKApplicationDelegate {
     func applicationDidFinishLaunching() {
         Connectivity.shared.activate()   // also reads the last picture the phone left for us
+    }
+    /// The iPhone started a round and woke this app with the workout it wants (HKHealthStore.startWatchApp on the phone): start the Golf workout now.
+    /// The round itself arrives separately (application context from the phone); the store attaches the workout to it when it does.
+    func handle(_ workoutConfiguration: HKWorkoutConfiguration) {
+        DispatchQueue.main.async { WatchStore.shared.phoneLaunchedWorkout(workoutConfiguration) }
     }
     /// The system relaunched the app while a workout (the round) was still running: reconnect to it.
     func handleActiveWorkoutRecovery() {
