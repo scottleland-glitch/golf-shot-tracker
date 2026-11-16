@@ -193,6 +193,7 @@
   function focusDist(k) { var el = document.querySelector('input[data-row="' + k + '"]');
     if (!el && view.screen === 'hole' && document.querySelector('.tline[data-k="' + k + '"]')) { view.edk = { h: view.hole, k: k }; render(); el = document.querySelector('input[data-row="' + k + '"]'); } // v115: open that shot's cells first
     if (el) el.focus(); }
+  function played9(h) { return !!h.finished || h.rows.length > 1; } // v220: a shot entered past the tee (the tee yardage may be filled in from the course)
   function started(h) { return h.rows.length > 1 || h.rows[0].dist !== '' || !!h.finished; }
 
   // ---------- rendering ----------
@@ -3761,7 +3762,8 @@
       out += '<div id="hint" class="hint">' + hintText(h, a) + '</div>';
     }
     // v219 (Scott): end the round after 9 – on hole 9, while holes 10–18 are untouched
-    var can9 = view.hole === 8 && r.holes.length === 18 && !r.holes.slice(9).some(started);
+    // v220: a course fills in every tee yardage, so 'untouched' means no shots entered and not finished
+    var can9 = view.hole === 8 && r.holes.length === 18 && !r.holes.slice(9).some(played9);
     if (can9) out += '<button class="big frostbtn end9" data-act="finish9" id="finish9"' + (fin || (a.complete && h.par) ? '' : ' disabled') + '>⛳ End round after 9 – see stats</button>';
     out += '</div>';
     var nxt = view.hole < r.holes.length - 1
@@ -6179,7 +6181,7 @@
         if (localStorage.getItem(CUR) === r.id) localStorage.removeItem(CUR);
         view.screen = view.from === 'history' ? 'history' : 'home'; break;
       case 'addback9': { var rb = round(); for (var j = 0; j < 9; j++) rb.holes.push(emptyHole()); delete rb.nine; save(); goHole(9, true); return; } // v219: changed your mind
-      case 'finish9': { var r9 = round(), h9 = r9.holes[8], a9 = SG.analyzeHole(h9); if (r9.holes.slice(9).some(started)) return; // v219: keep the 9 played, mark it a 9-hole round
+      case 'finish9': { var r9 = round(), h9 = r9.holes[8], a9 = SG.analyzeHole(h9); if (r9.holes.slice(9).some(played9)) return; // v219: keep the 9 played, mark it a 9-hole round
         if (!h9.finished && h9.par && a9.complete) h9.finished = true; r9.holes = r9.holes.slice(0, 9); r9.nine = true; save(); }
         /* falls through: finish the round */
       case 'summary':
