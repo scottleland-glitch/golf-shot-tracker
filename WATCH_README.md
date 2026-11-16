@@ -1,8 +1,8 @@
 # StrokeWise on Apple Watch (milestone 1)
 
-This branch (`watch-app`) adds an Apple Watch companion to StrokeWise. Nothing here is on `main`, and the normal `ios-testflight` Codemagic workflow is unchanged, so your regular iPhone builds are not affected.
+The Apple Watch companion is part of StrokeWise on `main`. The `ios-testflight` Codemagic workflow builds the iPhone app with the watch app inside it. The old `ios-testflight-watch` workflow and the `watch-app` branch were used while this was being built; they are no longer needed for new builds (the `watch-app` branch is kept in GitHub).
 
-**Important: this was written without a Mac, so the Swift code has never been compiled.** The first Codemagic run is the first time Xcode sees it. Expect that run might fail on a typo or two. See "What was and wasn't tested" at the bottom.
+Scott has already used the watch on TestFlight (builds from the `watch-app` branch), including the "Round finished on your phone" screen. See "What was and wasn't tested" at the bottom for what was checked in this repo versus on a Mac.
 
 ## What you get
 
@@ -33,8 +33,8 @@ When a round is in progress, the watch starts a **Golf workout** (outdoor, via H
 When a new round starts on the iPhone, the phone wakes the watch app (`HKHealthStore.startWatchApp`, golf / outdoor) and the watch starts its Golf workout, like Strava or Nike Run Club. It happens once per round (never per shot), and not when you reopen the app mid-round.
 
 - **First time only:** the iPhone shows the Health permission sheet when you start a round (Workouts: share; Heart Rate, Active Energy, Walking + Running Distance: read). Tap **Turn On All** and **Allow**. The watch does not ask again.
-- **The iPhone App ID needs HealthKit too.** developer.apple.com > Identifiers > `com.strokewise.app` > tick **HealthKit** > Save, then regenerate/re-download the `com.strokewise.app` App Store profile and upload it in Codemagic (replacing the old one). If the profile has no HealthKit, the watch workflow says so in the log ("check the iPhone profile has HealthKit"), builds without it, and the watch app simply isn't launched automatically (Settings > Apple Watch says why).
-- Where it lives: `native/watch.js` (`maybeLaunch`), the plugin's `StrokewiseWatchLauncher.swift`, the entitlement in `native/add-watch-target.rb`, the two Health strings in `native/ios-setup.sh`, the check in `native/check-phone-healthkit.sh`. All of it only runs in the `ios-testflight-watch` workflow. `STROKEWISE_PHONE_HEALTHKIT=0` turns it off.
+- **The iPhone App ID needs HealthKit too.** developer.apple.com > Identifiers > `com.strokewise.app` > tick **HealthKit** > Save, then regenerate/re-download the `com.strokewise.app` App Store profile and upload it in Codemagic (replacing the old one). If the profile has no HealthKit, the ios-testflight workflow says so in the log ("check the iPhone profile has HealthKit"), builds without it, and the watch app simply isn't launched automatically (Settings > Apple Watch says why).
+- Where it lives: `native/watch.js` (`maybeLaunch`), the plugin's `StrokewiseWatchLauncher.swift`, the entitlement in `native/add-watch-target.rb`, the two Health strings in `native/ios-setup.sh`, the check in `native/check-phone-healthkit.sh`. All of it only runs in the `ios-testflight` workflow (when `STROKEWISE_WATCH=1`). `STROKEWISE_PHONE_HEALTHKIT=0` turns it off.
 - If the first attempt is refused (watch out of reach, Health not allowed yet) the phone retries on a later update of the same round, up to 3 times 20 s apart; only an accepted launch is remembered, so a round never wakes the watch twice.
 - On the watch, `AppDelegate.handle(_ workoutConfiguration:)` starts the workout right away and attaches it to the round when the phone's picture arrives (waits up to 90 s).
 
@@ -60,10 +60,10 @@ The watch app is a second "app" inside StrokeWise, so Apple needs a second ID an
    - Certificate: the same Apple Distribution certificate you already use for StrokeWise.
    - Name it something like `StrokeWise Watch App Store`. Download it (a `.mobileprovision` file).
 3. **Add it in Codemagic.** Easiest: Codemagic > Teams > Personal account (or your team) > Code signing identities > iOS provisioning profiles > upload the `.mobileprovision` file. (If your setup fetches profiles from App Store Connect, the new workflow will fetch it for you by bundle id.)
-4. **Run the new workflow**: in Codemagic choose the `watch-app` branch and the workflow **`ios-testflight-watch`** (not `ios-testflight`). It builds the iPhone app with the watch app inside and uploads to TestFlight like usual.
+4. **Run the workflow**: in Codemagic choose the `main` branch and the workflow **`ios-testflight`**. It builds the iPhone app with the watch app inside and uploads to TestFlight. Internal testers get the build; submitting to external testers is off until the Health privacy section, App Store privacy label, and review notes are ready.
 5. **Install from TestFlight** on your iPhone. The watch app appears on the paired Apple Watch (Watch app on iPhone > StrokeWise > Install, if it isn't automatic). Open StrokeWise on the watch and allow Health access when asked.
 
-If step 4 complains it can't find a profile for the watch, open `codemagic.yaml`, find the commented lines under `ios-testflight-watch` > `ios_signing`, and list both profiles (iPhone and watch) there explicitly. That's the one part I couldn't confirm without running it.
+If step 4 complains it can't find a profile for the watch, open `codemagic.yaml`, find the commented lines under `ios-testflight` > `ios_signing`, and list both profiles (iPhone and watch) there explicitly.
 
 ## If the watch shows nothing
 
@@ -79,11 +79,11 @@ Things to try, in this order: open StrokeWise on the iPhone (keep it in front), 
 - Phone to watch: the phone sends the current round state (current hole, next hole, finished holes, shots, pars) whenever anything changes.
 - Watch to phone: each action is an event. If the phone is reachable it goes immediately; otherwise it is queued on the watch (and on disk) and delivered later. The phone saves every event to disk before confirming it, then applies it, then acknowledges. Events are never lost and never applied twice.
 - Conflicts: the phone wins. A watch shot is only accepted for the open shot on an unfinished hole; edits to finished holes go through the edit path.
-- In a browser or the website (PWA) none of this runs. The code does nothing unless it is the iPhone app built by the watch workflow.
+- In a browser or the website (PWA at app.strokewise.app) none of this runs. The code does nothing unless it is the iPhone app built by the `ios-testflight` workflow with `STROKEWISE_WATCH=1`.
 
 ## Version
 
-`main` is v216. I did **not** bump the version on this branch. The version number is displayed in the app and checked by a test; since this branch isn't released, bump it to v217 when you decide to merge. (The watch workflow sets the iOS marketing version to 1.0 and the build number from Codemagic's counter plus one, applied to the iPhone app and the watch app together, since Apple requires them to match.)
+`main` is v221 (Practice page top down). This merge does **not** bump the version; bump it to v222 when you ship the merged build. (The `ios-testflight` workflow sets the iOS marketing version to 1.0 and the build number from Codemagic's counter plus one, applied to the iPhone app and the watch app together, since Apple requires them to match.)
 
 ## Known limits in milestone 1
 
@@ -101,7 +101,7 @@ Tested (on Linux, in this repo):
 - `node tests/watch-focused.js`: drives the real phone UI with the same shots and checks the watch rules give identical rows.
 - `bash native/watch/tests/run-linux.sh`: compiles the Swift rules/model/storage with the Linux Swift compiler and runs the same 29 scenarios through the Swift port (0 differences), plus state decoding, event encoding and a save/reload round trip.
 - `bash native/watch/tests/typecheck-linux.sh`: type-checks every watch Swift file and the plugin against stand-ins for SwiftUI, HealthKit, WatchKit, WatchConnectivity and Capacitor.
-- `node tests/watch-bundle-focused.js`: loads the real iPhone web bundle (as built for the watch workflow) with a pretend native plugin shaped like Capacitor's own bridge, starts a round and enters a shot, and checks each one is pushed to the watch and shows in Settings → Apple Watch.
+- `node tests/watch-bundle-focused.js`: loads the real iPhone web bundle (as built with `STROKEWISE_WATCH=1`) with a pretend native plugin shaped like Capacitor's own bridge, starts a round and enters a shot, and checks each one is pushed to the watch and shows in Settings → Apple Watch.
 - `bash native/watch/tests/check-build-integration.sh`: builds a scratch Capacitor project and runs the watch-target script; checks the watch target, bundle id `com.strokewise.app.watchkitapp`, HealthKit entitlement, workout-processing background mode, "Embed Watch Content" phase, dependency, and plugin wiring.
 - The repo's existing tests that touch hole entry, finish, hole-out, undo/back, scorecard, native app wrapper, tee, discard, version still pass. (`live-share-focused` fails on `main` too, same assertion, not caused by this branch.)
 
@@ -109,5 +109,5 @@ Tested (on Linux, in this repo):
 
 - None of the SwiftUI screens, HealthKit workout code, WatchConnectivity code, or the Capacitor plugin has been compiled against Apple's real SDKs. Expect possible compile errors on the first Codemagic run.
 - The generated Xcode project has been inspected, not opened in Xcode.
-- Code signing, the embedded-watch-app check, and the new Codemagic workflow haven't been run.
-- Behaviour on a real watch: WatchConnectivity in the background, Crown feel, swipe-right vs back-swipe, workout survival, relaunch recovery.
+- Code signing, the embedded-watch-app check, and a Codemagic build of this merged `main` workflow have not been run in this repo (watch-app branch builds have been).
+- Behaviour on a real watch was later used by Scott on TestFlight (watch-app branch), including finishing a round from the phone. Crown feel and edge cases can still be rechecked on a merged build.

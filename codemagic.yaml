@@ -1,54 +1,12 @@
-# Strokewise iPhone app – built on Codemagic's Macs (free plan), sent to TestFlight. Started by hand from Codemagic (no automatic builds).
+# Strokewise iPhone app + Apple Watch app – built on Codemagic's Macs (free plan), sent to TestFlight.
+# Started by hand from Codemagic (no automatic builds).
 # Before the first build (one time, in Codemagic): add the App Store Connect API key under Team → Integrations with the name
-# "Strokewise ASC", and the Apple Distribution certificate + App Store profile for com.strokewise.app under Code signing identities.
+# "Strokewise ASC", and the Apple Distribution certificate + App Store profiles for com.strokewise.app and
+# com.strokewise.app.watchkitapp under Code signing identities. The watch App ID and the iPhone App ID both need the HealthKit
+# capability, and the iPhone profile must be regenerated after adding it. Plain-English steps are in WATCH_README.md.
+# Those signing pieces were already set up for earlier watch-app builds.
 workflows:
   ios-testflight:
-    name: Strokewise iOS → TestFlight
-    instance_type: mac_mini_m2
-    max_build_duration: 60
-    integrations:
-      app_store_connect: Strokewise ASC
-    environment:
-      ios_signing:
-        distribution_type: app_store
-        bundle_identifier: com.strokewise.app
-      node: 22
-      xcode: latest
-    scripts:
-      - name: Install Capacitor
-        script: npm install --no-audit --no-fund
-      - name: Build the iPhone project (web files, icon, splash, settings)
-        script: bash native/ios-setup.sh
-      - name: Use the signing profile
-        script: xcode-project use-profiles
-      - name: Version 1.0, build number from Codemagic
-        script: |
-          cd ios/App
-          agvtool new-marketing-version 1.0
-          agvtool new-version -all $((BUILD_NUMBER + 1))
-      - name: Build the app
-        script: |
-          if [ -d ios/App/App.xcworkspace ]; then
-            xcode-project build-ipa --workspace ios/App/App.xcworkspace --scheme App
-          else
-            xcode-project build-ipa --project ios/App/App.xcodeproj --scheme App
-          fi
-    artifacts:
-      - build/ios/ipa/*.ipa
-      - /tmp/xcodebuild_logs/*.log
-    publishing:
-      app_store_connect:
-        auth: integration
-        submit_to_testflight: true
-
-  # ---------------------------------------------------------------------------------------------------------------------------------------
-  # Strokewise iPhone app + Apple Watch app → TestFlight. A SEPARATE workflow (the one above is untouched and builds exactly as before).
-  # Extra one-time setup, in plain English, is in WATCH_README.md: register the App ID com.strokewise.app.watchkitapp (with the HealthKit
-  # capability ticked), make an App Store profile for it on the same Apple Distribution certificate, and add that profile in Codemagic.
-  # The iPhone App ID com.strokewise.app needs the HealthKit capability too (and its profile regenerated): the iPhone app wakes the watch app
-  # when a round starts. native/check-phone-healthkit.sh warns in the log and builds without it if the profile has none.
-  # ---------------------------------------------------------------------------------------------------------------------------------------
-  ios-testflight-watch:
     name: Strokewise iOS + Apple Watch → TestFlight
     instance_type: mac_mini_m2
     max_build_duration: 60
@@ -107,6 +65,11 @@ workflows:
     publishing:
       app_store_connect:
         auth: integration
-        # Upload only: internal testers get the build in TestFlight without Beta App Review. (true made the step fail with a 422 whenever
-        # another build was already in review.) Turn it on to send a build to external testers.
+        # Upload only: internal testers get the build in TestFlight without Beta App Review. (true can fail with a 422 whenever
+        # another build is already in review, and a HealthKit build needs extra privacy/review notes before external testers.)
+        # Turn it on to send a build to external testers after the Health section, App Store privacy label, and review notes are ready.
         submit_to_testflight: false
+
+  # Retired: ios-testflight-watch. The ios-testflight workflow above now builds the iPhone app and the Apple Watch app together.
+  # If Codemagic's UI still lists "Strokewise iOS + Apple Watch → TestFlight" as a second workflow, delete that leftover there;
+  # do not start it. The watch-app branch is kept in GitHub but is no longer the branch to build from.

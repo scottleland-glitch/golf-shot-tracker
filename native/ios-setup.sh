@@ -4,7 +4,7 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 bash native/build-www.sh
-# Apple Watch build (STROKEWISE_WATCH=1, only the ios-testflight-watch workflow): the local watch plugin joins the project's plugins (this edit of
+# Apple Watch build (STROKEWISE_WATCH=1, set by the ios-testflight workflow): the local watch plugin joins the project's plugins (this edit of
 # package.json exists only in the build's working copy), so `cap sync` compiles it into the iPhone app. Off = nothing below changes.
 if [ "${STROKEWISE_WATCH:-}" = "1" ]; then
   npm pkg set "dependencies.strokewise-watch-plugin=file:native/strokewise-watch-plugin"

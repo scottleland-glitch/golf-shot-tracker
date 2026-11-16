@@ -14,7 +14,7 @@ a = '<script src="config.js"></script>'
 assert a in s, 'config.js script tag not found'
 open(p, 'w').write(s.replace(a, a + '\n<script src="native.js"></script>', 1))
 PY
-# The Apple Watch build (STROKEWISE_WATCH=1, set by the ios-testflight-watch workflow): the watch link goes in after native.js. Off = www is exactly as before.
+# The Apple Watch build (STROKEWISE_WATCH=1, set by the ios-testflight workflow): the watch link goes in after native.js. Off = www is exactly as before (the PWA at app.strokewise.app does not set this).
 if [ "${STROKEWISE_WATCH:-}" = "1" ]; then
   cp native/watch-core.js www/watch-core.js
   cp native/watch.js www/watch.js
