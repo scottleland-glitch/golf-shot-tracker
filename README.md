@@ -32,6 +32,7 @@ Player Quality ladder, then spread over the PGA table. Full sources, method and 
   - **Strokes gained** (My Game, the practice plan, Trends) are per hole, so 9 holes count as half a round of evidence.
   - **Scores** for averages and the Trends score line use the 18-hole equivalent (the 9-hole score doubled), at half weight in Trends.
   - Rounds list shows 9 holes, not "unfinished". Handicap differentials stay 18-hole only.
+- v220: "untouched" means no shots entered and not finished – a course fills in every tee yardage, which no longer hides the button. Works on a round already saved too: Rounds → the round → hole 9.
 - Changed your mind? Open the round on hole 9 → **Add the back 9 ⊕** brings holes 10–18 back.
 
 ## Trends: one dashed line, 3 weeks out (v218)

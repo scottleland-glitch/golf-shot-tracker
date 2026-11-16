@@ -11,7 +11,7 @@ const PORT = 8874, BASE = 'http://127.0.0.1:' + PORT + '/', ok = m => console.lo
     await page.goto(BASE + '?x=' + Date.now());
     await page.evaluate(() => {
       const R = (d, l) => ({ dist: d, loc: l, dir: '', pen: false }), done = () => [R(400, 'tee'), R(150, 'fairway'), R(10, 'green'), R(1, 'holed')];
-      const r = { v: 3, dv: 2, id: 'n9', date: new Date().toISOString(), course: 'Lakeridge', baseline: 'pga', player: 'Scott', holes: Array.from({ length: 18 }, (x, i) => i < 9 ? { par: 4, finished: i < 8, rows: done() } : { par: 4, rows: [R('', 'tee')] }) };
+      const r = { v: 3, dv: 2, id: 'n9', date: new Date().toISOString(), course: 'Lakeridge', baseline: 'pga', player: 'Scott', holes: Array.from({ length: 18 }, (x, i) => i < 9 ? { par: 4, finished: i < 8, rows: done() } : { par: 4, rows: [R(380, 'tee')] }) };
       localStorage.clear(); localStorage.setItem('golfsg.player.v1', 'Scott'); localStorage.setItem('golfsg.nameasked.v1', '1'); localStorage.setItem('golfsg.role.v1', 'play');
       localStorage.setItem('golfsg.rounds.v1', JSON.stringify([r])); localStorage.setItem('golfsg.current.v1', 'n9');
     });
@@ -42,6 +42,14 @@ const PORT = 8874, BASE = 'http://127.0.0.1:' + PORT + '/', ok = m => console.lo
     await page.waitForSelector('#addback9'); assert.strictEqual(await page.$eval('[data-act="next"][aria-label="Next hole"]', e => e.disabled), true, 'nothing past 9');
     await page.click('#addback9'); const r2 = await page.evaluate(() => window.__golf.rounds()[0]); assert.strictEqual(r2.holes.length, 18); assert.strictEqual(r2.nine, undefined);
     assert.match(await page.textContent('.topbar .title'), /./); ok('Add the back 9 → 18 holes again, on hole 10');
+    // v220 (Scott): a round already played and saved – 9 holes in, the back nine only has the course's tee yardages – fixed afterwards from Rounds
+    await page.evaluate(() => { const R = (d, l) => ({ dist: d, loc: l, dir: '', pen: false }), done = () => [R(400, 'tee'), R(150, 'fairway'), R(10, 'green'), R(1, 'holed')];
+      const old = { v: 3, dv: 2, id: 'old9', date: new Date(Date.now() - 864e5).toISOString(), course: 'Lakeridge', baseline: 'pga', player: 'Scott', holes: Array.from({ length: 18 }, (x, i) => i < 9 ? { par: 4, finished: true, rows: done() } : { par: 4, rows: [R(380 + i, 'tee')] }) };
+      localStorage.setItem('golfsg.rounds.v1', JSON.stringify([old])); localStorage.removeItem('golfsg.current.v1'); });
+    await page.reload(); await page.click('#navbtn').catch(() => {}); await page.click('[data-act="history"]'); assert.strictEqual(await page.textContent('#histlist .hholes'), '9');
+    await page.click('#histlist [data-act="open"]'); await page.waitForTimeout(300); await page.evaluate(() => { const b = document.querySelector('[data-act="goHole"][data-i="8"]'); if (b) b.click(); });
+    await page.waitForSelector('#finish9'); await page.click('#finish9'); assert.strictEqual(await page.textContent('#rs-score'), '36');
+    const o9 = await page.evaluate(() => window.__golf.rounds()[0]); assert.deepStrictEqual([o9.holes.length, o9.nine], [9, true]); ok('a saved round, back nine pre-filled from the course: End round after 9 from Rounds');
     assert.deepStrictEqual(errors, []); console.log('NINE OK');
   } finally { await b.close(); srv.kill(); }
 })().catch(e => { console.error(e); process.exit(1); });
