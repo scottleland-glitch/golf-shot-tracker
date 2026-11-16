@@ -143,7 +143,7 @@
     return '<select id="' + id + '" class="blsel" data-f="baseline" aria-label="Compare against">' + SG.BASELINES.map(function (b) {
       return '<option value="' + b.id + '"' + (b.id === sel ? ' selected' : '') + '>' + blLabel(b.id) + '</option>'; }).join('') + '</select>';
   }
-  function save() { if (typeof roGuard === 'function' && roGuard()) return; var cr = !view.preview && round(); if (cr) cr.updated = new Date().toISOString(); localStorage.setItem(KEY, JSON.stringify(rounds)); backupDirty(60000); if (live) live.touch(); }
+  function save() { if (typeof roGuard === 'function' && roGuard()) return; var cr = !view.preview && round(); if (cr) cr.updated = new Date().toISOString(); localStorage.setItem(KEY, JSON.stringify(rounds)); backupDirty(60000); if (live) live.touch(); try { if (window.STROKEWISE_WATCH) window.STROKEWISE_WATCH.changed(); } catch (e) {} } // watch: tell the Apple Watch link (native/watch.js – only present in the iPhone app's watch build)
   function round() { if (view.preview) return view.preview; return rounds.filter(function (r) { return r.id === view.roundId; })[0]; }
   // v188 (Scott): a round being entered gets a pinned bar – Back · Scorecard · Stats · Holes – on its hole, scorecard and stats screens
   // v189: the bar stays on every screen you reach during the round (replay, maps, About, My Game…) until you go Home
@@ -3253,6 +3253,7 @@
     h += '<button class="big frostbtn" data-act="about">ⓘ About the numbers</button>';
     h += '<p class="credits" id="credits">Course data: <a href="https://www.golfcore.org/" target="_blank" rel="noopener">GolfCore</a> · <a href="https://opengolfapi.org/" target="_blank" rel="noopener" title="Contains data from OpenGolfAPI (opengolfapi.org), ODbL 1.0">OpenGolfAPI</a> (<a href="https://opendatacommons.org/licenses/odbl/1-0/" target="_blank" rel="noopener">ODbL</a>) · © <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a></p>'; // v113 – one short line (Settings keeps long text behind (i) buttons)
     h += '<p class="credits setlinks" id="setlinks"><a href="privacy.html" target="_blank" rel="noopener">Privacy Policy</a> · <a href="support.html" target="_blank" rel="noopener">Support</a></p>'; // v179: required by Apple
+    if (window.STROKEWISE_WATCH && window.STROKEWISE_WATCH.panel) h += window.STROKEWISE_WATCH.panel(); // Apple Watch status + debug log (only in the iPhone app's watch build)
     h += '<p class="appver setver" id="setver" aria-label="App version">' + esc(APP_VER) + '</p>';
     if (view.gdr) h += gdRestoreHTML();
     return h + '</div>';
@@ -6463,6 +6464,19 @@
     return r.holes.length - 1;
   }
 
+  // Apple Watch link (watch-app branch): the few things native/watch.js needs from the app. Only the iPhone app's watch build loads watch.js;
+  // on the website nothing calls these, so they change nothing.
+  window.STROKEWISE_APP = {
+    rounds: function () { return rounds; },
+    current: function () { return localStorage.getItem(CUR); },
+    commit: function (r) { // a watch event changed round r: save it exactly like a phone edit and redraw (not while someone is typing)
+      if (typeof roGuard === 'function' && roGuard()) return;
+      r.updated = new Date().toISOString();
+      if (!view.preview && view.roundId === r.id) { view.edk = null; view.menu = null; view.hzPend = null; view.dirk = null; }
+      save();
+      var ae = document.activeElement; if (!(ae && /^(INPUT|TEXTAREA|SELECT)$/.test(ae.tagName))) render();
+    }
+  };
   gdReturn(); coInit(); render(); gdInit(); // v212: coInit opens a coach's Athletes / an invite link
   if ('serviceWorker' in navigator && location.protocol !== 'file:') {
     // When a new version is installed, reload once so the update shows right away.

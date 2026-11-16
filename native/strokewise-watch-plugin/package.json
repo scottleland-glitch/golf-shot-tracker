@@ -1,0 +1,11 @@
+{
+  "name": "strokewise-watch-plugin",
+  "version": "0.1.0",
+  "private": true,
+  "description": "StrokeWise: links the iPhone app (Capacitor) to the Apple Watch app with WatchConnectivity. Local plugin, iOS only.",
+  "main": "index.js",
+  "files": ["ios/Sources", "Package.swift", "index.js"],
+  "keywords": ["capacitor", "plugin", "native"],
+  "capacitor": { "ios": { "src": "ios" } },
+  "peerDependencies": { "@capacitor/core": ">=8.0.0" }
+}

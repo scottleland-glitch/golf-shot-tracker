@@ -14,4 +14,16 @@ a = '<script src="config.js"></script>'
 assert a in s, 'config.js script tag not found'
 open(p, 'w').write(s.replace(a, a + '\n<script src="native.js"></script>', 1))
 PY
+# The Apple Watch build (STROKEWISE_WATCH=1, set by the ios-testflight-watch workflow): the watch link goes in after native.js. Off = www is exactly as before.
+if [ "${STROKEWISE_WATCH:-}" = "1" ]; then
+  cp native/watch-core.js www/watch-core.js
+  cp native/watch.js www/watch.js
+  python3 - <<'PY'
+p = 'www/index.html'; s = open(p).read()
+a = '<script src="native.js"></script>'
+assert a in s, 'native.js script tag not found'
+open(p, 'w').write(s.replace(a, a + '\n<script src="watch-core.js"></script>\n<script src="watch.js"></script>', 1))
+PY
+  echo "watch link added to www"
+fi
 echo "www ready: $(find www -type f | wc -l) files"
