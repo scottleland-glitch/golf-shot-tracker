@@ -9,12 +9,52 @@ struct Pending: Codable, Equatable, Identifiable {
     var id: String { event.id }
 }
 
+/// The last round the watch was showing, kept after the phone's picture goes empty so a "Round finished on your phone" screen can still show the score.
+struct RoundSummary: Codable, Equatable {
+    var roundId: String = ""
+    var course: String = ""
+    var holesDone: Int = 0
+    var strokesDone: Int = 0
+    var parDone: Int = 0
+    /// True when the phone cleared this round while it was still in play on the watch (Finish / End after 9). Cleared when the golfer taps Close, or a new round starts.
+    var phoneFinished: Bool = false
+
+    /// "84 (+12) · 18 holes"
+    var scoreLine: String {
+        let holes = holesDone == 1 ? "1 hole" : "\(holesDone) holes"
+        return "\(strokesDone) (\(Labels.toPar(strokesDone - parDone))) · \(holes)"
+    }
+
+    static func from(_ model: RoundModel) -> RoundSummary {
+        RoundSummary(roundId: model.roundId, course: model.course, holesDone: model.holesDone,
+                     strokesDone: model.strokesDone, parDone: model.parDone, phoneFinished: false)
+    }
+
+    /// How the remembered summary should change when a new picture arrives from the phone.
+    /// A round in play on the watch that the phone has now cleared becomes a phone-finished summary (shown until Close).
+    /// A (new) round on the phone replaces it. Otherwise the current summary is left as-is (fresh launch, or already dismissed).
+    static func afterPhoneState(wasOnWatch: Bool, incomingRoundId: String?, incoming: RoundSummary?, current: RoundSummary?) -> RoundSummary? {
+        let phoneHasRound = !(incomingRoundId ?? "").isEmpty
+        if wasOnWatch && !phoneHasRound {
+            guard var prior = current else { return nil }
+            prior.phoneFinished = true
+            return prior
+        }
+        if phoneHasRound, var next = incoming {
+            next.phoneFinished = false
+            return next
+        }
+        return current
+    }
+}
+
 struct Snapshot: Codable, Equatable {
     var state: PhoneState? = nil
     var pending: [Pending] = []
     var seq: Int = 0
     var ended: [String] = []    // rounds whose workout was ended on purpose (so it is not started again for them)
     var workoutRound: String? = nil  // the round the running workout belongs to
+    var lastRound: RoundSummary? = nil  // score to show after the phone finishes the round (survives a relaunch)
 }
 
 final class Persistence {

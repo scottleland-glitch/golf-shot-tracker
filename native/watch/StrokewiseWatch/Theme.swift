@@ -24,6 +24,16 @@ enum Theme {
     }
 }
 
+/// "Press the Digital Crown to leave" – end screens. ~16pt / body, white, not the old 10pt dim caption.
+struct CrownLeaveHint: View {
+    var body: some View {
+        Text("Press the Digital Crown to leave")
+            .font(.system(size: 16, weight: .semibold))
+            .foregroundColor(.white)
+            .multilineTextAlignment(.center)
+    }
+}
+
 struct TileStyle: ButtonStyle {
     var fill: Color = Theme.tile
     var small = false

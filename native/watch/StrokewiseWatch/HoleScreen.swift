@@ -34,7 +34,9 @@ struct HoleScreen: View {
                     Banner(text: "\(store.pendingCount) shot\(store.pendingCount == 1 ? "" : "s") queued",
                            detail: "Phone out of range. They sync when it's back.")
                 }
-                if !store.roundOnWatch {
+                if store.showPhoneFinished {
+                    phoneFinished
+                } else if !store.roundOnWatch {
                     noRound
                 } else if let j = store.justFinished {
                     HoleFinishedView(hole: j)
@@ -60,6 +62,24 @@ struct HoleScreen: View {
         return store.roundOnWatch ? "" : "StrokeWise"
     }
 
+    /// The phone finished the round (Finish, or End after 9) and pushed an empty state. Score is the last one remembered on disk.
+    private var phoneFinished: some View {
+        let s = store.snapshot.lastRound
+        return VStack(spacing: 6) {
+            Image(systemName: "flag.checkered").font(.title2).foregroundColor(Theme.greenBright)
+            Text("Round finished on your phone").font(.headline).multilineTextAlignment(.center)
+            if let s = s {
+                Text(s.scoreLine).font(.title3.bold())
+                if !s.course.isEmpty {
+                    Text(s.course).font(.footnote).foregroundColor(.secondary).lineLimit(1).minimumScaleFactor(0.7)
+                }
+            }
+            Text(workout.running ? "Ending the workout…" : "Workout saved to Health").font(.footnote).foregroundColor(.secondary)
+            BigButton(title: "Close") { store.endRoundAndExit() }
+            CrownLeaveHint()
+        }.padding(.top, 8)
+    }
+
     /// No round on the watch (nothing started on the iPhone yet, or the round was ended here). Never a workout start: the phone starts rounds.
     private var noRound: some View {
         VStack(spacing: 6) {
@@ -77,6 +97,8 @@ struct HoleScreen: View {
             Text("Round complete").font(.headline)
             Text("\(store.model.strokesDone) (\(Labels.toPar(store.model.strokesDone - store.model.parDone)))").font(.title3.bold())
             Text(workout.running ? "Ending the workout…" : "Workout saved to Health").font(.footnote).foregroundColor(.secondary)
+            BigButton(title: "Close") { store.endRoundAndExit() }
+            CrownLeaveHint()
         }.padding(.top, 8)
     }
 

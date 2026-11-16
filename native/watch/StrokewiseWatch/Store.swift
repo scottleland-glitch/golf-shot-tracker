@@ -30,6 +30,7 @@ final class WatchStore: ObservableObject {
         self.persistence = persistence
         self.snapshot = persistence.load()
         rebuild()
+        rememberLiveRound()
     }
 
     // MARK: derived
@@ -40,6 +41,8 @@ final class WatchStore: ObservableObject {
     /// The round the golfer is playing on this watch: the phone's round, unless the golfer already ended it here (End round / Close).
     /// An ended round shows the plain "No round" screen; a new round on the phone has a new id and shows up by itself.
     var roundOnWatch: Bool { hasRound && !snapshot.ended.contains(model.roundId) }
+    /// The phone finished (or ended after 9) a round that was in play here: show "Round finished on your phone" until Close.
+    var showPhoneFinished: Bool { !roundOnWatch && snapshot.lastRound?.phoneFinished == true }
     var state: PhoneState? { snapshot.state }
     func unsentEvents() -> [Pending] { snapshot.pending.filter { !$0.sent } }
 
@@ -63,10 +66,16 @@ final class WatchStore: ObservableObject {
         lastPhoneAt = Date()
         if !link.error.isEmpty { link.error = "" }
         if let old = snapshot.state, let a = old.ts, let b = st.ts, b < a, old.roundId == st.roundId { return }   // an older picture arriving late
+        let wasOnWatch = roundOnWatch
+        let prior = RoundSummary.from(model)
         let acked = Set((st.acks ?? []).map { $0.id })
         snapshot.state = st
         snapshot.pending.removeAll { acked.contains($0.event.id) || (st.roundId != nil && $0.event.roundId != st.roundId) || st.roundId == nil }
         commit()
+        let incoming = (st.roundId ?? "").isEmpty ? nil : RoundSummary.from(model)
+        let next = RoundSummary.afterPhoneState(wasOnWatch: wasOnWatch, incomingRoundId: st.roundId, incoming: incoming,
+                                                current: wasOnWatch ? prior : snapshot.lastRound)
+        if snapshot.lastRound != next { snapshot.lastRound = next; persistence.save(snapshot) }
         evaluateWorkout()
     }
     func setReachable(_ r: Bool) { if reachable != r { reachable = r } }
@@ -96,6 +105,7 @@ final class WatchStore: ObservableObject {
         guard !model.roundId.isEmpty else { return }
         snapshot.pending.append(Pending(event: ev, sent: false))
         commit()
+        rememberLiveRound()
         if ev.type == "shot" && ev.fin == "in" && ev.edit != true { justFinished = ev.hole }
         if ev.type == "undo" { justFinished = nil }
         Connectivity.shared.flush()
@@ -195,12 +205,15 @@ final class WatchStore: ObservableObject {
     func endRoundAndExit() {
         guard exitPhase == nil else { return }
         let hadRound = roundOnWatch
+        let phoneFinished = snapshot.lastRound?.phoneFinished == true
         exitPhase = .ending
         if hadRound { send(makeEvent("end", hole: model.currentHole)) }   // before the round is marked ended (send needs the round)
+        // do not send "end" when the phone already cleared the round (no round id). Just dismiss the finished card.
+        if phoneFinished { dismissPhoneFinished() }
         endWorkout(markEnded: true) { [weak self] saved in
             guard let self = self else { return }
             Connectivity.shared.flush()
-            self.exitPhase = .saved(workout: saved, round: hadRound)
+            self.exitPhase = .saved(workout: saved, round: hadRound || phoneFinished)
             DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) { [weak self] in self?.exitFinished() }
         }
     }
@@ -208,6 +221,18 @@ final class WatchStore: ObservableObject {
     private func exitFinished() {
         exitPhase = nil
         justFinished = nil
+    }
+    /// Keep a live score on disk so a later empty picture from the phone can still show it.
+    private func rememberLiveRound() {
+        guard roundOnWatch else { return }
+        let s = RoundSummary.from(model)
+        if snapshot.lastRound != s { snapshot.lastRound = s; persistence.save(snapshot) }
+    }
+    func dismissPhoneFinished() {
+        guard var s = snapshot.lastRound, s.phoneFinished else { return }
+        s.phoneFinished = false
+        snapshot.lastRound = s
+        persistence.save(snapshot)
     }
 
     /// Reconnecting found no workout: forget it and decide again (this may start a fresh one for the same round).

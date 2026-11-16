@@ -58,6 +58,36 @@ precondition(m2.currentHole == 1 && m2.hole(1).rows.count == 2 && m2.hole(1).row
 try? FileManager.default.removeItem(at: tmp)
 precondition(Persistence(url: tmp).load() == Snapshot(), "missing file = empty snapshot")
 precondition(Labels.outcome(m2.hole(1).rows, 0) == "Fairway · 150 yd" && Labels.toPar(-1) == "-1" && Labels.score(m.hole(0)) == "3 (-1)", "labels: \(Labels.outcome(m2.hole(1).rows, 0))")
+// lastRound survives a relaunch; a snapshot written before lastRound existed still decodes
+let prior18 = RoundSummary(roundId: "r1", course: "Ridgeview", holesDone: 18, strokesDone: 84, parDone: 72, phoneFinished: true)
+precondition(prior18.scoreLine == "84 (+12) · 18 holes", "scoreLine 18: \(prior18.scoreLine)")
+precondition(RoundSummary(roundId: "r9", holesDone: 9, strokesDone: 42, parDone: 36).scoreLine == "42 (+6) · 9 holes", "scoreLine 9")
+precondition(RoundSummary(roundId: "rE", holesDone: 9, strokesDone: 36, parDone: 36).scoreLine == "36 (E) · 9 holes", "scoreLine even")
+precondition(RoundSummary(roundId: "rOne", holesDone: 1, strokesDone: 4, parDone: 4).scoreLine == "4 (E) · 1 hole", "scoreLine 1 hole")
+var snapFin = Snapshot(); snapFin.lastRound = prior18
+let tmp2 = URL(fileURLWithPath: NSTemporaryDirectory()).appendingPathComponent("sw-persist-fin-\(getpid()).json")
+precondition(Persistence(url: tmp2).save(snapFin), "save lastRound")
+let backFin = Persistence(url: tmp2).load()
+precondition(backFin.lastRound == prior18 && backFin.lastRound?.phoneFinished == true, "phone-finished summary comes back after relaunch")
+try? FileManager.default.removeItem(at: tmp2)
+let oldSnap = try JSONDecoder().decode(Snapshot.self, from: Data(#"{"state":null,"pending":[],"seq":0,"ended":[],"workoutRound":null}"#.utf8))
+precondition(oldSnap.lastRound == nil, "old snapshot without lastRound still decodes")
+// phone-finished detection (the rule WatchStore.receive uses)
+func after(_ was: Bool, id: String?, incoming: RoundSummary?, current: RoundSummary?) -> RoundSummary? {
+    RoundSummary.afterPhoneState(wasOnWatch: was, incomingRoundId: id, incoming: incoming, current: current)
+}
+let live = RoundSummary(roundId: "r1", course: "Ridgeview", holesDone: 9, strokesDone: 42, parDone: 36)
+let marked = after(true, id: nil, incoming: nil, current: live)
+precondition(marked?.phoneFinished == true && marked?.scoreLine == "42 (+6) · 9 holes" && marked?.roundId == "r1", "phone clears an in-play round → phone-finished")
+precondition(after(true, id: "", incoming: nil, current: live)?.phoneFinished == true, "empty roundId is also a cleared round")
+let nextR = RoundSummary(roundId: "r2", course: "Lakes", holesDone: 0, strokesDone: 0, parDone: 0)
+let replaced = after(true, id: "r2", incoming: nextR, current: live)
+precondition(replaced?.roundId == "r2" && replaced?.phoneFinished == false, "a new round on the phone replaces the summary")
+precondition(after(false, id: nil, incoming: nil, current: nil) == nil, "fresh launch, nothing played → no finished screen")
+var dismissed = prior18; dismissed.phoneFinished = false
+precondition(after(false, id: nil, incoming: nil, current: dismissed)?.phoneFinished == false, "watch already ended / Close dismissed: stay plain No round")
+precondition(after(false, id: nil, incoming: nil, current: prior18)?.phoneFinished == true, "relaunch after phone finished still shows the card")
+print("phone-finished: score lines, disk round-trip, detect clear / new round / fresh / dismissed ok")
 // the states the REAL app bundle pushed (tests/watch-bundle-focused.js writes them): every one must decode on the watch, or the watch shows nothing
 let realPath = CommandLine.arguments.count > 2 ? CommandLine.arguments[2] : "tests/fixtures/watch-state-real.json"
 if let rd = FileManager.default.contents(atPath: realPath) {

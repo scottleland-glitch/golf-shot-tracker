@@ -295,7 +295,7 @@ struct ExitView: View {
                 Image(systemName: "checkmark.circle.fill").font(.system(size: 34)).foregroundColor(Theme.greenBright)
                 Text(round ? (workout ? "Round saved" : "Round ended") : "Closed").font(.headline)
                 if workout { Text("Workout saved to Health").font(.footnote).foregroundColor(.secondary) }
-                Text("Press the Digital Crown to leave").font(.system(size: 10)).foregroundColor(.secondary).multilineTextAlignment(.center)
+                CrownLeaveHint()
             }
         }
         .padding(.horizontal, 6)
