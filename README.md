@@ -25,6 +25,21 @@ Every Shot Counts Table 3.10). The other five are ESTIMATED: per-round gaps from
 Player Quality ladder, then spread over the PGA table. Full sources, method and caveats: in-app
 "About the numbers" and the BASELINES comment in `sg.js`.
 
+## Practice page, top down: your week ahead · your game and your training (v221)
+
+The Practice page now reads from the big picture down:
+
+1. **Your week ahead** (`weekahead.js` → `WA.ahead`) – shown the first time you open Practice on or after Monday, until you close it (✕), tap **Start this week** (opens today's session), or log practice that week. A round later in the week that moves any area's target by 15+ min brings it back, marked "Updated after Wednesday's round".
+   - **What's working / what slipped:** last week's rounds by part of the game (putting, short game, wedges, full swing) against your 3-month normal; ±0.5 strokes a round to count. "Paying off" only when that part got clearly more practice in the two weeks around the round.
+   - **This week's targets** with what changed from last week's plan (the plan as it stood last Monday): ▲ more time, −5m less, **keep going** for an area improving because of the practice.
+   - **Why:** one plain sentence – e.g. "More wedges after Sunday's round. Putting stays high – practice takes a few weeks to show fully in your rounds."
+   - Not shown with recommendations off, in coach view, or before the first round.
+2. **Your game and your training** (`WA.gaps`) – per skill: strokes lost a round (My Game, last 3 months), practice a week (last 4 weeks) and an arrow: ↑ better / → no change yet / ↓ worse (last 30 days of rounds against the months before; ±0.3 a round). The headline names the biggest mismatch. Replaces the "Strokes lost vs practice time" % card.
+3. **This week** – the practice list and the weekly target bars (unchanged).
+4. **More** – Recent practice and Playing and practice by week, one tap away.
+
+**Tournament vs practice** moved to Stats (it compares rounds, not training).
+
 ## 9-hole rounds (v219)
 
 - On **hole 9**, while holes 10–18 are untouched, **⛳ End round after 9 – see stats** sits under Finish hole. It finishes hole 9 if it's complete, saves the round as a 9-hole round and opens Round stats.

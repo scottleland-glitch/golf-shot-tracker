@@ -1,4 +1,5 @@
 // Offline support: cache the whole app on install, serve cache-first.
+// v221: Practice page top-down – Your week ahead (Mondays: what's working, what slipped, targets with changes, why), Your game and your training (lost a round · practice a week · arrow), This week, More; Tournament vs practice → Stats.
 // v220: End round after 9 shows when the back nine only has the course's tee yardages filled in (and for a round already saved).
 // v219: End round after 9 on hole 9 – a 9-hole round counts in plan, Trends and averages (score doubled, half weight); Add the back 9 later.
 // v218: Trends – one dashed line 3 weeks out from form (practice rounds half), the test (γ 50%→25%), practice vs normal (more on a weak spot) and a light feel nudge; no band or confidence.
@@ -113,8 +114,8 @@
 // v113: "Courses near me" (near.js). The course finder list (data/us-courses.json, ~1.0 MB, ~0.28 MB gzipped) is NOT in this cache:
 // the app downloads it on first use into its own cache 'pinhigh-courselist-v1', which a new version keeps (so no re-download).
 // GolfCore scorecards (through the Pin High relay, pinhigh-golfcore.pinhigh.workers.dev) go straight to the network; the app saves each picked course with the saved courses.
-const CACHE = 'golf-sg-v220';
-const ASSETS = ['./', './img/home-bg.webp', './img/oriole.webp', './index.html', './styles.css', './sg.js', './trends.js', './plan.js', './funfacts.js', './birdie.js', './courses.js', './near.js', './bag.js', './wedges.js', './live.js', './sync.js', './share.js', './story.js', './insights.js', './mygame.js', './shortgame.js', './shortgame-ui.js', './gdrive.js', './app.js', './config.js', './vendor/jspdf.umd.min.js',
+const CACHE = 'golf-sg-v221';
+const ASSETS = ['./', './img/home-bg.webp', './img/oriole.webp', './index.html', './styles.css', './sg.js', './trends.js', './plan.js', './funfacts.js', './weekahead.js', './birdie.js', './courses.js', './near.js', './bag.js', './wedges.js', './live.js', './sync.js', './share.js', './story.js', './insights.js', './mygame.js', './shortgame.js', './shortgame-ui.js', './gdrive.js', './app.js', './config.js', './vendor/jspdf.umd.min.js',
   './manifest.webmanifest', './icons/apple-touch-icon.png', './icons/icon-192.png',
   './icons/icon-512.png', './icons/icon-512-maskable.png'];
 self.addEventListener('install', e => {

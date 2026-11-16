@@ -22,7 +22,7 @@ const rounds = [at('p1', 2, 'practice'), nine(at('p2', 6, 'practice')), extraPut
     await page.evaluate(rs => { localStorage.clear(); localStorage.setItem('golfsg.player.v1', 'Scott'); localStorage.setItem('golfsg.nameasked.v1', '1'); localStorage.setItem('golfsg.rounds.v1', JSON.stringify(rs)); localStorage.setItem('golfsg.practice.v1', JSON.stringify([{ id: 'x1', date: new Date(Date.now() - 3 * 864e5).toISOString().slice(0, 10), player: 'Scott', spoke: 'chip', focus: '', min: 90 }, { id: 'x2', date: new Date(Date.now() - 20 * 864e5).toISOString().slice(0, 10), player: 'Scott', spoke: 'lag', focus: '', min: 60 }])); }, rounds);
     await page.reload(); await page.waitForSelector('#home');
     // My Game – v184 weekly play + practice in hours (18 holes = 5 h), sideways-scrolling weeks, benchmark only when asked for
-    await page.click('[data-act="mygame"]'); await page.waitForSelector('#mygame'); await page.click('[data-act="mgperiod"][data-v="30d"]'); await page.click('#tbpractice'); await page.waitForSelector('#plweeks'); /* v194: on the Practice page */
+    await page.click('[data-act="mygame"]'); await page.waitForSelector('#mygame'); await page.click('[data-act="mgperiod"][data-v="30d"]'); await page.click('#tbpractice'); await page.click('#moreplay'); await page.waitForSelector('#plweeks'); /* v194: on the Practice page; v221: under More */
     assert.strictEqual(await page.textContent('#plhead'), '0.1 h of practice for every hour on the course');
     assert.strictEqual(await page.textContent('#pllede'), 'Last 12 weeks: 28 h on the course (5½ rounds) and 2½ h of practice.');
     assert.strictEqual(await page.$$eval('#plweeks .plbenchl', e => e.length), 0, 'no benchmark until asked'); assert.strictEqual(await page.getAttribute('#plbtog', 'aria-pressed'), 'false');
@@ -37,10 +37,11 @@ const rounds = [at('p1', 2, 'practice'), nine(at('p2', 6, 'practice')), extraPut
     assert.strictEqual(await page.$eval('#plscroll', e => e.scrollLeft), sl, 'tapping a week keeps the scroll'); ok('tap a week for its numbers');
     await page.click('#plbtog'); await page.waitForSelector('#plbtog.on');
     assert.strictEqual(await page.$$eval('#plweeks .plbenchl', e => e.length), 1, 'benchmark as a dashed line'); assert.match(await page.textContent('#pllede'), /PGA Tour players spend about \d+ h in tournament rounds/);
-    assert.ok(await page.$('#plhow')); await page.reload(); await page.click('[data-act="mygame"]'); await page.click('#tbpractice'); await page.waitForSelector('#plbtog.on'); ok('benchmark comparison is opt-in and remembered');
+    assert.ok(await page.$('#plhow')); await page.reload(); await page.click('[data-act="mygame"]'); await page.click('#tbpractice'); await page.click('#moreplay'); await page.waitForSelector('#plbtog.on'); ok('benchmark comparison is opt-in and remembered');
     await page.click('#plbtog'); await page.waitForSelector('#plbtog:not(.on)');
     ok('weekly chart: hours on the course by type + practice logged');
     assert.match(await page.textContent('#pluntag'), /1 older round isn’t tagged/); ok('untagged rounds are pointed out, not guessed');
+    assert.strictEqual(await page.$('#practicepage #plcmp'), null, 'v221: not on Practice'); await page.click('#tbstats'); await page.waitForSelector('#statspage'); await page.waitForSelector('#statspage #plcmp');
     assert.match(await page.textContent('#plcmphead'), /^Tournament rounds average \d+\.\d higher$/); assert.match(await page.textContent('#plcmplede'), /biggest drop is putting.*Early read/);
     assert.ok(await page.$('#plcmpt tr.plworst[data-k="putting"]'), 'putting row highlighted');
     assert.match(await page.textContent('#plcmpt thead'), /Practice\s*3 rounds.*Tournament\s*2 rounds/); ok('tournament vs practice: score, SG by area, worst area named');

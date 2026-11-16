@@ -1677,6 +1677,8 @@
       ST_ROWS.map(function (d) { return '<tr data-k="' + esc(d[0]) + '"' + (d[3] === 'sg' ? ' class="stsgrow"' : '') + '><td>' + esc(d[0]) + '</td><td class="num">' + stNum(D.avgShown[d[0]], d[2], d[3]) + '</td>' +
         (two ? '<td class="num">' + stNum(D.avgAll[d[0]], d[2], d[3]) + '</td>' : '') + '</tr>'; }).join('') + '</tbody></table>' +
       '<p class="stnote">Each number is the average of the rounds’ own numbers (a round with nothing to count, e.g. no par 4s or 5s, is left out of that line). Putts made inside 10 ft = of every putt that started 10 ft or closer, the share that went in. Last 5 = the 5 newest finished rounds. Only finished rounds count' + (D.unfinished ? ' (' + D.unfinished + ' unfinished not shown)' : '') + '.</p></div>';
+    // v221: Tournament vs practice moved here from the Practice page (it compares rounds, not training)
+    var tcw = who && who !== 'All players' && who !== 'No name' ? who : mgWho(); if (tcw) { try { h += tourCmpHTML(tcw, mgData(tcw)); } catch (e) { console.warn(e); } }
     return h + '</div>';
   }
   // keep the chosen round visible inside the scrolling list (without moving the page)
@@ -2508,7 +2510,7 @@
   // how tournament rounds compare with practice rounds
   // v164 (Scott): the benchmark is opt-in – no pressure to play more unless you ask for the comparison (remembered on this phone)
   function plBenchOn() { try { return localStorage.getItem('golfsg.plbench.v1') === '1'; } catch (e) { return false; } }
-  function playingCardHTML(who, D) {
+  function playingCardHTML(who, D, noCmp) { // v221: noCmp – Tournament vs practice lives on Stats now
     var all = savedRounds().filter(function (r) { return samePlayer(r.player || playerName(), who); });
     // v184 (Scott): weeks, not months – rounds as hours on the course (18 holes = 5 h) with logged practice beside them, on one
     // hours scale. The weeks scroll sideways (newest at the right); tap a week for its numbers.
@@ -2529,8 +2531,11 @@
       '<p>Sources: PGA Tour and LPGA Tour 2026 schedules (The Golf News Net); NCAA Division I 24 competition days (Clippd); about 19.5 college rounds a year for D1 women and 17.8 for D1 men (Mikkel Bjerch-Andresen, “71 scorecards”); ' +
       'USGA player-development guidance of 8–12 multi-round events a year for top amateurs. College columns count college events only, not summer amateur events.</p></details>';
     o += '</div>';
+    return noCmp ? o : o + tourCmpHTML(who, D);
+  }
+  function tourCmpHTML(who, D) {
     // tournament vs practice – this time frame, or all time while there aren't enough rounds in it
-    var fin = finishedRoundsOf(who), C = MYGAME.kindCompare(fin, SG, { baseline: D.baseline, period: P }), allT = false;
+    var o = '', P = D.period, fin = finishedRoundsOf(who), C = MYGAME.kindCompare(fin, SG, { baseline: D.baseline, period: P }), allT = false;
     if (!C.ready && P.id !== 'all') { var C2 = MYGAME.kindCompare(fin, SG, { baseline: D.baseline }); if (C2.ready) { C = C2; allT = true; } }
     o += '<div class="mgchart plcmp frost" id="plcmp"><span class="tkeye">Tournament vs practice' + (allT ? ' · all time' : '') + '</span><h2 id="plcmphead">' + esc(C.headline) + '</h2><p id="plcmplede">' + esc(C.lede) + '</p>';
     if (C.ready) {
@@ -2724,7 +2729,7 @@
   function planFocusKey(it) { var F = MYGAME.FOCUS[it.k] || [], f = /speed/i.test(it.focus) ? F.filter(function (x) { return /speed/i.test(x); })[0] : /start line/i.test(it.focus) ? F.filter(function (x) { return /start line/i.test(x); })[0] : /distance|short|long/i.test(it.focus) ? F.filter(function (x) { return /distance/i.test(x); })[0] : null; return f || F[0]; }
   function planCardHTML(who, P) {
     P = P || planData(who); var hm = MYGAME.hm, T = P.tour, ed = view.tourEdit;
-    var h = '<div class="card frost plancard" id="plancard"><div class="planhead"><b>Practice next</b><small>' + (P.budgetFrom === '30 days' ? 'Your usual: ' + hm(P.budget) + ' a week' : P.budgetFrom === 'typical' ? '<button class="txt typedit" data-act="typedit">Your estimate: ' + hm(P.budget) + ' a week ›</button>' : P.budgetFrom === 'blend' ? '<button class="txt typedit" data-act="typedit">About ' + hm(P.budget) + ' a week ›</button>' : 'Log practice and this fits your week') + '</small></div>' +
+    var h = '<div class="card frost plancard" id="plancard"><div class="planhead"><b>This week</b><small>' + (P.budgetFrom === '30 days' ? 'Your usual: ' + hm(P.budget) + ' a week' : P.budgetFrom === 'typical' ? '<button class="txt typedit" data-act="typedit">Your estimate: ' + hm(P.budget) + ' a week ›</button>' : P.budgetFrom === 'blend' ? '<button class="txt typedit" data-act="typedit">About ' + hm(P.budget) + ' a week ›</button>' : 'Log practice and this fits your week') + '</small></div>' +
       '<p class="plintro" id="plintro">Start at the top whenever you have time, then tap <b>Log</b>. Skip one and it moves up; do it and it drops down.</p>'; // v204
     // the next tournament – Big shifts the last week to sharpening, Regular changes nothing
     if (ed) h += '<div class="tourform" id="tourform"><label>Next tournament <input type="date" id="tourdate" min="' + localDayISO() + '" value="' + esc(ed.date || '') + '"></label>' +
@@ -2744,16 +2749,74 @@
     h += '</div>';
     return h;
   }
+  // ---------- v221 (Scott): the Practice page from the top down – your week ahead, your game and your training, this week, more ----------
+  var WA_KEY = 'golfsg.wkahead.v1';
+  function waStore() { try { return JSON.parse(localStorage.getItem(WA_KEY) || '{}') || {}; } catch (e) { return {}; } }
+  function waSeen(who) { return waStore()[(who || '').toLowerCase()] || null; }
+  function waMark(who, P) { var S = waStore(); S[(who || '').toLowerCase()] = { wk: WA.mondayOf(Date.now()), t: Date.now(), tg: P ? P.weekMin : {} }; try { localStorage.setItem(WA_KEY, JSON.stringify(S)); } catch (e) {} }
+  // the plan as it stood at a moment (last Monday): only what was known then
+  function planAt(who, t) {
+    var tst = null; try { tst = SGTUI.planTest(who); } catch (e) {} if (tst && Date.parse(tst.date) >= t) tst = null;
+    var before = function (x) { return Date.parse(x.date) < t; };
+    return PLAN.build({ rounds: finishedRoundsOf(who).filter(before), logs: practiceOf(who).filter(before), SG: SG, MYGAME: MYGAME, bl: myBench(who), test: tst, trends: null, now: t - 1, tour: null, typical: typicalOf(who) });
+  }
+  // shown the first time you open Practice on or after Monday, until ✕ / Start this week / you log practice that week;
+  // back again (marked "Updated") if a round since then moved any area's target 15+ min
+  function waState(who, P) {
+    if (!recsOn(who) || CO.ctx || !finishedRoundsOf(who).length) return null;
+    var wk = WA.mondayOf(Date.now()), seen = waSeen(who), loggedThisWeek = practiceOf(who).some(function (e) { return Date.parse(e.date) >= wk && e.min > 0; });
+    if (!seen || seen.wk !== wk) return loggedThisWeek && !view.waForce ? null : { upd: false };
+    var late = finishedRoundsOf(who).filter(function (r) { return Date.parse(r.date) > seen.t - 864e5 && Date.parse(r.updated || r.date) > seen.t; }).sort(function (a, b) { return Date.parse(b.date) - Date.parse(a.date); })[0];
+    if (late && WA.changed(seen.tg, P.weekMin)) return { upd: true, day: new Date(late.date).toLocaleDateString(undefined, { weekday: 'long' }) };
+    return view.waForce ? { upd: false } : null;
+  }
+  function weekAheadHTML(who, P) {
+    var st = waState(who, P); if (!st) return '';
+    var wk = WA.mondayOf(Date.now()), A = WA.ahead({ rounds: finishedRoundsOf(who), logs: practiceOf(who), SG: SG, MYGAME: MYGAME, PLAN: PLAN, bl: myBench(who), now: Date.now(), cur: P.weekMin, last: planAt(who, wk - 7 * 864e5).weekMin });
+    var d0 = new Date(wk), d1 = new Date(wk + 6 * 864e5), md = function (d) { return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' }); };
+    var mx = Math.max.apply(null, A.rows.map(function (r) { return r.target; }).concat([10]));
+    var o = '<div class="card frost wacard" id="wacard" role="region" aria-label="Your week ahead"><button class="wax" data-act="waclose" id="waclose" aria-label="Close">✕</button>' +
+      '<span class="waeye">' + (st.upd ? 'Updated after ' + esc(st.day) + '\'s round' : 'Your week ahead · ' + esc(md(d0)) + '–' + esc(d1.getMonth() === d0.getMonth() ? String(d1.getDate()) : md(d1))) + '</span><h2 id="wahead">' + esc(A.head) + '</h2>';
+    A.lines.forEach(function (L) { o += '<div class="waline ' + (L.good ? 'good' : 'bad') + '"><i aria-hidden="true">' + (L.good ? '✅' : '⚠️') + '</i><span><b>' + esc(L.title) + '</b><small>' + esc(L.text) + '</small></span></div>'; });
+    o += '<div class="wasec"><b>This week\'s targets</b><span>' + esc(hmS(A.total)) + (Math.abs(A.total - A.totalLast) < 5 ? ' · same as last week' : ' · ' + (A.total > A.totalLast ? 'up ' : 'down ') + hmS(Math.abs(A.total - A.totalLast))) + '</span></div><div class="wabars">';
+    A.rows.forEach(function (r) {
+      var tag = r.delta > 0 ? '<em class="wach up">▲ +' + r.delta + 'm</em>' : r.keep ? '<em class="wach keep">' + (r.delta < 0 ? r.delta + 'm · ' : '') + 'keep going</em>' : r.delta < 0 ? '<em class="wach">' + r.delta + 'm</em>' : '<em class="wach">–</em>';
+      o += '<div class="warow" data-k="' + r.k + '"><span class="wan">' + esc(r.name) + '</span><span class="wabar"><i class="wktgt" style="left:' + (r.target / mx * 100).toFixed(1) + '%"></i></span><span class="wav">' + r.target + 'm</span>' + tag.replace('−', '−') + '</div>'; });
+    o += '</div><p class="wawhy" id="wawhy">' + esc(A.why) + '</p><button class="primary wago" data-act="wago" id="wago">▶ Start this week</button></div>';
+    return o;
+  }
+  function gapCardHTML(who) {
+    var G = WA.gaps({ rounds: finishedRoundsOf(who), logs: practiceOf(who), SG: SG, MYGAME: MYGAME, bl: myBench(who), now: Date.now() });
+    if (!G.rounds) return '';
+    var mxL = Math.max.apply(null, G.rows.map(function (r) { return r.lost || 0; }).concat([1])), mxP = Math.max.apply(null, G.rows.map(function (r) { return r.week; }).concat([30]));
+    var f1 = function (v) { return (Math.round(v * 10) / 10).toFixed(1); }, rc = recsOn(who);
+    var head = rc ? G.head : G.head.replace(/ – .*$/, '');
+    var o = '<div class="card frost gapcard" id="gapcard"><span class="tkeye">Your game and your training</span><h2 id="gaphead">' + esc(head) + '</h2>' +
+      '<p class="gaplede">From your rounds (last 3 months) and your practice (last 4 weeks).</p><div class="gapkey"><span><i class="gl"></i>Strokes lost a round</span><span><i class="gp"></i>Practice a week</span></div>';
+    G.rows.forEach(function (r) {
+      var ar = r.arrow === 'up' ? ['↑', 'up', 'better in your rounds lately'] : r.arrow === 'down' ? ['↓', 'down', 'worse in your rounds lately'] : r.arrow === 'flat' ? ['→', 'flat', 'no change yet'] : ['·', 'none', 'not enough shots yet'];
+      var lv = r.lost == null ? '–' : r.lost >= 0.05 ? f1(r.lost) : r.lost <= -0.05 ? 'gaining' : 'even';
+      o += '<div class="gaprow" data-k="' + r.k + '"><span class="gapn"><b>' + esc(r.name) + '</b><i class="gapar ' + ar[1] + '" title="' + ar[2] + '" aria-label="' + ar[2] + '">' + ar[0] + '</i></span>' +
+        '<span class="gapb"><span class="gbar"><i class="gl" style="width:' + (Math.max(0, r.lost || 0) / mxL * 100).toFixed(1) + '%"></i></span><em class="' + (r.lost >= 0.05 ? 'lost' : '') + '">' + lv + '</em></span>' +
+        '<span class="gapb"><span class="gbar"><i class="gp" style="width:' + Math.min(100, r.week / mxP * 100).toFixed(1) + '%"></i></span><em>' + (r.week ? r.week + 'm' : '–') + '</em></span></div>'; });
+    return o + '<p class="gapfoot">↑ better · → no change yet · ↓ worse – your last 30 days of rounds against the months before.</p></div>';
+  }
+  function moreHTML(who, D) {
+    var m = view.prMore || null, row = function (k, t) { return '<button class="morerow' + (m === k ? ' open' : '') + '" data-act="prmore" data-v="' + k + '" id="more' + k + '" aria-expanded="' + (m === k) + '"><span>' + t + '</span><i aria-hidden="true">›</i></button>'; };
+    var o = '<div class="card frost morecard" id="morecard">' + row('recent', 'Recent practice') + (m === 'recent' ? recentDaysHTML(practiceOf(who)) || '<p class="help">Nothing logged yet.</p>' : '') +
+      row('play', 'Playing and practice by week') + '</div>';
+    if (m === 'play') o += playingCardHTML(who, D, true);
+    return o;
+  }
   function practicePageHTML() {
     var who = mgWho(), D = mgData(who);
     var h = '<div class="frostpage theme-sky mygamepage practicepage" id="practicepage"><div class="topbar frost"><button class="txt frostbtn" data-act="home" id="prback">‹ Home</button><div class="title"><b>Practice</b><span>' + esc(who || '') + '</span></div><span class="tbsp"></span></div>';
     var P = planData(who), rc = recsOn(who);
     h += '<div class="prtop">' + (rc ? '<button class="primary prbig" data-act="sessopen" id="prsess">▶ Start a session</button><button class="glass prbig2" data-act="prlog" id="prbig">+ Log practice</button>' : '<button class="primary prbig" data-act="prlog" id="prbig">+ Log practice</button>') + '</div>' + quickRowHTML('prqrow', [['report', 'grep', 'Report'], ['trends', 'gotrends', 'Trend']]); // v198; v205: start a session
-    h += rc ? sessSheetHTML(who) + typicalCardHTML(who, P) + planCardHTML(who, P) + weekCardHTML(who, P) : typicalCardHTML(who, P) + weekCardHTML(who, P, true); // v215: no list, sessions or targets
+    // v221: your week ahead (Mondays) · your game and your training · this week · more
+    h += rc ? weekAheadHTML(who, P) + gapCardHTML(who) + sessSheetHTML(who) + typicalCardHTML(who, P) + planCardHTML(who, P) + weekCardHTML(who, P) : gapCardHTML(who) + typicalCardHTML(who, P) + weekCardHTML(who, P, true); // v215: no list, sessions or targets
     h += prSheetHTML(who) + grSheetHTML() + (view.pdf && view.pdf.kind === 'game' ? pdfHTML() : '');
-    var rest = practiceCardHTML(who, D, 'rest');
-    h += rest || '<div class="mgchart frost"><p class="help">Nothing logged yet – tap <b>Log practice</b> below after a session.</p></div>';
-    h += playingCardHTML(who, D);
+    h += moreHTML(who, D);
     h += modeRowHTML(who, 'prmode'); // v209: turn the practice plan off (just stats)
     return h + '</div>';
   }
@@ -5956,6 +6019,8 @@
     var r = round(), h = r && r.holes[view.hole];
     if (coAct(act, v, b)) return; // v212 coach sharing
     if (prDayAct(act, v)) return; // v216 practice by day
+    if (act === 'waclose' || act === 'wago') { var wwho = mgWho(); waMark(wwho, planData(wwho)); view.waForce = false; if (act === 'wago') { view.sess = { min: 0, list: null, feel: {} }; view.prLog = null; } render(); if (act === 'wago') { var ss2 = document.getElementById('sesssheet'); if (ss2 && ss2.scrollIntoView) ss2.scrollIntoView({ block: 'start' }); } return; } // v221
+    if (act === 'prmore') { view.prMore = view.prMore === v ? null : v; render(); return; }
     if (CO.view && act === 'home') { exitAthlete(); view.screen = 'athletes'; render(); window.scrollTo(0, 0); return; } // an athlete's ‹ Home → back to the list
     if (/^sgt/.test(act) && act !== 'sgtoggle') { SGTUI.act(act, v, b); return; } // v166 short game test (v167: not Round stats' Strokes gained toggle, 'sgtoggle')
     switch (act) {
@@ -6478,5 +6543,5 @@
     document.addEventListener('touchend', function (e) { if (sx == null || view.replay == null || view.rpGreen) return; var t = e.changedTouches[0], dx = t.clientX - sx, dy = t.clientY - sy; sx = null;
       if (Math.abs(dx) < 60 || Math.abs(dx) < Math.abs(dy) * 1.5) return; var b = document.querySelector('#replayview .rpnav button[data-act="rphole"]' + (dx < 0 ? ':last-of-type' : ':first-of-type'));
       if (b && !b.disabled) b.click(); }, { passive: true }); })();
-  window.__golf = { backTarget: function () { var t = backTarget(); return t && t !== 'home' ? (t.getAttribute('data-act') || t.className) : t; }, card: function () { return view.card; }, statsData: function () { return statsData(); }, statsRound: function (id, bl) { return statsRound(rounds.filter(function (r) { return r.id === id; })[0], bl || ''); }, scorecardHTML: function () { var r = round(); return r ? scorecardHTML(r, SG.summarize(r, blOf(r))) : ''; }, d1Bench: d1Bench, proxBench: proxBench, PROX_BENCH: PROX_BENCH, proxZoomFt: proxZoomFt, proxSVG: proxSVG, pinSVG: function () { return pinReportSVG(SG.pinSegments(pinDataRound())); }, csvFor: csvFor, rounds: function () { return rounds; } };
+  window.__golf = { view: function () { return view; }, render: function () { render(); }, backTarget: function () { var t = backTarget(); return t && t !== 'home' ? (t.getAttribute('data-act') || t.className) : t; }, card: function () { return view.card; }, statsData: function () { return statsData(); }, statsRound: function (id, bl) { return statsRound(rounds.filter(function (r) { return r.id === id; })[0], bl || ''); }, scorecardHTML: function () { var r = round(); return r ? scorecardHTML(r, SG.summarize(r, blOf(r))) : ''; }, d1Bench: d1Bench, proxBench: proxBench, PROX_BENCH: PROX_BENCH, proxZoomFt: proxZoomFt, proxSVG: proxSVG, pinSVG: function () { return pinReportSVG(SG.pinSegments(pinDataRound())); }, csvFor: csvFor, rounds: function () { return rounds; } };
 })();

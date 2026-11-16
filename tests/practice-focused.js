@@ -48,14 +48,13 @@ for (let i = 0; i < 6; i++) rounds.push(Object.assign(ARC.round(), { id: 'g' + i
     await page.click('#prclose'); await page.waitForTimeout(250); assert.strictEqual(await page.$('#prcard.isfull'), null); // v211: tap → full screen, ✕ closes
     assert.ok(await page.$('#prcard .pbench'), 'benchmark ring drawn');
     assert.ok(await page.$('#prcard .pcur'), 'practice shape drawn');
-    assert.strictEqual(await page.$('#prlist'), null, 'v194: the list is on the Practice page'); await page.click('#tbpractice'); await page.waitForSelector('#practicepage');
+    assert.strictEqual(await page.$('#prlist'), null, 'v194: the list is on the Practice page'); await page.click('#tbpractice'); await page.waitForSelector('#practicepage'); assert.strictEqual(await page.$('#prlist'), null, 'v221: folded under More'); await page.click('#morerecent');
     assert.strictEqual(await page.$$eval('#prlist .prday', x => x.length), 1, 'v216: one line for the day'); assert.match(await page.textContent('#prlist .prdayh'), /1 h/);
     await page.click('#prlist .prdayh'); assert.strictEqual(await page.$$eval('#prlist .pritem2', x => x.length), 3, 'tap → the day opens');
     ok('saved per player; My Practice: 1 h in 1 session, chipping 50%, 3 recent entries');
-    assert.strictEqual(await page.textContent('#prvshead'), 'Practice more irons 100+');
-    assert.match(await page.textContent('#prvslede'), /^Irons 100\+ is \d+% of your lost strokes but 0% of your practice\.$/);
-    assert.ok(await page.$('.prbar.gap[data-spoke="irons"]'));
-    ok('strokes lost vs practice time: irons flagged');
+    assert.match(await page.textContent('#gaphead'), /^Irons 100\+ cost you \d\.\d a round – and got no practice this month$/);
+    assert.match(await page.textContent('#gapcard .gaprow[data-k="irons"]'), /\d\.\d\s*–/); assert.match(await page.textContent('#gapcard .gaprow[data-k="chip"]'), /\dm$/, 'chipping practice a week');
+    ok('your game and your training: irons named – strokes lost, no practice');
     assert.strictEqual(await page.evaluate(() => document.documentElement.scrollWidth <= 390), true, 'no sideways scroll');
     await page.click('#prlist .prx'); assert.ok(await page.$('#prlist [data-act="prdelyes"]'), 'v216: asks first'); await page.click('#prlist [data-act="prdelno"]'); assert.strictEqual(await page.$$eval('#prlist .pritem2', x => x.length), 3, 'Keep');
     await page.click('#prlist .prx'); await page.click('#prlist [data-act="prdelyes"]'); assert.strictEqual(await page.$$eval('#prlist .pritem2', x => x.length), 2);

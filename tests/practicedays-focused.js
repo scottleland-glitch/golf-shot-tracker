@@ -38,7 +38,7 @@ for (let i = 10; i < 24; i++) { const d = new Date(t); d.setDate(t.getDate() - i
     ok('tap today → recap: 3 lines, area · focus · kind · feel, no entry controls');
     await page.click('#prsheets .csback', { position: { x: 20, y: 20 } }); assert.strictEqual(await page.$('#dysheet'), null); ok('tap outside closes');
     // Recent practice: a line per day, the newest first, 10 days then Show earlier days
-    const days = await page.$$eval('#prlist .prday', x => x.length); assert.strictEqual(days, 10);
+    await page.click('#morerecent'); const days = await page.$$eval('#prlist .prday', x => x.length); assert.strictEqual(days, 10);
     assert.match(await page.textContent('#prlist .prday:first-of-type .prdayh small'), /Driving · Wedges · Short putts/);
     await page.click('#prmoredays'); assert.strictEqual(await page.$$eval('#prlist .prday', x => x.length), P.length - (first === today ? 3 : 4) + (first === today ? 1 : 2));
     ok('Recent practice: one line per day, Show earlier days adds more');

@@ -3135,3 +3135,33 @@ html body #cmpage .topbar #cmhome { white-space: nowrap; } html body #cmpage .to
 html body .trchart .trdot { opacity: .55; } html body .trchart .trdot.pr { fill: #fff; stroke: #17301f; stroke-width: 1.3; opacity: .8; }
 html body .trchart .trend { fill: #17301f; } html body .trchart .trmid { stroke-width: 2.6; stroke-dasharray: 7 5; }
 html body .trwhy b { font-weight: 700; }
+/* v221: Practice page from the top down – Your week ahead · Your game and your training · This week · More */
+html body .wacard { position: relative; border: 2px solid #1f6f4a; padding-top: 16px; }
+html body .wax { position: absolute; right: 12px; top: 12px; width: 34px; height: 34px; min-height: 34px; padding: 0; border-radius: 50%; border: 0; background: rgba(23, 48, 31, .08); color: #17301f; font-size: 15px; box-shadow: none; }
+html body .waeye { display: block; font-size: 11.5px; letter-spacing: .12em; text-transform: uppercase; color: #1f6f4a; font-weight: 800; padding-right: 44px; }
+html body .wacard h2 { font-size: 21px; line-height: 1.2; margin: 4px 44px 8px 0; }
+html body .waline { display: flex; gap: 10px; align-items: flex-start; padding: 9px 0; border-top: 1px solid rgba(23, 48, 31, .08); }
+html body .waline i { font-style: normal; font-size: 19px; line-height: 1.1; } html body .waline span { display: grid; gap: 2px; } html body .waline b { font-size: 15px; } html body .waline small { font-size: 13px; color: var(--frost-ink-soft); line-height: 1.35; }
+html body .wasec { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; margin: 12px 0 4px; } html body .wasec b { font-size: 15px; } html body .wasec span { font-size: 13px; color: var(--frost-ink-soft); text-align: right; }
+html body .warow { display: grid; grid-template-columns: 84px 1fr 36px 92px; align-items: center; gap: 6px; padding: 4px 0; font-size: 13.5px; }
+html body .wabar { position: relative; height: 12px; border-radius: 8px; background: rgba(23, 48, 31, .08); } html body .wabar .wktgt { position: absolute; top: -3px; bottom: -3px; width: 3px; background: #17301f; border-radius: 2px; }
+html body .wav { text-align: right; font-weight: 700; font-size: 13px; } html body .wach { font-style: normal; font-size: 12px; color: var(--frost-ink-soft); text-align: right; } html body .wach.up { color: #1f6f4a; font-weight: 800; } html body .wach.keep { color: #2f63b8; font-weight: 700; }
+html body .wawhy { font-size: 13.5px; background: rgba(31, 111, 74, .1); border-radius: 12px; padding: 10px 12px; margin: 10px 0 12px; line-height: 1.4; }
+html body .wago { width: 100%; }
+html body .gapcard h2 { font-size: 20px; line-height: 1.25; margin: 4px 0 4px; } html body .gaplede { font-size: 13px; color: var(--frost-ink-soft); margin: 0 0 8px; }
+html body .gapkey { display: flex; gap: 14px; font-size: 12px; color: var(--frost-ink-soft); margin: 0 0 6px; } html body .gapkey i { display: inline-block; width: 10px; height: 10px; border-radius: 3px; margin-right: 4px; vertical-align: -1px; }
+html body .gl { background: #e2705f; } html body .gp { background: #3f78d0; }
+html body .gaprow { display: grid; grid-template-columns: 116px 1fr; grid-template-rows: auto auto; column-gap: 10px; padding: 6px 0; border-top: 1px solid rgba(23, 48, 31, .08); }
+html body .gapn { grid-row: 1 / 3; display: flex; align-items: center; justify-content: space-between; } html body .gapn b { font-size: 14.5px; font-weight: 600; }
+html body .gapar { font-style: normal; font-weight: 800; font-size: 16px; width: 18px; text-align: center; } html body .gapar.up { color: #1f7a3f; } html body .gapar.down { color: #c0392b; } html body .gapar.flat, html body .gapar.none { color: #7a857e; }
+html body .gapb { display: flex; align-items: center; gap: 8px; height: 16px; } html body .gbar { flex: 1; height: 8px; border-radius: 5px; background: rgba(23, 48, 31, .08); overflow: hidden; display: block; } html body .gbar i { display: block; height: 100%; border-radius: 5px; }
+html body .gapb em { font-style: normal; font-size: 12.5px; width: 52px; text-align: right; color: var(--frost-ink-soft); } html body .gapb em.lost { color: #b23a2a; font-weight: 700; }
+html body .gapfoot { font-size: 12px; color: var(--frost-ink-soft); margin: 8px 0 0; line-height: 1.4; }
+html body .morecard { padding: 4px 16px; } html body .morerow { display: flex; justify-content: space-between; align-items: center; width: 100%; padding: 14px 0; border: 0; border-top: 1px solid rgba(23, 48, 31, .08); background: none; box-shadow: none; min-height: 0; color: inherit; font: inherit; font-size: 15.5px; border-radius: 0; text-align: left; }
+html body .morerow:first-child { border-top: 0; } html body .morerow i { font-style: normal; font-size: 20px; transition: transform .15s; } html body .morerow.open i { transform: rotate(90deg); }
+html body .morecard .prlist { background: none; box-shadow: none; padding: 0 0 8px; margin: 0; border: 0; } html body .morecard .prlist > .tkeye { display: none; }
+html body .wacard, html body .gapcard, html body .morecard { display: block; } html body .gapcard .tkeye { display: block; }
+html body .wacard, html body .gapcard { padding: 16px 16px 14px; } html body .morecard { padding: 2px 16px; }
+html body .wacard h2, html body .gapcard h2 { font-weight: 800; }
+html body .statspage .plcmp, html body .statspage .plcmp * { font-weight: 400 !important; } html body .statspage .plcmp h2 { font-weight: 500 !important; }
+html body .statspage .plcmp h2 { font-size: 16px !important; line-height: 1.3; } html body .statspage .plcmp p, html body .statspage .plcmp td, html body .statspage .plcmp th { font-size: 14px; }
