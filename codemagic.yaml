@@ -33,13 +33,23 @@ workflows:
         script: xcode-project use-profiles
       - name: Check the iPhone profile has HealthKit (needed to launch the watch app when a round starts; if not, says so and builds without it)
         script: bash native/check-phone-healthkit.sh
-      - name: Version 1.0, build number from Codemagic (iPhone app and watch app must match)
+      - name: Version 1.0, next build number after the newest one in App Store Connect (iPhone app and watch app must match)
         script: |
+          # Codemagic's own counter restarts when a workflow changes, so ask App Store Connect for the newest build number
+          # and use one more than that (or Codemagic's counter, whichever is higher).
+          APP_ID=$(app-store-connect apps list --bundle-id-identifier com.strokewise.app --strict-match-identifier --json | python3 -c 'import sys,json; print(json.load(sys.stdin)[0]["id"])' || echo "")
+          LATEST=0
+          if [ -n "$APP_ID" ]; then
+            LATEST=$(app-store-connect get-latest-build-number "$APP_ID" --no-color 2>/dev/null | tail -1 | tr -cd '0-9' || echo 0)
+          fi
+          [ -z "$LATEST" ] && LATEST=0
+          NEXT=$(( LATEST > BUILD_NUMBER ? LATEST + 1 : BUILD_NUMBER + 1 ))
+          echo "Newest build in App Store Connect: $LATEST, Codemagic counter: $BUILD_NUMBER, using build $NEXT"
           cd ios/App
           agvtool new-marketing-version 1.0
-          agvtool new-version -all $((BUILD_NUMBER + 1))
+          agvtool new-version -all $NEXT
           cd ../..
-          ruby native/add-watch-target.rb --set-version 1.0 $((BUILD_NUMBER + 1))
+          ruby native/add-watch-target.rb --set-version 1.0 $NEXT
       - name: Project details for the log (what Xcode sees; nothing is changed here)
         script: |
           echo "objectVersion: $(grep -m1 objectVersion ios/App/App.xcodeproj/project.pbxproj)"
