@@ -251,6 +251,14 @@ body.noscroll { overflow: hidden; }
 .notice.good { background: #d6f5dc; border-color: #0a7a2a; color: #064d1a; }
 .notice.bad { background: #ffe1e4; border-color: #e0102a; color: #9b0016; }
 .notice.remind { background: #fff6cc; border-color: #b38f00; color: #5c4700; }
+/* v223: dismissible backup reminder (Home + Settings) */
+.bknote { padding: 12px 14px; border-radius: 18px; border: 1px solid #c9a227; background: #fff6cc; color: #3d2e00; text-align: left; }
+.bknote p { margin: 0 0 10px; font-size: 15px; font-weight: 650; line-height: 1.35; }
+.bkacts { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.bkgo, .bkno { border-radius: 999px; padding: 8px 14px; font-size: 15px; font-weight: 700; border: 1px solid transparent; }
+.bkgo { background: #1f7a44; border-color: #196638; color: #fff; }
+.bkno { background: transparent; border-color: rgba(61, 46, 0, .28); color: #3d2e00; font-weight: 650; }
+.bknote-home { width: min(340px, calc(100% - 36px)); background: rgba(255, 246, 214, .92); box-shadow: 0 8px 24px rgba(0,0,0,.22); }
 .hrow { display: flex; gap: 6px; align-items: stretch; margin: 6px 0; }
 .hrow .hist { flex: 1 1 auto; margin: 0; min-width: 0; }
 .hrow .hscore { text-align: right; }
@@ -521,6 +529,7 @@ html body .frostpage .frostdanger, html body .frostpage.theme-sky .frostdanger {
 .archivepage .notice.good { background: rgba(225, 245, 230, .85); color: #1d4d2b; }
 .archivepage .notice.bad { background: rgba(255, 228, 230, .85); color: #8e1f2b; }
 .archivepage .notice.remind { background: rgba(255, 246, 214, .85); color: #5c4700; }
+.archivepage .bknote { background: rgba(255, 246, 214, .9); margin: 10px 0 8px; box-shadow: none; }
 .archivepage .playerbox button, .archivepage .odcard button { border-radius: 999px; }
 .archivepage button.primary, .archivepage .odcard button.primary { background: linear-gradient(180deg, #a9cdf0, #7fb2e5); border-color: #79a9da; color: #0e2a44; }
 .archivepage h2 { font-weight: 600; color: var(--frost-ink); }

@@ -731,7 +731,7 @@ let passed = 0; const ok = (m) => { passed++; console.log('  ✓', m); };
   assert.strictEqual(await page.locator('#histlist .hrow').count(), hist.length - 2); ok('delete from the History list (🗑, confirm) and from a round opened from History (returns to History)');
   // Backup: share sheet with a File (stubbed) and the download fallback
   await act('home'); await act('archive');
-  assert.match(await page.textContent('#bkremind'), /haven't backed up/);
+  assert.match(await page.textContent('#bkremind'), /It's been a while since your last backup/);
   await page.evaluate(() => { window.__shared = null; navigator.canShare = () => true; navigator.share = async d => { window.__shared = { name: d.files[0].name, type: d.files[0].type, text: await d.files[0].text() }; }; });
   await act('backup'); await page.waitForFunction(() => window.__shared);
   const sh = await page.evaluate(() => window.__shared);
@@ -746,7 +746,7 @@ let passed = 0; const ok = (m) => { passed++; console.log('  ✓', m); };
   const [bdl] = await Promise.all([page.waitForEvent('download'), act('backup')]);
   assert.strictEqual(bdl.suggestedFilename(), `golf-rounds-backup-${today}.json`); ok('no share sheet → the same file downloads');
   await page.evaluate(() => localStorage.setItem('golfsg.lastBackup.v1', new Date(Date.now() - 20 * 864e5).toISOString())); await act('history'); await act('home'); await act('archive');
-  assert.match(await page.textContent('#bkremind'), /It's been 20 days since your last backup/); ok('gentle reminder after 14+ days ("It\'s been 20 days …")');
+  assert.match(await page.textContent('#bkremind'), /It's been a while since your last backup/); ok('gentle reminder after 14+ days');
   await page.screenshot({ path: `${SHOTS}/35-home-history-backup.png` });
   // Restore: 1 new, 1 identical, 1 conflict (confirm → replace), plus a duplicate id inside the file
   const back = JSON.parse(JSON.stringify(bk));

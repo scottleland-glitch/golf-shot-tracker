@@ -51,7 +51,8 @@ const BASE = process.env.BASE_URL || 'http://127.0.0.1:8765/', SHOTS = process.e
   console.log('✓ scorecard: marks, OUT/IN/TOTAL, fits 390 (cells ' + fit.h.toFixed(0) + 'px), tap opens hole; History newest first, ‹ History back');
   // backup (download fallback) + restore
   await page.click('[data-act="home"]'); await page.click('#navbtn'); await page.click('#navmenu [data-act="archive"]');
-  assert.match(await page.textContent('#bkremind'), /haven't backed up/);
+  assert.match(await page.textContent('#bkremind'), /It's been a while since your last backup/);
+  assert.ok(await page.$('#bkgo'), 'Save to Files button');
   const [dl] = await Promise.all([page.waitForEvent('download'), page.click('[data-act="backup"]')]);
   assert.match(dl.suggestedFilename(), /^golf-rounds-scott-\d{4}-\d\d-\d\d\.json$/);
   const bk = JSON.parse(require('fs').readFileSync(await dl.path(), 'utf8')); assert.strictEqual(bk.rounds.length, 3);

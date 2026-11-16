@@ -1,5 +1,4 @@
 /* Strokewise iPhone app (Capacitor) – only does anything inside the native app; on the website it returns straight away.
- * · Hides Google Drive backup (Google blocks its sign-in page inside apps) – backup by file through the share sheet still works.
  * · The app's sharing (rounds, backups, PDFs, story images, live links) goes through iOS's own share sheet: the file is written
  *   to the app's cache folder and handed to the Share plugin, so it works the same as Safari's navigator.share.
  */
@@ -8,7 +7,6 @@
   var C = window.Capacitor;
   if (!C || !C.isNativePlatform || !C.isNativePlatform()) return;
   window.STROKEWISE_NATIVE = true;
-  if (window.GOLF_CONFIG) window.GOLF_CONFIG.googleClientId = '';
   var plug = function (n) { try { return (C.registerPlugin ? C.registerPlugin(n) : null) || (C.Plugins && C.Plugins[n]); } catch (e) { return C.Plugins && C.Plugins[n]; } };
   var Share = plug('Share'), FS = plug('Filesystem');
   if (!Share) return;

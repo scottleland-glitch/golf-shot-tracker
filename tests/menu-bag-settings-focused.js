@@ -2,7 +2,7 @@
 // + menu: New round · My Bag · Rounds · Settings. Profile is gone (it only held the player name, which Settings already has).
 // Settings = the old Archive page renamed (title, Courses back button). My Bag has a "Bag | Wedge ladder" toggle at the top;
 // the Wedge ladder is the existing Wedges view (40–110, High/Low flight, Edit). Screenshots 390x844 @3x.
-const { chromium } = require('playwright-core'); const assert = require('assert'); const { spawn } = require('child_process');
+const { chromium } = require('playwright-core'); const assert = require('assert'); const { spawn } = require('child_process'); const path = require('path');
 const BAG = require('../bag.js'), ARC = require('./fixtures/arcade-78.js');
 const OUT = '/workspace/golf-app/screenshots/', PORT = 8840, BASE = 'http://127.0.0.1:' + PORT + '/';
 
@@ -12,7 +12,7 @@ const OUT = '/workspace/golf-app/screenshots/', PORT = 8840, BASE = 'http://127.
   bagB.clubs.forEach(c => { c.carry = { D: 245, '3W': 220, '7i': 150, '9i': 128, PW: 115, '50': 102, '54': 88, '58': 74 }[c.code]; });
   const WJ = { v: 1, rows: { 50: { club: '58', ball: 'front', pos: 'p1', hinge: '45' }, 70: { club: '54', ball: 'middle', lean: '1-2', pos: 'p2', hinge: '90' }, 100: { club: 'PW', ball: 'middle', pos: 'p3', hinge: 'full' } }, low: { 70: { club: '58', ball: 'back', pos: 'p1' } } };
   const R = [Object.assign(ARC.round(), { id: 'a1', date: '2026-10-20T16:00:00.000Z' })];
-  const srv = spawn('python3', ['-m', 'http.server', String(PORT), '--bind', '127.0.0.1'], { cwd: '/workspace/golf-app', stdio: 'ignore' });
+  const srv = spawn('python3', ['-m', 'http.server', String(PORT), '--bind', '127.0.0.1'], { cwd: path.join(__dirname, '..'), stdio: 'ignore' });
   await new Promise(r => setTimeout(r, 1500)); const errors = [];
   const b = await chromium.launch({ executablePath: '/usr/bin/google-chrome', args: ['--no-sandbox'] });
   const ctx = await b.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 3, isMobile: true, hasTouch: true, serviceWorkers: 'block' });
@@ -65,7 +65,8 @@ const OUT = '/workspace/golf-app/screenshots/', PORT = 8840, BASE = 'http://127.
   await (async (P) => { if (!(await P.$('.topbar [data-act="home"]')) && await P.$('#rsmenubtn')) await P.click('#rsmenubtn'); return P.click('.topbar [data-act="home"], #rsmenu [data-act="home"]'); })(P) /* v191: in ☰ on Round stats */; await P.click('#navbtn'); await P.click('#navmenu [data-act="archive"]'); await P.waitForSelector('.archivepage #playerbox');
   assert.match(await P.textContent('.topbar'), /‹ Home\s*Settings\s*1 saved round/);
   assert.match(await P.textContent('#pnameshow'), /Scott/);
-  for (const s of ['[data-act="history"]', '[data-act="courses"]', '[data-act="backup"]', '#restorefile', '#gdcard']) assert(await P.$(s), 'Settings has ' + s);
+  for (const s of ['[data-act="history"]', '[data-act="courses"]', '[data-act="backup"]', '#restorefile']) assert(await P.$(s), 'Settings has ' + s);
+  assert.strictEqual(await P.$('[data-act="gdconnect"], #gdcard'), null, 'no Google Drive card');
   assert(!/Archive|Profile|History/.test(await vis()), 'no Archive / Profile / History wording');
   await shot('settings-page.png');
   await P.click('[data-act="courses"]'); await P.waitForSelector('.coursespage'); assert.strictEqual((await P.textContent('.topbar .txt')).trim(), '‹ Settings');

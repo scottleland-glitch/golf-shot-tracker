@@ -722,6 +722,13 @@
   }
 
   /* ===================== BACKUP / RESTORE ===================== */
+  // File-name safe player slug (letters and numbers, hyphenated). Used in backup file names.
+  function slug(name) {
+    var s = String(name || '').normalize('NFKD').replace(/[\u0300-\u036f]/g, '');
+    s = s.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 40).replace(/-+$/, '');
+    return s === 'backup' ? 'backup-player' : s;
+  }
+
   // Backup file: { app: 'golf-shot-tracker', kind: 'rounds-backup', version: 1, exported: ISO, rounds: [...] }
   function hasWedges(w) { var ok = function (o) { return !!(o && typeof o === 'object' && !Array.isArray(o) && Object.keys(o).length); }; return !!(w && (ok(w.rows) || ok(w.low))); } // v94: High (rows) or Low (low) flight
   function makeBackup(rounds, now, player, courses, bag, wedges, practice, sgtests) {
@@ -914,14 +921,14 @@
   }
   // weighted strokes gained per entry over several rounds' buckets (null when there are none)
   function bucketAvg(list) { var n = 0, sg = 0; (list || []).forEach(function (b) { if (b && b.n) { n += b.n; sg += b.sg; } }); return n ? sg / n : null; }
-  var api = { score18: score18, puttMissGrid: puttMissGrid, statsFileName: statsFileName, CHIP_MAX_YD: CHIP_MAX_YD, BUNKER_MAX_YD: BUNKER_MAX_YD, BUNKER_BUCKET: BUNKER_BUCKET, CHIP_LIES: CHIP_LIES, CHIP_BANDS: CHIP_BANDS, FP_BANDS: FP_BANDS, puttBand: puttBand, chipLie: chipLie, chipBand: chipBand, statBuckets: statBuckets, bucketAvg: bucketAvg, PMISS_GROUPS: PMISS_GROUPS, puttsInside10: puttsInside10, trendAvg: trendAvg, lastN: lastN, PMISS_MAX_FT: PMISS_MAX_FT, LAG_INSIDE_FT: LAG_INSIDE_FT, lagPutt: lagPutt, lagGood: lagGood, lagStats: lagStats, firstPutt: firstPutt, pmissList: pmissList, lagList: lagList, pmissGroup: pmissGroup, pmissClass: pmissClass, pmissStats: pmissStats, pmissScale: pmissScale, CLUBS: CLUBS, arrivalDepth: arrivalDepth, roundEmpty: roundEmpty, foldStubs: foldStubs, pdfSafe: pdfSafe, reportFileName: reportFileName, pinSegments: pinSegments, REPORT_GROUPS: REPORT_GROUPS, reportGroup: reportGroup, SHORT_MAX_YD: SHORT_MAX_YD, SHORT_BUCKET: SHORT_BUCKET, APPR_BUCKETS: APPR_BUCKETS, apprBucket: apprBucket, proxAfterFt: proxAfterFt, puttKind: puttKind, threePutts: threePutts, puttScale: puttScale, puttRadius: puttRadius, puttPlace: puttPlace, PUTT_BANDS: PUTT_BANDS, puttGroup: puttGroup, puttStats: puttStats, makeBackup: makeBackup, parseBackup: parseBackup, mergeRounds: mergeRounds, conflictsOf: conflictsOf, PROX_LIES: PROX_LIES, lieGroup: lieGroup, proxByLie: proxByLie, proxWarnings: proxWarnings, PROX_BUCKETS: PROX_BUCKETS, inBucket: inBucket, roundYd: roundYd, proxStats: proxStats, reachedGreen: reachedGreen, PIN_GRID: PIN_GRID, PIN_NAME: PIN_NAME, normPin: normPin, DIR8: DIR8, DIR_NAME: DIR_NAME, DIR_ANGLE: DIR_ANGLE, normDir: normDir, expected: expected, expectedPGA: expectedPGA, BASELINES: BASELINES, baseline: function (id) { return BL[id] || BL.pga; },
+  var api = { slug: slug, score18: score18, puttMissGrid: puttMissGrid, statsFileName: statsFileName, CHIP_MAX_YD: CHIP_MAX_YD, BUNKER_MAX_YD: BUNKER_MAX_YD, BUNKER_BUCKET: BUNKER_BUCKET, CHIP_LIES: CHIP_LIES, CHIP_BANDS: CHIP_BANDS, FP_BANDS: FP_BANDS, puttBand: puttBand, chipLie: chipLie, chipBand: chipBand, statBuckets: statBuckets, bucketAvg: bucketAvg, PMISS_GROUPS: PMISS_GROUPS, puttsInside10: puttsInside10, trendAvg: trendAvg, lastN: lastN, PMISS_MAX_FT: PMISS_MAX_FT, LAG_INSIDE_FT: LAG_INSIDE_FT, lagPutt: lagPutt, lagGood: lagGood, lagStats: lagStats, firstPutt: firstPutt, pmissList: pmissList, lagList: lagList, pmissGroup: pmissGroup, pmissClass: pmissClass, pmissStats: pmissStats, pmissScale: pmissScale, CLUBS: CLUBS, arrivalDepth: arrivalDepth, roundEmpty: roundEmpty, foldStubs: foldStubs, pdfSafe: pdfSafe, reportFileName: reportFileName, pinSegments: pinSegments, REPORT_GROUPS: REPORT_GROUPS, reportGroup: reportGroup, SHORT_MAX_YD: SHORT_MAX_YD, SHORT_BUCKET: SHORT_BUCKET, APPR_BUCKETS: APPR_BUCKETS, apprBucket: apprBucket, proxAfterFt: proxAfterFt, puttKind: puttKind, threePutts: threePutts, puttScale: puttScale, puttRadius: puttRadius, puttPlace: puttPlace, PUTT_BANDS: PUTT_BANDS, puttGroup: puttGroup, puttStats: puttStats, makeBackup: makeBackup, parseBackup: parseBackup, mergeRounds: mergeRounds, conflictsOf: conflictsOf, PROX_LIES: PROX_LIES, lieGroup: lieGroup, proxByLie: proxByLie, proxWarnings: proxWarnings, PROX_BUCKETS: PROX_BUCKETS, inBucket: inBucket, roundYd: roundYd, proxStats: proxStats, reachedGreen: reachedGreen, PIN_GRID: PIN_GRID, PIN_NAME: PIN_NAME, normPin: normPin, DIR8: DIR8, DIR_NAME: DIR_NAME, DIR_ANGLE: DIR_ANGLE, normDir: normDir, expected: expected, expectedPGA: expectedPGA, BASELINES: BASELINES, baseline: function (id) { return BL[id] || BL.pga; },
     CALIB_ROUND: CALIB_ROUND, catLoss: catLoss, analyzeHole: analyzeHole, summarize: summarize,
     rowsToShots: rowsToShots, shotsToRows: shotsToRows, migrateV2Rows: migrateV2Rows, v1ToRows: v1ToRows, holeYards: holeYards,
     rowUnit: rowUnit, isHoled: isHoled, isRetee: isRetee, holedKind: holedKind, lieOf: lieOf, distOf: distOf, rowStrokes: rowStrokes, isPenalty: isPenalty,
     YARDS: YARDS, OFF_GREEN: OFF_GREEN, FEET: FEET, PUTTS: PUTTS,
     // v150: the ONE place the app version lives – must equal the sw.js cache name ('golf-sg-' + VERSION). It sits in a cached file,
     // so Settings shows the version of the code actually running (config.js is network-first and could run ahead).
-    VERSION: 'v222' };
+    VERSION: 'v223' };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else root.SG = api;
 })(this);

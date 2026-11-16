@@ -67,7 +67,6 @@
   var DIR_GRID = [['longleft', 'long', 'longright'], ['left', '', 'right'], ['shortleft', 'short', 'shortright']];
   function dirName(d) { return d ? SG.DIR_NAME[d] : 'No direction'; }
   var CAT_NAME = { tee: 'Off the tee', approach: 'Approach', short: 'Short game', bunker: 'Bunker', putting: 'Putting' };
-
   var rounds = load();
   (function () { var n = playerName(), ch = false; if (n) rounds.forEach(function (r) { if (!r.player) { r.player = n; ch = true; } }); if (ch) localStorage.setItem(KEY, JSON.stringify(rounds)); })(); // rounds belong to this phone's player
   var view = { screen: 'home', roundId: localStorage.getItem(CUR), hole: 0, menu: null };
@@ -91,7 +90,6 @@
     live.collect(); live.flush(); // catch up on anything queued before the app was closed
   }
   try { if (sessionStorage.getItem('golfsg.afterRedirect')) { view.screen = sessionStorage.getItem('golfsg.afterRedirect'); sessionStorage.removeItem('golfsg.afterRedirect'); } } catch (e) {}
-
   function load() {
     var rs;
     try { rs = JSON.parse(localStorage.getItem(KEY)) || []; } catch (e) { rs = []; }
@@ -195,7 +193,6 @@
     if (el) el.focus(); }
   function played9(h) { return !!h.finished || h.rows.length > 1; } // v220: a shot entered past the tee (the tee yardage may be filled in from the course)
   function started(h) { return h.rows.length > 1 || h.rows[0].dist !== '' || !!h.finished; }
-
   // ---------- rendering ----------
   // in-round look: B = sky gradient (default), A = light-blue accents on the photo (?theme=A or localStorage golfsg.roundTheme = A).
   function roundTheme() { var t = (location.search.match(/[?&]theme=([AB])/) || [])[1] || localStorage.getItem('golfsg.roundTheme'); return t === 'A' ? ' theme-blue' : ' theme-sky'; }
@@ -276,7 +273,6 @@
       p.parentNode.insertBefore(w, p); p.classList.add('infotext'); p.hidden = !infoOpen[key]; p.setAttribute('data-info', id); if (!p.id) p.id = id;
     });
   }
-
   // ---------- PDF round report (on-device, offline: vendor/jspdf.umd.min.js) ----------
   function loadJsPDF() {
     return new Promise(function (res, rej) { if (window.jspdf) return res(); var sc = document.createElement('script'); sc.src = 'vendor/jspdf.umd.min.js'; sc.onload = res; sc.onerror = function () { rej(new Error('Could not load the PDF tool')); }; document.head.appendChild(sc); });
@@ -1301,7 +1297,6 @@
     });
     return h + '</div>' + (view.addr ? addSheetHTML() : '') + (M ? mvBarHTML() : '') + (view.mv && view.mv.from === 'history' && view.mv.sheet ? mvSheetHTML() : '') + '</div>';
   }
-
   // ---------- v116 Stats: one small graph per number + scoring curves for par 3 / 4 / 5 ----------
   // Numbers per round come from the same code as the round screens: strokes gained = the scorecard TOT column (scorecardData),
   // fairways / GIR = SG.summarize like the Quick view, putts = summarize().puttList (2-putts / 3-putts per hole by its putt count).
@@ -1684,10 +1679,8 @@
   // keep the chosen round visible inside the scrolling list (without moving the page)
   function stListScroll() { var L = document.getElementById('strounds'), s = L && L.querySelector('.stri.sel'); if (!s) return;
     if (s.offsetTop < L.scrollTop || s.offsetTop + s.offsetHeight > L.scrollTop + L.clientHeight) L.scrollTop = Math.max(0, s.offsetTop - 6); }
-
   // ---------- v99 Change player: move saved rounds to another player's name ----------
-  // round.player = new name, round.updated = now (merges prefer it), round.movedFrom = old name(s) so the Google Drive
-  // backup takes the round out of the old player's file. Id, shots, stats: unchanged.
+  // round.player = new name, round.updated = now. Id, shots, stats: unchanged.
   function mvNames() {
     var L = [], seen = {}; function add(n) { n = String(n || '').trim().replace(/\s+/g, ' '); if (n && !seen[n.toLowerCase()]) { seen[n.toLowerCase()] = 1; L.push(n); } }
     add(playerName()); savedRounds().forEach(function (r) { add(r.player); });
@@ -1710,7 +1703,7 @@
         '<p class="rsh-sub" id="mvfrom">From ' + esc(froms.join(', ')) + '</p><div class="mvlist" id="mvlist">';
       L.filter(function (r) { return !samePlayer(mvOwner(r), M.to); }).slice(0, 4).forEach(function (r) { var S = SG.summarize(r, blOf(r)); o += '<div>' + esc(new Date(r.date).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })) + (r.course ? ' · ' + esc(r.course) : '') + (S.holesDone ? ' · ' + S.strokes : '') + '</div>'; });
       if (k > 4) o += '<div class="muted">and ' + (k - 4) + ' more</div>';
-      o += '</div><p class="rsh-help">Every shot and stat stays the same – only the name changes. Backups move with ' + (k === 1 ? 'it' : 'them') + '.</p>' +
+      o += '</div><p class="rsh-help">Every shot and stat stays the same – only the name changes.</p>' +
         '<button class="rsh-go" data-act="mvyes" id="mvyes">Move</button><button class="rsh-item muted" data-act="mvclose" id="mvno">Cancel</button></div>';
       return o;
     }
@@ -1750,7 +1743,7 @@
       case 'mvpick': M.to = v; M.sheet = 'confirm'; break;
       case 'mvnew': {
         var t = String((document.getElementById('mvname') || {}).value || '').trim().replace(/\s+/g, ' ').slice(0, 40); M.typed = t;
-        if (!GDX.slug(t)) { M.err = 'Please type a name (letters or numbers).'; break; }
+        if (!SG.slug(t)) { M.err = 'Please type a name (letters or numbers).'; break; }
         var known = mvNames().filter(function (x) { return samePlayer(x, t); })[0]; M.to = known || t; M.sheet = 'confirm'; M.err = null; break;
       }
       case 'mvyes': { var n = moveRounds(M.ids, M.to); view.mv = null; render(); toast(n ? 'Moved ' + nRounds(n) + ' to ' + M.to + ' ✓' : 'Nothing to move'); return; }
@@ -1837,18 +1830,39 @@
     view.addr = { step: 'done', round: r, viewId: r.id }; render(); toast('Round added');
   }
   // ---------- Backup / restore ----------
-  var BK = 'golfsg.lastBackup.v1';
+  var BK = 'golfsg.lastBackup.v1', BKSNOOZE = 'golfsg.backupSnooze.v1';
   function localDay(d) { return d.getFullYear() + '-' + ('0' + (d.getMonth() + 1)).slice(-2) + '-' + ('0' + d.getDate()).slice(-2); }
-  function backupReminder() {
-    if (!rounds.length) return '';
-    var last = localStorage.getItem(BK), days = last ? Math.floor((Date.now() - new Date(last).getTime()) / 864e5) : null;
-    if (days == null) return 'Tip: you haven\'t backed up your rounds yet. Connect Google Drive for automatic backups, or tap Back up rounds to save a copy to Files.';
-    return days >= 14 ? 'It\'s been ' + days + ' days since your last backup. Tap Back up rounds to save a fresh copy.' : '';
+  function backupDays() {
+    var last = null; try { last = localStorage.getItem(BK); } catch (e) {}
+    if (!last) return null;
+    var t = new Date(last).getTime();
+    return isNaN(t) ? null : Math.floor((Date.now() - t) / 864e5);
   }
-  function backupDone() { localStorage.setItem(BK, new Date().toISOString()); var nO = ownRounds().filter(function (x) { return !SG.roundEmpty(x); }).length; view.notice = { text: 'Backup ready: ' + nO + ' round' + (nO === 1 ? '' : 's') + ' for ' + playerName() + ' saved.' }; if (view.screen === 'home' || view.screen === 'archive') render(); }
+  function backupSnoozed() {
+    var s = null; try { s = localStorage.getItem(BKSNOOZE); } catch (e) {}
+    if (!s) return false;
+    var t = new Date(s).getTime();
+    return !isNaN(t) && (Date.now() - t) < 14 * 864e5;
+  }
+  // v223: show a short reminder if there are saved rounds and no file backup in 14+ days (or never). Hidden while viewing an athlete, and after Not now (snoozes 14 days).
+  function backupReminderOn() {
+    if (typeof CO !== 'undefined' && CO && CO.view) return false;
+    if (!savedRounds().length) return false;
+    if (backupSnoozed()) return false;
+    var days = backupDays();
+    return days == null || days >= 14;
+  }
+  function backupReminderHTML(where) {
+    if (!backupReminderOn()) return '';
+    return '<div class="bknote' + (where ? ' bknote-' + where : '') + '" id="bkremind" role="status">' +
+      '<p>It\'s been a while since your last backup. Save one to Files.</p>' +
+      '<div class="bkacts"><button type="button" class="bkgo" data-act="backup" id="bkgo">Save to Files</button>' +
+      '<button type="button" class="bkno" data-act="bksnooze" id="bksnooze">Not now</button></div></div>';
+  }
+  function backupDone() { localStorage.setItem(BK, new Date().toISOString()); try { localStorage.removeItem(BKSNOOZE); } catch (e) {} var nO = ownRounds().filter(function (x) { return !SG.roundEmpty(x); }).length; view.notice = { text: 'Backup ready: ' + nO + ' round' + (nO === 1 ? '' : 's') + ' for ' + playerName() + ' saved.' }; if (view.screen === 'home' || view.screen === 'archive') render(); }
   function backupRounds() {
     if (!playerName()) { askName('Enter your player name first – it goes in the backup file name.'); return; }
-    var name = 'golf-rounds-' + GDX.slug(playerName()) + '-' + localDay(new Date()) + '.json', json = JSON.stringify(SG.makeBackup(rounds.filter(function (x) { return !SG.roundEmpty(x); }), null, playerName(), courses(), bagForBackup(), wedgesForBackup(), practice(), sgTests()), null, 1), file;
+    var name = 'golf-rounds-' + SG.slug(playerName()) + '-' + localDay(new Date()) + '.json', json = JSON.stringify(SG.makeBackup(rounds.filter(function (x) { return !SG.roundEmpty(x); }), null, playerName(), courses(), bagForBackup(), wedgesForBackup(), practice(), sgTests()), null, 1), file;
     try { file = new File([json], name, { type: 'application/json' }); } catch (e) { file = null; }
     if (file && navigator.canShare && navigator.canShare({ files: [file] })) {
       navigator.share({ files: [file] }).then(backupDone).catch(function (e) {
@@ -1860,63 +1874,14 @@
     download(json, name, 'application/json'); backupDone();
   }
   // Restore = pick from the backup: list every round, preview read-only, merge only the selected ones.
-  function restoreFrom(text, only) {
+  function restoreFrom(text) {
     var P = SG.parseBackup(text);
     if (P.error) { view.notice = { text: P.error, bad: true }; render(); return; }
     var bp = ''; try { bp = (JSON.parse(text) || {}).player || ''; } catch (e) {}
     if (bp) P.rounds.forEach(function (r) { if (!r.player) r.player = bp; }); // label rounds with the backup's player
-    if (only) { P.rounds = P.rounds.filter(function (r) { return samePlayer(r.player || bp, only); }); if (!samePlayer(only, playerName())) { P.bag = null; P.wedges = null; } } // Google Drive: just that player
     P.rounds.sort(function (a, b) { return new Date(b.date) - new Date(a.date); });
     view.restore = { rounds: P.rounds, sel: {}, player: bp, courses: P.courses || [], bag: P.bag || null, wedges: P.wedges || null,
       practice: (P.practice || []).filter(function (e) { return !only || samePlayer(e.player || bp, only); }) }; view.preview = null; view.screen = 'restorepick'; render(); window.scrollTo(0, 0);
-  }
-  // ---------- v101 Google Drive restore: every round in that player's backup, tick the ones to bring back ----------
-  function gdListOpen(text, who, label) {
-    var P = SG.parseBackup(text), raw = null;
-    if (P.error) { view.notice = { text: P.error, bad: true }; view.screen = 'archive'; render(); return; }
-    try { raw = JSON.parse(text); } catch (e) {}
-    var items = GDX.restoreList(raw, who, rounds), sel = {}, mine = samePlayer(who, playerName());
-    items.forEach(function (it) { if (it.status === 'new') sel[it.round.id] = true; }); // missing rounds start ticked
-    view.restore = { gd: { player: who, label: label }, items: items, rounds: items.map(function (it) { return it.round; }), sel: sel, player: who,
-      courses: P.courses || [], bag: mine ? P.bag || null : null, wedges: mine ? P.wedges || null : null, practice: P.practice || [] };
-    view.preview = null; view.screen = 'restorepick'; render(); window.scrollTo(0, 0);
-  }
-  function gdlItem(id) { return ((view.restore && view.restore.items) || []).filter(function (it) { return it.round.id === id; })[0]; }
-  function gdlChosen() { var R = view.restore; return R.items.filter(function (it) { return it.status !== 'same' && R.sel[it.round.id]; }); }
-  function gdlStatus(it) { return it.status === 'new' ? 'Not on this phone' : it.status === 'newer' ? 'On this phone · backup copy is newer' : it.phoneNewer ? 'On this phone · this phone’s copy is newer' : 'On this phone'; }
-  function restoreExtrasNotes(R) {
-    var o = '', nc = (R.courses || []).length, nb = R.bag && R.bag.clubs ? R.bag.clubs.length : 0, nws = R.wedges ? WEDGES.filled(R.wedges) : 0;
-    if (nc) o += '<p class="help muted" id="rpcourses">⛳ ' + nc + ' saved course' + (nc === 1 ? '' : 's') + ' come along (new or newer ones only).</p>';
-    if (nb) o += '<p class="help muted" id="rpbag">🏌️ My Bag (' + nb + ' club' + (nb === 1 ? '' : 's') + ') comes along if this phone’s bag is empty or older.</p>';
-    if (R.wedges && WEDGES.count(R.wedges)) o += '<p class="help muted" id="rpwedges">🎯 Wedges chart (' + nws + ' yardage' + (nws === 1 ? '' : 's') + ') comes along if this phone’s chart is empty or older.</p>';
-    var npr = (R.practice || []).length; if (npr) o += '<p class="help muted" id="rppractice">⏱ ' + npr + ' practice entr' + (npr === 1 ? 'y' : 'ies') + ' come along (new ones only).</p>'; // v142
-    return o;
-  }
-  function gdListHTML() {
-    var R = view.restore, G = R.gd, I = R.items, nSel = gdlChosen().length, nNew = I.filter(function (it) { return it.status === 'new'; }).length, nOn = I.length - nNew;
-    var allNew = nNew && I.every(function (it) { return it.status !== 'new' || R.sel[it.round.id]; });
-    var o = '<div class="frostpage theme-sky gdlpage" id="gdlpage"><div class="topbar frost"><button class="txt frostbtn" data-act="rpcancel">‹ Back</button><div class="title"><b>' + esc(G.player) + '’s rounds</b><span>' + esc(G.label) + '</span></div><span style="width:70px"></span></div>' +
-      '<div class="gdlsum" id="gdlsum"><b id="gdltotal">' + nRounds(I.length) + '</b> in this backup<div class="gdlchips"><span class="gdlchip gdlnew">' + nNew + ' not on this phone</span><span class="gdlchip gdlonc">' + nOn + ' on this phone</span></div></div>';
-    if (I.length) o += '<div class="gdltools"><button class="gdltool" data-act="gdlmissing" id="gdlmissing"' + (nNew && !allNew ? '' : ' disabled') + '>' + (allNew ? '✓ All missing' : 'Select all missing') + '</button>' +
-      '<button class="gdltool" data-act="gdlclear" id="gdlclear"' + (nSel ? '' : ' disabled') + '>Clear</button></div>';
-    o += '<div class="gdllist" id="rplist">';
-    I.forEach(function (it) {
-      var r = it.round, S = SG.summarize(r, blOf(r)), on = it.status === 'same', ck = !on && !!R.sel[r.id], d = new Date(r.date);
-      var nh = (r.holes || []).length, part = S.holesDone && S.holesDone < nh ? ' · ' + S.holesDone + ' holes' : '';
-      o += '<div class="rprow gdlrow' + (on ? ' gdlon' : '') + (ck ? ' gdlsel' : '') + '" data-id="' + esc(r.id) + '" data-status="' + it.status + '">' +
-        '<button class="gdltick" data-act="gdltoggle" data-id="' + esc(r.id) + '" role="checkbox" aria-checked="' + ck + '"' + (on ? ' disabled aria-disabled="true"' : '') + '>' +
-        '<span class="gdlbox" aria-hidden="true">' + (ck ? '✓' : '') + '</span>' +
-        '<span class="gdlmain"><span class="gdldate">' + esc(isNaN(d) ? '' : d.toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' })) + part + '</span>' +
-        '<b class="gdlcourse">' + esc(r.course || 'Round') + '</b><small class="rpst gdlst gdlst-' + it.status + '">' + gdlStatus(it) + '</small></span>' +
-        '<span class="gdlscore"><b>' + (S.holesDone ? S.strokes : '–') + '</b><small>' + (S.holesDone ? toPar(S.toPar) : '') + '</small></span></button>' +
-        '<button class="gdlview" data-act="rpview" data-id="' + esc(r.id) + '" aria-label="Look at this round">›</button></div>';
-    });
-    if (!I.length) o += '<p class="help muted" id="gdlempty">No rounds in this backup.</p>';
-    o += '</div>' + restoreExtrasNotes(R);
-    var extra = [(R.courses || []).length ? 'courses' : '', R.bag && R.bag.clubs && R.bag.clubs.length ? 'bag' : '', R.wedges && WEDGES.count(R.wedges) ? 'wedges' : '', (R.practice || []).length ? 'practice' : ''].filter(Boolean);
-    o += '<p class="muted gdlnote">They go into Rounds under ' + esc(G.player) + '. Nothing on this phone is deleted, and a newer copy on this phone is never replaced.</p>';
-    return o + '<div class="gdlbar" id="gdlbar"><span class="gdlcount" id="gdlcount">' + nSel + ' selected</span><button class="gdlgo" data-act="rpgo" id="rpgo"' + (nSel || extra.length ? '' : ' disabled') + '>' +
-      (nSel || !extra.length ? 'Restore ' + nRounds(nSel) : 'Restore ' + extra.join(' &amp; ')) + '</button></div></div>';
   }
   function restorePractice(R, parts) {
     if (R.sgtests && R.sgtests.length) { var TM = SGTEST.mergeTests(sgTests(), R.sgtests); if (TM.added) { localStorage.setItem(SGK, JSON.stringify(TM.tests)); parts.push(TM.added + ' short game test' + (TM.added === 1 ? '' : 's')); } } // v166
@@ -1927,16 +1892,8 @@
     if (R.bag) { var BM = BAG.mergeBag(bag(), R.bag); if (BM.changed) { localStorage.setItem(BGK, JSON.stringify(BM.bag)); parts.push('My Bag (' + BM.bag.clubs.length + ' clubs)'); } }
     if (R.wedges) { var WM = WEDGES.mergeWedges(wedges(), R.wedges); if (WM.changed) { localStorage.setItem(WGK, JSON.stringify(WM.wedges)); var nlo = WEDGES.filled(WM.wedges, 'low'); parts.push('Wedges (' + WEDGES.filled(WM.wedges) + ' yardages' + (nlo ? ' · ' + nlo + ' Low flight' : '') + ')'); } }
   }
-  function gdRestoreSelected() {
-    var R = view.restore, A = GDX.applyRestore(rounds, R.items, R.sel), who = R.gd.player;
-    localStorage.setItem(KEY, JSON.stringify(A.rounds)); rounds = load(); if (A.added || A.updated) backupDirty(3000);
-    var parts = []; restoreExtras(R, parts);
-    view.notice = { text: '✓ Restored ' + nRounds(A.added) + (A.updated ? ' and updated ' + A.updated : '') + ' from ' + who + '’s backup' + (A.added || A.updated ? ' – they’re in Rounds under ' + who : '') + '.' + (parts.length ? ' Also: ' + parts.join(', ') + '.' : '') };
-    view.restore = null; view.preview = null; view.screen = 'archive'; render(); window.scrollTo(0, 0); toast(A.added + A.updated ? 'Restored ' + nRounds(A.added + A.updated) : 'Nothing new to restore');
-  }
   function restoreState(r) { var cur = rounds.filter(function (x) { return x.id === r.id; })[0]; return !cur ? 'new' : JSON.stringify(cur) === JSON.stringify(r) ? 'same' : 'diff'; }
   function restorePickHTML() {
-    if (view.restore.gd) return gdListHTML();
     var R = view.restore, L = R.rounds, nSel = L.filter(function (r) { return R.sel[r.id]; }).length;
     var o = '<div class="topbar"><button class="txt" data-act="rpcancel">‹ Cancel</button><div class="title"><b>Restore rounds</b><span>' + L.length + ' in backup' + (R.player ? ' · ' + esc(R.player) : '') + '</span></div><span style="width:70px"></span></div>' +
       '<p class="help muted">Tap a round to look at it. Tick the ones to bring onto this phone – nothing on the phone is deleted.</p>' +
@@ -1965,12 +1922,9 @@
     [].slice.call(el.querySelectorAll('select, input')).forEach(function (x) { x.disabled = true; });
     [].slice.call(el.querySelectorAll('[data-act="mapscope"]')).forEach(function (x) { var g = x.closest('.seg') || x; g.remove(); });
     var lab = el.querySelector('.label'); if (lab) lab.textContent = 'Scorecard';
-    var gi = view.restore.gd && gdlItem(view.preview.id);
-    if (gi && gi.status === 'same' && !el.querySelector('#rpprevsel')) el.insertAdjacentHTML('beforeend', '<p class="help muted" id="rpprevsel">✓ Already on this phone</p><button class="big" data-act="rpback">‹ Back to the backup list</button>');
     if (!el.querySelector('#rpprevsel')) el.insertAdjacentHTML('beforeend', '<button class="primary big" id="rpprevsel" data-act="rpselone" data-id="' + esc(view.preview.id) + '">' + (view.restore.sel[view.preview.id] ? '✓ Selected – tap to unselect' : 'Select this round to restore') + '</button><button class="big" data-act="rpback">‹ Back to the backup list</button>');
   }
   function restoreSelected() {
-    if (view.restore.gd) return gdRestoreSelected();
     var R = view.restore, pick = R.rounds.filter(function (r) { return R.sel[r.id]; }), P = { rounds: pick };
     var conf = SG.conflictsOf(rounds, P.rounds), replace = false;
     if (conf.length) replace = confirm(conf.length + ' round' + (conf.length === 1 ? '' : 's') + ' in the backup ' + (conf.length === 1 ? 'is' : 'are') + ' different from the copy on this phone (' +
@@ -1988,162 +1942,25 @@
     view.notice = { text: '✓ Restored from backup: ' + parts.join(', ') + '. You now have ' + savedRounds().length + ' round' + (savedRounds().length === 1 ? '' : 's') + '.' };
     view.restore = null; view.preview = null; view.screen = 'archive'; render(); window.scrollTo(0, 0);
   }
-  // ---------- v101: OneDrive backup removed – Google Drive (below) is the only automatic backup ----------
+  // ---------- file backups; leftover OneDrive / Google Drive sign-in state is forgotten on this phone ----------
   var CFG = window.GOLF_CONFIG || {};
-  function backupDirty(delay) { gdDirty(delay); if (typeof syncDirty === 'function') syncDirty(); } // v212: and to the coach // every change to rounds, courses, My Bag or Wedges → Google Drive soon
-  // A phone that had OneDrive connected: quietly forget the old OneDrive state and Microsoft sign-in cache ON THIS PHONE
-  // (nothing in OneDrive itself is touched), and drop a leftover Microsoft sign-in return (#code=…) from the address bar.
+  function backupDirty(delay) { if (typeof syncDirty === 'function') syncDirty(); } // v212: also send to the coach
+  // A phone that had OneDrive or Google Drive connected: quietly forget that old sign-in state ON THIS PHONE
+  // (nothing in OneDrive or Google Drive itself is touched), and drop a leftover Microsoft sign-in return (#code=…) from the address bar.
   (function () {
-    try { Object.keys(localStorage).forEach(function (k) { if (/^golfsg\.onedrive\./.test(k) || /^msal\.|login\.windows\.net|login\.microsoftonline\.com/i.test(k)) localStorage.removeItem(k); }); } catch (e) {}
-    try { if (/[#&](code|client_info)=/.test(location.hash) && !(window.GD && window.GD.parseHash(location.hash))) history.replaceState(null, '', location.pathname + location.search); } catch (e) {}
+    try { Object.keys(localStorage).forEach(function (k) { if (/^golfsg\.(onedrive|gdrive)\./.test(k) || /^msal\.|login\.windows\.net|login\.microsoftonline\.com/i.test(k)) localStorage.removeItem(k); }); } catch (e) {}
+    try { if (/[#&](code|client_info)=/.test(location.hash)) history.replaceState(null, '', location.pathname + location.search); } catch (e) {}
   })();
-
-  // ---------- v98 Google Drive automatic backup (main backup; see gdrive.js) ----------
-  var GDX = window.GD, gdOn = !!(GDX && GDX.enabled(CFG)), gdState = gdOn ? GDX.loadState(localStorage) : null, gdTimer = null, gdBusy = false, gdBack = null;
-  function gdTok() { if (!gdOn) return null; try { var t = JSON.parse(localStorage.getItem(GDX.TOKEN_KEY)); return GDX.tokenValid(t, Date.now()) ? t : null; } catch (e) { return null; } }
-  function gdSave() { GDX.saveState(localStorage, gdState); }
-  function gdDirty(delay) { if (!gdOn || !gdState || !gdState.connected) return; GDX.markDirty(gdState); if (!gdTok()) gdState.needsAuth = true; gdSave(); gdSoon(delay); }
-  function gdSoon(delay) { if (!gdOn || !gdState.connected || !gdTok()) return; clearTimeout(gdTimer); gdTimer = setTimeout(gdSync, delay == null ? 1500 : delay); }
-  // One backup file per player – every round goes to the folder of its own round.player (rounds with no name = this phone's player).
-  // My Bag and the Wedges chart only go in this phone's player's file; saved courses go in every file.
-  function gdFiles() {
-    var me = playerName(), g = {}, order = [];
-    function grp(p) { var n = GDX.folderName(p), k = n.toLowerCase(); if (!GDX.slug(n)) return null; if (!g[k]) { g[k] = { player: n, rounds: [] }; order.push(k); } return g[k]; }
-    if (me && (bagForBackup() || wedgesForBackup() || ownRounds().length || practiceOf(me).length || sgTestsOf(me).length)) grp(me);
-    rounds.forEach(function (r) { if (SG.roundEmpty(r)) return; var G = grp(r.player || me); if (G) G.rounds.push(r); });
-    GDX.movedFrom(rounds).forEach(function (m) { m.from.forEach(function (f) { var k = GDX.folderName(f).toLowerCase(); if (GDX.slug(f) && !g[k]) { g[k] = { player: GDX.folderName(f), rounds: [], dropOnly: true }; order.push(k); } }); }); // v99: tidy a moved round out of its old player's file
-    return order.map(function (k) {
-      var G = g[k], mine = samePlayer(G.player, me);
-      return { player: G.player, dropOnly: !!G.dropOnly, backup: SG.makeBackup(G.rounds, null, G.player, courses(), mine ? bagForBackup() : null, mine ? wedgesForBackup() : null, practiceOf(G.player), sgTestsOf(G.player)) };
-    });
-  }
-  function gdSync() {
-    if (!gdOn || !gdState.connected || gdBusy || !gdState.pending) return Promise.resolve();
-    var t = gdTok(); gdBusy = true; gdRefresh();
-    return GDX.sync({ state: gdState, fetch: window.fetch.bind(window), token: t && t.accessToken, online: navigator.onLine, files: gdFiles(), moved: GDX.movedFrom(rounds) }).then(function (st) {
-      gdBusy = false; gdState = st;
-      if (st.needsAuth && t) localStorage.removeItem(GDX.TOKEN_KEY); // Google said the sign-in has run out
-      gdSave();
-      if (!st.pending) localStorage.setItem(BK, st.lastOk);
-      else if (!st.needsAuth && navigator.onLine && gdTok()) gdSoon(GDX.retryDelay(st.attempts));
-      gdRefresh();
-    });
-  }
-  function gdRefresh() { var c = document.getElementById('gdcard'); if (c && view.screen === 'archive') { var d = document.createElement('div'); d.innerHTML = gdCardHTML(); c.replaceWith(d.firstChild); } }
-  function gdWhen(iso) { var d = new Date(iso), t = new Date(); return (d.toDateString() === t.toDateString() ? 'today' : d.toLocaleDateString([], { month: 'short', day: 'numeric' })) + ' at ' + d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }); }
-  function gdStatus(tok) {
-    if (gdBusy) return '⏳ Backing up…';
-    var o = gdState.lastOk ? '✓ Last backed up ' + gdWhen(gdState.lastOk) : 'Not backed up yet';
-    if (gdState.pending) o += tok ? ' · ⏳ ' + esc(gdState.lastError || 'new changes going up soon') : ' · new changes are waiting';
-    return o;
-  }
-  function gdCardHTML() {
-    if (!gdOn) return '';
-    var h = '<div class="odcard gdcard" id="gdcard"><h3 class="tiphead">' + tipLbl('gdinfo', 'Google Drive backup') + tipBtn('gdinfo', 'i', 'About Google Drive backup') + '</h3>' +
-      tipText('gdinfo', 'Your rounds, saved courses, My Bag and Wedges chart are copied to Google Drive by themselves – after each round and when you open the app – into a folder called Pin High Backups (the app’s old name, kept so earlier backups are still found), with one folder per player. Several phones can use the same Google account: each backup adds to what is there, nothing is overwritten. Google asks you to sign in again after about an hour; until then backups simply wait.');
-    if (!gdState.connected) return h + '<p class="odstat">Keeps a copy of everything safe in your Google Drive.</p><button class="big primary gdgo" data-act="gdconnect" id="gdconnect">Connect Google Drive</button></div>';
-    var tok = gdTok();
-    h += '<p class="odacct" id="gdacct">' + (gdState.user ? 'Connected as <b>' + esc(gdState.user) + '</b>' : 'Connected') + '</p><p class="odstat" id="gdstat" role="status">' + gdStatus(tok) + '</p>';
-    if (!tok) h += '<button class="gdsignin" data-act="gdsignin" id="gdsignin">Sign in to Google to back up</button>';
-    h += '<div class="odbtns"><button class="big" data-act="gdsync" id="gdsync"' + (gdBusy ? ' disabled' : '') + '>Back up now</button><button class="big" data-act="gdrestore" id="gdrestore">Restore</button></div>' +
-      '<button class="txt oddisc" data-act="gddisconnect" id="gddisc">Disconnect Google Drive</button></div>';
-    return h;
-  }
-  function gdRestoreHTML() {
-    var V = view.gdr, o = '<div class="rsheet-bg" data-act="gdrclose"></div><div class="rsheet" id="gdrsheet" role="dialog" aria-modal="true" aria-labelledby="gdrh">';
-    if (V.step === 'files') {
-      o += '<div class="rsh-h" id="gdrh">' + esc(V.player) + '’s backups</div><p class="rsh-sub">Only ' + esc(V.player) + '’s rounds are loaded.</p>';
-      if (V.loading) o += '<p class="rsh-help">Looking in Google Drive…</p>';
-      (V.files || []).forEach(function (f, i) {
-        o += '<button class="' + (i ? 'rsh-item' : 'rsh-go') + '" data-act="gdrfile" data-v="' + esc(f.id) + '">' + (f.date ? '🗓 Weekly copy · ' + esc(new Date(f.date + 'T12:00').toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' })) : '☁️ Latest backup') +
-          '<small>' + (f.modified ? 'saved ' + esc(gdWhen(f.modified)) : esc(f.name)) + '</small></button>';
-      });
-      if (!V.loading && V.files && !V.files.length) o += '<p class="rsh-help">No backups in this folder yet.</p>';
-      if (V.err) o += '<p class="rsh-err" role="alert">' + esc(V.err) + '</p>';
-      o += '<button class="rsh-item muted" data-act="gdrback">‹ Other players</button>';
-    } else {
-      o += '<div class="rsh-h" id="gdrh">Restore from Google Drive</div><p class="rsh-sub">Whose rounds?</p>';
-      if (V.loading) o += '<p class="rsh-help">Looking in Google Drive…</p>';
-      (V.players || []).forEach(function (p) { o += '<button class="rsh-item" data-act="gdrplayer" data-v="' + esc(p.id) + '" data-name="' + esc(p.name) + '">👤 ' + esc(p.name) + (samePlayer(p.name, playerName()) ? '<small>you</small>' : '') + '</button>'; });
-      if (!V.loading && V.players && !V.players.length) o += '<p class="rsh-help">No backups in Google Drive yet.</p>';
-      if (V.err) o += '<p class="rsh-err" role="alert">' + esc(V.err) + '</p>';
-      if (V.signin) o += '<button class="rsh-go" data-act="gdsignin" data-v="restore">Sign in to Google</button>';
-    }
-    return o + '<p class="rsh-help">Picked rounds are added to this phone – nothing here is deleted.</p><button class="rsh-item muted" data-act="gdrclose">Close</button></div>';
-  }
-  function gdFail(e) { var V = view.gdr; if (!V) return; V.loading = false; if (e && e.kind === 'auth') { localStorage.removeItem(GDX.TOKEN_KEY); V.step = 'players'; V.signin = true; V.err = 'Google needs you to sign in again.'; } else V.err = e && e.kind === 'offline' ? 'No connection – try again when you’re online.' : 'Couldn’t read Google Drive – please try again.'; render(); }
-  function gdRestoreOpen() {
-    var t = gdTok(); view.gdr = { step: 'players', loading: !!t, signin: !t, err: t ? null : 'Sign in to Google to see your backups.' }; render();
-    if (!t) return;
-    GDX.listPlayers(window.fetch.bind(window), t.accessToken).then(function (L) { if (!view.gdr) return; view.gdr.players = L; view.gdr.loading = false; render(); }, gdFail);
-  }
-  function gdAct(act, b) {
-    var v = b.getAttribute('data-v');
-    if (act === 'gdconnect' || act === 'gdsignin') {
-      if (!playerName()) { askName('Enter your player name first – it names your folder in Google Drive.'); return; }
-      if (!navigator.onLine) { toast('You’re offline – connect to the internet to sign in'); return; }
-      var st = GDX.newAuthState(function (a) { return crypto.getRandomValues(a); });
-      try { sessionStorage.setItem(GDX.AUTHSTATE_KEY, st); localStorage.setItem(GDX.AUTHSTATE_KEY, st); sessionStorage.setItem('golfsg.afterRedirect', 'archive'); if (v === 'restore') sessionStorage.setItem('golfsg.gdafter', 'restore'); } catch (e) {}
-      location.assign(GDX.authUrl(CFG.googleClientId.trim(), GDX.redirectUri(location), st, /@/.test(gdState.user || '') ? gdState.user : '')); return;
-    }
-    if (act === 'gdsync') { GDX.markDirty(gdState); gdState.attempts = 0; gdSave(); if (gdTok()) gdSync(); else gdAct('gdsignin', b); return; }
-    if (act === 'gdrestore') { gdRestoreOpen(); return; }
-    if (act === 'gdrclose') { view.gdr = null; render(); return; }
-    if (act === 'gdrback') { gdRestoreOpen(); return; }
-    if (act === 'gdrplayer') {
-      var t = gdTok(), name = b.getAttribute('data-name'); if (!t) { gdRestoreOpen(); return; }
-      view.gdr = { step: 'files', player: name, loading: true }; render();
-      GDX.listFiles(window.fetch.bind(window), t.accessToken, v).then(function (L) { if (!view.gdr) return; view.gdr.files = L; view.gdr.loading = false; render(); }, gdFail); return;
-    }
-    if (act === 'gdrfile') {
-      var t2 = gdTok(), who = view.gdr && view.gdr.player; if (!t2) { gdRestoreOpen(); return; }
-      view.gdr.loading = true; view.gdr.err = null; render();
-      var fm = (view.gdr.files || []).filter(function (x) { return x.id === v; })[0], lab = fm && fm.date ? 'Weekly copy · ' + new Date(fm.date + 'T12:00').toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' }) : 'Latest backup';
-      GDX.download(window.fetch.bind(window), t2.accessToken, v).then(function (txt) { view.gdr = null; gdListOpen(txt, who, lab); }, gdFail); return;
-    }
-    if (act === 'gddisconnect') {
-      if (!confirm('Disconnect Google Drive?\n\nYour backups stay in Google Drive. This phone stops backing up there.')) return;
-      var tk = gdTok(); if (tk) fetch(GDX.REVOKE + '?token=' + encodeURIComponent(tk.accessToken), { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' } }).catch(function () {});
-      clearTimeout(gdTimer); localStorage.removeItem(GDX.TOKEN_KEY); gdState = GDX.newState(); gdSave(); toast('Google Drive disconnected'); render();
-    }
-  }
-  // Back from Google's sign-in page: #access_token=…&state=… – checked, kept, and wiped from the address bar before anything else
-  var gdReturned = false, gdAfter = null;
-  function gdReturn() {
-    if (!gdOn) return;
-    var p = GDX.parseHash(location.hash); if (!p) return;
-    var exp = []; try { exp = [sessionStorage.getItem(GDX.AUTHSTATE_KEY), localStorage.getItem(GDX.AUTHSTATE_KEY)].filter(Boolean); } catch (e) {}
-    var res = GDX.checkReturn(p, exp, Date.now());
-    try { history.replaceState(null, '', location.pathname + location.search); } catch (e) { location.hash = ''; }
-    try { sessionStorage.removeItem(GDX.AUTHSTATE_KEY); localStorage.removeItem(GDX.AUTHSTATE_KEY); gdAfter = sessionStorage.getItem('golfsg.gdafter'); sessionStorage.removeItem('golfsg.gdafter'); } catch (e) {}
-    view.screen = 'archive';
-    if (res.error) { view.notice = { text: res.error, bad: true }; return; }
-    localStorage.setItem(GDX.TOKEN_KEY, JSON.stringify(res.token));
-    gdState.connected = true; gdState.needsAuth = false; gdState.attempts = 0; GDX.markDirty(gdState); gdSave(); gdReturned = true;
-  }
-  function gdInit() {
-    if (!gdOn) return;
-    window.addEventListener('online', function () { if (gdState.pending) gdSoon(500); });
-    document.addEventListener('visibilitychange', function () { if (!document.hidden && gdState.connected && gdState.pending) gdSoon(1000); });
-    if (!gdState.connected) return;
-    var t = gdTok();
-    if (gdReturned) {
-      toast('Google Drive connected');
-      GDX.about(window.fetch.bind(window), t.accessToken).then(function (u) { if (u) { gdState.user = u; gdSave(); gdRefresh(); } }, function () {});
-      gdSoon(300); if (gdAfter === 'restore') gdRestoreOpen(); return;
-    }
-    GDX.markDirty(gdState); if (!t) gdState.needsAuth = true; gdSave(); gdSoon(2500); // back up on app open (quietly waits if signed out)
-  }
   function askName(msg) { view.screen = 'archive'; view.editName = true; view.needName = msg; render(); var i = document.getElementById('pname'); if (i) { i.scrollIntoView({ block: 'center' }); i.focus(); } }
   function setName(n) {
     n = String(n || '').trim().replace(/\s+/g, ' ').slice(0, 40);
-    if (!GDX.slug(n)) { toast('Please enter a name (letters or numbers)'); return; }
+    if (!SG.slug(n)) { toast('Please enter a name (letters or numbers)'); return; }
     var old = playerName();
-    if (old && old !== n && !confirm('Change player name from "' + old + '" to "' + n + '"?\n\nYour rounds are relabelled and new Google Drive backups go to the ' + GDX.folderName(n) + ' folder. Older backups are kept.')) return;
+    if (old && old !== n && !confirm('Change player name from "' + old + '" to "' + n + '"?\n\nYour rounds are relabelled.')) return;
     if (view.nameSheet === 'first' && view.firstMode) setMode(n, view.firstMode); // v209: the first-launch choice
     localStorage.setItem(PN, n); localStorage.setItem(NA, '1'); view.editName = false; view.needName = null; view.nameSheet = null; view.newPEdit = false;
     rounds.forEach(function (r) { if (!r.player || r.player === old) r.player = n; });
-    save(); gdDirty(800);
+    save(); backupDirty(800);
     var code = String((document.getElementById('pcode') || {}).value || '').trim(); view.firstCode = null;
     if (code && syncOn()) { csAuto(code); return; } // v217: "Have a coach code?" on the first screen
     toast('Player name: ' + n); render();
@@ -2154,7 +1971,7 @@
     return '<div class="playerbox edit" id="playerbox">' + (view.needName ? '<p class="notice bad" id="needname">' + esc(view.needName) + '</p>' : '') +
       '<label class="lbl" for="pname">Player name</label><div class="pnrow2"><input type="text" id="pname" value="' + esc(n) + '" placeholder="e.g. Scott" autocomplete="name" maxlength="40">' +
       '<button class="primary" data-act="setname">Save</button>' + (n ? '<button data-act="cancelname">Cancel</button>' : '') + '</div>' +
-      '<div class="tiprow">' + tipBtn('nameinfo', 'i', 'About the player name') + tipLbl('nameinfo', 'About the player name') + '</div>' + tipText('nameinfo', 'Saved on this phone. It labels your rounds and names your backups (golf-rounds-<i>name</i>.json), so several phones can share one Google Drive.') + '</div>';
+      '<div class="tiprow">' + tipBtn('nameinfo', 'i', 'About the player name') + tipLbl('nameinfo', 'About the player name') + '</div>' + tipText('nameinfo', 'Saved on this phone. It labels your rounds and names your backup files (golf-rounds-<i>name</i>.json).') + '</div>';
   }
   // First open on a new phone (no name, no rounds yet): ask who's playing once. 'Not now' doesn't ask again – the Player row in the New round sheet does it any time.
   function needFirstName() { return !playerName() && !localStorage.getItem(NA) && !rounds.length; }
@@ -2207,9 +2024,9 @@
     var h = '<div class="home" id="home"><div class="home-bg" aria-hidden="true"></div><div class="home-fade" aria-hidden="true"></div>' +
       '<h1 class="home-title">Strokewise</h1>' +
       '<button class="glass plusbtn navbtn' + benchBang() + '" id="navbtn" data-act="hnav" aria-label="Menu: rounds, stats, my game, my bag, settings or help" aria-expanded="' + (view.hmenu === 'nav') + '">' + ICON_MENU + '</button>' +
-
 ''; // v89: no Player row on Home (kept clean) – it lives in the New round sheet
     var bot = '';
+    if (!view.nameSheet && !view.hmenu) bot += backupReminderHTML('home');
     if (!cur) bot += homeCardHTML(); // v200: the "next thing" card (rotates); a round in progress pins Resume instead
     if (cur) { var S = SG.summarize(cur); bot += '<button class="glass pill" id="resumepill" data-act="resume">Resume round<small>' + (cur.course ? esc(cur.course) + ' · ' : '') + S.holesDone + ' holes done</small></button>';
       // v199 (Scott): an empty round in progress could only be removed from inside it – discard it right here
@@ -3244,8 +3061,7 @@
     h += '<h2>Your data</h2>' + playerHTML() + (playerName() ? modeRowHTML(playerName(), 'setmoderow') : ''); // v209
     h += coachCardHTML(); // v212
     if (view.notice) h += '<p class="notice ' + (view.notice.bad ? 'bad' : 'good') + '" id="notice" role="status">' + esc(view.notice.text) + '</p>';
-    h += gdCardHTML();
-    var rem = gdOn && gdState.connected ? '' : backupReminder(); if (rem) h += '<div class="tiprow" id="bkremind">' + tipBtn('bktip', '💡', 'Backup tip') + tipLbl('bktip', 'Backup tip') + tipText('bktip', esc(rem)) + '</div>';
+    h += backupReminderHTML('settings');
     h += '<button class="big frostbtn" data-act="backup"' + (rounds.length || nC || bag().clubs.length || WEDGES.count(wedges()) ? '' : ' disabled') + '>💾 Back up rounds</button>' +
       '<label class="big filebtn frostbtn" for="restorefile">📂 Restore from backup</label><input type="file" id="restorefile" accept=".json,application/json" hidden>' +
       '<div class="tiprow" id="bkinfo">' + tipBtn('bkinfo', 'i', 'About backup and restore') + tipLbl('bkinfo', 'About backup &amp; restore') + tipText('bkinfo', 'Back up saves all rounds, saved courses, My Bag and your Wedges chart as one file (golf-rounds-backup-date.json) – choose Save to Files in the share sheet. Restore adds the rounds from a backup file; rounds already on this phone are not duplicated.') + '</div>';
@@ -3255,10 +3071,8 @@
     h += '<p class="credits setlinks" id="setlinks"><a href="privacy.html" target="_blank" rel="noopener">Privacy Policy</a> · <a href="support.html" target="_blank" rel="noopener">Support</a></p>'; // v179: required by Apple
     if (window.STROKEWISE_WATCH && window.STROKEWISE_WATCH.panel) h += window.STROKEWISE_WATCH.panel(); // Apple Watch status + debug log (only in the iPhone app's watch build)
     h += '<p class="appver setver" id="setver" aria-label="App version">' + esc(APP_VER) + '</p>';
-    if (view.gdr) h += gdRestoreHTML();
     return h + '</div>';
   }
-
   // v128: Help (+ menu › Help) – a few Get started lines, the how-to video and the how-to guide PDF (help/, not in the offline cache)
   function helpHTML() {
     var steps = ['Tap <b>+</b> › <b>New round</b>, pick a course, <b>Start round</b>.', 'Log each shot: distance, lie, club.', 'Mark the shot that goes in: <b>In the hole</b> or <b>Hole out</b> (1-putts too).',
@@ -3271,7 +3085,6 @@
       '<a class="hpbtn" id="hppdf" href="help/PinHigh-HowTo.pdf" target="_blank" rel="noopener">📄 Open the guide (PDF)</a></div>' +
       '<p class="appver setver" aria-label="App version">' + esc(APP_VER) + '</p></div>';
   }
-
   // ---------- Saved courses (typed in: par + yardages per tee box) ----------
   // v113: small fixed-size tee dot (pure CSS, nothing to load): the colour in the name, two-tone for combos, a white circle otherwise
   function teeDot(name) { var c = COURSES.teeColors(name);
@@ -3800,11 +3613,9 @@
         '<button class="sheet-item danger" role="menuitem" data-act="discard" data-id="' + esc(r.id) + '">Discard round</button></div>' : '') + // v188: Home + Discard live in ⋯
       ''; // v189
     else out += reviewing ? '<div class="holetop">' + '<button class="frostbtn holeback" data-act="holeback" id="holeback">‹ Round stats</button>' + liveBarHTML(r) + '</div>' : liveBarHTML(r);
-
     out += '<div class="holecard frostcard' + (fin ? ' fin' : '') + '">' + holeHeadHTML(r, h, fin);
     var pin = SG.normPin(h.pin);
     out += '<button class="pinbtn frostbtn' + (pin ? ' set' : '') + '" id="pinbtn" data-act="pinopen">⛳ ' + (pin ? 'Pin: ' + SG.PIN_NAME[pin].toLowerCase() + ' <small>change</small>' : 'Set pin location') + '</button>';
-
     // v115: finished shots are one tight line (# · Hit · Club · Loc · SG); only the shot being entered has the entry cells + its header
     var act = fin ? -1 : activeRow(h), thead = false;
     h.rows.forEach(function (row, k) {
@@ -3813,7 +3624,6 @@
       if (!thead) { thead = true; out += '<div class="thead" id="thead" aria-hidden="true"><span>#</span><span>Hit</span><span>Club</span><span>Loc</span><span>SG</span></div>'; }
       out += tightHTML(h, a, k, fin);
     });
-
     var pens = h.rows.reduce(function (n, rw, k) { return n + (SG.isPenalty(rw, k) ? 1 : 0); }, 0);
     out += '<div class="countrow"><div class="count" id="count">' + countText(h, pens) + '</div></div>';
     if (fin) {
@@ -3847,7 +3657,6 @@
     if (view.liveCard && live) out += liveCardHTML(r);
     return out;
   }
-
   // ---------- Live sharing: "Share live" pill on the hole screen + a link card ----------
   var LIVE_SVG = '<svg class="liveico" viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><circle cx="12" cy="12" r="2.6" fill="currentColor"/><path d="M7.8 7.8a6 6 0 0 0 0 8.4M16.2 7.8a6 6 0 0 1 0 8.4M5 5a10 10 0 0 0 0 14M19 5a10 10 0 0 1 0 14" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>';
   function liveBarHTML(r) {
@@ -3883,7 +3692,6 @@
     if (navigator.share) navigator.share({ title: 'Strokewise · Live', text: liveMsg(r), url: url }).catch(function (e) { if (!e || e.name !== 'AbortError') liveCopy(url); });
     else liveCopy(url);
   }
-
   // v184 (Scott): voice entry ("Say it") removed.
   function dirSheetHTML(h, k) {
     var cur = SG.normDir(h.rows[k].dir), prevLie = SG.lieOf(h.rows, k - 1), prevGreen = prevLie === 'green', ob = h.rows[k].loc === 'ob'; // v153
@@ -3901,7 +3709,6 @@
     var n = h.rows.length;
     return n + ' stroke' + (n === 1 ? '' : 's') + (pens ? ' + ' + pens + ' penalty' + (pens === 1 ? '' : ' strokes') + ' = ' + (n + pens) : '');
   }
-
   // ---------- v115: hole header + tight shot lines ----------
   function activeRow(h) { var n = h.rows.length, e = view.edk; return e && e.h === view.hole && e.k < n ? e.k : n - 1; }
   function holeCard(r, i) { // scorecard facts for this hole from the saved course: yards for the tee played, par, stroke index
@@ -3998,7 +3805,6 @@
     }
     return out;
   }
-
   // ---------- v157 (Scott, redesign 1 + 3): one card per shot ----------
   // From (this row: lie + distance to the pin, filled in by the shot before) · Club · Finished (the NEXT row: where it came to rest,
   // which way it missed, penalties – Hazard asks Drop or Re-tee) · Next shot. The saved rows are the same as before.
@@ -4145,7 +3951,6 @@
     }
     return '';
   }
-
   // v103 Scorecard: ONE card that scrolls sideways (holes 1-18, then OUT / IN / TOT), sticky row labels on the left.
   // Marks: birdie = circle, eagle or better = double circle, bogey = square, double bogey or worse = double square, par = plain.
   function scoreMark(score, par) {
@@ -5187,7 +4992,6 @@
     var rank = used.map(function (c) { var s2 = clubStats(by[c]); return { c: c, s: s2 }; }).filter(function (x) { return x.s.sgN; }).sort(function (a, b) { return b.s.sg / b.s.sgN - a.s.sg / a.s.sgN; });
     o += '<h3 class="clubh3">Strokes gained by club' + tipBtn('clubrank', 'i', 'About this table') + '</h3>' + tipText('clubrank', 'Best club per shot at the top (vs PGA Tour benchmark). Layup tee shots are not in SG. Bias ⚠ = finishes more than 5 yd short or long on average (from the distance + direction of the next shot; straight left/right counts as pin high). Tap a row to see that club.') + '<table id="clubrank" class="clubtab"><tr><th>#</th><th>Club</th><th class="num">Shots</th><th class="num">SG/shot</th><th class="num">Total</th><th>Bias</th></tr>' + rank.map(function (x, i) {
       return '<tr data-act="clubsel" data-v="' + esc(x.c) + '" class="' + (x.c === cur ? 'cur' : '') + '"><td>' + (i + 1) + '</td><td><b>' + esc(x.c) + '</b></td><td class="num">' + x.s.sgN + '</td><td class="num ' + sgCls(x.s.sg) + '">' + fmtSG(x.s.sg / x.s.sgN) + '</td><td class="num ' + sgCls(x.s.sg) + '">' + fmtSG(x.s.sg) + '</td><td>' + (x.s.bias ? '⚠ ' + Math.round(Math.abs(x.s.lg)) + ' yd ' + x.s.bias : '') + '</td></tr>'; }).join('') + '</table>';
-
     return o;
   }
   // ---------- Best vs worst rounds (app only) ----------
@@ -5972,7 +5776,6 @@
     return out2;
   }
   function stat(l, v) { return '<div class="stat"><b>' + v + '</b><span>' + l + '</span></div>'; }
-
   // ---------- CSV ----------
   function localDate(iso) { var t = new Date(iso); return t.getFullYear() + '-' + ('0' + (t.getMonth() + 1)).slice(-2) + '-' + ('0' + t.getDate()).slice(-2); }
   function csvFor(list) {
@@ -6007,13 +5810,11 @@
     toast(msg || (/\.json$/.test(name) ? 'Backup downloaded' : 'CSV downloaded'));
   }
   function fileName(r) { return 'golf-' + (r ? localDate(r.date) + (r.course ? '-' + r.course.replace(/[^a-z0-9]+/gi, '-') : '') : 'all-rounds') + '.csv'; }
-
   // ---------- actions ----------
   function newRow(h, after) {
     var prev = h.rows[after];
     return { loc: prev && prev.loc === 'green' ? 'green' : '', dist: '', dir: '', pen: false };
   }
-
   document.addEventListener('click', function (ev) {
     var b = ev.target.closest('[data-act]'); if (!b || b.disabled) return;
     var act = b.getAttribute('data-act'), v = b.getAttribute('data-v'), k = +b.getAttribute('data-k');
@@ -6060,6 +5861,7 @@
       case 'namecancel': view.nameSheet = null; render(); return;
       case 'history': view.hmenu = null; view.mv = null; view.screen = 'history'; view.notice = null; render(); window.scrollTo(0, 0); return;
       case 'backup': backupRounds(); return;
+      case 'bksnooze': try { localStorage.setItem(BKSNOOZE, new Date().toISOString()); } catch (e) {} render(); return;
       case 'pdf': case 'pdfshare': case 'stpdf': if (act === 'pdf') { view.pdfAt = b.getAttribute('data-at') || ''; view.rsMenu = null; } pdfAct(act); return;
       case 'rsmenu': view.rsMenu = !view.rsMenu; render(); return; // v191
       case 'info': { infoOpen[v] = !infoOpen[v]; var t = b && document.getElementById(b.getAttribute('aria-controls'));
@@ -6080,9 +5882,6 @@
       case 'rpselone': { var id1 = b.getAttribute('data-id'); view.restore.sel[id1] = !view.restore.sel[id1]; render(); return; }
       case 'rpall': { var all1 = b.checked; view.restore.rounds.forEach(function (x) { view.restore.sel[x.id] = all1; }); render(); return; }
       case 'rpgo': restoreSelected(); return;
-      case 'gdltoggle': { var gt = gdlItem(b.getAttribute('data-id')); if (!gt || gt.status === 'same') return; view.restore.sel[gt.round.id] = !view.restore.sel[gt.round.id]; render(); return; }
-      case 'gdlmissing': view.restore.items.forEach(function (it) { if (it.status === 'new') view.restore.sel[it.round.id] = true; }); render(); return;
-      case 'gdlclear': view.restore.sel = {}; render(); return;
       case 'pdfclose': view.pdf = null; render(); return;
       // v177: back to the player's benchmark from a page showing another one
       case 'blmineround': setBaseline(v); return;
@@ -6157,7 +5956,6 @@
       case 'stcur': var oD = statsData(); if (!oD.openP) return; view.stMode = 'sel'; view.stRid = oD.openP.id; view.stCmp = true; view.stSel = null; (view.stOpen = view.stOpen || {}).scoring = true; render();
         var sc2 = document.getElementById('stcat-scoring'); if (sc2) window.scrollTo(0, window.scrollY + sc2.getBoundingClientRect().top - 8); return;
       case 'stpt': var sc = b.getAttribute('data-c'), si = +b.getAttribute('data-i'); view.stSel = view.stSel && view.stSel.c === sc && view.stSel.i === si ? null : { c: sc, i: si }; render(); return;
-      case 'gdconnect': case 'gdsignin': case 'gdsync': case 'gdrestore': case 'gdrclose': case 'gdrback': case 'gdrplayer': case 'gdrfile': case 'gddisconnect': gdAct(act, b); return;
       case 'delHist': {
         var dr = rounds.filter(function (x) { return x.id === b.getAttribute('data-id'); })[0]; if (!dr) return;
         if (!confirm('Delete the round from ' + new Date(dr.date).toLocaleDateString() + (dr.course ? ' (' + dr.course + ')' : '') + ' for good?')) return;
@@ -6255,9 +6053,9 @@
           var rr = round(); rr.holes.forEach(function (hh) { if (!hh.finished && hh.par && SG.analyzeHole(hh).complete) hh.finished = true; });
           if (live) live.finish(rr.id);
           var F2 = SG.foldStubs(rounds); rounds = F2.rounds; if (localStorage.getItem(CUR) === rr.id) localStorage.removeItem(CUR);
-          save(); gdSoon(1500); toast('Round saved to Rounds');
+          save(); backupDirty(1500); toast('Round saved to Rounds');
         }
-        view.screen = 'summary'; view.part = 'stats'; if (gdOn && gdState.pending) gdSoon(300); render(); window.scrollTo(0, 0); return;
+        view.screen = 'summary'; view.part = 'stats'; render(); window.scrollTo(0, 0); return;
       case 'backHole': view.part = null; goHole(view.hole); return;
       case 'holemenu': view.holeMenu = !view.holeMenu; render(); return; // v188
       case 'exitno': view.exitAsk = false; render(); return; // v189
@@ -6290,7 +6088,7 @@
       case 'finish': {
         var af = SG.analyzeHole(h);
         if (!af.complete) { toast(hintText(h, af)); return; }
-        h.finished = true; save(); gdSoon(1500); view.menu = null;
+        h.finished = true; save(); backupDirty(1500); view.menu = null;
         toast('Hole ' + (view.hole + 1) + ': ' + af.strokes + ' (' + toPar(af.strokes - h.par) + ')');
         break;
       }
@@ -6308,7 +6106,6 @@
     }
     render();
   });
-
   function setBaseline(id) {
     var r = round(); if (!r || r.baseline === id) return;
     var y = window.scrollY; r.baseline = id; save(); render(); window.scrollTo(0, y);
@@ -6370,7 +6167,6 @@
     if (blank0(row.dist)) focusDist(k);
   }
   function blank0(v) { return v === '' || v == null; }
-
   document.addEventListener('input', function (ev) { if (ev.target && ev.target.id === 'bzslider') bzUpdate(+ev.target.value); if (ev.target && ev.target.id === 'course') view.newName = ev.target.value;
     if (ev.target && ev.target.id === 'nearq' && view.near) { view.near.q = ev.target.value; var nr = document.getElementById('nearres'), html = nearResHTML(); if (nr) nr.outerHTML = html || '<span id="nearres"></span>'; else ev.target.insertAdjacentHTML('afterend', html); } });
   document.addEventListener('change', function (ev) { if (ev.target && ev.target.id === 'newbl') view.newBl = ev.target.value; });
@@ -6458,12 +6254,10 @@
       var tl = document.querySelector('.tline[data-k="' + k + '"]'); if (tl) { var tmp = document.createElement('div'); tmp.innerHTML = tightHTML(h, a, k, !!h.finished && a.complete); tl.parentNode.replaceChild(tmp.firstChild, tl); } // v115: Hit fills in as the next distance is typed
     });
   }
-
   function firstOpenHole(r) {
     for (var i = 0; i < r.holes.length; i++) { if (!SG.analyzeHole(r.holes[i]).done) return i; }
     return r.holes.length - 1;
   }
-
   // Apple Watch link (watch-app branch): the few things native/watch.js needs from the app. Only the iPhone app's watch build loads watch.js;
   // on the website nothing calls these, so they change nothing.
   window.STROKEWISE_APP = {
@@ -6477,7 +6271,7 @@
       var ae = document.activeElement; if (!(ae && /^(INPUT|TEXTAREA|SELECT)$/.test(ae.tagName))) render();
     }
   };
-  gdReturn(); coInit(); render(); gdInit(); // v212: coInit opens a coach's Athletes / an invite link
+  coInit(); render(); // v212: coInit opens a coach's Athletes / an invite link
   if ('serviceWorker' in navigator && location.protocol !== 'file:') {
     // When a new version is installed, reload once so the update shows right away.
     var hadController = !!navigator.serviceWorker.controller, reloaded = false;

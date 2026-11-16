@@ -883,3 +883,10 @@ test('v157 (Scott): pin-high right, chip long -> finishes left of the pin (9 o\'
   assert.strictEqual(a.shots[3].fromAng, 180, 'first putt starts from there');
   assert.strictEqual(a.shots[3].ang, 90, 'putt missed left (golfer\'s view from 9 o\'clock) = toward the back of the green');
 });
+
+test('slug for backup file names', () => {
+  assert.strictEqual(SG.slug('Scott Leland'), 'scott-leland');
+  assert.strictEqual(SG.slug('  Quincy  '), 'quincy');
+  assert.strictEqual(SG.slug(''), '');
+  assert.strictEqual(SG.slug('backup'), 'backup-player');
+});

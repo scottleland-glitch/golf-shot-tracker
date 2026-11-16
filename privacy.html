@@ -25,19 +25,21 @@
 <header><img src="icons/icon-192.png" alt=""><b>StrokeWise</b></header>
 <main>
 <h1>Privacy Policy</h1>
-<p class="meta">Effective date: November 10, 2026 · Applies to the StrokeWise app for iPhone and the StrokeWise web app.</p>
+<p class="meta">Effective date: November 16, 2026 · Applies to the StrokeWise app for iPhone (and its Apple Watch companion) and the StrokeWise web app.</p>
 
-<div class="card"><b>The short version:</b> your golf data stays on your phone. StrokeWise has no accounts, no ads, no analytics and no tracking. Nothing leaves your phone unless you use a feature that sends it: course lookup, live sharing, Google Drive backup, or sharing something yourself.</div>
+<div class="card"><b>The short version:</b> your golf data stays on your phone unless you use a feature that sends it. StrokeWise has no ads, no analytics and no tracking. You can look up a course, share a round live, share a file yourself, or (if you choose) share your game with a coach. Coaches can create an email sign-in. On Apple Watch, a Golf workout can be saved to Apple Health on your device – that Health data is not sent to us.</div>
 
 <h2>Who we are</h2>
 <p>StrokeWise is a golf statistics app operated by Scott Leland, doing business as StrokeWise, Reno, Nevada, USA ("we", "us"). This policy explains what the app does with your information and the choices you have.</p>
 
 <h2>1. Your rounds stay on your phone</h2>
-<p>Your rounds, shots, scores, strokes gained, clubs (My Bag), courses, practice logs, player names, benchmark and settings are saved only in the app's storage on your device. We can't see them and we keep no copies on our servers. The only exception is a live round you choose to share (section 4).</p>
-<p>If you delete the app, this data is deleted too, so make a backup if you want to keep it.</p>
+<p>Your rounds, shots, scores, strokes gained, clubs (My Bag), courses, practice logs, lessons, player names, benchmark and settings are saved in the app's storage on your device. We can't see them. We keep no copies on our servers unless you use live sharing or coach sharing (section 4).</p>
+<p>If you delete the app, the data on that phone is deleted too, so save a backup file if you want to keep it. A backup is a file you save yourself (for example to Files or iCloud Drive). We never receive that file.</p>
 
-<h2>2. No accounts</h2>
-<p>There is no sign-up and no StrokeWise account. We don't collect your email address, phone number or profile.</p>
+<h2>2. Accounts</h2>
+<p>There is no StrokeWise account for everyday play, and we don't ask for your email just to use the app.</p>
+<p>If you join a coach's team, the app creates a quiet, anonymous device account with Google Firebase so your phone can send your game to that coach. You don't pick a password for this. If you stop sharing, the app deletes that device account along with the coach's online copy.</p>
+<p>If you coach, you can sign up with an email address and password. Firebase stores that password and can send you a reset email. Signing out leaves your team in place; deleting your coach account removes the team and your sign-in (section 8).</p>
 
 <h2>3. Location</h2>
 <p>If you tap <i>Courses near me</i>, the app asks your iPhone for your location once, to sort a list of golf courses by distance. The sorting happens on your phone. Your location is not sent to us or anyone else and is not saved. Location is never tracked in the background. You can say no and search for a course by name instead, and you can turn location off for StrokeWise in iPhone Settings at any time.</p>
@@ -48,44 +50,53 @@
 <tbody>
 <tr><td>Course list and scorecards</td><td>A request for the course list, and for the scorecard of the course you pick. It uses the course's location, not yours. No personal information.</td><td>The StrokeWise website (GitHub Pages) and StrokeWise's course-data relay (a Cloudflare Worker that fetches scorecards from GolfCore). Like any website, these services may briefly process your IP address to answer the request. We don't keep it.</td></tr>
 <tr><td>Share live (optional)</td><td>The player name shown on the round, the course, tee, date and the hole-by-hole scores of the round you share.</td><td>A Google Firebase database, stored under a random private link. Anyone you give the link to can follow the round. When you tap <i>Stop sharing</i>, the app deletes the live copy. Until then it stays available to people with the link, including after the round ends.</td></tr>
-<tr><td>Google Drive backup (optional)</td><td>A backup file of your rounds, courses, bag and practice.</td><td>Your own Google Drive, through Google's sign-in. The app can only see files it created. We never see your backups, your Google account details or your password. You can disconnect at any time in Settings.</td></tr>
-<tr><td>Sending a round, PDF report, story picture, CSV or backup file</td><td>Whatever you choose to send.</td><td>Wherever you send it with the iPhone share sheet (Messages, Mail, Files, Instagram and so on). Those apps' own privacy policies apply.</td></tr>
+<tr><td>Coach sharing (optional)</td><td>When an athlete joins a coach's team with a code: finished rounds, short game tests, practice logs and lessons, plus a short profile (benchmark, typical week, tournament settings and how you use the app). Looking up the code creates the device account first, so the app can show you the coach's name before you agree.</td><td>Google Firebase. Only that team's coach can read it. The athlete writes only their own copy. Before joining, the athlete must choose <i>I'm 18 or older</i> or <i>I'm under 18 and a parent or guardian agrees</i>. That answer is stored with the team membership.</td></tr>
+<tr><td>Sending a round, PDF report, story picture, CSV or backup file</td><td>Whatever you choose to send.</td><td>Wherever you send it with the iPhone share sheet (Messages, Mail, Files, Instagram and so on). Those apps' own privacy policies apply. A backup file saved to Files stays under your control; we never receive it.</td></tr>
 </tbody></table>
 
-<h2>5. How we use information</h2>
-<p>Only to run the features above: finding courses and scorecards, showing live rounds you share, and saving backups you ask for. We do not sell or rent your information, use it for advertising, or track you across other apps and websites. We do not use AI services to process your data.</p>
+<h2>5. Apple Watch and Apple Health</h2>
+<p>This applies only to the iPhone app with its Apple Watch companion. The web app does not use Health or the Watch.</p>
+<p>When you start a round, the iPhone can launch the Watch app and both may ask Apple for Health permission. During the round, the Watch runs an outdoor Golf workout so it can stay awake on your wrist. When the round ends, that workout is saved to Apple Health.</p>
+<p>StrokeWise may <b>write</b> the Golf workout, and may <b>read</b> heart rate, active energy and walking or running distance so the workout record in Health is complete. The Watch sends shot details (such as lie, direction and distance) to the iPhone so the round stays in sync. It does not send Health readings to the iPhone, to us, or to Firebase. We do not use Health data for advertising.</p>
+<p>Health information stays on your device and in Apple Health. You can decline the permission sheet, or turn StrokeWise off later in iPhone Settings › Health.</p>
 
-<h2>6. Service providers</h2>
+<h2>6. How we use information</h2>
+<p>Only to run the features above: finding courses and scorecards, showing live rounds you share, and (if you choose) showing your game to your coach. We do not sell or rent your information, use it for advertising, or track you across other apps and websites. We do not use AI services to process your data.</p>
+
+<h2>7. Service providers</h2>
 <ul>
 <li><b>GitHub Pages</b> hosts the StrokeWise website and web app.</li>
 <li><b>Cloudflare</b> runs the course-data relay.</li>
 <li><b>GolfCore</b> provides course scorecards (through the relay, which never passes on anything about you).</li>
-<li><b>Google Firebase</b> stores live rounds you choose to share.</li>
-<li><b>Google Drive</b> stores backups you choose to make, in your own account.</li>
-<li><b>Apple</b> distributes the iPhone app. If you have turned on sharing with app developers in iPhone Settings, Apple may send us anonymous crash reports.</li>
+<li><b>Google Firebase</b> stores live rounds you choose to share, and coach-sharing data (including coach email sign-ins and the anonymous device accounts described above).</li>
+<li><b>Apple</b> distributes the iPhone and Apple Watch apps, and provides Apple Health on your device. If you have turned on sharing with app developers in iPhone Settings, Apple may send us anonymous crash reports.</li>
 </ul>
 <p>These providers handle data only to deliver these features.</p>
 
-<h2>7. Deleting your data</h2>
+<h2>8. Deleting your data</h2>
 <ul>
-<li>Delete any round in the app, or delete the app to remove everything stored on your phone.</li>
-<li>Tap <i>Stop sharing</i> to delete a live round from our database. If you no longer have the app, email us the link and we will delete it.</li>
-<li>Disconnect Google Drive in Settings, and delete backup files from your Drive whenever you like.</li>
+<li>Delete any round in the app, or delete the app to remove everything stored on that phone.</li>
+<li>Tap <i>Stop sharing</i> on a live round to delete that live copy from the database. If you no longer have the app, email us the link and we will delete it.</li>
+<li>If you share with a coach, tap <i>Stop sharing</i> in Settings. The online copy is deleted, you are removed from the team, and the device account is deleted. Your rounds stay on your phone.</li>
+<li>A coach can remove an athlete from the team. The athlete's app deletes its online copy the next time it checks in.</li>
+<li>A coach can tap <i>Delete account and team</i> in Settings. That removes the team, the team code, every member link and the coach's sign-in. Athletes' rounds stay on their phones. The online copies are no longer visible to a coach. Each athlete's app deletes its own online copy the next time it checks in, or when they stop sharing.</li>
+<li>Backup files you saved to Files (or anywhere else you sent them) are yours to delete there.</li>
+<li>To stop Health access, use iPhone Settings › Health, or delete the app.</li>
 </ul>
 
-<h2>8. Children</h2>
-<p>StrokeWise is a general-audience golf app and is not directed to children under 13. We do not knowingly collect personal information from children under 13. Junior golfers under 18 should use the app with a parent's or guardian's permission. If you believe a child under 13 has shared information with us through a live round, contact us and we will delete it.</p>
+<h2>9. Children</h2>
+<p>StrokeWise is a general-audience golf app and is not directed to children under 13. We do not knowingly collect personal information from children under 13. Junior golfers under 18 should use the app with a parent's or guardian's permission. If a junior joins a coach's team, the app asks them to confirm they are 18 or older, or that a parent or guardian agrees, before anything is sent. If you believe a child under 13 has shared information with us through a live round or coach sharing, contact us and we will delete it.</p>
 
-<h2>9. Your choices and rights</h2>
-<p>You control your data: you can turn off location, stop live sharing, disconnect Google Drive and delete rounds at any time. Depending on where you live (for example California or the European Union), you may have rights to access, correct or delete personal information. Because we keep almost nothing, most requests are handled in the app itself. For anything else, email us.</p>
+<h2>10. Your choices and rights</h2>
+<p>You control your data: you can turn off location, stop live sharing, stop sharing with a coach, delete a coach account, turn off Health access, save or delete a backup file, and delete rounds at any time. Depending on where you live (for example California or the European Union), you may have rights to access, correct or delete personal information. Most requests can be handled in the app itself. For anything else, email us.</p>
 
-<h2>10. Security</h2>
-<p>Data the app sends travels over encrypted (HTTPS) connections to providers that use industry-standard safeguards. Live rounds are stored under long random links that can't be guessed. No system is perfectly secure.</p>
+<h2>11. Security</h2>
+<p>Data the app sends travels over encrypted (HTTPS) connections to providers that use industry-standard safeguards. Live rounds are stored under long random links that can't be guessed. Coach-sharing data can be read only by that athlete and that team's coach. No system is perfectly secure.</p>
 
-<h2>11. Changes</h2>
-<p>If we change this policy, we will update this page and the effective date. For significant changes, for example if StrokeWise adds accounts or subscriptions, we will also tell you in the app before the change applies.</p>
+<h2>12. Changes</h2>
+<p>If we change this policy, we will update this page and the effective date. For significant changes, for example if StrokeWise adds subscriptions, we will also tell you in the app before the change applies.</p>
 
-<h2>12. Contact</h2>
+<h2>13. Contact</h2>
 <p>Scott Leland, dba StrokeWise · Reno, Nevada, USA<br><a href="mailto:atypicalscott@gmail.com">atypicalscott@gmail.com</a></p>
 </main>
 <footer>StrokeWise · <a href="support.html">Support</a> · <a href="./">Open the app</a></footer>
