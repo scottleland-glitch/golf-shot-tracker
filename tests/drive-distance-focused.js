@@ -58,3 +58,43 @@ test('v230 9-hole round with a hazard penalty cannot produce a 742 yd drive', ()
   assert.ok(S.teeMap.some(m => m.pen), 'penalty tee shot left out of drives');
   assert.strictEqual(S.teeMap.filter(m => m.hole === 9)[0].hit, 174);
 });
+
+test('v231 Long + rough close to the green is past the green (hole length + leftover)', () => {
+  const A = tee(4, [R(320, 'tee', '', { club: 'Driver' }), R(25, 'rough', 'long'), R(8, 'green'), R(2, 'holed')]);
+  const B = tee(4, [R(320, 'tee', '', { club: 'Driver' }), R(25, 'rough'), R(8, 'green'), R(2, 'holed')]);
+  assert.strictEqual(A.hit, 345);
+  assert.strictEqual(A.map.hit, 345);
+  assert.strictEqual(A.a.shots[0].dir, 'long');
+  assert.strictEqual(A.sg, B.sg, 'strokes gained does not use the Long-add formula');
+  assert.strictEqual(tee(4, [R(320, 'tee'), R(25, 'bunker', 'long'), R(8, 'green'), R(2, 'holed')]).hit, 345);
+  assert.strictEqual(tee(4, [R(320, 'tee'), R(25, 'trees', 'long'), R(8, 'green'), R(2, 'holed')]).hit, 345);
+});
+
+test('v231 Long + fairway is ignored, even with a short leftover', () => {
+  const A = tee(4, [R(320, 'tee', '', { club: 'Driver' }), R(25, 'fairway', 'long'), R(8, 'green'), R(2, 'holed')]);
+  const B = tee(4, [R(320, 'tee', '', { club: 'Driver' }), R(25, 'fairway'), R(8, 'green'), R(2, 'holed')]);
+  assert.strictEqual(A.hit, 295);
+  assert.strictEqual(A.map.hit, 295);
+  assert.strictEqual(A.a.shots[0].dir, '', 'stored Long on the fairway is dropped');
+  assert.strictEqual(A.sg, B.sg);
+  const side = tee(4, [R(400, 'tee'), R(150, 'fairway', 'longleft'), R(15, 'green'), R(2, 'holed')]);
+  const left = tee(4, [R(400, 'tee'), R(150, 'fairway', 'left'), R(15, 'green'), R(2, 'holed')]);
+  assert.strictEqual(side.hit, 250);
+  assert.strictEqual(side.hit, left.hit);
+  assert.strictEqual(side.a.shots[0].dir, 'left', 'Long left on the fairway keeps the side');
+});
+
+test('v231 Long + rough far from the green is not added (284 left → hole minus leftover)', () => {
+  const A = tee(5, [R(458, 'tee', '', { club: 'Driver' }), R(284, 'rough', 'long'), R(20, 'green'), R(2, 'holed')]);
+  const B = tee(5, [R(458, 'tee', '', { club: 'Driver' }), R(284, 'rough'), R(20, 'green'), R(2, 'holed')]);
+  assert.strictEqual(A.hit, 174);
+  assert.strictEqual(A.map.hit, 174);
+  assert.strictEqual(A.a.shots[0].dir, '');
+  assert.strictEqual(A.sg, B.sg);
+});
+
+test('v231 450 yd / 40 yd past-hole guard still drops an impossible through-the-green drive', () => {
+  // 320 + 50 = 370, over the 40 yd past-hole allowance
+  assert.strictEqual(tee(4, [R(320, 'tee'), R(50, 'rough', 'long'), R(8, 'green'), R(2, 'holed')]).hit, null);
+  assert.strictEqual(tee(4, [R(320, 'tee'), R(40, 'rough', 'long'), R(8, 'green'), R(2, 'holed')]).hit, 360);
+});

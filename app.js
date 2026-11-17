@@ -4036,14 +4036,17 @@
   }
   // v184 (Scott): voice entry ("Say it") removed.
   function dirSheetHTML(h, k) {
-    var cur = SG.normDir(h.rows[k].dir), prevLie = SG.lieOf(h.rows, k - 1), prevGreen = prevLie === 'green', ob = h.rows[k].loc === 'ob'; // v153
+    var cur = SG.normDir(h.rows[k].dir), prevLie = SG.lieOf(h.rows, k - 1), prevGreen = prevLie === 'green', ob = h.rows[k].loc === 'ob', noLong = noLongDir(h.rows[k].loc); // v153, v231
     var out = '<div class="sheet-bg" data-act="dirclose"></div><div class="sheet frostsheet" role="dialog" aria-label="Pick direction">' +
       '<h3>Shot ' + k + ' ended…</h3><p class="help">' + (prevGreen ? 'Where the putt finished vs the hole.' :
         'Missed the green? Where vs the green. On the green? Where vs the hole.') + ' <b>Short = toward you.</b>' +
-      (ob ? '<br><b id="dirobnote">Out of bounds: pick a side</b> – left or right (or a corner), so it counts in your miss pattern.' : '') + '</p><div class="dirgrid">';
+      (ob ? '<br><b id="dirobnote">Out of bounds: pick a side</b> – left or right (or a corner), so it counts in your miss pattern.' : '') + '</p>' +
+      (noLong ? '<p class="dirnote" id="dirfwnnote"><b>Long is off on the fairway</b> — that would mean the ball went past the green (use it with rough, a bunker, or trees).</p>' : '') + '<div class="dirgrid">';
     DIR_GRID.forEach(function (rw) { rw.forEach(function (d) {
-      var off = ob && (d === 'short' || d === 'long');
-      out += '<button data-act="setdir" data-v="' + d + '" class="' + (d === cur ? 'sel' : '') + (d ? '' : ' none') + '"' + (off ? ' disabled aria-disabled="true" title="Out of bounds goes left or right"' : '') + '><span>' + (d ? ARROW[d] : '⊘') + '</span>' + (d ? SG.DIR_NAME[d] : 'None') + '</button>';
+      var off = (ob && (d === 'short' || d === 'long')) || (noLong && /^long/.test(d));
+      var tip = (ob && (d === 'short' || d === 'long')) ? 'Out of bounds goes left or right'
+        : (noLong && /^long/.test(d)) ? 'Long is for finishing past the green (rough, bunker, trees) — not the fairway' : '';
+      out += '<button data-act="setdir" data-v="' + d + '" class="' + (d === cur ? 'sel' : '') + (d ? '' : ' none') + '"' + (off ? ' disabled aria-disabled="true"' + (tip ? ' title="' + tip + '"' : '') : '') + '><span>' + (d ? ARROW[d] : '⊘') + '</span>' + (d ? SG.DIR_NAME[d] : 'None') + '</button>';
     }); });
     return out + '</div><button class="big frostbtn" data-act="dirclose">Cancel</button></div>';
   }
@@ -4182,6 +4185,11 @@
   var FIN_LIST = [['fairway', 'Fairway'], ['rough', 'Rough'], ['deep', 'Deep rough'], ['bunker', 'Bunker'], ['green', 'Green'], ['trees', 'Trees'],
     ['hazard', 'Hazard', 1], ['ob', 'OB', 1], ['unp', 'Unplayable', 1], ['lost', 'Lost ball', 1]];
   var DIR_LIST = ['long', 'longright', 'right', 'shortright', 'short', 'shortleft', 'left', 'longleft'];
+  // v231: Long means past the green, so it is off when Finished is Fairway (longleft/right keep the side if already stored).
+  function noLongDir(loc) { return loc === 'fairway'; }
+  function clearLongOnFairway(row) {
+    if (row && noLongDir(row.loc) && /^long/.test(SG.normDir(row.dir))) row.dir = SG.effectiveDir(row.dir, 'fairway', 0) || '';
+  }
   var ICON_ARROW = '<svg class="scarr" viewBox="0 0 104 14" preserveAspectRatio="none" aria-hidden="true"><path d="M2 7h96"/><path d="M92 2l7 5-7 5"/></svg>';
   function finVal(h, k) { // what the Finished dropdown shows for shot k
     var f = finOf(h, k), nx = h.rows[k + 1];
@@ -4232,10 +4240,15 @@
     if (!green && row.loc !== 'holed' && wOfferFor(row)) out += '<div class="sc-sec sc-clubsec">' + ladderRowHTML(h, k, row, n, '', '') + '</div>';
     if (green) out += readPadHTML(h, k, row, ''); // v202: the read of the putt
     // direction under Finished
-    if (fin && fin !== 'in' && nx) { var dv = SG.normDir(nx.dir), obx = nx.loc === 'ob';
-      out += '<div class="sc-dirrow"><select class="dd sc-dirsel" data-f="dir" data-k="' + (k + 1) + '" aria-label="Shot ' + n + ' direction">' +
+    if (fin && fin !== 'in' && nx) { var dv = SG.normDir(nx.dir), obx = nx.loc === 'ob', noLong = noLongDir(nx.loc);
+      out += '<div class="sc-dirrow">' +
+        '<button type="button" class="dirbtn misspill' + (dv ? ' on' : '') + '" data-act="dirpick" data-k="' + (k + 1) + '" data-dir="' + dv + '" id="scdirpick" aria-label="Shot ' + n + ' direction"><span class="mparr">' + (dv ? ARROW[dv] : '➚') + '</span>' + (dv ? SG.DIR_NAME[dv] : (obx ? 'Which side?' : 'Direction')) + '</button>' +
+        '<select class="dd sc-dirsel" data-f="dir" data-k="' + (k + 1) + '" aria-label="Shot ' + n + ' direction">' +
         '<option value=""' + (dv ? '' : ' selected') + '>' + (obx ? 'Which side?' : 'Direction') + '</option>' +
-        DIR_LIST.filter(function (d) { return !obx || (d !== 'short' && d !== 'long'); }).map(function (d) { return '<option value="' + d + '"' + (dv === d ? ' selected' : '') + '>' + ARROW[d] + ' ' + SG.DIR_NAME[d] + '</option>'; }).join('') + '</select></div>';
+        DIR_LIST.filter(function (d) { return !obx || (d !== 'short' && d !== 'long'); }).map(function (d) {
+          var offLong = noLong && /^long/.test(d);
+          return '<option value="' + d + '"' + (dv === d ? ' selected' : '') + (offLong ? ' disabled' : '') + '>' + ARROW[d] + ' ' + SG.DIR_NAME[d] + '</option>';
+        }).join('') + '</select></div>';
       if (nx.loc === 'hazard') { // Drop or Re-tee (only for Hazard)
         var hz = view.hzPend === (k + 1) + ':' + view.hole ? '' : SG.isRetee(nx) ? 'retee' : nx.pen ? 'drop' : 'play';
         out += '<div class="hzpick" id="hzpick" role="group" aria-label="Hazard: drop or re-tee"><span class="hzq">Into the hazard – then?</span>' +
@@ -4266,6 +4279,7 @@
     else if (v === 'ob') { nx.loc = 'ob'; nx.dist = ''; nx.pen = false; delete nx.retee; if (nx.dir === 'short' || nx.dir === 'long') nx.dir = ''; }
     else if (v === 'hazard') { if (was !== 'hazard') { nx.loc = 'hazard'; nx.pen = false; delete nx.retee; view.hzPend = (k + 1) + ':' + view.hole; } }
     else { var held = was === 'holed', wasRe = !!nx.retee; nx.loc = v; delete nx.retee; if (held) nx.holeOut = true; if (was === 'ob' || wasRe) { nx.dist = ''; nx.pen = false; } }
+    clearLongOnFairway(nx);
     if (was === 'hazard' && v !== 'hazard') { nx.pen = false; view.hzPend = null; }
     view.edk = { h: view.hole, k: k }; view.menu = null; save(); render();
   }
@@ -6378,7 +6392,7 @@
         saveCourses(courses().filter(function (x) { return x.id !== cd.id; })); backupDirty(3000); toast('Course deleted'); render(); return; }
       case 'dirpick': view.dirk = k; view.menu = null; break;
       case 'dirclose': view.dirk = null; break;
-      case 'setdir': if (h.rows[view.dirk].loc === 'ob' && (v === 'short' || v === 'long')) return; h.rows[view.dirk].dir = v || ''; view.dirk = null; save(); break;
+      case 'setdir': if (h.rows[view.dirk].loc === 'ob' && (v === 'short' || v === 'long')) return; if (noLongDir(h.rows[view.dirk].loc) && /^long/.test(v || '')) return; h.rows[view.dirk].dir = v || ''; view.dirk = null; save(); break;
       case 'csvall': exportCSV(rounds, fileName(null)); return;
       case 'csv': exportCSV([r], fileName(r)); return;
       case 'delRound':
@@ -6485,9 +6499,10 @@
       if (v === 'ob') { row.dist = ''; row.pen = false; if (row.dir === 'short' || row.dir === 'long') row.dir = ''; } // v153: OB needs a side
       if (was === 'ob' && v !== 'ob') row.dist = '';
       if (v === 'holed' || v === 'holedx') delete row.holeOut; // already "in the hole"
+      clearLongOnFairway(row);
       save(); render();
       if (v !== 'ob' && row.dist === '') focusDist(k);
-    } else if (f === 'dir') { row.dir = t.value; save(); render(); }
+    } else if (f === 'dir') { if (noLongDir(row.loc) && /^long/.test(t.value || '')) return; row.dir = t.value; save(); render(); }
     else if (f === 'club') { if (t.value) row.club = t.value; else delete row.club; delete row.wedgeY; delete row.wedgeF; delete row.wedgeAuto; delete row.wedgeOff; delete row.wedgeClock; delete row.wedgeLad; save(); }
     else if (f === 'wladder') {
       var we = /^w([hl])(\d+)$/.exec(t.value), wf = we && (we[1] === 'l' ? 'low' : 'high'), wr = we && WEDGES.rowsOf(wedges(), wf)[we[2]];

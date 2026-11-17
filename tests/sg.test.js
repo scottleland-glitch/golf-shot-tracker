@@ -950,3 +950,68 @@ test('slug for backup file names', () => {
   assert.strictEqual(SG.slug(''), '');
   assert.strictEqual(SG.slug('backup'), 'backup-player');
 });
+
+test('v231: Long + non-fairway short leftover is past the green; Long + fairway or a long leftover is ignored', () => {
+  const R = (dist, loc, dir, extra) => Object.assign({ dist, loc, dir: dir || '', pen: false }, extra || {});
+  const hole = (par, rows) => ({ par, finished: true, rows });
+  const hit = (rows, k) => SG.analyzeHole(hole(4, rows), 'pga').shots[k].hit;
+  const sum = (par, rows) => SG.summarize({ holes: [hole(par, rows)] }, 'pga');
+
+  assert.strictEqual(SG.LONG_PAST_MAX_YD, 60);
+  assert.strictEqual(SG.effectiveDir('long', 'rough', 25), 'long');
+  assert.strictEqual(SG.effectiveDir('long', 'fairway', 25), '');
+  assert.strictEqual(SG.effectiveDir('longleft', 'fairway', 25), 'left');
+  assert.strictEqual(SG.effectiveDir('long', 'rough', 284), '');
+  assert.strictEqual(SG.effectiveDir('long', 'green', 18), 'long');
+
+  // drivable par 4 over the green into rough, 25 left → 320+25
+  const overRows = [R(320, 'tee', '', { club: 'Driver' }), R(25, 'rough', 'long'), R(8, 'green'), R(2, 'holed')];
+  const overPlain = [R(320, 'tee', '', { club: 'Driver' }), R(25, 'rough'), R(8, 'green'), R(2, 'holed')];
+  const A = SG.analyzeHole(hole(4, overRows), 'pga'), B = SG.analyzeHole(hole(4, overPlain), 'pga');
+  assert.strictEqual(A.shots[0].hit, 345);
+  assert.strictEqual(A.shots[0].dir, 'long');
+  assert.strictEqual(A.shots[0].sg, B.shots[0].sg, 'SG does not use the Long-add formula');
+  const So = sum(4, overRows);
+  assert.strictEqual(So.teeMap[0].hit, 345);
+  assert.strictEqual(So.teeMap[0].dir, 'long');
+  assert.strictEqual(So.teeMap[0].fairway, false);
+  assert.strictEqual(So.girMap.length, 1, 'on the green in two after going through is still a GIR');
+  assert.strictEqual(SG.proxAfterFt(A.shots[0]), SG.proxAfterFt(B.shots[0]), 'proximity uses leftover, not hit');
+
+  // Long + fairway, even 25 left, is ignored
+  const fw = sum(4, [R(320, 'tee'), R(25, 'fairway', 'long'), R(8, 'green'), R(2, 'holed')]);
+  assert.strictEqual(fw.holes[0].shots[0].hit, 295);
+  assert.strictEqual(fw.holes[0].shots[0].dir, '');
+  assert.strictEqual(fw.teeMap[0].fairway, true);
+  assert.strictEqual(fw.apprOver, 0, 'Long + fairway is not an over-green miss');
+
+  // Long + rough 284 left is not added
+  const far = sum(5, [R(458, 'tee'), R(284, 'rough', 'long'), R(20, 'green'), R(2, 'holed')]);
+  assert.strictEqual(far.holes[0].shots[0].hit, 174);
+  assert.strictEqual(far.holes[0].shots[0].dir, '');
+  assert.strictEqual(far.apprOver, 0);
+
+  // Approach from the fairway, missed long in the rough: still past the pin
+  const ap = sum(4, [R(400, 'tee'), R(150, 'fairway'), R(20, 'rough', 'long'), R(8, 'green'), R(2, 'holed')]);
+  assert.strictEqual(ap.holes[0].shots[1].hit, 170);
+  assert.strictEqual(ap.apprOver, 1);
+  assert.strictEqual(ap.apprMiss[0].dir, 'long');
+
+  // Approach Long + fairway leftover is ignored (old saved data)
+  const apFw = sum(4, [R(400, 'tee'), R(160, 'fairway'), R(80, 'fairway', 'long'), R(10, 'green'), R(2, 'holed')]);
+  assert.strictEqual(apFw.holes[0].shots[1].hit, 80);
+  assert.strictEqual(apFw.holes[0].shots[1].dir, '');
+  assert.strictEqual(apFw.apprOver, 0);
+
+  // On-green Long is still a real past-the-pin finish (GIR, not an approach "over" miss)
+  const gir = sum(4, [R(400, 'tee'), R(150, 'fairway'), R(18, 'green', 'long'), R(2, 'holed')]);
+  assert.strictEqual(gir.holes[0].shots[1].dir, 'long');
+  assert.ok(gir.apprMiss.length === 0, 'a long finish on the green is still a GIR');
+  assert.strictEqual(SG.arrivalDepth(gir.girMap[0].dir, gir.girMap[0].ft), 'long');
+
+  // holedx 20 long still adds (existing v156)
+  assert.strictEqual(hit([R(380, 'tee'), R(100, 'fairway'), R(20, 'holedx', 'long')], 1), 120);
+
+  // 450 / 40 guard still applies to a through-the-green drive
+  assert.strictEqual(SG.analyzeHole(hole(4, [R(320, 'tee'), R(50, 'rough', 'long'), R(8, 'green'), R(2, 'holed')]), 'pga').shots[0].hit, null);
+});

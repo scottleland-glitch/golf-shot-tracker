@@ -244,6 +244,22 @@
   }
 
   var NEAR_YD = 45; // within this many yards of the pin a Dir is a spot around the pin (matches the hole replay)
+  // v231: Long + rough/bunker/trees (any non-fairway, non-green finish) means past the green only when
+  // the leftover is short. Fairway (or tee) + Long is ignored. Green / holed Long is a real past-the-pin miss.
+  var LONG_PAST_MAX_YD = 60;
+  function longPastLoc(loc) {
+    loc = loc || '';
+    return !!(loc && loc !== 'fairway' && loc !== 'tee' && loc !== 'green' && loc !== 'holed' && loc !== 'ob');
+  }
+  // Strip an impossible or far-from-green Long, keep left/right when they were part of the dir.
+  function effectiveDir(dir, loc, distYd) {
+    var d = normDir(dir);
+    if (!d || !/^long/.test(d)) return d;
+    if (loc === 'green' || loc === 'holed') return d;
+    var yb = distYd == null || distYd === '' ? 0 : Number(distYd);
+    if (longPastLoc(loc) && isFinite(yb) && yb <= LONG_PAST_MAX_YD) return d;
+    return /left$/.test(d) ? 'left' : /right$/.test(d) ? 'right' : '';
+  }
   function toYards(lie, dist) {
     if (lie === 'holed') return 0;
     return lie === 'green' ? dist / 3 : dist;
@@ -382,23 +398,27 @@
       // ang = where the ball finished around the pin, in the usual map frame (90 = long side of the green, 270 = toward the tee):
       // the player's line is rotated by where the ball lay before (prevAng). Far from the green (> NEAR_YD) a Dir means a missed
       // fairway, not a spot around the pin, so the next shot is seen as coming straight up the hole again.
-      var hd = normDir(s.dir || s.side), rel = DIR_ANGLE[hd], ya = toYards(start.lie, start.dist), yb = toYards(end.lie, end.dist);
-      var nearEnd = end.lie === 'green' || (end.lie !== 'holed' && yb <= NEAR_YD), ang = null;
+      var yb = toYards(end.lie, end.dist), loc = s.loc || (s.hk === 'holedx' ? 'holedx' : (pen === 'ob' ? 'ob' : end.lie));
+      var hd = effectiveDir(s.dir || s.side, loc, yb), rel = DIR_ANGLE[hd], ya = toYards(start.lie, start.dist);
+      var nearEnd = end.lie === 'green' || (end.lie !== 'holed' && yb <= NEAR_YD);
+      var pastGreen = /^long/.test(hd) && longPastLoc(loc) && yb <= LONG_PAST_MAX_YD, aroundPin = nearEnd || pastGreen, ang = null;
       if (pen !== 'ob' && end.lie !== 'holed') { ang = (((rel == null ? 270 : rel) + prevAng + 90) % 360 + 360) % 360; }
       // distance hit: near the green, long adds (it went past the pin), short subtracts, a left / right finish = straight line.
       // Far from the green a Dir is a missed fairway, not a spot around the pin — always start minus leftover.
       // (v230: "Long" on a tee shot used to add the leftover, e.g. 458 + 284 = 742 yd.)
+      // (v231: Long + rough/bunker/trees and a short leftover (<= LONG_PAST_MAX_YD) is past the green = start + leftover.
+      // Long + fairway is ignored, as is Long when the leftover is long. Green / holed Long is unchanged.)
       var hit = pen === 'ob' || s.retee ? null
-        : rel != null && nearEnd ? Math.round(Math.sqrt(Math.max(0, ya * ya + yb * yb + 2 * ya * yb * Math.sin(rel * Math.PI / 180))))
+        : rel != null && aroundPin ? Math.round(Math.sqrt(Math.max(0, ya * ya + yb * yb + 2 * ya * yb * Math.sin(rel * Math.PI / 180))))
         : Math.round(ya - yb);
       if (cat === 'tee') hit = saneTeeHit(hit, ya);
       out.push({
         n: i + 1, start: start, end: end, pen: pen, penStrokes: penStrokes,
-        side: s.side || dirSide(normDir(s.dir)), dir: normDir(s.dir || s.side), ob: !!s.ob, retee: !!s.retee, loc: s.loc || (pen === 'ob' ? 'ob' : s.lie), hk: s.hk, eStart: eStart, eEnd: eEnd, sg: sg,
+        side: s.side || dirSide(hd), dir: hd, ob: !!s.ob, retee: !!s.retee, loc: s.loc || (pen === 'ob' ? 'ob' : s.lie), hk: s.hk, eStart: eStart, eEnd: eEnd, sg: sg,
         cat: cat, bucket: bucket, hit: hit, club: clubOf(raw[i]), ang: ang, fromAng: prevAng,
         rd: start.lie === 'green' && raw[i] && /^(up|flat|down)-(l|s|r)$/.test(raw[i].rd) ? raw[i].rd : '' // v202: the putt's read (slope-break), '' = not entered
       });
-      if (pen !== 'ob' && end.lie !== 'holed') prevAng = nearEnd ? ang : 270;
+      if (pen !== 'ob' && end.lie !== 'holed') prevAng = aroundPin ? ang : 270;
       // Layup tee shot: its strokes gained is left out entirely (0 toward Off the tee and the total; not counted as a tee shot).
       if (i === 0 && cat === 'tee' && raw[0] && raw[0].layup) { var L0 = out[out.length - 1]; L0.layup = true; L0.sgRaw = sg; L0.sg = 0; }
       start = end;
@@ -940,7 +960,7 @@
     YARDS: YARDS, OFF_GREEN: OFF_GREEN, FEET: FEET, PUTTS: PUTTS,
     // v150: the ONE place the app version lives – must equal the sw.js cache name ('golf-sg-' + VERSION). It sits in a cached file,
     // so Settings shows the version of the code actually running (config.js is network-first and could run ahead).
-    VERSION: 'v230' };
+    LONG_PAST_MAX_YD: LONG_PAST_MAX_YD, effectiveDir: effectiveDir, longPastLoc: longPastLoc, VERSION: 'v231' };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else root.SG = api;
 })(this);

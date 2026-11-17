@@ -2261,6 +2261,9 @@ html body .roundpage.holepage .srow.shead .c-n { height: auto; min-height: 0; bo
 .rpclegend .rpcsolid { height: 3px; border-radius: 2px; background: linear-gradient(90deg, #1f73c9 0 33%, #2e9d4f 33% 66%, #e8871e 66%); }
 .rpclegend .rpcdash { border-top: 2px dashed #1f2d38; }
 .dirgrid button:disabled { opacity: .32; background: #f1f3f4; } /* v153: Short / Long off for out of bounds */
+html body .roundpage .dirgrid button:disabled { opacity: 1; background: #e8eaed; color: #8a9096; border-color: #d0d4d8; box-shadow: none; } /* v231: Long clearly greyed on Fairway */
+html body .roundpage .dirgrid button:disabled span { opacity: .45; }
+html body .roundpage .sheet .dirnote { margin: 0 0 10px; font-size: 13px; font-weight: 600; color: #3f4c58; line-height: 1.35; }
 
 /* v154: ‹ Round stats on a reviewed hole, beside Share live */
 .holetop { display: flex; align-items: center; justify-content: center; gap: 10px; flex-wrap: wrap; margin: -2px 0 8px; }
@@ -2763,7 +2766,7 @@ html body .sc2 select.dd, html body .sc2 .dd.ddtxt { appearance: none; -webkit-a
   border-radius: 12px; padding: 0 26px 0 10px; font: 600 15px/34px -apple-system, "Helvetica Neue", system-ui, sans-serif; color: #1d2a24; box-shadow: none; width: auto; }
 html body .sc2 .dd.ddtxt { display: inline-block; background-image: none; padding: 0 10px; color: #43524a; font-weight: 500; }
 html body .sc2 .sc-mid select.dd { font-size: 13.5px; max-width: 116px; } html body .sc2 .sc-fin select.dd { font-size: 16px; }
-html body .sc2 .sc-dirrow { display: flex; justify-content: flex-end; margin-top: 8px; } html body .sc2 .sc-dirsel { font-weight: 500 !important; font-size: 14px !important; }
+html body .sc2 .sc-dirrow { display: flex; justify-content: flex-end; margin-top: 8px; gap: 8px; align-items: center; position: relative; } html body .sc2 .sc-dirsel { font-weight: 500 !important; font-size: 14px !important; position: absolute; width: 1px; height: 1px; opacity: 0; overflow: hidden; pointer-events: none; } /* v231: Direction opens the 8-way sheet (Long can be greyed out); the <select> stays for tests */
 html body .sc2 .sc-layup { display: flex; justify-content: center; margin: 10px 0 0; font-size: 13px; color: #5c6b63; }
 html body .sc2 .tpen { font-style: normal; display: inline-block; background: #fde3de; color: #b0473f; font-weight: 800; font-size: 12px; border-radius: 8px; padding: 2px 6px; }
 html body .sc2 .ddwrap { position: relative; display: inline-block; max-width: 100%; vertical-align: middle; }
