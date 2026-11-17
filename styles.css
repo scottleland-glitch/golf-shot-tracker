@@ -3002,12 +3002,14 @@ html body .wkpt { margin: 0 0 4px; font-size: 12px; font-weight: 700; letter-spa
 html body .wkchart { display: block; width: 100%; height: auto; } html body .wkchart .wkgrid { stroke: rgba(23, 48, 31, .09); } html body .wkchart .wkbase { stroke: rgba(23, 48, 31, .35); }
 html body .wkchart .wkax { font-size: 9.5px; fill: #5b6b78; } html body .wkchart .wkax.now { fill: #17301f; font-weight: 700; } html body .wkchart .wkdtot { font-size: 9px; font-weight: 700; fill: #17301f; }
 html body .wkchart .pg0, html body .pglegend .pg0 { fill: #3f7fbf; background: #3f7fbf; } html body .wkchart .pg1, html body .pglegend .pg1 { fill: #d39b2a; background: #d39b2a; }
-html body .wkchart .pg2, html body .pglegend .pg2 { fill: #3f9a63; background: #3f9a63; } html body .wkchart .pg3, html body .pglegend .pg3 { fill: #7a5ab0; background: #7a5ab0; }
-html body .wkchart .band { fill-opacity: .78; stroke: #fff; stroke-width: .6; } html body .wkchart .wktotal { fill: none; stroke: #17301f; stroke-width: 1.4; }
-html body .wkchart .wktgtline { stroke: #17301f; stroke-width: 1; stroke-dasharray: 4 3; } html body .wkchart .wkles { stroke: #6b5aa6; stroke-width: 1.4; stroke-dasharray: 2 2; } html body .wkchart .wktour { font-size: 11px; }
-html body .pglegend { display: flex; flex-wrap: wrap; justify-content: center; gap: 4px 12px; margin-top: 6px; font-size: 12px; color: #2f4a3a; font-weight: 600; }
+html body .wkchart .pg2, html body .pglegend .pg2 { fill: #3f9a63; background: #3f9a63; } html body .wkchart .pg3, html body .pglegend .pg3 { fill: #1b8a8c; background: #1b8a8c; }
+html body .wkchart .pg4, html body .pglegend .pg4 { fill: #c44e16; background: #c44e16; }
+html body .wkchart .band { fill-opacity: .78; stroke: #fff; stroke-width: .6; stroke-linejoin: round; } html body .wkchart .wktotal { fill: none; stroke: #17301f; stroke-width: 1.4; stroke-linejoin: round; stroke-linecap: round; }
+html body .wkchart .wktgtline { stroke: #17301f; stroke-width: 1; stroke-dasharray: 4 3; } html body .wkchart .wkles { stroke: #3d4f5c; stroke-width: 1.4; stroke-dasharray: 2 2; } html body .wkchart .wktour { font-size: 11px; }
+html body .pglegend { display: flex; flex-direction: column; flex-wrap: nowrap; align-items: center; justify-content: center; gap: 4px 0; margin-top: 6px; font-size: 12px; color: #2f4a3a; font-weight: 700; }
+html body .pglegend .pglegrow { display: flex; flex-wrap: nowrap; justify-content: center; gap: 4px 14px; }
 html body .pglegend span { display: inline-flex; align-items: center; gap: 5px; } html body .pglegend i { width: 10px; height: 10px; border-radius: 3px; display: inline-block; }
-html body .leskey { display: inline-block; width: 0; height: 11px; border-left: 2px dashed #6b5aa6; vertical-align: -1px; margin: 0 2px; }
+html body .leskey { display: inline-block; width: 0; height: 11px; border-left: 2px dashed #3d4f5c; vertical-align: -1px; margin: 0 2px; }
 html body .wkchart .wktgtlab { paint-order: stroke; stroke: rgba(255, 255, 255, .9); stroke-width: 3px; stroke-linejoin: round; fill: #17301f; font-weight: 600; }
 /* v207 (Scott): the This week card full screen – tap to open, swipe down / ✕ / Back to close */
 html body .weekcard:not(.isfull) { cursor: pointer; }
@@ -3111,7 +3113,7 @@ html body .dybar { display: flex; height: 10px; border-radius: 6px; overflow: hi
 html body .dylist { list-style: none; margin: 0; padding: 0; } html body .dylist li { display: flex; align-items: center; gap: 12px; padding: 12px 0; border-top: 1px solid rgba(23, 48, 31, .1); }
 html body .dylist li span { flex: 1; display: grid; gap: 2px; } html body .dylist b { font-size: 17px; } html body .dylist small { font-size: 13.5px; color: #5b6660; } html body .dylist em { font-style: normal; font-weight: 700; font-size: 17px; }
 html body .pgdot { width: 12px; height: 12px; border-radius: 50%; flex: none; }
-html body .pgdot.pg0, html body .dybar .pg0 { background: #3f7fbf; } html body .pgdot.pg1, html body .dybar .pg1 { background: #d39b2a; } html body .pgdot.pg2, html body .dybar .pg2 { background: #3f9a63; } html body .pgdot.pg3, html body .dybar .pg3 { background: #7a5ab0; }
+html body .pgdot.pg0, html body .dybar .pg0 { background: #3f7fbf; } html body .pgdot.pg1, html body .dybar .pg1 { background: #d39b2a; } html body .pgdot.pg2, html body .dybar .pg2 { background: #3f9a63; } html body .pgdot.pg3, html body .dybar .pg3 { background: #1b8a8c; } html body .pgdot.pg4, html body .dybar .pg4 { background: #c44e16; }
 html body .prday { border-top: 1px solid rgba(23, 48, 31, .1); }
 html body .prdayh { display: flex; align-items: center; gap: 10px; width: 100%; padding: 10px 0; border: 0; background: none; box-shadow: none; min-height: 0; color: inherit; font: inherit; text-align: left; border-radius: 0; }
 html body .prdayh span { flex: 1; display: grid; min-width: 0; } html body .prdayh b { font-size: 15px; font-weight: 600; } html body .prdayh small { font-size: 12px; color: var(--frost-ink-soft); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }

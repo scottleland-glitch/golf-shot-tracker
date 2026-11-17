@@ -1,8 +1,9 @@
 // v205: your typical week (a starting baseline), "how much time do you have?" → today's session logged in one tap, and this week's bars against each area's target
 const { chromium } = require('playwright-core'); const { spawn } = require('child_process');
-const ARC = require('/home/claude/golf-app/tests/fixtures/arcade-78.js');
+const ARC = require('./fixtures/arcade-78.js');
+const ROOT = __dirname + '/../';
 (async () => {
-  const PORT = 8986, OUT = process.argv[2], srv = spawn('python3', ['-m', 'http.server', String(PORT), '--bind', '127.0.0.1'], { cwd: '/home/claude/golf-app', stdio: 'ignore' }); await new Promise(r => setTimeout(r, 1200));
+  const PORT = 8986, OUT = process.argv[2], srv = spawn('python3', ['-m', 'http.server', String(PORT), '--bind', '127.0.0.1'], { cwd: ROOT, stdio: 'ignore' }); await new Promise(r => setTimeout(r, 1200));
   const now = Date.now(), day = 864e5, N = +(process.env.N || 22), rounds = [], prac = [];
   const pm = w => 60 + 45 * Math.sin(w / 2.3); // putting practice minutes per week (w = week index, oldest 0)
   let seed = 11; const rnd = () => { seed = (seed * 16807) % 2147483647; return seed / 2147483647; };
@@ -46,10 +47,10 @@ const ARC = require('/home/claude/golf-app/tests/fixtures/arcade-78.js');
   const W = await page.$$eval('#weekcard .wkrow', e => e.map(x => x.dataset.k)); assert.strictEqual(W.length, 7); assert.match(await page.textContent('#wktot'), / of /);
   assert.ok(await page.$('#weekcard .wkrow[data-k="' + S[0][0] + '"] .wkfill'), 'bar'); assert.strictEqual(await page.$$eval('#weekcard .wkdots i', e => e.length), 6);
   assert.match(await page.textContent('#wkbal'), /at least 20%|At least 20%/, 'v208: the balance line');
-  // v206: swipe – the days of the week stacked by group, then 3 months by week
+  // v206: swipe – the days of the week stacked by group, then 3 months (rolling 7 days; Irons + Woods)
   assert.strictEqual(await page.$$eval('#wkpages .wkpage', e => e.length), 3); assert.strictEqual(await page.$$eval('#weekcard .wkpdots i', e => e.length), 3);
   assert.ok((await page.$$eval('#wkpages .wkpage[data-p="1"] rect[class^="pg"]', e => e.length)) >= 1, 'today stacked by group'); assert.ok(await page.$('#wkpages .wkpage[data-p="2"] path.band'), '3-month bands');
-  assert.deepStrictEqual(await page.$$eval('#wkpages .wkpage[data-p="1"] .pglegend span', e => e.map(x => x.textContent)), ['Putting', 'Short game', 'Wedges', 'Full swing']);
+  assert.deepStrictEqual(await page.$$eval('#wkpages .wkpage[data-p="1"] .pglegend span', e => e.map(x => x.textContent)), ['Putting', 'Short game', 'Wedges', 'Irons', 'Woods']);
   const ov = await page.evaluate(() => { const c = document.getElementById('weekcard').getBoundingClientRect(); return [...document.querySelectorAll('#weekcard .wkval, #weekcard .planhead > *')].filter(e => { const r = e.getBoundingClientRect(); return r.width && (r.right > c.right + 1 || r.left < c.left - 1); }).length; });
   await page.evaluate(() => { const c = document.getElementById('wkpages'); c.scrollLeft = 2 * c.clientWidth; }); await page.waitForTimeout(300);
   assert.strictEqual(await page.$$eval('#weekcard .wkpdots i', e => e.findIndex(x => x.classList.contains('on'))), 2, 'dots follow the swipe');
