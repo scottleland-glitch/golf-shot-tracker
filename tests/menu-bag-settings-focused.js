@@ -1,10 +1,10 @@
 // v102 navigation: Home keeps only the + button (and Resume when a round is going) – the old Archive pill is gone.
 // + menu: New round · My Bag · Rounds · Settings. Profile is gone (it only held the player name, which Settings already has).
-// Settings = the old Archive page renamed (title, Courses back button). My Bag has a "Bag | Wedge ladder" toggle at the top;
-// the Wedge ladder is the existing Wedges view (40–110, High/Low flight, Edit). Screenshots 390x844 @3x.
+// Settings = the old Archive page renamed (title, Courses back button). My Bag has a "Bag | Wedge matrix" toggle at the top;
+// the Wedge matrix is the existing Wedges view (40–110, High/Low flight, Edit). Screenshots 390x844 @3x.
 const { chromium } = require('playwright-core'); const assert = require('assert'); const { spawn } = require('child_process'); const path = require('path');
 const BAG = require('../bag.js'), ARC = require('./fixtures/arcade-78.js');
-const OUT = '/workspace/golf-app/screenshots/', PORT = 8840, BASE = 'http://127.0.0.1:' + PORT + '/';
+const OUT = '/tmp/wedge-test-shots/', PORT = 8840, BASE = 'http://127.0.0.1:' + PORT + '/';
 
 (async () => {
   const bagB = BAG.addClubs(BAG.blank(), [{ cat: 'dr', code: 'D', loft: 10.5 }, { cat: 'wo', code: '3W', loft: 15 }, { cat: 'ir', code: '7i', loft: 33 }, { cat: 'ir', code: '9i', loft: 41 },
@@ -36,7 +36,7 @@ const OUT = '/workspace/golf-app/screenshots/', PORT = 8840, BASE = 'http://127.
   // ---------- 2. My Bag: Bag tab ----------
   await P.click('#navmenu [data-act="bag"]'); await P.waitForSelector('#baglist');
   const seg = () => P.$$eval('#bagseg button', e => e.map(x => x.textContent + (x.getAttribute('aria-selected') === 'true' ? '*' : '')));
-  assert.deepStrictEqual(await seg(), ['Bag*', 'Wedge ladder']);
+  assert.deepStrictEqual(await seg(), ['Bag*', 'Wedge matrix']);
   assert.match(await P.textContent('.topbar'), /‹ Home\s*My Bag\s*9 clubs/);
   assert.strictEqual(await P.$$eval('#baglist .bagrow:not(.bhead)', e => e.length), 9);
   const segBox = await P.$eval('#bagseg', e => e.getBoundingClientRect().top); assert(segBox < 160, 'toggle sits at the top: ' + segBox);
@@ -46,9 +46,9 @@ const OUT = '/workspace/golf-app/screenshots/', PORT = 8840, BASE = 'http://127.
   await P.evaluate(() => window.scrollTo(0, 0)); await shot('bag-toggle-bag.png');
   console.log('  My Bag: Bag tab first, 9 clubs, carry edit saves');
 
-  // ---------- 3. Wedge ladder tab ----------
+  // ---------- 3. Wedge matrix tab ----------
   await P.click('#segwedges'); await P.waitForSelector('#wlist');
-  assert.deepStrictEqual(await seg(), ['Bag', 'Wedge ladder*']); assert.strictEqual(await P.$('#baglist'), null);
+  assert.deepStrictEqual(await seg(), ['Bag', 'Wedge matrix*']); assert.strictEqual(await P.$('#baglist'), null);
   assert.match(await P.textContent('.topbar'), /‹ Home\s*My Bag\s*3 of 8 yardages set/);
   assert.deepStrictEqual(await P.$$eval('.whead b', e => e.map(x => parseInt(x.textContent))), [40, 50, 60, 70, 80, 90, 100, 110]);
   assert.strictEqual(await P.textContent('[data-wsum="70"]'), '54° · middle · P2');
@@ -58,8 +58,8 @@ const OUT = '/workspace/golf-app/screenshots/', PORT = 8840, BASE = 'http://127.
   await P.click('#wflight [data-k="high"]'); await P.click('.whead[data-y="70"]');
   await P.click('#wedit'); assert.strictEqual(await P.textContent('#wedit'), '✓ Done editing'); await P.click('#wedit');
   await P.evaluate(() => window.scrollTo(0, 0)); await shot('bag-toggle-wedges.png');
-  await P.click('#segbag'); await P.waitForSelector('#baglist'); assert.deepStrictEqual(await seg(), ['Bag*', 'Wedge ladder']);
-  console.log('  Wedge ladder tab: 40–110, High/Low flight, simple view, Edit; toggles back to Bag');
+  await P.click('#segbag'); await P.waitForSelector('#baglist'); assert.deepStrictEqual(await seg(), ['Bag*', 'Wedge matrix']);
+  console.log('  Wedge matrix tab: 40–110, High/Low flight, simple view, Edit; toggles back to Bag');
 
   // ---------- 4. Settings ----------
   await (async (P) => { if (!(await P.$('.topbar [data-act="home"]')) && await P.$('#rsmenubtn')) await P.click('#rsmenubtn'); return P.click('.topbar [data-act="home"], #rsmenu [data-act="home"]'); })(P) /* v191: in ☰ on Round stats */; await P.click('#navbtn'); await P.click('#navmenu [data-act="archive"]'); await P.waitForSelector('.archivepage #playerbox');

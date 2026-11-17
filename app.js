@@ -261,7 +261,7 @@
   var infoOpen = {};
   function infoize(root) {
     [].slice.call(root.querySelectorAll('p.help, p.muted.help')).forEach(function (p, i) {
-      var txt = p.textContent.trim(); if (txt.length < 90 || p.closest('.infotext, .odcard, .pdfsheet, .playerbox') || /^(proxauto|pdfname|odstat)$/.test(p.id)) return;
+      var txt = p.textContent.trim(); if (txt.length < 90 || p.closest('.infotext, .odcard, .pdfsheet, .playerbox') || /^(proxauto|pdfname|odstat|rpwedges|rpbag|rpcourses)$/.test(p.id)) return;
       var key = p.id || ('i' + i + ':' + txt.slice(0, 24)), id = p.id || ('info-' + key.replace(/[^\w-]/g, '_'));
       // v127: data-infoin="<id>" puts just the ⓘ at the end of that line (no caption) – e.g. the Stats putting "n = …" lines
       var inl = p.getAttribute('data-infoin') && root.querySelector('#' + p.getAttribute('data-infoin'));
@@ -1886,11 +1886,18 @@
   function restorePractice(R, parts) {
     if (R.sgtests && R.sgtests.length) { var TM = SGTEST.mergeTests(sgTests(), R.sgtests); if (TM.added) { localStorage.setItem(SGK, JSON.stringify(TM.tests)); parts.push(TM.added + ' short game test' + (TM.added === 1 ? '' : 's')); } } // v166
     if (!R.practice || !R.practice.length) return; var PM = MYGAME.mergePractice(practice(), R.practice); if (PM.added) { localStorage.setItem(PRK, JSON.stringify(PM.practice)); parts.push(PM.added + ' practice entr' + (PM.added === 1 ? 'y' : 'ies')); } } // v142
+  function wedgesRestoreNote(w) {
+    var n = WEDGES.filled(w), nlo = WEDGES.filled(w, 'low'), c = WEDGES.clockCells(w), bits = [];
+    if (n) bits.push(n + ' yardage' + (n === 1 ? '' : 's'));
+    if (nlo) bits.push(nlo + ' Low flight');
+    if (c) bits.push(c + ' clock ' + (c === 1 ? 'carry' : 'carries'));
+    return 'Wedge matrix' + (bits.length ? ' (' + bits.join(' · ') + ')' : '');
+  }
   function restoreExtras(R, parts) {
     restorePractice(R, parts);
     if (R.courses && R.courses.length) { var CM = COURSES.mergeCourses(courses(), R.courses); saveCourses(CM.courses); if (CM.added || CM.updated) parts.push((CM.added + CM.updated) + ' course' + (CM.added + CM.updated === 1 ? '' : 's')); }
     if (R.bag) { var BM = BAG.mergeBag(bag(), R.bag); if (BM.changed) { localStorage.setItem(BGK, JSON.stringify(BM.bag)); parts.push('My Bag (' + BM.bag.clubs.length + ' clubs)'); } }
-    if (R.wedges) { var WM = WEDGES.mergeWedges(wedges(), R.wedges); if (WM.changed) { localStorage.setItem(WGK, JSON.stringify(WM.wedges)); var nlo = WEDGES.filled(WM.wedges, 'low'); parts.push('Wedges (' + WEDGES.filled(WM.wedges) + ' yardages' + (nlo ? ' · ' + nlo + ' Low flight' : '') + ')'); } }
+    if (R.wedges) { var WM = WEDGES.mergeWedges(wedges(), R.wedges); if (WM.changed) { localStorage.setItem(WGK, JSON.stringify(WM.wedges)); parts.push(wedgesRestoreNote(WM.wedges)); } }
   }
   function restoreState(r) { var cur = rounds.filter(function (x) { return x.id === r.id; })[0]; return !cur ? 'new' : JSON.stringify(cur) === JSON.stringify(r) ? 'same' : 'diff'; }
   function restorePickHTML() {
@@ -1910,8 +1917,7 @@
     var nb = R.bag && R.bag.clubs ? R.bag.clubs.length : 0;
     if (nb) o += '<p class="help muted" id="rpbag">🏌️ My Bag (' + nb + ' club' + (nb === 1 ? '' : 's') + ') comes along if this phone’s bag is empty or older.</p>';
     var nw = R.wedges ? WEDGES.count(R.wedges) : 0;
-    var nws = R.wedges ? WEDGES.filled(R.wedges) : 0;
-    if (nw) o += '<p class="help muted" id="rpwedges">🎯 Wedges chart (' + nws + ' yardage' + (nws === 1 ? '' : 's') + ') comes along if this phone’s chart is empty or older.</p>';
+    if (nw) o += '<p class="help muted" id="rpwedges">🎯 ' + wedgesRestoreNote(R.wedges) + ' comes along if this phone’s chart is empty or older.</p>';
     var extra = [nc ? 'courses' : '', nb ? 'bag' : '', nw ? 'wedges' : ''].filter(Boolean);
     return o + '</div><button class="primary big" data-act="rpgo" id="rpgo"' + (nSel || extra.length ? '' : ' disabled') + '>' + (nSel || !extra.length ? 'Restore ' + nSel + ' selected' : extra.length === 1 && nb ? 'Restore my bag' : 'Restore ' + extra.join(' &amp; ')) + '</button>';
   }
@@ -1935,7 +1941,7 @@
     var parts = [M.added + ' added']; restorePractice(R, parts);
     if (R.courses && R.courses.length) { var CM = COURSES.mergeCourses(courses(), R.courses); saveCourses(CM.courses); if (CM.added || CM.updated) parts.push((CM.added + CM.updated) + ' course' + (CM.added + CM.updated === 1 ? '' : 's')); }
     if (R.bag) { var BM = BAG.mergeBag(bag(), R.bag); if (BM.changed) { localStorage.setItem(BGK, JSON.stringify(BM.bag)); parts.push('My Bag (' + BM.bag.clubs.length + ' clubs)'); } }
-    if (R.wedges) { var WM = WEDGES.mergeWedges(wedges(), R.wedges); if (WM.changed) { localStorage.setItem(WGK, JSON.stringify(WM.wedges)); var nlo = WEDGES.filled(WM.wedges, 'low'); parts.push('Wedges (' + WEDGES.filled(WM.wedges) + ' yardages' + (nlo ? ' · ' + nlo + ' Low flight' : '') + ')'); } }
+    if (R.wedges) { var WM = WEDGES.mergeWedges(wedges(), R.wedges); if (WM.changed) { localStorage.setItem(WGK, JSON.stringify(WM.wedges)); parts.push(wedgesRestoreNote(WM.wedges)); } }
     if (M.replaced) parts.push(M.replaced + ' replaced');
     if (M.kept) parts.push(M.kept + ' kept as on this phone');
     if (M.same) parts.push(M.same + ' already here');
@@ -3470,9 +3476,9 @@
     h += '<div class="tiprow">' + tipBtn('baginfo', 'i', 'About My Bag') + tipLbl('baginfo', 'About My Bag') + tipText('baginfo', 'Type how far each club carries (in the air, yards) at your usual course. Tap a club to change its name or loft, or remove it. Your bag is saved on this phone and in your backups. Carry estimates come from a small ball-flight model using air density – a guide, not a guarantee.') + '</div>';
     return h + '</div>';
   }
-  // ---------- v102 My Bag page: Bag | Wedge ladder toggle (Profile is gone; Player name lives in Settings) ----------
+  // ---------- v102 My Bag page: Bag | Wedge matrix toggle (Profile is gone; Player name lives in Settings; v227 clock system) ----------
   function bagSegHTML(on) {
-    return '<div class="bagseg" id="bagseg" role="tablist" aria-label="My Bag">' + [['bag', 'Bag'], ['wedges', 'Wedge ladder']].map(function (t) {
+    return '<div class="bagseg" id="bagseg" role="tablist" aria-label="My Bag">' + [['bag', 'Bag'], ['wedges', 'Wedge matrix']].map(function (t) {
       var sel = t[0] === on; return '<button role="tab" class="' + (sel ? 'on' : '') + '" data-act="' + t[0] + '" id="seg' + t[0] + '" aria-selected="' + sel + '">' + t[1] + '</button>'; }).join('') + '</div>';
   }
   function wedgeClubs() { // short clubs from the bag (wedges + PW/9i-ish lofts), else a standard wedge list
@@ -3484,10 +3490,102 @@
     return '<div class="bagchips wchips" data-f="' + f + '">' + list.map(function (o) { return '<button class="frostchip' + (cur === o[0] ? ' sel' : '') + '" data-act="wact" data-v="set" data-y="' + y + '" data-f="' + f + '" data-k="' + esc(o[0]) + '" aria-pressed="' + (cur === o[0]) + '">' + esc(o[1]) + '</button>'; }).join('') + '</div>';
   }
   function wNote(y, f, val, ph) { return '<input type="text" class="wnote" data-wn="' + f + '" data-y="' + y + '" maxlength="80" value="' + esc(val || '') + '" placeholder="' + esc(ph) + '">'; }
+  function clockClubCodes() {
+    var L = wedgeClubs(), codes = L.map(function (c) { return c.code; });
+    if (!codes.length || codes.join() === WEDGES.STD_CLUBS.join()) return WEDGES.CLOCK_CLUBS.slice();
+    return codes;
+  }
+  function clockAng(label) { // degrees clockwise from 12
+    if (label === 'Full') return 0;
+    var m = /^(\d{1,2}):(\d{2})$/.exec(String(label || ''));
+    if (!m) return null;
+    return ((+m[1]) % 12) * 30 + (+m[2]) * 0.5;
+  }
+  function clockPickerHTML(cur, i) {
+    var custom = !!view.wClkCustom || WEDGES.CLOCK_POS.indexOf(cur) < 0;
+    function pt(deg, r) { var a = (deg - 90) * Math.PI / 180; return [100 + r * Math.cos(a), 100 + r * Math.sin(a)]; }
+    var svg = '<svg class="wclkface" viewBox="0 0 200 200" aria-hidden="true">';
+    svg += '<circle class="wclk-ring" cx="100" cy="100" r="78" fill="none"/>';
+    for (var ti = 0; ti < 12; ti++) {
+      var a = ti * 30, inner = (ti % 3 === 0) ? 66 : 71, p1 = pt(a, inner), p2 = pt(a, 78);
+      svg += '<line class="wclk-tick' + (ti % 3 === 0 ? ' major' : '') + '" x1="' + p1[0].toFixed(1) + '" y1="' + p1[1].toFixed(1) + '" x2="' + p2[0].toFixed(1) + '" y2="' + p2[1].toFixed(1) + '"/>';
+    }
+    var sel = custom ? null : clockAng(cur);
+    if (sel != null) { var ph = pt(sel, 56); svg += '<line class="wclk-hand" x1="100" y1="100" x2="' + ph[0].toFixed(1) + '" y2="' + ph[1].toFixed(1) + '"/>'; }
+    svg += '<circle class="wclk-hub" cx="100" cy="100" r="2.4"/>';
+    [[0, 'Full'], [90, '3'], [180, '6'], [270, '9']].forEach(function (n) {
+      var p = pt(n[0], 50);
+      svg += '<text class="wclk-num" x="' + p[0].toFixed(1) + '" y="' + p[1].toFixed(1) + '" text-anchor="middle" dominant-baseline="middle">' + n[1] + '</text>';
+    });
+    svg += '</svg>';
+    var dots = '';
+    WEDGES.CLOCK_POS.forEach(function (lab) {
+      var deg = clockAng(lab); if (deg == null) return;
+      var p = pt(deg, 78), on = !custom && cur === lab;
+      dots += '<button type="button" class="wclkdot' + (lab === 'Full' ? ' wclkfull' : '') + (on ? ' on' : '') + '" style="left:' + (p[0] / 200 * 100).toFixed(2) + '%;top:' + (p[1] / 200 * 100).toFixed(2) + '%" data-act="wact" data-v="clockset" data-k="' + lab + '" aria-label="' + lab + '" aria-pressed="' + on + '"></button>';
+    });
+    var h = '<div class="wclkpick" id="wclkpick" data-act="wact" data-v="clockpickclose">';
+    h += '<div class="wclkpick-card" id="wclkpickcard" data-act="wact" data-v="clockpicknoop">';
+    h += '<p class="wclkpick-h">Swing length</p>';
+    h += '<div class="wclkface-wrap">' + svg + dots + '</div>';
+    h += '<div class="bagchips wclkchips">';
+    WEDGES.CLOCK_POS.forEach(function (lab) {
+      var on = !custom && cur === lab;
+      h += '<button type="button" class="frostchip' + (on ? ' sel' : '') + '" data-act="wact" data-v="clockset" data-k="' + lab + '" aria-pressed="' + on + '">' + lab + '</button>';
+    });
+    h += '<button type="button" class="frostchip bother' + (custom ? ' sel' : '') + '" data-act="wact" data-v="clockcustom" aria-pressed="' + custom + '">Custom</button></div>';
+    if (custom) h += '<input type="text" class="wnote" id="wclkcustom" maxlength="20" value="' + esc(WEDGES.CLOCK_POS.indexOf(cur) < 0 ? (cur || '') : '') + '" placeholder="e.g. 8:00 or Half">';
+    h += '<button type="button" class="frostbtn wclkdone" data-act="wact" data-v="clockpickdone">Done</button>';
+    return h + '</div></div>';
+  }
+  function clockHTML(w) {
+    w = WEDGES.ensureClock(w, clockClubCodes());
+    var C = w.clock, edit = !!view.wEdit, pick = view.wClkPick;
+    var h = '<div class="frostcard wclockcard" id="wclock">';
+    h += '<div class="wclockwrap"><table class="wclock" id="wclocktable"><thead><tr><th class="wclklbl"></th>';
+    C.clubs.forEach(function (c, ci) {
+      h += '<th>' + esc(WEDGES.clubLabel(c));
+      if (edit) h += '<button type="button" class="wclkx" data-act="wact" data-v="clockdelclub" data-i="' + ci + '" aria-label="Remove ' + esc(WEDGES.clubLabel(c)) + '">×</button>';
+      h += '</th>';
+    });
+    h += '</tr></thead><tbody>';
+    C.rows.forEach(function (r, i) {
+      h += '<tr data-i="' + i + '"><th class="wclklbl">';
+      if (edit) h += '<button type="button" class="wclktime" data-act="wact" data-v="clockpick" data-i="' + i + '" aria-label="Swing length">' + esc(r.label) + '</button>';
+      else h += '<span class="wclktime ro">' + esc(r.label) + '</span>';
+      if (edit) h += '<button type="button" class="wclkx" data-act="wact" data-v="clockdelrow" data-i="' + i + '" aria-label="Remove ' + esc(r.label) + '">×</button>';
+      h += '</th>';
+      C.clubs.forEach(function (c) {
+        var y = r.yd && r.yd[c], val = y != null ? y : '';
+        if (edit) h += '<td><input type="text" inputmode="numeric" pattern="[0-9]*" data-wc="yd" data-i="' + i + '" data-c="' + esc(c) + '" maxlength="3" value="' + val + '" aria-label="' + esc(WEDGES.clubLabel(c) + ' at ' + r.label) + '"></td>';
+        else h += '<td' + (val === '' ? ' class="wclkempty"' : '') + '>' + (val === '' ? '–' : val) + '</td>';
+      });
+      h += '</tr>';
+    });
+    h += '</tbody></table></div>';
+    if (edit) {
+      h += '<div class="wclktools">';
+      h += '<button type="button" class="frostbtn" data-act="wact" data-v="clockaddrow" id="wclkaddrow">＋ Add swing</button>';
+      h += '<div class="bagtype wclkaddc"><input type="text" id="wclkaddc" maxlength="14" placeholder="Club, e.g. 52" value=""><button type="button" class="frostbtn" data-act="wact" data-v="clockaddclub">Add club</button></div>';
+      h += '</div>';
+    }
+    h += '</div>';
+    h += '<button class="big frostbtn wedit' + (edit ? ' on' : '') + '" id="wedit" data-act="wact" data-v="editmode" aria-pressed="' + edit + '">' + (edit ? '✓ Done editing' : '✎ Edit') + '</button>';
+    h += '<div class="tiprow">' + tipBtn('wedgeinfo', 'i', 'About the clock') + tipLbl('wedgeinfo', 'About the clock') + tipText('wedgeinfo', 'Each row is a swing length – 7:30, 9:00, 10:30 or a full swing. Tap Edit, then type how far each wedge carries at that length. Tap a time to pick another, or Custom to type your own. Add or remove wedges and swings as you like. Everything saves on this phone and goes into your backups.') + '</div>';
+    if (edit && pick != null && C.rows[pick]) h += clockPickerHTML(C.rows[pick].label, pick);
+    return h;
+  }
   function wedgesHTML() {
-    var fl = view.wFlight === 'low' ? 'low' : 'high', w = wedges(), R = WEDGES.rowsOf(w, fl), nw = WEDGES.filled(w, fl), clubs = wedgeClubs(), fromBag = clubs.map(function (c) { return c.code; }).join() !== WEDGES.STD_CLUBS.join();
+    var w = wedges(), clock = w.mode === 'clock';
+    var fl = view.wFlight === 'low' ? 'low' : 'high', R = WEDGES.rowsOf(w, fl), nw = WEDGES.filled(w, fl), clubs = wedgeClubs(), fromBag = clubs.map(function (c) { return c.code; }).join() !== WEDGES.STD_CLUBS.join();
+    var sub = clock ? (WEDGES.clockCells(w) ? WEDGES.clockCells(w) + ' carries set' : 'Clock system') : (nw + ' of ' + WEDGES.YARDS.length + ' yardages set');
     var h = '<div class="frostpage theme-sky bagpage wedgepage"><div class="topbar frost"><button class="txt frostbtn" data-act="home">‹ Home</button>' +
-      '<div class="title"><b>My Bag</b><span>' + nw + ' of ' + WEDGES.YARDS.length + ' yardages set</span></div><span></span></div>' + bagSegHTML('wedges');
+      '<div class="title"><b>My Bag</b><span>' + sub + '</span></div><span></span></div>' + bagSegHTML('wedges');
+    h += '<div class="wflight wmode" id="wmode" role="tablist" aria-label="Wedge matrix">' + [['yards', 'Yardages'], ['clock', 'Clock']].map(function (t) {
+      var on = clock ? t[0] === 'clock' : t[0] === 'yards';
+      return '<button role="tab" class="' + (on ? 'on' : '') + '" data-act="wact" data-v="mode" data-k="' + t[0] + '" aria-selected="' + on + '">' + t[1] + '</button>';
+    }).join('') + '</div>';
+    if (clock) return h + clockHTML(w) + '</div>';
     h += '<div class="wflight" id="wflight" role="tablist" aria-label="Flight">' + WEDGES.FLIGHTS.map(function (f) { var on = f[0] === fl; return '<button role="tab" class="' + (on ? 'on' : '') + '" data-act="wact" data-v="flight" data-k="' + f[0] + '" aria-selected="' + on + '">' + f[1] + ' flight</button>'; }).join('') + '</div>';
     h += '<div class="frostcard wlist" id="wlist">';
     WEDGES.YARDS.forEach(function (y) {
@@ -3514,20 +3612,99 @@
       h += '</div>';
     });
     h += '</div><button class="big frostbtn wedit' + (view.wEdit ? ' on' : '') + '" id="wedit" data-act="wact" data-v="editmode" aria-pressed="' + !!view.wEdit + '">' + (view.wEdit ? '✓ Done editing' : '✎ Edit') + '</button>';
-    h += '<div class="tiprow">' + tipBtn('wedgeinfo', 'i', 'About Wedges') + tipLbl('wedgeinfo', 'About Wedges') + tipText('wedgeinfo', 'Two setups for every yardage: High flight and Low flight – switch with the toggle at the top. Every 10 yards from 40 to 110. Tap a set yardage to see its club, ball position and club position; tap Edit to change anything. Tap an empty yardage to set the club, ball position, shaft lean (degrees forward), club position (P1–P3) and wrist hinge. Everything saves on this phone as you tap and goes into your backups.') + '</div>';
+    h += '<div class="tiprow">' + tipBtn('wedgeinfo', 'i', 'About Wedges') + tipLbl('wedgeinfo', 'About Wedges') + tipText('wedgeinfo', 'Two setups for every yardage: High flight and Low flight – switch with the toggle. Every 10 yards from 40 to 110. Tap a set yardage to see its club, ball position and club position; tap Edit to change anything. Tap an empty yardage to set the club, ball position, shaft lean (degrees forward), club position (P1–P3) and wrist hinge. Switch to Clock at the top if you play a clock system. Everything saves on this phone as you tap and goes into your backups.') + '</div>';
     return h + '</div>';
   }
   function wAct(v, btn) {
     var y = +btn.getAttribute('data-y'), fl = view.wFlight === 'low' ? 'low' : 'high', w = wedges(), R = WEDGES.rowsOf(w, fl), r = R[y] || {};
+    if (v === 'mode') {
+      if (btn.getAttribute('data-k') === 'clock') { w = WEDGES.ensureClock(w, clockClubCodes()); w.mode = 'clock'; }
+      else delete w.mode;
+      saveWedges(w); view.wEdit = false; view.wClkPick = null; view.wClkCustom = false; view.wOpen = null; render(); return;
+    }
+    if (v === 'editmode') { view.wEdit = !view.wEdit; view.wFull = null; view.wOther = null; view.wClkPick = null; view.wClkCustom = false; render(); var eb = document.getElementById('wedit'); if (eb && !view.wOpen) eb.scrollIntoView({ block: 'nearest' }); return; }
+    if (v === 'clockpicknoop') { return; }
+    if (v === 'clockpick') {
+      var pi = +btn.getAttribute('data-i');
+      view.wClkPick = view.wClkPick === pi ? null : pi;
+      var prow = ((wedges().clock && wedges().clock.rows) || [])[pi];
+      view.wClkCustom = !!(prow && WEDGES.CLOCK_POS.indexOf(prow.label) < 0);
+      render(); return;
+    }
+    if (v === 'clockpickclose' || v === 'clockpickdone') {
+      if (v === 'clockpickdone') {
+        var inp = document.getElementById('wclkcustom');
+        if (inp && view.wClkCustom && view.wClkPick != null) {
+          w = WEDGES.ensureClock(w, clockClubCodes());
+          var labDone = inp.value.trim().slice(0, 20);
+          if (labDone) { w.clock.rows[view.wClkPick].label = labDone; saveWedges(w); }
+        }
+      }
+      view.wClkPick = null; view.wClkCustom = false; render(); return;
+    }
+    if (v === 'clockcustom') { view.wClkCustom = true; render(); var ci = document.getElementById('wclkcustom'); if (ci) ci.focus(); return; }
+    if (v === 'clockset') {
+      var iSet = view.wClkPick; if (iSet == null) return;
+      w = WEDGES.ensureClock(w, clockClubCodes());
+      w.clock.rows[iSet].label = btn.getAttribute('data-k');
+      saveWedges(w); view.wClkCustom = false; view.wClkPick = null; render(); return;
+    }
+    if (v === 'clockaddrow') {
+      w = WEDGES.ensureClock(w, clockClubCodes());
+      var used = w.clock.rows.map(function (x) { return x.label; });
+      var nxt = WEDGES.CLOCK_POS.filter(function (x) { return used.indexOf(x) < 0; })[0] || 'Custom';
+      w.clock.rows.push({ label: nxt, yd: {} }); saveWedges(w);
+      view.wClkPick = w.clock.rows.length - 1; view.wClkCustom = WEDGES.CLOCK_POS.indexOf(nxt) < 0; render(); return;
+    }
+    if (v === 'clockdelrow') {
+      var di = +btn.getAttribute('data-i');
+      w = WEDGES.ensureClock(w, clockClubCodes());
+      if (w.clock.rows.length < 2) { toast('Keep at least one swing'); return; }
+      if (!confirm('Remove ' + w.clock.rows[di].label + ' from the matrix?')) return;
+      w.clock.rows.splice(di, 1); saveWedges(w); view.wClkPick = null; toast('Swing removed'); render(); return;
+    }
+    if (v === 'clockaddclub') {
+      var box = document.getElementById('wclkaddc'), name = box && box.value.trim();
+      if (!name) { toast('Type a club name'); if (box) box.focus(); return; }
+      w = WEDGES.ensureClock(w, clockClubCodes());
+      if (w.clock.clubs.some(function (c) { return c.toLowerCase() === name.toLowerCase(); })) { toast('Already in the matrix'); return; }
+      if (w.clock.clubs.length >= 10) { toast('That’s as many clubs as the matrix holds'); return; }
+      w.clock.clubs.push(name.slice(0, 14)); saveWedges(w); render(); return;
+    }
+    if (v === 'clockdelclub') {
+      var ci2 = +btn.getAttribute('data-i');
+      w = WEDGES.ensureClock(w, clockClubCodes());
+      if (w.clock.clubs.length < 2) { toast('Keep at least one wedge'); return; }
+      var gone = w.clock.clubs[ci2];
+      if (!confirm('Remove ' + WEDGES.clubLabel(gone) + ' from the matrix?')) return;
+      w.clock.clubs.splice(ci2, 1);
+      w.clock.rows.forEach(function (row) { if (row.yd) delete row.yd[gone]; });
+      saveWedges(w); toast(WEDGES.clubLabel(gone) + ' removed'); render(); return;
+    }
     if (v === 'flight') { view.wFlight = btn.getAttribute('data-k') === 'low' ? 'low' : 'high'; view.wOpen = null; view.wFull = null; view.wOther = null; render(); return; }
-    if (v === 'editmode') { view.wEdit = !view.wEdit; view.wFull = null; view.wOther = null; render(); var eb = document.getElementById('wedit'); if (eb && !view.wOpen) eb.scrollIntoView({ block: 'nearest' }); return; }
     if (v === 'toggle') { var opening = view.wOpen !== y; view.wOpen = opening ? y : null; view.wFull = opening && !WEDGES.summary(r) ? y : null; view.wOther = null; render(); var row = document.querySelector('.wrow[data-y="' + y + '"]'); if (view.wOpen && row && row.scrollIntoView) row.scrollIntoView({ block: 'nearest' }); return; }
     if (v === 'other') { view.wOther = y; render(); var i = document.querySelector('[data-wn="club"]'); if (i) i.focus(); return; }
     if (v === 'set') { var f = btn.getAttribute('data-f'), k = btn.getAttribute('data-k'); if (r[f] === k) delete r[f]; else r[f] = k; if (f === 'club') view.wOther = null; R[y] = r; saveWedges(w); render(); return; }
     if (v === 'clear') { var fn = fl === 'low' ? 'Low' : 'High'; if (!confirm('Clear the ' + fn + ' flight setup for ' + y + ' yards?')) return; delete R[y]; saveWedges(w); view.wOther = null; toast(y + ' yards (' + fn + ') cleared'); render(); return; }
   }
   document.addEventListener('input', function (ev) {
-    var t = ev.target, f = t && t.getAttribute && t.getAttribute('data-wn'); if (!f) return;
+    var t = ev.target;
+    if (t && t.id === 'wclkcustom' && view.wClkPick != null) {
+      var wc = WEDGES.ensureClock(wedges(), clockClubCodes()), lab = t.value.trim().slice(0, 20);
+      if (lab) { wc.clock.rows[view.wClkPick].label = lab; saveWedges(wc); }
+      return;
+    }
+    if (t && t.getAttribute && t.getAttribute('data-wc') === 'yd') {
+      var wi = +t.getAttribute('data-i'), cc = t.getAttribute('data-c');
+      t.value = t.value.replace(/[^0-9]/g, '').slice(0, 3);
+      var ww = WEDGES.ensureClock(wedges(), clockClubCodes());
+      if (!ww.clock.rows[wi]) return;
+      ww.clock.rows[wi].yd = ww.clock.rows[wi].yd || {};
+      if (t.value === '') delete ww.clock.rows[wi].yd[cc]; else ww.clock.rows[wi].yd[cc] = +t.value;
+      saveWedges(ww);
+      return;
+    }
+    var f = t && t.getAttribute && t.getAttribute('data-wn'); if (!f) return;
     var y = +t.getAttribute('data-y'), w = wedges(), R = WEDGES.rowsOf(w, view.wFlight === 'low' ? 'low' : 'high'), r = R[y] || {};
     if (t.value.trim()) r[f] = t.value; else delete r[f]; R[y] = r; saveWedges(w);
     var s = document.querySelector('[data-wsum="' + y + '"]'), sum = WEDGES.summary(r); if (s) { s.textContent = (view.wEdit ? sum : WEDGES.summary(r, true) || sum) || 'Not set'; s.classList.toggle('none', !sum); }
@@ -3846,7 +4023,7 @@
     // v90: "Hole out" box – this stroke went in, and the row keeps its Loc (lie). v91: only offered on the LAST row
     // (never shot 1) so earlier rows stay clean; a row that is already ticked keeps its (ticked) box so it isn't hidden.
     var hoBox = k > 0 && row.loc !== 'holedx' && (k === h.rows.length - 1 || row.holeOut) ? '<label class="layup holeout' + (row.holeOut ? ' on' : '') + '"><input type="checkbox" data-f="holeout" data-k="' + k + '"' + (row.holeOut ? ' checked' : '') + dis + ' aria-label="Hole out: shot ' + shotNo + ' went in"> Hole out</label>' : '';
-    if (row.loc !== 'green' && row.loc !== 'holed' && wLadderFor(row)) out += ladderRowHTML(h, k, row, shotNo, dis, hoBox);
+    if (row.loc !== 'green' && row.loc !== 'holed' && wOfferFor(row)) out += ladderRowHTML(h, k, row, shotNo, dis, hoBox);
     else if (row.loc !== 'green' && row.loc !== 'holed') {
       out += '<div class="clubrow" data-club="' + k + '"><label class="clublbl"><span>Club</span><select data-f="club" data-k="' + k + '" aria-label="Club row ' + shotNo + '"' + dis + '><option value=""' + (row.club ? '' : ' selected') + '>–</option>' +
         clubChoices(row.club).map(function (c) { return '<option value="' + esc(c.code) + '"' + (row.club === c.code ? ' selected' : '') + '>' + esc(c.label) + '</option>'; }).join('') + '</select></label>' +
@@ -3928,7 +4105,7 @@
     else fromHTML = '<span class="ddwrap fromwrap"><b class="sc-lie">' + esc(fromText(h, k)) + '<i class="fromchev" aria-hidden="true"></i></b><select class="ddover sc-liesel" data-f="loc" data-k="' + k + '" aria-label="Shot ' + n + ' from">' + // tap the words to change the lie
       FROM_LOCS.concat(row.loc === 'holed' ? [['holed', 'Green']] : row.loc === 'holedx' ? [['holedx', 'In the hole']] : []).map(function (l) { return '<option value="' + l[0] + '"' + (row.loc === l[0] ? ' selected' : '') + '>' + l[1] + '</option>'; }).join('') + '</select></span>';
     var hit = s && !green && s.hit != null && s.end && s.end.lie !== 'holed' && !s.ob ? s.hit + ' yd' : s && s.end && s.end.lie === 'holed' ? (green ? 'holed' : s.hit != null ? s.hit + ' yd' : '') : '';
-    var club = green || row.loc === 'holed' ? '<span class="dd ddtxt">Putter</span>' : wLadderFor(row) ? '<span class="dd ddtxt">' + esc(row.club ? ((clubChoices(row.club).filter(function (c) { return c.code === row.club; })[0] || {}).label || row.club) : 'Wedge ↓') + '</span>'
+    var club = green || row.loc === 'holed' ? '<span class="dd ddtxt">Putter</span>' : wOfferFor(row) ? '<span class="dd ddtxt">' + esc(row.club ? ((clubChoices(row.club).filter(function (c) { return c.code === row.club; })[0] || {}).label || row.club) : 'Wedge ↓') + '</span>'
       : '<select class="dd" data-f="club" data-k="' + k + '" aria-label="Shot ' + n + ' club"><option value=""' + (row.club ? '' : ' selected') + '>Club</option>' +
         clubChoices(row.club).map(function (c) { return '<option value="' + esc(c.code) + '"' + (row.club === c.code ? ' selected' : '') + '>' + esc(c.label) + '</option>'; }).join('') + '</select>';
     var plus = fv === 'hazard' ? (nx && (nx.pen || SG.isRetee(nx))) : fv === 'ob' || fv === 'unp' || fv === 'lost';
@@ -3941,7 +4118,7 @@
       '<div class="sc-mid"><span class="sc-hit">' + (hit || '&nbsp;') + '</span>' + ICON_ARROW + club + '</div>' +
       '<div class="sc-fin"><span class="sc-lbl">Finished</span>' + finSel + (plus ? '<i class="tpen">+1</i>' : '') + '</div></div>';
     // the wedge chart picks the club for wedge shots (its own row, as before)
-    if (!green && row.loc !== 'holed' && wLadderFor(row)) out += '<div class="sc-sec sc-clubsec">' + ladderRowHTML(h, k, row, n, '', '') + '</div>';
+    if (!green && row.loc !== 'holed' && wOfferFor(row)) out += '<div class="sc-sec sc-clubsec">' + ladderRowHTML(h, k, row, n, '', '') + '</div>';
     if (green) out += readPadHTML(h, k, row, ''); // v202: the read of the putt
     // direction under Finished
     if (fin && fin !== 'in' && nx) { var dv = SG.normDir(nx.dir), obx = nx.loc === 'ob';
@@ -6200,10 +6377,15 @@
       save(); render();
       if (v !== 'ob' && row.dist === '') focusDist(k);
     } else if (f === 'dir') { row.dir = t.value; save(); render(); }
-    else if (f === 'club') { if (t.value) row.club = t.value; else delete row.club; delete row.wedgeY; delete row.wedgeF; delete row.wedgeAuto; delete row.wedgeOff; save(); }
+    else if (f === 'club') { if (t.value) row.club = t.value; else delete row.club; delete row.wedgeY; delete row.wedgeF; delete row.wedgeAuto; delete row.wedgeOff; delete row.wedgeClock; save(); }
     else if (f === 'wladder') {
       var we = /^w([hl])(\d+)$/.exec(t.value), wf = we && (we[1] === 'l' ? 'low' : 'high'), wr = we && WEDGES.rowsOf(wedges(), wf)[we[2]];
-      delete row.wedgeAuto; delete row.wedgeOff; if (wr && wr.club) { row.club = wr.club; row.wedgeY = +we[2]; row.wedgeF = wf; } else if (/^c:/.test(t.value)) { row.club = t.value.slice(2); delete row.wedgeY; delete row.wedgeF; } else if (!t.value) { delete row.club; delete row.wedgeY; delete row.wedgeF; } // "Choose carry…" = no club; c:Putter = putting from off the green
+      var ck = WEDGES.parseClockVal(t.value), ce = ck && WEDGES.clockEntries(wedges()).filter(function (e) { return e.club === ck.club && e.label === ck.label; })[0];
+      delete row.wedgeAuto; delete row.wedgeOff;
+      if (ce) { row.club = ce.club; row.wedgeY = ce.y; row.wedgeClock = ce.label; delete row.wedgeF; }
+      else if (wr && wr.club) { row.club = wr.club; row.wedgeY = +we[2]; row.wedgeF = wf; delete row.wedgeClock; }
+      else if (/^c:/.test(t.value)) { row.club = t.value.slice(2); delete row.wedgeY; delete row.wedgeF; delete row.wedgeClock; }
+      else if (!t.value) { delete row.club; delete row.wedgeY; delete row.wedgeF; delete row.wedgeClock; } // "Choose carry…" = no club; c:Putter = putting from off the green
       save(); render();
     }
     else if (f === 'layup') { if (t.checked) row.layup = true; else delete row.layup; save(); refreshInfo(h); }
@@ -6254,25 +6436,59 @@
   // Picking one sets row.club (so SG / club stats work as before) plus row.wedgeY + row.wedgeF (which carry, which flight).
   // If no yardage has a club yet, the normal club picker shows.
   function wLadderFor(row) { if (row.loc === 'ob' || !WEDGES.inRange(row.dist)) return null; var w = wedges(); return WEDGES.ladder(w).length ? WEDGES.fullLadder(w) : null; }
+  function wOfferFor(row) { // v227: yardage chart and/or clock matrix for shots ≤100 yd
+    if (row.loc === 'ob' || !WEDGES.inRange(row.dist)) return null;
+    var w = wedges(), hasL = !!WEDGES.ladder(w).length, hasC = w.mode === 'clock' && WEDGES.clockEntries(w).length;
+    if (!hasL && !hasC) return null;
+    return { w: w, hasL: hasL, hasC: hasC };
+  }
+  function wOfferKey(row) {
+    var O = wOfferFor(row); if (!O) return '';
+    var keys = [];
+    if (O.hasC) keys = keys.concat(WEDGES.nearClock(O.w, row.dist).map(WEDGES.clockVal));
+    if (O.hasL) keys = keys.concat(WEDGES.carries(row.dist));
+    if (row.wedgeClock) keys.push('clk:' + row.club + ':' + row.wedgeClock);
+    if (row.wedgeY) keys.push('y:' + row.wedgeY + (row.wedgeF || ''));
+    return keys.join();
+  }
   function wLadderPick(row, L) { // the ladder entry this shot was given (a v94 automatic pick just keeps its club)
-    if (!row.club || !row.wedgeY || row.wedgeAuto) return null;
+    if (!row.club || !row.wedgeY || row.wedgeAuto || row.wedgeClock) return null;
     return L.filter(function (x) { return x.set && x.y === +row.wedgeY && x.f === (row.wedgeF || 'high') && x.row.club === row.club; })[0] || null;
+  }
+  function wClockPick(row, L) {
+    if (!row.club || !row.wedgeClock) return null;
+    return (L || []).filter(function (x) { return x.club === row.club && x.label === row.wedgeClock; })[0] || null;
   }
   function wDetailHTML(e) {
     var r = e.row, x = [r.lean ? 'Lean ' + WEDGES.name(WEDGES.LEAN, r.lean) : '', r.hinge ? 'Hinge ' + WEDGES.name(WEDGES.HINGE, r.hinge) : ''].filter(Boolean).join(' · ');
     var it = function (l, v) { return '<span><i>' + l + '</i>' + esc(v || '–') + '</span>'; };
     return '<div class="wladet" id="wladet-' + e.f + e.y + '">' + it('Flight', WEDGES.name(WEDGES.FLIGHTS, e.f)) + it('Carry', e.y + ' yd') + it('Club', WEDGES.clubLabel(r.club)) + it('Ball', WEDGES.name(WEDGES.BALL, r.ball) || r.ballNote) + it('Position', WEDGES.name(WEDGES.POS, r.pos) || r.posNote) + (x ? '<small>' + esc(x) + '</small>' : '') + '</div>';
   }
+  function wClockDetailHTML(e) {
+    var it = function (l, v) { return '<span><i>' + l + '</i>' + esc(v || '–') + '</span>'; };
+    return '<div class="wladet" id="wladet-clk">' + it('Club', WEDGES.clubLabel(e.club)) + it('Swing', e.label) + it('Carry', e.y + ' yd') + '</div>';
+  }
   function ladderRowHTML(h, k, row, shotNo, dis, hoBox) {
     // v95b: list only 3 carries around the pin distance (both flights); a chosen carry outside them still shows
-    var F = wLadderFor(row), cur = wLadderPick(row, F), C = WEDGES.carries(row.dist), L = F.filter(function (e) { return C.indexOf(e.y) >= 0 || (cur && e === cur); }), wv = function (e) { return 'w' + e.f.charAt(0) + e.y; }, val = cur ? wv(cur) : row.club ? 'c:' + row.club : '';
-    var o = '<div class="clubrow wladder" data-club="' + k + '"><label class="clublbl"><span>Wedge</span><select data-f="wladder" data-k="' + k + '" aria-label="Wedge carry row ' + shotNo + '"' + dis + '><option value=""' + (val ? '' : ' selected') + '>Choose carry…</option>' +
-      WEDGES.FLIGHTS.map(function (f) { /* grouped by flight, sorted by yardage */ return '<optgroup label="' + f[1] + ' flight">' + L.filter(function (e) { return e.f === f[0]; }).map(function (e) {
-        return '<option value="' + wv(e) + '"' + (val === wv(e) ? ' selected' : '') + (e.set ? '' : ' disabled') + '>' + esc(WEDGES.ladderLabel(e)) + '</option>'; }).join('') + '</optgroup>'; }).join('') +
-      (row.club && !cur && !/^putter$/i.test(row.club) ? '<option value="c:' + esc(row.club) + '" selected>' + esc(row.club) + '</option>' : '') +
-      '<option value="c:Putter"' + (/^putter$/i.test(row.club || '') && !cur ? ' selected' : '') + '>Putter</option>' + '</select></label>' + // v181: putt from off the green
+    // v227: in clock mode, also (or only) list nearby clock-matrix entries, e.g. 54° · 9:00 · 72 yd
+    var O = wOfferFor(row) || { w: wedges(), hasL: false, hasC: false };
+    var F = O.hasL ? WEDGES.fullLadder(O.w) : [];
+    var cur = O.hasL ? wLadderPick(row, F) : null;
+    var clkAll = O.hasC ? WEDGES.clockEntries(O.w) : [], curC = O.hasC ? wClockPick(row, clkAll) : null;
+    var C = WEDGES.carries(row.dist), L = F.filter(function (e) { return C.indexOf(e.y) >= 0 || (cur && e === cur); }), wv = function (e) { return 'w' + e.f.charAt(0) + e.y; };
+    var CLK = O.hasC ? WEDGES.nearClock(O.w, row.dist).slice() : [];
+    if (curC && !CLK.some(function (e) { return e.club === curC.club && e.label === curC.label; })) CLK.unshift(curC);
+    var val = curC ? WEDGES.clockVal(curC) : (cur ? wv(cur) : row.club ? 'c:' + row.club : '');
+    var o = '<div class="clubrow wladder" data-club="' + k + '"><label class="clublbl"><span>Wedge</span><select data-f="wladder" data-k="' + k + '" aria-label="Wedge carry row ' + shotNo + '"' + dis + '><option value=""' + (val ? '' : ' selected') + '>Choose carry…</option>';
+    if (CLK.length) o += '<optgroup label="Clock">' + CLK.map(function (e) {
+      return '<option value="' + WEDGES.clockVal(e) + '"' + (val === WEDGES.clockVal(e) ? ' selected' : '') + '>' + esc(WEDGES.clockLabel(e)) + '</option>';
+    }).join('') + '</optgroup>';
+    if (L.length) o += WEDGES.FLIGHTS.map(function (f) { /* grouped by flight, sorted by yardage */ return '<optgroup label="' + f[1] + ' flight">' + L.filter(function (e) { return e.f === f[0]; }).map(function (e) {
+        return '<option value="' + wv(e) + '"' + (val === wv(e) ? ' selected' : '') + (e.set ? '' : ' disabled') + '>' + esc(WEDGES.ladderLabel(e)) + '</option>'; }).join('') + '</optgroup>'; }).join('');
+    o += (row.club && !cur && !curC && !/^putter$/i.test(row.club) ? '<option value="c:' + esc(row.club) + '" selected>' + esc(row.club) + '</option>' : '') +
+      '<option value="c:Putter"' + (/^putter$/i.test(row.club || '') && !cur && !curC ? ' selected' : '') + '>Putter</option>' + '</select></label>' + // v181: putt from off the green
       (k === 0 && Number(h.par) !== 3 ? '<label class="layup"><input type="checkbox" data-f="layup" data-k="0"' + (row.layup ? ' checked' : '') + dis + '> Layup <small>(not in SG)</small></label>' : '') + hoBox;
-    return o + (cur ? wDetailHTML(cur) : '') + '</div>';
+    return o + (curC ? wClockDetailHTML(curC) : (cur ? wDetailHTML(cur) : '')) + '</div>';
   }
   function clubRowRefresh(h, k) { // swap just that shot's club line (keeps the keyboard up in the distance box)
     // v180 shot card: swap the middle (yards hit, club) and add / drop the wedge-chart row
@@ -6291,9 +6507,9 @@
     var t = ev.target; if (!t.hasAttribute || !t.hasAttribute('data-row')) return;
     t.value = t.value.replace(/[^0-9]/g, '').slice(0, 3);
     var h = round().holes[view.hole], k = +t.getAttribute('data-row');
-    var wasL = !!wLadderFor(h.rows[k]), wasC = WEDGES.carries(h.rows[k].dist).join();
+    var wasL = !!wOfferFor(h.rows[k]), wasC = wOfferKey(h.rows[k]);
     h.rows[k].dist = t.value === '' ? '' : +t.value; save();
-    if ((wasL && wasC !== WEDGES.carries(h.rows[k].dist).join()) || wasL !== !!wLadderFor(h.rows[k])) clubRowRefresh(h, k);
+    if ((wasL && wasC !== wOfferKey(h.rows[k])) || wasL !== !!wOfferFor(h.rows[k])) clubRowRefresh(h, k);
     refreshInfo(h);
   });
   // Update the per-shot info lines in place (no re-render, so taps and the keyboard aren't disturbed)

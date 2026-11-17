@@ -2,7 +2,8 @@
 // club picker (bag clubs only), voice matching, and backup/restore. Opened from My Bag in the + menu (v102; was Profile). iPhone 390x844 @3x.
 const assert = require('assert'); const { spawn } = require('child_process'); const fs = require('fs');
 const BAG = require('../bag.js'); const SG = require('../sg.js');
-const OUT = '/workspace/golf-app/screenshots/', PORT = 8823, BASE = 'http://127.0.0.1:' + PORT + '/';
+const path = require('path');
+const OUT = '/tmp/wedge-test-shots/', PORT = 8823, BASE = 'http://127.0.0.1:' + PORT + '/';
 const reno = { elev: 5000, temp: 70 }, sd = { elev: 0, temp: 75 }, sea = { elev: 0, temp: 70 };
 const pct = (a, b) => (a / b - 1) * 100;
 // ---------- 1. physics ----------
@@ -48,7 +49,7 @@ const pct = (a, b) => (a / b - 1) * 100;
 // ---------- 3. phone flow ----------
 (async () => {
   const { chromium } = require('playwright-core');
-  const srv = spawn('python3', ['-m', 'http.server', String(PORT), '--bind', '127.0.0.1'], { cwd: '/workspace/golf-app', stdio: 'ignore' });
+  const srv = spawn('python3', ['-m', 'http.server', String(PORT), '--bind', '127.0.0.1'], { cwd: path.join(__dirname, '..'), stdio: 'ignore' });
   await new Promise(r => setTimeout(r, 1500)); const errors = [];
   const br = await chromium.launch({ executablePath: '/usr/bin/google-chrome', args: ['--no-sandbox'] });
   try {

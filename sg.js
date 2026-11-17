@@ -730,7 +730,7 @@
   }
 
   // Backup file: { app: 'golf-shot-tracker', kind: 'rounds-backup', version: 1, exported: ISO, rounds: [...] }
-  function hasWedges(w) { var ok = function (o) { return !!(o && typeof o === 'object' && !Array.isArray(o) && Object.keys(o).length); }; return !!(w && (ok(w.rows) || ok(w.low))); } // v94: High (rows) or Low (low) flight
+  function hasWedges(w) { var ok = function (o) { return !!(o && typeof o === 'object' && !Array.isArray(o) && Object.keys(o).length); }; var clock = w && w.clock && typeof w.clock === 'object' && ((Array.isArray(w.clock.clubs) && w.clock.clubs.length) || (Array.isArray(w.clock.rows) && w.clock.rows.length)); return !!(w && (ok(w.rows) || ok(w.low) || clock || w.mode === 'clock')); } // v94: High (rows) or Low (low) flight; v227: clock matrix too
   function makeBackup(rounds, now, player, courses, bag, wedges, practice, sgtests) {
     var o = { app: 'golf-shot-tracker', kind: 'rounds-backup', version: 1, exported: (now || new Date()).toISOString(), count: rounds.length, rounds: rounds };
     if (player) o.player = player; if (courses && courses.length) o.courses = courses; if (bag && Array.isArray(bag.clubs) && bag.clubs.length) o.bag = bag;
@@ -928,7 +928,7 @@
     YARDS: YARDS, OFF_GREEN: OFF_GREEN, FEET: FEET, PUTTS: PUTTS,
     // v150: the ONE place the app version lives – must equal the sw.js cache name ('golf-sg-' + VERSION). It sits in a cached file,
     // so Settings shows the version of the code actually running (config.js is network-first and could run ahead).
-    VERSION: 'v226' };
+    VERSION: 'v227' };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else root.SG = api;
 })(this);

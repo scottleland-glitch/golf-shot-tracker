@@ -4,7 +4,8 @@
 // Over 100 yd → the normal club picker. No yardage set at all → the normal club picker.
 const assert = require('assert'); const { spawn } = require('child_process');
 const W = require('../wedges.js');
-const OUT = '/workspace/golf-app/screenshots/', PORT = 8832, BASE = 'http://127.0.0.1:' + PORT + '/';
+const path = require('path');
+const OUT = '/tmp/wedge-test-shots/', PORT = 8832, BASE = 'http://127.0.0.1:' + PORT + '/';
 const CHART = { v: 3, updated: '2026-10-28T20:00:00.000Z', rows: {
   40: { club: '60', ball: 'back', lean: '1-2', pos: 'p1', hinge: '45' }, 50: { club: '58', ball: 'front', pos: 'p1' },
   70: { club: '54', ball: 'middle', lean: '1-2', pos: 'p2', hinge: '90' }, 90: { ball: 'back' }, 75: { club: '56' },
@@ -30,7 +31,7 @@ const LOW = ['40 yd · Low · not set', '50 yd · Low · not set', '60 yd · Low
 }
 (async () => {
   const { chromium } = require('playwright-core');
-  const srv = spawn('python3', ['-m', 'http.server', String(PORT), '--bind', '127.0.0.1'], { cwd: '/workspace/golf-app', stdio: 'ignore' });
+  const srv = spawn('python3', ['-m', 'http.server', String(PORT), '--bind', '127.0.0.1'], { cwd: path.join(__dirname, '..'), stdio: 'ignore' });
   await new Promise(r => setTimeout(r, 1500)); const errors = [];
   const br = await chromium.launch({ executablePath: '/usr/bin/google-chrome', args: ['--no-sandbox'] });
   try {

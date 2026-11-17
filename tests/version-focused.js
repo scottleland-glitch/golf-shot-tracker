@@ -2,7 +2,7 @@
 // (v150: VERSION in sg.js – a cached file, unlike config.js) and must equal the service worker cache name in sw.js (golf-sg-<version>), so they can't drift.
 // iPhone 390x844 @3x. Run: node tests/version-focused.js
 const { chromium } = require('playwright-core'); const assert = require('assert'); const { spawn } = require('child_process'); const fs = require('fs');
-const ROOT = __dirname + '/../', OUT = '/workspace/golf-app/screenshots/', PORT = 8844, BASE = 'http://127.0.0.1:' + PORT + '/';
+const ROOT = __dirname + '/../', OUT = '/tmp/wedge-test-shots/', PORT = 8844, BASE = 'http://127.0.0.1:' + PORT + '/';
 const ok = m => console.log('  ✓ ' + m);
 // ---- 1. files: one constant, same as the cache name
 const sw = fs.readFileSync(ROOT + 'sw.js', 'utf8'), cfg = fs.readFileSync(ROOT + 'config.js', 'utf8'), app = fs.readFileSync(ROOT + 'app.js', 'utf8');
@@ -12,7 +12,7 @@ assert.ok(swVer, 'sw.js has a golf-sg-vN cache name'); assert.strictEqual(cfgVer
 assert.ok(!/appVersion/.test(cfg), 'no version in config.js (it is network-first, so it would show a version the phone is not running yet)');
 const cfgVer = cfgVers[0].match(/'(v\d+)'/)[1];
 assert.strictEqual(cfgVer, swVer, 'sg.js VERSION (' + cfgVer + ') must equal the sw.js cache version (' + swVer + ')');
-assert.strictEqual(swVer, 'v226');
+assert.strictEqual(swVer, 'v227');
 assert.ok(!/(Pin High|Strokewise) v\d+/.test(app), 'no version typed into app.js – it reads SG.VERSION');
 ok('sg.js VERSION ' + cfgVer + ' = sw.js cache golf-sg-' + swVer);
 (async () => {

@@ -947,6 +947,77 @@ html body .roundpage.theme-sky .clubrow .holeout.on { color: #1f6b3a; background
 .wedgepage .wflight { display: flex; gap: 4px; padding: 4px; margin: 0 0 12px; border-radius: 16px; background: rgba(255, 255, 255, .45); border: 1px solid rgba(23, 48, 31, .08); }
 .wedgepage .wflight button { flex: 1; min-height: 40px; border: 0; border-radius: 12px; background: none; box-shadow: none; font-size: 15px; font-weight: 400; color: var(--frost-ink-soft, #3f5a48); transform: none; }
 .wedgepage .wflight button.on { background: rgba(255, 255, 255, .92); color: var(--frost-ink, #17301f); font-weight: 600; box-shadow: 0 1px 4px rgba(23, 48, 31, .10); }
+/* ---------- v227 Wedge matrix: Yardages | Clock, clock table + picker ---------- */
+.wedgepage .wmode { margin-bottom: 10px; }
+.wedgepage .wclockcard { padding: 8px 6px 12px; margin: 0 0 12px; overflow: hidden; }
+.wedgepage .wclockwrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+.wedgepage table.wclock { width: 100%; border-collapse: collapse; min-width: 280px; }
+.wedgepage table.wclock th, .wedgepage table.wclock td {
+  text-align: center; padding: 10px 4px; font-size: 16px; font-weight: 600; color: var(--frost-ink, #1a2230);
+  border-bottom: 1px solid rgba(26, 34, 48, .08); vertical-align: middle;
+}
+.wedgepage table.wclock thead th { font-size: 13px; font-weight: 700; letter-spacing: .02em; padding: 6px 4px 8px; border-bottom: 1px solid rgba(26, 34, 48, .16); }
+.wedgepage table.wclock .wclklbl { text-align: left; font-weight: 700; font-size: 14px; padding-left: 4px; white-space: nowrap; }
+.wedgepage table.wclock tbody tr:last-child th, .wedgepage table.wclock tbody tr:last-child td { border-bottom: 0; }
+.wedgepage table.wclock td { font-variant-numeric: tabular-nums; }
+.wedgepage table.wclock td.wclkempty { font-weight: 400; color: var(--frost-ink-soft, #445064); }
+.wedgepage table.wclock input {
+  width: 100%; max-width: 56px; margin: 0 auto; display: block; text-align: center; box-sizing: border-box;
+  font-size: 16px; font-weight: 600; padding: 7px 2px; border-radius: 10px;
+  border: 1px solid rgba(26, 34, 48, .16); background: rgba(255,255,255,.92); color: inherit;
+}
+.wedgepage .wclktime {
+  display: inline-flex; align-items: center; gap: 2px; min-height: 36px; padding: 0 8px; margin: 0;
+  border-radius: 10px; border: 1px solid rgba(26, 34, 48, .14); background: rgba(255,255,255,.88);
+  font-size: 14px; font-weight: 700; color: inherit; box-shadow: none; transform: none;
+}
+.wedgepage .wclktime.ro { border: 0; background: none; min-height: 0; padding: 0; }
+.wedgepage .wclktime:not(.ro)::after { content: ''; width: 0; height: 0; border-left: 4px solid transparent; border-right: 4px solid transparent; border-top: 5px solid currentColor; opacity: .45; margin-left: 4px; }
+.wedgepage .wclkx {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 24px; height: 24px; margin-left: 1px; padding: 0; border: 0; border-radius: 50%;
+  background: none; color: var(--frost-ink-soft, #445064); font-size: 18px; font-weight: 500; box-shadow: none; transform: none; line-height: 1;
+}
+.wedgepage .wclktools { display: flex; flex-direction: column; gap: 8px; padding: 10px 4px 0; }
+.wedgepage .wclktools > .frostbtn { min-height: 44px; box-shadow: none; }
+.wedgepage .wclkaddc { display: flex; gap: 8px; align-items: center; }
+.wedgepage .wclkaddc input { flex: 1; min-width: 0; }
+.wclkpick { position: fixed; inset: 0; z-index: 70; background: rgba(20, 30, 40, .28); display: flex; align-items: flex-end; justify-content: center; padding: 12px 10px calc(12px + env(safe-area-inset-bottom)); }
+.wclkpick-card {
+  width: 100%; max-width: 390px; max-height: calc(100% - 24px); overflow-y: auto;
+  display: flex; flex-direction: column; align-items: center; gap: 10px;
+  padding: 16px 14px 14px; border-radius: 26px;
+  background: rgba(248, 250, 252, .96);
+  -webkit-backdrop-filter: blur(22px) saturate(140%); backdrop-filter: blur(22px) saturate(140%);
+  border: 1px solid rgba(255,255,255,.8);
+  box-shadow: 0 10px 40px rgba(20, 35, 50, .22);
+  color: #1a2230;
+}
+.wclkpick-h { margin: 0; font-size: 18px; font-weight: 700; }
+.wclkface-wrap { position: relative; width: 228px; height: 228px; margin: 2px auto 4px; }
+.wclkface { width: 100%; height: 100%; display: block; }
+.wclkface .wclk-ring { stroke: rgba(26, 34, 48, .28); stroke-width: 1.25; }
+.wclkface .wclk-tick { stroke: rgba(26, 34, 48, .32); stroke-width: 1; stroke-linecap: square; }
+.wclkface .wclk-tick.major { stroke: rgba(26, 34, 48, .5); stroke-width: 1.5; }
+.wclkface .wclk-hub { fill: #1a2230; }
+.wclkface .wclk-num { fill: #445064; font-size: 11px; font-weight: 600; font-family: -apple-system, "SF Pro Text", system-ui, sans-serif; }
+.wclkface .wclk-hand { stroke: #1b8a8c; stroke-width: 1.75; stroke-linecap: round; }
+.wclkdot {
+  position: absolute; left: 0; top: 0;
+  width: 14px; height: 14px; min-width: 14px; min-height: 14px; margin: 0; padding: 0; border-radius: 50%;
+  border: 1.5px solid rgba(26, 34, 48, .4); background: rgba(255,255,255,.95);
+  font-size: 0; box-shadow: none; line-height: 0;
+  transform: translate(-50%, -50%);
+}
+.wclkdot:active { transform: translate(-50%, -50%) scale(.9); }
+.wclkdot.on { background: #1b8a8c; border-color: #1b8a8c; width: 16px; height: 16px; min-width: 16px; min-height: 16px; }
+.frostpage.theme-sky .wclkchips .frostchip.sel { background: #1b8a8c; border-color: #1b8a8c; color: #fff; }
+.wedgepage .wclkx { min-height: 24px; }
+.wedgepage .wclktime { min-height: 36px; }
+.wclkchips { flex-wrap: wrap; justify-content: center; }
+.wclkpick-card .wnote { width: 100%; box-sizing: border-box; }
+.wclkpick-card .wclkdone { width: 100%; min-height: 48px; margin: 2px 0 0; box-shadow: none; }
+
 /* ---------- v96 Round stats: top box, Quick view, collapsible stat tiles, small legend ---------- */
 .rstop { width: 100%; border-collapse: separate; border-spacing: 0; table-layout: fixed; margin: 6px 0 12px; background: rgba(255, 255, 255, .62);
   border: 1px solid var(--frost-line, rgba(23, 48, 31, .1)); border-radius: 20px; overflow: hidden; box-shadow: 0 4px 16px rgba(20, 45, 30, .08); }
@@ -1154,7 +1225,7 @@ table.gapt tbody tr:last-child td { border-bottom: 0; }
 .histpage .mvall { margin: 0 auto 8px; min-height: 34px; font-size: 14px; }
 .histpage .topbar .title span, .histpage .topbar .frostbtn { white-space: nowrap; }
 .histpage .topbar .title { min-width: 0; }
-/* ---------- v102 My Bag: Bag | Wedge ladder toggle ---------- */
+/* ---------- v102 My Bag: Bag | Wedge matrix toggle ---------- */
 .bagpage .bagseg { display: flex; gap: 4px; padding: 4px; margin: 0 0 12px; border-radius: 999px; background: rgba(255, 255, 255, .5); border: 1px solid rgba(23, 48, 31, .1); }
 .bagpage .bagseg button { flex: 1; min-height: 42px; margin: 0; border: 0; border-radius: 999px; background: none; box-shadow: none; font-size: 16px; font-weight: 500; color: var(--frost-ink-soft, #3f5a48); transform: none; }
 .bagpage .bagseg button.on { background: #fff; color: var(--frost-ink, #17301f); font-weight: 600; box-shadow: 0 1px 5px rgba(23, 48, 31, .12); }

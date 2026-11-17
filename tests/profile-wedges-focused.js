@@ -1,10 +1,11 @@
-// v93 wedges; v102: + menu → My Bag with a Bag | Wedge ladder toggle (Profile gone, player name in Settings).
+// v93 wedges; v102: + menu → My Bag with a Bag | Wedge matrix toggle (Profile gone, player name in Settings).
 // Wedges chart Wedges chart 40–110 yd: club, ball position (Front/Middle/Back), shaft lean (0°/1–2°/3–4°),
 // club position (P1–P3), hinge (45°/90°/Full).
 // Menu order, navigation, accordion, persistence, backup round trip. iPhone 390x844 @3x screenshots.
 const assert = require('assert'); const { spawn } = require('child_process'); const fs = require('fs');
 const W = require('../wedges.js'); const SG = require('../sg.js'); const BAG = require('../bag.js');
-const OUT = '/workspace/golf-app/screenshots/', PORT = 8831, BASE = 'http://127.0.0.1:' + PORT + '/';
+const path = require('path');
+const OUT = '/tmp/wedge-test-shots/', PORT = 8831, BASE = 'http://127.0.0.1:' + PORT + '/';
 // ---------- 1. data ----------
 {
   assert.deepStrictEqual(W.YARDS, [40, 50, 60, 70, 80, 90, 100, 110]);
@@ -45,7 +46,7 @@ const OUT = '/workspace/golf-app/screenshots/', PORT = 8831, BASE = 'http://127.
 }
 (async () => {
   const { chromium } = require('playwright-core');
-  const srv = spawn('python3', ['-m', 'http.server', String(PORT), '--bind', '127.0.0.1'], { cwd: '/workspace/golf-app', stdio: 'ignore' });
+  const srv = spawn('python3', ['-m', 'http.server', String(PORT), '--bind', '127.0.0.1'], { cwd: path.join(__dirname, '..'), stdio: 'ignore' });
   await new Promise(r => setTimeout(r, 1500)); const errors = [];
   const br = await chromium.launch({ executablePath: '/usr/bin/google-chrome', args: ['--no-sandbox'] });
   try {
@@ -62,14 +63,14 @@ const OUT = '/workspace/golf-app/screenshots/', PORT = 8831, BASE = 'http://127.
     assert.strictEqual(await page.$('[data-act="profile"], [data-act="wedges"], [data-act="bag"]'), null, 'home stays clean');
     await page.click('#navbtn'); await page.waitForSelector('#navmenu');
     assert.deepStrictEqual(await page.$$eval('#navmenu .sheet-item', e => e.map(x => x.textContent)), ['Rounds', 'Stats', 'My Game', 'My Bag', 'Settings', 'Help'] /* v140+: My Game and Log practice added */);
-    // My Bag opens on the Bag tab; the toggle switches to the Wedge ladder and back; ‹ Home
+    // My Bag opens on the Bag tab; the toggle switches to the Wedge matrix and back; ‹ Home
     await page.click('#navmenu [data-act="bag"]'); await page.waitForSelector('#baglist');
     assert.strictEqual(await page.$('#plusmenu'), null, 'menu closed');
-    assert.deepStrictEqual(await page.$$eval('#bagseg button', e => e.map(x => x.textContent + (x.getAttribute('aria-selected') === 'true' ? '*' : ''))), ['Bag*', 'Wedge ladder']);
+    assert.deepStrictEqual(await page.$$eval('#bagseg button', e => e.map(x => x.textContent + (x.getAttribute('aria-selected') === 'true' ? '*' : ''))), ['Bag*', 'Wedge matrix']);
     assert.match(await page.textContent('.topbar'), /My Bag\s*6 clubs/); assert.strictEqual(await page.textContent('.topbar .txt'), '‹ Home');
     assert.strictEqual(await page.$('#profwedges, #profbag'), null, 'no separate Wedges button');
     await page.click('#segwedges'); await page.waitForSelector('#wlist'); assert.strictEqual(await page.$('#baglist'), null);
-    assert.deepStrictEqual(await page.$$eval('#bagseg button', e => e.map(x => x.textContent + (x.getAttribute('aria-selected') === 'true' ? '*' : ''))), ['Bag', 'Wedge ladder*']);
+    assert.deepStrictEqual(await page.$$eval('#bagseg button', e => e.map(x => x.textContent + (x.getAttribute('aria-selected') === 'true' ? '*' : ''))), ['Bag', 'Wedge matrix*']);
     assert.match(await page.textContent('.topbar'), /My Bag\s*0 of 8 yardages set/);
     await page.click('#segbag'); await page.waitForSelector('#baglist');
     await (async (P) => { if (!(await P.$('.topbar [data-act="home"]')) && await P.$('#rsmenubtn')) await P.click('#rsmenubtn'); return P.click('.topbar [data-act="home"], #rsmenu [data-act="home"]'); })(page) /* v191: in ☰ on Round stats */; await page.waitForSelector('#home');
@@ -78,7 +79,7 @@ const OUT = '/workspace/golf-app/screenshots/', PORT = 8831, BASE = 'http://127.
     await page.click('[data-act="editname"]'); await page.fill('#pname', 'Quincy L'); await page.click('[data-act="setname"]');
     await page.waitForSelector('#pnameshow'); assert.strictEqual(await page.textContent('#pnameshow'), 'Quincy L'); assert.ok(await page.$('.archivepage'), 'still on Settings');
     await (async (P) => { if (!(await P.$('.topbar [data-act="home"]')) && await P.$('#rsmenubtn')) await P.click('#rsmenubtn'); return P.click('.topbar [data-act="home"], #rsmenu [data-act="home"]'); })(page) /* v191: in ☰ on Round stats */;
-    // Wedges list (Wedge ladder tab)
+    // Wedges list (Wedge matrix tab)
     await page.click('#navbtn'); await page.click('#navmenu [data-act="bag"]'); await page.click('#segwedges'); await page.waitForSelector('#wlist');
     assert.deepStrictEqual(await page.$$eval('.whead b', e => e.map(x => parseInt(x.textContent))), W.YARDS, '40–110 by 10');
     assert.ok((await page.$$eval('.wsum', e => e.map(x => x.textContent))).every(t => t === 'Not set'));
@@ -161,7 +162,7 @@ const OUT = '/workspace/golf-app/screenshots/', PORT = 8831, BASE = 'http://127.
     await page.click('#navbtn'); await page.click('#navmenu [data-act="archive"]'); assert.ok(await page.$eval('[data-act="backup"]', e => !e.disabled));
     await page.setInputFiles('#restorefile', '/tmp/wedges-backup.json'); await page.waitForSelector('#rpwedges');
     assert.match(await page.textContent('#rpgo'), /Restore wedges/); await page.click('#rpgo'); await page.waitForSelector('#notice');
-    assert.match(await page.textContent('#notice'), /Wedges \(3 yardages · 1 Low flight\)/); assert.deepStrictEqual((await store()).rows, JSON.parse(wj).rows); assert.deepStrictEqual((await store()).low, JSON.parse(wj).low);
+    assert.match(await page.textContent('#notice'), /Wedge matrix \(3 yardages · 1 Low flight\)/); assert.deepStrictEqual((await store()).rows, JSON.parse(wj).rows); assert.deepStrictEqual((await store()).low, JSON.parse(wj).low);
     const back = await page.evaluate(() => SG.makeBackup([], null, 'Q', [], null, JSON.parse(localStorage.getItem('golfsg.wedges.v1')))); assert.strictEqual(back.wedges.rows[70].club, '54');
     // empty bag → standard wedge list
     await page.evaluate(() => localStorage.removeItem('golfsg.bag.v1')); await page.reload(); await page.click('#navbtn'); await page.click('#navmenu [data-act="bag"]'); await page.click('#segwedges'); await page.click('.whead[data-y="40"]');
