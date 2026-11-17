@@ -1,7 +1,7 @@
 // v102 navigation: Home keeps only the + button (and Resume when a round is going) – the old Archive pill is gone.
 // + menu: New round · My Bag · Rounds · Settings. Profile is gone (it only held the player name, which Settings already has).
 // Settings = the old Archive page renamed (title, Courses back button). My Bag has a "Bag | Wedge matrix" toggle at the top;
-// the Wedge matrix is the existing Wedges view (40–110, High/Low flight, Edit). Screenshots 390x844 @3x.
+// the Wedge matrix is the existing Wedges view (40–110, Yardages / Clock / Ladder, Edit). Screenshots 390x844 @3x.
 const { chromium } = require('playwright-core'); const assert = require('assert'); const { spawn } = require('child_process'); const path = require('path');
 const BAG = require('../bag.js'), ARC = require('./fixtures/arcade-78.js');
 const OUT = '/tmp/wedge-test-shots/', PORT = 8840, BASE = 'http://127.0.0.1:' + PORT + '/';
@@ -52,14 +52,16 @@ const OUT = '/tmp/wedge-test-shots/', PORT = 8840, BASE = 'http://127.0.0.1:' + 
   assert.match(await P.textContent('.topbar'), /‹ Home\s*My Bag\s*3 of 8 yardages set/);
   assert.deepStrictEqual(await P.$$eval('.whead b', e => e.map(x => parseInt(x.textContent))), [40, 50, 60, 70, 80, 90, 100, 110]);
   assert.strictEqual(await P.textContent('[data-wsum="70"]'), '54° · middle · P2');
-  assert(await P.$('#wflight [data-k="high"].on') && await P.$('#wedit'), 'High/Low flight + Edit still there');
+  assert.strictEqual(await P.$('#wflight'), null, 'no High/Low flight toggle');
+  assert(await P.$('#wedit'), 'Edit still there');
   await P.click('.whead[data-y="70"]'); await P.waitForSelector('#wsimple');
-  await P.click('#wflight [data-k="low"]'); await P.waitForSelector('#wflight [data-k="low"].on'); assert.strictEqual(await P.textContent('[data-wsum="70"]'), '58° · back · P1');
-  await P.click('#wflight [data-k="high"]'); await P.click('.whead[data-y="70"]');
+  assert.strictEqual(await P.textContent('[data-wsum="70"]'), '54° · middle · P2', 'shows the rows setup; stored Low is hidden');
+  const stored = await P.evaluate(() => JSON.parse(localStorage.getItem('golfsg.wedges.v1')));
+  assert.strictEqual(stored.low[70].club, '58', 'stored Low-flight data is still in the data');
   await P.click('#wedit'); assert.strictEqual(await P.textContent('#wedit'), '✓ Done editing'); await P.click('#wedit');
   await P.evaluate(() => window.scrollTo(0, 0)); await shot('bag-toggle-wedges.png');
   await P.click('#segbag'); await P.waitForSelector('#baglist'); assert.deepStrictEqual(await seg(), ['Bag*', 'Wedge matrix']);
-  console.log('  Wedge matrix tab: 40–110, High/Low flight, simple view, Edit; toggles back to Bag');
+  console.log('  Wedge matrix tab: 40–110, no Low-flight toggle, simple view, Edit; toggles back to Bag');
 
   // ---------- 4. Settings ----------
   await (async (P) => { if (!(await P.$('.topbar [data-act="home"]')) && await P.$('#rsmenubtn')) await P.click('#rsmenubtn'); return P.click('.topbar [data-act="home"], #rsmenu [data-act="home"]'); })(P) /* v191: in ☰ on Round stats */; await P.click('#navbtn'); await P.click('#navmenu [data-act="archive"]'); await P.waitForSelector('.archivepage #playerbox');

@@ -2,6 +2,7 @@
 // club position (P1–P3) and wrist hinge. Pure data helpers; the screen lives in app.js. Stored in golfsg.wedges.v1.
 // v227: also a clock-system matrix (swing length × club → carry), stored as clock + mode on the same object.
 // v228: also a ladder-system matrix (P1/P2/P3/Full × club → carry + hinge, ball position, shaft lean), stored as ladder + mode.
+// v229: Yardages UI and scoring suggestions are a single chart (the High/rows data). Stored Low flight is kept in backups but hidden.
 (function (root) {
   var YARDS = []; for (var y = 40; y <= 110; y += 10) YARDS.push(y); // 10-yard steps: 40, 50 … 110
   // The first v93 draft used 5-yard steps. Entries at 45, 55 … 105 are kept in the data (hidden, and in backups) so nothing is lost.
@@ -178,14 +179,14 @@
   // v95: the yardages are CARRY distances, so the ladder is offered for any shot 100 yd or less (and more than 0).
   var MIN = 0, MAX = 100;
   function inRange(d) { if (d === '' || d == null) return false; d = Number(d); return isFinite(d) && d > MIN && d <= MAX; }
-  function ladder(w) { // both flights, by yardage, High before Low
+  function ladder(w) { // v229: the offered yardage chart is the High/rows data only; stored Low is kept but not listed
     w = norm(w); var L = [];
-    YARDS.forEach(function (y) { FLIGHTS.forEach(function (f) { var r = rowsOf(w, f[0])[y]; if (r && r.club) L.push({ y: y, f: f[0], row: r }); }); });
+    YARDS.forEach(function (y) { var r = rowsOf(w, 'high')[y]; if (r && r.club) L.push({ y: y, f: 'high', row: r }); });
     return L;
   }
-  function fullLadder(w) { // v95: every shown yardage in both flights (High 40…110, then Low 40…110); set = has a club
+  function fullLadder(w) { // v229: every shown High yardage 40…110; set = has a club. Low is not listed.
     w = norm(w); var L = [];
-    FLIGHTS.forEach(function (f) { YARDS.forEach(function (y) { var r = rowsOf(w, f[0])[y] || {}; L.push({ y: y, f: f[0], row: r, set: !!r.club }); }); });
+    YARDS.forEach(function (y) { var r = rowsOf(w, 'high')[y] || {}; L.push({ y: y, f: 'high', row: r, set: !!r.club }); });
     return L;
   }
   // v95b: only three carries around the pin distance: rounded to the nearest 10 (halves up: 75 → 80), then −10 / +10,
@@ -197,7 +198,7 @@
     return best;
   }
   function clubLabel(c) { return /^\d{2}$/.test(String(c)) ? c + '°' : String(c || ''); }
-  function ladderLabel(e) { var r = e.row; if (!r.club) return e.y + ' yd · ' + (e.f ? name(FLIGHTS, e.f) + ' · ' : '') + 'not set'; return [e.y + ' yd', e.f ? name(FLIGHTS, e.f) : '', clubLabel(r.club), name(BALL, r.ball), name(POS, r.pos)].filter(Boolean).join(' · '); }
+  function ladderLabel(e) { var r = e.row; if (!r.club) return e.y + ' yd · not set'; return [e.y + ' yd', clubLabel(r.club), name(BALL, r.ball), name(POS, r.pos)].filter(Boolean).join(' · '); } // v229: no High/Low in the label
   function clockEntries(w) {
     w = norm(w); var L = [], c = w.clock; if (!c) return L;
     (c.rows || []).forEach(function (r) {
