@@ -1881,7 +1881,7 @@
     if (bp) P.rounds.forEach(function (r) { if (!r.player) r.player = bp; }); // label rounds with the backup's player
     P.rounds.sort(function (a, b) { return new Date(b.date) - new Date(a.date); });
     view.restore = { rounds: P.rounds, sel: {}, player: bp, courses: P.courses || [], bag: P.bag || null, wedges: P.wedges || null,
-      practice: (P.practice || []).filter(function (e) { return !only || samePlayer(e.player || bp, only); }) }; view.preview = null; view.screen = 'restorepick'; render(); window.scrollTo(0, 0);
+      practice: (P.practice || []).slice() }; view.preview = null; view.screen = 'restorepick'; render(); window.scrollTo(0, 0);
   }
   function restorePractice(R, parts) {
     if (R.sgtests && R.sgtests.length) { var TM = SGTEST.mergeTests(sgTests(), R.sgtests); if (TM.added) { localStorage.setItem(SGK, JSON.stringify(TM.tests)); parts.push(TM.added + ' short game test' + (TM.added === 1 ? '' : 's')); } } // v166
