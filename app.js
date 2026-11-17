@@ -2386,16 +2386,21 @@
   };
   // v198 (Scott): one pinned tab bar on every main screen – My Game · Rounds · (+) · Practice · Stats. The + starts a round
   // (the same New round / Log practice / Short game test menu as before) from anywhere. Page buttons move onto the pages.
+  // v232: in the coach athlete-review view the middle slot is Practice (My Game · Rounds · Practice · Trends · Stats).
+  // The user's own + is unchanged.
   var TAB_SCREENS = { home: 1, mygame: 1, history: 1, practice: 1, stats: 1 };
   function quickRowHTML(id, it) { return '<div class="qrow" id="' + id + '">' + it.map(function (x) {
     return '<button class="qbtn frost' + (x[3] ? ' on' : '') + '" data-act="' + x[1] + '" id="q' + x[1] + '"' + (x[3] ? ' aria-current="page"' : '') + '><svg viewBox="0 0 24 24" aria-hidden="true">' + PB_IC[x[0]] + '</svg><span>' + esc(x[2]) + '</span></button>'; }).join('') + '</div>'; }
   function tabBarHTML() {
-    var pr = practiceOn(); if (CO.view) pr = false; // v212: on an athlete's pages: My Game · Rounds · Trends · Stats, no +
-    if (!TAB_SCREENS[view.screen] && !(view.screen === 'trends' && !pr)) return ''; // v209: Trends is a tab when practice is off
-    var it = [['mygame', 'mygame', 'My Game'], ['rounds', 'history', 'Rounds'], null, pr ? ['practice', 'gopractice', 'Practice'] : ['trends', 'gotrends', 'Trends'], ['stats', 'stats', 'Stats']]; // v209: no practice → Trends
-    var on = { mygame: 'mygame', history: 'history', practice: 'gopractice', stats: 'stats', trends: pr ? '' : 'gotrends' }[view.screen];
+    var pr = practiceOn(), coach = !!CO.view;
+    // User: My Game · Rounds · + · Practice (or Trends if practice is off) · Stats
+    // Coach athlete review: My Game · Rounds · Practice · Trends · Stats (no +)
+    if (!TAB_SCREENS[view.screen] && !(view.screen === 'trends' && (!pr || coach))) return ''; // v209: Trends is a tab when practice is off; v232: also a tab in coach review
+    var mid = coach ? ['practice', 'gopractice', 'Practice'] : null;
+    var fourth = coach || !pr ? ['trends', 'gotrends', 'Trends'] : ['practice', 'gopractice', 'Practice'];
+    var it = [['mygame', 'mygame', 'My Game'], ['rounds', 'history', 'Rounds'], mid, fourth, ['stats', 'stats', 'Stats']];
+    var on = { mygame: 'mygame', history: 'history', practice: 'gopractice', stats: 'stats', trends: (coach || !pr) ? 'gotrends' : '' }[view.screen];
     return '<nav class="tabbar" id="tabbar" aria-label="Main">' + it.map(function (x) {
-      if (!x && CO.view) return '<span class="tbspace" aria-hidden="true"></span>'; // v212: nothing to add on an athlete's pages
       if (!x) return '<button class="tbplus" data-act="tbplus" id="tbplus" aria-label="' + (pr ? 'Start: new round, log practice or short game test' : 'Start a new round') + '"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg></button>';
       var c = x[1] === on; return '<button class="tbbtn' + (c ? ' on' : '') + (x[0] === 'mygame' ? benchBang() : '') + '" data-act="' + x[1] + '" id="tb' + x[0] + '"' + (c ? ' aria-current="page"' : '') + '><svg viewBox="0 0 24 24" aria-hidden="true">' + PB_IC[x[0]] + '</svg><span>' + esc(x[2]) + '</span></button>'; }).join('') + '</nav>'; }
   function pageBarHTML() {
@@ -2606,19 +2611,23 @@
   function planFocusKey(it) { var F = MYGAME.FOCUS[it.k] || [], f = /speed/i.test(it.focus) ? F.filter(function (x) { return /speed/i.test(x); })[0] : /start line/i.test(it.focus) ? F.filter(function (x) { return /start line/i.test(x); })[0] : /distance|short|long/i.test(it.focus) ? F.filter(function (x) { return /distance/i.test(x); })[0] : null; return f || F[0]; }
   function planCardHTML(who, P) {
     P = P || planData(who); var hm = MYGAME.hm, T = P.tour, ed = view.tourEdit;
-    var h = '<div class="card frost plancard" id="plancard"><div class="planhead"><b>This week</b><small>' + (P.budgetFrom === '30 days' ? 'Your usual: ' + hm(P.budget) + ' a week' : P.budgetFrom === 'typical' ? '<button class="txt typedit" data-act="typedit">Your estimate: ' + hm(P.budget) + ' a week ›</button>' : P.budgetFrom === 'blend' ? '<button class="txt typedit" data-act="typedit">About ' + hm(P.budget) + ' a week ›</button>' : 'Log practice and this fits your week') + '</small></div>' +
-      '<p class="plintro" id="plintro">Start at the top whenever you have time, then tap <b>Log</b>. Skip one and it moves up; do it and it drops down.</p>'; // v204
+    var roPlan = !!(typeof CO !== 'undefined' && CO.view);
+    var budge = P.budgetFrom === '30 days' ? 'Usual: ' + hm(P.budget) + ' a week' : P.budgetFrom === 'typical' ? 'Estimate: ' + hm(P.budget) + ' a week' : P.budgetFrom === 'blend' ? 'About ' + hm(P.budget) + ' a week' : 'Fits the week once practice is logged';
+    var h = '<div class="card frost plancard" id="plancard"><div class="planhead"><b>This week</b><small>' + (roPlan ? esc(budge) : (P.budgetFrom === '30 days' ? 'Your usual: ' + hm(P.budget) + ' a week' : P.budgetFrom === 'typical' ? '<button class="txt typedit" data-act="typedit">Your estimate: ' + hm(P.budget) + ' a week ›</button>' : P.budgetFrom === 'blend' ? '<button class="txt typedit" data-act="typedit">About ' + hm(P.budget) + ' a week ›</button>' : 'Log practice and this fits your week')) + '</small></div>' +
+      (roPlan ? '' : '<p class="plintro" id="plintro">Start at the top whenever you have time, then tap <b>Log</b>. Skip one and it moves up; do it and it drops down.</p>'); // v204, v232
     // the next tournament – Big shifts the last week to sharpening, Regular changes nothing
     if (ed) h += '<div class="tourform" id="tourform"><label>Next tournament <input type="date" id="tourdate" min="' + localDayISO() + '" value="' + esc(ed.date || '') + '"></label>' +
       '<div class="prchips" role="group" aria-label="How big">' + [['big', 'Big'], ['reg', 'Regular']].map(function (x) { var on = (ed.big ? 'big' : 'reg') === x[0]; return '<button class="prchip' + (on ? ' on' : '') + '" data-act="tourbig" data-v="' + x[0] + '" aria-pressed="' + on + '">' + x[1] + '</button>'; }).join('') + '</div>' +
       '<p class="help tourhelp">Big (state, a college showcase): the last week sharpens – speed, short game, wedges. Regular: practice as normal.</p>' +
       '<div class="tourbtns">' + (tourOf(who) ? '<button class="txt" data-act="tourdel">Remove</button>' : '') + '<button class="txt" data-act="tourcancel">Cancel</button><button class="primary" data-act="toursave" id="toursave"' + (ed.date ? '' : ' disabled') + '>Save</button></div></div>';
+    else if (typeof CO !== 'undefined' && CO.view) h += T ? '<p class="tourrow" id="tourrow">🏆 ' + (T.big ? 'Big tournament' : 'Tournament') + ' · ' + esc(new Date(T.date + 'T12:00:00').toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })) + ' · ' + (T.days === 0 ? 'today' : T.days === 1 ? 'tomorrow' : 'in ' + T.days + ' days') + '</p>' : '';
     else h += T ? '<button class="tourrow" data-act="touredit" id="tourrow">🏆 ' + (T.big ? 'Big tournament' : 'Tournament') + ' · ' + esc(new Date(T.date + 'T12:00:00').toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })) + ' · ' + (T.days === 0 ? 'today' : T.days === 1 ? 'tomorrow' : 'in ' + T.days + ' days') + '<span>Edit</span></button>'
       : '<button class="tourrow add" data-act="touredit" id="tourrow">+ Add your next tournament</button>';
     if (T && T.msg) h += '<p class="planmsg' + (T.mode === 'sharpen' ? ' sharp' : '') + '" id="planmsg">' + esc(T.msg) + '</p>';
+    var roPlan = !!(typeof CO !== 'undefined' && CO.view);
     var row = function (it, i) { return '<li class="planitem' + (it.coach ? ' coach' : '') + (it.maint ? ' maint' : '') + '" data-k="' + it.k + '"><span class="pin">' + (i + 1) + '</span><div class="pltext"><small>' + esc(it.name) + (it.coach ? ' · coach homework' : it.optional ? '' : it.maint ? ' · keep it sharp' : '') + '</small><b>' + esc(it.focus) + '</b>' +
       (it.why ? '<span class="plwhy">' + esc(it.why) + '</span>' : '') + (it.coach && it.doneToday ? '<span class="pldoneit">✓ done today</span>' : '') + (it.typeTip ? '<span class="pltip">' + esc(it.typeTip) + '</span>' : '') + '</div>' +
-      '<div class="plright"><span class="plmin">' + it.min + ' min</span><button class="plbtn" data-act="planlog" data-v="' + it.k + '|' + esc(planFocusKey(it)) + '|' + it.min + '">Log</button></div></li>'; };
+      '<div class="plright"><span class="plmin">' + it.min + ' min</span>' + (roPlan ? '' : '<button class="plbtn" data-act="planlog" data-v="' + it.k + '|' + esc(planFocusKey(it)) + '|' + it.min + '">Log</button>') + '</div></li>'; };
     if (!P.due) h += '<div class="planahead" id="planahead"><b>You\'re ahead this week 👍</b><span>Nothing\'s overdue. If you have time, these help most:</span></div>';
     if (P.items.length) h += '<ol class="planlist" id="planlist">' + P.items.map(function (it, i) { return P.due && it.optional && !P.items[i - 1].optional ? '<li class="plsep">When you have time</li>' + row(it, i) : row(it, i); }).join('') + '</ol>';
     var dn = P.done.filter(function (x) { return !x.optional && (x.doneToday || (x.lastDays != null && x.lastDays <= 7)); }); // v204: not the ones listed above
@@ -2640,7 +2649,8 @@
   // shown the first time you open Practice on or after Monday, until ✕ / Start this week / you log practice that week;
   // back again (marked "Updated") if a round since then moved any area's target 15+ min
   function waState(who, P) {
-    if (!recsOn(who) || CO.ctx || !finishedRoundsOf(who).length) return null;
+    if (!recsOn(who) || !finishedRoundsOf(who).length) return null;
+    if (typeof CO !== 'undefined' && CO && CO.ctx) return { upd: false, review: true }; // v232: coach always sees the week-ahead summary
     var wk = WA.mondayOf(Date.now()), seen = waSeen(who), loggedThisWeek = practiceOf(who).some(function (e) { return Date.parse(e.date) >= wk && e.min > 0; });
     if (!seen || seen.wk !== wk) return loggedThisWeek && !view.waForce ? null : { upd: false };
     var late = finishedRoundsOf(who).filter(function (r) { return Date.parse(r.date) > seen.t - 864e5 && Date.parse(r.updated || r.date) > seen.t; }).sort(function (a, b) { return Date.parse(b.date) - Date.parse(a.date); })[0];
@@ -2652,14 +2662,15 @@
     var wk = WA.mondayOf(Date.now()), A = WA.ahead({ rounds: finishedRoundsOf(who), logs: practiceOf(who), SG: SG, MYGAME: MYGAME, PLAN: PLAN, bl: myBench(who), now: Date.now(), cur: P.weekMin, last: planAt(who, wk - 7 * 864e5).weekMin });
     var d0 = new Date(wk), d1 = new Date(wk + 6 * 864e5), md = function (d) { return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' }); };
     var mx = Math.max.apply(null, A.rows.map(function (r) { return r.target; }).concat([10]));
-    var o = '<div class="card frost wacard" id="wacard" role="region" aria-label="Your week ahead"><button class="wax" data-act="waclose" id="waclose" aria-label="Close">✕</button>' +
+    var review = !!(st.review || (typeof CO !== 'undefined' && CO && CO.view));
+    var o = '<div class="card frost wacard" id="wacard" role="region" aria-label="Your week ahead">' + (review ? '' : '<button class="wax" data-act="waclose" id="waclose" aria-label="Close">✕</button>') +
       '<span class="waeye">' + (st.upd ? 'Updated after ' + esc(st.day) + '\'s round' : 'Your week ahead · ' + esc(md(d0)) + '–' + esc(d1.getMonth() === d0.getMonth() ? String(d1.getDate()) : md(d1))) + '</span><h2 id="wahead">' + esc(A.head) + '</h2>';
     A.lines.forEach(function (L) { o += '<div class="waline ' + (L.good ? 'good' : 'bad') + '"><i aria-hidden="true">' + (L.good ? '✅' : '⚠️') + '</i><span><b>' + esc(L.title) + '</b><small>' + esc(L.text) + '</small></span></div>'; });
     o += '<div class="wasec"><b>This week\'s targets</b><span>' + esc(hmS(A.total)) + (Math.abs(A.total - A.totalLast) < 5 ? ' · same as last week' : ' · ' + (A.total > A.totalLast ? 'up ' : 'down ') + hmS(Math.abs(A.total - A.totalLast))) + '</span></div><div class="wabars">';
     A.rows.forEach(function (r) {
       var tag = r.delta > 0 ? '<em class="wach up">▲ +' + r.delta + 'm</em>' : r.keep ? '<em class="wach keep">' + (r.delta < 0 ? r.delta + 'm · ' : '') + 'keep going</em>' : r.delta < 0 ? '<em class="wach">' + r.delta + 'm</em>' : '<em class="wach">–</em>';
       o += '<div class="warow" data-k="' + r.k + '"><span class="wan">' + esc(r.name) + '</span><span class="wabar"><i class="wktgt" style="left:' + (r.target / mx * 100).toFixed(1) + '%"></i></span><span class="wav">' + r.target + 'm</span>' + tag.replace('−', '−') + '</div>'; });
-    o += '</div><p class="wawhy" id="wawhy">' + esc(A.why) + '</p><button class="primary wago" data-act="wago" id="wago">▶ Start this week</button></div>';
+    o += '</div><p class="wawhy" id="wawhy">' + esc(A.why) + '</p>' + (review ? '' : '<button class="primary wago" data-act="wago" id="wago">▶ Start this week</button>') + '</div>';
     return o;
   }
   function gapCardHTML(who) {
@@ -2686,9 +2697,15 @@
     return o;
   }
   function practicePageHTML() {
-    var who = mgWho(), D = mgData(who);
+    var who = mgWho(), D = mgData(who), coach = !!(typeof CO !== 'undefined' && CO.view);
     var h = '<div class="frostpage theme-sky mygamepage practicepage" id="practicepage"><div class="topbar frost"><button class="txt frostbtn" data-act="home" id="prback">‹ Home</button><div class="title"><b>Practice</b><span>' + esc(who || '') + '</span></div><span class="tbsp"></span></div>';
     var P = planData(who), rc = recsOn(who);
+    if (coach) {
+      // v232: read-only review – the athlete's spider, week ahead, gaps, plan and volume charts; no logging
+      h += practiceCardHTML(who, D, 'spider') + (rc ? weekAheadHTML(who, P) + gapCardHTML(who) + planCardHTML(who, P) + weekCardHTML(who, P) : gapCardHTML(who) + weekCardHTML(who, P, true));
+      h += moreHTML(who, D);
+      return h + '</div>';
+    }
     h += '<div class="prtop">' + (rc ? '<button class="primary prbig" data-act="sessopen" id="prsess">▶ Start a session</button><button class="glass prbig2" data-act="prlog" id="prbig">+ Log practice</button>' : '<button class="primary prbig" data-act="prlog" id="prbig">+ Log practice</button>') + '</div>' + quickRowHTML('prqrow', [['report', 'grep', 'Report'], ['trends', 'gotrends', 'Trend']]); // v198; v205: start a session
     // v221: your week ahead (Mondays) · your game and your training · this week · more
     h += rc ? weekAheadHTML(who, P) + gapCardHTML(who) + sessSheetHTML(who) + typicalCardHTML(who, P) + planCardHTML(who, P) + weekCardHTML(who, P) : gapCardHTML(who) + typicalCardHTML(who, P) + weekCardHTML(who, P, true); // v215: no list, sessions or targets
@@ -2877,7 +2894,7 @@
     var short = function (t) { return t.replace(/ h /, 'h ').replace(/ min/, 'm').replace(/^(\d+) h$/, '$1h'); };
     var o = '<div class="mgchart prchart frost' + (full ? ' isfull' : '') + '" id="prcard"' + (full ? ' role="dialog" aria-modal="true" aria-label="My Practice, full screen"' : '') + '>' +
       (full ? '<div class="wkgrab" aria-hidden="true"></div><button class="wkx" data-act="prclose" id="prclose" aria-label="Close">✕</button>' : '') +
-      '<div class="prcardh"><span class="tkeye">My Practice</span>' + (full ? '' : '<button class="mgadd" data-act="prlog" id="prplus" aria-label="Log practice">+</button>') + '</div>' +
+      '<div class="prcardh"><span class="tkeye">My Practice</span>' + (full || (typeof CO !== 'undefined' && CO.view) ? '' : '<button class="mgadd" data-act="prlog" id="prplus" aria-label="Log practice">+</button>') + '</div>' +
       '<div class="wkpages prpages" id="prpages"' + (full ? '' : ' data-act="prfull" role="button" tabindex="0" aria-label="My Practice – tap for full screen"') + '>';
     PW.forEach(function (W, i) {
       var svg = MYGAME.practiceLevelSVG(W.cur, W.prev, { R: 96, aria: W.label + ': practice by skill, against ' + bw });
@@ -2907,7 +2924,7 @@
   // ---------- v212 (Scott): coach sharing – athletes' rounds, tests and practice reach their coach automatically ----------
   // sync.js does the talking to Firebase; this part is the screens. An athlete connects once with the team code; after that every
   // change goes up by itself (offline → it waits). A coach signs in, sees the Athletes list, taps a name, and is on that athlete's
-  // My Game / Rounds / Trends / Stats – read-only, with "‹ Athletes · Name ▾" to jump to the next athlete on the same screen.
+  // My Game / Rounds / Practice / Trends / Stats – read-only, with "‹ Athletes · Name ▾" to jump to the next athlete on the same screen.
   var SYNCX = window.SYNC ? SYNC.create({ cfg: { apiKey: CFG.firebaseKey || '', db: CFG.liveDb || '', authBase: CFG.authBase, tokenBase: CFG.tokenBase } }) : null;
   var CO = { cache: {}, loaded: false, view: null, ctx: null, busy: false, err: null, last: 0, roToast: 0 };
   function syncOn() { return !!(SYNCX && SYNCX.ready()); }
@@ -2996,7 +3013,7 @@
     var tb = document.querySelector('#app .topbar'); if (!tb) return;
     var b0 = tb.querySelector('button'); if (b0) { b0.textContent = '‹ Athletes'; b0.setAttribute('data-act', 'coback'); b0.id = 'coback'; }
     var t = tb.querySelector('.title'); if (t) { t.setAttribute('data-act', 'coswitch'); t.id = 'coswitch'; t.setAttribute('role', 'button');
-      t.innerHTML = '<b class="cmsw">' + esc(A.name) + ' <i>▾</i></b><span>' + (i + 1) + ' of ' + L.length + ' · ' + esc({ mygame: 'My Game', history: 'Rounds', trends: 'Trends', stats: 'Stats' }[view.screen] || '') + '</span>';
+      t.innerHTML = '<b class="cmsw">' + esc(A.name) + ' <i>▾</i></b><span>' + (i + 1) + ' of ' + L.length + ' · ' + esc({ mygame: 'My Game', history: 'Rounds', practice: 'Practice', trends: 'Trends', stats: 'Stats' }[view.screen] || '') + '</span>';
       var x0 = null; t.addEventListener('touchstart', function (e) { x0 = e.touches[0].clientX; }, { passive: true });
       t.addEventListener('touchend', function (e) { if (x0 == null) return; var dx = e.changedTouches[0].clientX - x0; x0 = null; if (Math.abs(dx) < 60 || L.length < 2) return;
         var j = (i + (dx < 0 ? 1 : -1) + L.length) % L.length; enterAthlete(L[j].uid); render(); }, { passive: true }); }
@@ -6769,5 +6786,8 @@
     document.addEventListener('touchend', function (e) { if (sx == null || view.replay == null || view.rpGreen) return; var t = e.changedTouches[0], dx = t.clientX - sx, dy = t.clientY - sy; sx = null;
       if (Math.abs(dx) < 60 || Math.abs(dx) < Math.abs(dy) * 1.5) return; var b = document.querySelector('#replayview .rpnav button[data-act="rphole"]' + (dx < 0 ? ':last-of-type' : ':first-of-type'));
       if (b && !b.disabled) b.click(); }, { passive: true }); })();
-  window.__golf = { view: function () { return view; }, render: function () { render(); }, backTarget: function () { var t = backTarget(); return t && t !== 'home' ? (t.getAttribute('data-act') || t.className) : t; }, card: function () { return view.card; }, statsData: function () { return statsData(); }, statsRound: function (id, bl) { return statsRound(rounds.filter(function (r) { return r.id === id; })[0], bl || ''); }, scorecardHTML: function () { var r = round(); return r ? scorecardHTML(r, SG.summarize(r, blOf(r))) : ''; }, d1Bench: d1Bench, proxBench: proxBench, PROX_BENCH: PROX_BENCH, proxZoomFt: proxZoomFt, proxSVG: proxSVG, pinSVG: function () { return pinReportSVG(SG.pinSegments(pinDataRound())); }, csvFor: csvFor, rounds: function () { return rounds; } };
+  window.__golf = { view: function () { return view; }, render: function () { render(); }, backTarget: function () { var t = backTarget(); return t && t !== 'home' ? (t.getAttribute('data-act') || t.className) : t; }, card: function () { return view.card; }, statsData: function () { return statsData(); }, statsRound: function (id, bl) { return statsRound(rounds.filter(function (r) { return r.id === id; })[0], bl || ''); }, scorecardHTML: function () { var r = round(); return r ? scorecardHTML(r, SG.summarize(r, blOf(r))) : ''; }, d1Bench: d1Bench, proxBench: proxBench, PROX_BENCH: PROX_BENCH, proxZoomFt: proxZoomFt, proxSVG: proxSVG, pinSVG: function () { return pinReportSVG(SG.pinSegments(pinDataRound())); }, csvFor: csvFor, rounds: function () { return rounds; },
+    syncSnap: syncSnap,
+    enterAthlete: function (A) { CO.cache[A.uid] = A; CO.loaded = true; enterAthlete(A.uid); if (!view.screen || view.screen === 'home' || view.screen === 'athletes') view.screen = 'mygame'; render(); },
+    exitAthlete: function () { exitAthlete(); render(); } };
 })();

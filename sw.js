@@ -1,4 +1,5 @@
 // Offline support: cache the whole app on install, serve cache-first.
+// v232: Coach athlete review has a Practice tab in the middle slot (the user's own + is unchanged). Practice logs were already in the share payload.
 // v231: Long + rough/bunker/trees and a short leftover is past the green (hole length + yards left). Long + Fairway is ignored and greyed out in shot entry. The 450 yd / 40 yd past-hole guard stays.
 // v230: Driver distance no longer treats a far-from-green Long dir as past the pin (that made 700+ yd drives); impossible tee distances are left out. Last-rounds clicks and desktop map size are fixed in the coach site / CSS.
 // v229: Wedge matrix Yardages is a single chart – Low flight is hidden (kept in backups, not shown).
@@ -122,7 +123,7 @@
 // v113: "Courses near me" (near.js). The course finder list (data/us-courses.json, ~1.0 MB, ~0.28 MB gzipped) is NOT in this cache:
 // the app downloads it on first use into its own cache 'pinhigh-courselist-v1', which a new version keeps (so no re-download).
 // GolfCore scorecards (through the Pin High relay, pinhigh-golfcore.pinhigh.workers.dev) go straight to the network; the app saves each picked course with the saved courses.
-const CACHE = 'golf-sg-v231';
+const CACHE = 'golf-sg-v232';
 const ASSETS = ['./', './img/home-bg.webp', './img/oriole.webp', './index.html', './styles.css', './sg.js', './trends.js', './plan.js', './funfacts.js', './weekahead.js', './birdie.js', './courses.js', './near.js', './bag.js', './wedges.js', './live.js', './sync.js', './share.js', './story.js', './insights.js', './mygame.js', './shortgame.js', './shortgame-ui.js', './app.js', './config.js', './vendor/jspdf.umd.min.js',
   './manifest.webmanifest', './icons/apple-touch-icon.png', './icons/icon-192.png',
   './icons/icon-512.png', './icons/icon-512-maskable.png'];
