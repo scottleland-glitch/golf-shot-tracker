@@ -54,7 +54,7 @@ const ROOT = path.join(__dirname, '..'), PORT = 8963, BASE = 'http://127.0.0.1:'
     assert.deepStrictEqual(await seg(), ['Bag*', 'Wedge matrix']);
     await P.click('#segwedges'); await P.waitForSelector('#wlist');
     assert.deepStrictEqual(await seg(), ['Bag', 'Wedge matrix*']);
-    assert.deepStrictEqual(await P.$$eval('#wmode button', e => e.map(x => x.textContent + (x.classList.contains('on') ? '*' : ''))), ['Yardages*', 'Clock']);
+    assert.deepStrictEqual(await P.$$eval('#wmode button', e => e.map(x => x.textContent + (x.classList.contains('on') ? '*' : ''))), ['Yardages*', 'Clock', 'Ladder']);
     console.log('  tab says Wedge matrix; opens on Yardages');
 
     await P.click('#wmode [data-k="clock"]'); await P.waitForSelector('#wclock');

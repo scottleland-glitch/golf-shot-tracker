@@ -948,7 +948,9 @@ html body .roundpage.theme-sky .clubrow .holeout.on { color: #1f6b3a; background
 .wedgepage .wflight button { flex: 1; min-height: 40px; border: 0; border-radius: 12px; background: none; box-shadow: none; font-size: 15px; font-weight: 400; color: var(--frost-ink-soft, #3f5a48); transform: none; }
 .wedgepage .wflight button.on { background: rgba(255, 255, 255, .92); color: var(--frost-ink, #17301f); font-weight: 600; box-shadow: 0 1px 4px rgba(23, 48, 31, .10); }
 /* ---------- v227 Wedge matrix: Yardages | Clock, clock table + picker ---------- */
+/* v228: Yardages | Clock | Ladder; ladder grid + cell card */
 .wedgepage .wmode { margin-bottom: 10px; }
+.wedgepage .wmode button { font-size: 14px; font-weight: 600; padding: 0 4px; }
 .wedgepage .wclockcard { padding: 8px 6px 12px; margin: 0 0 12px; overflow: hidden; }
 .wedgepage .wclockwrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
 .wedgepage table.wclock { width: 100%; border-collapse: collapse; min-width: 280px; }
@@ -1017,6 +1019,36 @@ html body .roundpage.theme-sky .clubrow .holeout.on { color: #1f6b3a; background
 .wclkchips { flex-wrap: wrap; justify-content: center; }
 .wclkpick-card .wnote { width: 100%; box-sizing: border-box; }
 .wclkpick-card .wclkdone { width: 100%; min-height: 48px; margin: 2px 0 0; box-shadow: none; }
+
+.wedgepage .wclockcard.wladcard { padding: 8px 8px 12px; overflow: hidden; }
+.wedgepage table.wclock.wladderg { table-layout: fixed; min-width: 0; }
+.wedgepage table.wclock.wladderg .wclklbl { width: 40px; padding-left: 2px; padding-right: 2px; }
+.wedgepage table.wclock .wladpos { display: block; font-size: 15px; font-weight: 700; line-height: 1.15; }
+.wedgepage table.wclock .wladclk { display: block; font-size: 10px; font-weight: 500; color: var(--frost-ink-soft, #445064); margin-top: 1px; letter-spacing: .02em; }
+.wedgepage table.wclock td.wladcell { vertical-align: top; padding: 8px 1px; }
+.wedgepage table.wclock .wlady { display: block; font-size: 16px; font-weight: 700; line-height: 1.15; font-style: normal; }
+.wedgepage table.wclock .wladsetup {
+  display: block; font-size: 9px; font-weight: 500; color: var(--frost-ink-soft, #445064);
+  margin-top: 2px; line-height: 1.2; letter-spacing: -.03em; white-space: nowrap;
+}
+.wedgepage table.wclock button.wladtap {
+  width: 100%; min-height: 52px; margin: 0; padding: 6px 2px;
+  border-radius: 10px; border: 1px solid rgba(26, 34, 48, .14); background: rgba(255,255,255,.9);
+  box-shadow: none; transform: none; color: inherit; line-height: 1.15;
+}
+.wedgepage table.wclock button.wladtap.empty { font-weight: 400; color: var(--frost-ink-soft, #445064); }
+.wladpick-card { align-items: stretch; gap: 8px; }
+.wladpick-card .wclkpick-h { text-align: center; }
+.wladyd { display: flex; flex-direction: column; gap: 6px; margin: 2px 0 4px; font-size: 12px; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; color: var(--frost-ink-soft, #445064); }
+.wladyd input {
+  width: 100%; box-sizing: border-box; text-align: center;
+  font-size: 28px; font-weight: 700; padding: 10px 8px; border-radius: 14px;
+  border: 1px solid rgba(26, 34, 48, .16); background: rgba(255,255,255,.95); color: #1a2230;
+  font-variant-numeric: tabular-nums;
+}
+.wladseglbl { margin: 8px 0 4px; font-size: 12px; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; color: var(--frost-ink-soft, #445064); }
+.wladpick-card .wladrow { margin: 0; }
+.wladpick-card .wladrow button { font-weight: 600; font-size: 15px; min-height: 42px; }
 
 /* ---------- v96 Round stats: top box, Quick view, collapsible stat tiles, small legend ---------- */
 .rstop { width: 100%; border-collapse: separate; border-spacing: 0; table-layout: fixed; margin: 6px 0 12px; background: rgba(255, 255, 255, .62);
