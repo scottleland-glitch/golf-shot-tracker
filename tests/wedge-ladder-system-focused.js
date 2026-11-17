@@ -144,7 +144,9 @@ const ROOT = path.join(__dirname, '..'), PORT = 8965, BASE = 'http://127.0.0.1:'
     assert.deepStrictEqual(st.ladder.rows[0].cells['58'], { y: 32, hinge: '45', ball: 'back', lean: '0' });
     console.log('  backup → restore keeps ladder data');
 
-    // scoring-page dropdown
+    // scoring-page dropdown (yardage High/Low data is present but must stay hidden in Ladder mode)
+    st.rows = { 50: { club: '58', ball: 'front', pos: 'p1' }, 70: { club: '54', ball: 'middle', pos: 'p2' } };
+    st.low = { 60: { club: '58', ball: 'back', pos: 'p1' } };
     await P.evaluate(wedges => {
       const R = (d, l, x) => Object.assign({ dist: d, loc: l, dir: '', pen: false }, x || {});
       const holes = Array.from({ length: 18 }, () => ({ par: 4, rows: [R('', 'tee')] }));
@@ -162,6 +164,9 @@ const ROOT = path.join(__dirname, '..'), PORT = 8965, BASE = 'http://127.0.0.1:'
       await P.waitForSelector('select[data-f="wladder"][data-k="1"]');
     }
     const opts = await P.$$eval('select[data-f="wladder"][data-k="1"] option', o => o.map(x => x.textContent));
+    const groups = await P.$$eval('select[data-f="wladder"][data-k="1"] optgroup', g => g.map(x => x.label));
+    assert.deepStrictEqual(groups, ['Ladder'], 'High/Low yardage groups hidden in Ladder mode, got ' + JSON.stringify(groups));
+    assert.ok(!opts.some(x => /High|Low/.test(x)), 'no High/Low option text, got ' + JSON.stringify(opts));
     assert.ok(opts.includes('56° · P2 · 62 yd'), 'dropdown lists 56° · P2 · 62 yd, got ' + JSON.stringify(opts));
     const pickVal = await P.$$eval('select[data-f="wladder"][data-k="1"] option', o => {
       const hit = o.find(x => x.textContent === '56° · P2 · 62 yd');
@@ -177,7 +182,7 @@ const ROOT = path.join(__dirname, '..'), PORT = 8965, BASE = 'http://127.0.0.1:'
     assert.strictEqual(shot.club, '56');
     assert.strictEqual(shot.wedgeY, 62);
     assert.strictEqual(shot.wedgeLad, 'P2');
-    console.log('  scoring dropdown shows 56° · P2 · 62 yd with 90° · Mid · 1–2°');
+    console.log('  scoring dropdown shows 56° · P2 · 62 yd with 90° · Mid · 1–2°; High/Low hidden');
 
     assert.deepStrictEqual(errors, []);
     console.log('wedge-ladder-system-focused: all passed');

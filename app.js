@@ -6553,7 +6553,9 @@
   function wLadderFor(row) { if (row.loc === 'ob' || !WEDGES.inRange(row.dist)) return null; var w = wedges(); return WEDGES.ladder(w).length ? WEDGES.fullLadder(w) : null; }
   function wOfferFor(row) { // v227: yardage chart and/or clock matrix for shots ≤100 yd; v228: ladder matrix too
     if (row.loc === 'ob' || !WEDGES.inRange(row.dist)) return null;
-    var w = wedges(), hasL = !!WEDGES.ladder(w).length, hasC = w.mode === 'clock' && WEDGES.clockEntries(w).length, hasLad = w.mode === 'ladder' && WEDGES.ladEntries(w).length;
+    var w = wedges(), clockOrLad = w.mode === 'clock' || w.mode === 'ladder';
+    var hasC = w.mode === 'clock' && WEDGES.clockEntries(w).length, hasLad = w.mode === 'ladder' && WEDGES.ladEntries(w).length;
+    var hasL = !clockOrLad && !!WEDGES.ladder(w).length; // High/Low yardage groups only in Yardages mode
     if (!hasL && !hasC && !hasLad) return null;
     return { w: w, hasL: hasL, hasC: hasC, hasLad: hasLad };
   }
@@ -6596,7 +6598,8 @@
   }
   function ladderRowHTML(h, k, row, shotNo, dis, hoBox) {
     // v95b: list only 3 carries around the pin distance (both flights); a chosen carry outside them still shows
-    // v227: in clock mode, also (or only) list nearby clock-matrix entries, e.g. 54° · 9:00 · 72 yd
+    // v227: in clock mode, list nearby clock-matrix entries, e.g. 54° · 9:00 · 72 yd
+    // v228: in clock or ladder mode, hide the High/Low yardage groups; Yardages mode is unchanged
     var O = wOfferFor(row) || { w: wedges(), hasL: false, hasC: false, hasLad: false };
     var F = O.hasL ? WEDGES.fullLadder(O.w) : [];
     var cur = O.hasL ? wLadderPick(row, F) : null;

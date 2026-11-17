@@ -105,6 +105,31 @@ const ROOT = path.join(__dirname, '..'), PORT = 8963, BASE = 'http://127.0.0.1:'
     assert.strictEqual(st.clock.rows[0].yd['58'], 35);
     console.log('  backup → restore keeps clock data');
 
+    // scoring-page dropdown: High/Low yardages are stored but must stay hidden in Clock mode
+    st.rows = { 60: { club: '56', ball: 'front', pos: 'p1' }, 70: { club: '54', ball: 'middle', pos: 'p2' }, 80: { club: 'PW', pos: 'p3' } };
+    st.low = { 70: { club: '56', ball: 'back', pos: 'p1' } };
+    await P.evaluate(w => {
+      const R = (d, l, x) => Object.assign({ dist: d, loc: l, dir: '', pen: false }, x || {});
+      const holes = Array.from({ length: 18 }, () => ({ par: 4, rows: [R('', 'tee')] }));
+      holes[0] = { par: 4, rows: [R(380, 'tee', { club: 'Driver' }), R(72, 'fairway'), R(12, 'green'), R(2, 'holed')] };
+      localStorage.setItem('golfsg.rounds.v1', JSON.stringify([{ v: 3, dv: 2, id: 'rclk', date: '2026-11-17T15:00:00.000Z', course: 'Clock test', baseline: 'pga', player: 'Scott', holes }]));
+      localStorage.setItem('golfsg.current.v1', 'rclk');
+      localStorage.setItem('golfsg.wedges.v1', JSON.stringify(w));
+    }, st);
+    await P.reload(); await P.waitForSelector('#app > *');
+    await P.click('[data-act="resume"]');
+    await P.waitForSelector('select[data-f="loc"], .tline[data-k="1"]');
+    if (await P.$('.tline[data-k="1"]')) {
+      await P.click('.tline[data-k="1"]');
+      await P.waitForSelector('select[data-f="wladder"][data-k="1"]');
+    }
+    const groups = await P.$$eval('select[data-f="wladder"][data-k="1"] optgroup', g => g.map(x => x.label));
+    const opts = await P.$$eval('select[data-f="wladder"][data-k="1"] option', o => o.map(x => x.textContent));
+    assert.deepStrictEqual(groups, ['Clock'], 'High/Low yardage groups hidden in Clock mode, got ' + JSON.stringify(groups));
+    assert.ok(!opts.some(x => /High|Low/.test(x)), 'no High/Low option text, got ' + JSON.stringify(opts));
+    assert.ok(opts.includes('54° · 9:00 · 72 yd'), 'dropdown lists 54° · 9:00 · 72 yd, got ' + JSON.stringify(opts));
+    console.log('  scoring dropdown is Clock-only; High/Low hidden');
+
     assert.deepStrictEqual(errors, []);
     console.log('wedge-clock-focused: all passed');
   } finally { await b.close(); srv.kill(); }
