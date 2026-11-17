@@ -168,7 +168,8 @@ body.noscroll { overflow: hidden; }
 .seg button { flex: 1; min-height: 48px; font-size: 17px; font-weight: 800; border: 1px solid var(--line); border-radius: 16px; background: #fff; color: #000; }
 .seg button.sel { background: #000; color: #fff; }
 .mapsum { margin: 6px 0; font-size: 17px; }
-.mapview svg { display: block; width: 100%; height: auto; border: 1px solid var(--line); border-radius: 16px; }
+/* v230: cap hole maps (fairway / GIR / misses) at phone width so a desktop or coach window does not blow them up; a 390px phone is unchanged. */
+.mapview svg { display: block; width: 100%; max-width: 400px; height: auto; margin: 0 auto; border: 1px solid var(--line); border-radius: 16px; }
 .legend { display: flex; flex-wrap: wrap; gap: 6px 14px; margin: 10px 0; font-size: 15px; font-weight: 700; }
 .legend span { display: flex; align-items: center; gap: 6px; }
 .legend .dot { display: inline-block; width: 16px; height: 16px; border-radius: 50%; border: 2px solid #000; flex: none; }

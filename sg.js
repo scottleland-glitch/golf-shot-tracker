@@ -248,6 +248,15 @@
     if (lie === 'holed') return 0;
     return lie === 'green' ? dist / 3 : dist;
   }
+  // v230: a tee-shot "distance hit" over ~450 yd, or clearly longer than the hole, is not a real drive
+  // (wrong leftover, units, or a Long dir far from the green). 40 yd past the hole covers a drive through a short green.
+  var TEE_HIT_MAX_YD = 450, TEE_HIT_PAST_YD = 40;
+  function saneTeeHit(hit, yards) {
+    if (hit == null || !isFinite(hit) || hit <= 0) return null;
+    if (hit > TEE_HIT_MAX_YD) return null;
+    if (yards > 0 && hit > yards + TEE_HIT_PAST_YD) return null;
+    return hit;
+  }
 
   // Scott's split (v125: one cutoff everywhere, the industry standard): SHORT GAME / around the green = off the green
   // from 30 yd and in; APPROACH = every non-tee shot from over 30 yd (par-3 tee shots included). Approach ranges include
@@ -376,10 +385,13 @@
       var hd = normDir(s.dir || s.side), rel = DIR_ANGLE[hd], ya = toYards(start.lie, start.dist), yb = toYards(end.lie, end.dist);
       var nearEnd = end.lie === 'green' || (end.lie !== 'holed' && yb <= NEAR_YD), ang = null;
       if (pen !== 'ob' && end.lie !== 'holed') { ang = (((rel == null ? 270 : rel) + prevAng + 90) % 360 + 360) % 360; }
-      // distance hit: long adds (it went past the pin), short subtracts, a left / right finish by the green = straight line
+      // distance hit: near the green, long adds (it went past the pin), short subtracts, a left / right finish = straight line.
+      // Far from the green a Dir is a missed fairway, not a spot around the pin — always start minus leftover.
+      // (v230: "Long" on a tee shot used to add the leftover, e.g. 458 + 284 = 742 yd.)
       var hit = pen === 'ob' || s.retee ? null
-        : rel != null && (/^long/.test(hd) || nearEnd) ? Math.round(Math.sqrt(Math.max(0, ya * ya + yb * yb + 2 * ya * yb * Math.sin(rel * Math.PI / 180))))
+        : rel != null && nearEnd ? Math.round(Math.sqrt(Math.max(0, ya * ya + yb * yb + 2 * ya * yb * Math.sin(rel * Math.PI / 180))))
         : Math.round(ya - yb);
+      if (cat === 'tee') hit = saneTeeHit(hit, ya);
       out.push({
         n: i + 1, start: start, end: end, pen: pen, penStrokes: penStrokes,
         side: s.side || dirSide(normDir(s.dir)), dir: normDir(s.dir || s.side), ob: !!s.ob, retee: !!s.retee, loc: s.loc || (pen === 'ob' ? 'ob' : s.lie), hk: s.hk, eStart: eStart, eEnd: eEnd, sg: sg,
@@ -928,7 +940,7 @@
     YARDS: YARDS, OFF_GREEN: OFF_GREEN, FEET: FEET, PUTTS: PUTTS,
     // v150: the ONE place the app version lives – must equal the sw.js cache name ('golf-sg-' + VERSION). It sits in a cached file,
     // so Settings shows the version of the code actually running (config.js is network-first and could run ahead).
-    VERSION: 'v229' };
+    VERSION: 'v230' };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else root.SG = api;
 })(this);

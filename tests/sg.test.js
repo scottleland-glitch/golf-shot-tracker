@@ -872,6 +872,66 @@ test('distance hit adds when the ball goes long (v156)', () => {
   assert.strictEqual(hit([R(380, 'tee'), R(150, 'fairway'), R(20, 'holedx', 'left')], 1), 151, 'pin high left by the green = straight line');
   assert.strictEqual(hit([R(400, 'tee'), R(150, 'holedx', 'left')], 0), 250, 'a missed fairway keeps the forward distance');
   assert.strictEqual(hit([R(380, 'tee'), R(100, 'holedx')], 1), 100, 'holed out from the fairway = the full distance');
+  // v230: far from the green, Long is not "past the pin"
+  assert.strictEqual(hit([R(458, 'tee'), R(284, 'fairway', 'long'), R(20, 'green'), R(2, 'holed')], 0), 174, 'tee Long = hole minus leftover, not 458+284=742');
+  assert.strictEqual(hit([R(513, 'tee'), R(250, 'fairway', 'longleft'), R(20, 'green'), R(2, 'holed')], 0), 263, 'tee Long left keeps the forward distance');
+});
+
+test('v230: tee-shot drive distance ignores Long-far-from-green and impossible lengths; SG is unchanged', () => {
+  const R = (dist, loc, dir, extra) => Object.assign({ dist, loc, dir: dir || '', pen: false }, extra || {});
+  const hole = (par, rows) => ({ par, finished: true, rows });
+  const tee = (par, rows) => {
+    const h = hole(par, rows);
+    const a = SG.analyzeHole(h, 'pga');
+    const S = SG.summarize({ holes: [h] }, 'pga');
+    return { hit: a.shots[0].hit, sg: a.shots[0].sg, holeSG: a.sg, map: S.teeMap[0] };
+  };
+  const longDir = [R(458, 'tee', '', { club: 'Driver' }), R(284, 'fairway', 'long'), R(20, 'green'), R(2, 'holed')];
+  const noDir = [R(458, 'tee', '', { club: 'Driver' }), R(284, 'fairway'), R(20, 'green'), R(2, 'holed')];
+  const A = tee(5, longDir), B = tee(5, noDir);
+  assert.strictEqual(A.hit, 174);
+  assert.strictEqual(B.hit, 174);
+  assert.strictEqual(A.sg, B.sg, 'strokes gained does not use the Long-add formula');
+  assert.strictEqual(A.map.hit, 174);
+  assert.strictEqual(A.map.pen, false);
+
+  // sanity guard: 520 − 20 = 500 yd, over the 450 yd cap
+  const D = tee(5, [R(520, 'tee', '', { club: 'Driver' }), R(20, 'fairway'), R(10, 'green'), R(1, 'holed')]);
+  assert.strictEqual(D.hit, null, '500 yd computed drive (>450 and longer than a short leftover allows past the hole) is left out');
+  assert.ok(D.map.hit == null, 'tee map also leaves the impossible drive out');
+
+  // under the cap, a normal 250 yd drive still counts; slightly past a short hole still counts
+  const E = tee(4, [R(400, 'tee'), R(150, 'fairway'), R(15, 'green'), R(2, 'holed')]);
+  assert.strictEqual(E.hit, 250);
+  const F = tee(4, [R(300, 'tee'), R(20, 'green', 'long'), R(2, 'holed')]);
+  assert.ok(F.hit > 300 && F.hit <= 340, 'a drive a little past a short green still counts: ' + F.hit);
+
+  // 9-hole round with a hazard-penalty tee shot and a Long-dir par 5
+  const R2 = (d, loc, dir, club, pen) => ({ dist: d, loc, dir: dir || '', pen: !!pen, club: club || '' });
+  const par = [5, 4, 3, 5, 4, 3, 4, 3, 5];
+  const yards = [513, 327, 150, 466, 365, 140, 291, 155, 458];
+  const to = [250, 60, null, 240, 120, null, 70, null, 284];
+  const dir = ['', '', '', 'left', 'left', '', 'right', '', 'long'];
+  const club = ['Driver', 'Driver', '', 'Driver', 'Driver', '', 'Driver', '', 'Driver'];
+  const holes = par.map((p, i) => {
+    if (p === 3) return hole(3, [R2(yards[i], 'tee'), R2(18, 'green'), R2(2, 'holed')]);
+    if (i === 3) return hole(5, [R2(yards[i], 'tee', '', 'Driver'), R2(40, 'hazard', 'left', '', true), R2(18, 'green'), R2(2, 'holed')]); // hazard + drop on hole 4
+    return hole(p, [R2(yards[i], 'tee', '', club[i]), R2(to[i], 'fairway', dir[i]), R2(18, 'green'), R2(2, 'holed')]);
+  });
+  const S = SG.summarize({ v: 3, holes }, 'pga');
+  assert.strictEqual(S.holes.length, 9);
+  assert.strictEqual(S.holesDone, 9);
+  const drives = S.teeMap.filter(m => !m.layup && m.kind !== 'ob' && !m.pen && m.hit != null && m.club === 'Driver');
+  const hits = drives.map(m => m.hit);
+  assert.ok(!hits.some(h => h > 450), 'no impossible drive in the 9-hole round: ' + hits.join(','));
+  assert.ok(S.teeMap.some(m => m.pen), 'hazard-penalty tee shot is flagged and left out of drives');
+  const h9 = S.teeMap.filter(m => m.hole === 9)[0];
+  assert.strictEqual(h9.hit, 174, 'hole 9 Long dir is 458-284, not 742');
+  assert.ok(hits.indexOf(174) >= 0);
+  // SG on the Long-dir hole equals the same hole without Long
+  const sgLong = S.holes[8].shots[0].sg;
+  const sgPlain = SG.analyzeHole(hole(5, [R2(458, 'tee', '', 'Driver'), R2(284, 'fairway'), R2(18, 'green'), R2(2, 'holed')]), 'pga').shots[0].sg;
+  assert.strictEqual(sgLong, sgPlain);
 });
 
 test('v157 (Scott): pin-high right, chip long -> finishes left of the pin (9 o\'clock on the map), chip played from 3 o\'clock', () => {
