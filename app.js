@@ -2609,6 +2609,10 @@
   }
   function planData0(who) { return planData(who); }
   function planFocusKey(it) { var F = MYGAME.FOCUS[it.k] || [], f = /speed/i.test(it.focus) ? F.filter(function (x) { return /speed/i.test(x); })[0] : /start line/i.test(it.focus) ? F.filter(function (x) { return /start line/i.test(x); })[0] : /distance|short|long/i.test(it.focus) ? F.filter(function (x) { return /distance/i.test(x); })[0] : null; return f || F[0]; }
+  // v233 (Scott): the latest round against the longer window (green ↗ may be turning around, red ↘ new / worse), then where the numbers come from
+  function planRecHTML(it) { var r = it.rec;
+    return (r && r.text ? '<span class="plrec ' + (r.dir === 'better' ? 'better' : 'worse') + '"><i aria-hidden="true">' + (r.dir === 'better' ? '↗' : '↘') + '</i>' + esc(r.text) + '</span>' : '') +
+      (it.source ? '<span class="plsrc">' + esc(it.source) + '</span>' : ''); }
   function planCardHTML(who, P) {
     P = P || planData(who); var hm = MYGAME.hm, T = P.tour, ed = view.tourEdit;
     var roPlan = !!(typeof CO !== 'undefined' && CO.view);
@@ -2626,7 +2630,7 @@
     if (T && T.msg) h += '<p class="planmsg' + (T.mode === 'sharpen' ? ' sharp' : '') + '" id="planmsg">' + esc(T.msg) + '</p>';
     var roPlan = !!(typeof CO !== 'undefined' && CO.view);
     var row = function (it, i) { return '<li class="planitem' + (it.coach ? ' coach' : '') + (it.maint ? ' maint' : '') + '" data-k="' + it.k + '"><span class="pin">' + (i + 1) + '</span><div class="pltext"><small>' + esc(it.name) + (it.coach ? ' · coach homework' : it.optional ? '' : it.maint ? ' · keep it sharp' : '') + '</small><b>' + esc(it.focus) + '</b>' +
-      (it.why ? '<span class="plwhy">' + esc(it.why) + '</span>' : '') + (it.coach && it.doneToday ? '<span class="pldoneit">✓ done today</span>' : '') + (it.typeTip ? '<span class="pltip">' + esc(it.typeTip) + '</span>' : '') + '</div>' +
+      (it.why ? '<span class="plwhy">' + esc(it.why) + '</span>' : '') + planRecHTML(it) + (it.coach && it.doneToday ? '<span class="pldoneit">✓ done today</span>' : '') + (it.typeTip ? '<span class="pltip">' + esc(it.typeTip) + '</span>' : '') + '</div>' +
       '<div class="plright"><span class="plmin">' + it.min + ' min</span>' + (roPlan ? '' : '<button class="plbtn" data-act="planlog" data-v="' + it.k + '|' + esc(planFocusKey(it)) + '|' + it.min + '">Log</button>') + '</div></li>'; };
     if (!P.due) h += '<div class="planahead" id="planahead"><b>You\'re ahead this week 👍</b><span>Nothing\'s overdue. If you have time, these help most:</span></div>';
     if (P.items.length) h += '<ol class="planlist" id="planlist">' + P.items.map(function (it, i) { return P.due && it.optional && !P.items[i - 1].optional ? '<li class="plsep">When you have time</li>' + row(it, i) : row(it, i); }).join('') + '</ol>';

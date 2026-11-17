@@ -3283,3 +3283,7 @@ html body .wacard, html body .gapcard { padding: 16px 16px 14px; } html body .mo
 html body .wacard h2, html body .gapcard h2 { font-weight: 800; }
 html body .statspage .plcmp, html body .statspage .plcmp * { font-weight: 400 !important; } html body .statspage .plcmp h2 { font-weight: 500 !important; }
 html body .statspage .plcmp h2 { font-size: 16px !important; line-height: 1.3; } html body .statspage .plcmp p, html body .statspage .plcmp td, html body .statspage .plcmp th { font-size: 14px; }
+/* v233 (Scott): plan notes – the recency line (green ↗ turning around, red ↘ new) and a muted source line */
+html body .plrec { display: flex; align-items: baseline; gap: 5px; font-size: 12.5px; line-height: 1.3; font-weight: 600; margin-top: 3px; }
+html body .plrec i { font-style: normal; font-weight: 800; font-size: 15px; line-height: 1; } html body .plrec.better { color: #138a4a; } html body .plrec.worse { color: #c8322b; }
+html body .plsrc { display: block; font-size: 11.5px; line-height: 1.3; color: #7d8a95; margin-top: 3px; }
