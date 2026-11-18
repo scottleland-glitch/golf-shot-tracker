@@ -112,7 +112,7 @@ function tabs(page) {
     // swipe / jump the week card to the 3-month volume chart
     await page.evaluate(() => { const g = window.__golf.view(); g.wkPage = 2; window.__golf.render(); });
     await page.waitForSelector('#weekcard');
-    assert.match(await page.textContent('#weekcard'), /Last 3 months|rolling 7 days|Putting|Woods|Irons/);
+    assert.match(await page.textContent('#weekcard'), /fading average/);
     await page.locator('#weekcard').scrollIntoViewIfNeeded();
     await page.screenshot({ path: OUT + 'coach-practice-3month.png' });
     ok('3-month volume chart → ' + OUT + 'coach-practice-3month.png');

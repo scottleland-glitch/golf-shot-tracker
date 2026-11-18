@@ -2483,8 +2483,8 @@
       '</div><div class="pglegrow">' + PRG.slice(3).map(function (g, i) { return item(g, i + 3); }).join('') + '</div></div>';
   }
   function hmS(min) { min = Math.round(min); var h = Math.floor(min / 60), m = min % 60; return h ? h + 'h' + (m ? ' ' + m + 'm' : '') : m + 'm'; } // short: "1h 5m"
-  // Light 3-day centered average for drawing only; first and last days stay exact so the right edge matches the real 7-day total.
-  function pgSmooth3(a) { var n = a.length, o = a.slice(), i; for (i = 1; i < n - 1; i++) o[i] = (a[i - 1] + a[i] + a[i + 1]) / 3; return o; }
+  // Light 3-day centered average for drawing only; first and last days stay exact so the right edge matches the real fading average.
+  function pgSmooth3(a, keep) { var n = a.length, o = a.slice(), i; for (i = 1; i < n - 1; i++) if (!(keep && keep[i])) o[i] = (a[i - 1] + a[i] + a[i + 1]) / 3; return o; } // v238: held (round) days stay exact, so they draw flat
   // Fritsch–Carlson monotone cubic slopes for unit-spaced points – no overshoot, so stacks stay non-negative and don't cross when we interpolate each group and add them up.
   function pgMonoSlopes(ys) {
     var n = ys.length, m = [], d = [], i; if (n < 2) return ys.map(function () { return 0; });
@@ -2541,17 +2541,26 @@
     var atNoon = function (s) { return Date.parse(s + 'T12:00:00'); };
     R = R || pgRange(L, 0);
     var today = R.today, start = R.start;
-    // raw daily totals, including 6 days before the first plotted day so the first rolling window is complete
-    var raw = {}, t = addD(start, -6);
-    while (t <= today) { raw[t] = { g: pgEmpty(), tot: 0, tour: false, les: false }; t = addD(t, 1); }
+    // v238 (Scott): a fading average instead of a rolling 7-day total – each day's practice counts half as much 3 days
+    // later, shown as minutes a week, so the bands narrow within days when practice stops and don't dip on one rest day.
+    // It averages over the days logged so far (at least 3), so the first week isn't a fill-up ramp. Tournament and
+    // practice-round days (rounds tagged in the app, plus one day between two of them) hold it flat at the level before
+    // – no dip while she's playing, no spike from warm-ups logged those days – and are shaded on the chart.
+    var A = Math.pow(0.5, 1 / 3), from = start, t;
+    if (R.first) { var f0 = R.first > addD(start, -30) ? R.first : addD(start, -30); if (f0 < from) from = f0; }
+    var raw = {}, order = []; t = from;
+    while (t <= today) { raw[t] = { g: pgEmpty(), tot: 0, tour: false, les: false, golf: false }; order.push(t); t = addD(t, 1); }
     L.forEach(function (e) { var d = iso(Date.parse(e.date)), r = raw[d]; if (!r || !(e.min > 0)) return; r.g[pgOf(e.spoke)] += e.min; r.tot += e.min; if (e.kind === 'lesson') r.les = true; });
-    finishedRoundsOf(who).forEach(function (r) { if (MYGAME.playOf(r) !== 'tournament') return; var d = iso(Date.parse(r.date)), x = raw[d]; if (x) x.tour = true; });
-    // each plotted day = practice minutes in the 7 days ending that day (inclusive)
+    finishedRoundsOf(who).forEach(function (r) { var pl = MYGAME.playOf(r); if (!pl) return; var d = iso(Date.parse(r.date)), x = raw[d]; if (!x) return; x.golf = true; if (pl === 'tournament') x.tour = true; });
+    order.forEach(function (d, i) { if (i && i < order.length - 1 && !raw[d].golf && raw[order[i - 1]].golf && raw[order[i + 1]].golf) raw[d].bridge = raw[order[i - 1]].tour && raw[order[i + 1]].tour ? 'tour' : true; });
+    order.forEach(function (d) { if (raw[d].bridge) { raw[d].golf = true; if (raw[d].bridge === 'tour') raw[d].tour = true; } });
+    var eg = pgEmpty(), kd = R.first && R.first < from ? 99 : 0, fade = {};
+    order.forEach(function (d) { var r = raw[d];
+      if (R.first && d >= R.first && !(r.golf && kd)) { eg = eg.map(function (v, i) { return v * A + r.g[i] * (1 - A); }); kd++; }
+      var nrm = 1 - Math.pow(A, Math.max(kd, 3)); fade[d] = kd ? eg.map(function (v) { return v / nrm * 7; }) : pgEmpty(); });
     var days = []; t = start;
-    while (t <= today) {
-      var g = pgEmpty(), tot = 0, rec = raw[t] || { tour: false, les: false };
-      for (var k = 0; k < 7; k++) { var src = raw[addD(t, -k)]; if (!src) continue; src.g.forEach(function (m, i) { g[i] += m; }); tot += src.tot; }
-      days.push({ t: atNoon(t), d: t, g: g, tot: tot, tour: rec.tour, les: rec.les });
+    while (t <= today) { var rec = raw[t], g = fade[t] || pgEmpty();
+      days.push({ t: atNoon(t), d: t, g: g, tot: g.reduce(function (a, b) { return a + b; }, 0), tour: rec.tour, les: rec.les, golf: rec.golf });
       t = addD(t, 1);
     }
     var N = days.length, tgt = nr ? 0 : (weekTgt != null ? weekTgt : P.budget), mx = Math.max(60, tgt, Math.max.apply(null, days.map(function (d) { return d.tot; }))), step = mx > 420 ? 120 : 60, top = Math.ceil(mx / step) * step;
@@ -2559,12 +2568,12 @@
     var last = days[N - 1] || { tot: 0, g: pgEmpty() };
     // v236: the curve starts on the first logged day – no made-up ramp from 0 before it (days before it in the window are left empty)
     var c0 = 0; if (R.first && R.first > start) { while (c0 < N - 1 && days[c0].d < R.first) c0++; }
-    var o = '<svg class="wkchart" viewBox="0 0 340 ' + VH + '" role="img" aria-label="Practice, ' + esc(R.label.toLowerCase()) + ', rolling 7 days, by group, with tournaments and lessons" data-roll="7" data-n="' + N + '" data-from="' + start + '" data-c0="' + c0 + '" data-last="' + Math.round(last.tot) + '" data-g="' + last.g.map(function (v) { return Math.round(v); }).join(',') + '">';
+    var o = '<svg class="wkchart" viewBox="0 0 340 ' + VH + '" role="img" aria-label="Practice, ' + esc(R.label.toLowerCase()) + ', fading average (recent days count more), minutes a week, by group, with tournaments, rounds and lessons" data-roll="fade" data-hold="' + days.filter(function (d) { return d.golf; }).length + '" data-tots="' + days.map(function (d) { return Math.round(d.tot); }).join(',') + '" data-n="' + N + '" data-from="' + start + '" data-c0="' + c0 + '" data-last="' + Math.round(last.tot) + '" data-g="' + last.g.map(function (v) { return Math.round(v); }).join(',') + '">';
     for (var u = 0; u <= top; u += step) o += '<line x1="' + X0 + '" x2="' + X1 + '" y1="' + y(u).toFixed(1) + '" y2="' + y(u).toFixed(1) + '" class="wkgrid"/><text x="' + (X0 - 4) + '" y="' + (y(u) + 3.5).toFixed(1) + '" class="wkax" text-anchor="end">' + u / 60 + 'h</text>';
-    // draw a lightly smoothed monotone curve; data-last / data-g stay the raw 7-day totals
+    // draw a lightly smoothed monotone curve; data-last / data-g are today's fading average (minutes a week)
     var xs = function (i) { return x(i + c0); }, shown = days.slice(c0);
     if (R.first) {
-      var gS = PRG.map(function (g, gi) { return pgSmooth3(shown.map(function (d) { return d.g[gi]; })); });
+      var held = shown.map(function (d) { return d.golf; }), gS = PRG.map(function (g, gi) { return pgSmooth3(shown.map(function (d) { return d.g[gi]; }), held); });
       var gPts = gS.map(function (ser) { return pgMonoSample(ser, 8); });
       var stack = []; PRG.forEach(function (g, gi) { var acc = gPts[gi].map(function (p, j) { return { i: p.i, v: (stack[gi - 1] ? stack[gi - 1][j].v : 0) + p.v }; }); stack.push(acc); });
       var zero = gPts[0].map(function (p) { return { i: p.i, v: 0 }; });
@@ -2572,6 +2581,11 @@
         o += '<path d="' + pgPtsPath(topv, xs, y, 'M') + pgPtsPath(bot.slice().reverse(), xs, y, 'L') + 'Z" class="pg' + gi + ' band"/>'; });
       o += '<path d="' + pgPtsPath(stack[stack.length - 1], xs, y, 'M') + '" class="wktotal"/>';
     }
+    // v238: tournament / practice-round days – a light shaded block (the curve is held flat through it)
+    var hw = N > 1 ? (X1 - X0) / (N - 1) / 2 : 4;
+    for (var hi = 0; hi < N; ) { if (!days[hi].golf) { hi++; continue; } var hj = hi; while (hj + 1 < N && days[hj + 1].golf) hj++;
+      var hx0 = Math.max(X0, x(hi) - hw), hx1 = Math.min(X1, x(hj) + hw);
+      o += '<rect x="' + hx0.toFixed(1) + '" y="' + Y0 + '" width="' + (hx1 - hx0).toFixed(1) + '" height="' + (Y1 - Y0) + '" class="wkhold" data-from="' + days[hi].d + '" data-to="' + days[hj].d + '"/>'; hi = hj + 1; }
     if (tgt > 0) o += '<line x1="' + X0 + '" x2="' + X1 + '" y1="' + y(tgt).toFixed(1) + '" y2="' + y(tgt).toFixed(1) + '" class="wktgtline"/><text x="' + X1 + '" y="' + (y(tgt) - 4).toFixed(1) + '" class="wkax wktgtlab" text-anchor="end">target ' + hmS(tgt) + '</text>';
     days.forEach(function (d, i) { if (d.les) o += '<line x1="' + x(i).toFixed(1) + '" x2="' + x(i).toFixed(1) + '" y1="' + Y0 + '" y2="' + Y1 + '" class="wkles"/>'; });
     for (var i = 0; i < N; ) { if (!days[i].tour) { i++; continue; } var j = i; while (j + 1 < N && days[j + 1].tour) j++;
@@ -2623,11 +2637,11 @@
         '<span class="wkval">' + (got ? '✓ ' : '') + (r.done ? hmS(r.done) : '–') + (nr ? '' : '<small> / ' + hmS(r.target) + '</small>') + '</span></div>'; });
     p1 += '</div>' + (nr ? '' : '<p class="plintro wknote" id="wkbal">' + esc(balanceLine(P)) + '</p>') + '</div>';
     var p2 = '<div class="wkpage" data-p="1"><p class="wkpt">Each day, by group</p>' + weekDaysSVG(L, W, !!view.wkFull) + legend + '</div>';
-    var R3 = pgRange(L, view.wkSpan || 0); // v236: the rolling chart fits the practice logged so far (up to 90 days)
+    var R3 = pgRange(L, view.wkSpan || 0); // v236: the chart fits the practice logged so far (up to 90 days); v238: fading average
     // v237: Fit (default) / 30 / 60 / 90 days
     var spans = '<div class="prchips wkspans" role="group" aria-label="How far back">' + [[0, 'Fit'], [30, '30d'], [60, '60d'], [90, '90d']].map(function (q) { var on = (view.wkSpan || 0) === q[0];
       return '<button class="prchip' + (on ? ' on' : '') + '" data-act="wkspan" data-v="' + q[0] + '" aria-pressed="' + on + '"' + (q[0] ? ' aria-label="Last ' + q[0] + ' days"' : ' aria-label="Fit to your practice"') + '>' + q[1] + '</button>'; }).join('') + '</div>';
-    var p3 = '<div class="wkpage" data-p="2"><p class="wkpt">' + esc(R3.label) + ' · rolling 7 days</p>' + spans + monthsSVG(L, who, P, !!view.wkFull, nr, W.target, R3) + legend + '<p class="plintro wknote">🏆 tournament day · <span class="leskey"></span> lesson' + (nr ? '' : ' · dashed line = your weekly target') + '</p></div>';
+    var p3 = '<div class="wkpage" data-p="2"><p class="wkpt">' + esc(R3.label) + ' · fading average</p>' + spans + monthsSVG(L, who, P, !!view.wkFull, nr, W.target, R3) + legend + '<p class="plintro wknote">Recent days count more · 🏆 tournament day · shaded = tournament/round days · <span class="leskey"></span> lesson' + (nr ? '' : ' · dashed = weekly target') + '</p></div>';
     var full = !!view.wkFull; // v207 (Scott): tap the card → full screen; swipe down, ✕ or Back to close; left / right still swipe
     return '<div class="card frost weekcard' + (full ? ' isfull' : '') + '" id="weekcard"' + (full ? ' role="dialog" aria-modal="true" aria-label="This week, full screen"' : ' data-act="wkfull" role="button" tabindex="0" aria-label="This week – tap for full screen"') + '>' +
       (full ? '<div class="wkgrab" aria-hidden="true"></div><button class="wkx" data-act="wkclose" id="wkclose" aria-label="Close">✕</button>' : '') + '<div class="planhead">' + nav + '<small id="wktot">' + hmS(W.done) + (nr ? ' logged' : ' of ' + hmS(W.target)) + '</small></div>' +

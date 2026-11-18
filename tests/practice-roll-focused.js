@@ -1,5 +1,5 @@
-// v225: Practice "This week" 3-month chart is a rolling 7-day total (a point a day),
-// with Full swing split into Irons (spoke 'irons') and Woods (spoke 'drive').
+// v225: Practice "This week" 3-month chart, a point a day, with Full swing split into Irons (spoke 'irons') and Woods (spoke 'drive').
+// v238: it's a fading average (half-life 3 days, minutes a week) – no longer a rolling 7-day total; a tournament day holds it flat.
 const { chromium } = require('playwright-core');
 const assert = require('assert');
 const { spawn } = require('child_process');
@@ -78,8 +78,9 @@ function dayOffset(n) {
     assert.deepStrictEqual(legend1, ['Putting', 'Short game', 'Wedges', 'Irons', 'Woods']);
     assert.deepStrictEqual(legend2, legend1);
     // v236: the chart fits the practice logged (first log 8 days ago + 3 days' lead-in, at least 2 weeks)
-    assert.strictEqual(await page.textContent('#wkpages .wkpage[data-p="2"] .wkpt'), 'Last 2 weeks · rolling 7 days');
+    assert.strictEqual(await page.textContent('#wkpages .wkpage[data-p="2"] .wkpt'), 'Last 2 weeks · fading average');
     assert.match(await page.textContent('#wkpages .wkpage[data-p="2"] .wknote'), /tournament day/);
+    assert.match(await page.textContent('#wkpages .wkpage[data-p="2"] .wknote'), /shaded = tournament\/round days/);
     ok('subtitle, 5-group legend on two charts, caption says tournament day');
 
     await page.evaluate(() => { const c = document.getElementById('wkpages'); c.scrollLeft = 2 * c.clientWidth; });
@@ -88,19 +89,28 @@ function dayOffset(n) {
       roll: s.getAttribute('data-roll'), n: +s.getAttribute('data-n'), last: +s.getAttribute('data-last'),
       g: s.getAttribute('data-g').split(',').map(Number),
       trophies: s.querySelectorAll('.wktour').length, lessons: s.querySelectorAll('.wkles').length,
-      bands: s.querySelectorAll('path.band').length, aria: s.getAttribute('aria-label')
+      bands: s.querySelectorAll('path.band').length, aria: s.getAttribute('aria-label'), hold: +s.getAttribute('data-hold'), shades: s.querySelectorAll('rect.wkhold').length
     }));
-    assert.strictEqual(D.roll, '7');
+    assert.strictEqual(D.roll, 'fade');
     assert.strictEqual(D.n, 14, 'v236: fits 2 weeks (first log 8 days ago), got ' + D.n);
-    assert.strictEqual(D.bands, 5);
-    assert.match(D.aria, /rolling 7 days/);
-    // 10+20+30+40+50+15+25 = 190; the 100 min from 8 days ago is outside the window
-    assert.strictEqual(D.last, 190, 'rolling 7-day total ending today');
-    assert.deepStrictEqual(D.g, [25, 20, 30, 40, 75], 'Putting, Short game, Wedges, Irons, Woods');
-    assert.ok(D.last > 40, 'today alone is 40 min; the line does not drop to today\'s incomplete week');
+    assert.match(D.aria, /fading average/);
+    // expected fading average (half-life 3 days, averaged over the days logged, at least 3), from the first log 8 days ago;
+    // the tournament day (3 days ago) is held – no decay, and its 40 min of irons (a warm-up) is left out
+    const A = Math.pow(0.5, 1 / 3), byAgo = {}; plan.forEach(x => { (byAgo[x.ago] = byAgo[x.ago] || [0, 0, 0, 0, 0])[{ lag: 0, chip: 1, wedges: 2, irons: 3, drive: 4 }[x.spoke]] += x.min; });
+    let eg = [0, 0, 0, 0, 0], kd = 0;
+    for (let a = 8; a >= 0; a--) { if (a === 3) continue; const m = byAgo[a] || [0, 0, 0, 0, 0]; eg = eg.map((v, i) => v * A + m[i] * (1 - A)); kd++; }
+    const exp = eg.map(v => v / (1 - Math.pow(A, Math.max(kd, 3))) * 7);
+    assert.deepStrictEqual(D.g, exp.map(Math.round), 'Putting, Short game, Wedges, Irons, Woods: ' + D.g + ' vs ' + exp.map(Math.round));
+    assert.strictEqual(D.last, Math.round(exp.reduce((a, b) => a + b, 0)), 'fading average ending today');
+    assert.strictEqual(D.g[3], 0, 'irons logged only on the tournament day are left out (held day)');
+    assert.ok(D.g[0] > 0 && D.g[4] > D.g[0], 'drive→Woods, lag→Putting');
+    assert.strictEqual(D.bands, 4, 'four groups with practice (no irons outside the tournament day)');
+    assert.strictEqual(D.hold, 1, 'one held (tournament) day in the window – the practice round 20 days ago is outside it');
+    assert.ok(D.last > 40, 'today alone is 40 min; the curve does not drop to today\'s practice');
     assert.strictEqual(D.trophies, 1, 'trophy on the tournament day');
     assert.strictEqual(D.lessons, 1, 'lesson marker on the lesson day');
-    ok('rolling total 190 min (not the 100 min from 8 days ago); drive→Woods, irons→Irons; markers on the day');
+    assert.strictEqual(D.shades, 1, 'the tournament day is shaded');
+    ok('fading average ' + D.last + ' min a week (' + D.g + '); tournament day held + shaded; markers on the day');
 
     const colors = await page.evaluate(() => {
       const bg = sel => getComputedStyle(document.querySelector(sel)).backgroundColor;

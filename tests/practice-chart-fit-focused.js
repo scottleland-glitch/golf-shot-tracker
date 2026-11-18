@@ -1,6 +1,6 @@
-// v236 (Scott): Practice "This week" page 3 (rolling 7 days) fits the practice logged – the axis starts a few days
+// v236 (Scott): Practice "This week" page 3 (fading average) fits the practice logged – the axis starts a few days
 // before the first log and widens up to 90 days; the header says the span; the curve starts on the first logged day.
-// v237: Fit / 30d / 60d / 90d chips (Fit is the default).
+// v237: Fit / 30d / 60d / 90d chips (Fit is the default). v238: the curve is a fading average (header '… · fading average').
 // iPhone 390x844. Run: node tests/practice-chart-fit-focused.js
 const { chromium } = require('playwright-core');
 const assert = require('assert');
@@ -36,8 +36,8 @@ function logs(firstAgo, every) { const P = [], sp = ['lag', 'chip', 'wedges', 'i
     let D = await read();
     assert.strictEqual(D.from, dayOffset(-23), 'axis starts 3 days before the first log');
     assert.strictEqual(D.n, 24); assert.strictEqual(D.c0, 3, 'curve starts on the first logged day');
-    assert.strictEqual(D.head, 'Last 3 weeks · rolling 7 days');
-    assert.match(D.aria, /last 3 weeks, rolling 7 days/);
+    assert.strictEqual(D.head, 'Last 3 weeks · fading average');
+    assert.match(D.aria, /last 3 weeks, fading average/);
     const xFirst = 34 + 3 / 23 * 298; assert.ok(Math.abs(D.x0 - xFirst) < 0.6, 'band starts at the first log, not at the left edge: ' + D.x0 + ' vs ' + xFirst);
     assert.ok(D.ticks.length >= 3 && D.ticks.every(t => /\d/.test(t)), 'weekly date ticks: ' + D.ticks);
     ok('3 weeks of logs → "' + D.head + '", axis from ' + D.from + ', curve from the first log, ticks ' + D.ticks.join(' / '));
@@ -46,7 +46,7 @@ function logs(firstAgo, every) { const P = [], sp = ['lag', 'chip', 'wedges', 'i
     await open(logs(150, 3));
     D = await read();
     assert.strictEqual(D.n, 90, 'capped at 90 days'); assert.strictEqual(D.from, dayOffset(-89)); assert.strictEqual(D.c0, 0);
-    assert.strictEqual(D.head, 'Last 3 months · rolling 7 days');
+    assert.strictEqual(D.head, 'Last 3 months · fading average');
     assert.ok(D.ticks.length >= 2 && D.ticks.every(t => /^[A-Za-z]+$/.test(t)), 'month ticks: ' + D.ticks);
     assert.strictEqual(D.x0, 34, 'older practice fills the window from the left edge');
     ok('5 months of logs → capped at 90 days, "' + D.head + '", ticks ' + D.ticks.join(' / '));
@@ -54,13 +54,13 @@ function logs(firstAgo, every) { const P = [], sp = ['lag', 'chip', 'wedges', 'i
     // ~10 weeks: still counted in weeks (months only once it reaches 12 weeks)
     await open(logs(67, 3));
     D = await read();
-    assert.strictEqual(D.n, 71); assert.strictEqual(D.head, 'Last 10 weeks · rolling 7 days');
+    assert.strictEqual(D.n, 71); assert.strictEqual(D.head, 'Last 10 weeks · fading average');
     ok('10 weeks of logs → "' + D.head + '", ticks ' + D.ticks.join(' / '));
 
     // a single log yesterday: at least 2 weeks wide
     await open(logs(1, 5));
     D = await read();
-    assert.strictEqual(D.n, 14); assert.strictEqual(D.head, 'Last 2 weeks · rolling 7 days'); assert.strictEqual(D.bands, 1);
+    assert.strictEqual(D.n, 14); assert.strictEqual(D.head, 'Last 2 weeks · fading average'); assert.strictEqual(D.bands, 1);
     ok('one log → 2 weeks wide, one band');
 
     // no practice: 4 weeks, no bands, no errors
@@ -77,7 +77,7 @@ function logs(firstAgo, every) { const P = [], sp = ['lag', 'chip', 'wedges', 'i
       await page.evaluate(() => { const c = document.getElementById('wkpages'); c.scrollLeft = 2 * c.clientWidth; }); await page.waitForTimeout(200);
       await page.click('#weekcard .wkspans [data-v="' + v + '"]'); await page.waitForTimeout(250);
       D = await read();
-      assert.strictEqual(D.n, n); assert.strictEqual(D.from, dayOffset(-(n - 1))); assert.strictEqual(D.head, 'Last ' + n + ' days · rolling 7 days');
+      assert.strictEqual(D.n, n); assert.strictEqual(D.from, dayOffset(-(n - 1))); assert.strictEqual(D.head, 'Last ' + n + ' days · fading average');
       assert.strictEqual(await page.$eval('#weekcard .wkspans .prchip.on', e => e.textContent), v + 'd');
       assert.ok(!(await page.$('#weekcard.isfull')), 'a chip does not open full screen');
       assert.strictEqual(await page.$eval('#wkpages', c => Math.round(c.scrollLeft / c.clientWidth)), 2, 'still on the chart page');
@@ -90,7 +90,7 @@ function logs(firstAgo, every) { const P = [], sp = ['lag', 'chip', 'wedges', 'i
     D = await read(); assert.strictEqual(D.n, 60); assert.strictEqual(D.c0, 39, 'curve starts on the first log');
     assert.ok(D.ticks.length >= 3 && D.ticks.every(t => /\d/.test(t)), 'every-other-week ticks: ' + D.ticks);
     await page.click('#weekcard .wkspans [data-v="0"]'); await page.waitForTimeout(250);
-    D = await read(); assert.strictEqual(D.n, 24); assert.strictEqual(D.head, 'Last 3 weeks · rolling 7 days');
+    D = await read(); assert.strictEqual(D.n, 24); assert.strictEqual(D.head, 'Last 3 weeks · fading average');
     ok('60d with 3 weeks of logs → empty until the first log; Fit goes back to 3 weeks');
 
     assert.deepStrictEqual(errors, [], 'no page errors');
