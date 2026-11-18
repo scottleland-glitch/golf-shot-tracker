@@ -960,7 +960,7 @@
     YARDS: YARDS, OFF_GREEN: OFF_GREEN, FEET: FEET, PUTTS: PUTTS,
     // v150: the ONE place the app version lives – must equal the sw.js cache name ('golf-sg-' + VERSION). It sits in a cached file,
     // so Settings shows the version of the code actually running (config.js is network-first and could run ahead).
-    LONG_PAST_MAX_YD: LONG_PAST_MAX_YD, effectiveDir: effectiveDir, longPastLoc: longPastLoc, VERSION: 'v238' };
+    LONG_PAST_MAX_YD: LONG_PAST_MAX_YD, effectiveDir: effectiveDir, longPastLoc: longPastLoc, VERSION: 'v239' };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else root.SG = api;
 })(this);

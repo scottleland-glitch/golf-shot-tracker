@@ -80,7 +80,7 @@ function dayOffset(n) {
     // v236: the chart fits the practice logged (first log 8 days ago + 3 days' lead-in, at least 2 weeks)
     assert.strictEqual(await page.textContent('#wkpages .wkpage[data-p="2"] .wkpt'), 'Last 2 weeks · fading average');
     assert.match(await page.textContent('#wkpages .wkpage[data-p="2"] .wknote'), /tournament day/);
-    assert.match(await page.textContent('#wkpages .wkpage[data-p="2"] .wknote'), /shaded = tournament\/round days/);
+    assert.doesNotMatch(await page.textContent('#wkpages .wkpage[data-p="2"] .wknote'), /shaded/);
     ok('subtitle, 5-group legend on two charts, caption says tournament day');
 
     await page.evaluate(() => { const c = document.getElementById('wkpages'); c.scrollLeft = 2 * c.clientWidth; });
@@ -109,8 +109,8 @@ function dayOffset(n) {
     assert.ok(D.last > 40, 'today alone is 40 min; the curve does not drop to today\'s practice');
     assert.strictEqual(D.trophies, 1, 'trophy on the tournament day');
     assert.strictEqual(D.lessons, 1, 'lesson marker on the lesson day');
-    assert.strictEqual(D.shades, 1, 'the tournament day is shaded');
-    ok('fading average ' + D.last + ' min a week (' + D.g + '); tournament day held + shaded; markers on the day');
+    assert.strictEqual(D.shades, 0, 'no shaded blocks on held days');
+    ok('fading average ' + D.last + ' min a week (' + D.g + '); tournament day held flat, no shading; markers on the day');
 
     const colors = await page.evaluate(() => {
       const bg = sel => getComputedStyle(document.querySelector(sel)).backgroundColor;

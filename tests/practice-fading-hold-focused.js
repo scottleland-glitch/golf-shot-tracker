@@ -1,6 +1,6 @@
 // v238 (Scott): Practice "This week" page 3 is a fading average (half-life 3 days, minutes a week). Tournament and
-// practice-round days hold it flat at the level before (no dip, no spike from a warm-up logged that day) and are
-// shaded; a single day between two round days is held too. A plain break with no rounds still fades.
+// practice-round days hold it flat at the level before (no dip, no spike from a warm-up logged that day);
+// v239: the shaded blocks are hidden. A single day between two round days is held too. A plain break with no rounds still fades.
 // iPhone 390x844. Run: node tests/practice-fading-hold-focused.js
 const { chromium } = require('playwright-core');
 const assert = require('assert');
@@ -48,19 +48,17 @@ const round = (id, ago, play) => Object.assign(ARC.round(), { id, player: 'Scott
     const R = [round('rp', 12, 'practice'), round('t1', 11, 'tournament'), round('t2', 9, 'tournament')];
     let D = await open(P, R);
     assert.strictEqual(D.head, 'Last 5 weeks · fading average');
-    assert.match(D.note, /shaded = tournament\/round days/);
-    assert.strictEqual(D.shades.length, 1, 'one shaded block'); assert.strictEqual(D.shades[0].from, dayOffset(-12)); assert.strictEqual(D.shades[0].to, dayOffset(-9));
+    assert.doesNotMatch(D.note, /shaded/);
+    assert.strictEqual(D.shades.length, 0, 'no shaded blocks');
     assert.strictEqual(D.hold, 4, 'practice round + 2 tournament days + the day between them are held');
-    assert.ok(Math.abs(D.shades[0].x - (xAt(D, idx(D, 12)) - 298 / (D.n - 1) / 2)) < 0.2 && D.shades[0].w > 3 * 298 / (D.n - 1), 'block spans the 4 days');
-    assert.strictEqual(D.fill, 'rgb(31, 138, 76)', 'soft green tint, not purple');
     assert.strictEqual(D.trophies, 1, 'one trophy for the tournament stretch (the day between two tournament days joins it)');
-    ok('San Diego trip: one shaded block ' + D.shades[0].from + ' → ' + D.shades[0].to + ', 4 held days, one 🏆, green tint');
+    ok('San Diego trip: 4 held days, one 🏆, no shaded blocks');
 
     const pre = D.tots[idx(D, 13)], held = [12, 11, 10, 9].map(a => D.tots[idx(D, a)]);
     assert.ok(pre > 60, 'a real level before the trip: ' + pre);
     assert.deepStrictEqual(held, [pre, pre, pre, pre], 'held flat at the level the day before – no dip, no spike from the 120 min warm-up: ' + held + ' vs ' + pre);
     const ys = D.pts.filter(p => p[0] >= xAt(D, idx(D, 12)) - 0.05 && p[0] <= xAt(D, idx(D, 9)) + 0.05).map(p => p[1]);
-    assert.ok(ys.length >= 20 && Math.max(...ys) - Math.min(...ys) < 0.15, 'the drawn curve is flat through the block: ' + Math.min(...ys) + '–' + Math.max(...ys));
+    assert.ok(ys.length >= 20 && Math.max(...ys) - Math.min(...ys) < 0.15, 'the drawn curve is flat through the held days: ' + Math.min(...ys) + '–' + Math.max(...ys));
     assert.notStrictEqual(D.tots[idx(D, 8)], pre, 'practice resumes moving the curve the day after');
     assert.ok(D.tots[idx(D, 0)] > pre, 'daily practice after the trip builds above the old every-other-day level');
     ok('flat at ' + pre + ' min a week through the trip (drawn curve flat too), moves again after: ' + D.tots.slice(idx(D, 14), idx(D, 6)).join(', '));
@@ -70,7 +68,7 @@ const round = (id, ago, play) => Object.assign(ARC.round(), { id, player: 'Scott
     assert.strictEqual(D.shades.length, 0, 'no shading without rounds'); assert.strictEqual(D.hold, 0);
     assert.ok(D.tots[idx(D, 12)] < D.tots[idx(D, 13)], 'without rounds the first trip day fades');
     assert.ok(D.tots[idx(D, 11)] > D.tots[idx(D, 13)] && D.tots[idx(D, 10)] < D.tots[idx(D, 11)], 'and the warm-up shows as a spike that then fades');
-    ok('without rounds the same days dip and spike (' + D.tots.slice(idx(D, 13), idx(D, 8)).join(', ') + ') and nothing is shaded');
+    ok('without rounds the same days dip and spike (' + D.tots.slice(idx(D, 13), idx(D, 8)).join(', ') + ') and nothing is held');
 
     // a plain 6-day break (no golf): fades to under 40% of the level before, then rises when practice resumes
     D = await open(logs(30, [12, 11, 10, 9, 8, 7]), []);

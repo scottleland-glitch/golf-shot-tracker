@@ -3112,7 +3112,6 @@ html body .wkchart .pg0, html body .pglegend .pg0 { fill: #3f7fbf; background: #
 html body .wkchart .pg2, html body .pglegend .pg2 { fill: #3f9a63; background: #3f9a63; } html body .wkchart .pg3, html body .pglegend .pg3 { fill: #1b8a8c; background: #1b8a8c; }
 html body .wkchart .pg4, html body .pglegend .pg4 { fill: #c44e16; background: #c44e16; }
 html body .wkchart .band { fill-opacity: .78; stroke: #fff; stroke-width: .6; stroke-linejoin: round; } html body .wkchart .wktotal { fill: none; stroke: #17301f; stroke-width: 1.4; stroke-linejoin: round; stroke-linecap: round; }
-html body .wkchart .wkhold { fill: #1f8a4c; fill-opacity: .12; stroke: none; } /* v238: tournament / round days, held flat */
 html body .wkchart .wktgtline { stroke: #17301f; stroke-width: 1; stroke-dasharray: 4 3; } html body .wkchart .wkles { stroke: #3d4f5c; stroke-width: 1.4; stroke-dasharray: 2 2; } html body .wkchart .wktour { font-size: 11px; }
 html body .pglegend { display: flex; flex-direction: column; flex-wrap: nowrap; align-items: center; justify-content: center; gap: 4px 0; margin-top: 6px; font-size: 12px; color: #2f4a3a; font-weight: 700; }
 html body .pglegend .pglegrow { display: flex; flex-wrap: nowrap; justify-content: center; gap: 4px 14px; }

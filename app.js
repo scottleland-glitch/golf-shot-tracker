@@ -2545,7 +2545,7 @@
     // later, shown as minutes a week, so the bands narrow within days when practice stops and don't dip on one rest day.
     // It averages over the days logged so far (at least 3), so the first week isn't a fill-up ramp. Tournament and
     // practice-round days (rounds tagged in the app, plus one day between two of them) hold it flat at the level before
-    // – no dip while she's playing, no spike from warm-ups logged those days – and are shaded on the chart.
+    // – no dip while she's playing, no spike from warm-ups logged those days. v239: the shaded blocks are hidden.
     var A = Math.pow(0.5, 1 / 3), from = start, t;
     if (R.first) { var f0 = R.first > addD(start, -30) ? R.first : addD(start, -30); if (f0 < from) from = f0; }
     var raw = {}, order = []; t = from;
@@ -2581,11 +2581,6 @@
         o += '<path d="' + pgPtsPath(topv, xs, y, 'M') + pgPtsPath(bot.slice().reverse(), xs, y, 'L') + 'Z" class="pg' + gi + ' band"/>'; });
       o += '<path d="' + pgPtsPath(stack[stack.length - 1], xs, y, 'M') + '" class="wktotal"/>';
     }
-    // v238: tournament / practice-round days – a light shaded block (the curve is held flat through it)
-    var hw = N > 1 ? (X1 - X0) / (N - 1) / 2 : 4;
-    for (var hi = 0; hi < N; ) { if (!days[hi].golf) { hi++; continue; } var hj = hi; while (hj + 1 < N && days[hj + 1].golf) hj++;
-      var hx0 = Math.max(X0, x(hi) - hw), hx1 = Math.min(X1, x(hj) + hw);
-      o += '<rect x="' + hx0.toFixed(1) + '" y="' + Y0 + '" width="' + (hx1 - hx0).toFixed(1) + '" height="' + (Y1 - Y0) + '" class="wkhold" data-from="' + days[hi].d + '" data-to="' + days[hj].d + '"/>'; hi = hj + 1; }
     if (tgt > 0) o += '<line x1="' + X0 + '" x2="' + X1 + '" y1="' + y(tgt).toFixed(1) + '" y2="' + y(tgt).toFixed(1) + '" class="wktgtline"/><text x="' + X1 + '" y="' + (y(tgt) - 4).toFixed(1) + '" class="wkax wktgtlab" text-anchor="end">target ' + hmS(tgt) + '</text>';
     days.forEach(function (d, i) { if (d.les) o += '<line x1="' + x(i).toFixed(1) + '" x2="' + x(i).toFixed(1) + '" y1="' + Y0 + '" y2="' + Y1 + '" class="wkles"/>'; });
     for (var i = 0; i < N; ) { if (!days[i].tour) { i++; continue; } var j = i; while (j + 1 < N && days[j + 1].tour) j++;
@@ -2641,7 +2636,7 @@
     // v237: Fit (default) / 30 / 60 / 90 days
     var spans = '<div class="prchips wkspans" role="group" aria-label="How far back">' + [[0, 'Fit'], [30, '30d'], [60, '60d'], [90, '90d']].map(function (q) { var on = (view.wkSpan || 0) === q[0];
       return '<button class="prchip' + (on ? ' on' : '') + '" data-act="wkspan" data-v="' + q[0] + '" aria-pressed="' + on + '"' + (q[0] ? ' aria-label="Last ' + q[0] + ' days"' : ' aria-label="Fit to your practice"') + '>' + q[1] + '</button>'; }).join('') + '</div>';
-    var p3 = '<div class="wkpage" data-p="2"><p class="wkpt">' + esc(R3.label) + ' · fading average</p>' + spans + monthsSVG(L, who, P, !!view.wkFull, nr, W.target, R3) + legend + '<p class="plintro wknote">Recent days count more · 🏆 tournament day · shaded = tournament/round days · <span class="leskey"></span> lesson' + (nr ? '' : ' · dashed = weekly target') + '</p></div>';
+    var p3 = '<div class="wkpage" data-p="2"><p class="wkpt">' + esc(R3.label) + ' · fading average</p>' + spans + monthsSVG(L, who, P, !!view.wkFull, nr, W.target, R3) + legend + '<p class="plintro wknote">Recent days count more · 🏆 tournament day · <span class="leskey"></span> lesson' + (nr ? '' : ' · dashed = weekly target') + '</p></div>';
     var full = !!view.wkFull; // v207 (Scott): tap the card → full screen; swipe down, ✕ or Back to close; left / right still swipe
     return '<div class="card frost weekcard' + (full ? ' isfull' : '') + '" id="weekcard"' + (full ? ' role="dialog" aria-modal="true" aria-label="This week, full screen"' : ' data-act="wkfull" role="button" tabindex="0" aria-label="This week – tap for full screen"') + '>' +
       (full ? '<div class="wkgrab" aria-hidden="true"></div><button class="wkx" data-act="wkclose" id="wkclose" aria-label="Close">✕</button>' : '') + '<div class="planhead">' + nav + '<small id="wktot">' + hmS(W.done) + (nr ? ' logged' : ' of ' + hmS(W.target)) + '</small></div>' +
