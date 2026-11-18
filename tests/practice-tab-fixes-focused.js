@@ -15,13 +15,16 @@ const logs = (fromDay) => { const L = []; for (let d = 2; d <= fromDay; d += 2) 
 const toMin = (x) => { let m = 0; x.replace(/(\d+)\s*h/, (q, h) => { m += 60 * h; }); x.replace(/(\d+)\s*(m|min)\b/, (q, n) => { m += +n; }); return m; };
 
 // the curve itself, straight from app.js: never overshoots between points, flat stays flat
-{ const src = fs.readFileSync(__dirname + '/../app.js', 'utf8'), a = src.indexOf('  function monoPath(pts) {'), b = src.indexOf('\n  }\n', a) + 4;
+{ const src = fs.readFileSync(__dirname + '/../app.js', 'utf8'), a = src.indexOf('  function monoPath(pts, corner) {'), b = src.indexOf('\n  }\n', a) + 4;
   const monoPath = new Function(src.slice(a, b) + '; return monoPath;')();
   const P = [[0, 50], [10, 10], [20, 40], [30, 40], [40, 45], [50, 0], [60, 0], [70, 30]], seg = monoPath(P).split('C').slice(1).map(x => x.trim().split(' ').map(Number)); let over = 0, flat = true;
   seg.forEach((c, i) => { const y0 = P[i][1], y1 = P[i + 1][1]; for (let k = 0; k <= 20; k++) { const u = k / 20, y = (1 - u) ** 3 * y0 + 3 * (1 - u) ** 2 * u * c[1] + 3 * (1 - u) * u * u * c[3] + u ** 3 * y1;
     if (y < Math.min(y0, y1) - 1e-9 || y > Math.max(y0, y1) + 1e-9) over++; if (y0 === y1 && Math.abs(y - y0) > 1e-9) flat = false; } });
   assert.strictEqual(seg.length, P.length - 1); assert.strictEqual(over, 0, 'overshoots'); assert.ok(flat, 'flat stays flat'); assert.match(monoPath([[0, 1], [5, 2]]), /^M0\.0 1\.0L5\.0 2\.0$/);
-  ok('monotone cubic: never overshoots a point, flat stays flat, 2 points = a straight line'); }
+  // through every point (each one is a segment end), corners only: the handles are short (0.2 of the gap), so it stays close to the straight line
+  const ends = monoPath(P).split(/[MC]/).filter(Boolean).map(x => x.trim().split(' ').map(Number).slice(-2)); assert.deepStrictEqual(ends, P.map(p => [p[0], p[1]]));
+  seg.forEach((c, i) => { const h = P[i + 1][0] - P[i][0]; assert.ok(Math.abs(c[0] - P[i][0] - 0.2 * h) < 0.06 && Math.abs(P[i + 1][0] - c[2] - 0.2 * h) < 0.06, 'short handles'); });
+  ok('rounded corners: through every point, never overshoots, flat stays flat, short handles, 2 points = a straight line'); }
 
 (async () => {
   const srv = spawn('python3', ['-m', 'http.server', String(PORT), '--bind', '127.0.0.1'], { cwd: __dirname + '/..', stdio: 'ignore' }); await new Promise(r => setTimeout(r, 1200));
@@ -45,7 +48,8 @@ const toMin = (x) => { let m = 0; x.replace(/(\d+)\s*h/, (q, h) => { m += 60 * h
     await go(logs(22)); X = await both(); assert.match(X.lede, /Includes your typical week before your first log \(\w{3} \d+\)\./); assert.ok(toMin(X.head) > X.gap.reduce((s, x) => s + toMin(x), 0));
     ok('first log 22 days ago: "' + X.lede.replace(/^.*?Includes/, 'Includes') + '"');
     // 2 + 3) Your week ahead (nothing logged this week yet): 0m of 2h, no black marks; This week bars fill toward the target
-    await page.click('#tbpractice'); await page.waitForSelector('#wacard');
+    const mon = (() => { const d = new Date(now); d.setHours(0, 0, 0, 0); return d.getTime() - ((d.getDay() + 6) % 7) * DAY; })();
+    await go(logs(22).filter(e => Date.parse(e.date) < mon)); await page.click('#tbpractice'); await page.waitForSelector('#wacard'); // the card shows before anything is logged this week
     assert.strictEqual(await page.$$eval('.wktgt', e => e.length), 0, 'no black target marks');
     const wav = await page.$$eval('#wacard .warow .wav', e => e.map(x => x.textContent)); assert.ok(wav.length >= 5 && wav.every(x => /^(✓ )?(\d+h( \d+m)?|\d+m) of (\d+h( \d+m)?|\d+m)$/.test(x)), wav.join(' | '));
     assert.doesNotMatch(await page.textContent('#wacard .wabars'), /\b([6-9]\d|\d{3,})m\b/, 'no plain 115m');

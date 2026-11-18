@@ -2819,15 +2819,17 @@
     return lead + P.join(' · ');
   }
   var TR_NP = false; // v209: practice off → no practice panel under the chart
-  // v240 (Scott): smooth trend lines – a monotone cubic (Fritsch–Carlson) through the points: never overshoots a point, flat stays flat
-  function monoPath(pts) {
-    var n = pts.length, f = function (v) { return v.toFixed(1); }; if (n < 3) return pts.map(function (p, k) { return (k ? 'L' : 'M') + f(p[0]) + ' ' + f(p[1]); }).join('');
+  // v240 (Scott): trend lines go through every point with soft corners – no pointy elbows, but every swing kept. A monotone cubic
+  // (Fritsch–Carlson tangents, never overshoots a point, flat stays flat) with short handles (CORNER = 0.2 of each gap, a plain smooth
+  // curve would be 1/3), so the line runs almost straight between points and only rounds off the turns.
+  function monoPath(pts, corner) {
+    var n = pts.length, f = function (v) { return v.toFixed(1); }, c = corner == null ? 0.2 : corner; if (n < 3) return pts.map(function (p, k) { return (k ? 'L' : 'M') + f(p[0]) + ' ' + f(p[1]); }).join('');
     var d = [], m = [], t = [], i;
     for (i = 0; i < n - 1; i++) { d[i] = pts[i + 1][0] - pts[i][0]; m[i] = d[i] ? (pts[i + 1][1] - pts[i][1]) / d[i] : 0; }
     t[0] = m[0]; t[n - 1] = m[n - 2]; for (i = 1; i < n - 1; i++) t[i] = m[i - 1] * m[i] <= 0 ? 0 : (m[i - 1] + m[i]) / 2;
     for (i = 0; i < n - 1; i++) { if (m[i] === 0) { t[i] = 0; t[i + 1] = 0; continue; } var a = t[i] / m[i], b = t[i + 1] / m[i], h = a * a + b * b; if (h > 9) { var k3 = 3 / Math.sqrt(h); t[i] = k3 * a * m[i]; t[i + 1] = k3 * b * m[i]; } }
     var o = 'M' + f(pts[0][0]) + ' ' + f(pts[0][1]);
-    for (i = 0; i < n - 1; i++) { var h3 = d[i] / 3; o += 'C' + f(pts[i][0] + h3) + ' ' + f(pts[i][1] + t[i] * h3) + ' ' + f(pts[i + 1][0] - h3) + ' ' + f(pts[i + 1][1] - t[i + 1] * h3) + ' ' + f(pts[i + 1][0]) + ' ' + f(pts[i + 1][1]); }
+    for (i = 0; i < n - 1; i++) { var hc = d[i] * c; o += 'C' + f(pts[i][0] + hc) + ' ' + f(pts[i][1] + t[i] * hc) + ' ' + f(pts[i + 1][0] - hc) + ' ' + f(pts[i + 1][1] - t[i + 1] * hc) + ' ' + f(pts[i + 1][0]) + ' ' + f(pts[i + 1][1]); }
     return o;
   }
   function trendChartSVG(A, weeks, Z, total) {
