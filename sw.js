@@ -1,4 +1,5 @@
 // Offline support: cache the whole app on install, serve cache-first.
+// v236: Practice "This week" page 3 (rolling 7 days) fits the practice logged: it starts a few days before the first log and widens up to 90 days; the header says the span ("Last 3 weeks"), date ticks are weekly / every other week / months to suit, and the curve starts on the first logged day (no ramp from 0 before it). Same on the coach Practice tab.
 // v235: Apple Watch: Long / Long left / Long right are greyed out when the shot finished on the Fairway (same as the phone since v231). A watch shot sent as Fairway + Long keeps only the side. Practice plan: a practice (or untagged) round counts 0.75 of a tournament round (tournament ×4/3). No "slipped" wording (Week ahead / My Game / coach notes). Coach homework pins and lesson lines on Trends are teal, not purple.
 // v234: Practice plan notes: chips (and lag putts) finishing inside 3 ft are a good result, not a miss; each note says where its numbers come from; the latest round is checked against the longer window ("may be turning around" / "new"). Recent rounds count more in the patterns too.
 // v233: Where's the pin? on the Apple Watch – a 3×3 green after an approach finishes on the green (hole has no pin); one tap, Skip for that hole; sent to the phone with the shot.
@@ -126,7 +127,7 @@
 // v113: "Courses near me" (near.js). The course finder list (data/us-courses.json, ~1.0 MB, ~0.28 MB gzipped) is NOT in this cache:
 // the app downloads it on first use into its own cache 'pinhigh-courselist-v1', which a new version keeps (so no re-download).
 // GolfCore scorecards (through the Pin High relay, pinhigh-golfcore.pinhigh.workers.dev) go straight to the network; the app saves each picked course with the saved courses.
-const CACHE = 'golf-sg-v235';
+const CACHE = 'golf-sg-v236';
 const ASSETS = ['./', './img/home-bg.webp', './img/oriole.webp', './index.html', './styles.css', './sg.js', './trends.js', './plan.js', './funfacts.js', './weekahead.js', './birdie.js', './courses.js', './near.js', './bag.js', './wedges.js', './live.js', './sync.js', './share.js', './story.js', './insights.js', './mygame.js', './shortgame.js', './shortgame-ui.js', './app.js', './config.js', './vendor/jspdf.umd.min.js',
   './manifest.webmanifest', './icons/apple-touch-icon.png', './icons/icon-192.png',
   './icons/icon-512.png', './icons/icon-512-maskable.png'];

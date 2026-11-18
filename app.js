@@ -2523,13 +2523,24 @@
       if (d.tot) o += '<rect class="wkhit" x="' + (X0 + i * bw).toFixed(1) + '" y="0" width="' + bw.toFixed(1) + '" height="' + VH + '" data-act="wkday" data-v="' + d.t + '" role="button" aria-label="' + ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'][i] + ': ' + hmS(d.tot) + ' – see the practice"><title>See ' + ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'][i] + '</title></rect>'; }); // v216: tap a day for its recap
     return o + '<line x1="' + X0 + '" x2="' + X1 + '" y1="' + Y1 + '" y2="' + Y1 + '" class="wkbase"/></svg>';
   }
-  function monthsSVG(L, who, P, tall, nr, weekTgt) { var VH = tall ? 380 : 172;
-    var iso = function (t) { var d = new Date(t); return d.getFullYear() + '-' + ('0' + (d.getMonth() + 1)).slice(-2) + '-' + ('0' + d.getDate()).slice(-2); };
+  // v236 (Scott): the rolling chart fits the practice there is – it starts a few days before the first log and widens as
+  // practice builds up, up to 90 days. span = a fixed number of days (0 = fit). Returns the window and its header label.
+  function pgIso(t) { var d = new Date(t); return d.getFullYear() + '-' + ('0' + (d.getMonth() + 1)).slice(-2) + '-' + ('0' + d.getDate()).slice(-2); }
+  function pgAddD(s, n) { var d = new Date(Date.parse(s + 'T12:00:00')); d.setDate(d.getDate() + n); return pgIso(d.getTime()); }
+  function pgRange(L, span) {
+    var today = pgIso(Date.now()), cap = pgAddD(today, -89), first = null, start;
+    (L || []).forEach(function (e) { if (!(e.min > 0)) return; var d = pgIso(Date.parse(e.date)); if (d <= today && (!first || d < first)) first = d; });
+    if (span > 0) start = pgAddD(today, -(Math.min(90, span) - 1));
+    else { start = first ? pgAddD(first, -3) : pgAddD(today, -27); if (start < cap) start = cap; if (start > pgAddD(today, -13)) start = pgAddD(today, -13); }
+    var n = Math.round((Date.parse(today + 'T12:00:00') - Date.parse(start + 'T12:00:00')) / 864e5) + 1;
+    var label = span > 0 ? 'Last ' + n + ' days' : n < 14 ? 'Last ' + n + ' days' : n < 84 ? 'Last ' + Math.round(n / 7) + ' weeks' : 'Last 3 months';
+    return { start: start, today: today, n: n, first: first, span: span > 0 ? span : 0, label: label };
+  }
+  function monthsSVG(L, who, P, tall, nr, weekTgt, R) { var VH = tall ? 380 : 172;
+    var iso = pgIso, addD = pgAddD;
     var atNoon = function (s) { return Date.parse(s + 'T12:00:00'); };
-    var addD = function (s, n) { var d = new Date(atNoon(s)); d.setDate(d.getDate() + n); return iso(d); };
-    var today = iso(Date.now());
-    var mon = new Date(); mon.setHours(12, 0, 0, 0); mon.setDate(mon.getDate() - ((mon.getDay() + 6) % 7));
-    var start = iso(mon.getTime() - 12 * 7 * 864e5); // Monday 12 weeks ago – same window as the old 13-week chart
+    R = R || pgRange(L, 0);
+    var today = R.today, start = R.start;
     // raw daily totals, including 6 days before the first plotted day so the first rolling window is complete
     var raw = {}, t = addD(start, -6);
     while (t <= today) { raw[t] = { g: pgEmpty(), tot: 0, tour: false, les: false }; t = addD(t, 1); }
@@ -2540,29 +2551,41 @@
     while (t <= today) {
       var g = pgEmpty(), tot = 0, rec = raw[t] || { tour: false, les: false };
       for (var k = 0; k < 7; k++) { var src = raw[addD(t, -k)]; if (!src) continue; src.g.forEach(function (m, i) { g[i] += m; }); tot += src.tot; }
-      days.push({ t: atNoon(t), g: g, tot: tot, tour: rec.tour, les: rec.les });
+      days.push({ t: atNoon(t), d: t, g: g, tot: tot, tour: rec.tour, les: rec.les });
       t = addD(t, 1);
     }
     var N = days.length, tgt = nr ? 0 : (weekTgt != null ? weekTgt : P.budget), mx = Math.max(60, tgt, Math.max.apply(null, days.map(function (d) { return d.tot; }))), step = mx > 420 ? 120 : 60, top = Math.ceil(mx / step) * step;
     var X0 = 34, X1 = 332, Y0 = 26, Y1 = VH - 22, x = function (i) { return X0 + (N <= 1 ? 0 : i / (N - 1) * (X1 - X0)); }, y = function (m) { return Y1 - m / top * (Y1 - Y0); };
     var last = days[N - 1] || { tot: 0, g: pgEmpty() };
-    var o = '<svg class="wkchart" viewBox="0 0 340 ' + VH + '" role="img" aria-label="Practice, last 3 months, rolling 7 days, by group, with tournaments and lessons" data-roll="7" data-n="' + N + '" data-last="' + Math.round(last.tot) + '" data-g="' + last.g.map(function (v) { return Math.round(v); }).join(',') + '">';
+    // v236: the curve starts on the first logged day – no made-up ramp from 0 before it (days before it in the window are left empty)
+    var c0 = 0; if (R.first && R.first > start) { while (c0 < N - 1 && days[c0].d < R.first) c0++; }
+    var o = '<svg class="wkchart" viewBox="0 0 340 ' + VH + '" role="img" aria-label="Practice, ' + esc(R.label.toLowerCase()) + ', rolling 7 days, by group, with tournaments and lessons" data-roll="7" data-n="' + N + '" data-from="' + start + '" data-c0="' + c0 + '" data-last="' + Math.round(last.tot) + '" data-g="' + last.g.map(function (v) { return Math.round(v); }).join(',') + '">';
     for (var u = 0; u <= top; u += step) o += '<line x1="' + X0 + '" x2="' + X1 + '" y1="' + y(u).toFixed(1) + '" y2="' + y(u).toFixed(1) + '" class="wkgrid"/><text x="' + (X0 - 4) + '" y="' + (y(u) + 3.5).toFixed(1) + '" class="wkax" text-anchor="end">' + u / 60 + 'h</text>';
     // draw a lightly smoothed monotone curve; data-last / data-g stay the raw 7-day totals
-    var gS = PRG.map(function (g, gi) { return pgSmooth3(days.map(function (d) { return d.g[gi]; })); });
-    var gPts = gS.map(function (ser) { return pgMonoSample(ser, 8); });
-    var stack = []; PRG.forEach(function (g, gi) { var acc = gPts[gi].map(function (p, j) { return { i: p.i, v: (stack[gi - 1] ? stack[gi - 1][j].v : 0) + p.v }; }); stack.push(acc); });
-    var zero = gPts[0].map(function (p) { return { i: p.i, v: 0 }; });
-    PRG.forEach(function (g, gi) { var topv = stack[gi], bot = gi ? stack[gi - 1] : zero; if (gS[gi].every(function (v) { return v === 0; })) return;
-      o += '<path d="' + pgPtsPath(topv, x, y, 'M') + pgPtsPath(bot.slice().reverse(), x, y, 'L') + 'Z" class="pg' + gi + ' band"/>'; });
-    o += '<path d="' + pgPtsPath(stack[stack.length - 1], x, y, 'M') + '" class="wktotal"/>';
+    var xs = function (i) { return x(i + c0); }, shown = days.slice(c0);
+    if (R.first) {
+      var gS = PRG.map(function (g, gi) { return pgSmooth3(shown.map(function (d) { return d.g[gi]; })); });
+      var gPts = gS.map(function (ser) { return pgMonoSample(ser, 8); });
+      var stack = []; PRG.forEach(function (g, gi) { var acc = gPts[gi].map(function (p, j) { return { i: p.i, v: (stack[gi - 1] ? stack[gi - 1][j].v : 0) + p.v }; }); stack.push(acc); });
+      var zero = gPts[0].map(function (p) { return { i: p.i, v: 0 }; });
+      PRG.forEach(function (g, gi) { var topv = stack[gi], bot = gi ? stack[gi - 1] : zero; if (gS[gi].every(function (v) { return v === 0; })) return;
+        o += '<path d="' + pgPtsPath(topv, xs, y, 'M') + pgPtsPath(bot.slice().reverse(), xs, y, 'L') + 'Z" class="pg' + gi + ' band"/>'; });
+      o += '<path d="' + pgPtsPath(stack[stack.length - 1], xs, y, 'M') + '" class="wktotal"/>';
+    }
     if (tgt > 0) o += '<line x1="' + X0 + '" x2="' + X1 + '" y1="' + y(tgt).toFixed(1) + '" y2="' + y(tgt).toFixed(1) + '" class="wktgtline"/><text x="' + X1 + '" y="' + (y(tgt) - 4).toFixed(1) + '" class="wkax wktgtlab" text-anchor="end">target ' + hmS(tgt) + '</text>';
     days.forEach(function (d, i) { if (d.les) o += '<line x1="' + x(i).toFixed(1) + '" x2="' + x(i).toFixed(1) + '" y1="' + Y0 + '" y2="' + Y1 + '" class="wkles"/>'; });
     for (var i = 0; i < N; ) { if (!days[i].tour) { i++; continue; } var j = i; while (j + 1 < N && days[j + 1].tour) j++;
       o += '<text x="' + x(i + Math.floor((j - i) / 2)).toFixed(1) + '" y="' + (Y0 - 8) + '" class="wktour" text-anchor="middle">🏆</text>'; i = j + 1; }
-    var lastM = -1; days.forEach(function (d, i) { var dt = new Date(d.t), m = dt.getMonth();
-      if (m !== lastM && (dt.getDate() === 1 || (i === 0 && dt.getDate() <= 7))) { o += '<text x="' + x(i).toFixed(1) + '" y="' + (VH - 6) + '" class="wkax" text-anchor="middle">' + dt.toLocaleDateString(undefined, { month: 'short' }) + '</text>'; lastM = m; }
-      else if (m !== lastM) lastM = m; }); // mid-month start (e.g. 24 Aug) is not labelled, so Sep / Oct / Nov stay clear
+    // v236: date ticks fit the span – every Monday up to 5 weeks, every other Monday up to 9 weeks, then month names
+    var tick = function (i, txt) { var xi = x(i); if (xi > X1 - 12) return; o += '<text x="' + xi.toFixed(1) + '" y="' + (VH - 6) + '" class="wkax wktick" text-anchor="middle">' + txt + '</text>'; };
+    if (N <= 63) {
+      var every = N <= 35 ? 1 : 2, mons = []; days.forEach(function (d, i) { if (new Date(d.t).getDay() === 1 && x(i) <= X1 - 12) mons.push(i); });
+      mons.forEach(function (i, q) { if ((mons.length - 1 - q) % every) return; tick(i, new Date(days[i].t).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })); });
+    } else {
+      var lastM = -1; days.forEach(function (d, i) { var dt = new Date(d.t), m = dt.getMonth();
+        if (m !== lastM && (dt.getDate() === 1 || (i === 0 && dt.getDate() <= 7))) { tick(i, dt.toLocaleDateString(undefined, { month: 'short' })); lastM = m; }
+        else if (m !== lastM) lastM = m; }); // mid-month start (e.g. 24 Aug) is not labelled, so Sep / Oct / Nov stay clear
+    }
     return o + '<line x1="' + X0 + '" x2="' + X1 + '" y1="' + Y1 + '" y2="' + Y1 + '" class="wkbase"/></svg>';
   }
   // v206: the three views swipe (CSS scroll-snap); this keeps the dots in step and the view across re-renders
@@ -2600,7 +2623,8 @@
         '<span class="wkval">' + (got ? '✓ ' : '') + (r.done ? hmS(r.done) : '–') + (nr ? '' : '<small> / ' + hmS(r.target) + '</small>') + '</span></div>'; });
     p1 += '</div>' + (nr ? '' : '<p class="plintro wknote" id="wkbal">' + esc(balanceLine(P)) + '</p>') + '</div>';
     var p2 = '<div class="wkpage" data-p="1"><p class="wkpt">Each day, by group</p>' + weekDaysSVG(L, W, !!view.wkFull) + legend + '</div>';
-    var p3 = '<div class="wkpage" data-p="2"><p class="wkpt">Last 3 months · rolling 7 days</p>' + monthsSVG(L, who, P, !!view.wkFull, nr, W.target) + legend + '<p class="plintro wknote">🏆 tournament day · <span class="leskey"></span> lesson' + (nr ? '' : ' · dashed line = your weekly target') + '</p></div>';
+    var R3 = pgRange(L, 0); // v236: the rolling chart fits the practice logged so far (up to 90 days)
+    var p3 = '<div class="wkpage" data-p="2"><p class="wkpt">' + esc(R3.label) + ' · rolling 7 days</p>' + monthsSVG(L, who, P, !!view.wkFull, nr, W.target, R3) + legend + '<p class="plintro wknote">🏆 tournament day · <span class="leskey"></span> lesson' + (nr ? '' : ' · dashed line = your weekly target') + '</p></div>';
     var full = !!view.wkFull; // v207 (Scott): tap the card → full screen; swipe down, ✕ or Back to close; left / right still swipe
     return '<div class="card frost weekcard' + (full ? ' isfull' : '') + '" id="weekcard"' + (full ? ' role="dialog" aria-modal="true" aria-label="This week, full screen"' : ' data-act="wkfull" role="button" tabindex="0" aria-label="This week – tap for full screen"') + '>' +
       (full ? '<div class="wkgrab" aria-hidden="true"></div><button class="wkx" data-act="wkclose" id="wkclose" aria-label="Close">✕</button>' : '') + '<div class="planhead">' + nav + '<small id="wktot">' + hmS(W.done) + (nr ? ' logged' : ' of ' + hmS(W.target)) + '</small></div>' +

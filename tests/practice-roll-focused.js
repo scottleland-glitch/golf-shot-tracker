@@ -77,7 +77,8 @@ function dayOffset(n) {
     const legend2 = await page.$$eval('#wkpages .wkpage[data-p="2"] .pglegend span', e => e.map(x => x.textContent));
     assert.deepStrictEqual(legend1, ['Putting', 'Short game', 'Wedges', 'Irons', 'Woods']);
     assert.deepStrictEqual(legend2, legend1);
-    assert.strictEqual(await page.textContent('#wkpages .wkpage[data-p="2"] .wkpt'), 'Last 3 months · rolling 7 days');
+    // v236: the chart fits the practice logged (first log 8 days ago + 3 days' lead-in, at least 2 weeks)
+    assert.strictEqual(await page.textContent('#wkpages .wkpage[data-p="2"] .wkpt'), 'Last 2 weeks · rolling 7 days');
     assert.match(await page.textContent('#wkpages .wkpage[data-p="2"] .wknote'), /tournament day/);
     ok('subtitle, 5-group legend on two charts, caption says tournament day');
 
@@ -90,7 +91,7 @@ function dayOffset(n) {
       bands: s.querySelectorAll('path.band').length, aria: s.getAttribute('aria-label')
     }));
     assert.strictEqual(D.roll, '7');
-    assert.ok(D.n >= 84 && D.n <= 92, 'about 13 weeks of daily points, got ' + D.n);
+    assert.strictEqual(D.n, 14, 'v236: fits 2 weeks (first log 8 days ago), got ' + D.n);
     assert.strictEqual(D.bands, 5);
     assert.match(D.aria, /rolling 7 days/);
     // 10+20+30+40+50+15+25 = 190; the 100 min from 8 days ago is outside the window
@@ -114,7 +115,7 @@ function dayOffset(n) {
     assert.match(totLabel, /^target /);
     assert.ok(head.indexOf(totLabel.replace(/^target /, '')) >= 0, 'header and dashed label use the same target: ' + head + ' vs ' + totLabel);
     const bandD = await page.$eval('#wkpages .wkpage[data-p="2"] path.band', e => e.getAttribute('d') || '');
-    assert.ok((bandD.match(/L/g) || []).length > 200, 'stacked areas are densely sampled curves, not one corner per day');
+    assert.ok((bandD.match(/L/g) || []).length > 100, 'stacked areas are densely sampled curves, not one corner per day');
     ok('header target matches the dashed label; areas are smooth curves');
 
     assert.deepStrictEqual(errors, [], 'no page errors');
