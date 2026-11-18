@@ -1083,7 +1083,7 @@
    {
     "seq": 1,
     "t": 0,
-    "id": "e27",
+    "id": "e29",
     "roundId": "r1",
     "type": "undo",
     "hole": 0
@@ -1137,7 +1137,7 @@
    {
     "seq": 1,
     "t": 0,
-    "id": "e28",
+    "id": "e30",
     "roundId": "r1",
     "type": "undo",
     "hole": 0
@@ -1190,7 +1190,7 @@
    {
     "seq": 1,
     "t": 0,
-    "id": "e29",
+    "id": "e31",
     "roundId": "r1",
     "type": "undo",
     "hole": 0
@@ -1250,7 +1250,7 @@
    {
     "seq": 1,
     "t": 0,
-    "id": "e33",
+    "id": "e35",
     "roundId": "r1",
     "type": "shot",
     "hole": 0,
@@ -1334,7 +1334,7 @@
    {
     "seq": 1,
     "t": 0,
-    "id": "e34",
+    "id": "e36",
     "roundId": "r1",
     "type": "shot",
     "hole": 0,
@@ -1404,7 +1404,7 @@
    {
     "seq": 1,
     "t": 0,
-    "id": "e35",
+    "id": "e37",
     "roundId": "r1",
     "type": "delete",
     "hole": 0,
@@ -1478,7 +1478,7 @@
    {
     "seq": 1,
     "t": 0,
-    "id": "e36",
+    "id": "e38",
     "roundId": "r1",
     "type": "delete",
     "hole": 0,
@@ -1552,7 +1552,7 @@
    {
     "seq": 1,
     "t": 0,
-    "id": "e37",
+    "id": "e39",
     "roundId": "r1",
     "type": "delete",
     "hole": 0,
@@ -1632,7 +1632,7 @@
    {
     "seq": 1,
     "t": 0,
-    "id": "e38",
+    "id": "e40",
     "roundId": "r1",
     "type": "insert",
     "hole": 0,
@@ -1718,7 +1718,7 @@
    {
     "seq": 1,
     "t": 0,
-    "id": "e39",
+    "id": "e41",
     "roundId": "r1",
     "type": "insert",
     "hole": 0,
@@ -1727,7 +1727,7 @@
    {
     "seq": 2,
     "t": 0,
-    "id": "e40",
+    "id": "e42",
     "roundId": "r1",
     "type": "shot",
     "hole": 0,
@@ -1856,7 +1856,7 @@
    {
     "seq": 1,
     "t": 0,
-    "id": "e41",
+    "id": "e43",
     "roundId": "r1",
     "type": "insert",
     "hole": 0,
@@ -1923,7 +1923,7 @@
    {
     "seq": 1,
     "t": 0,
-    "id": "e42",
+    "id": "e44",
     "roundId": "r1",
     "type": "setdist",
     "hole": 0,
@@ -1972,7 +1972,7 @@
    {
     "seq": 1,
     "t": 0,
-    "id": "e43",
+    "id": "e45",
     "roundId": "r1",
     "type": "setdist",
     "hole": 0,
@@ -1997,6 +1997,822 @@
       "loc": "ob",
       "dist": "",
       "dir": "left",
+      "pen": false
+     }
+    ]
+   }
+  ]
+ },
+ {
+  "name": "playingAs fairway",
+  "start": {
+   "par": 4,
+   "finished": false,
+   "rows": [
+    {
+     "loc": "tee",
+     "dist": 400,
+     "dir": "",
+     "pen": false
+    }
+   ]
+  },
+  "events": [
+   {
+    "seq": 1,
+    "t": 0,
+    "id": "e46",
+    "roundId": "r1",
+    "type": "shot",
+    "hole": 0,
+    "k": 0,
+    "fin": "fairway",
+    "dir": "right",
+    "dist": 150
+   }
+  ],
+  "expect": [
+   {
+    "ok": true,
+    "reason": "",
+    "hole": 0,
+    "finished": false,
+    "rows": [
+     {
+      "loc": "tee",
+      "dist": 400,
+      "dir": "",
+      "pen": false
+     },
+     {
+      "loc": "fairway",
+      "dist": 150,
+      "dir": "right",
+      "pen": false
+     }
+    ]
+   }
+  ]
+ },
+ {
+  "name": "playingAs OB",
+  "start": {
+   "par": 4,
+   "finished": false,
+   "rows": [
+    {
+     "loc": "tee",
+     "dist": 400,
+     "dir": "",
+     "pen": false
+    }
+   ]
+  },
+  "events": [
+   {
+    "seq": 1,
+    "t": 0,
+    "id": "e47",
+    "roundId": "r1",
+    "type": "shot",
+    "hole": 0,
+    "k": 0,
+    "fin": "ob",
+    "dir": "left"
+   }
+  ],
+  "expect": [
+   {
+    "ok": true,
+    "reason": "",
+    "hole": 0,
+    "finished": false,
+    "rows": [
+     {
+      "loc": "tee",
+      "dist": 400,
+      "dir": "",
+      "pen": false
+     },
+     {
+      "loc": "ob",
+      "dist": "",
+      "dir": "left",
+      "pen": false
+     }
+    ]
+   }
+  ]
+ },
+ {
+  "name": "playingAs after OB",
+  "start": {
+   "par": 4,
+   "finished": false,
+   "rows": [
+    {
+     "loc": "tee",
+     "dist": 400,
+     "dir": "",
+     "pen": false
+    }
+   ]
+  },
+  "events": [
+   {
+    "seq": 1,
+    "t": 0,
+    "id": "e48",
+    "roundId": "r1",
+    "type": "shot",
+    "hole": 0,
+    "k": 0,
+    "fin": "ob",
+    "dir": "left"
+   },
+   {
+    "seq": 2,
+    "t": 0,
+    "id": "e49",
+    "roundId": "r1",
+    "type": "shot",
+    "hole": 0,
+    "k": 1,
+    "fin": "fairway",
+    "dist": 140
+   }
+  ],
+  "expect": [
+   {
+    "ok": true,
+    "reason": "",
+    "hole": 0,
+    "finished": false,
+    "rows": [
+     {
+      "loc": "tee",
+      "dist": 400,
+      "dir": "",
+      "pen": false
+     },
+     {
+      "loc": "ob",
+      "dist": "",
+      "dir": "left",
+      "pen": false
+     }
+    ]
+   },
+   {
+    "ok": true,
+    "reason": "",
+    "hole": 0,
+    "finished": false,
+    "rows": [
+     {
+      "loc": "tee",
+      "dist": 400,
+      "dir": "",
+      "pen": false
+     },
+     {
+      "loc": "ob",
+      "dist": "",
+      "dir": "left",
+      "pen": false
+     },
+     {
+      "loc": "fairway",
+      "dist": 140,
+      "dir": "",
+      "pen": false
+     }
+    ]
+   }
+  ]
+ },
+ {
+  "name": "playingAs hz drop",
+  "start": {
+   "par": 4,
+   "finished": false,
+   "rows": [
+    {
+     "loc": "tee",
+     "dist": 400,
+     "dir": "",
+     "pen": false
+    }
+   ]
+  },
+  "events": [
+   {
+    "seq": 1,
+    "t": 0,
+    "id": "e50",
+    "roundId": "r1",
+    "type": "shot",
+    "hole": 0,
+    "k": 0,
+    "fin": "hazard",
+    "hz": "drop",
+    "dist": 120
+   }
+  ],
+  "expect": [
+   {
+    "ok": true,
+    "reason": "",
+    "hole": 0,
+    "finished": false,
+    "rows": [
+     {
+      "loc": "tee",
+      "dist": 400,
+      "dir": "",
+      "pen": false
+     },
+     {
+      "loc": "hazard",
+      "dist": 120,
+      "dir": "",
+      "pen": true
+     }
+    ]
+   }
+  ]
+ },
+ {
+  "name": "playingAs hz retee",
+  "start": {
+   "par": 4,
+   "finished": false,
+   "rows": [
+    {
+     "loc": "tee",
+     "dist": 400,
+     "dir": "",
+     "pen": false
+    }
+   ]
+  },
+  "events": [
+   {
+    "seq": 1,
+    "t": 0,
+    "id": "e51",
+    "roundId": "r1",
+    "type": "shot",
+    "hole": 0,
+    "k": 0,
+    "fin": "hazard",
+    "hz": "retee"
+   }
+  ],
+  "expect": [
+   {
+    "ok": true,
+    "reason": "",
+    "hole": 0,
+    "finished": false,
+    "rows": [
+     {
+      "loc": "tee",
+      "dist": 400,
+      "dir": "",
+      "pen": false
+     },
+     {
+      "loc": "hazard",
+      "dist": "",
+      "dir": "",
+      "pen": true,
+      "retee": true
+     }
+    ]
+   }
+  ]
+ },
+ {
+  "name": "playingAs hz play",
+  "start": {
+   "par": 4,
+   "finished": false,
+   "rows": [
+    {
+     "loc": "tee",
+     "dist": 400,
+     "dir": "",
+     "pen": false
+    }
+   ]
+  },
+  "events": [
+   {
+    "seq": 1,
+    "t": 0,
+    "id": "e52",
+    "roundId": "r1",
+    "type": "shot",
+    "hole": 0,
+    "k": 0,
+    "fin": "hazard",
+    "hz": "play",
+    "dist": 90
+   }
+  ],
+  "expect": [
+   {
+    "ok": true,
+    "reason": "",
+    "hole": 0,
+    "finished": false,
+    "rows": [
+     {
+      "loc": "tee",
+      "dist": 400,
+      "dir": "",
+      "pen": false
+     },
+     {
+      "loc": "hazard",
+      "dist": 90,
+      "dir": "",
+      "pen": false
+     }
+    ]
+   }
+  ]
+ },
+ {
+  "name": "playingAs unp",
+  "start": {
+   "par": 4,
+   "finished": false,
+   "rows": [
+    {
+     "loc": "tee",
+     "dist": 400,
+     "dir": "",
+     "pen": false
+    }
+   ]
+  },
+  "events": [
+   {
+    "seq": 1,
+    "t": 0,
+    "id": "e53",
+    "roundId": "r1",
+    "type": "shot",
+    "hole": 0,
+    "k": 0,
+    "fin": "unp",
+    "dist": 150
+   }
+  ],
+  "expect": [
+   {
+    "ok": true,
+    "reason": "",
+    "hole": 0,
+    "finished": false,
+    "rows": [
+     {
+      "loc": "tee",
+      "dist": 400,
+      "dir": "",
+      "pen": false
+     },
+     {
+      "loc": "rough",
+      "dist": 150,
+      "dir": "",
+      "pen": true
+     }
+    ]
+   }
+  ]
+ },
+ {
+  "name": "playingAs lost",
+  "start": {
+   "par": 4,
+   "finished": false,
+   "rows": [
+    {
+     "loc": "tee",
+     "dist": 400,
+     "dir": "",
+     "pen": false
+    }
+   ]
+  },
+  "events": [
+   {
+    "seq": 1,
+    "t": 0,
+    "id": "e54",
+    "roundId": "r1",
+    "type": "shot",
+    "hole": 0,
+    "k": 0,
+    "fin": "lost",
+    "dir": "left"
+   }
+  ],
+  "expect": [
+   {
+    "ok": true,
+    "reason": "",
+    "hole": 0,
+    "finished": false,
+    "rows": [
+     {
+      "loc": "tee",
+      "dist": 400,
+      "dir": "",
+      "pen": false
+     },
+     {
+      "loc": "ob",
+      "dist": "",
+      "dir": "left",
+      "pen": false,
+      "lost": true
+     }
+    ]
+   }
+  ]
+ },
+ {
+  "name": "playingAs two OB",
+  "start": {
+   "par": 4,
+   "finished": false,
+   "rows": [
+    {
+     "loc": "tee",
+     "dist": 400,
+     "dir": "",
+     "pen": false
+    }
+   ]
+  },
+  "events": [
+   {
+    "seq": 1,
+    "t": 0,
+    "id": "e55",
+    "roundId": "r1",
+    "type": "shot",
+    "hole": 0,
+    "k": 0,
+    "fin": "ob",
+    "dir": "left"
+   },
+   {
+    "seq": 2,
+    "t": 0,
+    "id": "e56",
+    "roundId": "r1",
+    "type": "shot",
+    "hole": 0,
+    "k": 1,
+    "fin": "ob",
+    "dir": "right"
+   }
+  ],
+  "expect": [
+   {
+    "ok": true,
+    "reason": "",
+    "hole": 0,
+    "finished": false,
+    "rows": [
+     {
+      "loc": "tee",
+      "dist": 400,
+      "dir": "",
+      "pen": false
+     },
+     {
+      "loc": "ob",
+      "dist": "",
+      "dir": "left",
+      "pen": false
+     }
+    ]
+   },
+   {
+    "ok": true,
+    "reason": "",
+    "hole": 0,
+    "finished": false,
+    "rows": [
+     {
+      "loc": "tee",
+      "dist": 400,
+      "dir": "",
+      "pen": false
+     },
+     {
+      "loc": "ob",
+      "dist": "",
+      "dir": "left",
+      "pen": false
+     },
+     {
+      "loc": "ob",
+      "dist": "",
+      "dir": "right",
+      "pen": false
+     }
+    ]
+   }
+  ]
+ },
+ {
+  "name": "fairway long",
+  "start": {
+   "par": 4,
+   "finished": false,
+   "rows": [
+    {
+     "loc": "tee",
+     "dist": 400,
+     "dir": "",
+     "pen": false
+    }
+   ]
+  },
+  "events": [
+   {
+    "seq": 1,
+    "t": 0,
+    "id": "e60",
+    "roundId": "r1",
+    "type": "shot",
+    "hole": 0,
+    "k": 0,
+    "fin": "fairway",
+    "dir": "long",
+    "dist": 150
+   }
+  ],
+  "expect": [
+   {
+    "ok": true,
+    "reason": "",
+    "hole": 0,
+    "finished": false,
+    "rows": [
+     {
+      "loc": "tee",
+      "dist": 400,
+      "dir": "",
+      "pen": false
+     },
+     {
+      "loc": "fairway",
+      "dist": 150,
+      "dir": "",
+      "pen": false
+     }
+    ]
+   }
+  ]
+ },
+ {
+  "name": "fairway longleft",
+  "start": {
+   "par": 4,
+   "finished": false,
+   "rows": [
+    {
+     "loc": "tee",
+     "dist": 400,
+     "dir": "",
+     "pen": false
+    }
+   ]
+  },
+  "events": [
+   {
+    "seq": 1,
+    "t": 0,
+    "id": "e61",
+    "roundId": "r1",
+    "type": "shot",
+    "hole": 0,
+    "k": 0,
+    "fin": "fairway",
+    "dir": "longleft",
+    "dist": 150
+   }
+  ],
+  "expect": [
+   {
+    "ok": true,
+    "reason": "",
+    "hole": 0,
+    "finished": false,
+    "rows": [
+     {
+      "loc": "tee",
+      "dist": 400,
+      "dir": "",
+      "pen": false
+     },
+     {
+      "loc": "fairway",
+      "dist": 150,
+      "dir": "left",
+      "pen": false
+     }
+    ]
+   }
+  ]
+ },
+ {
+  "name": "fairway longright",
+  "start": {
+   "par": 4,
+   "finished": false,
+   "rows": [
+    {
+     "loc": "tee",
+     "dist": 400,
+     "dir": "",
+     "pen": false
+    }
+   ]
+  },
+  "events": [
+   {
+    "seq": 1,
+    "t": 0,
+    "id": "e62",
+    "roundId": "r1",
+    "type": "shot",
+    "hole": 0,
+    "k": 0,
+    "fin": "fairway",
+    "dir": "longright",
+    "dist": 150
+   }
+  ],
+  "expect": [
+   {
+    "ok": true,
+    "reason": "",
+    "hole": 0,
+    "finished": false,
+    "rows": [
+     {
+      "loc": "tee",
+      "dist": 400,
+      "dir": "",
+      "pen": false
+     },
+     {
+      "loc": "fairway",
+      "dist": 150,
+      "dir": "right",
+      "pen": false
+     }
+    ]
+   }
+  ]
+ },
+ {
+  "name": "rough long kept",
+  "start": {
+   "par": 4,
+   "finished": false,
+   "rows": [
+    {
+     "loc": "tee",
+     "dist": 330,
+     "dir": "",
+     "pen": false
+    }
+   ]
+  },
+  "events": [
+   {
+    "seq": 1,
+    "t": 0,
+    "id": "e63",
+    "roundId": "r1",
+    "type": "shot",
+    "hole": 0,
+    "k": 0,
+    "fin": "rough",
+    "dir": "long",
+    "dist": 25
+   }
+  ],
+  "expect": [
+   {
+    "ok": true,
+    "reason": "",
+    "hole": 0,
+    "finished": false,
+    "rows": [
+     {
+      "loc": "tee",
+      "dist": 330,
+      "dir": "",
+      "pen": false
+     },
+     {
+      "loc": "rough",
+      "dist": 25,
+      "dir": "long",
+      "pen": false
+     }
+    ]
+   }
+  ]
+ },
+ {
+  "name": "edit to fairway clears long",
+  "start": {
+   "par": 4,
+   "finished": false,
+   "rows": [
+    {
+     "loc": "tee",
+     "dist": 330,
+     "dir": "",
+     "pen": false
+    }
+   ]
+  },
+  "events": [
+   {
+    "seq": 1,
+    "t": 0,
+    "id": "e64",
+    "roundId": "r1",
+    "type": "shot",
+    "hole": 0,
+    "k": 0,
+    "fin": "rough",
+    "dir": "longright",
+    "dist": 25
+   },
+   {
+    "seq": 2,
+    "t": 0,
+    "id": "e65",
+    "roundId": "r1",
+    "type": "shot",
+    "hole": 0,
+    "k": 0,
+    "fin": "fairway",
+    "dist": 25,
+    "edit": true
+   }
+  ],
+  "expect": [
+   {
+    "ok": true,
+    "reason": "",
+    "hole": 0,
+    "finished": false,
+    "rows": [
+     {
+      "loc": "tee",
+      "dist": 330,
+      "dir": "",
+      "pen": false
+     },
+     {
+      "loc": "rough",
+      "dist": 25,
+      "dir": "longright",
+      "pen": false
+     }
+    ]
+   },
+   {
+    "ok": true,
+    "reason": "",
+    "hole": 0,
+    "finished": false,
+    "rows": [
+     {
+      "loc": "tee",
+      "dist": 330,
+      "dir": "",
+      "pen": false
+     },
+     {
+      "loc": "fairway",
+      "dist": 25,
+      "dir": "right",
       "pen": false
      }
     ]

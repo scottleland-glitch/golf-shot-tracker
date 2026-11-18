@@ -123,6 +123,18 @@ function playingAs(rows, k) { return SG.rowStrokes(rows.slice(0, k + 1)); }
   const r2 = round(mk([R('tee', 400), R('fairway', 150)], 4, { pin: 'frontleft' })); W.applyEvent(r2, ev('shot', 0, { k: 1, fin: 'green', dist: 20, pin: 'backright' })); assert.strictEqual(r2.holes[0].pin, 'frontleft', 'the phone\'s pin wins');
   const r3 = round(mk([R('tee', 400), R('fairway', 150)])); W.applyEvent(r3, ev('shot', 0, { k: 1, fin: 'green', dist: 20, pin: 'nonsense' })); assert.ok(!r3.holes[0].pin, 'junk ignored');
   ok('pin: set from the watch\'s approach, sent back in the state, never overwrites the phone\'s, junk ignored'); }
+// ---- v235: Long is off on the fairway (Long = past the green); Long left / Long right keep just the side ----
+{ const a = run('fairway long', mk([R('tee', 400)]), [ev('shot', 0, { k: 0, fin: 'fairway', dir: 'long', dist: 150 })]);
+  assert.deepStrictEqual(rowsOf(a.r), [R('tee', 400), R('fairway', 150)]);
+  const b = run('fairway longleft', mk([R('tee', 400)]), [ev('shot', 0, { k: 0, fin: 'fairway', dir: 'longleft', dist: 150 })]);
+  assert.deepStrictEqual(rowsOf(b.r), [R('tee', 400), R('fairway', 150, { dir: 'left' })]);
+  const c = run('fairway longright', mk([R('tee', 400)]), [ev('shot', 0, { k: 0, fin: 'fairway', dir: 'longright', dist: 150 })]);
+  assert.deepStrictEqual(rowsOf(c.r), [R('tee', 400), R('fairway', 150, { dir: 'right' })]);
+  const d = run('rough long kept', mk([R('tee', 330)]), [ev('shot', 0, { k: 0, fin: 'rough', dir: 'long', dist: 25 })]);
+  assert.deepStrictEqual(rowsOf(d.r), [R('tee', 330), R('rough', 25, { dir: 'long' })]);
+  const e = run('edit to fairway clears long', mk([R('tee', 330)]), [ev('shot', 0, { k: 0, fin: 'rough', dir: 'longright', dist: 25 }), ev('shot', 0, { k: 0, fin: 'fairway', dist: 25, edit: true })]);
+  assert.deepStrictEqual(rowsOf(e.r), [R('tee', 330), R('fairway', 25, { dir: 'right' })]);
+  ok('Long on the fairway is dropped (Long left/right → Left/Right); Long in the rough stays; changing to Fairway clears Long'); }
 
 if (process.argv.includes('--write-vectors')) { fs.writeFileSync(path.join(__dirname, 'fixtures/watch-vectors.json'), JSON.stringify(VEC, null, 1) + '\n'); console.log('  wrote tests/fixtures/watch-vectors.json (' + VEC.length + ' scenarios)'); }
 console.log('watch-core: all passed');

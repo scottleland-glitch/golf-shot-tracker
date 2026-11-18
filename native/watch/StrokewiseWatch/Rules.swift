@@ -10,6 +10,18 @@ enum Rules {
     static let dirs = ["long", "longright", "right", "shortright", "short", "shortleft", "left", "longleft"]
 
     static func normDir(_ d: String) -> String { dirs.contains(d) ? d : "" }
+    /// v235: Long means past the green, so it is off when the shot finished on the fairway (the phone's noLongDir).
+    static func noLong(_ fin: String) -> Bool { fin == "fairway" }
+    static func isLong(_ d: String) -> Bool { d.hasPrefix("long") }
+    /// The direction a row keeps for its lie: on the fairway Long is dropped and Long left / Long right keep just the side
+    /// (the phone's clearLongOnFairway / SG.effectiveDir).
+    static func dirFor(_ d: String, loc: String) -> String {
+        let n = normDir(d)
+        guard noLong(loc) && isLong(n) else { return n }
+        if n.hasSuffix("left") { return "left" }
+        if n.hasSuffix("right") { return "right" }
+        return ""
+    }
     static func isRetee(_ r: Row) -> Bool { r.loc == "hazard" && r.retee }
     static func isHoled(_ r: Row, _ k: Int) -> Bool { r.loc == "holed" || r.loc == "holedx" || (k != 0 && r.holeOut && !r.loc.isEmpty) }
     static func isPenalty(_ r: Row, _ k: Int) -> Bool { k > 0 && (r.pen || r.loc == "ob" || isRetee(r)) }
@@ -89,6 +101,7 @@ enum Rules {
             if was == "ob" || wasRe { rows[k + 1].dist = nil; rows[k + 1].pen = false }
         }
         if was == "hazard" && v != "hazard" { rows[k + 1].pen = false }
+        if noLong(rows[k + 1].loc) && isLong(normDir(rows[k + 1].dir)) { rows[k + 1].dir = dirFor(rows[k + 1].dir, loc: rows[k + 1].loc) }
     }
     private static func finish(_ rows: inout [Row], _ k: Int, _ fin: String, _ drop: String?) {
         if fin == "unp" {
@@ -180,7 +193,7 @@ enum Rules {
         if let dir = ev.dir {
             var d = normDir(dir)
             if h.rows[n].loc == "ob" && (d == "short" || d == "long") { d = "" }
-            h.rows[n].dir = d
+            h.rows[n].dir = dirFor(d, loc: h.rows[n].loc)
         }
         if let d = ev.dist, h.rows[n].loc != "ob", !isRetee(h.rows[n]) { h.rows[n].dist = d }
         return ""

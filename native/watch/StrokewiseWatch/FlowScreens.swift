@@ -77,6 +77,7 @@ struct DirectionScreen: View {
     let draft: ShotDraft
     @EnvironmentObject var nav: Nav
     private var needsSide: Bool { draft.fin == "ob" || draft.fin == "lost" }   // OB / lost ball: a side is required (not short or long)
+    private var noLong: Bool { Rules.noLong(draft.fin) }   // v235: Long = past the green, so it is off on the fairway
     private let grid: [[String]] = [["longleft", "long", "longright"], ["left", "", "right"], ["shortleft", "short", "shortright"]]
 
     var body: some View {
@@ -85,6 +86,10 @@ struct DirectionScreen: View {
                 Text(needsSide ? "Which side?" : "Direction").font(.headline)
                 Text(needsSide ? "Out of bounds needs a side." : "Where it finished vs the target. Short is toward you.")
                     .font(.system(size: 10)).foregroundColor(.secondary).multilineTextAlignment(.center)
+                if noLong {
+                    Text("Long is off on the fairway.")
+                        .font(.system(size: 10)).foregroundColor(.secondary).multilineTextAlignment(.center)
+                }
                 ForEach(0..<3, id: \.self) { r in
                     HStack(spacing: 4) {
                         ForEach(0..<3, id: \.self) { c in cell(grid[r][c]) }
@@ -104,7 +109,7 @@ struct DirectionScreen: View {
                 .frame(maxWidth: .infinity, minHeight: 38)
                 .background(RoundedRectangle(cornerRadius: 10).fill(Theme.green.opacity(0.35)))
         } else {
-            let blocked = needsSide && (d == "short" || d == "long")
+            let blocked = (needsSide && (d == "short" || d == "long")) || (noLong && Rules.isLong(d))
             Button { choose(d) } label: { Image(systemName: symbol(d)).frame(maxWidth: .infinity, minHeight: 38) }
                 .buttonStyle(TileStyle(small: true))
                 .disabled(blocked)

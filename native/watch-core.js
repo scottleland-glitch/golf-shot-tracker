@@ -48,6 +48,12 @@
     else if (v === 'hazard') { if (was !== 'hazard') { nx.loc = 'hazard'; nx.pen = false; delete nx.retee; } }
     else { var held = was === 'holed', wasRe = !!nx.retee; nx.loc = v; delete nx.retee; if (held) nx.holeOut = true; if (was === 'ob' || wasRe) { nx.dist = ''; nx.pen = false; } }
     if (was === 'hazard' && v !== 'hazard') nx.pen = false;
+    noLongOnFairway(nx); // v235 (app.js clearLongOnFairway)
+  }
+  // v235: Long means past the green, so it is off when the shot finished on the fairway (Long left/right keep just the side).
+  function noLongOnFairway(row) {
+    var SG = SGx();
+    if (row && row.loc === 'fairway' && /^long/.test(SG.normDir(row.dir))) row.dir = SG.effectiveDir(row.dir, 'fairway', 0) || '';
   }
   // The Finished dropdown's extras (app.js change handler 'fin'): Unplayable = a drop +1, Lost ball = OB with a stroke and distance
   function finish(h, k, fin, drop) {
@@ -87,7 +93,7 @@
       var hz = ev.hz === 'retee' || ev.hz === 'drop' ? ev.hz : 'play';
       if (hz === 'retee') { nx.retee = true; nx.pen = true; nx.dist = ''; } else if (hz === 'drop') { delete nx.retee; nx.pen = true; } else { delete nx.retee; nx.pen = false; }
     }
-    if (ev.dir !== undefined) { var d = SG.normDir(ev.dir); if (nx.loc === 'ob' && (d === 'short' || d === 'long')) d = ''; nx.dir = d; }
+    if (ev.dir !== undefined) { var d = SG.normDir(ev.dir); if (nx.loc === 'ob' && (d === 'short' || d === 'long')) d = ''; nx.dir = d; noLongOnFairway(nx); }
     if (dist != null && nx.loc !== 'ob' && !SG.isRetee(nx)) nx.dist = dist;
     return '';
   }
