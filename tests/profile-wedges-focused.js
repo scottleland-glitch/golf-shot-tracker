@@ -37,7 +37,7 @@ const OUT = '/tmp/wedge-test-shots/', PORT = 8831, BASE = 'http://127.0.0.1:' + 
   assert.deepStrictEqual(v2, { v: 3, rows: { 70: { club: '54' }, 75: { club: '56' } }, low: {} });
   const two = W.norm({ rows: { 70: { club: '54', ball: 'middle' } }, low: { 70: { club: '56', ball: 'back', lean: '3-4' }, 50: { club: '60' }, 41: { club: 'x' } } });
   assert.strictEqual(W.filled(two), 1); assert.strictEqual(W.filled(two, 'low'), 2); assert.strictEqual(W.count(two), 3);
-  assert.deepStrictEqual(W.ladder(two).map(W.ladderLabel), ['50 yd · Low · 60°', '70 yd · High · 54° · Middle', '70 yd · Low · 56° · Back']);
+  assert.deepStrictEqual(W.ladder(two).map(W.ladderLabel), ['70 yd · 54° · Middle'], 'v229: the chart lists High only, no High/Low label (Low is kept, not listed)');
   const lowOnly = { updated: '2026-10-28T00:00:00Z', rows: {}, low: { 60: { club: '58' } } };
   assert.strictEqual(SG.makeBackup([], null, 'Q', [], null, lowOnly).wedges.low[60].club, '58', 'Low-only chart is backed up');
   assert.strictEqual(SG.parseBackup(JSON.stringify(SG.makeBackup([], null, 'Q', [], null, lowOnly))).wedges.low[60].club, '58');
@@ -105,7 +105,7 @@ const OUT = '/tmp/wedge-test-shots/', PORT = 8831, BASE = 'http://127.0.0.1:' + 
     assert.strictEqual((await store()).rows[50].club, '60 Lob');
     await page.click('.whead[data-y="100"]'); await page.click('#wbody [data-f="club"][data-k="PW"]'); await page.click('#wbody [data-f="lean"][data-k="0"]'); await page.click('#wbody [data-f="pos"][data-k="p3"]'); await page.click('#wbody [data-f="hinge"][data-k="full"]');
     // clear one
-    await page.click('.whead[data-y="60"]'); await page.click('#wbody [data-f="club"][data-k="58"]'); await page.click('#wbody [data-v="clear"]'); assert.match(dialogs.pop(), /Clear the High flight setup for 60/);
+    await page.click('.whead[data-y="60"]'); await page.click('#wbody [data-f="club"][data-k="58"]'); await page.click('#wbody [data-v="clear"]'); assert.match(dialogs.pop(), /Clear the setup for 60 yards/); // v229: one chart, no flight in the wording
     assert.strictEqual((await store()).rows[60], undefined); assert.strictEqual(await page.textContent('[data-wsum="60"]'), 'Not set');
     await page.click('.whead[data-y="60"]'); assert.strictEqual(await page.$('#wbody'), null);
     // persists after reload
@@ -132,28 +132,10 @@ const OUT = '/tmp/wedge-test-shots/', PORT = 8831, BASE = 'http://127.0.0.1:' + 
     await page.evaluate(() => { const r = document.querySelector('.wrow[data-y="70"]'); window.scrollTo(0, r.getBoundingClientRect().top + window.scrollY - 84); });
     await shot('wedges-expanded'); await shot('wedges-edit-mode');
     await page.click('#wedit'); await page.waitForSelector('#wsimple'); assert.strictEqual(await page.textContent('#wedit'), '✎ Edit');
-    // v94 High / Low flight toggle – separate setups per yardage; default High
-    assert.deepStrictEqual(await page.$$eval('#wflight button', e => e.map(x => x.textContent + (x.classList.contains('on') ? '*' : ''))), ['High flight*', 'Low flight']);
-    await page.click('#wflight [data-k="low"]'); await page.waitForSelector('#wflight [data-k="low"].on');
-    assert.match(await page.textContent('.topbar .title span'), /^0 of 8 yardages set$/); assert.strictEqual(await page.textContent('[data-wsum="70"]'), 'Not set');
-    await page.click('.whead[data-y="70"]'); await page.waitForSelector('#wbody');
-    for (const [f, k] of [['club', '58'], ['ball', 'back'], ['lean', '3-4'], ['pos', 'p1'], ['hinge', '45']]) await page.click(`#wbody [data-f="${f}"][data-k="${k}"]`);
-    await page.click('#wbody [data-v="toggle"]');
-    await page.click('.whead[data-y="90"]'); await page.click('#wbody [data-f="club"][data-k="PW"]'); await page.click('#wbody [data-f="pos"][data-k="p2"]'); await page.click('#wbody [data-v="toggle"]');
-    assert.strictEqual(await page.textContent('[data-wsum="70"]'), '58° · back · P1'); assert.match(await page.textContent('.topbar .title span'), /^2 of 8/);
-    let st = await store(); assert.deepStrictEqual(st.low[70], { club: '58', ball: 'back', lean: '3-4', pos: 'p1', hinge: '45' }); assert.strictEqual(st.rows[70].club, '54', 'High untouched');
-    await page.click('.whead[data-y="70"]'); await page.waitForSelector('#wsimple');
-    assert.deepStrictEqual(await page.$$eval('#wsimple b', e => e.map(x => x.textContent)), ['58°', 'Back', 'P1']);
-    await page.evaluate(() => window.scrollTo(0, 0)); await shot('wedges-low-flight');
-    // Clear in Low only clears Low
-    await page.click('#wedit'); await page.click('.whead[data-y="90"]'); await page.click('#wbody [data-v="clear"]');
-    assert.match(dialogs[dialogs.length - 1], /Clear the Low flight setup for 90/); st = await store(); assert.strictEqual(st.low[90], undefined); assert.ok(st.low[70]);
-    await page.click('#wedit');
-    await page.click('#wflight [data-k="high"]'); assert.strictEqual(await page.textContent('[data-wsum="70"]'), '54° · middle · P2'); assert.match(await page.textContent('.topbar .title span'), /^3 of 8/);
-    await page.click('#wflight [data-k="low"]');
+    // v229: one Yardages chart – the High / Low flight toggle is gone (stored Low data is kept, not shown)
+    assert.strictEqual(await page.$('#wflight'), null, 'no High / Low toggle'); assert.match(await page.textContent('.topbar .title span'), /^3 of 8 yardages set$/);
     await page.click('#segbag'); await page.waitForSelector('#baglist');
     await page.click('#segwedges'); assert.strictEqual(await page.textContent('#wedit'), '✎ Edit', 'opens in simple view');
-    assert.ok(await page.$('#wflight [data-k="high"].on'), 'opens on High'); assert.match(await page.textContent('.topbar .title span'), /^3 of 8 yardages set$/);
     await (async (P) => { if (!(await P.$('.topbar [data-act="home"]')) && await P.$('#rsmenubtn')) await P.click('#rsmenubtn'); return P.click('.topbar [data-act="home"], #rsmenu [data-act="home"]'); })(page) /* v191: in ☰ on Round stats */; await page.waitForSelector('#home');
     // backup → restore into an empty phone
     const wj = await page.evaluate(() => localStorage.getItem('golfsg.wedges.v1'));
@@ -162,7 +144,7 @@ const OUT = '/tmp/wedge-test-shots/', PORT = 8831, BASE = 'http://127.0.0.1:' + 
     await page.click('#navbtn'); await page.click('#navmenu [data-act="archive"]'); assert.ok(await page.$eval('[data-act="backup"]', e => !e.disabled));
     await page.setInputFiles('#restorefile', '/tmp/wedges-backup.json'); await page.waitForSelector('#rpwedges');
     assert.match(await page.textContent('#rpgo'), /Restore wedges/); await page.click('#rpgo'); await page.waitForSelector('#notice');
-    assert.match(await page.textContent('#notice'), /Wedge matrix \(3 yardages · 1 Low flight\)/); assert.deepStrictEqual((await store()).rows, JSON.parse(wj).rows); assert.deepStrictEqual((await store()).low, JSON.parse(wj).low);
+    assert.match(await page.textContent('#notice'), /Wedge matrix \(3 yardages\b/); assert.deepStrictEqual((await store()).rows, JSON.parse(wj).rows); assert.deepStrictEqual((await store()).low, JSON.parse(wj).low);
     const back = await page.evaluate(() => SG.makeBackup([], null, 'Q', [], null, JSON.parse(localStorage.getItem('golfsg.wedges.v1')))); assert.strictEqual(back.wedges.rows[70].club, '54');
     // empty bag → standard wedge list
     await page.evaluate(() => localStorage.removeItem('golfsg.bag.v1')); await page.reload(); await page.click('#navbtn'); await page.click('#navmenu [data-act="bag"]'); await page.click('#segwedges'); await page.click('.whead[data-y="40"]');

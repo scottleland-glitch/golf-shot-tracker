@@ -62,20 +62,22 @@ const hole1 = () => ({ par: 4, finished: true, rows: [R(467, 'tee', { club: 'Dri
     .reduce((t, [re, to]) => { assert.ok(re.test(t), 'v89 source has ' + re); return t.replace(re, to); }, src);
   try { fs.writeFileSync(tmp, to30(String(execSync('git show 8e31760:sg.js', { cwd: path.join(__dirname, '..') })))); OLD = require(tmp); } catch (e) { console.log('  (skipped v89 comparison: ' + e.message.split('\n')[0] + ')'); }
   if (OLD) {
+    // v231 (by design): Long counts only on the green, or in the rough / a bunker / trees within 60 yd; otherwise left/right is kept and Long dropped
+    const v231 = (d, loc, dist) => { if (!/^long/.test(d) || loc === 'green') return d; if (!['fairway', 'tee', 'ob'].includes(loc) && dist != null && dist !== '' && +dist <= 60) return d; return /left$/.test(d) ? 'left' : /right$/.test(d) ? 'right' : ''; };
     let seed = 7; const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647, pick = a => a[Math.floor(rnd() * a.length)];
     const rounds = [];
     for (let i = 0; i < 60; i++) {
       const holes = [];
       for (let hI = 0; hI < 18; hI++) {
         const par = pick([3, 4, 5]), rows = [R(par * 100 + Math.floor(rnd() * 90), 'tee', { club: pick(['Driver', '3W', '7i', '']) })], len = 1 + Math.floor(rnd() * 5);
-        for (let k = 1; k < len; k++) { const loc = pick(['fairway', 'rough', 'deep', 'bunker', 'green', 'green', 'hazard', 'trees', 'ob']); rows.push(R(loc === 'ob' ? '' : loc === 'green' ? 1 + Math.floor(rnd() * 40) : 5 + Math.floor(rnd() * 200), loc, { dir: pick(SG.DIR8.concat(['', ''])), pen: rnd() < 0.08 })); }
+        for (let k = 1; k < len; k++) { const loc = pick(['fairway', 'rough', 'deep', 'bunker', 'green', 'green', 'hazard', 'trees', 'ob']); const dist = loc === 'ob' ? '' : loc === 'green' ? 1 + Math.floor(rnd() * 40) : 5 + Math.floor(rnd() * 200); rows.push(R(dist, loc, { dir: v231(pick(SG.DIR8.concat(['', ''])), loc, dist), pen: rnd() < 0.08 })); } // v231: a Long that can't be past the green is dropped now (by design) – the v89 code never had that rule
         const last = rows[rows.length - 1]; rows.push(R(last.loc === 'green' ? 1 + Math.floor(rnd() * 15) : 2 + Math.floor(rnd() * 60), last.loc === 'green' ? 'holed' : pick(['holed', 'holedx'])));
         if (rnd() < 0.15) rows.pop(); // some unfinished holes
         holes.push({ par, finished: rnd() < 0.9, pin: pick(['', 'center', 'frontleft']), rows });
       }
       rounds.push({ id: 'r' + i, holes });
     }
-    require('./fixtures/birdie-data.js')().forEach(r => rounds.push(r)); // the Birdie-zone sample rounds too
+    require('./fixtures/birdie-data.js')().forEach(r => { r.holes.forEach(h => h.rows.forEach(w => { if (w.dir) w.dir = v231(w.dir, w.loc, w.dist); })); rounds.push(r); }); // the Birdie-zone sample rounds too (with the v231 Long rule applied, as above)
     let cmp = 0;
     const strip = o => JSON.parse(JSON.stringify(o, (k, v) => k === 'hk' || k === 'rd' || k === 'ang' || k === 'fromAng' || k === 'hit' || k === 'retee' || k === 'cat' || k === 'bucket' || k === 'cats' || k === 'buckets' ? undefined : v)); // v157: greenside bunker shots get their own category (cat / bucket) – every SG number must still match // hk = new internal helper field on shots; v156: ang (spot around the pin) is new and hit (distance hit) is now measured along the player's line on purpose
     rounds.forEach(rr => {

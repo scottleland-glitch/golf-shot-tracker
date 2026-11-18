@@ -42,11 +42,12 @@ struct HoleState: Codable, Equatable {
     var complete: Bool = false   // every stroke has its lie + distance and the last one went in
     var strokes: Int = 0         // strokes so far, penalties included
     var rows: [Row] = []
+    var pin: String = ""         // v233: pin position (backleft … frontright), "" = not set yet
 
-    init(i: Int = 0, par: Int = 4, fin: Bool = false, complete: Bool = false, strokes: Int = 0, rows: [Row] = []) {
-        self.i = i; self.par = par; self.fin = fin; self.complete = complete; self.strokes = strokes; self.rows = rows
+    init(i: Int = 0, par: Int = 4, fin: Bool = false, complete: Bool = false, strokes: Int = 0, rows: [Row] = [], pin: String = "") {
+        self.i = i; self.par = par; self.fin = fin; self.complete = complete; self.strokes = strokes; self.rows = rows; self.pin = pin
     }
-    private enum CodingKeys: String, CodingKey { case i, par, fin, complete, strokes, rows }
+    private enum CodingKeys: String, CodingKey { case i, par, fin, complete, strokes, rows, pin }
     init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
         i = (try? c.decodeIfPresent(Int.self, forKey: .i)) ?? 0
@@ -55,6 +56,7 @@ struct HoleState: Codable, Equatable {
         complete = (try? c.decodeIfPresent(Bool.self, forKey: .complete)) ?? false
         strokes = (try? c.decodeIfPresent(Int.self, forKey: .strokes)) ?? 0
         rows = (try? c.decodeIfPresent([Row].self, forKey: .rows)) ?? []
+        pin = (try? c.decodeIfPresent(String.self, forKey: .pin)) ?? ""
     }
     var done: Bool { fin && complete }
 }
@@ -99,4 +101,5 @@ struct WatchEvent: Codable, Equatable, Identifiable {
     var hz: String? = nil   // drop | retee | play
     var drop: String? = nil
     var edit: Bool? = nil
+    var pin: String? = nil  // v233: shot only – the pin position picked on the way to the green (set when the hole has none)
 }

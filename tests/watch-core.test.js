@@ -116,5 +116,13 @@ function playingAs(rows, k) { return SG.rowStrokes(rows.slice(0, k + 1)); }
   assert.strictEqual(playingAs(rowsOf(two.r), 2), 5, 'two OBs: Shot 3 (5)');
   ok('playingAs: OB/hazard-drop/retee/unp/lost Shot 2 (3); after OB Shot 3 (4); played-it unchanged; two OBs Shot 3 (5)'); }
 
+// ---- v233: "Where's the pin?" on the watch – the approach onto the green carries the pin; set only when the hole has none; sent back to the watch ----
+{ const r = round(mk([R('tee', 400), R('fairway', 150)]));
+  assert.ok(W.applyEvent(r, ev('shot', 0, { k: 1, fin: 'green', dist: 20, pin: 'backright' })).ok); assert.strictEqual(r.holes[0].pin, 'backright');
+  const st = W.buildState(r, []); assert.strictEqual(st.holes.find(h => h.i === 0).pin, 'backright'); assert.strictEqual(st.holes.find(h => h.i === 1).pin, undefined, 'no pin → not sent');
+  const r2 = round(mk([R('tee', 400), R('fairway', 150)], 4, { pin: 'frontleft' })); W.applyEvent(r2, ev('shot', 0, { k: 1, fin: 'green', dist: 20, pin: 'backright' })); assert.strictEqual(r2.holes[0].pin, 'frontleft', 'the phone\'s pin wins');
+  const r3 = round(mk([R('tee', 400), R('fairway', 150)])); W.applyEvent(r3, ev('shot', 0, { k: 1, fin: 'green', dist: 20, pin: 'nonsense' })); assert.ok(!r3.holes[0].pin, 'junk ignored');
+  ok('pin: set from the watch\'s approach, sent back in the state, never overwrites the phone\'s, junk ignored'); }
+
 if (process.argv.includes('--write-vectors')) { fs.writeFileSync(path.join(__dirname, 'fixtures/watch-vectors.json'), JSON.stringify(VEC, null, 1) + '\n'); console.log('  wrote tests/fixtures/watch-vectors.json (' + VEC.length + ' scenarios)'); }
 console.log('watch-core: all passed');

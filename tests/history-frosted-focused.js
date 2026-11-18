@@ -42,23 +42,23 @@ const BASE = 'http://127.0.0.1:8796/', OUT = '/workspace/golf-app/screenshots/',
   await page.click('#navbtn'); await page.click('#navmenu [data-act="archive"]'); await page.waitForSelector('#playerbox');
   const A = await page.evaluate(() => { const q = s => document.querySelector(s);
     return { sky: !!q('.frostpage.theme-sky.archivepage'), bg: getComputedStyle(q('.frostpage'), '::before').backgroundImage, top: q('.topbar').classList.contains('frost'),
-      hist: getComputedStyle(q('.histbtn')).backgroundImage, btns: [...document.querySelectorAll('.archivepage [data-act="backup"], .archivepage [data-act="about"], .archivepage label.filebtn')].every(x => x.classList.contains('frostbtn')),
+      hist: getComputedStyle(q('.histbtn')).backgroundImage, btns: [...document.querySelectorAll('.archivepage [data-act="backup"], .archivepage [data-act="about"], .archivepage label.filebtn')].filter(x => !x.closest('#bkremind')).every(x => x.classList.contains('frostbtn')), /* v223: the backup reminder has its own Save to Files button */
       box: getComputedStyle(q('#playerbox')).backgroundColor }; });
   assert.ok(A.sky && /linear-gradient/.test(A.bg) && !/home-bg/.test(A.bg) && A.top && /linear-gradient/.test(A.hist) && A.btns && /rgba\(2[3-5]\d, 2[3-5]\d, 2[3-5]\d, 0\./.test(A.box), 'archive sky ' + JSON.stringify(A));
   await page.evaluate(() => { const t = document.getElementById('toast'); if (t) t.className = ''; }); await page.waitForTimeout(400); await page.screenshot({ path: OUT + 'sky-archive.png' });
   // Archive clean-up: long text sits behind (i) / 💡 buttons, hidden until tapped
   const vis = await page.evaluate(() => [...document.querySelectorAll('.archivepage p, .archivepage .tippop, .archivepage .notice')].filter(e => e.offsetParent && e.textContent.trim().length > 60).map(e => e.textContent.trim().slice(0, 40)));
   assert.deepStrictEqual(vis, [], 'no long text visible');
-  for (const k of ['gdinfo', 'bktip', 'bkinfo']) assert.ok(await page.$('[data-act="info"][data-v="' + k + '"]') && await page.isHidden('#tip-' + k), k + ' collapsed');
-  assert.strictEqual(await page.textContent('[data-v="bktip"] span'), '💡'); assert.strictEqual(await page.textContent('[data-v="gdinfo"] span'), 'i');
+  for (const k of ['bkinfo']) assert.ok(await page.$('[data-act="info"][data-v="' + k + '"]') && await page.isHidden('#tip-' + k), k + ' collapsed');
+  assert.strictEqual(await page.$('[data-v="gdinfo"]'), null, 'v223: no Google Drive');
   await page.evaluate(() => { const t = document.getElementById('toast'); if (t) t.className = ''; }); await page.waitForTimeout(300); await page.screenshot({ path: OUT + 'archive-clean.png' });
-  await page.click('[data-v="gdinfo"]'); assert.ok(await page.isVisible('#tip-gdinfo')); assert.match(await page.textContent('#tip-gdinfo'), /Pin High Backups/);
-  assert.strictEqual(await page.getAttribute('[data-v="gdinfo"]', 'aria-expanded'), 'true'); await page.waitForTimeout(300); await page.screenshot({ path: OUT + 'archive-clean-open.png' });
-  await page.click('[data-v="gdinfo"]'); assert.ok(await page.isHidden('#tip-gdinfo'), 'tap again closes');
+  await page.click('.tipbtn[data-v="bkinfo"]'); assert.ok(await page.isVisible('#tip-bkinfo'));
+  assert.strictEqual(await page.getAttribute('.tipbtn[data-v="bkinfo"]', 'aria-expanded'), 'true'); await page.waitForTimeout(300); await page.screenshot({ path: OUT + 'archive-clean-open.png' });
+  await page.click('.tipbtn[data-v="bkinfo"]'); assert.ok(await page.isHidden('#tip-bkinfo'), 'tap again closes');
   // the label next to each icon toggles too (whole row tappable)
-  for (const k of ['gdinfo', 'bktip', 'bkinfo']) { await page.click('button.tiplbl[data-v="' + k + '"]'); assert.ok(await page.isVisible('#tip-' + k), k + ' label opens');
+  for (const k of ['bkinfo']) { await page.click('button.tiplbl[data-v="' + k + '"]'); assert.ok(await page.isVisible('#tip-' + k), k + ' label opens');
     assert.strictEqual(await page.getAttribute('.tipbtn[data-v="' + k + '"]', 'aria-expanded'), 'true', k + ' icon state follows'); await page.click('button.tiplbl[data-v="' + k + '"]'); assert.ok(await page.isHidden('#tip-' + k), k + ' label closes'); }
-  await page.click('[data-v="bktip"]'); assert.match(await page.textContent('#tip-bktip'), /backed up/); await page.click('[data-v="bkinfo"]'); assert.match(await page.textContent('#tip-bkinfo'), /golf-rounds-backup/);
+  await page.click('[data-v="bkinfo"]'); assert.match(await page.textContent('#tip-bkinfo'), /golf-rounds-backup/);
   await (async (P) => { if (!(await P.$('.topbar [data-act="home"]')) && await P.$('#rsmenubtn')) await P.click('#rsmenubtn'); return P.click('.topbar [data-act="home"], #rsmenu [data-act="home"]'); })(page) /* v191: in ☰ on Round stats */; await page.waitForSelector('#home');
   assert.deepStrictEqual(errors, []); console.log('HISTORY FROSTED OK'); await b.close(); srv.kill();
 })().catch(e => { console.error(e); process.exit(1); });

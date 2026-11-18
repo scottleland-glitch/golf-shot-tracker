@@ -169,6 +169,7 @@ enum Rules {
             finish(&h.rows, k, "in", nil); return ""
         }
         finish(&h.rows, k, fin, ev.drop)
+        if let p = ev.pin, !p.isEmpty, h.pin.isEmpty { h.pin = p }   // v233: the pin picked on the way onto the green
         let n = k + 1
         if fin == "hazard" {
             let hz = (ev.hz == "retee" || ev.hz == "drop") ? ev.hz! : "play"

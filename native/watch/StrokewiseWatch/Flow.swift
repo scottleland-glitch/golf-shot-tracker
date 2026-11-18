@@ -12,6 +12,20 @@ struct ShotDraft: Hashable {
     var hz: String? = nil         // drop | retee | play
     var dist: Int? = nil
     var mode = "next"             // next: distance after the shot · in: distance of the stroke that went in · set: a row's own distance
+    var pin: String? = nil        // v233: picked on "Where's the pin?" (approach onto the green)
+}
+
+/// v233 (Scott): an approach that finishes on the green asks for the pin position once per hole (Skip remembers the hole).
+enum PinAsk {
+    static let grid: [[String]] = [["backleft", "backcenter", "backright"], ["midleft", "center", "midright"], ["frontleft", "frontcenter", "frontright"]]
+    static var skipped: Set<String> = []
+    static func key(_ store: WatchStore, _ hole: Int) -> String { store.model.roundId + ":" + String(hole) }
+    static func wanted(_ d: ShotDraft, _ store: WatchStore) -> Bool {
+        guard d.fin == "green", !d.edit else { return false }
+        let h = store.model.hole(d.hole)
+        if !h.pin.isEmpty || skipped.contains(key(store, d.hole)) { return false }
+        return (h.rows[safe: d.k]?.loc ?? "") != "green"     // a putt that stays on the green doesn't ask
+    }
 }
 
 enum Route: Hashable {
@@ -20,6 +34,7 @@ enum Route: Hashable {
     case shotEdit(hole: Int, k: Int)
     case lie(ShotDraft)
     case moreLies(ShotDraft)
+    case pin(ShotDraft)
     case direction(ShotDraft)
     case hazard(ShotDraft)
     case distance(ShotDraft)
@@ -62,7 +77,7 @@ extension ShotDraft {
     /// The event this draft turns into.
     func makeEvent(_ store: WatchStore) -> WatchEvent {
         if mode == "set" { return store.makeEvent("setdist", hole: hole, k: k, dist: dist, edit: edit) }
-        return store.makeEvent("shot", hole: hole, k: k, fin: fin, dir: dir, dist: dist, hz: hz, edit: edit)
+        return store.makeEvent("shot", hole: hole, k: k, fin: fin, dir: dir, dist: dist, hz: hz, edit: edit, pin: pin)
     }
 }
 
@@ -73,6 +88,8 @@ func pickLie(_ fin: String, draft: ShotDraft, store: WatchStore, nav: Nav) {
     if fin == "in" && !d.edit && !d.needsOwnDistance {
         store.send(d.makeEvent(store))     // one tap: holed out
         nav.home()
+    } else if PinAsk.wanted(d, store) {
+        nav.push(.pin(d))                  // v233: onto the green with no pin yet → one tap on the 3×3, then on as usual
     } else {
         nav.push(d.afterLie())
     }

@@ -56,6 +56,12 @@ precondition(back == snap, "snapshot round-trips")
 var m2 = RoundModel(state: back.state!); for p in back.pending { _ = m2.apply(p.event) }
 precondition(m2.currentHole == 1 && m2.hole(1).rows.count == 2 && m2.hole(1).rows[1].loc == "fairway", "relaunch restores the exact hole and shot")
 try? FileManager.default.removeItem(at: tmp)
+// v233: the approach onto the green carries the pin; the watch shows it at once and won't ask again on that hole
+var mPin = RoundModel(state: st)
+let pinEv = WatchEvent(id: "p1", seq: 3, t: 0, roundId: "r1", type: "shot", hole: 1, k: 0, fin: "green", dir: "", dist: 20, pin: "backright")
+precondition(mPin.apply(pinEv).ok && mPin.hole(1).pin == "backright", "pin set by the approach onto the green")
+let pinEnc = String(data: try JSONEncoder().encode(pinEv), encoding: .utf8)!
+precondition(pinEnc.contains("\"pin\":\"backright\""), "event carries the pin: \(pinEnc)")
 precondition(Persistence(url: tmp).load() == Snapshot(), "missing file = empty snapshot")
 precondition(Labels.outcome(m2.hole(1).rows, 0) == "Fairway · 150 yd" && Labels.toPar(-1) == "-1" && Labels.score(m.hole(0)) == "3 (-1)", "labels: \(Labels.outcome(m2.hole(1).rows, 0))")
 // lastRound survives a relaunch; a snapshot written before lastRound existed still decodes

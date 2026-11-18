@@ -61,7 +61,7 @@ const ARC = require('/home/claude/golf-app/tests/fixtures/arcade-78.js'), FF = r
   if (OUT) await coach.screenshot({ path: OUT + '/coach-athletes.png' });
   await coach.click('.cmcard[data-name="quincy"]'); await coach.waitForSelector('#mygame'); await coach.waitForSelector('#coswitch');
   assert.match(await coach.textContent('#coswitch'), /^Quincy ▾/); assert.strictEqual(await coach.textContent('#coback'), '‹ Athletes');
-  assert.deepStrictEqual(await coach.$$eval('#tabbar span', e => e.map(x => x.textContent).filter(Boolean)), ['My Game', 'Rounds', 'Trends', 'Stats']); assert.strictEqual(await coach.$('#tbplus'), null);
+  assert.deepStrictEqual(await coach.$$eval('#tabbar span', e => e.map(x => x.textContent).filter(Boolean)), ['My Game', 'Rounds', 'Practice', 'Trends', 'Stats']); assert.strictEqual(await coach.$('#tbplus'), null); // v232: Practice in the middle slot
   assert.ok(await coach.$('#mygame .radar'), 'her spider chart'); ok('coach: tap Quincy → her My Game, ‹ Athletes · Quincy ▾, no +');
   if (OUT) await coach.screenshot({ path: OUT + '/coach-quincy.png' });
   await coach.click('#tbhistory').catch(() => coach.click('[data-act="history"]')); await coach.waitForSelector('.histpage');

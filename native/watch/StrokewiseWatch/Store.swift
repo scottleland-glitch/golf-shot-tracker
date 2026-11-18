@@ -94,10 +94,10 @@ final class WatchStore: ObservableObject {
     // MARK: from the golfer
 
     func makeEvent(_ type: String, hole: Int, k: Int? = nil, fin: String? = nil, dir: String? = nil, dist: Int? = nil,
-                   hz: String? = nil, edit: Bool = false) -> WatchEvent {
+                   hz: String? = nil, edit: Bool = false, pin: String? = nil) -> WatchEvent {
         snapshot.seq += 1
         return WatchEvent(id: UUID().uuidString, seq: snapshot.seq, t: Date().timeIntervalSince1970 * 1000, roundId: model.roundId,
-                          type: type, hole: hole, k: k, fin: fin, dir: dir, dist: dist, hz: hz, drop: nil, edit: edit ? true : nil)
+                          type: type, hole: hole, k: k, fin: fin, dir: dir, dist: dist, hz: hz, drop: nil, edit: edit ? true : nil, pin: pin)
     }
 
     /// A confirmed shot (or edit, delete, undo): kept on disk first, shown at once, then sent.

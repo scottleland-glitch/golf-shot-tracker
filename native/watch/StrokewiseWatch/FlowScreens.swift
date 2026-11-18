@@ -38,6 +38,41 @@ struct MoreLiesScreen: View {
     }
 }
 
+/// v233 (Scott): "Where's the pin?" – a 3×3 green, back at the top. One tap and on to Direction; Skip leaves it for that hole.
+struct PinScreen: View {
+    let draft: ShotDraft
+    @EnvironmentObject var store: WatchStore
+    @EnvironmentObject var nav: Nav
+    var body: some View {
+        ScrollView {
+            VStack(spacing: 4) {
+                Text("Where's the pin?").font(.headline)
+                Text("BACK").font(.system(size: 9, weight: .semibold)).foregroundColor(.secondary)
+                ForEach(0..<3, id: \.self) { r in
+                    HStack(spacing: 4) {
+                        ForEach(0..<3, id: \.self) { c in cell(PinAsk.grid[r][c]) }
+                    }
+                }
+                Text("FRONT").font(.system(size: 9, weight: .semibold)).foregroundColor(.secondary)
+                Button("Skip") { choose(nil) }.buttonStyle(TileStyle(small: true))
+            }.padding(.horizontal, 4)
+        }
+        .navigationTitle("Hole \(draft.hole + 1)")
+    }
+    private func cell(_ p: String) -> some View {
+        Button { choose(p) } label: {
+            Image(systemName: "flag.fill").foregroundColor(Theme.greenBright).frame(maxWidth: .infinity, minHeight: 34)
+        }
+        .buttonStyle(TileStyle(small: true))
+    }
+    private func choose(_ p: String?) {
+        var x = draft
+        x.pin = p
+        if p == nil { PinAsk.skipped.insert(PinAsk.key(store, draft.hole)) }
+        nav.push(x.afterLie())
+    }
+}
+
 struct DirectionScreen: View {
     let draft: ShotDraft
     @EnvironmentObject var nav: Nav

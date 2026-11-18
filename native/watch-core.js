@@ -4,7 +4,7 @@
  * One watch EVENT changes ONE hole of a round using the same row rules as the phone's hole entry (app.js setFinish, setHoleOut,
  * the Finished dropdown's Unplayable / Lost ball, the hazard Drop / Re-tee / Played-it choice, "insert after", "delete row"):
  *   { id, seq, t, roundId, type, hole, ... }
- *   shot   – k (the stroke just hit = its row), fin, dir, dist (the distance to the pin AFTER the shot = the next row), hz, edit
+ *   shot   – k (the stroke just hit = its row), fin, dir, dist (the distance to the pin AFTER the shot = the next row), hz, edit, pin (v233: set when the hole has none)
  *            fin: fairway | rough | deep | bunker | green | trees | hazard | ob | unp | lost | in (in the hole)
  *            hz (hazard only): drop | retee | play     drop (unp only, optional): the lie it was dropped in
  *            For "in", dist (optional) is the distance of the stroke that went in (row k), when that row has none yet.
@@ -81,6 +81,7 @@
       finish(h, k, 'in'); return '';
     }
     finish(h, k, fin, ev.drop);
+    if (ev.pin && !SG.normPin(h.pin) && SG.normPin(ev.pin)) h.pin = SG.normPin(ev.pin); // v233: "Where's the pin?" on the watch (only when the hole has none)
     var nx = rows[k + 1];
     if (fin === 'hazard') {
       var hz = ev.hz === 'retee' || ev.hz === 'drop' ? ev.hz : 'play';
@@ -164,7 +165,9 @@
   }
   function holeOut1(h, i) {
     var a = SGx().analyzeHole(h);
-    return { i: i, par: h.par || 4, fin: !!h.finished, complete: !!a.complete, strokes: a.liveStrokes, rows: h.rows.map(rowOut) };
+    var o = { i: i, par: h.par || 4, fin: !!h.finished, complete: !!a.complete, strokes: a.liveStrokes, rows: h.rows.map(rowOut) }, pn = SGx().normPin(h.pin);
+    if (pn) o.pin = pn; // v233: the watch asks for the pin only when the hole has none
+    return o;
   }
   /** The compact picture of the round the watch shows. acks = [{ id, ok, why }]. */
   function buildState(round, acks, extra) {

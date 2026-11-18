@@ -5,6 +5,10 @@ Renamed to **Pin High** (title, home-screen label, header, PDF). Storage keys (`
 Phone web app for tracking every golf shot and strokes gained against a selectable baseline (PGA Tour by default).
 Static files only: no backend, no build step. Data is stored on the phone (localStorage).
 
+## Where's the pin? on the watch (v233)
+
+On the **Apple Watch**, when a shot from off the green finishes **on the green** (tap Green) and that hole has no pin position yet, a **Where's the pin?** screen comes next: a 3×3 green, back at the top. **One tap** picks it and the flow carries on (Direction → distance → Confirm); **Skip** carries on without it and won't ask again on that hole. The pin goes to the phone with the shot (`pin` on the shot event, `native/watch-core.js`) and is set only if the hole has none – the phone's own ⛳ pin button still sets or changes it. The phone sends each hole's pin to the watch, so it never asks for a hole that already has one.
+
 ## How a hole is entered (v3)
 Each hole is a table. ONE ROW = ONE STROKE, hit from that row's Dist/Loc. Row 1 = Tee (hole length).
 Dist = yards to the pin (feet on the green). Loc = where the ball was: Fairway, Rough, Bunker, Green, Hazard,
