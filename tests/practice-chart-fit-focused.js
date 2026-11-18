@@ -1,5 +1,6 @@
 // v236 (Scott): Practice "This week" page 3 (rolling 7 days) fits the practice logged – the axis starts a few days
 // before the first log and widens up to 90 days; the header says the span; the curve starts on the first logged day.
+// v237: Fit / 30d / 60d / 90d chips (Fit is the default).
 // iPhone 390x844. Run: node tests/practice-chart-fit-focused.js
 const { chromium } = require('playwright-core');
 const assert = require('assert');
@@ -67,6 +68,30 @@ function logs(firstAgo, every) { const P = [], sp = ['lag', 'chip', 'wedges', 'i
     D = await read();
     assert.strictEqual(D.n, 28); assert.strictEqual(D.bands, 0);
     ok('no practice → 4 empty weeks');
+
+    // v237: Fit / 30d / 60d / 90d – Fit is the default; a chip sets the span and stays on page 3
+    await open(logs(150, 3));
+    const chips = await page.$$eval('#weekcard .wkspans .prchip', e => e.map(x => [x.textContent, x.classList.contains('on')]));
+    assert.deepStrictEqual(chips, [['Fit', true], ['30d', false], ['60d', false], ['90d', false]]);
+    for (const [v, n] of [[30, 30], [60, 60], [90, 90]]) {
+      await page.evaluate(() => { const c = document.getElementById('wkpages'); c.scrollLeft = 2 * c.clientWidth; }); await page.waitForTimeout(200);
+      await page.click('#weekcard .wkspans [data-v="' + v + '"]'); await page.waitForTimeout(250);
+      D = await read();
+      assert.strictEqual(D.n, n); assert.strictEqual(D.from, dayOffset(-(n - 1))); assert.strictEqual(D.head, 'Last ' + n + ' days · rolling 7 days');
+      assert.strictEqual(await page.$eval('#weekcard .wkspans .prchip.on', e => e.textContent), v + 'd');
+      assert.ok(!(await page.$('#weekcard.isfull')), 'a chip does not open full screen');
+      assert.strictEqual(await page.$eval('#wkpages', c => Math.round(c.scrollLeft / c.clientWidth)), 2, 'still on the chart page');
+    }
+    ok('30d / 60d / 90d set the span (' + D.head + '), stay on the chart, no full screen');
+    // 60d with only 3 weeks of practice: the curve starts at the first log, the rest of the window is empty
+    await open(logs(20, 2));
+    await page.evaluate(() => { const c = document.getElementById('wkpages'); c.scrollLeft = 2 * c.clientWidth; }); await page.waitForTimeout(200);
+    await page.click('#weekcard .wkspans [data-v="60"]'); await page.waitForTimeout(250);
+    D = await read(); assert.strictEqual(D.n, 60); assert.strictEqual(D.c0, 39, 'curve starts on the first log');
+    assert.ok(D.ticks.length >= 3 && D.ticks.every(t => /\d/.test(t)), 'every-other-week ticks: ' + D.ticks);
+    await page.click('#weekcard .wkspans [data-v="0"]'); await page.waitForTimeout(250);
+    D = await read(); assert.strictEqual(D.n, 24); assert.strictEqual(D.head, 'Last 3 weeks · rolling 7 days');
+    ok('60d with 3 weeks of logs → empty until the first log; Fit goes back to 3 weeks');
 
     assert.deepStrictEqual(errors, [], 'no page errors');
     console.log('PASS practice-chart-fit-focused');

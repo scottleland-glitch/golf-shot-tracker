@@ -2623,8 +2623,11 @@
         '<span class="wkval">' + (got ? '✓ ' : '') + (r.done ? hmS(r.done) : '–') + (nr ? '' : '<small> / ' + hmS(r.target) + '</small>') + '</span></div>'; });
     p1 += '</div>' + (nr ? '' : '<p class="plintro wknote" id="wkbal">' + esc(balanceLine(P)) + '</p>') + '</div>';
     var p2 = '<div class="wkpage" data-p="1"><p class="wkpt">Each day, by group</p>' + weekDaysSVG(L, W, !!view.wkFull) + legend + '</div>';
-    var R3 = pgRange(L, 0); // v236: the rolling chart fits the practice logged so far (up to 90 days)
-    var p3 = '<div class="wkpage" data-p="2"><p class="wkpt">' + esc(R3.label) + ' · rolling 7 days</p>' + monthsSVG(L, who, P, !!view.wkFull, nr, W.target, R3) + legend + '<p class="plintro wknote">🏆 tournament day · <span class="leskey"></span> lesson' + (nr ? '' : ' · dashed line = your weekly target') + '</p></div>';
+    var R3 = pgRange(L, view.wkSpan || 0); // v236: the rolling chart fits the practice logged so far (up to 90 days)
+    // v237: Fit (default) / 30 / 60 / 90 days
+    var spans = '<div class="prchips wkspans" role="group" aria-label="How far back">' + [[0, 'Fit'], [30, '30d'], [60, '60d'], [90, '90d']].map(function (q) { var on = (view.wkSpan || 0) === q[0];
+      return '<button class="prchip' + (on ? ' on' : '') + '" data-act="wkspan" data-v="' + q[0] + '" aria-pressed="' + on + '"' + (q[0] ? ' aria-label="Last ' + q[0] + ' days"' : ' aria-label="Fit to your practice"') + '>' + q[1] + '</button>'; }).join('') + '</div>';
+    var p3 = '<div class="wkpage" data-p="2"><p class="wkpt">' + esc(R3.label) + ' · rolling 7 days</p>' + spans + monthsSVG(L, who, P, !!view.wkFull, nr, W.target, R3) + legend + '<p class="plintro wknote">🏆 tournament day · <span class="leskey"></span> lesson' + (nr ? '' : ' · dashed line = your weekly target') + '</p></div>';
     var full = !!view.wkFull; // v207 (Scott): tap the card → full screen; swipe down, ✕ or Back to close; left / right still swipe
     return '<div class="card frost weekcard' + (full ? ' isfull' : '') + '" id="weekcard"' + (full ? ' role="dialog" aria-modal="true" aria-label="This week, full screen"' : ' data-act="wkfull" role="button" tabindex="0" aria-label="This week – tap for full screen"') + '>' +
       (full ? '<div class="wkgrab" aria-hidden="true"></div><button class="wkx" data-act="wkclose" id="wkclose" aria-label="Close">✕</button>' : '') + '<div class="planhead">' + nav + '<small id="wktot">' + hmS(W.done) + (nr ? ' logged' : ' of ' + hmS(W.target)) + '</small></div>' +
@@ -6308,6 +6311,7 @@
         SS.list.forEach(function (it, i) { var e = { id: 'pr-' + st5 + '-' + i, date: localDayISO() + 'T12:00:00', player: who5, spoke: it.k, focus: planFocusKey(it), min: it.min }; if (SS.feel[i]) e.feel = SS.feel[i]; lst5.push(e); });
         savePractice(lst5); view.sess = null; toast('Session logged – ' + MYGAME.hm(SS.min) + ' 👍'); render(); window.scrollTo(0, 0); return; }
       case 'wkoff': view.wkOff = Math.max(0, Math.min(25, (view.wkOff || 0) + k)); render(); return;
+      case 'wkspan': view.wkSpan = [30, 60, 90].indexOf(+v) >= 0 ? +v : 0; view.wkPage = 2; render(); return; // v237
       case 'wkfull': if (!view.wkFull) { view.wkFull = true; render(); } return; // v207
       case 'prfull': if (!view.prFull) { view.prFull = true; render(); } return; // v211
       case 'prclose': view.prFull = false; render(); var pc0 = document.getElementById('prcard'); if (pc0 && pc0.scrollIntoView) pc0.scrollIntoView({ block: 'center' }); return;
