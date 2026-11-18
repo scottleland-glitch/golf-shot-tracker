@@ -16,7 +16,7 @@ test('your game and your training: strokes lost, practice a week, and the bigges
   const G = WA.gaps({ rounds: R, logs: L, SG, MYGAME: MY, bl: 'pga', now });
   const by = Object.fromEntries(G.rows.map(r => [r.k, r]));
   assert.ok(Math.abs(by.irons.lost - 3) < 1e-9 && Math.abs(by.short.lost + 0.2) < 1e-9, 'lost = −strokes gained');
-  assert.strictEqual(by.short.week, 40); assert.strictEqual(by.chip.week, 20); assert.strictEqual(by.irons.week, 0);
+  assert.strictEqual(by.short.week, 37, '160 min over 30 days, a week (v240)'); assert.strictEqual(by.chip.week, 19); assert.strictEqual(by.irons.week, 0);
   assert.strictEqual(G.head, 'Irons 100+ cost you 3.0 a round – and got no practice this month');
   assert.strictEqual(WA.gaps({ rounds: [], logs: L, SG, MYGAME: MY, bl: 'pga', now }).head, 'Play a round and this fills in');
 });

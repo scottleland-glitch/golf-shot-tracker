@@ -2628,8 +2628,10 @@
     var legend = prLegend();
     var p1 = '<div class="wkpage" data-p="0"><div class="wkdots" aria-hidden="true">' + dots.join('') + '</div><div class="wkbars">';
     W.rows.forEach(function (r) { var got = !nr && r.done >= r.target;
-      p1 += '<div class="wkrow' + (got ? ' got' : '') + '" data-k="' + r.k + '"><span class="wkname">' + esc(r.name) + '</span><span class="wkbar"><i class="wkfill" style="width:' + Math.min(100, r.done / mx * 100).toFixed(1) + '%"></i>' + (nr ? '' : '<i class="wktgt" style="left:' + (r.target / mx * 100).toFixed(1) + '%"></i>') + '</span>' +
-        '<span class="wkval">' + (got ? '✓ ' : '') + (r.done ? hmS(r.done) : '–') + (nr ? '' : '<small> / ' + hmS(r.target) + '</small>') + '</span></div>'; });
+      // v240 (Scott): no black target marks – the bar is the target (its length), filling up with what's done
+      var tw = nr ? 100 : r.target / mx * 100, fw = nr ? r.done / mx * 100 : r.target ? r.done / r.target * 100 : 0;
+      p1 += '<div class="wkrow' + (got ? ' got' : '') + '" data-k="' + r.k + '"><span class="wkname">' + esc(r.name) + '</span><span class="wkcell"><span class="wkbar" style="width:' + tw.toFixed(1) + '%"><i class="wkfill" style="width:' + Math.min(100, fw).toFixed(1) + '%"></i></span></span>' +
+        '<span class="wkval">' + (got ? '✓ ' : '') + (nr ? (r.done ? hmS(r.done) : '–') : hmS(r.done) + '<small> of ' + hmS(r.target) + '</small>') + '</span></div>'; });
     p1 += '</div>' + (nr ? '' : '<p class="plintro wknote" id="wkbal">' + esc(balanceLine(P)) + '</p>') + '</div>';
     var p2 = '<div class="wkpage" data-p="1"><p class="wkpt">Each day, by group</p>' + weekDaysSVG(L, W, !!view.wkFull) + legend + '</div>';
     var R3 = pgRange(L, view.wkSpan || 0); // v236: the chart fits the practice logged so far (up to 90 days); v238: fading average
@@ -2701,15 +2703,19 @@
     var st = waState(who, P); if (!st) return '';
     var wk = WA.mondayOf(Date.now()), A = WA.ahead({ rounds: finishedRoundsOf(who), logs: practiceOf(who), SG: SG, MYGAME: MYGAME, PLAN: PLAN, bl: myBench(who), now: Date.now(), cur: P.weekMin, last: planAt(who, wk - 7 * 864e5).weekMin });
     var d0 = new Date(wk), d1 = new Date(wk + 6 * 864e5), md = function (d) { return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' }); };
-    var mx = Math.max.apply(null, A.rows.map(function (r) { return r.target; }).concat([10]));
+    var mx = Math.max.apply(null, A.rows.map(function (r) { return r.target; }).concat([10])), did = {};
+    PLAN.week(P, practiceOf(who), Date.now(), 0).rows.forEach(function (r) { did[r.k] = r.done; }); // v240: this week so far, filling each target bar
     var review = !!(st.review || (typeof CO !== 'undefined' && CO && CO.view));
     var o = '<div class="card frost wacard" id="wacard" role="region" aria-label="Your week ahead">' + (review ? '' : '<button class="wax" data-act="waclose" id="waclose" aria-label="Close">✕</button>') +
       '<span class="waeye">' + (st.upd ? 'Updated after ' + esc(st.day) + '\'s round' : 'Your week ahead · ' + esc(md(d0)) + '–' + esc(d1.getMonth() === d0.getMonth() ? String(d1.getDate()) : md(d1))) + '</span><h2 id="wahead">' + esc(A.head) + '</h2>';
     A.lines.forEach(function (L) { o += '<div class="waline ' + (L.good ? 'good' : 'bad') + '"><i aria-hidden="true">' + (L.good ? '✅' : '⚠️') + '</i><span><b>' + esc(L.title) + '</b><small>' + esc(L.text) + '</small></span></div>'; });
     o += '<div class="wasec"><b>This week\'s targets</b><span>' + esc(hmS(A.total)) + (Math.abs(A.total - A.totalLast) < 5 ? ' · same as last week' : ' · ' + (A.total > A.totalLast ? 'up ' : 'down ') + hmS(Math.abs(A.total - A.totalLast))) + '</span></div><div class="wabars">';
     A.rows.forEach(function (r) {
-      var tag = r.delta > 0 ? '<em class="wach up">▲ +' + r.delta + 'm</em>' : r.keep ? '<em class="wach keep">' + (r.delta < 0 ? r.delta + 'm · ' : '') + 'keep going</em>' : r.delta < 0 ? '<em class="wach">' + r.delta + 'm</em>' : '<em class="wach">–</em>';
-      o += '<div class="warow" data-k="' + r.k + '"><span class="wan">' + esc(r.name) + '</span><span class="wabar"><i class="wktgt" style="left:' + (r.target / mx * 100).toFixed(1) + '%"></i></span><span class="wav">' + r.target + 'm</span>' + tag.replace('−', '−') + '</div>'; });
+      var dm = '−' + hmS(-r.delta), done = did[r.k] || 0, got = done >= r.target;
+      var tag = r.delta > 0 ? '<em class="wach up">▲ +' + hmS(r.delta) + '</em>' : r.keep ? '<em class="wach keep">' + (r.delta < 0 ? dm + ' · ' : '') + 'keep going</em>' : r.delta < 0 ? '<em class="wach">' + dm + '</em>' : '<em class="wach">–</em>';
+      // v240 (Scott): the bar is the target (its length), filling with what's done this week – no black marks; times as 1h 55m
+      o += '<div class="warow' + (got ? ' got' : '') + '" data-k="' + r.k + '"><span class="wan">' + esc(r.name) + '</span><span class="wacol"><span class="wabar" style="width:' + (r.target / mx * 100).toFixed(1) + '%"><i class="wafill" style="width:' + Math.min(100, done / r.target * 100).toFixed(1) + '%"></i></span>' +
+        '<small class="wav">' + (got ? '✓ ' : '') + hmS(done) + ' of ' + hmS(r.target) + '</small></span>' + tag + '</div>'; });
     o += '</div><p class="wawhy" id="wawhy">' + esc(A.why) + '</p>' + (review ? '' : '<button class="primary wago" data-act="wago" id="wago">▶ Start this week</button>') + '</div>';
     return o;
   }
@@ -2720,13 +2726,13 @@
     var f1 = function (v) { return (Math.round(v * 10) / 10).toFixed(1); }, rc = recsOn(who);
     var head = rc ? G.head : G.head.replace(/ – .*$/, '');
     var o = '<div class="card frost gapcard" id="gapcard"><span class="tkeye">Your game and your training</span><h2 id="gaphead">' + esc(head) + '</h2>' +
-      '<p class="gaplede">From your rounds (last 3 months) and your practice (last 4 weeks).</p><div class="gapkey"><span><i class="gl"></i>Strokes lost a round</span><span><i class="gp"></i>Practice a week</span></div>';
+      '<p class="gaplede">From your rounds (last 3 months) and your practice (last 30 days).</p><div class="gapkey"><span><i class="gl"></i>Strokes lost a round</span><span><i class="gp"></i>Practice a week</span></div>';
     G.rows.forEach(function (r) {
       var ar = r.arrow === 'up' ? ['↑', 'up', 'better in your rounds lately'] : r.arrow === 'down' ? ['↓', 'down', 'worse in your rounds lately'] : r.arrow === 'flat' ? ['→', 'flat', 'no change yet'] : ['·', 'none', 'not enough shots yet'];
       var lv = r.lost == null ? '–' : r.lost >= 0.05 ? f1(r.lost) : r.lost <= -0.05 ? 'gaining' : 'even';
       o += '<div class="gaprow" data-k="' + r.k + '"><span class="gapn"><b>' + esc(r.name) + '</b><i class="gapar ' + ar[1] + '" title="' + ar[2] + '" aria-label="' + ar[2] + '">' + ar[0] + '</i></span>' +
         '<span class="gapb"><span class="gbar"><i class="gl" style="width:' + (Math.max(0, r.lost || 0) / mxL * 100).toFixed(1) + '%"></i></span><em class="' + (r.lost >= 0.05 ? 'lost' : '') + '">' + lv + '</em></span>' +
-        '<span class="gapb"><span class="gbar"><i class="gp" style="width:' + Math.min(100, r.week / mxP * 100).toFixed(1) + '%"></i></span><em>' + (r.week ? r.week + 'm' : '–') + '</em></span></div>'; });
+        '<span class="gapb"><span class="gbar"><i class="gp" style="width:' + Math.min(100, r.week / mxP * 100).toFixed(1) + '%"></i></span><em>' + (r.week ? hmS(r.week) : '–') + '</em></span></div>'; });
     return o + '<p class="gapfoot">↑ better · → no change yet · ↓ worse – your last 30 days of rounds against the months before.</p></div>';
   }
   function moreHTML(who, D) {
@@ -2813,6 +2819,17 @@
     return lead + P.join(' · ');
   }
   var TR_NP = false; // v209: practice off → no practice panel under the chart
+  // v240 (Scott): smooth trend lines – a monotone cubic (Fritsch–Carlson) through the points: never overshoots a point, flat stays flat
+  function monoPath(pts) {
+    var n = pts.length, f = function (v) { return v.toFixed(1); }; if (n < 3) return pts.map(function (p, k) { return (k ? 'L' : 'M') + f(p[0]) + ' ' + f(p[1]); }).join('');
+    var d = [], m = [], t = [], i;
+    for (i = 0; i < n - 1; i++) { d[i] = pts[i + 1][0] - pts[i][0]; m[i] = d[i] ? (pts[i + 1][1] - pts[i][1]) / d[i] : 0; }
+    t[0] = m[0]; t[n - 1] = m[n - 2]; for (i = 1; i < n - 1; i++) t[i] = m[i - 1] * m[i] <= 0 ? 0 : (m[i - 1] + m[i]) / 2;
+    for (i = 0; i < n - 1; i++) { if (m[i] === 0) { t[i] = 0; t[i + 1] = 0; continue; } var a = t[i] / m[i], b = t[i + 1] / m[i], h = a * a + b * b; if (h > 9) { var k3 = 3 / Math.sqrt(h); t[i] = k3 * a * m[i]; t[i + 1] = k3 * b * m[i]; } }
+    var o = 'M' + f(pts[0][0]) + ' ' + f(pts[0][1]);
+    for (i = 0; i < n - 1; i++) { var h3 = d[i] / 3; o += 'C' + f(pts[i][0] + h3) + ' ' + f(pts[i][1] + t[i] * h3) + ' ' + f(pts[i + 1][0] - h3) + ' ' + f(pts[i + 1][1] - t[i + 1] * h3) + ' ' + f(pts[i + 1][0]) + ' ' + f(pts[i + 1][1]); }
+    return o;
+  }
   function trendChartSVG(A, weeks, Z, total) {
     var np = TR_NP, early = !A.ok, FC = A.fc || [], UP = [], DN = [], LO = [], HI = [];
     var N0 = A.y.length, H0 = Math.max(0, N0 - Z), FW = FC.length, N = Math.max(2, (N0 - H0) + FW), CW = 340, PH = 92, GAP = 18, T = 8, LX = 30, RX = 44, B = 22, H = T + PH * 2 + GAP + B, BOT = T + PH * 2 + GAP; if (np) { H = T + PH + B; BOT = T + PH; }
@@ -2820,7 +2837,7 @@
     var yv = A.y.slice(H0).filter(function (v) { return v != null; }).concat(FC, [A.normY * (total ? -1 : 1)]), lo = Math.min.apply(null, yv), hi = Math.max.apply(null, yv), pad = Math.max(0.3, (hi - lo) * 0.12);
     if (!total) { lo = Math.min(lo, -0.5); hi = Math.max(hi, 0.5); } lo -= pad; hi += pad;
     var ys = function (v) { return T + (hi - v) * PH / (hi - lo); }, px = A.x.slice(H0), pHi = Math.max(0.5, Math.max.apply(null, px)) * 1.12, yp = function (v) { return T + PH + GAP + (pHi - v) * PH / pHi; };
-    var P = function (pts) { return pts.map(function (p, k) { return (k ? 'L' : 'M') + p[0].toFixed(1) + ' ' + p[1].toFixed(1); }).join(''); }, f1 = function (v) { return v.toFixed(1); };
+    var f1 = function (v) { return v.toFixed(1); };
     var normY = total ? -A.normY : A.normY, sm = (A.fy || A.sy).map(function (v) { return v == null ? null : total ? -v : v; }); // v218: the solid line is your form
     var o = '<svg class="trchart" viewBox="0 0 ' + CW + ' ' + H + '" role="img" aria-label="' + esc(A.name) + ': rounds and practice by week, and the forecast">';
     if (!early) o += '<rect x="' + f1(xt) + '" y="' + (T - 2) + '" width="' + f1(CW - RX - xt + 4) + '" height="' + (BOT - T + 4) + '" class="trfuture"/>';
@@ -2829,7 +2846,7 @@
     for (var g = Math.ceil(lo / stp) * stp; g <= hi + 1e-9; g += stp) { var gy = f1(ys(g)), zero = !total && Math.abs(g) < 1e-9;
       o += '<line x1="' + LX + '" x2="' + (CW - RX) + '" y1="' + gy + '" y2="' + gy + '" class="' + (zero ? 'trzero' : 'trgrid2') + '"/><text x="' + (LX - 4) + '" y="' + f1(ys(g) + 3.5) + '" text-anchor="end" class="trax">' + (total ? g : g > 0 ? '+' + (stp < 1 ? g.toFixed(1) : g) : g < 0 ? '−' + (stp < 1 ? (-g).toFixed(1) : -g) : '0') + '</text>'; }
     o += '<line x1="' + LX + '" x2="' + f1(xt) + '" y1="' + f1(ys(normY)) + '" y2="' + f1(ys(normY)) + '" class="trnorm"/>';
-    var hist = []; for (var i = H0; i <= last; i++) if (sm[i] != null) hist.push([x(i), ys(sm[i])]); if (hist.length > 1) o += '<path d="' + P(hist) + '" class="trsg"/>';
+    var hist = []; for (var i = H0; i <= last; i++) if (sm[i] != null) hist.push([x(i), ys(sm[i])]); if (hist.length > 1) o += '<path d="' + monoPath(hist) + '" class="trsg"/>';
     for (var j = H0; j <= last; j++) if (A.y[j] != null) o += '<circle cx="' + f1(x(j)) + '" cy="' + f1(ys(A.y[j])) + '" r="' + (A.prWeek && A.prWeek[j] ? '2.6' : '2.4') + '" class="trdot' + (A.prWeek && A.prWeek[j] ? ' pr' : '') + '"/>'; // v218: open = practice rounds only
     // v197 (Scott): tap a week's dot to see its rounds
     var sel = view.trTap && view.trTap.k === A.k ? view.trTap.i : -1;
@@ -2842,7 +2859,7 @@
     if (!early) {
     // v218: one dashed line from where you are now, 3 weeks out
     var st = [xt, ys(total ? A.formScore : A.form)], M = [st].concat(A.fc.map(function (v, k) { return [x(last + k + 1), ys(v)]; })), eP = M[M.length - 1];
-    o += '<path d="' + P(M) + '" class="trmid"/><circle cx="' + f1(eP[0]) + '" cy="' + f1(eP[1]) + '" r="4" class="trend"/>';
+    o += '<path d="' + monoPath(M) + '" class="trmid"/><circle cx="' + f1(eP[0]) + '" cy="' + f1(eP[1]) + '" r="4" class="trend"/>';
     }
     o += '<line x1="' + f1(xt) + '" x2="' + f1(xt) + '" y1="' + (T - 4) + '" y2="' + BOT + '" class="trtoday"/><text x="' + f1(xt + 3) + '" y="' + (T + 7) + '" class="trax">today</text>';
     if (!early) o += '<text x="' + (LX + 2) + '" y="' + (T + 10) + '" class="trpl">' + (total ? 'Score · lower is better' : 'Strokes gained / round') + '</text>';
@@ -2850,7 +2867,7 @@
     if (!np) { o += '<line x1="' + LX + '" x2="' + (CW - RX) + '" y1="' + f1(yp(0)) + '" y2="' + f1(yp(0)) + '" class="trbase"/>';
     [1, 2, 3, 5].forEach(function (v) { if (v < pHi && (pHi < 4 || v !== 1)) o += '<text x="' + (LX - 4) + '" y="' + f1(yp(v) + 3.5) + '" text-anchor="end" class="trax">' + v + 'h</text>'; });
     o += '<line x1="' + LX + '" x2="' + f1(xt) + '" y1="' + f1(yp(A.normX)) + '" y2="' + f1(yp(A.normX)) + '" class="trnormp"/>';
-    var ph = []; for (var k = H0; k <= last; k++) ph.push([x(k), yp(A.sx[k])]); o += '<path d="' + P(ph) + '" class="trpr"/>';
+    var ph = []; for (var k = H0; k <= last; k++) ph.push([x(k), yp(A.sx[k])]); o += '<path d="' + monoPath(ph) + '" class="trpr"/>';
     for (var q = H0; q <= last; q++) o += '<circle cx="' + f1(x(q)) + '" cy="' + f1(yp(A.x[q])) + '" r="2.4" class="trdotp"/>';
     o += '<text x="' + (LX + 2) + '" y="' + (T + PH + GAP + 10) + '" class="trpl pr">Practice / week</text>'; }
     var lab = function (t) { return new Date(t).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }); }, step = Math.max(1, Math.round((N0 - H0) / 4));
@@ -2941,7 +2958,7 @@
       if (W.id === 'week') svg = svg.replace(/(<text class="plv"[^>]*>)([^<]*)\/wk</g, function (m0, t, v) { return t + v + '<'; }); // this week: real minutes, not a rate
       svg = svg.replace(/(<text class="plv"[^>]*>)([^<]*)</g, function (m0, t, v) { return t + short(v) + '<'; });
       o += '<div class="wkpage prpage" data-p="' + W.id + '"><small class="prper">' + esc(W.label) + '</small><h2' + (i === 0 ? ' id="prhead"' : '') + ' class="prh">' + esc(W.head) + '</h2>' +
-        '<p class="prlede2"' + (i === 0 ? ' id="prlede"' : '') + '>' + esc(W.lede) + (W.typicalUntil ? ' <span class="prtyp">Uses your typical week before ' + esc(new Date(W.typicalUntil).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })) + '.</span>' : '') + '</p>' + svg +
+        '<p class="prlede2"' + (i === 0 ? ' id="prlede"' : '') + '>' + esc(W.lede) + (W.typicalUntil ? ' <span class="prtyp">Includes your typical week before ' + (W.typicalFirst ? 'your first log (' : '') + esc(new Date(W.typicalUntil).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })) + (W.typicalFirst ? ').' : ', when you entered it.') + '</span>' : '') + '</p>' + svg +
         '<div class="mglegend"><span><i class="lpc"></i>' + esc(W.label) + '</span>' + (W.prev ? '<span><i class="lp"></i>' + esc(W.prevName) + '</span>' : '') +
         '<span><i class="lb"></i>' + esc(bw.charAt(0).toUpperCase() + bw.slice(1)) + ' a week</span></div></div>'; });
     o += '</div><div class="wkpdots prdots" aria-hidden="true">' + [0, 1, 2].map(function (i) { return '<i class="' + (i === pg ? 'on' : '') + '"></i>'; }).join('') + '</div>' +

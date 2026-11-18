@@ -3094,7 +3094,7 @@ html body .wkdots i.full { background: #1f6f4a; } html body .wkdots i.half { bac
 html body .wkbars { display: flex; flex-direction: column; gap: 9px; } html body .wkrow { display: grid; grid-template-columns: 88px 1fr 92px; align-items: center; gap: 8px; }
 html body .wkname { font-size: 13px; font-weight: 600; color: #2f4a3a; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 html body .wkbar { position: relative; display: block; height: 14px; border-radius: 7px; background: rgba(23, 48, 31, .08); } html body .wkfill { position: absolute; left: 0; top: 0; bottom: 0; border-radius: 7px; background: #6fae86; }
-html body .wkrow.got .wkfill { background: #1f6f4a; } html body .wktgt { position: absolute; top: -3px; bottom: -3px; width: 2.5px; margin-left: -1px; border-radius: 1px; background: #17301f; }
+html body .wkrow.got .wkfill { background: #1f6f4a; } html body .wkcell { display: block; min-width: 0; } html body .wkbar { min-width: 14px; overflow: hidden; }
 html body .wkval { font-size: 12.5px; font-weight: 700; white-space: nowrap; text-align: right; } html body .wkval small { font-weight: 500; color: #5b6b78; } html body .wkrow.got .wkval { color: #1f6f4a; }
 html body .wknote { margin: 10px 0 0; font-size: 12.5px; }
 html body .typcard .typrow .prstep { width: 40px; height: 40px; min-height: 40px; min-width: 40px; padding: 0; } html body .typcard .typrow { min-height: 48px; } html body .typcard .typrow .prval { min-width: 92px; text-align: center; }
@@ -3261,9 +3261,9 @@ html body .wacard h2 { font-size: 21px; line-height: 1.2; margin: 4px 44px 8px 0
 html body .waline { display: flex; gap: 10px; align-items: flex-start; padding: 9px 0; border-top: 1px solid rgba(23, 48, 31, .08); }
 html body .waline i { font-style: normal; font-size: 19px; line-height: 1.1; } html body .waline span { display: grid; gap: 2px; } html body .waline b { font-size: 15px; } html body .waline small { font-size: 13px; color: var(--frost-ink-soft); line-height: 1.35; }
 html body .wasec { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; margin: 12px 0 4px; } html body .wasec b { font-size: 15px; } html body .wasec span { font-size: 13px; color: var(--frost-ink-soft); text-align: right; }
-html body .warow { display: grid; grid-template-columns: 84px 1fr 36px 92px; align-items: center; gap: 6px; padding: 4px 0; font-size: 13.5px; }
-html body .wabar { position: relative; height: 12px; border-radius: 8px; background: rgba(23, 48, 31, .08); } html body .wabar .wktgt { position: absolute; top: -3px; bottom: -3px; width: 3px; background: #17301f; border-radius: 2px; }
-html body .wav { text-align: right; font-weight: 700; font-size: 13px; } html body .wach { font-style: normal; font-size: 12px; color: var(--frost-ink-soft); text-align: right; } html body .wach.up { color: #1f6f4a; font-weight: 800; } html body .wach.keep { color: #2f63b8; font-weight: 700; }
+html body .warow { display: grid; grid-template-columns: 84px 1fr 84px; align-items: center; gap: 8px; padding: 4px 0; font-size: 13.5px; } html body .wacol { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+html body .wabar { position: relative; display: block; min-width: 14px; height: 12px; border-radius: 8px; background: rgba(31, 111, 74, .14); overflow: hidden; } html body .wafill { position: absolute; left: 0; top: 0; bottom: 0; border-radius: 8px; background: #2fa866; } html body .warow.got .wafill { background: #1f6f4a; }
+html body .wav { font-weight: 700; font-size: 12px; color: #2f4a3a; white-space: nowrap; } html body .warow.got .wav { color: #1f6f4a; } html body .wach { font-style: normal; font-size: 12px; color: var(--frost-ink-soft); text-align: right; } html body .wach.up { color: #1f6f4a; font-weight: 800; } html body .wach.keep { color: #2f63b8; font-weight: 700; }
 html body .wawhy { font-size: 13.5px; background: rgba(31, 111, 74, .1); border-radius: 12px; padding: 10px 12px; margin: 10px 0 12px; line-height: 1.4; }
 html body .wago { width: 100%; }
 html body .gapcard h2 { font-size: 20px; line-height: 1.25; margin: 4px 0 4px; } html body .gaplede { font-size: 13px; color: var(--frost-ink-soft); margin: 0 0 8px; }

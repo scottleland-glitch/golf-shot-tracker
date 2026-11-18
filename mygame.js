@@ -277,8 +277,10 @@
   function practiceWindows(logs, opts) {
     opts = opts || {}; var now = opts.now == null ? Date.now() : +opts.now, B = practiceBench(opts.bl), V = validPractice(logs), typ = opts.typical;
     var t0 = new Date(now); t0.setHours(0, 0, 0, 0); var mon = t0.getTime() - ((t0.getDay() + 6) % 7) * DAY, end = t0.getTime() + DAY;
-    var tot = B.spokes.reduce(function (x, s) { return x + s.wk; }, 0) || 1, set = typ && typ.weekMin > 0 ? localDay(typ.set) : NaN, base = 0;
-    if (!isNaN(set)) { var before = V.reduce(function (x, e) { var te = localDay(e.date); return te < set && te >= set - 56 * DAY ? x + e.min : x; }, 0) / 8; base = Math.max(0, typ.weekMin - before); }
+    var tot = B.spokes.reduce(function (x, s) { return x + s.wk; }, 0) || 1, set = typ && typ.weekMin > 0 ? localDay(typ.set) : NaN, base = 0, typFirst = false;
+    // v240 (Scott): once real logs exist they win – the typical week only fills the days before your first real log (or before you
+    // entered it, if that came first), so the 30-day page matches "Your game and your training" once the window is all logged.
+    if (!isNaN(set)) { var first = V.reduce(function (m, e) { var te = localDay(e.date) - DAY / 2; return te < m ? te : m; }, Infinity); typFirst = first <= set; set = Math.min(set, first); base = typ.weekMin; }
     function win(from, to, weeks, fill) {
       var by = {}; SPOKES.forEach(function (s) { by[s.k] = 0; });
       V.forEach(function (e) { var te = localDay(e.date); if (te >= from && te < to) by[e.spoke] += e.min; });
@@ -298,7 +300,7 @@
         lede = cur.wk >= 1 ? (top.length === 1 ? 'All ' + top[0].name.toLowerCase() + '. ' : 'Mostly ' + top[0].name.toLowerCase() + ' and ' + top[1].name.toLowerCase() + '. ') + cmp
           : prev.wk >= 1 ? 'Last week: ' + hm(prev.wk) + '.' : 'Nothing logged yet this week.';
       } else { head = cur.wk >= 1 ? hm(cur.wk) + ' a week' : 'Nothing logged yet'; lede = cur.wk >= 1 ? cmp : ''; }
-      return { id: d[0], label: d[1], from: d[2], to: d[3], cur: cur, prev: prev.wk >= 1 ? prev : null, prevName: d[6], head: head, lede: lede, typicalUntil: cur.filled > 0 ? set : null };
+      return { id: d[0], label: d[1], from: d[2], to: d[3], cur: cur, prev: prev.wk >= 1 ? prev : null, prevName: d[6], head: head, lede: lede, typicalUntil: cur.filled > 0 ? set : null, typicalFirst: cur.filled > 0 && typFirst };
     });
   }
   // What the level card says: level now, vs the benchmark, and whether this week is building it up or letting it fade.

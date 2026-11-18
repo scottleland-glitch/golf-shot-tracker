@@ -236,5 +236,22 @@ test('practice windows: this week (real minutes), last 30 days and last 3 months
   assert.strictEqual(mon.head, 'New week'); // Monday morning: nothing yet
   // the typical week fills the 30-day and 3-month pages before you entered it – never this week
   const T = M.practiceWindows(logs, { bl: 'd1w', now, typical: { weekMin: 360, set: ld(2) } });
-  assert.strictEqual(Math.round(T[0].cur.wk), 120); assert.ok(T[1].cur.wk > 300 && T[1].cur.wk < 420, T[1].cur.wk); assert.ok(T[1].typicalUntil);
+  assert.strictEqual(Math.round(T[0].cur.wk), 120);
+  // v240 (Scott): real logs win – the first log was 50 days ago, so the 30-day page is all logged practice, no typical week
+  assert.strictEqual(Math.round(T[1].cur.wk), Math.round(W[1].cur.wk)); assert.strictEqual(T[1].typicalUntil, null);
+  assert.ok(T[2].typicalUntil && T[2].typicalFirst, '3 months: the typical week fills the days before the first log'); assert.ok(T[2].cur.wk > W[2].cur.wk);
+  // first log 20 days ago, typical week entered today: 9 days of typical week (days 29–21 ago) + 21 days of logs
+  const L2 = [[0, 'short', 60], [2, 'lag', 60], [6, 'chip', 30], [20, 'irons', 210]].map((x, i) => ({ id: 'v' + i, date: ld(x[0]), spoke: x[1], min: x[2] }));
+  const T2 = M.practiceWindows(L2, { bl: 'd1w', now, typical: { weekMin: 700, set: ld(0) } })[1];
+  assert.strictEqual(Math.round(T2.cur.wk), Math.round((360 + 700 / 7 * T2.cur.filled) / (30 / 7))); assert.strictEqual(Math.round(T2.cur.filled), 9); assert.ok(T2.typicalFirst);
+  assert.strictEqual(new Date(T2.typicalUntil).getDate(), new Date(now - 20 * day).getDate());
+});
+// v240 (Scott): "Your game and your training" and the My Practice 30-day page agree once the 30 days are all logged
+test('practice a week: My Practice 30 days = Your game and your training', () => {
+  const WA = require('../weekahead.js'), now = new Date(2026, 10, 17, 21).getTime(), ld = (n) => { const t = new Date(now - n * day); return t.getFullYear() + '-' + String(t.getMonth() + 1).padStart(2, '0') + '-' + String(t.getDate()).padStart(2, '0'); };
+  const L = []; for (let d = 0; d < 45; d += 2) L.push({ id: 'g' + d, date: ld(d), spoke: ['short', 'irons', 'chip'][d % 3], min: 35 + d });
+  const W = M.practiceWindows(L, { bl: 'd1w', now, typical: { weekMin: 600, set: ld(0) } })[1];
+  const G = WA.gaps({ rounds: [], logs: L, SG: {}, MYGAME: { SPOKES: M.SPOKES, shape: () => ({ rounds: 0, spokes: M.SPOKES.map(() => ({ n: 0, need: 1, value: null })) }) }, bl: 'd1w', now });
+  const gw = G.rows.reduce((t, r) => t + r.week, 0);
+  assert.strictEqual(W.typicalUntil, null); assert.ok(Math.abs(W.cur.wk - gw) <= 3, W.cur.wk + ' vs ' + gw);
 });

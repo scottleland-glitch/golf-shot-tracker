@@ -1,5 +1,5 @@
 // v221 (Scott): the Practice page from the top down –
-//   gaps(): "Your game and your training" – per skill, strokes lost a round (My Game, 3 months), practice a week (last 4 weeks)
+//   gaps(): "Your game and your training" – per skill, strokes lost a round (My Game, 3 months), practice a week (last 30 days, v240)
 //           and whether that gap is closing in your rounds (last 30 days against the 3 months before).
 //   ahead(): "Your week ahead" – each Monday: what's working / what slipped in last week's rounds (by part of the game, against
 //           your 3-month normal), this week's targets with what changed since last week, and one plain sentence why.
@@ -7,7 +7,7 @@
 (function (root) {
   'use strict';
   var DAY = 864e5, WEEK = 7 * DAY;
-  var CFG = { lostDays: 91, pracWeeks: 4, recentDays: 30, baseDays: 120, arrow: 0.3, work: 0.5, groupNeed: { putt: 10, short: 3, wedge: 3, full: 6 }, keepMin: 5, change: 5, bigChange: 15 };
+  var CFG = { lostDays: 91, pracDays: 30, recentDays: 30, baseDays: 120, arrow: 0.3, work: 0.5, groupNeed: { putt: 10, short: 3, wedge: 3, full: 6 }, keepMin: 5, change: 5, bigChange: 15 };
   function mondayOf(t) { var d = new Date(t); d.setHours(0, 0, 0, 0); d.setDate(d.getDate() - ((d.getDay() + 6) % 7)); return d.getTime(); }
   function when(r) { return Date.parse(r.date); }
   function within(list, a, b) { return list.filter(function (r) { var t = when(r); return !isNaN(t) && t >= a && t < b; }); }
@@ -18,11 +18,14 @@
     var now = o.now == null ? Date.now() : +o.now, MY = o.MYGAME, SG = o.SG, bl = o.bl, R = o.rounds || [];
     var lost = MY.shape(within(R, now - CFG.lostDays * DAY, now + DAY), SG, bl);
     var rec = MY.shape(within(R, now - CFG.recentDays * DAY, now + DAY), SG, bl), base = MY.shape(within(R, now - CFG.baseDays * DAY, now - CFG.recentDays * DAY), SG, bl);
-    var pm = minutes(o.logs, now - CFG.pracWeeks * WEEK, now + DAY);
+    // v240: practice a week over the same 30 days (by calendar day) as the My Practice 30-day page, so the two numbers agree
+    var d0 = new Date(now); d0.setHours(0, 0, 0, 0); var end = d0.getTime() + DAY, pm = {}, wks = CFG.pracDays / 7;
+    (o.logs || []).forEach(function (e) { var m = /^(\d{4})-(\d{2})-(\d{2})/.exec(e.date || ''), t = m ? new Date(+m[1], +m[2] - 1, +m[3], 12).getTime() : Date.parse(e.date);
+      if (e.min > 0 && t >= end - CFG.pracDays * DAY && t < end) pm[e.spoke] = (pm[e.spoke] || 0) + e.min; });
     var rows = MY.SPOKES.map(function (s, i) {
       var L = lost.spokes[i], a = rec.spokes[i], b = base.spokes[i], arrow = null;
       if (a.n >= a.need / 2 && b.n >= b.need / 2 && a.value != null && b.value != null) { var d = a.value - b.value; arrow = d >= CFG.arrow ? 'up' : d <= -CFG.arrow ? 'down' : 'flat'; }
-      return { k: s.k, name: s.name, lost: L.value == null ? null : -L.value, shots: L.n, solid: L.solid, week: Math.round((pm[s.k] || 0) / CFG.pracWeeks), arrow: arrow };
+      return { k: s.k, name: s.name, lost: L.value == null ? null : -L.value, shots: L.n, solid: L.solid, week: Math.round((pm[s.k] || 0) / wks), arrow: arrow };
     });
     var tot = rows.reduce(function (t, r) { return t + r.week; }, 0) || 1, any = rows.some(function (r) { return r.week > 0; });
     // the biggest mismatch: a lot lost, little practice
@@ -31,7 +34,7 @@
     if (!lost.rounds) head = 'Play a round and this fills in';
     else if (!cand) head = 'No big gaps – keep it balanced';
     else { var r = cand.r; head = r.name + (/(s|\+)$/.test(r.name) ? ' cost' : ' costs') + ' you ' + f1(r.lost) + ' a round' +
-      (!any ? '' : r.week === 0 ? ' – and got no practice this month' : r.week / tot < 0.15 ? ' – and only ' + r.week + ' min a week of practice' : ' – and you\'re on it'); }
+      (!any ? '' : r.week === 0 ? ' – and got no practice this month' : r.week / tot < 0.15 ? ' – and only ' + (MY.hm ? MY.hm(r.week) : r.week + ' min') + ' a week of practice' : ' – and you\'re on it'); }
     return { rows: rows, head: head, rounds: lost.rounds, practised: any };
   }
 
