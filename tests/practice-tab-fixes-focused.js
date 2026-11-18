@@ -64,6 +64,7 @@ const toMin = (x) => { let m = 0; x.replace(/(\d+)\s*h/, (q, h) => { m += 60 * h
     // the practice fading-average chart keeps its line shape (straight segments), Trends lines are curves
     const wk = await page.$eval('#weekcard .wktotal', e => e.getAttribute('d')); assert.doesNotMatch(wk, /C/, 'practice chart unchanged');
     await page.click('#tbmygame'); await page.waitForSelector('#mygame'); await page.click('#qgotrends'); await page.waitForSelector('#trendspage .trcard2');
+    assert.match(await page.textContent('#trlede'), /^Solid: the average of your last 3 rounds/);
     const d = await page.$$eval('#trendspage .trsg, #trendspage .trmid, #trendspage .trpr', e => e.map(x => x.getAttribute('d')));
     assert.ok(d.length >= 6 && d.every(x => /^M[\d.]+ [\d.]+(C|L)/.test(x)) && d.filter(x => /C/.test(x)).length >= 6, d.slice(0, 3).join(' / '));
     ok('Trends: form, forecast and practice lines are smooth curves (' + d.filter(x => /C/.test(x)).length + ' of ' + d.length + ')');

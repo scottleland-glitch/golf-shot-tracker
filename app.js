@@ -2786,7 +2786,7 @@
     var who = view.trWho || mgWho(), TD = trendsData(who), np = TR_NP = !practiceOn(who), z = TR_ZOOM.filter(function (x) { return x[0] === view.trZoom; })[0] || TR_ZOOM[0];
     var h = '<div class="frostpage theme-sky mygamepage trendspage" id="trendspage"><div class="topbar frost"><button class="txt frostbtn" data-act="trback" id="trback">‹ ' + (view.trFrom === 'practice' ? 'Practice' : view.trFrom === 'home' ? 'Home' : 'My Game') + '</button><div class="title"><b>Trends</b><span>' + esc(who || '') + '</span></div><span class="tbsp"></span></div>';
     // v218 (Scott): one dashed line, 3 weeks out – no band, no confidence
-    h += '<p class="trlede" id="trlede">Solid: your rounds' + (np ? '' : ', practice underneath') + '. Dashed: where you\'re heading over the next ' + TRENDS.CFG.ahead + ' weeks. Filled dots are tournaments' + (np ? ', open dots other rounds' : ', open dots practice rounds') + '.</p>';
+    h += '<p class="trlede" id="trlede">Solid: the average of your last 3 rounds' + (np ? '' : ', practice underneath') + '. Dashed: where you\'re heading over the next ' + TRENDS.CFG.ahead + ' weeks. Filled dots are tournaments' + (np ? ', open dots other rounds' : ', open dots practice rounds') + '.</p>';
     h += '<p class="trpatience" id="trpatience">The dashed line starts after ' + TRENDS.CFG.minRounds + ' rounds. Tap a week to see its rounds.</p>';
     h += '<div class="stseg mgseg trzoom" id="trzoom" role="group" aria-label="Zoom">' + TR_ZOOM.map(function (x) { var on = x === z; return '<button class="' + (on ? 'sel' : '') + '" data-act="trzoom" data-v="' + x[0] + '" aria-pressed="' + on + '">' + x[1] + '</button>'; }).join('') + '</div>';
     var end = TD.now + TRENDS.CFG.ahead * 7 * 864e5, endTxt = new Date(end).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
@@ -2840,7 +2840,7 @@
     if (!total) { lo = Math.min(lo, -0.5); hi = Math.max(hi, 0.5); } lo -= pad; hi += pad;
     var ys = function (v) { return T + (hi - v) * PH / (hi - lo); }, px = A.x.slice(H0), pHi = Math.max(0.5, Math.max.apply(null, px)) * 1.12, yp = function (v) { return T + PH + GAP + (pHi - v) * PH / pHi; };
     var f1 = function (v) { return v.toFixed(1); };
-    var normY = total ? -A.normY : A.normY, sm = (A.fy || A.sy).map(function (v) { return v == null ? null : total ? -v : v; }); // v218: the solid line is your form
+    var normY = total ? -A.normY : A.normY, sm = (A.ry || A.fy || A.sy).map(function (v) { return v == null ? null : total ? -v : v; }); // v218: the solid line is your form; v240: the average of your last 3 rounds
     var o = '<svg class="trchart" viewBox="0 0 ' + CW + ' ' + H + '" role="img" aria-label="' + esc(A.name) + ': rounds and practice by week, and the forecast">';
     if (!early) o += '<rect x="' + f1(xt) + '" y="' + (T - 2) + '" width="' + f1(CW - RX - xt + 4) + '" height="' + (BOT - T + 4) + '" class="trfuture"/>';
     // scale: whole strokes (half strokes when the range is small); the score in steps of 2 or 5
@@ -2860,7 +2860,8 @@
     if (early) { o += '<text x="' + (LX + 2) + '" y="' + (T + 10) + '" class="trpl">' + (total ? 'Score · lower is better' : 'Strokes gained / round') + '</text>'; }
     if (!early) {
     // v218: one dashed line from where you are now, 3 weeks out
-    var st = [xt, ys(total ? A.formScore : A.form)], M = [st].concat(A.fc.map(function (v, k) { return [x(last + k + 1), ys(v)]; })), eP = M[M.length - 1];
+    // v240: the dashed line carries on from where the solid line (last 3 rounds) ends
+    var st = [xt, ys(sm[last] != null ? sm[last] : total ? A.formScore : A.form)], M = [st].concat(A.fc.map(function (v, k) { return [x(last + k + 1), ys(v)]; })), eP = M[M.length - 1];
     o += '<path d="' + monoPath(M) + '" class="trmid"/><circle cx="' + f1(eP[0]) + '" cy="' + f1(eP[1]) + '" r="4" class="trend"/>';
     }
     o += '<line x1="' + f1(xt) + '" x2="' + f1(xt) + '" y1="' + (T - 4) + '" y2="' + BOT + '" class="trtoday"/><text x="' + f1(xt + 3) + '" y="' + (T + 7) + '" class="trax">today</text>';

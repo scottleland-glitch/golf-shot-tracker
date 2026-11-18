@@ -83,7 +83,7 @@
       var S = SG.summarize(r, opts.bl); if (!S.holesDone) return;
       var w = W[i], rw = r.play === 'practice' ? CFG.practiceRound : 1; // v218: a practice round counts half
       w.holes += S.holesDone; w.wHoles += S.holesDone * rw; w.rounds++; if (rw < 1) w.prRounds++; var s18 = SG.score18 ? SG.score18(S) : (S.holesDone === 18 ? S.strokes : null); if (s18 != null) { w.score.push(s18); w.scoreW.push(rw * S.holesDone / 18); } // v219: a 9 counts half, doubled
-      var R = { id: r.id, date: r.date, course: r.course || '', play: r.play || '', holes: S.holesDone, score: S.holesDone === 18 || (S.holesDone === 9 && S.holes.length === 9) ? S.strokes : null, sg: {}, n: {} }; w.list.push(R); // v197: tap a week
+      var R = { id: r.id, date: r.date, course: r.course || '', play: r.play || '', holes: S.holesDone, score: S.holesDone === 18 || (S.holesDone === 9 && S.holes.length === 9) ? S.strokes : null, sg: {}, n: {} }; R.s18 = s18; w.list.push(R); // v197: tap a week
       S.holes.forEach(function (h) { if (!h.done) return; h.shots.forEach(function (s) { if (s.layup) return;
         for (var k = 0; k < SP.length; k++) if (SP[k].test(s)) { w.sg[SP[k].k] = (w.sg[SP[k].k] || 0) + s.sg * rw; w.n[SP[k].k] = (w.n[SP[k].k] || 0) + 1; R.sg[SP[k].k] = (R.sg[SP[k].k] || 0) + s.sg; R.n[SP[k].k] = (R.n[SP[k].k] || 0) + 1; break; } }); });
     });
@@ -137,6 +137,10 @@
       link: usePr && b > 0, heading: end < normY - margin && end < form - 0.05, improving: end > form + margin });
   }
 
+  // v240 (Scott): the solid line is the average of your last 3 rounds (CFG.lineRounds), week by week: every round counts the same,
+  // a week without rounds keeps the value it had. val(round) → the round's number, or null when it has none (no shots in that area).
+  function lastRounds(W, val) { var seen = []; return W.map(function (w) { w.list.forEach(function (R) { var v = val(R); if (v != null) seen.push(v); });
+    var L = seen.slice(-CFG.lineRounds); return L.length ? L.reduce(function (a, b) { return a + b; }, 0) / L.length : null; }); }
   // ---- everything for the Trends page ----
   // tests: [{ date, area: { putt, chip, bunker, wedges } }] – strokes per round for that area from a short game test
   function build(rounds, logs, SG, MYGAME, opts) {
@@ -148,7 +152,8 @@
       var tv = lastTest && lastTest.area && lastTest.area[A.k] != null ? { t: Date.parse(lastTest.date), v: lastTest.area[A.k] } : null;
       var feel = W.map(function (w) { var a = 0, h = 0; A.spokes.forEach(function (k) { if (w.feel[k]) { a += w.feel[k][0]; h += w.feel[k][1]; } }); return h ? a / h : null; });
       var les = W.map(function (w) { return w.lessons.filter(function (L) { return A.spokes.indexOf(L.spoke) >= 0; }); });
-      return Object.assign({ k: A.k, name: A.name, y: y, x: x, prWeek: W.map(function (w) { return w.rounds > 0 && w.prRounds === w.rounds; }) }, analyse(y, x, { test: tv, now: now, feel: feel, lessons: les, wt: W.map(function (w) { return w.wHoles / 18; }), cnt: y.map(function (v, i) { return v == null ? 0 : W[i].rounds; }), roundsOnly: !!opts.roundsOnly }));
+      var ry = lastRounds(W, function (R) { var n = 0, g = 0; A.spokes.forEach(function (k) { if (R.n[k]) { n += R.n[k]; g += R.sg[k]; } }); return n && R.holes ? g / R.holes * 18 : null; });
+      return Object.assign({ k: A.k, name: A.name, y: y, x: x, ry: ry, prWeek: W.map(function (w) { return w.rounds > 0 && w.prRounds === w.rounds; }) }, analyse(y, x, { test: tv, now: now, feel: feel, lessons: les, wt: W.map(function (w) { return w.wHoles / 18; }), cnt: y.map(function (v, i) { return v == null ? 0 : W[i].rounds; }), roundsOnly: !!opts.roundsOnly }));
     });
     // total practice vs score (18-hole rounds; lower score is better, so the maths uses −score)
     var sc = W.map(function (w) { return w.score.length ? wmean(w.score, w.scoreW) : null; });
@@ -156,7 +161,7 @@
     var tFeel = W.map(function (w) { var a = 0, h = 0; Object.keys(w.feel).forEach(function (k) { a += w.feel[k][0]; h += w.feel[k][1]; }); return h ? a / h : null; });
     var tot = analyse(sc.map(function (v) { return v == null ? null : -v; }), W.map(function (w) { return w.pracAll; }), { now: now, total: true, roundsOnly: !!opts.roundsOnly, feel: tFeel, lessons: tLes,
       wt: W.map(function (w) { return w.scoreW.reduce(function (a, b) { return a + b; }, 0); }), cnt: W.map(function (w) { return w.score.length; }) });
-    var total = Object.assign({ k: 'total', name: 'Total practice vs score', y: sc, x: W.map(function (w) { return w.pracAll; }), lowerBetter: true, prWeek: W.map(function (w) { return w.score.length > 0 && w.prRounds === w.rounds; }) }, tot);
+    var total = Object.assign({ k: 'total', name: 'Total practice vs score', y: sc, ry: lastRounds(W, function (R) { return R.s18 == null ? null : -R.s18; }), x: W.map(function (w) { return w.pracAll; }), lowerBetter: true, prWeek: W.map(function (w) { return w.score.length > 0 && w.prRounds === w.rounds; }) }, tot);
     if (total.ok) { total.fc = total.fc.map(function (v) { return -v; }); total.formScore = -total.form; total.levelScore = -total.level0; }
     if (total.normY != null) total.normScore = -total.normY;
     // weakest end of the line first; areas without enough rounds last

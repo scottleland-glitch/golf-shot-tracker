@@ -89,3 +89,13 @@ test('rounds: each week lists its rounds with course, score and strokes gained p
   assert.deepStrictEqual(W[0].score.slice().sort(), [73, 87], 'both scores kept – the week averages 80');
 });
 
+// v240 (Scott): the solid line is the average of the last 3 rounds (each round counts the same), carried through weeks without rounds
+test('solid line: average of the last 3 rounds, week by week', () => {
+  const FAKE = { summarize: r => ({ holesDone: 18, strokes: r.sc, holes: [{ done: true, shots: [{ sg: r.p, kind: 'putt' }] }] }) }, MY = { SPOKES: [{ k: 'short', test: s => s.kind === 'putt' }] };
+  const R = []; for (let i = 0; i < 6; i++) R.push({ id: 'r' + i, date: new Date(now - (i * 7 + 8) * DAY).toISOString(), sc: [76, 80, 72, 84, 78, 70][i], p: [1, -1, 2, 0, -2, 1][i], play: i % 2 ? 'practice' : 'tournament' });
+  const T = TR.build(R, [], FAKE, MY, { now, weeks: 9 }), putt = T.areas.find(a => a.k === 'putt'), n = putt.ry.length;
+  assert.strictEqual(TR.CFG.lineRounds, 3);
+  assert.ok(Math.abs(putt.ry[n - 1] - (1 - 1 + 2) / 3) < 1e-9, 'last 3 rounds, practice rounds not halved: ' + putt.ry[n - 1]); assert.strictEqual(putt.ry[n - 1], putt.ry[n - 2], 'no round this week → same value');
+  assert.ok(Math.abs(-T.total.ry[n - 2] - (76 + 80 + 72) / 3) < 1e-9, 'score: −(average of the last 3 scores)');
+  assert.ok(Math.abs(putt.ry[n - 3] - (0 + 2 - 1) / 3) < 1e-9 && Math.abs(putt.ry[n - 4] - (-2 + 0 + 2) / 3) < 1e-9, 'earlier weeks: the 3 rounds up to then'); assert.strictEqual(putt.ry[0], null, 'nothing before the first round');
+});
