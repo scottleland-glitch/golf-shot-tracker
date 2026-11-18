@@ -33,7 +33,7 @@ test('week ahead: putting paid off after heavy practice, wedges slipped → more
   const cur = { short: 45, lag: 30, wedges: 45, irons: 30, chip: 25, drive: 15, bunker: 10 }, last = { short: 45, lag: 35, wedges: 30, irons: 30, chip: 25, drive: 15, bunker: 10 };
   const A = WA.ahead({ rounds: R, logs: L, SG, MYGAME: MY, PLAN, bl: 'pga', now, cur, last });
   assert.strictEqual(A.head, 'Putting is working. Wedges need you.');
-  assert.deepStrictEqual(A.lines.map(l => [l.good, l.title]), [[true, 'Putting practice is paying off'], [false, 'Wedges slipped']]);
+  assert.deepStrictEqual(A.lines.map(l => [l.good, l.title]), [[true, 'Putting practice is paying off'], [false, 'Wedges were off']]);
   assert.match(A.lines[0].text, /^1\.\d strokes better in your last round than your 3-month average – after \d+ min a week of putting practice\.$/);
   const by = Object.fromEntries(A.rows.map(r => [r.k, r]));
   assert.strictEqual(by.wedges.delta, 15); assert.strictEqual(by.short.keep, true); assert.strictEqual(by.lag.keep, true); assert.strictEqual(by.lag.delta, -5); assert.strictEqual(by.irons.keep, false);

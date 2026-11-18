@@ -2991,13 +2991,13 @@ html body .trcard2.trearly .trfoot { margin-top: 4px; }
 .trprog i { display: block; height: 100%; border-radius: 999px; background: linear-gradient(90deg, #4f9d6d, #1f6f4a); }
 .trchart .trslip.exp { fill: rgba(222, 160, 40, .16); } .trchart .trdip { fill: rgba(222, 160, 40, .14); }
 .trchart .trtag.exp { fill: #a06a12; }
-.trchart .trles { stroke: #6b5aa6; stroke-width: 1; stroke-dasharray: 2 3; } .trchart .trles.big { stroke-width: 1.6; stroke-dasharray: none; }
-.trchart .trlestx { font-size: 8.5px; font-weight: 700; fill: #5a4a96; }
+.trchart .trles { stroke: #0f7a83; stroke-width: 1; stroke-dasharray: 2 3; } .trchart .trles.big { stroke-width: 1.6; stroke-dasharray: none; }
+.trchart .trlestx { font-size: 8.5px; font-weight: 700; fill: #0b5f66; }
 /* v196: Trends – the band is confidence (red → amber → green); no colour for better / worse */
 .trchart .trband.low { fill: rgba(208, 96, 79, .22); } .trchart .trband.mid { fill: rgba(222, 160, 40, .24); } .trchart .trband.high { fill: rgba(63, 150, 96, .24); }
 .trchart .trwhat { fill: none; stroke: #6f7d88; stroke-width: 1.3; stroke-dasharray: 3 3; } .trchart .trwhat.thin { stroke-width: 1.1; }
 .trchart .trtag.what { fill: #4d5b66; }
-.trchart .trdip { fill: rgba(107, 90, 166, .10); } .trchart .trtag.exp { fill: #5a4a96; }
+.trchart .trdip { fill: rgba(15, 122, 131, .10); } .trchart .trtag.exp { fill: #0b5f66; }
 html body .trconf { margin: -2px 4px 2px; font-size: 12px; font-weight: 700; } html body .trconf.low { color: #b0473f; } html body .trconf.mid { color: #a06a12; } html body .trconf.high { color: #2f7a4c; }
 html body .trlede b.cl { color: #b0473f; } html body .trlede b.cm { color: #a06a12; } html body .trlede b.ch { color: #2f7a4c; }
 /* v197: tap a week's dot */
@@ -3067,7 +3067,7 @@ html body .tourhelp { margin: 8px 0 6px; font-size: 12.5px; } html body .tourbtn
 html body .planmsg { margin: 0 0 10px; padding: 9px 12px; border-radius: 12px; background: rgba(31, 111, 74, .1); font-size: 13.5px; line-height: 1.35; color: #17301f; } html body .planmsg.sharp { background: rgba(222, 160, 40, .16); }
 html body .planlist { list-style: none; margin: 0; padding: 0; } html body .planitem { display: flex; gap: 10px; align-items: flex-start; padding: 10px 0; border-top: 1px solid rgba(23, 48, 31, .09); }
 html body .planitem:first-child { border-top: 0; } html body .planitem .pin { flex: 0 0 24px; height: 24px; border-radius: 50%; background: #1f6f4a; color: #fff; font-size: 13px; font-weight: 700; display: flex; align-items: center; justify-content: center; margin-top: 2px; }
-html body .planitem.maint .pin { background: #8a9aa6; } html body .planitem.coach .pin { background: #6b5aa6; }
+html body .planitem.maint .pin { background: #8a9aa6; } html body .planitem.coach .pin { background: #0f7a83; } /* v234: teal, not purple */
 html body .pltext { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; } html body .pltext small { font-size: 11.5px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; color: #5b6b78; }
 html body .pltext b { font-size: 15.5px; line-height: 1.25; } html body .plwhy { font-size: 13px; line-height: 1.35; color: #43525f; } html body .pltip { font-size: 12.5px; color: #a06a12; font-weight: 600; }
 html body .plright { display: flex; flex-direction: column; align-items: flex-end; gap: 6px; } html body .plmin { font-size: 13px; font-weight: 700; white-space: nowrap; }

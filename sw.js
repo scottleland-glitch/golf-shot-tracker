@@ -1,5 +1,5 @@
 // Offline support: cache the whole app on install, serve cache-first.
-// v235: Apple Watch: Long / Long left / Long right are greyed out when the shot finished on the Fairway (same as the phone since v231). A watch shot sent as Fairway + Long keeps only the side.
+// v235: Apple Watch: Long / Long left / Long right are greyed out when the shot finished on the Fairway (same as the phone since v231). A watch shot sent as Fairway + Long keeps only the side. Practice plan: a practice (or untagged) round counts 0.75 of a tournament round (tournament ×4/3). No "slipped" wording (Week ahead / My Game / coach notes). Coach homework pins and lesson lines on Trends are teal, not purple.
 // v234: Practice plan notes: chips (and lag putts) finishing inside 3 ft are a good result, not a miss; each note says where its numbers come from; the latest round is checked against the longer window ("may be turning around" / "new"). Recent rounds count more in the patterns too.
 // v233: Where's the pin? on the Apple Watch – a 3×3 green after an approach finishes on the green (hole has no pin); one tap, Skip for that hole; sent to the phone with the shot.
 // v232: Coach athlete review has a Practice tab in the middle slot (the user's own + is unchanged). Practice logs were already in the share payload.

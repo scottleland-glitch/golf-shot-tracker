@@ -2,7 +2,7 @@
  * most needed first, each item an area + one focus + minutes + a one-line reason. Do the top item whenever there's time.
  *
  * 1. NEED – strokes lost per round against your benchmark, per area, from rounds (recent ones count more, tournament
- *    rounds ×1.5, few shots pulled toward "even") blended with the last short game test (fading over 6 weeks).
+ *    rounds ×4/3 so a practice round counts ¾ of one, few shots pulled toward "even") blended with the last short game test (fading over 6 weeks).
  * 2. CAUSE – pattern detectors on rounds (miss direction, short / long, penalties, stayed in the bunker, lag speed, start
  *    line, high / low side using the putt's read) and the test's own notes. Rounds and test agreeing = the strongest focus.
  *    v233: a chip or lag putt that finishes inside 3 ft is a good result, not a miss. Recent shots count more (45-day half-life).
@@ -22,7 +22,7 @@
   'use strict';
   var DAY = 864e5;
   var CFG = {
-    halfLifeDays: 45, tourW: 1.5, testWeeks: 6, testW: 0.6, defaultWeekMin: 120, minWeekMin: 30, carry: 0.5, /* v216: share of last week's shortfall that carries over */
+    halfLifeDays: 45, tourW: 4 / 3, /* v234 (Scott): a practice (or untagged) round counts 0.75 of a tournament round */ testWeeks: 6, testW: 0.6, defaultWeekMin: 120, minWeekMin: 30, carry: 0.5, /* v216: share of last week's shortfall that carries over */
     owedMin: 5, longSession: 75, longSessionW: 0.85, floorShare: 0.05, maxShare: 0.4, lean: 0.65,
     coachBigDays: 28, coachTuneDays: 14, coachShare: 0.3, sharpenDays: 7, maxItems: 5,
     groupFloor: 0.2, fadeWeeks: 3, leakMin: 0.5, leakShare: 0.35, leakNear: 0.7, areaInGroup: 0.25, coachInGroup: 0.75, // v208: the balance
@@ -63,10 +63,10 @@
     rounds.forEach(function (r, ri) { var t = Date.parse(r.date), S; try { S = SG.summarize(r, bl); } catch (e) { return; } if (S && S.holesDone >= CFG.recHoles && t <= now && t > lastT) { lastT = t; lastI = ri; lastH = S.holesDone; } });
     rounds.forEach(function (r, ri) {
       var S; try { S = SG.summarize(r, bl); } catch (e) { return; } if (!S || !S.holesDone) return;
-      var t = Date.parse(r.date), age = Math.max(0, (now - t) / DAY), w = Math.pow(0.5, age / CFG.halfLifeDays) * (MYGAME.playOf && MYGAME.playOf(r) === 'tournament' ? CFG.tourW : 1);
+      var t = Date.parse(r.date), age = Math.max(0, (now - t) / DAY), isTour = !!(MYGAME.playOf && MYGAME.playOf(r) === 'tournament'), w = Math.pow(0.5, age / CFG.halfLifeDays) * (isTour ? CFG.tourW : 1);
       W += w * S.holesDone / 18; nR++; if (t < first) first = t;
       S.holes.forEach(function (h) { (h.shots || []).forEach(function (s, i) { if (s.layup) return; var nx = h.shots[i + 1];
-        for (var j = 0; j < MYGAME.SPOKES.length; j++) if (MYGAME.SPOKES[j].test(s)) { var a = A[MYGAME.SPOKES[j].k]; a.sg += w * s.sg; a.n++; a.shots.push({ s: s, nx: nx, age: age, tour: w > 1.01, w: w, rid: 'r' + ri, t: t });
+        for (var j = 0; j < MYGAME.SPOKES.length; j++) if (MYGAME.SPOKES[j].test(s)) { var a = A[MYGAME.SPOKES[j].k]; a.sg += w * s.sg; a.n++; a.shots.push({ s: s, nx: nx, age: age, tour: isTour, w: w, rid: 'r' + ri, t: t });
           if (ri === lastI) { a.last.sg += s.sg; a.last.n++; } break; } }); });
     });
     Object.keys(A).forEach(function (k) { var a = A[k]; a.perRound = W ? a.sg / W : null; a.perRoundShots = W ? a.n / Math.max(1, rounds.length) : null; a.wr = a.n / (a.n + a.need);

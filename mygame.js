@@ -98,7 +98,7 @@
       lede = bits.length ? cap(bits.join(', ')) + ' (strokes a round).' : 'No skill was more than half a stroke a round from your usual.';
     }
     else if (up && up.d >= 0.5 && (!down || up.d >= -down.d)) { headline = up.s.name + ' is improving'; lede = up.s.name + ' is ' + Math.abs(up.d).toFixed(1) + ' strokes a round better than ' + bef + '.'; }
-    else if (down && down.d <= -0.5) { headline = down.s.name + ' has slipped'; lede = down.s.name + ' is ' + Math.abs(down.d).toFixed(1) + ' strokes a round worse than ' + bef + '.'; }
+    else if (down && down.d <= -0.5) { headline = down.s.name + ' is costing you more'; lede = down.s.name + ' is ' + Math.abs(down.d).toFixed(1) + ' strokes a round worse than ' + bef + '.'; }
     else if (moves.length) { headline = 'Holding steady'; lede = 'No skill moved more than half a stroke a round from ' + bef + '.'; }
     else {
       var worst = solid.slice().sort(function (a, b) { return a.value - b.value; })[0], best = solid.slice().sort(function (a, b) { return b.value - a.value; })[0];

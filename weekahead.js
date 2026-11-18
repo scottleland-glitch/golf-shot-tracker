@@ -64,7 +64,7 @@
     var head, why = [];
     if (working && slipped) head = (working.worked ? working.name + ' is working. ' : working.name + ' was good. ') + slipped.name + (slipped.name === 'Wedges' ? ' need' : ' needs') + ' you.';
     else if (working) head = working.worked ? working.name + ' is working – keep going' : working.name + ' was good last week';
-    else if (slipped) head = slipped.name + ' slipped – more of it this week';
+    else if (slipped) head = slipped.name + (slipped.name === 'Wedges' ? ' were' : ' was') + ' off last week – more of it this week'; // v234: no "slipped"
     else head = recent.length ? 'A steady week ahead' : 'No rounds last week – same plan';
     var up = rows.filter(function (r) { return r.delta > 0; }).sort(function (x, y) { return y.delta - x.delta; });
     if (slipped && up.some(function (r) { return gOf(r.k) === slipped.g; })) why.push('More ' + low(slipped.name) + ' after ' + day + '\'s round.');
@@ -73,7 +73,7 @@
     if (!why.length) why.push(rows.some(function (r) { return r.delta; }) ? 'Small changes only – your rounds didn\'t shift the balance.' : recent.length ? 'Your rounds didn\'t change the balance – same plan as last week.' : 'Nothing new from your rounds, so the balance stays the same.');
     var lines = [];
     if (working) lines.push({ good: true, title: working.worked ? working.name + ' practice is paying off' : working.name + ' was good', text: Math.abs(working.d).toFixed(1) + ' strokes better ' + (recent.length > 1 ? 'a round last week' : 'in your last round') + ' than your 3-month average' + (working.worked ? ' – after ' + working.prac + ' min a week of ' + low(working.name) + ' practice.' : '.') });
-    if (slipped) lines.push({ good: false, title: slipped.name + ' slipped', text: Math.abs(slipped.d).toFixed(1) + ' worse than usual' + (recent.length > 1 ? ' a round last week.' : ' on ' + day + '.') });
+    if (slipped) lines.push({ good: false, title: slipped.name + (slipped.name === 'Wedges' ? ' were off' : ' was off'), text: Math.abs(slipped.d).toFixed(1) + ' worse than usual' + (recent.length > 1 ? ' a round last week.' : ' on ' + day + '.') });
     return { week: wk, head: head, lines: lines, rows: rows, total: total, totalLast: totalLast, why: why.join(' '), working: working, slipped: slipped, rounds: recent.length, notify: head };
   }
   // a big change since the card was last seen: 15+ min on any area

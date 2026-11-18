@@ -262,7 +262,7 @@
     // Ask your coach: repeated miss patterns, then any slide with no clear pattern behind it.
     var pool = [S].concat(hist.slice(0, POOL - 1)), pats = patterns(pool, SG, bl), coach = pats.slice(0, 3).map(function (p) { return { area: p.area, id: p.id, text: p.text, ask: p.ask }; });
     slip.forEach(function (v) { if (coach.length < 3 && !pats.some(function (p) { return p.area === v.k; }))
-      coach.push({ area: v.k, id: 'slide', text: cap(v.word) + ' has slipped ' + r1(v.trend.diff) + ' strokes a round over your last ' + v.trend.recent + ' rounds, with no clear miss pattern.', ask: 'Worth a look before it becomes a habit.' }); });
+      coach.push({ area: v.k, id: 'slide', text: cap(v.word) + ' is ' + r1(v.trend.diff) + ' strokes a round worse over your last ' + v.trend.recent + ' rounds, with no clear miss pattern.', ask: 'Worth a look before it becomes a habit.' }); });
     return { ready: known.length > 0, headline: headline, sub: sub, rows: rows, plan: plan, coach: coach, poolRounds: pool.length };
   }
 
