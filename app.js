@@ -2469,7 +2469,7 @@
   }
   function applyFirstTrack(who) { var t = view.firstTrack; if (!t) return; setTrack(who, t === 'score' ? 'score' : 'shots'); setMode(who, t === 'full' ? 'full' : 'stats'); try { localStorage.setItem(TRACK_ASKED, '1'); } catch (e) {} }
   // v242 (Scott): the first-run tour – how to enter a round (phone and watch), your rounds, and (Every shot) strokes gained, reviewing a
-  // round and My Game; (Every shot + improve) how the improvement loop works. Shown once after setup, and from Settings → Take the tour.
+  // round and My Game; (Every shot + improve) how the improvement loop works. Shown once after setup, and from Help → Take the tour (v243).
   function watchMockHTML(so) {
     var t = so ? ['Hole 4 · Par 5', '<div class="wmscore"><span>−</span><b>5</b><span>+</span></div><div class="wmput">Putts <b>2</b></div>'] :
       ['Hole 4 · Shot 3', '<div class="wmq">Where did it finish?</div><div class="wmgrid"><i>Fairway</i><i>Rough</i><i class="on">Green</i><i>Bunker</i><i>More</i><i class="in">In the hole</i></div>'];
@@ -2488,8 +2488,8 @@
       P.push({ img: 'mygame', h: 'Strokes gained & My Game', t: 'Every shot is compared with what a tour player averages from the same spot. My Game shows where you lose the most; Stats has the detail.' });
     }
     if (full) {
-      P.push({ img: 'practice', h: 'How you improve', steps: ['Find – your rounds show where strokes are lost', 'Confirm – a short test checks it’s a real gap', 'Practise – your plan puts your time where it’s lost', 'Adjust – every Monday the plan follows your latest rounds'] });
-      P.push({ img: 'trends', h: 'See it working', t: 'Trends shows your practice and your rounds together, so you can see a gap closing.' });
+      P.push({ img: 'improve', wide: true, h: 'How you improve', steps: ['Find – your rounds show where strokes are lost', 'Confirm – a short test checks it’s a real gap', 'Practise – your plan puts your time where it’s lost', 'Adjust – every Monday the plan follows your latest rounds'] });
+      P.push({ img: 'practice', h: 'Your practice plan', t: 'Practice shows this week\'s targets and what to work on. Trends puts each part of your game next to your practice time, like the putting chart before this.' });
     }
     return P;
   }
@@ -2498,7 +2498,7 @@
     if (!view.tour || document.querySelector('#cosheets .cssheet, #prsheets .cssheet')) return; /* another sheet first (e.g. Share with Coach) – the tour waits */ var P = tourPages(playerName()), i = Math.max(0, Math.min(view.tour.i || 0, P.length - 1)), p = P[i], last = i === P.length - 1;
     var pic = p.watch ? watchMockHTML(scoreOnly()) : '<img src="tour/' + p.img + '.webp" alt="" width="390" height="700">';
     document.body.insertAdjacentHTML('beforeend', '<div id="toursheet"><div class="csback tourback"></div><div class="cssheet tour" id="tour" role="dialog" aria-modal="true" aria-labelledby="tourh">' +
-      '<div class="tourpic' + (p.watch ? ' watch' : '') + '">' + pic + '</div><div class="tourbody"><h3 id="tourh">' + esc(p.h) + '</h3>' +
+      '<div class="tourpic' + (p.watch ? ' watch' : '') + (p.wide ? ' wide' : '') + '">' + pic + '</div><div class="tourbody"><h3 id="tourh">' + esc(p.h) + '</h3>' +
       (p.steps ? '<ol class="toursteps">' + p.steps.map(function (s) { var a = s.split(' – '); return '<li><b>' + esc(a[0]) + '</b> ' + esc(a[1]) + '</li>'; }).join('') + '</ol>' : '<p>' + esc(p.t) + '</p>') +
       '<div class="tourdots" aria-label="Page ' + (i + 1) + ' of ' + P.length + '">' + P.map(function (x, k) { return '<i' + (k === i ? ' class="on"' : '') + '></i>'; }).join('') + '</div>' +
       '<div class="tourbtns">' + (last ? '<span></span>' : '<button class="tourskip" id="tourskip" data-act="tourskip">Skip</button>') +
@@ -3289,7 +3289,7 @@
     var nC = courses().length;
     h += '<button class="big frostbtn crsbtn" data-act="courses">⛳ Courses<small>' + (nC ? nC + ' saved' : 'add par &amp; yardages') + '</small></button>';
     if (cur) h += '<button class="danger discard frostdanger" data-act="discard" data-id="' + esc(cur.id) + '">🗑 Discard round in progress' + (cur.course ? ' – ' + esc(cur.course) : '') + '</button>';
-    h += '<h2>Your data</h2>' + playerHTML() + trackRowHTML(playerName()) + '<button class="tourrow frost" id="tourgo" data-act="tourgo">Take the tour <span aria-hidden="true">›</span></button>' + (!scoreOnly() ? modeRowHTML(playerName(), 'setmoderow') : ''); // v209; v242: what you track first
+    h += '<h2>Your data</h2>' + playerHTML() + trackRowHTML(playerName()) + (!scoreOnly() ? modeRowHTML(playerName(), 'setmoderow') : ''); // v209; v242: what you track first
     h += coachCardHTML(); // v212
     if (view.notice) h += '<p class="notice ' + (view.notice.bad ? 'bad' : 'good') + '" id="notice" role="status">' + esc(view.notice.text) + '</p>';
     h += backupReminderHTML('settings');
@@ -3306,16 +3306,19 @@
   }
   // v128: Help (+ menu › Help) – a few Get started lines, the how-to video and the how-to guide PDF (help/, not in the offline cache)
   function helpHTML() {
-    var steps = ['Tap <b>+</b> › <b>New round</b>, pick a course, <b>Start round</b>.', 'Log each shot: distance, lie, club.', 'Mark the shot that goes in: <b>In the hole</b> or <b>Hole out</b> (1-putts too).',
-      '<b>Scorecard</b> and <b>Stats</b> in the bar at the bottom work any time mid-round.', '<b>Finish round</b> on 18, then open <b>☰</b> › <b>Stats</b>.']; // v191
+    // v243 (Scott): steps for how you track, the tour (moved here from Settings), the guide – the old video is gone
+    var steps = scoreOnly() ? ['Tap <b>+</b> › <b>New round</b>, pick a course, <b>Start round</b>.', 'On each hole tap <b>−</b> or <b>+</b> if it wasn\'t par, then your putts.', '<b>Save</b> moves to the next hole. On hole 9 you can finish a 9-hole round.', 'Your rounds are in <b>Rounds</b>; averages are in <b>Stats</b>.'] :
+      ['Tap <b>+</b> › <b>New round</b>, pick a course, <b>Start round</b>.', 'After each shot: yards to the pin, then where it finished. <b>Next shot</b> moves on.', 'Pick <b>In the hole</b> on the shot that goes in, then <b>Finish hole</b>.', 'On hole 18 (or 9) finish the round, then open it in <b>Rounds</b>.', 'See where you gain and lose strokes in <b>My Game</b> and <b>Stats</b>.'];
+    if (recsOn()) steps.push('<b>Practice</b> builds your plan from your rounds. Log what you do there.');
     return '<div class="frostpage theme-sky helppage" id="helppage"><div class="topbar frost"><button class="txt frostbtn" data-act="home">‹ Home</button><div class="title"><b>Help</b><span>Get started with Strokewise</span></div><span></span></div>' +
       '<div class="frostcard hpcard" id="hpstart"><b class="hph">Get started</b><ol class="hpsteps">' + steps.map(function (t) { return '<li>' + t + '</li>'; }).join('') + '</ol></div>' +
-      '<div class="frostcard hpcard" id="hpvideo"><b class="hph">Watch the video</b><small class="hpsub">Entering a round, finishing it, Stats · 3:41 · with voice</small>' +
-      '<video id="hpvid" class="hpvid" controls playsinline preload="none" poster="help/poster.webp" src="help/PinHigh-Video.mp4" aria-label="How-to video: entering a round and Stats"></video></div>' +
-      '<div class="frostcard hpcard" id="hpguide"><b class="hph">Read the guide</b><small class="hpsub">Every feature, step by step · 15 pages</small>' +
-      '<a class="hpbtn" id="hppdf" href="help/PinHigh-HowTo.pdf" target="_blank" rel="noopener">📄 Open the guide (PDF)</a></div>' +
+      '<div class="frostcard hpcard" id="hptour"><b class="hph">Take the tour</b><small class="hpsub">Entering a round on the phone and the watch' + (scoreOnly() ? ', your rounds and Stats' : ', reviewing a round' + (recsOn() ? ' and how you improve' : ' and strokes gained')) + '</small>' +
+      '<button class="hpbtn" id="tourgo" data-act="tourgo">Start the tour</button></div>' +
+      '<div class="frostcard hpcard" id="hpguide"><b class="hph">Read the guide</b><small class="hpsub">Every feature, step by step</small>' +
+      '<a class="hpbtn" id="hppdf" href="help/Strokewise-Guide.pdf" target="_blank" rel="noopener">📄 Open the guide (PDF)</a></div>' +
       '<p class="appver setver" aria-label="App version">' + esc(APP_VER) + '</p></div>';
   }
+
   // ---------- Saved courses (typed in: par + yardages per tee box) ----------
   // v113: small fixed-size tee dot (pure CSS, nothing to load): the colour in the name, two-tone for combos, a white circle otherwise
   function teeDot(name) { var c = COURSES.teeColors(name);

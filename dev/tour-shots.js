@@ -3,8 +3,11 @@
 const { chromium } = require('playwright-core'); const { spawn, execFileSync } = require('child_process'); const fs = require('fs'), path = require('path');
 const ARC = require('../tests/fixtures/arcade-78.js'); const ROOT = path.join(__dirname, '..'), OUT = path.join(ROOT, 'tour'), TMP = path.join(require('os').tmpdir(), 'tourshots'); fs.mkdirSync(TMP, { recursive: true });
 const PORT = 8879, BASE = 'http://127.0.0.1:' + PORT + '/', DAY = 864e5, now = Date.now();
-const R = []; for (let i = 0; i < 8; i++) R.push(Object.assign(ARC.round(), { id: 'r' + i, player: 'Alex', baseline: 'pga', date: new Date(now - (i * 6 + 1) * DAY).toISOString(), play: i % 3 ? 'practice' : 'tournament' }));
-const L = []; for (let d = 1; d < 40; d += 2) ['short', 'lag', 'chip', 'wedges', 'irons'].slice(0, 2 + (d % 3)).forEach((k, i) => L.push({ id: 'l' + d + k, date: new Date(now - d * DAY).toISOString().slice(0, 10) + 'T12:00:00', player: 'Alex', spoke: k, focus: k, min: 20 + i * 5, feel: ['ok', 'great', 'off'][d % 3], type: 'mixed' }));
+// older rounds have more 3-putts (and a 2nd-shot chunk now and then), so putting gets better as putting practice goes up
+const threePutt = (h) => { const k = h.rows.findIndex(r => r.loc === 'holed'); if (k > 0 && h.rows[k - 1].loc === 'green' && h.rows[k - 1].dist >= 12) { h.rows.splice(k, 0, { dist: 6, loc: 'green', dir: 'L', pen: false }); return true; } return false; };
+const R = []; for (let i = 0; i < 8; i++) { const r = Object.assign(ARC.round(), { id: 'r' + i, player: 'Alex', baseline: 'pga', date: new Date(now - (i * 6 + 1) * DAY).toISOString(), play: i % 3 ? 'practice' : 'tournament' });
+  let extra = [0, 0, 1, 1, 2, 3, 3, 4][i]; r.holes.forEach(h => { if (extra > 0 && threePutt(h)) extra--; }); R.push(r); }
+const L = []; for (let d = 1; d < 56; d += 2) ['short', 'lag', 'chip', 'wedges', 'irons'].slice(0, 2 + (d % 3)).forEach((k, i) => L.push({ id: 'l' + d + k, date: new Date(now - d * DAY).toISOString().slice(0, 10) + 'T12:00:00', player: 'Alex', spoke: k, focus: k, min: i < 2 ? (d > 40 ? 5 : d > 22 ? 15 : 30) : 20 + i * 5, feel: ['ok', 'great', 'off'][d % 3], type: 'mixed' }));
 const shot = async (page, name, sel, h) => { await page.waitForTimeout(500); if (sel) { const el = await page.$(sel); if (el) await el.scrollIntoViewIfNeeded(); }
   const f = path.join(TMP, name + '.png'); await page.screenshot({ path: f, clip: { x: 0, y: 0, width: 390, height: h || 700 } }); return f; };
 (async () => {
@@ -28,7 +31,9 @@ const shot = async (page, name, sel, h) => { await page.waitForTimeout(500); if 
     await go('mygame'); await page.waitForTimeout(600); shots.mygame = await shot(page, 'mygame');
     await go('stats'); await page.waitForTimeout(600); shots.stats = await shot(page, 'stats');
     await go('practice', () => { window.__golf.view().waForce = true; window.__golf.render(); }); await page.waitForTimeout(600); shots.practice = await shot(page, 'practice');
-    await go('trends'); await page.waitForTimeout(800); shots.trends = await shot(page, 'trends');
+    await go('trends'); await page.waitForTimeout(800);
+    // v243 (Scott): strokes gained against practice time – the Putting card on Trends
+    { const c = await page.$('.trcard2[data-k="putt"]'); await c.scrollIntoViewIfNeeded(); await page.waitForTimeout(300); const f = path.join(TMP, 'improve.png'); await c.screenshot({ path: f }); shots.improve = f; }
     // score only
     await seed({ 'golfsg.track.v1': JSON.stringify({ alex: 'score' }), 'golfsg.mode.v1': JSON.stringify({ alex: 'stats' }) });
     await go('home'); await page.click('#tbplus'); await page.waitForSelector('[data-act="new"]'); await page.fill('#course', 'Lakeridge').catch(() => {}); await page.click('[data-act="new"]'); await page.waitForSelector('#sohole');

@@ -2059,7 +2059,6 @@ html body .roundpage.holepage .srow.shead .c-n { height: auto; min-height: 0; bo
 .helppage .hpsteps li { margin: 2px 0; padding-left: 2px; }
 .helppage .hpsteps li::marker { color: #1f73c9; font-weight: 600; }
 .helppage .hpsteps b { font-weight: 600; }
-.helppage .hpvid { display: block; height: 62vh; width: auto; max-width: 100%; aspect-ratio: 780 / 1688; object-fit: contain; margin: 0 auto; border-radius: 14px; border: 1px solid rgba(23, 48, 31, .14); background: #0d1a12; }
 .helppage .hpbtn { display: flex; align-items: center; justify-content: center; min-height: 44px; border-radius: 999px; border: 1px solid #2f6ea8; background: #1f73c9; color: #fff;
   font-size: 15px; font-weight: 600; text-decoration: none; -webkit-tap-highlight-color: transparent; }
 .helppage .hpbtn:active { transform: scale(.98); background: #1a63ad; }
@@ -3338,7 +3337,6 @@ html body #toursheet .toursteps { margin: 2px 0 0; padding-left: 20px; line-heig
 html body #toursheet .tourdots { display: flex; gap: 6px; justify-content: center; margin: 14px 0 10px; } html body #toursheet .tourdots i { width: 7px; height: 7px; border-radius: 50%; background: rgba(0,0,0,.18); } html body #toursheet .tourdots i.on { background: #1f6b43; width: 18px; border-radius: 4px; }
 html body #toursheet .tourbtns { display: flex; align-items: center; gap: 10px; } html body #toursheet .tourbtns .tournext { flex: 1; margin: 0; }
 html body #toursheet .tourskip, html body #toursheet .tourprev { background: none; border: 0; font: inherit; font-weight: 600; color: #5b6770; padding: 10px 6px; }
-.tourrow { display: flex; justify-content: space-between; width: 100%; margin: 10px 0; padding: 14px 16px; border: 0; border-radius: 16px; font: inherit; font-weight: 600; text-align: left; color: inherit; }
 .wmock { position: relative; width: 168px; height: 200px; border-radius: 46px; background: #0b0d0e; box-shadow: 0 0 0 5px #545b60, 0 10px 30px rgba(0,0,0,.45); padding: 14px; box-sizing: border-box; }
 .wmcrown { position: absolute; right: -11px; top: 48px; width: 7px; height: 30px; border-radius: 3px; background: #7c8489; } .wmbtn { position: absolute; right: -9px; top: 100px; width: 5px; height: 36px; border-radius: 3px; background: #5f666b; }
 .wmface { color: #fff; font: 600 11px -apple-system, system-ui, sans-serif; height: 100%; display: flex; flex-direction: column; }
@@ -3351,3 +3349,4 @@ html body #toursheet .tournext { flex: 1; margin: 0; border: 0; border-radius: 9
 html body #toursheet .tourskip, html body #toursheet .tourprev { background: none; border: 0; box-shadow: none; font: inherit; font-weight: 600; color: #5b6770; padding: 10px 6px; }
 html body #toursheet #tourh { color: #17301f; margin: 0 0 6px; }
 html body #toursheet .tourbody { flex: 0 0 auto; }
+html body #toursheet .tourpic.wide { align-items: center; padding: 14px; } html body #toursheet .tourpic.wide img { max-width: 100%; border-radius: 16px; }

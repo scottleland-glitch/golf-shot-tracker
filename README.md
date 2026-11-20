@@ -5,10 +5,14 @@ Renamed to **Pin High** (title, home-screen label, header, PDF). Storage keys (`
 Phone web app for tracking every golf shot and strokes gained against a selectable baseline (PGA Tour by default).
 Static files only: no backend, no build step. Data is stored on the phone (localStorage).
 
+## Help: the tour, a new guide (v243)
+- Help (☰ › Help) has Get started steps for how you track, **Take the tour** (moved from Settings) and **Read the guide** – a new 15-page PDF of the current app (help/Strokewise-Guide.pdf, built by dev/guide.js then dev/guide-pdf.js). The old video and the Pin High how-to PDF are gone.
+- The tour's How you improve page shows the Trends putting chart: strokes gained a round above practice a week.
+
 ## Three ways to track, and a first-run tour (v242)
 - After "I play", a new player picks **Score only** (score + optional putts per hole, kept for history), **Every shot – strokes gained**, or **Every shot + improve** (strokes gained plus tests and the weekly practice plan). Change it any time in Settings → Track.
 - Score only: a simple hole screen (− / + score, putts 0–4+, Save · next hole, Finish after 9), a scorecard with putts and greens, and a Stats page with average, best, putts and greens. Greens in regulation come from score − putts ≤ par − 2. Score-only rounds stay out of strokes gained, My Game and the practice plan.
-- The tour shows once after setup and from Settings → Take the tour: entering a round (phone and watch), your rounds, and – by setup – stats, reviewing a round, strokes gained and how the improvement loop works (find → confirm → practise → adjust each Monday). Pictures are in tour/ (made by dev/tour-shots.js); the watch page is drawn until real watch screenshots replace it.
+- The tour shows once after setup and from Help → Take the tour: entering a round (phone and watch), your rounds, and – by setup – stats, reviewing a round, strokes gained and how the improvement loop works (find → confirm → practise → adjust each Monday). Pictures are in tour/ (made by dev/tour-shots.js); the watch page is drawn until real watch screenshots replace it.
 
 ## Coach sharing sends sooner (v241)
 

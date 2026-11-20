@@ -1,4 +1,4 @@
-// v242: the first-run tour – shows after setup, pages follow the track choice, Skip closes it, Settings → Take the tour reopens it.
+// v242: the first-run tour – shows after setup, pages follow the track choice, Skip closes it, Help → Take the tour reopens it (v243).
 const { chromium } = require('playwright'); const path = require('path'); const assert = require('assert');
 (async () => {
   const b = await chromium.launch();
@@ -24,7 +24,7 @@ const { chromium } = require('playwright'); const path = require('path'); const 
   assert.deepStrictEqual(counts, { score: 4, sg: 5, full: 7 });
   const p = await start('sg'); await p.click('#tourskip'); await p.waitForTimeout(100); assert(!(await p.$('#tour')), 'skip closes');
   await p.reload(); await p.waitForTimeout(400); assert(!(await p.$('#tour')), 'not shown again');
-  await p.evaluate(() => { window.__golf.view().screen = 'archive'; window.__golf.render(); }); await p.click('#tourgo'); await p.waitForTimeout(100);
-  assert(await p.$('#tour'), 'Settings reopens the tour'); await p.click('#tournext'); await p.click('#tourprev'); assert.strictEqual(await p.textContent('#tourh'), 'Entering a round');
+  await p.evaluate(() => { window.__golf.view().screen = 'help'; window.__golf.render(); }); await p.click('#tourgo'); await p.waitForTimeout(100);
+  assert(await p.$('#tour'), 'Help reopens the tour'); await p.click('#tournext'); await p.click('#tourprev'); assert.strictEqual(await p.textContent('#tourh'), 'Entering a round');
   await b.close(); console.log('tour ok', JSON.stringify(counts));
 })().catch(e => { console.error(e); process.exit(1); });

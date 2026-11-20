@@ -1,4 +1,4 @@
-// v128 Help page (+ menu › Help): Get started lines, video (preload none, loads + seeks, Range requests pass the service worker), guide PDF link (200, new tab),
+// v128 Help page (+ menu › Help): Get started lines, the tour (v243; the video is gone), guide PDF link (200, new tab),
 // nothing under help/ in the app cache. Own Range-capable static server (python http.server has no Range), service worker ON, 390x844, fake data only.
 const { chromium } = require('playwright-core');
 const assert = require('assert'), http = require('http'), fs = require('fs'), path = require('path');
@@ -34,22 +34,15 @@ const srv = http.createServer((q, s) => {
   await P.waitForTimeout(400); await P.screenshot({ path: OUT + 'help-plus-menu-v128.png' });
   await P.click('#navmenu [data-act="help"]'); await P.waitForSelector('#helppage');
   assert.strictEqual(await P.textContent('.topbar .title b'), 'Help');
-  assert.strictEqual(await P.$$eval('#hpstart li', e => e.length), 5);
-  const V0 = await P.$eval('#hpvid', v => ({ pre: v.getAttribute('preload'), pi: v.hasAttribute('playsinline'), c: v.controls, rs: v.readyState, poster: v.poster }));
-  assert.ok(V0.pre === 'none' && V0.pi && V0.c && V0.rs === 0, 'preload none, nothing loaded until tapped ' + JSON.stringify(V0));
-  await P.waitForTimeout(800); await P.screenshot({ path: OUT + 'help-page-v128.png' });
-  await P.screenshot({ path: OUT + 'help-page-full-v128.png', fullPage: true });
-  // video loads + plays (through the SW: /help/ bypass)
-  const V = await P.$eval('#hpvid', v => new Promise(res => { v.muted = true; v.addEventListener('loadedmetadata', () => { v.currentTime = 150; }, { once: true });
-    v.addEventListener('seeked', () => res({ rs: v.readyState, d: v.duration, w: v.videoWidth, h: v.videoHeight, t: v.currentTime, err: v.error && v.error.code }), { once: true });
-    v.addEventListener('error', () => res({ err: v.error && v.error.code }), { once: true }); v.load(); }));
-  console.log('video', JSON.stringify(V)); assert.ok(V.rs >= 1 && V.d > 220 && V.d < 222 && V.w === 780 && !V.err, 'video loads + seeks');
-  await P.$eval('#hpvid', v => { v.currentTime = 2; v.pause(); }); await P.waitForTimeout(600);
-  await (await P.$('#hpvideo')).scrollIntoViewIfNeeded(); await P.waitForTimeout(300); await (await P.$('#hpvideo')).screenshot({ path: OUT + 'help-video-card-v128.png' });
+  assert.strictEqual(await P.$$eval('#hpstart li', e => e.length), 6, 'every shot + practice: 6 steps');
+  assert.strictEqual(await P.$('#hpvid'), null, 'v243: the old video is gone');
+  await P.waitForTimeout(800); await P.screenshot({ path: OUT + 'help-page-v243.png' });
+  // v243: the tour lives here now
+  await P.click('#tourgo'); await P.waitForSelector('#tour'); assert.strictEqual(await P.textContent('#tourh'), 'Entering a round'); await P.click('#tourskip'); await P.waitForTimeout(100); assert.strictEqual(await P.$('#tour'), null);
   // PDF link
   const href = await P.$eval('#hppdf', a => ({ h: a.href, t: a.target })); assert.strictEqual(href.t, '_blank');
   const pdf = await P.evaluate(u => fetch(u).then(r => r.blob().then(b => ({ s: r.status, type: r.headers.get('content-type'), n: b.size }))), href.h);
-  console.log('pdf', JSON.stringify(pdf)); assert.ok(pdf.s === 200 && pdf.type === 'application/pdf' && pdf.n === fs.statSync(ROOT + '/help/PinHigh-HowTo.pdf').size);
+  console.log('pdf', JSON.stringify(pdf)); assert.ok(pdf.s === 200 && pdf.type === 'application/pdf' && pdf.n === fs.statSync(ROOT + '/help/Strokewise-Guide.pdf').size);
   const [pop] = await Promise.all([ctx.waitForEvent('page'), P.click('#hppdf')]); await pop.waitForLoadState().catch(() => {}); console.log('pdf tab opened', pop.url()); await pop.close();
   // nothing under help/ went into the app cache
   const cached = await P.evaluate(async () => { const out = []; for (const k of await caches.keys()) for (const r of await (await caches.open(k)).keys()) if (/\/help\//.test(r.url)) out.push(k + ' ' + r.url); return out; });
