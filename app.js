@@ -2997,7 +2997,10 @@
       rounds: finishedRoundsOf(who).map(fill), tests: sgTestsOf(who).map(fill), practice: practiceOf(who).map(fill) };
   }
   var syncT = null;
-  function syncDirty(delay) { if (!syncOn() || CO.view || !Object.keys(SYNCX.state().links).length) return; clearTimeout(syncT); syncT = setTimeout(syncNow, delay == null ? 4000 : delay); }
+  // v241 (Scott): send within a second of a save (was 4 s – closing the app in that gap left it waiting until the app was opened again)
+  function syncDirty(delay) { if (!syncOn() || CO.view || !Object.keys(SYNCX.state().links).length) return; clearTimeout(syncT); syncT = setTimeout(function () { syncT = null; syncNow(); }, delay == null ? 800 : Math.min(delay, 1500)); }
+  // v241: leaving the app (home button, lock, switching apps) sends anything waiting right away
+  function syncLeave() { if (!syncOn() || CO.view) return; if (syncT) { clearTimeout(syncT); syncT = null; syncNow(); return; } var L = SYNCX.state().links; if (Object.keys(L).some(function (k) { return L[k].pending; })) syncNow(); }
   function syncNow() {
     if (!syncOn() || CO.view) return Promise.resolve(); var L = SYNCX.state().links;
     return Promise.all(Object.keys(L).map(function (k) { var who = L[k].player; return SYNCX.check(who).then(function (on) { return on ? SYNCX.flush(who, syncSnap(who)) : null; }).catch(function () {}); }))
@@ -3040,10 +3043,10 @@
       var arrow = a5 == null || p5 == null ? '' : a5 < p5 - 0.3 ? '<small class="cmup">↓ ' + (p5 - a5).toFixed(1) + '</small>' : a5 > p5 + 0.3 ? '<small class="cmdn">↑ ' + (a5 - p5).toFixed(1) + '</small>' : '<small class="cmflat">→ ' + Math.abs(a5 - p5).toFixed(1) + '</small>';
       var seen = A.seenAt || 0, nw = { rounds: 0, tests: 0, practice: 0 }; ['rounds', 'tests', 'practice'].forEach(function (k) { (A[k] || []).forEach(function (x) { if (itemT(x) > seen) nw[k]++; }); });
       var plural = function (n, w) { return n + ' ' + w + (n === 1 ? '' : 's'); };
-      var newTxt = [nw.rounds ? plural(nw.rounds, 'round') : '', nw.tests ? plural(nw.tests, 'test') : '', nw.practice ? plural(nw.practice, 'practice log') : ''].filter(Boolean).join(', ');
+      var newTxt = [nw.rounds ? plural(nw.rounds, 'round') : '', nw.tests ? plural(nw.tests, 'test') : '', nw.practice ? 'practice' : ''].filter(Boolean).join(', '); // Scott: "New practice", not "8 practice logs"
       var lt = coLatest(A), what = !lt ? 'Joined ' + agoTxt(A.member && A.member.at || now) : (function () { var best = null, kind = ''; ['rounds', 'tests', 'practice'].forEach(function (k) { (A[k] || []).forEach(function (x) { if (!best || itemT(x) > itemT(best)) { best = x; kind = k; } }); });
         return (kind === 'rounds' ? 'Round' : kind === 'tests' ? 'Short game test' : 'Practice logged') + ' · ' + agoTxt(itemT(best)); })();
-      var flags = []; if (newTxt) flags.push(['New: ' + newTxt, 'cmnew']);
+      var flags = []; if (newTxt) flags.push([(newTxt === 'practice' ? 'New ' : 'New: ') + newTxt, 'cmnew']);
       try { var T = trendsData(who), w = T && T.areas && T.areas.filter(function (x) { return x.ok && x.heading; })[0]; if (w) flags.push([w.name + ' slipping', 'cmred']); } catch (e) {}
       if (!flags.some(function (f) { return f[1] === 'cmred'; })) try { var D = fin.length >= 3 ? mgData(who) : null; if (D && D.headline) flags.push([D.headline, /slipp|worse|down/i.test(D.headline) ? 'cmred' : /better|improv|up/i.test(D.headline) ? 'cmgreen' : 'cmflat2']); } catch (e) {}
       var tl = sgTestsOf(who).filter(function (t) { return t.done; }).map(function (t) { return Date.parse(t.date) || 0; }).sort(function (a, b) { return b - a; })[0];
@@ -3186,7 +3189,10 @@
     else if (coachOn()) { view.screen = 'athletes'; coLoad().then(function () { if (view.screen === 'athletes') render(); coPull(); }); }
     syncDirty(1500);
     window.addEventListener('online', function () { syncDirty(500); if (coachOn()) coPull(true); });
-    document.addEventListener('visibilitychange', function () { if (document.visibilityState !== 'visible') return; syncDirty(1000); if (coachOn() && (view.screen === 'athletes' || CO.view)) coPull(true); });
+    window.addEventListener('pagehide', syncLeave);
+    // v241: a send that failed (no signal) is tried again every 30 s while the app is open, not only when it's reopened
+    setInterval(function () { if (document.visibilityState !== 'visible' || !syncOn() || CO.view) return; var L = SYNCX.state().links; if (Object.keys(L).some(function (k) { return L[k].pending; })) syncNow(); }, 30000);
+    document.addEventListener('visibilitychange', function () { if (document.visibilityState !== 'visible') { syncLeave(); return; } syncDirty(1000); if (coachOn() && (view.screen === 'athletes' || CO.view)) coPull(true); });
   }
   function archiveHTML() {
     var cur = rounds.filter(function (r) { return r.id === localStorage.getItem(CUR); })[0], nSaved = savedRounds().length;

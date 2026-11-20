@@ -1,4 +1,5 @@
 // Offline support: cache the whole app on install, serve cache-first.
+// v241: coach sharing sends within a second of a save, right away when you leave the app, and retries every 30 s after no signal.
 // v240: Practice – My Practice uses logged practice from your first log on (the typical week only fills the days before), so it matches "Your game and your training" (now also the last 30 days); week-ahead and this-week targets as 1h 55m, bars fill toward the target (no black marks); Trends solid line = the average of your last 3 rounds, through every point with soft corners (no pointy elbows, no overshoot). Same on the coach site.
 // v239: Practice "This week" page 3 – the fading average still holds flat on tournament / practice-round days; the green shaded blocks are hidden. Trophy and lesson markers stay. Same on the coach athlete Practice tab.
 // v238: Practice "This week" page 3 is a fading average (each day counts half as much 3 days later, minutes a week) instead of a rolling 7-day total – narrows within days when practice stops; tournament / practice-round days hold it flat and are shaded. Header "Last 3 weeks · fading average". Same on the coach athlete Practice tab.
@@ -131,7 +132,7 @@
 // v113: "Courses near me" (near.js). The course finder list (data/us-courses.json, ~1.0 MB, ~0.28 MB gzipped) is NOT in this cache:
 // the app downloads it on first use into its own cache 'pinhigh-courselist-v1', which a new version keeps (so no re-download).
 // GolfCore scorecards (through the Pin High relay, pinhigh-golfcore.pinhigh.workers.dev) go straight to the network; the app saves each picked course with the saved courses.
-const CACHE = 'golf-sg-v240';
+const CACHE = 'golf-sg-v241';
 const ASSETS = ['./', './img/home-bg.webp', './img/oriole.webp', './index.html', './styles.css', './sg.js', './trends.js', './plan.js', './funfacts.js', './weekahead.js', './birdie.js', './courses.js', './near.js', './bag.js', './wedges.js', './live.js', './sync.js', './share.js', './story.js', './insights.js', './mygame.js', './shortgame.js', './shortgame-ui.js', './app.js', './config.js', './vendor/jspdf.umd.min.js',
   './manifest.webmanifest', './icons/apple-touch-icon.png', './icons/icon-192.png',
   './icons/icon-512.png', './icons/icon-512-maskable.png'];

@@ -5,6 +5,10 @@ Renamed to **Pin High** (title, home-screen label, header, PDF). Storage keys (`
 Phone web app for tracking every golf shot and strokes gained against a selectable baseline (PGA Tour by default).
 Static files only: no backend, no build step. Data is stored on the phone (localStorage).
 
+## Coach sharing sends sooner (v241)
+
+Practice, rounds and tests now go to the coach link **within a second** of saving (was ~4 s), **straight away when you leave the app** (home, lock, switch apps – small sends use `keepalive` so they finish as the app goes to the background), and a send that failed for lack of signal is **retried every 30 s** while the app is open (as well as when it's reopened or the signal comes back). Before, closing the app right after logging left the practice waiting on the phone until the app was opened again.
+
 ## Where's the pin? on the watch (v233)
 
 On the **Apple Watch**, when a shot from off the green finishes **on the green** (tap Green) and that hole has no pin position yet, a **Where's the pin?** screen comes next: a 3×3 green, back at the top. **One tap** picks it and the flow carries on (Direction → distance → Confirm); **Skip** carries on without it and won't ask again on that hole. The pin goes to the phone with the shot (`pin` on the shot event, `native/watch-core.js`) and is set only if the hole has none – the phone's own ⛳ pin button still sets or changes it. The phone sends each hole's pin to the watch, so it never asks for a hole that already has one.

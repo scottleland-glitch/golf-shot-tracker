@@ -50,7 +50,8 @@
     }
     function db(acc, path, method, body, q) {
       return token(acc).then(function (t) {
-        return call(DB + '/' + path + '.json?auth=' + encodeURIComponent(t) + (q || ''), { method: method || 'GET', headers: body !== undefined ? { 'Content-Type': 'application/json' } : {}, body: body !== undefined ? JSON.stringify(body) : undefined });
+        var b = body !== undefined ? JSON.stringify(body) : undefined; // v241: keepalive lets a small send finish as the app goes to the background
+        return call(DB + '/' + path + '.json?auth=' + encodeURIComponent(t) + (q || ''), { method: method || 'GET', headers: body !== undefined ? { 'Content-Type': 'application/json' } : {}, body: b, keepalive: !!b && b.length < 60000 });
       });
     }
     function anon() { return post('accounts:signUp', { returnSecureToken: true }).then(function (j) { return fromAuth(j); }); }
