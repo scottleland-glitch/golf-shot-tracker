@@ -361,7 +361,15 @@
   var CLUBS = ['Driver', '3W', '5W', '7W', '4H', '5H', '5i', '6i', '7i', '8i', '9i', 'PW', '52', '54', '56', '58', '60'];
   // v92: any club name is kept (My Bag adds clubs like 4i, GW or 50); it only labels the shot – strokes gained never uses it
   function clubOf(s) { var c = s && typeof s.club === 'string' ? s.club.trim() : ''; return c && c.length <= 20 ? c : ''; }
+  // v242 (Scott): a score-only hole ({ so: true, score, putts }) – the score for history, putts if entered, GIR worked out
+  // (strokes − putts ≤ par − 2). No shots, so no strokes gained.
+  function scoreHole(hole) {
+    var sc = Number(hole.score) || 0, pt = hole.putts === '' || hole.putts == null ? null : Number(hole.putts), par = Number(hole.par) || 4, done = !!hole.finished && sc > 0;
+    return { shots: [], bad: null, problem: '', complete: sc > 0, finished: !!hole.finished, rows: 0, liveStrokes: sc, strokes: sc, penalties: 0, putts: pt == null ? 0 : pt, puttsKnown: pt != null,
+      done: done, gir: pt == null ? null : sc - pt <= par - 2, girShot: null, regShot: null, fairway: null, pin: normPin(hole.pin), appr: null, prox: null, sg: 0, scoreOnly: true };
+  }
   function analyzeHole(hole, baseline) {
+    if (hole && hole.so) return scoreHole(hole);
     var bad = null, problem = '', complete = null, finished = true, rowsFmt = !!hole.rows, nRows = 0, liveStrokes = 0, raw = hole.rows || hole.shots || [];
     if (rowsFmt) {
       var conv = rowsToShots(hole.rows); bad = conv.bad; problem = conv.problem; complete = conv.complete;
@@ -536,9 +544,16 @@
     var order = ['Tee shots'].concat(APPR_BUCKETS.map(function (b) { return b.id; }), [SHORT_BUCKET, BUNKER_BUCKET,
       '0-5 ft', '5-15 ft', '15-30 ft', '30+ ft']);
     order.forEach(function (b) { S.buckets[b] = { sg: 0, n: 0, proxSum: 0, proxN: 0, proxEx: 0, proxFt: null }; });
+    S.scoreOnly = !!round.scoreOnly; S.puttHoles = 0;
     (round.holes || []).forEach(function (h, hi) {
       var a = analyzeHole(h, baseline);
       S.holes.push(a);
+      if (a.scoreOnly) { // v242: score, putts (when entered) and GIR from them – nothing else
+        if (!a.complete) return; S.holesStarted++; if (!a.done) return;
+        S.holesDone++; S.strokes += a.strokes; S.par += Number(h.par) || 4;
+        if (a.puttsKnown) { S.putts += a.putts; S.puttHoles++; S.girHoles++; if (a.gir) S.gir++; }
+        return;
+      }
       if (!a.shots.length) return;
       S.holesStarted++;
       if (!a.done) return; // only finished holes count toward totals and stats
@@ -555,7 +570,7 @@
           endFt: r.end.lie === 'holed' ? 0 : r.end.lie === 'green' ? r.end.dist : r.end.dist * 3, endDir: r.end.lie === 'holed' ? '' : (r.dir || ''), endLie: r.end.lie });
       });
       for (var q = S.puttList.length - pn; q < S.puttList.length; q++) S.puttList[q].holePutts = pn; // putts the hole ended with
-      S.holesDone++; S.strokes += a.strokes; S.par += Number(h.par);
+      S.holesDone++; S.strokes += a.strokes; S.par += Number(h.par); S.puttHoles++;
       S.girHoles++; if (a.gir) S.gir++;
       if (a.fairway !== null) { S.fwTotal++; if (a.fairway) S.fwHit++; }
       a.shots.forEach(function (r) {
@@ -812,7 +827,7 @@
   // Empty round = no shot entered beyond (at most) a tee yardage on each hole.
   // v219: a score on the 18-hole scale – 18 holes as played, a complete 9 doubled (for averages and Trends)
   function score18(S) { return !S ? null : S.holesDone === 18 ? S.strokes : S.holesDone === 9 && S.holes.length === 9 ? S.strokes * 2 : null; }
-  function roundEmpty(r) { return !(r.holes || []).some(function (h) { var rw = h.rows || []; return rw.length > 1 || rw.some(function (x) { return x.loc && x.loc !== 'tee'; }); }); }
+  function roundEmpty(r) { return !(r.holes || []).some(function (h) { if (h.so) return h.score > 0 || !!h.finished; /* v242: a score-only hole with a score is data */ var rw = h.rows || []; return rw.length > 1 || rw.some(function (x) { return x.loc && x.loc !== 'tee'; }); }); }
   // Fold empty stub rounds into a real round played the same local day (course copied over if the real one has none).
   // Only rounds with no shots are ever removed, so no data can be lost. Returns { rounds, folded }.
   function foldStubs(list, dayOf, keepId) {
@@ -960,7 +975,7 @@
     YARDS: YARDS, OFF_GREEN: OFF_GREEN, FEET: FEET, PUTTS: PUTTS,
     // v150: the ONE place the app version lives – must equal the sw.js cache name ('golf-sg-' + VERSION). It sits in a cached file,
     // so Settings shows the version of the code actually running (config.js is network-first and could run ahead).
-    LONG_PAST_MAX_YD: LONG_PAST_MAX_YD, effectiveDir: effectiveDir, longPastLoc: longPastLoc, VERSION: 'v241' };
+    LONG_PAST_MAX_YD: LONG_PAST_MAX_YD, effectiveDir: effectiveDir, longPastLoc: longPastLoc, VERSION: 'v242' };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else root.SG = api;
 })(this);

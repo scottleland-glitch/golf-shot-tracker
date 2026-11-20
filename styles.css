@@ -3291,3 +3291,63 @@ html body .plsrc { display: block; font-size: 11.5px; line-height: 1.3; color: #
 /* v237: Fit / 30d / 60d / 90d on the rolling 7-day chart */
 html body .wkspans { gap: 5px; margin: 2px 0 0; } html body .wkspans .prchip { min-height: 28px; padding: 0 11px; font-size: 12.5px; font-weight: 600; color: #17301f; } html body .wkspans .prchip.on { background: #1f6f4a; border-color: #1f6f4a; color: #fff; }
 html body .weekcard.isfull .wkspans .prchip { min-height: 34px; font-size: 14px; padding: 0 14px; }
+/* v242 (Scott): How do you want to track? · score-only hole · score-only round card · score-only Stats · Settings Track */
+html body .trackpick .trackopt span em { display: block; font-style: normal; font-size: 11.5px; font-weight: 700; color: #2b6a3c; margin-top: 4px; }
+html body .soho { padding: 16px 16px 14px; }
+html body .sohead { display: flex; justify-content: space-between; align-items: baseline; } html body .sohead b { font-size: 26px; }
+html body .sopar { display: inline-flex; align-items: center; gap: 6px; font-size: 14.5px; color: var(--frost-ink-soft); font-weight: 600; }
+html body .sopb { width: 26px; height: 26px; min-height: 26px; padding: 0; border-radius: 50%; border: 0; background: rgba(23, 48, 31, .08); color: #17301f; font-size: 15px; box-shadow: none; }
+html body .sostep { display: flex; align-items: center; justify-content: center; gap: 26px; margin: 14px 0 2px; }
+html body .sobtn { width: 66px; height: 66px; min-height: 66px; padding: 0; border-radius: 50%; border: 0; background: rgba(23, 48, 31, .1); color: #17301f; font-size: 34px; font-weight: 600; box-shadow: none; }
+html body .sobtn:disabled { opacity: .35; } html body .sostep b { font-size: 76px; line-height: 1; width: 92px; text-align: center; font-variant-numeric: tabular-nums; } html body .sostep b.pre { opacity: .45; }
+html body .soname { text-align: center; margin: 2px 0 10px; font-size: 15px; color: var(--frost-ink-soft); font-weight: 600; }
+html body .solbl { text-align: center; font-size: 12px; letter-spacing: .08em; font-weight: 700; color: var(--frost-ink-soft); } html body .solbl span { font-weight: 400; letter-spacing: 0; }
+html body .soputts { display: flex; justify-content: center; gap: 8px; margin: 8px 0 14px; }
+html body .soput { width: 48px; height: 44px; min-height: 44px; padding: 0; border-radius: 12px; border: 0; background: rgba(23, 48, 31, .08); color: #17301f; font-size: 17px; font-weight: 700; box-shadow: none; }
+html body .soput.on { background: #17301f; color: #fff; } html body .soput:disabled { opacity: .3; }
+html body .sonext { width: 100%; } html body .soho .end9 { width: 100%; margin-top: 8px; }
+html body .socard { display: grid; grid-template-columns: repeat(9, 1fr); gap: 3px; margin-top: 12px; }
+html body .socell { display: grid; gap: 0; padding: 4px 0; min-height: 0; border: 0; border-radius: 7px; background: rgba(23, 48, 31, .06); color: #17301f; box-shadow: none; font: inherit; }
+html body .socell small { font-size: 9.5px; color: var(--frost-ink-soft); } html body .socell b { font-size: 14px; }
+html body .socell.cur { outline: 2px solid #1f6f4a; } html body .socell.under { background: #d8ecdc; } html body .socell.over { background: #fbeccd; }
+html body .sosum { display: block; padding: 16px; } html body .sotot { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; text-align: center; margin-bottom: 12px; }
+html body .sotot b { display: block; font-size: 26px; } html body .sotot small { font-size: 12px; color: var(--frost-ink-soft); }
+html body .sotab { width: 100%; border-collapse: collapse; margin: 6px 0; font-size: 12.5px; text-align: center; table-layout: fixed; }
+html body .sotab th, html body .sotab td { padding: 4px 0; border-bottom: 1px solid rgba(23, 48, 31, .08); } html body .sotab th:first-child, html body .sotab td:first-child { text-align: left; width: 44px; color: var(--frost-ink-soft); font-weight: 600; }
+html body .sotab tr.sc td { font-weight: 700; } html body .sotab td button { border: 0; background: none; padding: 2px 0; min-height: 0; box-shadow: none; font: inherit; color: inherit; width: 100%; }
+html body .sotab td.under button { color: #1f7a3f; } html body .sotab td.over button { color: #a5571d; }
+html body .sostats .card { display: block; padding: 16px; }
+html body .sotiles { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; } html body .sotile { background: rgba(23, 48, 31, .05); border-radius: 14px; padding: 12px; }
+html body .sotile b { display: block; font-size: 28px; } html body .sotile small { font-size: 12.5px; color: var(--frost-ink-soft); }
+html body .sohd { display: block; font-size: 15px; margin-bottom: 6px; } html body .sochart { width: 100%; height: auto; display: block; }
+html body .soline { fill: none; stroke: #1f6f4a; stroke-width: 2.5; stroke-linejoin: round; } html body .sodot { fill: #1f6f4a; } html body .solab { font-size: 11px; fill: #3f4d44; }
+html body .soround { display: flex; justify-content: space-between; align-items: center; width: 100%; padding: 10px 0; border: 0; border-top: 1px solid rgba(23, 48, 31, .08); background: none; box-shadow: none; min-height: 0; color: inherit; font: inherit; text-align: left; border-radius: 0; }
+html body .soround span { display: grid; } html body .soround small { font-size: 12px; color: var(--frost-ink-soft); } html body .soround em { font-style: normal; font-weight: 700; font-size: 17px; } html body .soround em small { font-weight: 600; }
+html body .trackrow { display: flex; align-items: center; gap: 10px; } html body .trklbl { font-weight: 700; font-size: 15px; }
+html body .seg2 { display: flex; flex: 1; background: rgba(23, 48, 31, .08); border-radius: 999px; padding: 3px; } html body .seg2b { flex: 1; border: 0; border-radius: 999px; padding: 8px 6px; min-height: 0; background: none; box-shadow: none; font: inherit; font-size: 14px; font-weight: 600; color: #17301f; }
+html body .seg2b.on { background: #fff; box-shadow: 0 1px 4px rgba(0, 0, 0, .12); }
+/* v242: the tour */
+html body #toursheet .cssheet.tour { background: #fbfaf6; padding: 0; overflow: hidden; height: min(88vh, 760px); max-height: 92vh; display: flex; flex-direction: column; }
+html body #toursheet .tourpic { flex: 1 1 0; min-height: 0; overflow: hidden; background: linear-gradient(#cfdbe6, #e9efe2); display: flex; justify-content: center; align-items: flex-start; padding: 14px 14px 0; }
+html body #toursheet .tourpic img { width: auto; height: auto; max-width: 78%; max-height: 100%; border-radius: 18px 18px 0 0; box-shadow: 0 6px 24px rgba(0,0,0,.18); object-fit: cover; object-position: top; }
+html body #toursheet .tourpic.watch { align-items: center; padding: 22px 0; background: linear-gradient(#22313a, #3c4c45); }
+html body #toursheet .tourbody { padding: 16px 20px calc(14px + env(safe-area-inset-bottom)); }
+
+html body #toursheet .tourbody p { margin: 0; line-height: 1.42; color: var(--ink2, #3a4650); }
+html body #toursheet .toursteps { margin: 2px 0 0; padding-left: 20px; line-height: 1.38; } html body #toursheet .toursteps li { margin: 4px 0; } html body #toursheet .toursteps b { color: #1f6b43; }
+html body #toursheet .tourdots { display: flex; gap: 6px; justify-content: center; margin: 14px 0 10px; } html body #toursheet .tourdots i { width: 7px; height: 7px; border-radius: 50%; background: rgba(0,0,0,.18); } html body #toursheet .tourdots i.on { background: #1f6b43; width: 18px; border-radius: 4px; }
+html body #toursheet .tourbtns { display: flex; align-items: center; gap: 10px; } html body #toursheet .tourbtns .tournext { flex: 1; margin: 0; }
+html body #toursheet .tourskip, html body #toursheet .tourprev { background: none; border: 0; font: inherit; font-weight: 600; color: #5b6770; padding: 10px 6px; }
+.tourrow { display: flex; justify-content: space-between; width: 100%; margin: 10px 0; padding: 14px 16px; border: 0; border-radius: 16px; font: inherit; font-weight: 600; text-align: left; color: inherit; }
+.wmock { position: relative; width: 168px; height: 200px; border-radius: 46px; background: #0b0d0e; box-shadow: 0 0 0 5px #545b60, 0 10px 30px rgba(0,0,0,.45); padding: 14px; box-sizing: border-box; }
+.wmcrown { position: absolute; right: -11px; top: 48px; width: 7px; height: 30px; border-radius: 3px; background: #7c8489; } .wmbtn { position: absolute; right: -9px; top: 100px; width: 5px; height: 36px; border-radius: 3px; background: #5f666b; }
+.wmface { color: #fff; font: 600 11px -apple-system, system-ui, sans-serif; height: 100%; display: flex; flex-direction: column; }
+.wmtop { color: #39d07a; font-size: 12px; margin: 2px 0 6px 6px; } .wmq { font-size: 12px; margin: 0 0 6px 4px; }
+.wmgrid { display: grid; grid-template-columns: 1fr 1fr; gap: 5px; } .wmgrid i { font-style: normal; background: #2a2d30; border-radius: 10px; padding: 9px 2px; text-align: center; font-size: 10px; } .wmgrid i.on { background: #1f8a50; } .wmgrid i.in { background: #c79a2c; }
+.wmscore { display: flex; justify-content: space-between; align-items: center; margin: 14px 4px 8px; } .wmscore span { width: 34px; height: 34px; border-radius: 50%; background: #2a2d30; display: grid; place-items: center; font-size: 20px; } .wmscore b { font-size: 46px; }
+.wmput { text-align: center; color: #b6bcc0; } .wmput b { color: #fff; font-size: 16px; }
+html body #toursheet .csback { z-index: 129; background: rgba(10, 20, 15, .55); } html body #toursheet .cssheet { z-index: 130; }
+html body #toursheet .tournext { flex: 1; margin: 0; border: 0; border-radius: 999px; padding: 14px; font: inherit; font-size: 17px; font-weight: 600; background: #2f6b3f; color: #fff; box-shadow: none; }
+html body #toursheet .tourskip, html body #toursheet .tourprev { background: none; border: 0; box-shadow: none; font: inherit; font-weight: 600; color: #5b6770; padding: 10px 6px; }
+html body #toursheet #tourh { color: #17301f; margin: 0 0 6px; }
+html body #toursheet .tourbody { flex: 0 0 auto; }

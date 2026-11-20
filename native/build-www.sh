@@ -5,7 +5,7 @@ cd "$(dirname "$0")/.."
 rm -rf www && mkdir -p www
 cp index.html *.js styles.css manifest.webmanifest privacy.html support.html terms.html www/
 rm -f www/sw.js   # no service worker inside the app – the files are already on the phone
-cp -R icons img vendor data help www/
+cp -R icons img tour vendor data help www/
 cp native/native.js www/native.js
 # native.js right after config.js (it routes sharing through iOS's share sheet)
 python3 - <<'PY'

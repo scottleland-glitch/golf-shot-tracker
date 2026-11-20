@@ -44,6 +44,7 @@
 
   // Strokes gained per 18 holes in each spoke, plus the tiles' numbers, for a list of finished rounds.
   function shape(list, SG, bl) {
+    list = (list || []).filter(function (r) { return !r.scoreOnly; }); // v242: score-only rounds have no shots – not part of strokes gained
     var acc = {}; SPOKES.forEach(function (s) { acc[s.k] = { n: 0, sg: 0 }; });
     var holes = 0, strokes18 = [], sgTot = 0, putts = 0, gir = 0, girHoles = 0;
     list.forEach(function (r) {

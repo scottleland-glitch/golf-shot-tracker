@@ -51,11 +51,10 @@ const ARC = require('/home/claude/golf-app/tests/fixtures/arcade-78.js');
   await page.click('#navbtn'); await page.click('[data-act="archive"]'); await page.waitForSelector('#setmoderow'); await page.click('#setmoderowlog'); await page.waitForTimeout(200);
   assert.strictEqual(await page.evaluate(() => localStorage.getItem('golfsg.mode.v1')), '{"scott":"full"}'); ok('Settings: back on');
   // first launch: the choice is in the "Who's playing?" sheet; Stats + practice is picked unless you change it
-  await page.evaluate(() => { localStorage.clear(); }); await page.reload(); await page.waitForSelector('#welcome'); await page.click('#rolego'); await page.waitForSelector('#modepick');
-  assert.strictEqual(await page.getAttribute('#firstlog', 'aria-checked'), 'true'); assert.strictEqual(await page.getAttribute('#firstrecs', 'aria-checked'), 'true');
-  await page.fill('#pname', 'Amber'); await page.click('#firstlog'); assert.ok(await page.$eval('#firstrecs', x => x.disabled), 'recommendations need logging'); assert.strictEqual(await page.inputValue('#pname'), 'Amber', 'the name survives the choice');
+  await page.evaluate(() => { localStorage.clear(); }); await page.reload(); await page.waitForSelector('#welcome'); await page.click('#rolego'); await page.waitForSelector('#trackpick'); await page.click('#tracksg'); await page.click('#trackgo'); await page.waitForSelector('#trackline'); // v242: the track choice replaces the practice switches
+  await page.fill('#pname', 'Amber');
   if (OUT) await page.screenshot({ path: OUT + '/stats-first-launch.png' });
-  await page.click('[data-act="setname"]'); await page.waitForTimeout(300);
+  await page.click('[data-act="setname"]'); await page.waitForTimeout(300); await page.click('#tourskip');
   assert.strictEqual(await page.evaluate(() => localStorage.getItem('golfsg.mode.v1')), '{"amber":"stats"}'); assert.ok(await page.$('#tbtrends')); ok('first launch: Track my stats');
   assert.deepStrictEqual(errs, []); await b.close(); srv.kill(); console.log('stats-mode OK'); process.exit(0);
 })().catch(e => { console.error(e); process.exit(1); });

@@ -82,7 +82,7 @@
       var t = Date.parse(r.date), i = isNaN(t) || t > now + DAY ? -1 : wk(t); if (i < 0) return;
       var S = SG.summarize(r, opts.bl); if (!S.holesDone) return;
       var w = W[i], rw = r.play === 'practice' ? CFG.practiceRound : 1; // v218: a practice round counts half
-      w.holes += S.holesDone; w.wHoles += S.holesDone * rw; w.rounds++; if (rw < 1) w.prRounds++; var s18 = SG.score18 ? SG.score18(S) : (S.holesDone === 18 ? S.strokes : null); if (s18 != null) { w.score.push(s18); w.scoreW.push(rw * S.holesDone / 18); } // v219: a 9 counts half, doubled
+      var so = !!S.scoreOnly; w.holes += so ? 0 : S.holesDone; w.wHoles += so ? 0 : S.holesDone * rw; w.rounds += so ? 0 : 1; /* v242: a score-only round counts in the score line only */ if (rw < 1) w.prRounds++; var s18 = SG.score18 ? SG.score18(S) : (S.holesDone === 18 ? S.strokes : null); if (s18 != null) { w.score.push(s18); w.scoreW.push(rw * S.holesDone / 18); } // v219: a 9 counts half, doubled
       var R = { id: r.id, date: r.date, course: r.course || '', play: r.play || '', holes: S.holesDone, score: S.holesDone === 18 || (S.holesDone === 9 && S.holes.length === 9) ? S.strokes : null, sg: {}, n: {} }; R.s18 = s18; w.list.push(R); // v197: tap a week
       S.holes.forEach(function (h) { if (!h.done) return; h.shots.forEach(function (s) { if (s.layup) return;
         for (var k = 0; k < SP.length; k++) if (SP[k].test(s)) { w.sg[SP[k].k] = (w.sg[SP[k].k] || 0) + s.sg * rw; w.n[SP[k].k] = (w.n[SP[k].k] || 0) + 1; R.sg[SP[k].k] = (R.sg[SP[k].k] || 0) + s.sg; R.n[SP[k].k] = (R.n[SP[k].k] || 0) + 1; break; } }); });

@@ -57,6 +57,7 @@
 
   // ---- 1. need: strokes per round vs the benchmark, per area ----
   function areaNeeds(rounds, SG, MYGAME, bl, now) {
+    rounds = (rounds || []).filter(function (r) { return !r.scoreOnly; }); // v242: score-only rounds have no shots
     var A = {}; MYGAME.SPOKES.forEach(function (sp) { A[sp.k] = { k: sp.k, name: sp.name, need: sp.need, sg: 0, n: 0, wr: 0, shots: [], last: { sg: 0, n: 0 } }; });
     var W = 0, nR = 0, first = Infinity, lastI = -1, lastT = -Infinity, lastH = 0;
     // v233: the latest round of 9+ holes – the recency check compares it with the longer window

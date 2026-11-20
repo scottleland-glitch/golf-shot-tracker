@@ -101,7 +101,7 @@ const ARC = require('/home/claude/golf-app/tests/fixtures/arcade-78.js'), FF = r
   if (OUT) await nc.screenshot({ path: OUT + '/coach-empty-v217.png' });
   await nc.reload(); await nc.waitForSelector('#cmpage'); assert.strictEqual(await nc.$('#welcome'), null, 'asked once'); ok('coach signs in → Athletes with + Invite; not asked again');
   // the invite link on a new phone: name (code filled in) → "Share with Coach Mike?"
-  const na = await fresh('/?team=' + code); await na.waitForSelector('#namesheet'); assert.strictEqual(await na.$('#welcome'), null, 'an invite means a player');
+  const na = await fresh('/?team=' + code); await na.waitForSelector('#trackgo'); await na.click('#trackgo'); await na.waitForSelector('#namesheet'); assert.strictEqual(await na.$('#welcome'), null, 'an invite means a player');
   assert.strictEqual(await na.inputValue('#pcode'), code); await na.fill('#pname', 'Lily'); await na.click('#namesheet [data-act="setname"]');
   await na.waitForSelector('#csjoin'); assert.strictEqual(await na.textContent('#cshead'), 'Share with Coach Mike?'); assert.strictEqual((await na.textContent('#csjoin')).trim(), 'Share my rounds');
   await na.click('[data-act="csage"][data-v="adult"]'); if (OUT) await na.screenshot({ path: OUT + '/invite-share.png' });
@@ -110,7 +110,7 @@ const ARC = require('/home/claude/golf-app/tests/fixtures/arcade-78.js'), FF = r
   const ex = await phone('Zoe'); await ex.goto('http://127.0.0.1:' + PORT + '/?team=' + code); await ex.waitForSelector('#csjoin'); assert.strictEqual(await ex.textContent('#cshead'), 'Share with Coach Mike?');
   assert.ok(!/team=/.test(await ex.evaluate(() => location.search)), 'link tidied'); ok('invite link on a set-up phone → straight to Share with Coach Mike?');
   // a coach code typed on the first screen
-  const ty = await fresh(); await ty.waitForSelector('#welcome'); await ty.click('#rolego'); await ty.waitForSelector('#pcode'); await ty.fill('#pname', 'Max'); await ty.fill('#pcode', code.toLowerCase());
+  const ty = await fresh(); await ty.waitForSelector('#welcome'); await ty.click('#rolego'); await ty.click('#trackgo'); await ty.waitForSelector('#pcode'); await ty.fill('#pname', 'Max'); await ty.fill('#pcode', code.toLowerCase());
   await ty.click('#namesheet [data-act="setname"]'); await ty.waitForSelector('#csjoin'); ok('I play → name + coach code → Share with Coach Mike?');
   assert.deepStrictEqual(errs, []); await b.close(); srv.kill(); fb.close(); console.log('coach-sharing OK'); process.exit(0);
 })().catch(e => { console.error(e); process.exit(1); });

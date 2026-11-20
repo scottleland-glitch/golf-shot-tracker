@@ -173,7 +173,8 @@
     var sel = document.getElementById('newbl');
     var r = { v: 3, dv: 2, id: 'r' + Date.now(), date: new Date().toISOString(), course: course || '', player: playerName(), baseline: sel ? sel.value : myBench(playerName()), holes: [] };
     r.play = view.newPlay || lastPlay(); try { localStorage.setItem(PLAYK, r.play); } catch (e) {} view.newPlay = null;
-    for (var i = 0; i < 18; i++) r.holes.push(emptyHole());
+    var so = scoreOnly(); if (so) r.scoreOnly = true; // v242: a score per hole
+    for (var i = 0; i < 18; i++) { var eh = emptyHole(); if (so) { eh.so = true; eh.score = null; eh.putts = null; } r.holes.push(eh); }
     var nc = view.newC && courseById(view.newC.id), tee = view.newC && view.newC.tee;
     if (!nc && course) { nc = courses().filter(function (c) { return c.name.trim().toLowerCase() === course.toLowerCase(); })[0]; tee = null; } // typed a saved course's name
     if (nc && (!course || course.toLowerCase() === nc.name.toLowerCase())) { r.course = nc.name; r.courseId = nc.id; r.tee = tee || (nc.tees[0] || {}).name || ''; COURSES.prefill(r.holes, nc, r.tee); }
@@ -242,7 +243,7 @@
     // iPhone Safari pin "fixed" to the page instead of the screen (Scott: the bar floated mid-screen on My Game)
     ['tabbar', 'pagebar'].forEach(function (id) { var o = document.getElementById(id); if (o) o.remove(); });
     var pb = rbOn || view.prLog || view.mv || view.sess ? '' : pageBarHTML() || tabBarHTML(); /* v198: the Rounds move bar too */ /* v195: the log sheet has its own Save / Cancel */ if (pb) document.body.insertAdjacentHTML('beforeend', pb);
-    document.body.classList.toggle('hastab', !!(pb && pb.indexOf('id="tabbar"') >= 0)); hcStart(); /* v200: the Home card's rotation */ wkStart(); /* v206 */ coDecorate(); coSearch(); coSheets(); prSheets(); /* v212, v216 */
+    document.body.classList.toggle('hastab', !!(pb && pb.indexOf('id="tabbar"') >= 0)); hcStart(); /* v200: the Home card's rotation */ wkStart(); /* v206 */ coDecorate(); coSearch(); coSheets(); prSheets(); tourSheet(); /* v212, v216 */
     document.body.classList.toggle('hasrbar', rbOn || !!pb);
   }
   // v123: on the round-page map sheets, long legend sentences without a symbol ("Rings = feet from the hole…") move under the legend as a note, which infoize() puts behind ⓘ
@@ -1352,7 +1353,7 @@
   function statsData() {
     statsPlayerInfo(); var cur = localStorage.getItem(CUR), who = view.stPlayer, unf = 0;
     var list = savedRounds().filter(function (r) { return !who || (who === '~none' ? !r.player : r.player === who); }).filter(function (r) {
-      var S = SG.summarize(r), ok = S.holesDone === r.holes.length && r.holes.length > 0 && r.id !== cur; if (!ok) unf++; return ok; })
+      var S = SG.summarize(r), ok = S.holesDone === r.holes.length && r.holes.length > 0 && r.id !== cur; if (!ok) unf++; return ok && !r.scoreOnly; }) // v242: score-only rounds have no shots for these stats
       .sort(function (a, b) { return String(a.date || '').localeCompare(String(b.date || '')); });
     var all = list.map(function (r) { return statsRound(r, stBlNow()); }), mode = view.stMode || 'all', selIdx = -1;
     var openOK = function (id) { return id && id === (view.roundId || cur) && savedRounds().some(function (r) { return r.id === id && SG.summarize(r).holesDone; }); };
@@ -1576,7 +1577,30 @@
       '<div class="stsubb" id="stpmb"' + (on ? '' : ' hidden') + '>' + (on ? '<div class="stpmchips" id="stpmchips" role="group" aria-label="First-putt distance">' + PM_BANDS.map(function (b) {
         var s = b.id === band; return '<button class="stpmchip' + (s ? ' sel' : '') + '" data-act="stpmb" data-v="' + b.id + '" aria-pressed="' + s + '">' + esc(b.chip) + '</button>'; }).join('') + '</div>' + stPmissCard(D, band) : '') + '</div></section>';
   }
+  // v242 (Scott): Stats for score only – average, best, putts, greens and the scores over time, from every finished round
+  function soStatsHTML() {
+    var who = playerName(), cur = localStorage.getItem(CUR);
+    var L = savedRounds().filter(function (r) { return samePlayer(r.player || playerName(), who) && r.id !== cur; }).map(function (r) { var S = SG.summarize(r); return { r: r, S: S, s18: SG.score18(S) }; })
+      .filter(function (x) { return x.S.holesDone && x.S.holesDone === x.r.holes.length; }).sort(function (a, b) { return String(b.r.date).localeCompare(String(a.r.date)); });
+    var h = '<div class="frostpage theme-sky statspage sostats" id="statspage"><div class="topbar frost"><button class="txt frostbtn" data-act="history">‹ Rounds</button><div class="title"><b>Stats</b><span>' + L.length + ' round' + (L.length === 1 ? '' : 's') + '</span></div><span class="tbspace"></span></div>';
+    if (!L.length) return h + '<div class="card frost"><p class="help">Finish a round and your scoring stats show up here.</p></div></div>';
+    var s18 = L.map(function (x) { return x.s18; }).filter(function (v) { return v != null; }), avg = s18.length ? s18.reduce(function (a, b) { return a + b; }, 0) / s18.length : null;
+    var full = L.filter(function (x) { return x.S.holesDone === 18; }), best = full.length ? full.reduce(function (m, x) { return x.S.strokes < m.S.strokes ? x : m; }) : null;
+    var pH = L.reduce(function (t, x) { return t + x.S.puttHoles; }, 0), pT = L.reduce(function (t, x) { return t + (x.S.puttHoles ? x.S.putts : 0); }, 0), gH = L.reduce(function (t, x) { return t + x.S.girHoles; }, 0), gT = L.reduce(function (t, x) { return t + x.S.gir; }, 0);
+    var tile = function (v, l, id) { return '<div class="sotile"' + (id ? ' id="' + id + '"' : '') + '><b>' + v + '</b><small>' + l + '</small></div>'; };
+    h += '<div class="card frost"><div class="sotiles">' + tile(avg == null ? '–' : avg.toFixed(1), 'Scoring average', 'soavg') + tile(best ? best.S.strokes : '–', 'Best 18', 'sobest') +
+      tile(pH ? (pT / pH * 18).toFixed(1) : '–', 'Putts a round', 'soputt') + tile(gH ? Math.round(gT / gH * 100) + '%' : '–', 'Greens in reg.', 'sogir') + '</div>' +
+      '<p class="help muted">9-hole rounds count doubled in the average. Putts and greens only count holes where you entered putts.</p></div>';
+    // scores over time, oldest → newest
+    var P = L.slice(0, 20).reverse().filter(function (x) { return x.s18 != null; });
+    if (P.length >= 2) { var lo = Math.min.apply(null, P.map(function (x) { return x.s18; })) - 2, hi = Math.max.apply(null, P.map(function (x) { return x.s18; })) + 2, W = 340, H = 150, X = function (i) { return 20 + i * (W - 40) / (P.length - 1); }, Y = function (v) { return 14 + (hi - v) * (H - 34) / (hi - lo); };
+      h += '<div class="card frost"><b class="sohd">Scores (18-hole)</b><svg viewBox="0 0 ' + W + ' ' + H + '" class="sochart" role="img" aria-label="Your scores over time"><path d="' + P.map(function (x, i) { return (i ? 'L' : 'M') + X(i).toFixed(1) + ' ' + Y(x.s18).toFixed(1); }).join(' ') + '" class="soline"/>' +
+        P.map(function (x, i) { return '<circle cx="' + X(i).toFixed(1) + '" cy="' + Y(x.s18).toFixed(1) + '" r="3.5" class="sodot"/>' + (P.length <= 12 ? '<text x="' + X(i).toFixed(1) + '" y="' + (Y(x.s18) - 8).toFixed(1) + '" text-anchor="middle" class="solab">' + x.s18 + '</text>' : ''); }).join('') + '</svg></div>'; }
+    h += '<div class="card frost"><b class="sohd">Recent rounds</b>' + L.slice(0, 10).map(function (x) { return '<button class="soround" data-act="open" data-id="' + esc(x.r.id) + '"><span><b>' + esc(x.r.course || 'Round') + '</b><small>' + new Date(x.r.date).toLocaleDateString() + (x.S.holesDone === 9 ? ' · 9 holes' : '') + '</small></span><em>' + x.S.strokes + ' <small>' + toPar(x.S.toPar) + '</small></em></button>'; }).join('') + '</div>';
+    return h + '</div>';
+  }
   function statsHTML() {
+    if (scoreOnly()) return soStatsHTML(); // v242
     var I = statsPlayerInfo(), D = statsData(), all = D.all, shown = D.shown, mode = D.mode;
     var who = view.stPlayer === '~none' ? 'No name' : view.stPlayer || (I.multi ? 'All players' : (all[0] && (rounds.filter(function (r) { return r.id === all[0].id; })[0] || {}).player) || playerName() || '');
     var h = '<div class="frostpage theme-sky statspage" id="statspage"><div class="topbar frost"><button class="txt frostbtn" data-act="home">‹ Home</button><div class="title"><b>Stats</b><span>' +
@@ -1963,7 +1987,9 @@
     if (!SG.slug(n)) { toast('Please enter a name (letters or numbers)'); return; }
     var old = playerName();
     if (old && old !== n && !confirm('Change player name from "' + old + '" to "' + n + '"?\n\nYour rounds are relabelled.')) return;
-    if (view.nameSheet === 'first' && view.firstMode) setMode(n, view.firstMode); // v209: the first-launch choice
+    var wasFirst = view.nameSheet === 'first';
+    if (wasFirst && view.firstMode) setMode(n, view.firstMode); // v209: the first-launch choice
+    if (wasFirst && view.firstTrack) { applyFirstTrack(n); view.tour = { i: 0, first: true }; } // v242: what to track, then the tour
     localStorage.setItem(PN, n); localStorage.setItem(NA, '1'); view.editName = false; view.needName = null; view.nameSheet = null; view.newPEdit = false;
     rounds.forEach(function (r) { if (!r.player || r.player === old) r.player = n; });
     save(); backupDirty(800);
@@ -1998,12 +2024,14 @@
   function nameSheetHTML() {
     var n = playerName(), first = view.nameSheet !== 'change';
     if (first && needRole()) return welcomeHTML();
+    if (first && needTrack()) return trackPickHTML(); // v242
     return '<div class="sheet-back"' + (first ? '' : ' data-act="namecancel"') + '></div><div class="hsheet glass namesheet" id="namesheet" role="dialog" aria-modal="true" aria-labelledby="namesh">' +
       '<div class="sheet-h" id="namesh">' + (first ? 'Who’s playing?' : 'Player') + '</div>' +
       '<p class="namehelp" id="namehelp">' + (first ? 'Enter the golfer’s name. It goes on each round, the reports and the live scorecard.' : 'The golfer using this phone. It goes on each round, the reports and the live scorecard.') + '</p>' +
       '<input type="text" id="pname" value="' + esc(n) + '" placeholder="Golfer’s name" autocomplete="name" maxlength="40" aria-label="Golfer’s name">' +
-      (first ? '<p class="namehelp modeq" id="modeq">How do you want to use Strokewise?</p><div class="modepick" id="modepick">' + modeSwitchesHTML(view.firstMode || 'full', 'first', 'first') +
+      (first && !view.firstTrack ? '<p class="namehelp modeq" id="modeq">How do you want to use Strokewise?</p><div class="modepick" id="modepick">' + modeSwitchesHTML(view.firstMode || 'full', 'first', 'first') +
         '</div><p class="namehelp modenote">You can change these any time in Settings.</p>' : '') +
+      (first && view.firstTrack ? '<p class="namehelp modenote" id="trackline">Tracking: <b>' + esc(TRACKS.filter(function (t) { return t[0] === view.firstTrack; })[0][2]) + '</b> · change any time in Settings.</p>' : '') +
       (first && syncOn() ? '<label class="namehelp modeq" for="pcode">Have a coach code? <span>(optional)</span></label><input type="text" id="pcode" class="cscode" value="' + esc(view.firstCode || '') + '" placeholder="ABC-123" autocapitalize="characters" autocomplete="off" maxlength="8" aria-label="Coach code (optional)">' : '') +
       '<button class="sheet-go" data-act="setname">Save</button>' +
       '<button class="sheet-item muted" data-act="' + (first ? 'nameskip' : 'namecancel') + '">' + (first ? 'Not now' : 'Cancel') + '</button></div>';
@@ -2398,7 +2426,7 @@
     if (!TAB_SCREENS[view.screen] && !(view.screen === 'trends' && (!pr || coach))) return ''; // v209: Trends is a tab when practice is off; v232: also a tab in coach review
     var mid = coach ? ['practice', 'gopractice', 'Practice'] : null;
     var fourth = coach || !pr ? ['trends', 'gotrends', 'Trends'] : ['practice', 'gopractice', 'Practice'];
-    var it = [['mygame', 'mygame', 'My Game'], ['rounds', 'history', 'Rounds'], mid, fourth, ['stats', 'stats', 'Stats']];
+    var it = scoreOnly() && !coach ? [['rounds', 'history', 'Rounds'], null, ['stats', 'stats', 'Stats']] /* v242: score only */ : [['mygame', 'mygame', 'My Game'], ['rounds', 'history', 'Rounds'], mid, fourth, ['stats', 'stats', 'Stats']];
     var on = { mygame: 'mygame', history: 'history', practice: 'gopractice', stats: 'stats', trends: (coach || !pr) ? 'gotrends' : '' }[view.screen];
     return '<nav class="tabbar" id="tabbar" aria-label="Main">' + it.map(function (x) {
       if (!x) return '<button class="tbplus" data-act="tbplus" id="tbplus" aria-label="' + (pr ? 'Start: new round, log practice or short game test' : 'Start a new round') + '"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg></button>';
@@ -2420,15 +2448,72 @@
   // v205 (Scott): "your typical week" – a starting baseline (practice hours, rounds a month) until real practice takes over
   // v209 (Scott): two ways to use the app, per player – 'stats' (rounds, stats, My Game, Trends, fun facts; no practice) or 'full' (+ the practice plan).
   // Turning practice off only hides it – nothing is deleted, and turning it back on picks up from the rounds straight away.
+  // v242 (Scott): what a player tracks – 'score' (a score per hole, putts optional) or 'shots' (every shot and lie, the default).
+  // Every shot then splits by the practice switches: practice off = strokes gained only, on = strokes gained + the improvement engine.
+  var TRACK_KEY = 'golfsg.track.v1', TRACK_ASKED = 'golfsg.trackasked.v1';
+  function trackAll() { try { return JSON.parse(localStorage.getItem(TRACK_KEY) || '{}') || {}; } catch (e) { return {}; } }
+  function trackOf(who) { return trackAll()[String(who == null ? playerName() : who).toLowerCase()] === 'score' ? 'score' : 'shots'; }
+  function scoreOnly(who) { return !(typeof CO !== 'undefined' && CO && CO.view) && trackOf(who === undefined ? playerName() : who) === 'score'; }
+  function setTrack(who, t) { if (typeof roGuard === 'function' && roGuard()) return; var A = trackAll(); A[String(who || '').toLowerCase()] = t === 'score' ? 'score' : 'shots'; try { localStorage.setItem(TRACK_KEY, JSON.stringify(A)); } catch (e) {} }
+  // the three setup choices → track + practice mode
+  var TRACKS = [['score', '⛳', 'Score only', 'Your score on each hole, kept for history. Putts optional.', ['Scores', 'Round history', 'Putts & greens']],
+    ['sg', '📊', 'Every shot – strokes gained', 'Each shot\'s lie and distance, so you see where you gain and lose strokes.', ['Scores', 'Strokes gained', 'Stats']],
+    ['full', '🚀', 'Every shot + improve', 'Strokes gained, plus short-game tests and a practice plan that adjusts each week.', ['Strokes gained', 'Tests', 'Practice plan', 'Trends']]];
+  function needTrack() { try { return !localStorage.getItem(TRACK_ASKED) && !view.firstTrack; } catch (e) { return false; } }
+  function trackPickHTML() {
+    var sel = view.trackSel || 'full';
+    return '<div class="sheet-back"></div><div class="hsheet glass namesheet welcome trackpick" id="trackpick" role="dialog" aria-modal="true" aria-labelledby="trackh"><div class="sheet-h" id="trackh">How do you want to track?</div>' +
+      '<p class="namehelp">You can change this any time in Settings.</p><div class="rolepick" role="radiogroup" aria-label="How you want to track">' +
+      TRACKS.map(function (t) { return '<button class="roleopt trackopt' + (sel === t[0] ? ' on' : '') + '" id="track' + t[0] + '" data-act="trackpick" data-v="' + t[0] + '" role="radio" aria-checked="' + (sel === t[0]) + '"><i aria-hidden="true">' + t[1] + '</i><span><b>' + esc(t[2]) + '</b><small>' + esc(t[3]) + '</small><em>' + t[4].map(esc).join(' · ') + '</em></span></button>'; }).join('') +
+      '</div><button class="sheet-go" data-act="trackgo" id="trackgo">Continue</button></div>';
+  }
+  function applyFirstTrack(who) { var t = view.firstTrack; if (!t) return; setTrack(who, t === 'score' ? 'score' : 'shots'); setMode(who, t === 'full' ? 'full' : 'stats'); try { localStorage.setItem(TRACK_ASKED, '1'); } catch (e) {} }
+  // v242 (Scott): the first-run tour – how to enter a round (phone and watch), your rounds, and (Every shot) strokes gained, reviewing a
+  // round and My Game; (Every shot + improve) how the improvement loop works. Shown once after setup, and from Settings → Take the tour.
+  function watchMockHTML(so) {
+    var t = so ? ['Hole 4 · Par 5', '<div class="wmscore"><span>−</span><b>5</b><span>+</span></div><div class="wmput">Putts <b>2</b></div>'] :
+      ['Hole 4 · Shot 3', '<div class="wmq">Where did it finish?</div><div class="wmgrid"><i>Fairway</i><i>Rough</i><i class="on">Green</i><i>Bunker</i><i>More</i><i class="in">In the hole</i></div>'];
+    return '<div class="wmock" aria-hidden="true"><div class="wmface"><div class="wmtop">' + t[0] + '</div>' + t[1] + '</div><span class="wmcrown"></span><span class="wmbtn"></span></div>';
+  }
+  function tourPages(who) {
+    var so = scoreOnly(who), full = !so && recsOn(who), P = [];
+    P.push(so ? { img: 'score', h: 'Entering a round', t: 'Tap − or + if the hole wasn\'t par, then your putts. Save moves to the next hole. On hole 9 you can finish a 9-hole round.' } :
+      { img: 'entry', h: 'Entering a round', t: 'After each shot, put in the yards to the pin and tap where it finished. Next shot moves on; tap In the hole to finish the hole.' });
+    P.push({ watch: true, h: 'On your watch', t: so ? 'Start the round on your phone and it shows on your watch. A score-only watch screen is on its way – for now, score on the phone.' :
+      'Start the round on your phone and it shows on your watch. Tap where each shot finished, turn the Digital Crown for the distance. Your phone keeps up.' });
+    P.push({ img: 'rounds', h: 'Your rounds', t: 'Every round is saved here. Tap one to open its card' + (so ? ', with your score, putts and greens.' : ' and the hole-by-hole stats.') });
+    if (so) P.push({ img: 'stats', h: 'Stats', t: 'Your average score, best round, putts and greens in regulation – greens are worked out from your score and putts.' });
+    else {
+      P.push({ img: 'review', h: 'Reviewing a round', t: 'Each round gets a takeaway and one thing to work on next. Edit round fixes any shot.' });
+      P.push({ img: 'mygame', h: 'Strokes gained & My Game', t: 'Every shot is compared with what a tour player averages from the same spot. My Game shows where you lose the most; Stats has the detail.' });
+    }
+    if (full) {
+      P.push({ img: 'practice', h: 'How you improve', steps: ['Find – your rounds show where strokes are lost', 'Confirm – a short test checks it’s a real gap', 'Practise – your plan puts your time where it’s lost', 'Adjust – every Monday the plan follows your latest rounds'] });
+      P.push({ img: 'trends', h: 'See it working', t: 'Trends shows your practice and your rounds together, so you can see a gap closing.' });
+    }
+    return P;
+  }
+  function tourSheet() {
+    var o = document.getElementById('toursheet'); if (o) o.remove();
+    if (!view.tour || document.querySelector('#cosheets .cssheet, #prsheets .cssheet')) return; /* another sheet first (e.g. Share with Coach) – the tour waits */ var P = tourPages(playerName()), i = Math.max(0, Math.min(view.tour.i || 0, P.length - 1)), p = P[i], last = i === P.length - 1;
+    var pic = p.watch ? watchMockHTML(scoreOnly()) : '<img src="tour/' + p.img + '.webp" alt="" width="390" height="700">';
+    document.body.insertAdjacentHTML('beforeend', '<div id="toursheet"><div class="csback tourback"></div><div class="cssheet tour" id="tour" role="dialog" aria-modal="true" aria-labelledby="tourh">' +
+      '<div class="tourpic' + (p.watch ? ' watch' : '') + '">' + pic + '</div><div class="tourbody"><h3 id="tourh">' + esc(p.h) + '</h3>' +
+      (p.steps ? '<ol class="toursteps">' + p.steps.map(function (s) { var a = s.split(' – '); return '<li><b>' + esc(a[0]) + '</b> ' + esc(a[1]) + '</li>'; }).join('') + '</ol>' : '<p>' + esc(p.t) + '</p>') +
+      '<div class="tourdots" aria-label="Page ' + (i + 1) + ' of ' + P.length + '">' + P.map(function (x, k) { return '<i' + (k === i ? ' class="on"' : '') + '></i>'; }).join('') + '</div>' +
+      '<div class="tourbtns">' + (last ? '<span></span>' : '<button class="tourskip" id="tourskip" data-act="tourskip">Skip</button>') +
+      (i ? '<button class="tourprev" id="tourprev" data-act="tourstep" data-v="-1">Back</button>' : '') +
+      '<button class="sheet-go tournext" id="tournext" data-act="' + (last ? 'tourskip' : 'tourstep') + '" data-v="1">' + (last ? 'Done' : 'Next') + '</button></div></div></div></div>');
+  }
   var MODE_KEY = 'golfsg.mode.v1';
   function modeAll() { if (typeof CO !== 'undefined' && CO && CO.ctx) { var o1 = {}; if (CO.ctx.profile && CO.ctx.profile.mode) o1[String(CO.ctx.name).toLowerCase()] = CO.ctx.profile.mode; return o1; } try { return JSON.parse(localStorage.getItem(MODE_KEY) || '{}') || {}; } catch (e) { return {}; } }
   function modeOf(who) { return modeAll()[String(who || '').toLowerCase()] || 'full'; }
-  function practiceOn(who) { return modeOf(who === undefined ? playerName() : who) !== 'stats'; }
+  function practiceOn(who) { var w = who === undefined ? playerName() : who; return modeOf(w) !== 'stats' && !scoreOnly(w); } // v242: score only → no practice
   function setMode(who, m) { if (typeof roGuard === 'function' && roGuard()) return; var A = modeAll(); A[String(who || '').toLowerCase()] = m === 'stats' || m === 'log' ? m : 'full'; try { localStorage.setItem(MODE_KEY, JSON.stringify(A)); } catch (e) {} }
   // v215 (Scott): two switches – Log practice (the log, My Practice charts, practice in Trends) and Practice recommendations
   // (the Practice next list, sessions, weekly targets, tournament sharpening). Recommendations need the log, so logging off turns them off.
   // Stored per player as 'full' (both) · 'log' (logging, no recommendations) · 'stats' (neither).
-  function recsOn(who) { return modeOf(who === undefined ? playerName() : who) === 'full'; }
+  function recsOn(who) { var w = who === undefined ? playerName() : who; return modeOf(w) === 'full' && !scoreOnly(w); }
   function nextMode(cur, what, on) { if (what === 'log') return on ? 'full' : 'stats'; return on ? 'full' : (cur === 'stats' ? 'stats' : 'log'); }
   function swHTML(id, act, on, title, sub, dis) {
     return '<div class="swrow' + (dis ? ' dis' : '') + '"><div><b>' + title + '</b><small>' + sub + '</small></div><button class="sw' + (on ? ' on' : '') + '" role="switch" aria-checked="' + on + '" aria-label="' + title + '" data-act="' + act + '" data-v="' + (on ? '0' : '1') + '" id="' + id + '"' + (dis ? ' disabled' : '') + '><i></i></button></div>';
@@ -2438,6 +2523,9 @@
     return swHTML(id + 'log', pre + 'log', log, 'Log practice', 'Your practice log, My Practice charts and practice in Trends') +
       swHTML(id + 'recs', pre + 'recs', rec, 'Practice recommendations', log ? 'A practice list built from your game, sessions and weekly targets' : 'Needs Log practice', !log);
   }
+  // v242: Settings – Score only / Every shot (the practice switches below only apply to Every shot)
+  function trackRowHTML(who) { var t = trackOf(who); return '<div class="moderow2 frost trackrow" id="trackrow"><span class="trklbl">Track</span><div class="seg2" role="radiogroup" aria-label="What you track">' +
+    [['score', 'Score only'], ['shots', 'Every shot']].map(function (x) { return '<button class="seg2b' + (t === x[0] ? ' on' : '') + '" data-act="settrack" data-v="' + x[0] + '" id="settrack' + x[0] + '" role="radio" aria-checked="' + (t === x[0]) + '">' + x[1] + '</button>'; }).join('') + '</div></div>'; }
   function modeRowHTML(who, id) { return '<div class="moderow2 frost" id="' + (id || 'moderow') + '">' + modeSwitchesHTML(modeOf(who), id || 'moderow', 'set') + '</div>'; }
   var TYP_KEY = 'golfsg.typical.v1';
   function typAll() { if (typeof CO !== 'undefined' && CO && CO.ctx) { var o1 = {}; if (CO.ctx.profile && CO.ctx.profile.typical) o1[String(CO.ctx.name).toLowerCase()] = CO.ctx.profile.typical; return o1; } try { return JSON.parse(localStorage.getItem(TYP_KEY) || '{}') || {}; } catch (e) { return {}; } }
@@ -3201,7 +3289,7 @@
     var nC = courses().length;
     h += '<button class="big frostbtn crsbtn" data-act="courses">⛳ Courses<small>' + (nC ? nC + ' saved' : 'add par &amp; yardages') + '</small></button>';
     if (cur) h += '<button class="danger discard frostdanger" data-act="discard" data-id="' + esc(cur.id) + '">🗑 Discard round in progress' + (cur.course ? ' – ' + esc(cur.course) : '') + '</button>';
-    h += '<h2>Your data</h2>' + playerHTML() + (playerName() ? modeRowHTML(playerName(), 'setmoderow') : ''); // v209
+    h += '<h2>Your data</h2>' + playerHTML() + trackRowHTML(playerName()) + '<button class="tourrow frost" id="tourgo" data-act="tourgo">Take the tour <span aria-hidden="true">›</span></button>' + (!scoreOnly() ? modeRowHTML(playerName(), 'setmoderow') : ''); // v209; v242: what you track first
     h += coachCardHTML(); // v212
     if (view.notice) h += '<p class="notice ' + (view.notice.bad ? 'bad' : 'good') + '" id="notice" role="status">' + esc(view.notice.text) + '</p>';
     h += backupReminderHTML('settings');
@@ -4024,7 +4112,32 @@
       if (known) { c.make = known; c.model = mk.slice(known.length).trim(); } else { c.make = ''; c.model = mk; } }
     saveBag(b2); var keep = view.bagEdit; render(); view.bagEdit = keep;
   });
+  // v242 (Scott): a score-only hole – − score +, putts (optional), on to the next hole; the card fills in underneath
+  function scoreHoleHTML(r) {
+    var h = r.holes[view.hole], S = SG.summarize(r, blOf(r)), par = Number(h.par) || 4, sc = h.score > 0 ? h.score : par, last = view.hole >= r.holes.length - 1;
+    var yd = SG.holeYards ? SG.holeYards(h) : 0, reviewing = !!view.holeFrom || (r.id !== localStorage.getItem(CUR) && !view.preview);
+    var o = '<div class="topbar frost"><button class="frostbtn" data-act="prev" aria-label="Previous hole"' + (view.hole === 0 ? ' disabled' : '') + '>‹</button>' +
+      '<div class="title"><b>' + (r.course ? esc(r.course) : 'Round') + '</b><span>' + (S.holesDone ? toPar(S.toPar) + ' thru ' + S.holesDone + ' · ' + S.strokes : 'Score only') + '</span></div>' +
+      '<button class="frostbtn" data-act="next" aria-label="Next hole"' + (last ? ' disabled' : '') + '>›</button></div>';
+    o += (reviewing ? '<div class="holetop"><button class="frostbtn holeback" data-act="holeback" id="holeback">‹ Round</button>' + liveBarHTML(r) + '</div>' : liveBarHTML(r));
+    o += '<div class="holecard frostcard soho" id="sohole"><div class="sohead"><b>Hole ' + (view.hole + 1) + '</b><span class="sopar"><button class="sopb" data-act="sopar" data-v="-1" aria-label="Par down">−</button>Par ' + par + '<button class="sopb" data-act="sopar" data-v="1" aria-label="Par up">+</button>' + (yd ? ' · ' + yd + ' yd' : '') + '</span></div>' +
+      '<div class="sostep"><button class="sobtn" data-act="soscore" data-v="-1" aria-label="One less"' + (sc <= 1 ? ' disabled' : '') + '>−</button><b id="soscore" class="' + (h.score > 0 ? '' : 'pre') + '" aria-live="polite">' + sc + '</b><button class="sobtn" data-act="soscore" data-v="1" aria-label="One more">+</button></div>' +
+      '<p class="soname">' + esc(h.score > 0 ? scoreName(sc - par) : 'Tap − or + if it wasn\'t par') + '</p>' +
+      '<div class="solbl">PUTTS <span>(optional)</span></div><div class="soputts" role="radiogroup" aria-label="Putts">' + [0, 1, 2, 3, 4].map(function (n) { var on = h.putts === n; return '<button class="soput' + (on ? ' on' : '') + '" data-act="soputts" data-v="' + n + '" role="radio" aria-checked="' + on + '"' + (n > sc ? ' disabled' : '') + '>' + (n === 4 ? '4+' : n) + '</button>'; }).join('') + '</div>' +
+      '<button class="primary big sonext" data-act="sonext" id="sonext">' + (last ? 'Finish round – see your card' : (h.finished ? 'Hole ' + (view.hole + 2) + ' ›' : 'Save · Hole ' + (view.hole + 2) + ' ›')) + '</button>' +
+      (view.hole === 8 && r.holes.length === 18 && !r.holes.slice(9).some(function (x) { return x.finished || x.score > 0; }) ? '<button class="big frostbtn end9" data-act="sonine" id="sonine">⛳ End round after 9</button>' : '') +
+      soCardHTML(r, view.hole) + '</div>';
+    return o;
+  }
+  function scoreName(d) { return d <= -3 ? 'Albatross' : d === -2 ? 'Eagle' : d === -1 ? 'Birdie' : d === 0 ? 'Par' : d === 1 ? 'Bogey' : d === 2 ? 'Double bogey' : d === 3 ? 'Triple bogey' : '+' + d; }
+  // the mini card: tap a hole to go to it
+  function soCardHTML(r, cur) {
+    var row = function (a, b) { var o = '<div class="socard">'; for (var i = a; i < b && i < r.holes.length; i++) { var h = r.holes[i], d = h.finished && h.score > 0 ? h.score - (Number(h.par) || 4) : null;
+      o += '<button class="socell' + (i === cur ? ' cur' : '') + (d == null ? '' : d < 0 ? ' under' : d > 0 ? ' over' : ' par') + '" data-act="goHole" data-i="' + i + '" aria-label="Hole ' + (i + 1) + (d == null ? '' : ': ' + h.score) + '"><small>' + (i + 1) + '</small><b>' + (d == null ? '·' : h.score) + '</b></button>'; } return o + '</div>'; };
+    return row(0, 9) + (r.holes.length > 9 ? row(9, 18) : '');
+  }
   function holeHTML() {
+    if (round() && round().scoreOnly) return scoreHoleHTML(round()); // v242
     var r = round(), h = r.holes[view.hole], a = AH(h), S = SG.summarize(r, blOf(r)), fin = !!h.finished && a.complete;
     var out = '<div class="topbar frost"><button class="frostbtn" data-act="prev" aria-label="Previous hole"' + (view.hole === 0 ? ' disabled' : '') + '>‹</button>' +
       '<div class="title"><b>' + (r.course ? esc(r.course) : 'Round') + '</b><span>' +
@@ -4644,7 +4757,23 @@
     return '<div class="rspm" id="rspm"><div class="stcard stgraph stbrk" id="st-rsptbrk"><div class="sth"><span>Where putting strokes go</span><span class="stv">Total <em>' + fmtSG(T) + '</em></span></div>' + svg +
       '<p class="stnote">Strokes gained (+) or lost (-) this round, by 1st putt distance. The bars add up to the putting total' + (worst ? '. Biggest leak: ' + esc(worst.name) + ' (' + fmtSG(worst.v) + ').' : '.') + '</p></div></div>';
   }
+  // v242: a score-only round's card – score, to par, putts and greens (from the putts), and the scorecard. Tap a hole to change it.
+  function soSummaryHTML(r) {
+    var S = SG.summarize(r, blOf(r)), n = r.holes.length;
+    var o = '<div class="topbar frost"><button class="txt frostbtn" data-act="history" id="sorounds">‹ Rounds</button><div class="title"><b>' + esc(r.course || 'Round') + '</b><span>' + new Date(r.date).toLocaleDateString() + (r.nine || n === 9 ? ' · 9 holes' : '') + '</span></div>' +
+      '<button class="txt frostbtn" data-act="goHole" data-i="0" id="soedit">Edit</button></div>';
+    o += '<div class="card frost sosum" id="sosum"><div class="sotot"><div><b id="sostrokes">' + (S.holesDone ? S.strokes : '–') + '</b><small>Score</small></div><div><b>' + (S.holesDone ? toPar(S.toPar) : '–') + '</b><small>To par</small></div>' +
+      '<div><b>' + (S.puttHoles ? S.putts : '–') + '</b><small>Putts' + (S.puttHoles && S.puttHoles < S.holesDone ? ' (' + S.puttHoles + ' holes)' : '') + '</small></div><div><b>' + (S.girHoles ? S.gir + '/' + S.girHoles : '–') + '</b><small>Greens</small></div></div>';
+    var nine = function (a) { var b = Math.min(a + 9, n); if (a >= n) return ''; var pr = 0, sc = 0, pt = 0, ptK = 0;
+      var t = '<table class="sotab"><tr><th>Hole</th>'; for (var i = a; i < b; i++) t += '<th>' + (i + 1) + '</th>'; t += '<th>' + (a ? 'In' : 'Out') + '</th></tr><tr><td>Par</td>';
+      for (i = a; i < b; i++) { pr += Number(r.holes[i].par) || 4; t += '<td>' + (Number(r.holes[i].par) || 4) + '</td>'; } t += '<td>' + pr + '</td></tr><tr class="sc"><td>Score</td>';
+      for (i = a; i < b; i++) { var h = r.holes[i], d = h.finished && h.score > 0 ? h.score - (Number(h.par) || 4) : null; if (d != null) sc += h.score; t += '<td class="' + (d == null ? '' : d < 0 ? 'under' : d > 0 ? 'over' : '') + '"><button data-act="goHole" data-i="' + i + '">' + (d == null ? '·' : h.score) + '</button></td>'; }
+      t += '<td>' + (sc || '·') + '</td></tr><tr><td>Putts</td>'; for (i = a; i < b; i++) { var p2 = r.holes[i].putts; if (p2 != null) { pt += p2; ptK++; } t += '<td>' + (p2 == null ? '' : p2) + '</td>'; } return t + '<td>' + (ptK ? pt : '') + '</td></tr></table>'; };
+    o += nine(0) + nine(9) + '<p class="help muted">Greens in regulation come from your putts: a green when your score minus putts is at most par − 2.</p></div>';
+    return o;
+  }
   function summaryHTML() {
+    if (round() && round().scoreOnly) return soSummaryHTML(round()); // v242
     var r = round(), bl = blOf(r), S = SG.summarize(r, bl), lv = liveOn(), part = lv ? (view.part || 'stats') : '';
     if (part === 'card') // v188: the scorecard on its own while the round is being entered
       return '<div class="topbar frost rbtop"><div class="title"><b>Scorecard</b><span>' + (r.course ? esc(r.course) + ' · ' : '') + (S.holesDone ? 'Total ' + S.strokes + ' (' + toPar(S.toPar) + ') thru ' + S.holesDone : 'No holes finished yet') + '</span></div></div>' +
@@ -6292,7 +6421,20 @@
       case 'npedit': view.newPEdit = true; view.crsOpen = false; render(); var npi = document.getElementById('pname'); if (npi) { npi.focus(); npi.select(); } return;
       case 'npcancel': view.newPEdit = false; render(); return;
       case 'namechange': view.nameSheet = playerName() ? 'change' : 'first'; view.hmenu = null; render(); var pn2 = document.getElementById('pname'); if (pn2) pn2.focus(); return;
-      case 'nameskip': localStorage.setItem(NA, '1'); view.nameSheet = null; render(); return;
+      case 'nameskip': localStorage.setItem(NA, '1'); if (view.firstTrack) { applyFirstTrack(''); view.tour = { i: 0, first: true }; } view.nameSheet = null; render(); return;
+      case 'trackpick': view.trackSel = v; render(); return;
+      case 'settrack': { var tw = playerName(); if (trackOf(tw) === v) return; if (v === 'score' && !confirm('Track your score only?\n\nNew rounds are a score per hole (putts optional). Your rounds so far are kept, and you can switch back any time.')) return;
+        setTrack(tw, v); if (view.screen === 'practice' || view.screen === 'mygame' || view.screen === 'trends') view.screen = 'archive'; toast(v === 'score' ? 'Tracking your score' : 'Tracking every shot'); render(); return; }
+      case 'soscore': case 'sopar': case 'soputts': case 'sonext': case 'sonine': { var rS = round(), hS = rS.holes[view.hole], parS = Number(hS.par) || 4; // v242 score-only entry
+        if (act === 'sopar') { hS.par = Math.max(3, Math.min(6, parS + +v)); if (!(hS.score > 0)) hS.score = null; save(); render(); return; }
+        if (act === 'soscore') { hS.score = Math.max(1, Math.min(15, (hS.score > 0 ? hS.score : parS) + +v)); if (hS.putts != null && hS.putts > hS.score) hS.putts = hS.score; hS.finished = true; save(); render(); return; }
+        if (act === 'soputts') { if (!(hS.score > 0)) hS.score = parS; hS.putts = hS.putts === +v ? null : +v; hS.finished = true; save(); render(); return; }
+        if (!(hS.score > 0)) hS.score = parS; hS.finished = true; save(); // Save / Next: unchanged = par
+        if (act === 'sonine') { if (rS.holes.slice(9).some(function (x) { return x.finished || x.score > 0; })) return; rS.holes = rS.holes.slice(0, 9); rS.nine = true; save(); }
+        if (act === 'sonext' && view.hole < rS.holes.length - 1) { goHole(view.hole + 1); return; }
+        if (live) live.finish(rS.id); if (localStorage.getItem(CUR) === rS.id) localStorage.removeItem(CUR); view.inRound = false; save(); backupDirty(1500); toast('Round saved to Rounds');
+        view.screen = 'summary'; view.part = 'stats'; render(); window.scrollTo(0, 0); return; }
+      case 'trackgo': view.firstTrack = view.trackSel || 'full'; view.firstMode = view.firstTrack === 'full' ? 'full' : 'stats'; render(); setTimeout(function () { var i = document.getElementById('pname'); if (i) i.focus(); }, 60); return; // v242
       case 'rolepick': view.role = v; render(); return;
       case 'rolego': { var rl = view.role || 'play'; try { localStorage.setItem(ROLE, rl); } catch (e) {}
         if (rl === 'coach') { localStorage.setItem(NA, '1'); view.nameSheet = null; view.coFirst = true; view.screen = 'archive'; view.co = { tab: 'up' }; }
@@ -6379,6 +6521,9 @@
         view.grep = null; view.pdf = { busy: true, kind: 'game' }; render();
         makeGameReport(mgWho(), gp).then(function (o) { view.pdf = o; window.__golf.lastPdf = o; render(); }, function (e) { view.pdf = { kind: 'game', error: 'Could not make the PDF: ' + (e && e.message) }; render(); }); return; }
       case 'story': case 'storyshare': case 'storyclose': case 'storyfull': case 'storyfullclose': case 'storyzoom': if (act === 'story') view.rsMenu = null; storyAct(act); return;
+      case 'tourstep': if (view.tour) { view.tour.i = Math.max(0, (view.tour.i || 0) + Number(v)); render(); } return;
+      case 'tourskip': view.tour = null; render(); return;
+      case 'tourgo': view.tour = { i: 0 }; render(); return;
       case 'setname': setName((document.getElementById('pname') || {}).value); return;
       case 'editname': view.editName = true; render(); var pi = document.getElementById('pname'); if (pi) pi.focus(); return;
       case 'cancelname': view.editName = false; view.needName = null; render(); return;

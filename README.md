@@ -5,6 +5,11 @@ Renamed to **Pin High** (title, home-screen label, header, PDF). Storage keys (`
 Phone web app for tracking every golf shot and strokes gained against a selectable baseline (PGA Tour by default).
 Static files only: no backend, no build step. Data is stored on the phone (localStorage).
 
+## Three ways to track, and a first-run tour (v242)
+- After "I play", a new player picks **Score only** (score + optional putts per hole, kept for history), **Every shot – strokes gained**, or **Every shot + improve** (strokes gained plus tests and the weekly practice plan). Change it any time in Settings → Track.
+- Score only: a simple hole screen (− / + score, putts 0–4+, Save · next hole, Finish after 9), a scorecard with putts and greens, and a Stats page with average, best, putts and greens. Greens in regulation come from score − putts ≤ par − 2. Score-only rounds stay out of strokes gained, My Game and the practice plan.
+- The tour shows once after setup and from Settings → Take the tour: entering a round (phone and watch), your rounds, and – by setup – stats, reviewing a round, strokes gained and how the improvement loop works (find → confirm → practise → adjust each Monday). Pictures are in tour/ (made by dev/tour-shots.js); the watch page is drawn until real watch screenshots replace it.
+
 ## Coach sharing sends sooner (v241)
 
 Practice, rounds and tests now go to the coach link **within a second** of saving (was ~4 s), **straight away when you leave the app** (home, lock, switch apps – small sends use `keepalive` so they finish as the app goes to the background), and a send that failed for lack of signal is **retried every 30 s** while the app is open (as well as when it's reopened or the signal comes back). Before, closing the app right after logging left the practice waiting on the phone until the app was opened again.
