@@ -5,6 +5,9 @@ Renamed to **Pin High** (title, home-screen label, header, PDF). Storage keys (`
 Phone web app for tracking every golf shot and strokes gained against a selectable baseline (PGA Tour by default).
 Static files only: no backend, no build step. Data is stored on the phone (localStorage).
 
+## Dispersion: everything stays on screen (v250)
+- The zoomed-in view fits every ball and the whole 8-of-10 ring (below the label), zooming out to at most half the usual size; a ball still outside that (a shank) is drawn pinned to the edge. Approach strategy's green also zooms to fit every ball (and where they slide from when you switch Aim), and its label is gone – it covered shots, and the line under the picture says the same.
+
 ## Dispersion: Pin location as its own view (v249)
 - The toggle at the top is now **Club · sim | Rounds | Pin location**. Pin location swaps the distance chips for a compact 3 × 3 grid right above the picture, so a tap replays that pin without scrolling (opens on the most-played pin).
 

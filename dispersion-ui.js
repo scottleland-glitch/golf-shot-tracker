@@ -265,6 +265,19 @@
       var close = { cx: 0, cy: 0, s: Math.min(W / 60, H / 58) };
       return { wide: wide, close: close };
     }
+    // v250 (Scott: balls far left in the rough went off the screen): the close-up fits every ball and the whole ring, below the label,
+    // zooming out to at most half the usual size; anything still outside (a shank) is drawn pinned to the edge.
+    function fitClose(W, H, A, pin, base, green, top) {
+      var x0 = 1e9, x1 = -1e9, y0 = 1e9, y1 = -1e9, add = function (x, y) { if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y; };
+      if (green) { add(-D.GREEN.rx - 3, -D.GREEN.ry - 3); add(D.GREEN.rx + 3, D.GREEN.ry + 3); } else { add(pin.x - 12, pin.y - 12); add(pin.x + 12, pin.y + 12); }
+      A.show.forEach(function (p) { add(pin.x + p.dx, pin.y + p.dy); });
+      if (A.ell) { var e = A.ell, r = Math.max(e.rx, e.ry); add(pin.x + e.cx - r, pin.y + e.cy - r); add(pin.x + e.cx + r, pin.y + e.cy + r); }
+      var TOP = top == null ? 52 : top, PAD = 14, sc = Math.min((W - 2 * PAD) / (x1 - x0), (H - TOP - PAD) / (y1 - y0));
+      sc = Math.max(base.s * 0.5, Math.min(base.s, sc));
+      if (sc >= base.s && x0 >= base.cx - W / 2 / base.s + 2 && x1 <= base.cx + W / 2 / base.s - 2 && y1 <= base.cy + (H / 2 - TOP) / base.s && y0 >= base.cy - H / 2 / base.s + 2) return base; // already fits
+      var mx = (x0 + x1) / 2, my = (y0 + y1) / 2; return { cx: mx, cy: my - (TOP - PAD) / 2 / sc, s: sc };
+    }
+    function edgeClamp(v, lo, hi) { return v < lo ? lo : v > hi ? hi : v; }
     function lerpCam(a, b, t) { var e = t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2; return { cx: a.cx + (b.cx - a.cx) * e, cy: a.cy + (b.cy - a.cy) * e, s: Math.exp(Math.log(a.s) + (Math.log(b.s) - Math.log(a.s)) * e) }; }
     function drawScene(ctx, W, H, cam, yd, pin, noFlag, gR) { // v247 gR = rounds: a round green of radius gR yd with rings, no bunkers (real greens all differ)
       var X = function (x) { return W / 2 + (x - cam.cx) * cam.s; }, Y = function (y) { return H / 2 - (y - cam.cy) * cam.s; }, G = D.GREEN;
@@ -338,7 +351,7 @@
     }
     // draw time t (s) of one pin's animation; returns the time it finishes
     function frame(ctx, W, H, A, pin, t, quick, d) {
-      var yd = A.yd, C = cams(W, H, yd, pin), n = A.show.length, T = timeline(quick), orig = { x: pin.x, y: pin.y - yd }, PG = A.rounds && A.pin; // PG: by pin location (v248)
+      var yd = A.yd, C = cams(W, H, yd, pin), n = A.show.length, _fit = (C.close = fitClose(W, H, A, pin, C.close, !(A.rounds && !A.pin))), T = timeline(quick), orig = { x: pin.x, y: pin.y - yd }, PG = A.rounds && A.pin; // PG: by pin location (v248)
       if (PG) C.wide = { cx: pin.x * 0.5, cy: pin.y + (-yd - 14 + 26) / 2, s: Math.min(H / (yd + 42), W / 60) }; // keep the whole green in view from the longest shot
       var spread = T.flyGap + (PG ? 0.6 : 0), last = T.fly0 + spread + T.flyDur, zoom0 = quick ? -1 : last + 0.15, zoomDur = 1.1, ellT = quick ? last + 0.1 : zoom0 + zoomDur + 0.05, end = ellT + T.ellDur;
       var cam = quick ? C.close : t < zoom0 ? C.wide : lerpCam(C.wide, C.close, Math.min(1, (t - zoom0) / zoomDur));
@@ -352,7 +365,7 @@
         var on = p.on != null ? p.on : D.onGreen(lx, ly), k = Math.min(1, u), ex = orig.x + (lx - orig.x) * k, ey = orig.y + (ly - orig.y) * k, hgt = Math.sin(Math.PI * k) * (quick ? 4 : 9);
         if (trA > 0) { ctx.strokeStyle = gc ? gc.tr.replace('A', (0.55 * trA).toFixed(3)) : 'rgba(255,255,255,' + (0.22 * trA).toFixed(3) + ')'; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(X(orig.x), Y(orig.y));
           for (var q = 1; q <= 12; q++) { var kk = k * q / 12; ctx.lineTo(X(orig.x + (lx - orig.x) * kk), Y(orig.y + (ly - orig.y) * kk) - Math.sin(Math.PI * kk) * (quick ? 4 : 9) * cam.s * 0.25); } ctx.stroke(); }
-        var bx = X(ex), by = Y(ey) - hgt * cam.s * 0.25;
+        var bx = X(ex), by = Y(ey) - hgt * cam.s * 0.25; if (u >= 1) { bx = edgeClamp(bx, 7, W - 7); by = edgeClamp(by, 7, H - 7); } // pinned to the edge if still off screen
         if (u < 1) { ctx.fillStyle = 'rgba(0,0,0,.25)'; ctx.beginPath(); ctx.arc(X(ex), Y(ey), bs * 0.8, 0, 7); ctx.fill(); }
         if (gc) { ctx.fillStyle = gc.fill; ctx.strokeStyle = gc.edge; } else { ctx.fillStyle = u >= 1 ? (on ? '#fff' : COL.red) : '#fff'; ctx.strokeStyle = u >= 1 ? (on ? 'rgba(0,0,0,.45)' : '#7d1019') : 'rgba(0,0,0,.35)'; } ctx.lineWidth = 0.8;
         ctx.beginPath(); ctx.arc(bx, by, bs * (u < 1 ? 1 + 0.35 * Math.sin(Math.PI * k) : 1), 0, 7); ctx.fill(); ctx.stroke();
@@ -383,6 +396,8 @@
       if (gRaf) cancelAnimationFrame(gRaf); gRaf = 0; var my = ++gGen, s = S(), pin = A.pins.filter(function (p) { return p.k === s.pin; })[0] || A.pins[4];
       var reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
       var m = aimMode(), aim = aimOf(pin, m), from = gAnim && gAnim.move ? gAnim.from : null;
+      var fitPts = A.show.concat(from ? A.show.map(function (p) { return { dx: p.dx + from.x - aim.x, dy: p.dy + from.y - aim.y }; }) : []);
+      cam = fitClose(W, H, { show: fitPts, ell: A.ell }, aim, cam, true, 10); // v250: every ball (and where it slides from) on screen
       if (!gAnim || !gAnim.play || reduce) { gFrame(ctx, W, H, cam, A, pin, 1e9, d, aim, null, m); gAnim = null; return; }
       gAnim = null; var t0 = performance.now();
       function step(now) { if (my !== gGen || !document.getElementById('dspgc') || view.screen !== 'disp') { gRaf = 0; return; }
@@ -398,7 +413,7 @@
       if (from) { var e0 = Math.min(1, t / MOVE), ez = e0 < 0.5 ? 2 * e0 * e0 : 1 - Math.pow(-2 * e0 + 2, 2) / 2; ax = from.x + (aim.x - from.x) * ez; ay = from.y + (aim.y - from.y) * ez; end = MOVE + 0.05; }
       for (var i = 0; i < n; i++) {
         var q = A.show[i], lx = ax + q.dx, ly = ay + q.dy, on = D.onGreen(lx, ly), tl = FALL + SPREAD * i / n, u = from ? 99 : t - tl + FALL; if (u <= 0) continue;
-        var bx = X(lx), by = Y(ly), lift = 0, k = 1;
+        var bx = edgeClamp(X(lx), 7, W - 7), by = edgeClamp(Y(ly), 7, H - 7), lift = 0, k = 1; // v250 never off the screen
         if (u < FALL) { var f = u / FALL; lift = (1 - f) * (1 - f) * 34; k = 1 + 0.9 * (1 - f); ctx.fillStyle = 'rgba(0,0,0,' + (0.12 + 0.2 * f).toFixed(2) + ')'; ctx.beginPath(); ctx.arc(bx, by, bs * (0.6 + 0.5 * f), 0, 7); ctx.fill(); }
         else { var a = u - FALL; for (var j = 0; j < HOP.length; j++) { if (a < HOP[j][0]) { var z = a / HOP[j][0]; lift = 4 * z * (1 - z) * HOP[j][1]; break; } a -= HOP[j][0]; }
           if (lift > 0.3) { ctx.fillStyle = 'rgba(0,0,0,.22)'; ctx.beginPath(); ctx.arc(bx, by, bs * 0.8, 0, 7); ctx.fill(); } }
@@ -416,7 +431,7 @@
         ctx.ellipse(X(ax + e.cx), Y(ay + e.cy), e.rx * cam.s, e.ry * cam.s, -e.rot * Math.PI / 180, 0, 2 * Math.PI * pr); ctx.stroke(); ctx.restore(); }
       if (showE && (Math.abs(ax - pin.x) > 0.5 || Math.abs(ay - pin.y) > 0.5)) { var mx = X(ax), my = Y(ay); ctx.save(); ctx.strokeStyle = '#fff'; ctx.lineWidth = 1.8; ctx.shadowColor = 'rgba(0,0,0,.5)'; ctx.shadowBlur = 2;
         ctx.beginPath(); ctx.arc(mx, my, 7, 0, 7); ctx.stroke(); ctx.beginPath(); ctx.arc(mx, my, 2, 0, 7); ctx.stroke(); ctx.restore(); }
-      if (from ? t >= MOVE : t > ellT + ellDur) { var R0 = aimRes(pin, m || 'flag'); badge(ctx, W, { name: pin.name + (m === 'gir' ? ' · most greens' : m === 'sg' ? ' · best SG' : ''), sg: R0.sg, greenPct: R0.greenPct, medFt: R0.medFt }, d); }
+      // v250 (Scott: the label covered shots): no label on this picture – the line under it says the same
       return end;
     }
     return { html: html, act: act, mount: mount, data: data };
