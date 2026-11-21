@@ -79,7 +79,7 @@ function make(id, date, q) { const t = T.blank(id, date, 'Scott', 'd1w');
   // v193 (Scott): My Game ☰ › Tests opens the last test; the test's ☰ has Tests, Make PDF, Trend
   await page.evaluate(() => { window.scrollTo(0, 0); }); await page.$eval('[data-act="grclose"]', e => e.click());
   await page.click('#tbmygame'); await page.waitForSelector('#mygame');
-  assert.deepStrictEqual(await page.$$eval('#tabbar .tbbtn span', e => e.map(x => x.textContent)), ['My Game', 'Rounds', 'Practice', 'Stats'], 'v198: tab bar'); assert.deepStrictEqual(await page.$$eval('#mgqrow .qbtn span', e => e.map(x => x.textContent)), ['Tests', 'Trends']);
+  assert.deepStrictEqual(await page.$$eval('#tabbar .tbbtn span', e => e.map(x => x.textContent)), ['My Game', 'Rounds', 'Practice', 'Stats'], 'v198: tab bar'); assert.deepStrictEqual(await page.$$eval('#mgqrow .qbtn span', e => e.map(x => x.textContent)), ['Tests', 'Trends', 'Dispersion']);
   await page.click('#qsgtlast'); await page.waitForSelector('#sgtresult'); assert.match(await page.textContent('#sgtresult .topbar'), /Test/);
   assert.strictEqual(await page.$('#sgtmenubtn'), null, 'no ☰ on the test'); assert.deepStrictEqual(await page.$$eval('#sgtqrow .qbtn span', e => e.map(x => x.textContent)), ['History', 'Trend', 'Report', 'New test']); assert.strictEqual(await page.$('#tabbar, #pagebar'), null, 'no bottom bar on the test');
   await page.click('#qsgttrend'); await page.waitForSelector('#sgttrend'); assert.ok((await page.$$eval('.trcard', e => e.length)) >= 3, 'one card per area');

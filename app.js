@@ -29,6 +29,10 @@
   var SGK = 'golfsg.sgtests.v1';
   function sgTests() { if (typeof CO !== 'undefined' && CO && CO.ctx) return SGTEST.validTests(CO.ctx.tests || []); try { return SGTEST.validTests(JSON.parse(localStorage.getItem(SGK) || '[]')); } catch (e) { return []; } }
   function saveSgTests(list) { if (typeof roGuard === 'function' && roGuard()) return; localStorage.setItem(SGK, JSON.stringify(list)); backupDirty(3000); }
+  // v245 sim dispersion (dispersion.js): [{ id, date, player, source, name, shots: [{ club, target, carry, total, offline }] }] – per player, in the backups
+  var SIMK = 'golfsg.sim.v1';
+  function simSessions() { if (typeof CO !== 'undefined' && CO && CO.ctx) return DISP.validSessions(CO.ctx.sim || []); try { return DISP.validSessions(JSON.parse(localStorage.getItem(SIMK) || '[]')); } catch (e) { return []; } }
+  function saveSimSessions(list) { if (typeof roGuard === 'function' && roGuard()) return; localStorage.setItem(SIMK, JSON.stringify(list)); backupDirty(3000); }
   function sgTestsOf(who) { return sgTests().filter(function (t) { return samePlayer(t.player || playerName(), who); }); }
   // v93 Wedges: chart of 40–110 yd (wedges.js), stored on the phone and in backups
   var WGK = 'golfsg.wedges.v1';
@@ -80,6 +84,11 @@
     makePdf: function (who, id) { view.pdf = { busy: true, kind: 'game' }; render(); window.scrollTo(0, 0);
       makeGameReport(who, { test: true, testId: id }).then(function (o) { view.pdf = o; window.__golf.lastPdf = o; render(); }, function (e) { view.pdf = { kind: 'game', error: 'Could not make the PDF: ' + (e && e.message) }; render(); }); } });
   document.addEventListener('keydown', function (ev) { if (view.screen === 'sgtest') SGTUI.key(ev); });
+  // v245 Sim dispersion screens (dispersion-ui.js). tourFt: how far from the pin (ft) the player's tournament approaches from about yd (±5, fairway or tee) finished
+  var DISPUI = DISP.ui({ SG: SG, view: view, sessions: simSessions, saveSessions: saveSimSessions, players: function () { return mgPlayers(); }, me: playerName, same: samePlayer,
+    baselineOf: function (who) { return myBench(who); }, render: function () { render(); }, toast: function (m) { toast(m); },
+    tourFt: function (who, yd) { var L = []; finishedRoundsOf(who).filter(function (r) { return r.play === 'tournament'; }).forEach(function (r) { SG.summarize(r).proxList.forEach(function (m) {
+      if (m.proxFt != null && Math.abs(Number(m.from) - yd) <= 5 && (m.fromLie === 'fairway' || m.fromLie === 'tee')) L.push(m.proxFt); }); }); return L; } });
   // Live sharing (v87): one secret link per round; every save() pushes a fresh snapshot (debounced, queued while offline).
   var live = window.LIVE && LIVE_DB ? LIVE.publisher({ base: LIVE_DB, fetch: function (u, o) { return window.fetch(u, o); }, storage: localStorage, key: 'golfsg.live.v1',
     online: function () { return navigator.onLine !== false; }, onStatus: function () { liveRefresh(); },
@@ -222,6 +231,7 @@
     else if (view.screen === 'practice') el.innerHTML = practicePageHTML(); // v194
     else if (view.screen === 'trends') el.innerHTML = trendsHTML(); // v194
     else if (view.screen === 'sgtest') el.innerHTML = SGTUI.html(); // v166
+    else if (view.screen === 'disp') el.innerHTML = DISPUI.html(); // v245
     else if (view.screen === 'profile') { view.screen = 'archive'; el.innerHTML = archiveHTML(); } // v102: old Profile → Settings
     else if (view.screen === 'wedges') el.innerHTML = wedgesHTML();
     else if (view.screen === 'birdie') { view.bzD = null; el.innerHTML = birdieHTML(); }
@@ -245,6 +255,7 @@
     var pb = rbOn || view.prLog || view.mv || view.sess ? '' : pageBarHTML() || tabBarHTML(); /* v198: the Rounds move bar too */ /* v195: the log sheet has its own Save / Cancel */ if (pb) document.body.insertAdjacentHTML('beforeend', pb);
     document.body.classList.toggle('hastab', !!(pb && pb.indexOf('id="tabbar"') >= 0)); hcStart(); /* v200: the Home card's rotation */ wkStart(); /* v206 */ coDecorate(); coSearch(); coSheets(); prSheets(); tourSheet(); /* v212, v216 */
     document.body.classList.toggle('hasrbar', rbOn || !!pb);
+    if (view.screen === 'disp') DISPUI.mount(); // v245: draw the dispersion picture (and run its animation)
   }
   // v123: on the round-page map sheets, long legend sentences without a symbol ("Rings = feet from the hole…") move under the legend as a note, which infoize() puts behind ⓘ
   function legendNotes(root) {
@@ -1887,7 +1898,7 @@
   function backupDone() { localStorage.setItem(BK, new Date().toISOString()); try { localStorage.removeItem(BKSNOOZE); } catch (e) {} var nO = ownRounds().filter(function (x) { return !SG.roundEmpty(x); }).length; view.notice = { text: 'Backup ready: ' + nO + ' round' + (nO === 1 ? '' : 's') + ' for ' + playerName() + ' saved.' }; if (view.screen === 'home' || view.screen === 'archive') render(); }
   function backupRounds() {
     if (!playerName()) { askName('Enter your player name first – it goes in the backup file name.'); return; }
-    var name = 'golf-rounds-' + SG.slug(playerName()) + '-' + localDay(new Date()) + '.json', json = JSON.stringify(SG.makeBackup(rounds.filter(function (x) { return !SG.roundEmpty(x); }), null, playerName(), courses(), bagForBackup(), wedgesForBackup(), practice(), sgTests()), null, 1), file;
+    var name = 'golf-rounds-' + SG.slug(playerName()) + '-' + localDay(new Date()) + '.json', json = JSON.stringify(SG.makeBackup(rounds.filter(function (x) { return !SG.roundEmpty(x); }), null, playerName(), courses(), bagForBackup(), wedgesForBackup(), practice(), sgTests(), simSessions()), null, 1), file;
     try { file = new File([json], name, { type: 'application/json' }); } catch (e) { file = null; }
     if (file && navigator.canShare && navigator.canShare({ files: [file] })) {
       navigator.share({ files: [file] }).then(backupDone).catch(function (e) {
@@ -1906,9 +1917,10 @@
     if (bp) P.rounds.forEach(function (r) { if (!r.player) r.player = bp; }); // label rounds with the backup's player
     P.rounds.sort(function (a, b) { return new Date(b.date) - new Date(a.date); });
     view.restore = { rounds: P.rounds, sel: {}, player: bp, courses: P.courses || [], bag: P.bag || null, wedges: P.wedges || null,
-      practice: (P.practice || []).slice() }; view.preview = null; view.screen = 'restorepick'; render(); window.scrollTo(0, 0);
+      practice: (P.practice || []).slice(), sgtests: P.sgtests || [], sim: P.sim || [] }; view.preview = null; view.screen = 'restorepick'; render(); window.scrollTo(0, 0);
   }
   function restorePractice(R, parts) {
+    if (R.sim && R.sim.length) { var DM = DISP.mergeSessions(simSessions(), R.sim); if (DM.added) { localStorage.setItem(SIMK, JSON.stringify(DM.sessions)); parts.push(DM.added + ' sim session' + (DM.added === 1 ? '' : 's')); } } // v245
     if (R.sgtests && R.sgtests.length) { var TM = SGTEST.mergeTests(sgTests(), R.sgtests); if (TM.added) { localStorage.setItem(SGK, JSON.stringify(TM.tests)); parts.push(TM.added + ' short game test' + (TM.added === 1 ? '' : 's')); } } // v166
     if (!R.practice || !R.practice.length) return; var PM = MYGAME.mergePractice(practice(), R.practice); if (PM.added) { localStorage.setItem(PRK, JSON.stringify(PM.practice)); parts.push(PM.added + ' practice entr' + (PM.added === 1 ? 'y' : 'ies')); } } // v142
   function wedgesRestoreNote(w) {
@@ -2075,7 +2087,7 @@
         playPickHTML('newplay', view.newPlay || lastPlay(), 'This round is') + '<label class="lbl" for="newbl">Compare my shots against</label>' + blSelect('newbl', view.newBl || myBench(playerName())) + newPlayerHTML() +
         '<button class="sheet-go" data-act="new">Start round</button><button class="sheet-item muted" data-act="plus">Back</button>';
       else if (view.hmenu === 'nav') h += (coachOn() ? '<button class="sheet-item" role="menuitem" data-act="athletes" id="navathletes">Athletes</button>' : '') + '<button class="sheet-item" role="menuitem" data-act="history">Rounds</button><button class="sheet-item" role="menuitem" data-act="stats">Stats</button><button class="sheet-item' + benchBang() + '" role="menuitem" data-act="mygame">My Game</button><button class="sheet-item" role="menuitem" data-act="bag">My Bag</button><button class="sheet-item" role="menuitem" data-act="archive">Settings</button><button class="sheet-item" role="menuitem" data-act="help">Help</button>';
-      else h += '<button class="sheet-item" role="menuitem" data-act="newform">New round</button><button class="sheet-item" role="menuitem" data-act="prlog">Log practice</button><button class="sheet-item" role="menuitem" data-act="sgtopen">Short game test</button>';
+      else h += '<button class="sheet-item" role="menuitem" data-act="newform">New round</button><button class="sheet-item" role="menuitem" data-act="prlog">Log practice</button><button class="sheet-item" role="menuitem" data-act="sgtopen">Short game test</button><button class="sheet-item" role="menuitem" data-act="dspadd">Add sim shots</button>';
       h += '</div>';
     }
     return h + '</div>';
@@ -2233,7 +2245,7 @@
       '<label class="mgbl">My benchmark ' + blSelect('mgbl', D.baseline) + '</label>' + (bset ? '' : '<button class="primary" data-act="mgblok" data-v="' + esc(D.baseline) + '" id="mgblok">Use ' + esc(blName(D.baseline)) + '</button>') +
       '<p class="help muted mgblhelp">Used everywhere: new rounds, My Game, the short game test and the reports.</p></div>';
     if (!bset) h += blCard; // v194: red at the top until it's set, then down at the bottom
-    h += quickRowHTML('mgqrow', [['tests', 'sgtlast', 'Tests'], ['trends', 'gotrends', 'Trends']]); // v198
+    h += quickRowHTML('mgqrow', [['tests', 'sgtlast', 'Tests'], ['trends', 'gotrends', 'Trends'], ['disp', 'dspopen', 'Dispersion']]); // v198; v245 Dispersion
     h += '<div class="stseg mgseg" id="mgperiod" role="group" aria-label="Time frame">' + MYGAME.PERIODS.map(function (x) {
       var on = x.id === P.id; return '<button class="' + (on ? 'sel' : '') + '" data-act="mgperiod" data-v="' + x.id + '" aria-pressed="' + on + '">' + x.name.replace('Last ', '') + '</button>'; }).join('') + '</div>' +
       // v176 (Scott): or the last 2, 3 or 4 rounds – e.g. just a tournament
@@ -2404,6 +2416,7 @@
   var PB_IC = {
     tests: '<path d="M8 4h8M9 4v3l-4 11a2 2 0 0 0 2 3h10a2 2 0 0 0 2-3L15 7V4" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linejoin="round"/><path d="M7 15h10" stroke="currentColor" stroke-width="1.6"/>',
     practice: '<circle cx="12" cy="13" r="7.5" fill="none" stroke="currentColor" stroke-width="1.9"/><path d="M12 9v4l3 2M10 3h4" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/>',
+    disp: '<circle cx="12" cy="12" r="8" fill="none" stroke="currentColor" stroke-width="1.7" stroke-dasharray="3 2.2"/><circle cx="10" cy="10" r="1.6" fill="currentColor"/><circle cx="14.5" cy="11" r="1.6" fill="currentColor"/><circle cx="11.5" cy="14.5" r="1.6" fill="currentColor"/>', // v245
     trends: '<path d="M4 18l5-6 4 3 7-9" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/><path d="M15 6h5v5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>',
     stats: '<path d="M5 19V12M10 19V7M15 19v-5M20 19V4" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/>',
     plan: '<rect x="5" y="4" width="14" height="17" rx="2.5" fill="none" stroke="currentColor" stroke-width="1.9"/><path d="M8.5 9h7M8.5 13h7M8.5 17h4" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>',
@@ -6397,6 +6410,7 @@
     if (act === 'waclose' || act === 'wago') { var wwho = mgWho(); waMark(wwho, planData(wwho)); view.waForce = false; if (act === 'wago') { view.sess = { min: 0, list: null, feel: {} }; view.prLog = null; } render(); if (act === 'wago') { var ss2 = document.getElementById('sesssheet'); if (ss2 && ss2.scrollIntoView) ss2.scrollIntoView({ block: 'start' }); } return; } // v221
     if (act === 'prmore') { view.prMore = view.prMore === v ? null : v; render(); return; }
     if (CO.view && act === 'home') { exitAthlete(); view.screen = 'athletes'; render(); window.scrollTo(0, 0); return; } // an athlete's ‹ Home → back to the list
+    if (/^dsp/.test(act)) { DISPUI.act(act, v, b); return; } // v245 sim dispersion
     if (/^sgt/.test(act) && act !== 'sgtoggle') { SGTUI.act(act, v, b); return; } // v166 short game test (v167: not Round stats' Strokes gained toggle, 'sgtoggle')
     switch (act) {
       case 'liveshare': if (!live || !r) return; live.start(r.id); view.liveCard = true; render(); liveSend(r); return;

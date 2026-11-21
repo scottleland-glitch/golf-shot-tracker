@@ -5,6 +5,12 @@ Renamed to **Pin High** (title, home-screen label, header, PDF). Storage keys (`
 Phone web app for tracking every golf shot and strokes gained against a selectable baseline (PGA Tour by default).
 Static files only: no backend, no build step. Data is stored on the phone (localStorage).
 
+## Sim dispersion (v245)
+- My Game › **Dispersion** (back with ‹ My Game; + › Add sim shots opens it at the sessions): bring in launch-monitor shots – **Import CSV** (GCQuad or any export: pick the Club / Carry / Total / Offline columns, "5.2 L" style offline is read, meters converted) or **Enter shots** (carry + offline L/R). Each club gets a target, rounded to 10 yd; shots go to that bucket (140, 150, …). Saved per player in `golfsg.sim.v1` and in backups (`sim`).
+- The pattern is where the ball **landed** around the target (carry by default, Total optional). An animation flies 50 balls from the yardage (your real shots first, then more with the same shape), zooms to the green and draws the shape that holds 8 of 10 shots. White = on the green, red = missed. **Play all 9 pins** plays it to each pin.
+- **Approach strategy** (a 3 × 3 grid; tap a pin and the green below shows the 50 balls falling in and hopping where they land, then the shape and ◎ best aim): the pattern aimed at each of 9 pins on a standard 26 × 32 yd green (bunkers front right, left, back right); each ball played from where it landed against the player's benchmark. Green = attack, red = play away. **Best aim** finds the spot on the green that loses the fewest strokes.
+- **Course conditions** widen the sim pattern (+15%, +30%, or **Tourney**: sized from the player's tournament approaches from that distance, 5+ needed). Engine: `dispersion.js` (tested in tests/dispersion-focused.js); screens: `dispersion-ui.js`.
+
 ## Help: the tour, a new guide (v243)
 - Help (☰ › Help) has Get started steps for how you track, **Take the tour** (moved from Settings) and **Read the guide** – a new 15-page PDF of the current app (help/Strokewise-Guide.pdf, built by dev/guide.js then dev/guide-pdf.js). The old video and the Pin High how-to PDF are gone.
 - The tour's How you improve page shows the Trends putting chart: strokes gained a round above practice a week.

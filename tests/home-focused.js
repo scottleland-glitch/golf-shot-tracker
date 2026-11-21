@@ -21,7 +21,7 @@ const BASE = 'http://127.0.0.1:8795/', OUT = '/workspace/golf-app/screenshots/';
   assert.ok(await page.evaluate(() => fetch('img/home-bg.webp').then(r => r.blob()).then(x => x.size < 250000)), 'photo under 250 KB');
   await shot('main');
   // + menu (v102): New round · My Bag (bag + wedge ladder) · Rounds · Settings
-  await page.click('#tbplus'); assert.deepStrictEqual(await page.$$eval('#plusmenu button', x => x.map(e => e.textContent)), ['New round', 'Log practice', 'Short game test'], 'v191: + starts things');
+  await page.click('#tbplus'); assert.deepStrictEqual(await page.$$eval('#plusmenu button', x => x.map(e => e.textContent)), ['New round', 'Log practice', 'Short game test', 'Add sim shots'], 'v191: + starts things');
   await page.$eval('.sheet-back', e => e.click()); await page.click('#navbtn'); assert.deepStrictEqual(await page.$$eval('#navmenu button', x => x.map(e => e.textContent)), ['Rounds', 'Stats', 'My Game', 'My Bag', 'Settings', 'Help'], 'v191: ☰ places'); await page.$eval('.sheet-back', e => e.click()); await page.click('#tbplus');
   await shot('plus');
   await page.click('.sheet-back', { position: { x: 60, y: 300 } }); assert.strictEqual(await page.$('#plusmenu'), null, 'tap outside closes');

@@ -15,10 +15,10 @@ const REPO = path.join(__dirname, '..'), PORT = 8968, ARC = require('./fixtures/
   assert.ok(await page.$('#navbtn svg.menuic'), '☰ icon'); await page.click('#navbtn');
   assert.deepStrictEqual(await page.$$eval('#navmenu .sheet-item', e => e.map(x => x.textContent)), ['Rounds', 'Stats', 'My Game', 'My Bag', 'Settings', 'Help']);
   await page.$eval('.sheet-back', e => e.click()); await page.click('#tbplus');
-  assert.deepStrictEqual(await page.$$eval('#plusmenu .sheet-item', e => e.map(x => x.textContent)), ['New round', 'Log practice', 'Short game test']); await page.$eval('.sheet-back', e => e.click()); ok('Home: ☰ places, + starts things');
+  assert.deepStrictEqual(await page.$$eval('#plusmenu .sheet-item', e => e.map(x => x.textContent)), ['New round', 'Log practice', 'Short game test', 'Add sim shots']); await page.$eval('.sheet-back', e => e.click()); ok('Home: ☰ places, + starts things');
   // v194: My Game has no ☰ / +, a bottom bar instead
   await page.click('#tbmygame'); await page.waitForSelector('#mygame'); assert.strictEqual(await page.$('#mgplus, #mgnav'), null, 'no ☰ / + on My Game');
-  assert.deepStrictEqual(await page.$$eval('#tabbar .tbbtn span', e => e.map(x => x.textContent)), ['My Game', 'Rounds', 'Practice', 'Stats']); assert.ok(await page.$('#tabbar #tbplus')); assert.deepStrictEqual(await page.$$eval('#mgqrow .qbtn span', e => e.map(x => x.textContent)), ['Tests', 'Trends']); assert.ok(await page.evaluate(() => document.body.classList.contains('hasrbar')), 'page padded for the bar');
+  assert.deepStrictEqual(await page.$$eval('#tabbar .tbbtn span', e => e.map(x => x.textContent)), ['My Game', 'Rounds', 'Practice', 'Stats']); assert.ok(await page.$('#tabbar #tbplus')); assert.deepStrictEqual(await page.$$eval('#mgqrow .qbtn span', e => e.map(x => x.textContent)), ['Tests', 'Trends', 'Dispersion']); assert.ok(await page.evaluate(() => document.body.classList.contains('hasrbar')), 'page padded for the bar');
   await page.click('#tbpractice'); await page.waitForSelector('#practicepage'); assert.ok(await page.$('#prbig')); assert.deepStrictEqual(await page.$$eval('#prqrow .qbtn span', e => e.map(x => x.textContent)), ['Report', 'Trend']); assert.ok(await page.$('#tbpractice.on'), 'Practice tab on');
   assert.ok(await page.$('#plancard'), 'v203: the practice plan is on the page');
   await page.click('#qgotrends'); await page.waitForSelector('#trendspage'); assert.strictEqual(await page.$('#pagebar, #tabbar'), null, 'no bar on Trends');
