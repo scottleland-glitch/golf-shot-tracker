@@ -2216,6 +2216,7 @@ html body .roundpage.holepage .srow.shead .c-n { height: auto; min-height: 0; bo
 .prfoot .primary { min-height: 44px; padding: 0 22px; border-radius: 999px; width: auto; margin: 0; }
 .prfoot .txt { min-height: 44px; }
 .prchart .tkeye, .prvs .tkeye, .prlist .tkeye { margin: 0 6px 2px; }
+.prvs .prvsper { display: block; margin: 0 6px 4px; font-size: 13px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: #1f6f4a; }
 .mglegend .lpc { background: #2f6fc9; } .mglegend .lls { background: #e2705c; }
 .prbars { display: grid; gap: 10px; margin: 8px 6px 10px; }
 .prbar { display: grid; grid-template-columns: 92px 1fr 38px; grid-template-rows: auto auto; column-gap: 8px; row-gap: 3px; align-items: center; font-size: 13px; }

@@ -1,4 +1,5 @@
 // Offline support: cache the whole app on install, serve cache-first.
+// v244: Strokes lost vs practice time shows its time frame (e.g. Last 3 months · 12 rounds), on the card and in the PDF
 // v243: the tour moves to Help (with strokes gained vs practice on How you improve), the old video is gone, a new guide PDF
 // v242: Score only / Every shot / Every shot + improve at setup, a score-only round screen, and a first-run tour
 // v241: coach sharing sends within a second of a save, right away when you leave the app, and retries every 30 s after no signal.
@@ -134,7 +135,7 @@
 // v113: "Courses near me" (near.js). The course finder list (data/us-courses.json, ~1.0 MB, ~0.28 MB gzipped) is NOT in this cache:
 // the app downloads it on first use into its own cache 'pinhigh-courselist-v1', which a new version keeps (so no re-download).
 // GolfCore scorecards (through the Pin High relay, pinhigh-golfcore.pinhigh.workers.dev) go straight to the network; the app saves each picked course with the saved courses.
-const CACHE = 'golf-sg-v243';
+const CACHE = 'golf-sg-v244';
 const ASSETS = ['./', './img/home-bg.webp', './img/oriole.webp', './tour/entry.webp', './tour/score.webp', './tour/rounds.webp', './tour/stats.webp', './tour/review.webp', './tour/mygame.webp', './tour/practice.webp', './tour/improve.webp', './index.html', './styles.css', './sg.js', './trends.js', './plan.js', './funfacts.js', './weekahead.js', './birdie.js', './courses.js', './near.js', './bag.js', './wedges.js', './live.js', './sync.js', './share.js', './story.js', './insights.js', './mygame.js', './shortgame.js', './shortgame-ui.js', './app.js', './config.js', './vendor/jspdf.umd.min.js',
   './manifest.webmanifest', './icons/apple-touch-icon.png', './icons/icon-192.png',
   './icons/icon-512.png', './icons/icon-512-maskable.png'];
