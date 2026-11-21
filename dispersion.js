@@ -22,7 +22,7 @@
   var PIN_X = [-7, 0, 7], PIN_Y = [9.5, 0, -9.5];
   var PINS = []; PIN_ROWS.forEach(function (row, i) { row.forEach(function (k, j) { PINS.push({ k: k, name: PIN_NAME[k], x: PIN_X[j], y: PIN_Y[i] }); }); });
   function pinOf(k) { return PINS.filter(function (p) { return p.k === k; })[0] || PINS[4]; }
-  var BUCKET_MIN = 50, BUCKET_MAX = 250, MIN_SHOTS = 8, SHOW = 50, SG_N = 400, CONF = 0.8;
+  var BUCKET_MIN = 50, BUCKET_MAX = 250, MIN_SHOTS = 8, SHOW = 50, SG_N = 800, CONF = 0.8; // v247 SG_N 400 -> 800: steadier best aim
 
   function num(v) { if (v == null) return null; var s = String(v).trim().replace(/,/g, ''); if (s === '') return null; var n = parseFloat(s.replace(/[^0-9.+\-eE]/g, '')); return isFinite(n) ? n : null; }
   // "5.2 L", "L 5.2", "5.2L", "-5.2", "R3" -> yards (+ right). flip = the export uses + for left.
@@ -156,13 +156,24 @@
     return { sg: n ? sg / n : null, greenPct: n ? 100 * on / n : null, medFt: median(ft), lies: lies, n: n };
   }
   // best aim point on the green for this pin (2-yard grid, kept on the green): { aim, sg, gain (vs aiming at the flag) }
+  // v247 (Scott): also the aim that hits the most greens (ties go to the one losing fewer strokes): best.gir = { aim, greenPct, sg, medFt }
+  // Aims are tried every 2 yd from the flag (so "at the flag" is one of them), kept on the green.
+  // Best SG: the strokes-gained surface is flat near the top and our pattern comes from 10–30 shots, so any aim within NEAR (0.03 a shot)
+  // of the very best counts as a tie – and a tie goes to the flag if it is in it, else to the aim that hits the most greens.
+  // (Scott, v247: a front-left pin said "aim 4 yd short" for a 0.01 gain over aims that kept far more balls on the green.)
+  var NEAR = 0.03;
   function bestAim(P, pin, yd, SG, bl, G) {
-    G = G || GREEN; var atPin = play(P, pin, pin, yd, SG, bl, G), best = { aim: { x: pin.x, y: pin.y }, sg: atPin.sg };
-    for (var x = -G.rx; x <= G.rx; x += 2) for (var y = -G.ry; y <= G.ry; y += 2) {
-      if (!onGreen(x, y, { rx: G.rx - 1.5, ry: G.ry - 1.5 })) continue;
-      var r = play(P, pin, { x: x, y: y }, yd, SG, bl, G); if (r.sg > best.sg + 1e-9) best = { aim: { x: x, y: y }, sg: r.sg };
+    G = G || GREEN; var inner = { rx: G.rx - 1.5, ry: G.ry - 1.5 }, L = [], top = -1e9, atPin = null;
+    for (var ox = -24; ox <= 24; ox += 2) for (var oy = -30; oy <= 30; oy += 2) {
+      var x = pin.x + ox, y = pin.y + oy, flag = !ox && !oy; if (!flag && !onGreen(x, y, inner)) continue;
+      var r = play(P, pin, { x: x, y: y }, yd, SG, bl, G), c = { aim: { x: x, y: y }, res: r, flag: flag }; L.push(c); if (flag) atPin = r; if (r.sg > top) top = r.sg;
     }
-    best.gain = best.sg - atPin.sg; best.atPin = atPin; return best;
+    var near = L.filter(function (c) { return c.res.sg >= top - NEAR; }), pick = near.filter(function (c) { return c.flag; })[0];
+    if (!pick) pick = near.sort(function (a, b) { return b.res.greenPct - a.res.greenPct || b.res.sg - a.res.sg; })[0];
+    var gir = L.slice().sort(function (a, b) { return b.res.greenPct - a.res.greenPct || b.res.sg - a.res.sg; })[0];
+    var gNear = L.filter(function (c) { return c.res.greenPct >= gir.res.greenPct - 1; }).sort(function (a, b) { return b.res.sg - a.res.sg; })[0] || gir; // within 1% of the most greens, the better SG
+    return { aim: pick.aim, sg: pick.res.sg, res: pick.res, gain: pick.res.sg - atPin.sg, atPin: atPin,
+      gir: { aim: gNear.aim, greenPct: gNear.res.greenPct, sg: gNear.res.sg, medFt: gNear.res.medFt } };
   }
   // "4 yd left, 2 yd short of the flag" (aim relative to the pin)
   function aimText(aim, pin) {
@@ -170,27 +181,86 @@
     if (dx) p.push(Math.abs(dx) + ' yd ' + (dx < 0 ? 'left' : 'right')); if (dy) p.push(Math.abs(dy) + ' yd ' + (dy < 0 ? 'short' : 'long'));
     return p.length ? p.join(', ') + ' of the flag' : 'at the flag';
   }
+  // ---------- v247 (Scott): sim patterns by CLUB (the distance a club goes changes with the conditions) ----------
+  // "8 Iron", "8i", "8-iron" -> "8i"; "Pitching Wedge" -> "pw"; "3 Wood" -> "3w"; "4 Hybrid" -> "4h"
+  function clubKey(c) {
+    var k = String(c || '').toLowerCase().replace(/[\s\-_.]+/g, '');
+    k = k.replace(/^pitchingwedge$|^pitching$|^p$/, 'pw').replace(/^gapwedge$|^gap$|^aw$/, 'gw').replace(/^sandwedge$|^sw$/, 'sw').replace(/^lobwedge$|^lw$/, 'lw');
+    return k.replace(/irons?$/, 'i').replace(/woods?$/, 'w').replace(/hybrids?$|rescue$/, 'h').replace(/^dr(iver)?$|^1w$/, 'driver').replace(/°$/, '') || 'club';
+  }
+  // [{ key, club, n, target (median yd), carry (median) }], shortest club first
+  function clubs(sessions) {
+    var o = {}; sessions.forEach(function (S) { S.shots.forEach(function (x) { var k = clubKey(x.club); (o[k] = o[k] || { key: k, club: x.club || 'Club', L: [] }).L.push(x); }); });
+    return Object.keys(o).map(function (k) { var c = o[k]; return { key: k, club: c.club, n: c.L.length, target: median(c.L.map(function (x) { return +x.target; })), carry: median(c.L.map(function (x) { return +x.carry; })) }; })
+      .sort(function (a, b) { return a.target - b.target || a.carry - b.carry; });
+  }
+  // landing points for one club, newest session first; each shot measured from its own target
+  function clubPoints(sessions, key, mode) {
+    var L = []; sessions.slice().sort(function (a, b) { return String(b.date).localeCompare(String(a.date)); }).forEach(function (S) {
+      S.shots.forEach(function (s) { if (clubKey(s.club) !== key) return; var d = mode === 'total' && s.total ? s.total : s.carry; L.push({ dx: +s.offline || 0, dy: d - s.target, club: s.club }); }); });
+    return L;
+  }
+  function analyseClub(sessions, key, opts) {
+    var c = clubs(sessions).filter(function (x) { return x.key === key; })[0]; if (!c) return null;
+    var A = analysePts(clubPoints(sessions, key, opts.mode), Math.round(c.target), opts, key.length * 97 + Math.round(c.target)); A.club = c.club; A.key = key; return A;
+  }
   // everything the page needs for one bucket. opts: { mode, factor, SG, bl }
-  function analyse(sessions, yd, opts) {
-    var P = points(sessions, yd, opts.mode); if (P.length < 3) return { yd: yd, n: P.length, ok: false };
-    var show = pattern(P, SHOW, yd, opts.factor), many = pattern(P, Math.max(SG_N, P.length), yd * 31 + 1, opts.factor), S = stats(P);
+  function analyse(sessions, yd, opts) { return analysePts(points(sessions, yd, opts.mode), yd, opts, yd); }
+  function analysePts(P, yd, opts, seed) {
+    if (P.length < 3) return { yd: yd, n: P.length, ok: false };
+    var show = pattern(P, SHOW, seed, opts.factor), many = pattern(P, Math.max(SG_N, P.length), seed * 31 + 1, opts.factor), S = stats(P);
     var pins = PINS.map(function (pin) { var b = bestAim(many, pin, yd, opts.SG, opts.bl); return { k: pin.k, name: pin.name, x: pin.x, y: pin.y, sg: b.atPin.sg, greenPct: b.atPin.greenPct, medFt: b.atPin.medFt, best: b }; });
     return { yd: yd, n: P.length, ok: P.length >= MIN_SHOTS, raw: P, show: show, many: many, stats: S, ell: ellipse(many), pins: pins,
       depth: S.my, side: S.mx, width: 2 * 1.2816 * S.sx * (opts.factor || 1), length: 2 * 1.2816 * S.sy * (opts.factor || 1) }; // width / length = the middle 80% of shots
   }
   // course-conditions factor from tournament approaches at this distance: their median proximity ÷ the sim pattern's at the centre pin (1–2.5)
-  function courseFactor(tourFt, sessions, yd, SG, bl, mode) {
-    if (!tourFt || tourFt.length < 5) return null; var P = points(sessions, yd, mode); if (P.length < MIN_SHOTS) return null;
+  // P = the sim landing points (v247: a club's, was a distance bucket's)
+  function courseFactor(tourFt, P, yd, SG, bl) {
+    if (!tourFt || tourFt.length < 5 || !P || P.length < MIN_SHOTS) return null;
     var simFt = play(pattern(P, SG_N, yd * 31 + 1, 1), PINS[4], PINS[4], yd, SG, bl).medFt, t = median(tourFt); if (!simFt || !t) return null;
     return Math.max(1, Math.min(2.5, Math.round(10 * t / simFt) / 10));
   }
   // colour for a strokes gained value on the pin grid: green when it gains, red when it loses (strength out to ±0.3)
   function sgTone(v) { if (v == null) return 'none'; return v >= 0.05 ? 'good' : v <= -0.05 ? 'bad' : 'even'; }
 
+  // ---------- v247 (Scott): actual dispersion from rounds, by distance (club isn't always entered, distance is) ----------
+  // Every approach shot (strokes gained "approach": more than 30 yd out, not a par 4 / 5 tee shot) from the fairway or a tee, in finished rounds.
+  // Where it finished around the pin = the distance left + the direction entered (8 directions; each dot gets a random spot inside its 45° slice).
+  // Shots with no direction (and not holed) can't be placed and are counted in noDir; OB and penalty shots are left out.
+  // opts: { play: 'all' | 'tournament', SG, bl }. Returns [{ yd (10-yd bucket of the start), from, dx, dy, on, sg, dir, holed }]
+  function roundPoints(rounds, opts) {
+    var SGm = opts.SG, out = [], R = rng(4242), noDir = {};
+    (rounds || []).forEach(function (r) {
+      if (!r || !Array.isArray(r.holes) || (opts.play === 'tournament' && r.play !== 'tournament')) return;
+      r.holes.forEach(function (h) { var a; try { a = SGm.analyzeHole(h, opts.bl); } catch (e) { return; } if (!a || !a.shots) return;
+        a.shots.forEach(function (x) {
+          if (x.cat !== 'approach' || !x.start || (x.start.lie !== 'fairway' && x.start.lie !== 'tee') || x.pen === 'ob' || x.ob || x.penStrokes > 0) return;
+          var b = bucket(x.start.dist); if (!b || b < BUCKET_MIN || b > BUCKET_MAX) return;
+          var holed = x.end.lie === 'holed', d = holed ? 0 : (x.end.lie === 'green' ? x.end.dist / 3 : x.end.dist);
+          if (!holed && !x.dir) { noDir[b] = (noDir[b] || 0) + 1; return; }
+          if (d > 60) return; // a shank or a lay-up well short isn't part of the pattern around the pin
+          var ang = holed ? 0 : ((x.ang == null ? 270 : x.ang) + (R() - 0.5) * 40) * Math.PI / 180;
+          out.push({ yd: b, from: x.start.dist, dx: d * Math.cos(ang), dy: d * Math.sin(ang), on: holed || x.end.lie === 'green', sg: x.sg, dir: holed ? '' : x.dir, holed: holed,
+            ft: holed ? 0 : x.end.lie === 'green' ? x.end.dist : x.end.dist * 3, play: r.play === 'tournament' ? 'tournament' : 'practice' });
+        }); });
+    });
+    out.noDir = noDir; return out;
+  }
+  function roundBuckets(P) { var o = {}; P.forEach(function (p) { (o[p.yd] = o[p.yd] || { yd: p.yd, n: 0 }).n++; }); return Object.keys(o).map(function (k) { return o[k]; }).sort(function (a, b) { return a.yd - b.yd; }); }
+  // what actually happened from one distance: { n, onPct, medFt, sg (per shot), short, long, left, right (% of misses that way), ell, show, stats }
+  function analyseRounds(P, yd, noDir) {
+    var L = P.filter(function (p) { return p.yd === yd; }), n = L.length; if (n < 3) return { yd: yd, n: n, ok: false, rounds: true, noDir: noDir || 0 };
+    var cnt = function (re) { return Math.round(100 * L.filter(function (p) { return re.test(p.dir); }).length / n); }, S = stats(L);
+    return { yd: yd, n: n, ok: true, rounds: true, raw: L, show: L, ell: n >= 5 ? ellipse(L) : null, stats: S, noDir: noDir || 0,
+      greenR: (function () { var g = L.filter(function (p) { return p.on; }).map(function (p) { return Math.sqrt(p.dx * p.dx + p.dy * p.dy); }).sort(function (x, y) { return x - y; }); return g.length ? Math.max(8, Math.min(25, g[Math.floor(0.9 * (g.length - 1))] + 1.5)) : 10; })(), // drawn green: holds 9 of 10 greens hit
+      onPct: 100 * L.filter(function (p) { return p.on; }).length / n, medFt: median(L.map(function (p) { return p.ft; })), sg: L.reduce(function (t, p) { return t + (p.sg || 0); }, 0) / n,
+      short: cnt(/^short/), long: cnt(/^long/), left: cnt(/left$/), right: cnt(/right$/), depth: S.my, side: S.mx, width: 2 * 1.2816 * S.sx, length: 2 * 1.2816 * S.sy };
+  }
+
   var api = { GREEN: GREEN, PINS: PINS, PIN_ROWS: PIN_ROWS, PIN_NAME: PIN_NAME, pinOf: pinOf, MIN_SHOTS: MIN_SHOTS, SHOW: SHOW, CONF: CONF,
     num: num, parseOffline: parseOffline, bucket: bucket, parseCSV: parseCSV, guessMap: guessMap, toShots: toShots, clubGroups: clubGroups, median: median,
     validSessions: validSessions, mergeSessions: mergeSessions, buckets: buckets, points: points, stats: stats, ellipse: ellipse, pattern: pattern, rng: rng,
-    onGreen: onGreen, inEll: inEll, laneHalf: laneHalf, lieAt: lieAt, play: play, bestAim: bestAim, aimText: aimText, analyse: analyse, courseFactor: courseFactor, sgTone: sgTone };
+    onGreen: onGreen, inEll: inEll, laneHalf: laneHalf, lieAt: lieAt, play: play, bestAim: bestAim, aimText: aimText, analyse: analyse, analysePts: analysePts, courseFactor: courseFactor, clubKey: clubKey, clubs: clubs, clubPoints: clubPoints, analyseClub: analyseClub, roundPoints: roundPoints, roundBuckets: roundBuckets, analyseRounds: analyseRounds, sgTone: sgTone };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else root.DISP = api;
 })(this);

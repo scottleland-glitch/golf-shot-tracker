@@ -5,6 +5,12 @@ Renamed to **Pin High** (title, home-screen label, header, PDF). Storage keys (`
 Phone web app for tracking every golf shot and strokes gained against a selectable baseline (PGA Tour by default).
 Static files only: no backend, no build step. Data is stored on the phone (localStorage).
 
+## Dispersion by club, and from rounds (v247)
+- A toggle at the top: **Club · sim** (sim shots grouped by club – how far a club goes changes with the conditions; each shot is still measured from its own target, and the page's yardage is that club's target) or **Rounds · by distance** (every approach from the fairway or a tee in finished rounds, 10-yard buckets, All rounds / Tournaments; placed by distance left + the direction entered; shows on-green %, median to the pin, strokes gained a shot and the short / long / left / right split). Rounds mode has no 9-pin grid – those finishes already include the aim, the roll and the real pin.
+- Manual entry now needs a club.
+- Approach strategy: an **Aim** switch under the pin grid – At the flag / **Most greens** (the aim point on the green that hits the most greens, ties to the better strokes gained) / **Best SG** (fewest strokes). Switching slides the pattern and its circle to the new aim (◎). The club chips are repeated at the top of the card.
+- Best aim is steadier: aims are tried every 2 yd from the flag, 800 balls per pin (was 400), and any aim within 0.03 a shot of the very best counts as a tie – a tie goes to the flag, else to the aim that hits the most greens (a near-tie used to pick odd spots, like 4 yd short of a front pin).
+
 ## Sim dispersion for coaches (v246)
 - Sim sessions now go to the coach link with rounds, tests and practice (`sim` in the snapshot, `/data/<uid>/sim/<id>`). A coach viewing an athlete in the app sees Dispersion read-only (no import, enter shots or delete); the coach website (strokewise.app/coach) has a Dispersion tab with the same screens.
 - `dispersion-ui.js` takes `env.readOnly()` and `env.embed` (no top bar) for those views.

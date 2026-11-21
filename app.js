@@ -86,7 +86,7 @@
   document.addEventListener('keydown', function (ev) { if (view.screen === 'sgtest') SGTUI.key(ev); });
   // v245 Sim dispersion screens (dispersion-ui.js). tourFt: how far from the pin (ft) the player's tournament approaches from about yd (±5, fairway or tee) finished
   var DISPUI = DISP.ui({ SG: SG, view: view, sessions: simSessions, saveSessions: saveSimSessions, players: function () { return mgPlayers(); }, me: playerName, same: samePlayer,
-    baselineOf: function (who) { return myBench(who); }, render: function () { render(); }, toast: function (m) { toast(m); }, readOnly: function () { return !!CO.view; }, // v246: a coach viewing an athlete can't add or delete
+    baselineOf: function (who) { return myBench(who); }, render: function () { render(); }, toast: function (m) { toast(m); }, readOnly: function () { return !!CO.view; }, rounds: function (who) { return finishedRoundsOf(who); }, // v246; v247 rounds for actual dispersion: a coach viewing an athlete can't add or delete
     tourFt: function (who, yd) { var L = []; finishedRoundsOf(who).filter(function (r) { return r.play === 'tournament'; }).forEach(function (r) { SG.summarize(r).proxList.forEach(function (m) {
       if (m.proxFt != null && Math.abs(Number(m.from) - yd) <= 5 && (m.fromLie === 'fairway' || m.fromLie === 'tee')) L.push(m.proxFt); }); }); return L; } });
   // Live sharing (v87): one secret link per round; every save() pushes a fresh snapshot (debounced, queued while offline).

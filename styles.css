@@ -3427,3 +3427,19 @@ html body #toursheet .tourpic.wide { align-items: center; padding: 14px; } html 
 .dsppage .dspk.g { background: #2ea043; border-radius: 4px; }
 .dsppage .dspk.b { background: #e0313f; border-radius: 4px; }
 .dsppage .dspbest { line-height: 1.4; }
+/* v247 Dispersion: club / rounds toggle, club chips */
+.dsppage .dspsrcrow { margin: 0 0 8px; }
+.dsppage .dspsrcrow .dspseg { margin: 0; }
+.dsppage .dsprplay { margin: 0 0 8px; }
+.dsppage .dsprplay .dspseg { margin: 0; }
+.dsppage .dspclub { min-width: 64px; }
+.dsppage .dspclub b { font-size: 15px; }
+.dsppage .dsptiles.four { grid-template-columns: repeat(4, 1fr); }
+.dsppage #dspactual .dsptiles { grid-template-columns: repeat(4, 1fr); }
+.dsppage .dspsgv em { font-size: 15px; }
+.dsppage .dspyds2 { margin: -2px 0 6px; padding-bottom: 6px; }
+.dsppage .dspyds2 .dspyd { min-width: 54px; padding: 4px 8px; }
+.dsppage .dspyds2 .dspyd b { font-size: 14px; }
+.dsppage .dspaimrow { display: flex; align-items: center; gap: 8px; margin: 8px 0 6px; font-size: 12.5px; font-weight: 600; color: #1f2d38; }
+.dsppage .dspaimrow .dspseg { flex: 1; margin: 0; }
+.dsppage .dspaimrow .dspseg button { font-size: 12.5px; padding-left: 4px; padding-right: 4px; }

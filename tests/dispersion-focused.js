@@ -6,6 +6,7 @@ const D = require(REPO + '/dispersion.js'), SG = require(REPO + '/sg.js');
 const R = D.rng(3), g = () => { let u = R() || 1e-9, v = R(); return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v); };
 const shots = []; for (let i = 0; i < 25; i++) shots.push({ club: '8i', target: 150, carry: +(146 + g() * 5).toFixed(1), total: 154, offline: +(3 + g() * 6).toFixed(1) });
 for (let i = 0; i < 5; i++) shots.push({ club: '9i', target: 140, carry: 139 + i, total: 146, offline: i - 2 });
+const FIX = require(REPO + '/tests/fixtures/prox-rounds.js'), ROUNDS = FIX.all(); ROUNDS[0].play = 'tournament'; ROUNDS.forEach(r => { r.player = 'Scott'; });
 const SESS = [{ id: 'simA', date: '2026-11-18T18:00:00.000Z', player: 'Scott', source: 'csv', name: 'GCQuad · Nov 18', shots }];
 // unit checks
 assert.strictEqual(D.parseOffline('5.2 L'), -5.2); assert.strictEqual(D.parseOffline('R 3'), 3); assert.strictEqual(D.parseOffline('-4'), -4); assert.strictEqual(D.parseOffline('4', true), -4);
@@ -25,21 +26,32 @@ console.log('  ✓ engine');
   const page = await ctx.newPage(); page.setDefaultTimeout(15000); const errors = []; page.on('pageerror', e => errors.push(String(e))); page.on('dialog', d => d.accept());
   try {
     await page.goto('http://127.0.0.1:8797/?x=' + Date.now());
-    await page.evaluate((S) => { localStorage.clear(); localStorage.setItem('golfsg.player.v1', 'Scott'); localStorage.setItem('golfsg.nameasked.v1', '1'); localStorage.setItem('golfsg.tourdone.v1', '1'); localStorage.setItem('golfsg.sim.v1', JSON.stringify(S)); }, SESS);
+    await page.evaluate((S) => { localStorage.clear(); localStorage.setItem('golfsg.player.v1', 'Scott'); localStorage.setItem('golfsg.nameasked.v1', '1'); localStorage.setItem('golfsg.tourdone.v1', '1'); localStorage.setItem('golfsg.sim.v1', JSON.stringify(S[0])); localStorage.setItem('golfsg.rounds.v1', JSON.stringify(S[1])); }, [SESS, ROUNDS]);
     await page.reload(); await page.waitForSelector('#home'); if (await page.$('#namesheet')) await page.click('[data-act="nameskip"]');
     const shot = (n, full) => page.screenshot({ path: OUT + '/' + n + '.png', fullPage: !!full });
     await page.click('#tbplus'); await page.click('.sheet-item[data-act="dspadd"]'); await page.waitForSelector('#disp'); await page.evaluate(() => window.scrollTo(0, 0));
-    assert.strictEqual(await page.textContent('.dspyd.sel b'), '150', 'opens on 150'); assert.strictEqual(await page.$$eval('.dspcell', e => e.length), 9);
-    assert.match(await page.textContent('#dspsrc'), /50 balls from your 25 sim shots at 150 yd · landing spot \(carry\)/);
+    assert.strictEqual(await page.textContent('.dspyd.sel b'), '8i', 'opens on the club nearest 150'); assert.match(await page.textContent('.dspyd.sel span'), /150 yd · 25/);
+    assert.strictEqual(await page.textContent('[data-act="dspsrc"].sel'), 'Club · sim'); assert.match(await page.textContent('#dspempty, #disp'), /8i pattern/); assert.strictEqual(await page.$$eval('.dspcell', e => e.length), 9);
+    assert.match(await page.textContent('#dspsrc'), /50 balls from your 25 sim shots with 8i \(150 yd target\) · landing spot \(carry\)/);
     await page.waitForTimeout(300); await shot('01-page', true); await shot('01b-top');
     // the animation: wide view with balls in the air, then the zoom, then the shape
     await page.click('[data-act="dsppin"][data-v="frontright"]'); await page.waitForTimeout(2600); await page.evaluate(() => window.scrollTo(0, 0));
     await page.click('#dspgo'); for (const [ms, n] of [[900, '02-flight'], [1500, '03-landing'], [1200, '04-zoom'], [1600, '05-shape']]) { await page.waitForTimeout(ms); await page.locator('.dspplay').screenshot({ path: OUT + '/' + n + '.png' }); }
-    assert.match(await page.textContent('#dspcap'), /Front right pin/); assert.match(await page.textContent('#dspbest'), /Front right · −0.26.*Best aim: .* of the flag/);
+    assert.match(await page.textContent('#dspcap'), /Front right pin/); assert.match(await page.textContent('#dspbest'), /Front right · −0.2\d.*Best aim: .* of the flag/);
     // tap a pin on the grid: the green below plays it (balls fall, hop, then the shape)
     await page.click('[data-act="dsppin"][data-v="backleft"]'); assert.ok(await page.$('.dspcell.sel[data-v="backleft"]')); assert.match(await page.textContent('#dspbest'), /Back left/);
     for (const [ms, n] of [[450, '10-green-fall'], [700, '11-green-hop'], [1400, '12-green-shape']]) { await page.waitForTimeout(ms); await page.locator('.dspstrat').screenshot({ path: OUT + '/' + n + '.png' }); }
     await page.click('[data-act="dsppin"][data-v="frontright"]'); await page.waitForTimeout(2600); await page.locator('.dspstrat').screenshot({ path: OUT + '/13-green-frontright.png' });
+    // v247 Aim: most greens slides the circle, fewest strokes, back to the flag
+    await page.click('[data-act="dspaim"][data-v="gir"]'); await page.waitForTimeout(450); await page.locator('.dspstrat').screenshot({ path: OUT + '/16-aim-moving.png' });
+    await page.waitForTimeout(900); await page.locator('.dspstrat').screenshot({ path: OUT + '/17-aim-gir.png' });
+    assert.match(await page.textContent('#dspbest'), /Front right · most greens: aim .* of the flag – \d+% on the green \(\d+% at the flag\)/);
+    await page.click('[data-act="dspaim"][data-v="sg"]'); await page.waitForTimeout(1100); assert.match(await page.textContent('#dspbest'), /best SG: aim .* saves 0\.\d\d a shot/);
+    await page.click('[data-act="dsppin"][data-v="center"]'); await page.waitForTimeout(2400); assert.match(await page.textContent('#dspbest'), /Center · best SG/, 'aim choice stays when the pin changes');
+    await page.click('[data-act="dspaim"][data-v="flag"]'); await page.waitForTimeout(1100); assert.match(await page.textContent('#dspbest'), /^Center · [+−]?\d/);
+    // the clubs at the top of the card
+    assert.strictEqual(await page.$$eval('.dspyds2 .dspclub', e => e.length), 2); await page.click('.dspyds2 [data-v="9i"]'); await page.waitForSelector('#dspfew'); await page.click('#dspyds [data-v="8i"]'); await page.waitForSelector('#dspgrid');
+    await page.click('[data-act="dsppin"][data-v="frontright"]'); await page.waitForTimeout(2600);
     // Play all 9: the caption walks through the pins
     await page.click('#dspall'); const seen = new Set(); for (let i = 0; i < 70; i++) { await page.waitForTimeout(500); seen.add((await page.textContent('#dspcap')).split(' pin')[0]); }
     assert.ok(seen.size === 9, 'Play all 9 moves through the pins: ' + [...seen].join(', '));
@@ -47,17 +59,24 @@ console.log('  ✓ engine');
     // course conditions + total
     await page.click('[data-act="dspfac"][data-v="p30"]'); assert.match(await page.textContent('#dspsrc'), /widened ×1.3/); assert.ok(await page.$('[data-act="dspfac"][data-v="tour"][disabled]'), 'no tournament rounds -> disabled');
     await page.click('[data-act="dspfac"][data-v="sim"]'); await page.click('[data-act="dspmode"][data-v="total"]'); assert.match(await page.textContent('#dspsrc'), /\(total\)/); await page.click('[data-act="dspmode"][data-v="carry"]');
-    // 140 has only 5 shots
-    await page.click('[data-act="dspyd"][data-v="140"]'); await page.waitForSelector('#dspfew'); assert.match(await page.textContent('#dspfew'), /5 shots at 140 yd\. Add 3 more/);
+    // 9i has only 5 shots
+    await page.click('[data-act="dspclub"][data-v="9i"]'); await page.waitForSelector('#dspfew'); assert.match(await page.textContent('#dspfew'), /5 shots with 9i\. Add 3 more/);
+    // v247 actual dispersion from rounds, by distance
+    await page.click('[data-act="dspsrc"][data-v="rounds"]'); await page.waitForSelector('#dspactual'); assert.strictEqual(await page.textContent('.dspyd.sel b'), '150');
+    assert.match(await page.textContent('#dspsrc'), /Your 4 approaches from 145–154 yd \(fairway or tee\) · where they finished/); assert.match(await page.textContent('#dspactual'), /100%on the green/);
+    assert.strictEqual(await page.$('#dspall'), null, 'no 9 pins for rounds'); assert.strictEqual(await page.$('#dspgrid'), null); await page.waitForTimeout(300); await shot('14-rounds', true);
+    await page.click('#dspgo'); await page.waitForTimeout(5200); await page.locator('.dspplay').screenshot({ path: OUT + '/15-rounds-anim.png' });
+    await page.click('[data-act="dsprplay"][data-v="tournament"]'); assert.strictEqual(await page.textContent('[data-act="dsprplay"].sel'), 'Tournaments'); assert.ok(+(await page.textContent('.dspyd.sel span')) <= 2, 'only the tournament round');
+    await page.click('[data-act="dsprplay"][data-v="all"]'); await page.click('[data-act="dspsrc"][data-v="sim"]'); await page.waitForSelector('#dspgrid, #dspfew');
     // import a GCQuad-style CSV
     const csv = 'Club,Ball Speed (mph),Carry (yds),Total (yds),Offline (yds)\n' + Array.from({ length: 12 }, (_, i) => '7 Iron,124,' + (158 + (i % 5)) + ',' + (166 + (i % 5)) + ',' + (i % 3) + '.5 ' + (i % 2 ? 'L' : 'R')).join('\n') + '\nAverage,124,160,168,0.2 R\n';
     fs.writeFileSync('/tmp/gcq.csv', csv); await page.setInputFiles('#dspfile', '/tmp/gcq.csv'); await page.waitForSelector('#dspimport');
     assert.match(await page.textContent('#dspimport'), /12 shots found/); assert.strictEqual(await page.inputValue('[data-dsp="target"][data-k="7 Iron"]'), '160'); await shot('07-import', true);
-    await page.click('#dspimpsave'); await page.waitForSelector('#disp'); assert.strictEqual(await page.textContent('.dspyd.sel b'), '160'); await page.waitForTimeout(6500); await page.locator('.dspplay').screenshot({ path: OUT + '/08-after-import.png' });
+    await page.click('#dspimpsave'); await page.waitForSelector('#disp'); assert.strictEqual(await page.textContent('.dspyd.sel b'), '7 Iron'); await page.waitForTimeout(6500); await page.locator('.dspplay').screenshot({ path: OUT + '/08-after-import.png' });
     // manual entry: 8 balls at 120
     await page.click('[data-act="dspmanual"]'); await page.waitForSelector('#dspmanual'); await page.fill('#dspmclub', 'PW'); await page.fill('#dspmtarget', '120');
     const rows = await page.$$('.dspmrow'); for (let i = 0; i < 8; i++) { await rows[i].$eval('.dspmc', (e, v) => { e.value = v; }, String(117 + i)); await rows[i].$eval('.dspmo', (e, v) => { e.value = v; }, String(i % 4)); if (i % 2) await page.click('[data-act="dsplr"][data-v="' + i + ':L"]'); }
-    await shot('09-manual', true); await page.click('#dspmsave'); await page.waitForSelector('#disp'); assert.strictEqual(await page.textContent('.dspyd.sel b'), '120');
+    await shot('09-manual', true); await page.click('#dspmsave'); await page.waitForSelector('#disp'); assert.strictEqual(await page.textContent('.dspyd.sel b'), 'PW');
     const st = await page.evaluate(() => JSON.parse(localStorage.getItem('golfsg.sim.v1'))); assert.strictEqual(st.length, 3); const man = st.find(x => x.source === 'manual'); assert.strictEqual(man.shots.length, 8); assert.strictEqual(man.shots[1].offline, -1);
     // backups carry the sessions
     const bk = await page.evaluate(() => window.SG.makeBackup([], null, 'Scott', [], null, null, [], [], JSON.parse(localStorage.getItem('golfsg.sim.v1')))); assert.strictEqual(SG.parseBackup(bk).sim.length, 3);
