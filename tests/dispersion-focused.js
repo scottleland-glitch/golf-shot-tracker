@@ -65,9 +65,13 @@ console.log('  ✓ engine');
     await page.click('[data-act="dspsrc"][data-v="rounds"]'); await page.waitForSelector('#dspactual'); assert.strictEqual(await page.textContent('.dspyd.sel b'), '150');
     assert.match(await page.textContent('#dspsrc'), /Your 4 approaches from 145–154 yd \(fairway or tee\) · where they finished/); assert.match(await page.textContent('#dspactual'), /100%on the green/);
     // v248 rounds pin grid: all distances by the hole's pin location
+    assert.strictEqual(await page.$('#dsprgrid'), null, 'no grid in Rounds'); await page.click('[data-act="dspsrc"][data-v="pins"]'); await page.waitForSelector('#dsprgrid'); assert.strictEqual(await page.$('#dspyds'), null, 'no distance chips in Pin location');
     assert.ok(await page.$('#dsprgrid'), 'pin grid'); assert.strictEqual(await page.$$eval('#dsprgrid .dspcell', e => e.length), 9); assert.match(await page.textContent('#dsprgrid'), /without a pin location/);
     const cell = await page.$('#dsprgrid .dspcell[data-act="dsprpin"]'); const ck = await cell.getAttribute('data-v'); await cell.click(); await page.waitForTimeout(300);
     assert.ok(await page.$('#dsprgrid .dspcell.sel[data-v="' + ck + '"]')); assert.match(await page.textContent('#dspsrc, #dspfew'), / to .* pins/); await shot('18-rounds-pin', true);
+    await page.evaluate(() => scrollTo(0, 0)); const fit = await page.evaluate(() => { const g = document.getElementById('dsprgrid').getBoundingClientRect(), c = document.getElementById('dspcv').getBoundingClientRect(); return [g.top, c.bottom, innerHeight]; });
+    assert.ok(fit[1] <= fit[2], 'grid and picture both on screen: ' + fit); await page.click('#dsprgrid .dspcell[data-act="dsprpin"]:not(.sel)').catch(() => {}); assert.strictEqual(await page.evaluate(() => scrollY), 0, 'tapping a pin does not scroll'); await shot('19-pins-view');
+    await page.click('[data-act="dspsrc"][data-v="rounds"]'); await page.waitForSelector('#dspyds');
     await page.click('[data-act="dspryd"][data-v="150"]'); await page.waitForSelector('#dspactual'); assert.match(await page.textContent('#dspsrc'), /from 145–154 yd/);
     assert.strictEqual(await page.$('#dspall'), null, 'no 9 pins for rounds'); assert.strictEqual(await page.$('#dspgrid'), null); await page.waitForTimeout(300); await shot('14-rounds', true);
     await page.click('#dspgo'); await page.waitForTimeout(5200); await page.locator('.dspplay').screenshot({ path: OUT + '/15-rounds-anim.png' });

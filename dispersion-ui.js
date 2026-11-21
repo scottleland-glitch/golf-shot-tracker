@@ -20,7 +20,7 @@
     function S() { if (!view.disp) view.disp = { mode: 'view', pin: 'center' }; var s = view.disp, names = env.players(); if (!s.who || names.indexOf(s.who) < 0) s.who = env.me() || names[0] || ''; return s; }
     function mine(who) { return env.sessions().filter(function (x) { return env.same(x.player || env.me(), who); }); }
     // v247: sim = by club (env changes how far a club goes), rounds = by distance (club isn't always entered)
-    function src() { return opts().src === 'rounds' && env.rounds ? 'rounds' : 'sim'; }
+    function src() { var v = opts().src; return env.rounds && (v === 'rounds' || v === 'pins') ? v : 'sim'; } // v249: sim (by club) | rounds (by distance) | pins (by pin location)
     function factorOf(s, P, yd) {
       var k = opts().factor || 'sim', F = FACTORS.filter(function (x) { return x.k === k; })[0] || FACTORS[0];
       if (F.k !== 'tour') return { k: F.k, f: F.f };
@@ -34,14 +34,16 @@
     function aimRes(pin, m) { var b = pin.best; return m === 'gir' ? { sg: b.gir.sg, greenPct: b.gir.greenPct, medFt: b.gir.medFt } : m === 'sg' ? { sg: b.sg, greenPct: b.res.greenPct, medFt: b.res.medFt } : { sg: pin.sg, greenPct: pin.greenPct, medFt: pin.medFt }; }
     function data() {
       var s = S(), list = mine(s.who), mode = opts().mode === 'total' ? 'total' : 'carry', bl = SG.baseline(env.baselineOf(s.who)).id, blName = SG.baseline(bl).name;
-      if (src() === 'rounds') {
+      var SRC = src(); if (SRC !== 'sim') {
         var play = opts().play === 'tournament' ? 'tournament' : 'all', R = env.rounds(s.who) || [];
         var rk = [s.who, play, bl, R.length, R.map(function (r) { return r.id + (r.updated || ''); }).join(',')].join('|');
         if (rcache.key !== rk) { rcache.key = rk; rcache.P = D.roundPoints(R, { play: play, SG: SG, bl: bl }); }
         var P = rcache.P, B = D.roundBuckets(P);
         if (!s.ryd || !B.some(function (b) { return b.yd === s.ryd; })) { var okR = B.filter(function (b) { return b.n >= 3; }); s.ryd = (okR.filter(function (b) { return b.yd === 150; })[0] || okR.sort(function (a, b) { return b.n - a.n; })[0] || B[0] || {}).yd || null; }
-        var byPin = s.rview === 'pin' && s.rpin, A = byPin ? D.analyseRoundPin(P, s.rpin) : s.ryd ? D.analyseRounds(P, s.ryd, P.noDir[s.ryd]) : null;
-        return { s: s, src: 'rounds', list: list, B: B, P: P, play: play, nRounds: R.length, A: A, byPin: byPin, grid: D.roundPinGrid(P), bl: bl, blName: blName };
+        var grid = D.roundPinGrid(P), byPin = SRC === 'pins';
+        if (byPin && (!s.rpin || !grid[s.rpin] || !grid[s.rpin].n)) s.rpin = (D.PINS.map(function (p) { return p.k; }).filter(function (k) { return grid[k].n; }).sort(function (a, b) { return grid[b].n - grid[a].n; })[0]) || null; // most-played pin first
+        var A = byPin ? (s.rpin ? D.analyseRoundPin(P, s.rpin) : null) : s.ryd ? D.analyseRounds(P, s.ryd, P.noDir[s.ryd]) : null;
+        return { s: s, src: SRC, grid: grid, list: list, B: B, P: P, play: play, nRounds: R.length, A: A, byPin: byPin, bl: bl, blName: blName };
       }
       var C = D.clubs(list);
       if (!s.club || !C.some(function (c) { return c.key === s.club; })) { var ok = C.filter(function (c) { return c.n >= D.MIN_SHOTS; }); s.club = ((ok.length ? ok : C).slice().sort(function (a, b) { return Math.abs(a.target - 150) - Math.abs(b.target - 150); })[0] || {}).key || null; }
@@ -63,10 +65,10 @@
     // ---------- main page ----------
     function html() {
       var s = S(); if (ro()) s.mode = 'view'; if (s.mode === 'import') return importHTML(); if (s.mode === 'manual') return manualHTML();
-      var d = data(), A = d.A, h = '<div class="frostpage theme-sky bzpage dsppage" id="disp">' + top((d.src === 'rounds' ? 'From your rounds' : 'Sim shots') + ' · ' + (s.who || 'You'));
-      if (env.rounds) h += '<div class="dspsrcrow">' + seg('dspsrc', d.src, [['sim', 'Club · sim'], ['rounds', 'Rounds · by distance']]) + '</div>';
+      var d = data(), A = d.A, h = '<div class="frostpage theme-sky bzpage dsppage" id="disp">' + top((d.src !== 'sim' ? 'From your rounds' : 'Sim shots') + ' · ' + (s.who || 'You'));
+      if (env.rounds) h += '<div class="dspsrcrow">' + seg('dspsrc', d.src, [['sim', 'Club · sim'], ['rounds', 'Rounds'], ['pins', 'Pin location']]) + '</div>';
       var names = env.players(); if (names.length > 1) h += '<div class="dspwho">' + names.map(function (n) { return '<button class="frostchip' + (env.same(n, s.who) ? ' sel' : '') + '" data-act="dspwho" data-v="' + esc(n) + '">' + esc(n) + '</button>'; }).join('') + '</div>';
-      if (d.src === 'rounds') return h + roundsHTML(d) + '</div>';
+      if (d.src !== 'sim') return h + roundsHTML(d) + '</div>';
       if (!d.B.length) {
         if (ro()) return h + '<div class="frostcard bzcard dspempty" id="dspempty"><h3 class="bzh">Shot pattern</h3><p>No sim shots shared yet. They show here once the player adds a launch monitor session under My Game › Dispersion.</p></div></div>';
         return h + '<div class="frostcard bzcard dspempty" id="dspempty"><h3 class="bzh">Your shot pattern</h3><p>Hit 10–20 balls with one club at one target on a launch monitor, then bring the shots in here. ' +
@@ -121,16 +123,16 @@
       var s = d.s, A = d.A, h = '<div class="dsprplay">' + seg('dsprplay', d.play, [['all', 'All rounds'], ['tournament', 'Tournaments']]) + '</div>';
       if (!d.B.length) return h + '<div class="frostcard bzcard dspempty" id="dspempty"><h3 class="bzh">From your rounds</h3><p>' + (d.nRounds ? 'No approach shots with a direction ' + (d.play === 'tournament' ? 'in tournament rounds ' : '') + 'yet.' : 'No finished rounds yet.') +
         ' Every approach from the fairway or a tee shows here by distance, placed by how far it finished from the pin and the direction you entered.</p></div>';
-      h += '<div class="dspyds" id="dspyds" role="group" aria-label="Distance">' + d.B.map(function (b) { var on = b.yd === s.ryd;
+      if (d.byPin) h += pinGridHTML(d); else h += '<div class="dspyds" id="dspyds" role="group" aria-label="Distance">' + d.B.map(function (b) { var on = b.yd === s.ryd;
         on = on && !d.byPin; return '<button class="dspyd' + (on ? ' sel' : '') + (b.n < 3 ? ' few' : '') + '" data-act="dspryd" data-v="' + b.yd + '" aria-pressed="' + on + '"><b>' + b.yd + '</b><span>' + b.n + '</span></button>'; }).join('') + '</div>';
       var nd = A && A.noDir ? ' · ' + A.noDir + ' without a direction left out' : '', pinName = d.byPin ? D.PIN_NAME[s.rpin] : '', where = d.byPin ? pinName.toLowerCase() + ' pins' : s.ryd + ' yd';
-      if (!A || !A.ok) return h + '<div class="frostcard bzcard dspfew" id="dspfew"><p>' + (A ? A.n : 0) + ' approach' + ((A && A.n) === 1 ? '' : 'es') + (d.byPin ? ' to ' : ' from ') + where + nd + '. Needs 3+ to draw.</p></div>' + pinGridHTML(d);
+      if (!A || !A.ok) return h + '<div class="frostcard bzcard dspfew" id="dspfew"><p>' + (A ? A.n : 0) + ' approach' + ((A && A.n) === 1 ? '' : 'es') + (d.byPin ? ' to ' : ' from ') + where + nd + '. Needs 3+ to draw.</p></div>';
       h += '<div class="frostcard bzcard dspplay"><div class="dspcvwrap"><canvas id="dspcv" aria-label="' + esc('Where your ' + A.n + ' approaches from ' + s.ryd + ' yd finished') + '"></canvas>' +
         '<div class="dspcap sr" id="dspcap" aria-live="polite"><b>' + (d.byPin ? esc(pinName) + ' pins' : 'From ' + s.ryd + ' yd') + '</b><span>' + Math.round(A.onPct) + '% on the green · ' + Math.round(A.medFt) + '’ median</span></div></div>' +
         '<div class="dspctl"><button class="dspgo" id="dspgo" data-act="dspplay">▶ Play</button></div>' +
         (d.byPin ? '<p class="dsplegend"><span><span class="dspk w"></span>under 120 yd' + (A.groups ? ' · ' + A.groups[0] : '') + '</span><span><span class="dspk r"></span>120–169' + (A.groups ? ' · ' + A.groups[1] : '') + '</span><span><span class="dspk bl"></span>170+' + (A.groups ? ' · ' + A.groups[2] : '') + '</span>' + (A.ell ? '<span><span class="dspk e"></span>8 of 10 shots</span>' : '') + '</p><p class="muted dspnote">On or off the drawn green = where each ball really finished.</p>'
           : '<p class="dsplegend"><span><span class="dspk w"></span>on the green</span><span><span class="dspk r"></span>missed</span>' + (A.ell ? '<span><span class="dspk e"></span>8 of 10 shots</span>' : '') + '</p>') +
-        '<p class="muted dspsrc" id="dspsrc">Your ' + A.n + ' approach' + (A.n === 1 ? '' : 'es') + (d.byPin ? ' to ' + esc(pinName.toLowerCase()) + ' pins, all distances' : ' from ' + (s.ryd - 5) + '–' + (s.ryd + 4) + ' yd') + ' (fairway or tee' + (d.play === 'tournament' ? ', tournaments' : '') + ') · where they finished' + nd + '</p></div>' + pinGridHTML(d);
+        '<p class="muted dspsrc" id="dspsrc">Your ' + A.n + ' approach' + (A.n === 1 ? '' : 'es') + (d.byPin ? ' to ' + esc(pinName.toLowerCase()) + ' pins, all distances' : ' from ' + (s.ryd - 5) + '–' + (s.ryd + 4) + ' yd') + ' (fairway or tee' + (d.play === 'tournament' ? ', tournaments' : '') + ') · where they finished' + nd + '</p></div>';
       var pct = function (v, l) { return '<div><b>' + v + '%</b><span>' + l + '</span></div>'; };
       h += '<div class="frostcard bzcard" id="dspactual"><h3 class="bzh">What happened ' + (d.byPin ? 'to ' + esc(where) : 'from ' + where) + ' ' + tip('dspact', 'About round dispersion') + '</h3>' +
         tipBody('dspact', 'These are finishes, not landing spots: they include the bounce and roll, the green’s slope, the wind and where you chose to aim – so this is how you score from here, not your pure pattern (that’s what Club · sim is for). Each dot is placed by how far it finished from the pin and the direction you entered, spread inside that direction. Each dot is where the ball finished, measured from the pin (your target): how far away and the direction you entered. By distance: no green is drawn – white = it finished on the green, red = it missed, wherever it sits; rings every 15 feet. By pin location: the standard green with the flag where it was, balls coloured by how far out they were hit (white under 120, red 120–169, blue 170+); a dot is slid along its line just across the edge when the drawn green and the real result disagree – the numbers use the real spots.') +
@@ -142,9 +144,9 @@
     }
     // v248 (Scott): the 3 × 3 pin grid for rounds – every approach to each pin location (the ⛳ set on the hole), all distances. Tap a pin to see those shots.
     function pinGridHTML(d) {
-      var G = d.grid, s = d.s, h = '<div class="frostcard bzcard" id="dsprgrid"><h3 class="bzh">By pin location ' + tip('dsprpin', 'About the pin grid') + '</h3>' +
+      var G = d.grid, s = d.s, h = '<div class="frostcard bzcard dsprgrid" id="dsprgrid"><p class="dspsub dsprgh">All distances · tap a pin ' + tip('dsprpin', 'About the pin grid') + '</p>' +
         tipBody('dsprpin', 'Every approach from the fairway or a tee, all distances, grouped by the pin location you set on the hole (⛳). Strokes gained a shot vs ' + esc(d.blName) + ', and how many found the green. Tap one to see where those shots finished. A few shots per pin is just a hint – the pattern firms up as rounds add up.') +
-        '<p class="dspsub">All distances · tap a pin</p><div class="dspgrid"><span class="dspgback">Back</span>' + D.PIN_ROWS.map(function (row) { return row.map(function (k) {
+        '<div class="dspgrid"><span class="dspgback">Back</span>' + D.PIN_ROWS.map(function (row) { return row.map(function (k) {
           var c = G[k], on = d.byPin && s.rpin === k; if (!c.n) return '<button class="dspcell none" disabled aria-label="' + esc(D.PIN_NAME[k] + ': no shots') + '"><b>–</b><span>no shots</span></button>';
           var t = c.n < 3 ? 'even' : D.sgTone(c.sg), a = Math.min(1, Math.abs(c.sg || 0) / 0.3);
           return '<button class="dspcell ' + t + (on ? ' sel' : '') + '" data-act="dsprpin" data-v="' + k + '" style="--a:' + (0.25 + 0.75 * a).toFixed(2) + '" aria-pressed="' + on + '" aria-label="' + esc(D.PIN_NAME[k] + ' ' + sgTxt(c.sg) + ', ' + c.n + ' shots') + '"><b>' + sgTxt(c.sg) + '</b><span>' + c.n + ' · ' + Math.round(c.onPct) + '% green</span></button>'; }).join(''); }).join('') + '<span class="dspgfront">Front · toward you</span></div>';
@@ -217,9 +219,9 @@
       if (a === 'dspwho') { s.who = v; s.yd = null; anim = null; env.render(); return; }
       if (a === 'dspyd') { s.yd = +v; anim = { play: true }; gAnim = null; keepScroll(); return; }
       if (a === 'dspclub') { s.club = v; anim = { play: true }; gAnim = null; keepScroll(); return; } // v247
-      if (a === 'dspryd') { s.ryd = +v; s.rview = 'dist'; anim = { play: true }; keepScroll(); return; }
-      if (a === 'dsprpin') { s.rview = 'pin'; s.rpin = v; anim = { play: true }; keepScroll(); var cv2 = document.getElementById('dspcv'); if (cv2 && cv2.scrollIntoView && cv2.getBoundingClientRect().top < 0) cv2.scrollIntoView({ block: 'start', behavior: 'smooth' }); return; } // v248
-      if (a === 'dspsrc') { setOpt('src', v === 'rounds' ? 'rounds' : 'sim'); anim = null; gAnim = null; keepScroll(); return; }
+      if (a === 'dspryd') { s.ryd = +v; anim = { play: true }; keepScroll(); return; }
+      if (a === 'dsprpin') { s.rpin = v; anim = { play: true }; keepScroll(); return; } // v249: grid and picture share the screen
+      if (a === 'dspsrc') { setOpt('src', v === 'rounds' || v === 'pins' ? v : 'sim'); anim = null; gAnim = null; keepScroll(); return; }
       if (a === 'dsprplay') { setOpt('play', v === 'tournament' ? 'tournament' : 'all'); anim = null; keepScroll(); return; }
       if (a === 'dspaim') { var Ad = data().A; if (!Ad || !Ad.pins) return; var pp = Ad.pins.filter(function (x) { return x.k === s.pin; })[0] || Ad.pins[4], from = aimOf(pp, aimMode());
         s.aim = v === 'gir' || v === 'sg' ? v : 'flag'; gAnim = { play: true, move: true, from: from }; keepScroll(); return; } // the circle slides to the new aim point
@@ -310,7 +312,7 @@
     }
     function mountTop() {
       var cv = document.getElementById('dspcv'); if (!cv) return; var d = data(), A = d.A; if (!A || !A.ok) return;
-      var W = cv.clientWidth || 360, H = Math.round(W * 1.12), dpr = window.devicePixelRatio || 1; cv.width = W * dpr; cv.height = H * dpr; cv.style.height = H + 'px';
+      var W = cv.clientWidth || 360, H = Math.round(W * (A.rounds && A.pin ? 0.86 : 1.12)), dpr = window.devicePixelRatio || 1; cv.width = W * dpr; cv.height = H * dpr; cv.style.height = H + 'px';
       var ctx = cv.getContext('2d'); ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
       if (rafId) cancelAnimationFrame(rafId); rafId = 0; var my = ++gen;
       var s = S(), reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;

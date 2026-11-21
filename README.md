@@ -5,6 +5,9 @@ Renamed to **Pin High** (title, home-screen label, header, PDF). Storage keys (`
 Phone web app for tracking every golf shot and strokes gained against a selectable baseline (PGA Tour by default).
 Static files only: no backend, no build step. Data is stored on the phone (localStorage).
 
+## Dispersion: Pin location as its own view (v249)
+- The toggle at the top is now **Club · sim | Rounds | Pin location**. Pin location swaps the distance chips for a compact 3 × 3 grid right above the picture, so a tap replays that pin without scrolling (opens on the most-played pin).
+
 ## Dispersion chips: » for more (v248)
 - The distance and club chips on Dispersion stay on one line; a » on the right shows when there are more (tap it to scroll), and the chosen chip is scrolled into view.
 - Rounds view: no green is drawn – round shots are measured from the target (the pin), so it's rings every 15 ft and the real hit (white) / miss (red) spots.
