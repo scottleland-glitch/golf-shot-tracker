@@ -1,6 +1,7 @@
 // v245 (Scott) Sim dispersion: the screens and the animation (the maths is in dispersion.js).
 // DISPUI.ui(env) -> { html(), act(act, v, button), mount() }
 // env (from app.js): SG, view, sessions(), saveSessions(list), players(), me(), same(a, b), baselineOf(who), render(), toast(msg), tourFt(who, yd)
+// v246: optional env.readOnly() (a coach looking at an athlete: no import / enter / delete) and env.embed (the coach website: no phone top bar)
 (function (root) {
   'use strict';
   var D = root.DISP; if (!D) return;
@@ -35,16 +36,19 @@
     }
     function seg(act, cur, items) { return '<div class="bzseg dspseg" role="group">' + items.map(function (it) { var on = it[0] === cur;
       return '<button class="' + (on ? 'sel' : '') + '" data-act="' + act + '" data-v="' + it[0] + '" aria-pressed="' + on + '"' + (it[2] ? ' disabled' : '') + '>' + it[1] + '</button>'; }).join('') + '</div>'; }
+    function ro() { return !!(env.readOnly && env.readOnly()); }
     function top(sub, back) {
+      if (env.embed) return '';
       return '<div class="topbar frost">' + (back || (S().from === 'mygame' ? '<button class="txt frostbtn" data-act="mygame">‹ My Game</button>' : '<button class="txt frostbtn" data-act="home">‹ Home</button>')) + '<div class="title"><b>Dispersion</b><span>' + esc(sub) + '</span></div><span class="tbspace"></span></div>';
     }
 
     // ---------- main page ----------
     function html() {
-      var s = S(); if (s.mode === 'import') return importHTML(); if (s.mode === 'manual') return manualHTML();
+      var s = S(); if (ro()) s.mode = 'view'; if (s.mode === 'import') return importHTML(); if (s.mode === 'manual') return manualHTML();
       var d = data(), A = d.A, h = '<div class="frostpage theme-sky bzpage dsppage" id="disp">' + top('Sim shots · ' + (s.who || 'You'));
       var names = env.players(); if (names.length > 1) h += '<div class="dspwho">' + names.map(function (n) { return '<button class="frostchip' + (env.same(n, s.who) ? ' sel' : '') + '" data-act="dspwho" data-v="' + esc(n) + '">' + esc(n) + '</button>'; }).join('') + '</div>';
       if (!d.B.length) {
+        if (ro()) return h + '<div class="frostcard bzcard dspempty" id="dspempty"><h3 class="bzh">Shot pattern</h3><p>No sim shots shared yet. They show here once the player adds a GCQuad or launch-monitor session under My Game › Dispersion.</p></div></div>';
         return h + '<div class="frostcard bzcard dspempty" id="dspempty"><h3 class="bzh">Your shot pattern</h3><p>Hit 10–20 balls at one target on your GCQuad (or any launch monitor), then bring the shots in here. ' +
           'You get where your balls land around the flag, played to 9 pin positions, and the strokes gained for each pin.</p>' + addBtns() + '</div>' + sessionsHTML(d) + '</div>';
       }
@@ -85,12 +89,12 @@
     }
     function tip(k, label) { var on = !!(view.dspTip && view.dspTip[k]); return '<button type="button" class="infobtn tipbtn" data-act="dsptip" data-v="' + k + '" aria-expanded="' + on + '" aria-label="' + label + '"><span>i</span></button>'; }
     function tipBody(k, t) { return '<div class="infotext tippop"' + (view.dspTip && view.dspTip[k] ? '' : ' hidden') + '>' + t + '</div>'; }
-    function addBtns() { return '<div class="dspadd"><label class="dspgo filebtn" for="dspfile">📂 Import CSV</label><input type="file" id="dspfile" accept=".csv,.txt,text/csv,text/plain" hidden><button class="dspgo alt" data-act="dspmanual">✎ Enter shots</button></div>'; }
+    function addBtns() { if (ro()) return ''; return '<div class="dspadd"><label class="dspgo filebtn" for="dspfile">📂 Import CSV</label><input type="file" id="dspfile" accept=".csv,.txt,text/csv,text/plain" hidden><button class="dspgo alt" data-act="dspmanual">✎ Enter shots</button></div>'; }
     function sessionsHTML(d) {
       var L = d.list.slice().sort(function (a, b) { return String(b.date).localeCompare(String(a.date)); });
       return '<div class="frostcard bzcard" id="dspsessions"><h3 class="bzh">Sim sessions</h3>' + (L.length ? '<ul class="dsplist">' + L.map(function (x) {
         var B = D.buckets([x]).map(function (b) { return b.yd; }).join(', ');
-        return '<li><div><b>' + esc(x.name || 'Sim session') + '</b><span>' + dLong(x.date) + ' · ' + x.shots.length + ' shots · ' + esc(B) + ' yd</span></div><button class="dspdel" data-act="dspdel" data-v="' + esc(x.id) + '" aria-label="Delete this session">✕</button></li>'; }).join('') + '</ul>' : '<p class="muted">None yet.</p>') +
+        return '<li><div><b>' + esc(x.name || 'Sim session') + '</b><span>' + dLong(x.date) + ' · ' + x.shots.length + ' shots · ' + esc(B) + ' yd</span></div>' + (ro() ? '' : '<button class="dspdel" data-act="dspdel" data-v="' + esc(x.id) + '" aria-label="Delete this session">✕</button>') + '</li>'; }).join('') + '</ul>' : '<p class="muted">None yet.</p>') +
         (d.B.length ? addBtns() : '') + '</div>';
     }
 
@@ -142,7 +146,7 @@
 
     // ---------- actions ----------
     function act(a, v, b) {
-      var s = S();
+      var s = S(); if (ro() && /^dsp(del|manual|more|lr|msave|impsave)$/.test(a)) return;
       if (a === 'dspopen' || a === 'dspadd') { s.from = view.screen === 'mygame' ? 'mygame' : 'home'; view.screen = 'disp'; s.mode = 'view'; view.hmenu = null; anim = null; gAnim = null; env.render();
         var sx = a === 'dspadd' && document.getElementById('dspsessions'); if (sx && sx.scrollIntoView) sx.scrollIntoView({ block: 'start' }); else window.scrollTo(0, 0); return; }
       if (a === 'dsptip') { view.dspTip = view.dspTip || {}; view.dspTip[v] = !view.dspTip[v]; keepScroll(); return; }
@@ -168,7 +172,7 @@
     function keepScroll() { var y = window.scrollY; env.render(); window.scrollTo(0, y); }
     document.addEventListener('change', function (ev) {
       var t = ev.target; if (!t) return;
-      if (t.id === 'dspfile') { var f = t.files && t.files[0]; if (!f) return; var rd = new FileReader(); rd.onload = function () { readFile(String(rd.result)); }; rd.onerror = function () { env.toast('Could not read that file'); }; rd.readAsText(f); t.value = ''; return; }
+      if (t.id === 'dspfile') { if (ro()) return; var f = t.files && t.files[0]; if (!f) return; var rd = new FileReader(); rd.onload = function () { readFile(String(rd.result)); }; rd.onerror = function () { env.toast('Could not read that file'); }; rd.readAsText(f); t.value = ''; return; }
       var k = t.getAttribute('data-dsp'); if (!k) return; var I = S().imp; if (!I) return;
       if (k === 'map') I.map[t.getAttribute('data-k')] = +t.value;
       else if (k === 'flip') I.flip = t.checked; else if (k === 'meters') I.map.meters = t.checked;

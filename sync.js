@@ -81,11 +81,11 @@
         .then(function () { return db(acc, 'data/' + acc.uid, 'PATCH', { team: T.team, name: mem.name, joined: at }); })
         .then(function () { S.links[k] = { acc: acc, player: mem.name, team: T.team, teamName: T.name, coachName: T.coachName, code: T.code, joined: at, hashes: {}, sent: 0, pending: true }; delete pendingAcc[k]; persist(); return S.links[k]; });
     };
-    // Send what changed. snap = { profile, rounds: [...], tests: [...], practice: [...] } for that player.
+    // Send what changed. snap = { profile, rounds: [...], tests: [...], practice: [...], sim: [...] (v246 sim dispersion sessions) } for that player.
     api.flush = function (player, snap) {
       var L = api.link(player); if (!L || !snap || L.removed) return Promise.resolve({ sent: 0 });
       var up = {}, H = {}, n = 0;
-      ['rounds', 'tests', 'practice'].forEach(function (kind) { (snap[kind] || []).forEach(function (it) { if (!it || !it.id) return;
+      ['rounds', 'tests', 'practice', 'sim'].forEach(function (kind) { (snap[kind] || []).forEach(function (it) { if (!it || !it.id) return;
         var key = kind + '/' + fkey(it.id), j = JSON.stringify(it), h = hash(j); H[key] = h;
         if (L.hashes[key] !== h) { up[key] = { j: j, u: Date.parse(it.updated || it.date || '') || now() }; n++; } }); });
       Object.keys(L.hashes).forEach(function (key) { if (key !== 'profile' && !(key in H)) { up[key] = null; n++; } });
@@ -159,9 +159,9 @@
           return db(c.acc, 'data/' + uid + '/stamp').then(function (stamp) {
             if (old && old.stamp === stamp && stamp != null) { out[uid] = old; old.member = M[uid]; return; }
             return db(c.acc, 'data/' + uid).then(function (d) {
-              d = d || {}; var A = { uid: uid, stamp: d.stamp == null ? null : d.stamp, name: d.name || M[uid].name || 'Athlete', member: M[uid], profile: {}, rounds: [], tests: [], practice: [] };
+              d = d || {}; var A = { uid: uid, stamp: d.stamp == null ? null : d.stamp, name: d.name || M[uid].name || 'Athlete', member: M[uid], profile: {}, rounds: [], tests: [], practice: [], sim: [] };
               try { A.profile = d.profile && d.profile.j ? JSON.parse(d.profile.j) : {}; } catch (e) {}
-              ['rounds', 'tests', 'practice'].forEach(function (kind) { Object.keys(d[kind] || {}).forEach(function (k) { try { A[kind].push(JSON.parse(d[kind][k].j)); } catch (e) {} }); });
+              ['rounds', 'tests', 'practice', 'sim'].forEach(function (kind) { Object.keys(d[kind] || {}).forEach(function (k) { try { A[kind].push(JSON.parse(d[kind][k].j)); } catch (e) {} }); });
               A.seenAt = old ? old.seenAt || 0 : 0; // the app counts what's newer than the coach's last look as "New"
               out[uid] = A; changed.push(uid);
             });

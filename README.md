@@ -5,6 +5,10 @@ Renamed to **Pin High** (title, home-screen label, header, PDF). Storage keys (`
 Phone web app for tracking every golf shot and strokes gained against a selectable baseline (PGA Tour by default).
 Static files only: no backend, no build step. Data is stored on the phone (localStorage).
 
+## Sim dispersion for coaches (v246)
+- Sim sessions now go to the coach link with rounds, tests and practice (`sim` in the snapshot, `/data/<uid>/sim/<id>`). A coach viewing an athlete in the app sees Dispersion read-only (no import, enter shots or delete); the coach website (strokewise.app/coach) has a Dispersion tab with the same screens.
+- `dispersion-ui.js` takes `env.readOnly()` and `env.embed` (no top bar) for those views.
+
 ## Sim dispersion (v245)
 - My Game › **Dispersion** (back with ‹ My Game; + › Add sim shots opens it at the sessions): bring in launch-monitor shots – **Import CSV** (GCQuad or any export: pick the Club / Carry / Total / Offline columns, "5.2 L" style offline is read, meters converted) or **Enter shots** (carry + offline L/R). Each club gets a target, rounded to 10 yd; shots go to that bucket (140, 150, …). Saved per player in `golfsg.sim.v1` and in backups (`sim`).
 - The pattern is where the ball **landed** around the target (carry by default, Total optional). An animation flies 50 balls from the yardage (your real shots first, then more with the same shape), zooms to the green and draws the shape that holds 8 of 10 shots. White = on the green, red = missed. **Play all 9 pins** plays it to each pin.

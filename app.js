@@ -86,7 +86,7 @@
   document.addEventListener('keydown', function (ev) { if (view.screen === 'sgtest') SGTUI.key(ev); });
   // v245 Sim dispersion screens (dispersion-ui.js). tourFt: how far from the pin (ft) the player's tournament approaches from about yd (±5, fairway or tee) finished
   var DISPUI = DISP.ui({ SG: SG, view: view, sessions: simSessions, saveSessions: saveSimSessions, players: function () { return mgPlayers(); }, me: playerName, same: samePlayer,
-    baselineOf: function (who) { return myBench(who); }, render: function () { render(); }, toast: function (m) { toast(m); },
+    baselineOf: function (who) { return myBench(who); }, render: function () { render(); }, toast: function (m) { toast(m); }, readOnly: function () { return !!CO.view; }, // v246: a coach viewing an athlete can't add or delete
     tourFt: function (who, yd) { var L = []; finishedRoundsOf(who).filter(function (r) { return r.play === 'tournament'; }).forEach(function (r) { SG.summarize(r).proxList.forEach(function (m) {
       if (m.proxFt != null && Math.abs(Number(m.from) - yd) <= 5 && (m.fromLie === 'fairway' || m.fromLie === 'tee')) L.push(m.proxFt); }); }); return L; } });
   // Live sharing (v87): one secret link per round; every save() pushes a fresh snapshot (debounced, queued while offline).
@@ -2087,7 +2087,7 @@
         playPickHTML('newplay', view.newPlay || lastPlay(), 'This round is') + '<label class="lbl" for="newbl">Compare my shots against</label>' + blSelect('newbl', view.newBl || myBench(playerName())) + newPlayerHTML() +
         '<button class="sheet-go" data-act="new">Start round</button><button class="sheet-item muted" data-act="plus">Back</button>';
       else if (view.hmenu === 'nav') h += (coachOn() ? '<button class="sheet-item" role="menuitem" data-act="athletes" id="navathletes">Athletes</button>' : '') + '<button class="sheet-item" role="menuitem" data-act="history">Rounds</button><button class="sheet-item" role="menuitem" data-act="stats">Stats</button><button class="sheet-item' + benchBang() + '" role="menuitem" data-act="mygame">My Game</button><button class="sheet-item" role="menuitem" data-act="bag">My Bag</button><button class="sheet-item" role="menuitem" data-act="archive">Settings</button><button class="sheet-item" role="menuitem" data-act="help">Help</button>';
-      else h += '<button class="sheet-item" role="menuitem" data-act="newform">New round</button><button class="sheet-item" role="menuitem" data-act="prlog">Log practice</button><button class="sheet-item" role="menuitem" data-act="sgtopen">Short game test</button><button class="sheet-item" role="menuitem" data-act="dspadd">Add sim shots</button>';
+      else h += '<button class="sheet-item" role="menuitem" data-act="newform">New round</button><button class="sheet-item" role="menuitem" data-act="prlog">Log practice</button><button class="sheet-item" role="menuitem" data-act="sgtopen">Short game test</button>' + (CO.view ? '' : '<button class="sheet-item" role="menuitem" data-act="dspadd">Add sim shots</button>');
       h += '</div>';
     }
     return h + '</div>';
@@ -3097,7 +3097,8 @@
   function syncSnap(who) {
     var fill = function (x) { if (x && !x.player) { x = JSON.parse(JSON.stringify(x)); x.player = who; } return x; };
     return { profile: { bench: myBench(who), typical: typicalOf(who), tour: tourOf(who), mode: modeOf(who) },
-      rounds: finishedRoundsOf(who).map(fill), tests: sgTestsOf(who).map(fill), practice: practiceOf(who).map(fill) };
+      rounds: finishedRoundsOf(who).map(fill), tests: sgTestsOf(who).map(fill), practice: practiceOf(who).map(fill),
+      sim: simSessions().filter(function (x) { return samePlayer(x.player || playerName(), who); }).map(fill) }; // v246: sim dispersion sessions go to the coach too
   }
   var syncT = null;
   // v241 (Scott): send within a second of a save (was 4 s – closing the app in that gap left it waiting until the app was opened again)
