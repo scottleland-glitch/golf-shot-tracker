@@ -6,7 +6,7 @@ const D = require(REPO + '/dispersion.js'), SG = require(REPO + '/sg.js');
 const R = D.rng(3), g = () => { let u = R() || 1e-9, v = R(); return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v); };
 const shots = []; for (let i = 0; i < 25; i++) shots.push({ club: '8i', target: 150, carry: +(146 + g() * 5).toFixed(1), total: 154, offline: +(3 + g() * 6).toFixed(1) });
 for (let i = 0; i < 5; i++) shots.push({ club: '9i', target: 140, carry: 139 + i, total: 146, offline: i - 2 });
-const FIX = require(REPO + '/tests/fixtures/prox-rounds.js'), ROUNDS = FIX.all(); ROUNDS[0].play = 'tournament'; ROUNDS.forEach(r => { r.player = 'Scott'; });
+const FIX = require(REPO + '/tests/fixtures/prox-rounds.js'), ROUNDS = FIX.all(); ROUNDS[0].play = 'tournament'; ROUNDS.forEach(r => r.holes.forEach((h, i) => { if (i % 4 !== 3) h.pin = ['frontright', 'center', 'backleft'][i % 3]; })); // v248 pin locations for the grid ROUNDS.forEach(r => { r.player = 'Scott'; });
 const SESS = [{ id: 'simA', date: '2026-11-18T18:00:00.000Z', player: 'Scott', source: 'csv', name: 'GCQuad · Nov 18', shots }];
 // unit checks
 assert.strictEqual(D.parseOffline('5.2 L'), -5.2); assert.strictEqual(D.parseOffline('R 3'), 3); assert.strictEqual(D.parseOffline('-4'), -4); assert.strictEqual(D.parseOffline('4', true), -4);
@@ -64,6 +64,11 @@ console.log('  ✓ engine');
     // v247 actual dispersion from rounds, by distance
     await page.click('[data-act="dspsrc"][data-v="rounds"]'); await page.waitForSelector('#dspactual'); assert.strictEqual(await page.textContent('.dspyd.sel b'), '150');
     assert.match(await page.textContent('#dspsrc'), /Your 4 approaches from 145–154 yd \(fairway or tee\) · where they finished/); assert.match(await page.textContent('#dspactual'), /100%on the green/);
+    // v248 rounds pin grid: all distances by the hole's pin location
+    assert.ok(await page.$('#dsprgrid'), 'pin grid'); assert.strictEqual(await page.$$eval('#dsprgrid .dspcell', e => e.length), 9); assert.match(await page.textContent('#dsprgrid'), /without a pin location/);
+    const cell = await page.$('#dsprgrid .dspcell[data-act="dsprpin"]'); const ck = await cell.getAttribute('data-v'); await cell.click(); await page.waitForTimeout(300);
+    assert.ok(await page.$('#dsprgrid .dspcell.sel[data-v="' + ck + '"]')); assert.match(await page.textContent('#dspsrc, #dspfew'), / to .* pins/); await shot('18-rounds-pin', true);
+    await page.click('[data-act="dspryd"][data-v="150"]'); await page.waitForSelector('#dspactual'); assert.match(await page.textContent('#dspsrc'), /from 145–154 yd/);
     assert.strictEqual(await page.$('#dspall'), null, 'no 9 pins for rounds'); assert.strictEqual(await page.$('#dspgrid'), null); await page.waitForTimeout(300); await shot('14-rounds', true);
     await page.click('#dspgo'); await page.waitForTimeout(5200); await page.locator('.dspplay').screenshot({ path: OUT + '/15-rounds-anim.png' });
     await page.click('[data-act="dsprplay"][data-v="tournament"]'); assert.strictEqual(await page.textContent('[data-act="dsprplay"].sel'), 'Tournaments'); assert.ok(+(await page.textContent('.dspyd.sel span')) <= 2, 'only the tournament round');

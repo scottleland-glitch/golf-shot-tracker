@@ -232,7 +232,7 @@
     var SGm = opts.SG, out = [], R = rng(4242), noDir = {};
     (rounds || []).forEach(function (r) {
       if (!r || !Array.isArray(r.holes) || (opts.play === 'tournament' && r.play !== 'tournament')) return;
-      r.holes.forEach(function (h) { var a; try { a = SGm.analyzeHole(h, opts.bl); } catch (e) { return; } if (!a || !a.shots) return;
+      r.holes.forEach(function (h) { var a; try { a = SGm.analyzeHole(h, opts.bl); } catch (e) { return; } if (!a || !a.shots) return; var pinK = a.pin || '';
         a.shots.forEach(function (x) {
           if (x.cat !== 'approach' || !x.start || (x.start.lie !== 'fairway' && x.start.lie !== 'tee') || x.pen === 'ob' || x.ob || x.penStrokes > 0) return;
           var b = bucket(x.start.dist); if (!b || b < BUCKET_MIN || b > BUCKET_MAX) return;
@@ -241,18 +241,39 @@
           if (d > 60) return; // a shank or a lay-up well short isn't part of the pattern around the pin
           var ang = holed ? 0 : ((x.ang == null ? 270 : x.ang) + (R() - 0.5) * 40) * Math.PI / 180;
           out.push({ yd: b, from: x.start.dist, dx: d * Math.cos(ang), dy: d * Math.sin(ang), on: holed || x.end.lie === 'green', sg: x.sg, dir: holed ? '' : x.dir, holed: holed,
-            ft: holed ? 0 : x.end.lie === 'green' ? x.end.dist : x.end.dist * 3, play: r.play === 'tournament' ? 'tournament' : 'practice' });
+            ft: holed ? 0 : x.end.lie === 'green' ? x.end.dist : x.end.dist * 3, play: r.play === 'tournament' ? 'tournament' : 'practice', pin: pinK }); // v248 pin = the hole's pin location (⛳), '' if not set
         }); });
     });
     out.noDir = noDir; return out;
   }
   function roundBuckets(P) { var o = {}; P.forEach(function (p) { (o[p.yd] = o[p.yd] || { yd: p.yd, n: 0 }).n++; }); return Object.keys(o).map(function (k) { return o[k]; }).sort(function (a, b) { return a.yd - b.yd; }); }
-  // what actually happened from one distance: { n, onPct, medFt, sg (per shot), short, long, left, right (% of misses that way), ell, show, stats }
-  function analyseRounds(P, yd, noDir) {
-    var L = P.filter(function (p) { return p.yd === yd; }), n = L.length; if (n < 3) return { yd: yd, n: n, ok: false, rounds: true, noDir: noDir || 0 };
+  // what actually happened from one distance: { n, onPct, medFt, sg (per shot), short, long, left, right (% of shots that way), ell, show, stats }
+  // v248 (Scott): real spots around the pin, no green drawn – a round shot is measured from the target (the pin), so hits and misses show where they finished.
+  function analyseRounds(P, yd, noDir) { var A = summRounds(P.filter(function (p) { return p.yd === yd; })); A.yd = yd; A.noDir = noDir || 0; return A; }
+  // v248 (Scott): every approach to one pin location (all distances), to start to see a pattern by pin. yd = the median distance in (for the fly-in).
+  // v248 (Scott): shots grouped by distance in – under 120 / 120–169 / 170+ – and played in that order, each from its own distance.
+  // The picture draws the standard green with the flag at that pin location; a dot is slid along its line from the pin just across the
+  // green's edge when the real result (on / off the green) and the drawn green disagree. Stats use the real spots.
+  function distGroup(yd) { return yd < 120 ? 0 : yd < 170 ? 1 : 2; }
+  function fitToGreen(p, pin, G) {
+    G = G || GREEN; var x = pin.x + p.dx, y = pin.y + p.dy, inG = onGreen(x, y, G), r = Math.sqrt(p.dx * p.dx + p.dy * p.dy); if (inG === !!p.on || r < 0.01) return { dx: p.dx, dy: p.dy };
+    var ux = p.dx / r, uy = p.dy / r, lo = 0, hi = 60; for (var i = 0; i < 30; i++) { var m = (lo + hi) / 2; if (onGreen(pin.x + ux * m, pin.y + uy * m, G)) lo = m; else hi = m; } // lo = edge distance on this line
+    var d = p.on ? Math.max(0, lo - 1) : lo + G.fringe + 0.8; return { dx: ux * d, dy: uy * d };
+  }
+  function analyseRoundPin(P, k) {
+    var L = P.filter(function (p) { return p.pin === k; }).sort(function (a, b) { return distGroup(a.from) - distGroup(b.from) || a.from - b.from; }), A = summRounds(L), pin = pinOf(k);
+    A.pin = k; A.yd = L.length ? Math.round(Math.max.apply(null, L.map(function (p) { return p.from; }))) : 150; A.groups = [0, 0, 0];
+    if (A.ok) A.show = L.map(function (p) { var g = distGroup(p.from), f = fitToGreen(p, pin); A.groups[g]++; return Object.assign({}, p, { dx: f.dx, dy: f.dy, g: g }); });
+    return A;
+  }
+  // the 3 × 3 grid: { k: { n, onPct, sg, medFt } } plus noPin = shots on holes with no pin location set
+  function roundPinGrid(P) { var o = {}; PINS.forEach(function (pin) { var L = P.filter(function (p) { return p.pin === pin.k; }); o[pin.k] = L.length ? { n: L.length, onPct: 100 * L.filter(function (p) { return p.on; }).length / L.length,
+      sg: L.reduce(function (t, p) { return t + (p.sg || 0); }, 0) / L.length, medFt: median(L.map(function (p) { return p.ft; })) } : { n: 0 }; });
+    o.noPin = P.filter(function (p) { return !p.pin; }).length; return o; }
+  function summRounds(L) {
+    var n = L.length; if (n < 3) return { n: n, ok: false, rounds: true };
     var cnt = function (re) { return Math.round(100 * L.filter(function (p) { return re.test(p.dir); }).length / n); }, S = stats(L);
-    return { yd: yd, n: n, ok: true, rounds: true, raw: L, show: L, ell: n >= 5 ? ellipse(L) : null, stats: S, noDir: noDir || 0,
-      greenR: (function () { var g = L.filter(function (p) { return p.on; }).map(function (p) { return Math.sqrt(p.dx * p.dx + p.dy * p.dy); }).sort(function (x, y) { return x - y; }); return g.length ? Math.max(8, Math.min(25, g[Math.floor(0.9 * (g.length - 1))] + 1.5)) : 10; })(), // drawn green: holds 9 of 10 greens hit
+    return { n: n, ok: true, rounds: true, raw: L, show: L, ell: n >= 5 ? ellipse(L) : null, stats: S,
       onPct: 100 * L.filter(function (p) { return p.on; }).length / n, medFt: median(L.map(function (p) { return p.ft; })), sg: L.reduce(function (t, p) { return t + (p.sg || 0); }, 0) / n,
       short: cnt(/^short/), long: cnt(/^long/), left: cnt(/left$/), right: cnt(/right$/), depth: S.my, side: S.mx, width: 2 * 1.2816 * S.sx, length: 2 * 1.2816 * S.sy };
   }
@@ -260,7 +281,7 @@
   var api = { GREEN: GREEN, PINS: PINS, PIN_ROWS: PIN_ROWS, PIN_NAME: PIN_NAME, pinOf: pinOf, MIN_SHOTS: MIN_SHOTS, SHOW: SHOW, CONF: CONF,
     num: num, parseOffline: parseOffline, bucket: bucket, parseCSV: parseCSV, guessMap: guessMap, toShots: toShots, clubGroups: clubGroups, median: median,
     validSessions: validSessions, mergeSessions: mergeSessions, buckets: buckets, points: points, stats: stats, ellipse: ellipse, pattern: pattern, rng: rng,
-    onGreen: onGreen, inEll: inEll, laneHalf: laneHalf, lieAt: lieAt, play: play, bestAim: bestAim, aimText: aimText, analyse: analyse, analysePts: analysePts, courseFactor: courseFactor, clubKey: clubKey, clubs: clubs, clubPoints: clubPoints, analyseClub: analyseClub, roundPoints: roundPoints, roundBuckets: roundBuckets, analyseRounds: analyseRounds, sgTone: sgTone };
+    onGreen: onGreen, inEll: inEll, laneHalf: laneHalf, lieAt: lieAt, play: play, bestAim: bestAim, aimText: aimText, analyse: analyse, analysePts: analysePts, courseFactor: courseFactor, clubKey: clubKey, clubs: clubs, clubPoints: clubPoints, analyseClub: analyseClub, roundPoints: roundPoints, roundBuckets: roundBuckets, analyseRounds: analyseRounds, analyseRoundPin: analyseRoundPin, distGroup: distGroup, fitToGreen: fitToGreen, roundPinGrid: roundPinGrid, sgTone: sgTone };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else root.DISP = api;
 })(this);

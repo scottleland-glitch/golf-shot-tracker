@@ -5,6 +5,12 @@ Renamed to **Pin High** (title, home-screen label, header, PDF). Storage keys (`
 Phone web app for tracking every golf shot and strokes gained against a selectable baseline (PGA Tour by default).
 Static files only: no backend, no build step. Data is stored on the phone (localStorage).
 
+## Dispersion chips: » for more (v248)
+- The distance and club chips on Dispersion stay on one line; a » on the right shows when there are more (tap it to scroll), and the chosen chip is scrolled into view.
+- Rounds view: no green is drawn – round shots are measured from the target (the pin), so it's rings every 15 ft and the real hit (white) / miss (red) spots.
+- Rounds view: a **By pin location** 3 × 3 grid – every approach from the fairway or a tee, all distances, grouped by the hole's pin location (⛳): strokes gained a shot, shots and greens %. Tap a pin to see where those shots finished; a distance chip goes back. Holes with no pin location are counted in a note.
+- Tapping a pin location: the standard green with the flag at that pin; shots are coloured by distance in (white under 120, red 120–169, blue 170+, ball and tracer the same), fly from their own distances and play in that order; on / off the drawn green matches where each really finished (a dot is slid along its line across the edge when they disagree).
+
 ## Dispersion by club, and from rounds (v247)
 - A toggle at the top: **Club · sim** (sim shots grouped by club – how far a club goes changes with the conditions; each shot is still measured from its own target, and the page's yardage is that club's target) or **Rounds · by distance** (every approach from the fairway or a tee in finished rounds, 10-yard buckets, All rounds / Tournaments; placed by distance left + the direction entered; shows on-green %, median to the pin, strokes gained a shot and the short / long / left / right split). Rounds mode has no 9-pin grid – those finishes already include the aim, the roll and the real pin.
 - Manual entry now needs a club.

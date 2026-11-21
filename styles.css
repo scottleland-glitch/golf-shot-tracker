@@ -3443,3 +3443,11 @@ html body #toursheet .tourpic.wide { align-items: center; padding: 14px; } html 
 .dsppage .dspaimrow { display: flex; align-items: center; gap: 8px; margin: 8px 0 6px; font-size: 12.5px; font-weight: 600; color: #1f2d38; }
 .dsppage .dspaimrow .dspseg { flex: 1; margin: 0; }
 .dsppage .dspaimrow .dspseg button { font-size: 12.5px; padding-left: 4px; padding-right: 4px; }
+/* v248: chips stay on one line; a » on the right shows there are more (Scott: 110+ were hidden off the edge) – tap it to scroll */
+.dsppage .dspydwrap { position: relative; }
+.dsppage .dspydwrap .dspyds { scrollbar-width: none; }
+.dsppage .dspydwrap .dspyds::-webkit-scrollbar { display: none; }
+.dsppage .dspmore { position: absolute; right: -2px; top: 50%; transform: translateY(-62%); width: 30px; height: 30px; border-radius: 50%; border: 1px solid rgba(23, 48, 31, .14); background: rgba(255, 255, 255, .94); color: #1f2d38; font-size: 19px; font-weight: 700; line-height: 1; display: none; align-items: center; justify-content: center; padding: 0 0 2px; box-shadow: 0 1px 4px rgba(0, 0, 0, .18); }
+.dsppage .dspydwrap.more .dspmore { display: flex; }
+.dsppage .dspcell.none { background: rgba(255, 255, 255, .45); color: #8a96a2; }
+.dsppage .dspk.bl { background: #1f73c9; border: 1px solid #0d3d6e; }
