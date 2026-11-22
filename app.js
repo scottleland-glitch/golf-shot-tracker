@@ -5698,6 +5698,9 @@
       '<rect x="' + (cx - 16) + '" y="' + f1(teeY - 6) + '" width="32" height="14" rx="4" fill="#c9f2b8" stroke="#fff" stroke-width="2"/><text x="' + cx + '" y="' + f1(teeY + 22) + '" text-anchor="middle" font-size="10" font-weight="900" fill="#fff">TEE · ' + yd + ' yd</text>';
     // chain
     var cur = [cx, teeY], tr = '', marks = '', ends = '', starts = [], putts0 = false, labs = '', boxes = [], putts = [], labQ = [], minY = 0;
+    // v251 (Scott): the same drawing as numbers for the ▶ Play animation (replay-anim.js)
+    var GEO = { W: W, H: H, cx: cx, gY: gY, GR: GR, teeY: teeY, yd: yd, K: K, pin: pin, vy: 0, shots: [], green: null,
+      bunk: [[cx + 52, gY + 6, 14, 9], [cx - 50, gY + 30, 12, 8]].concat(yd > 300 ? [[cx + 62, gY + yd * K * 0.45, 16, 9]] : []) };
     var lbl = function (x, y, t, col) { var w = t.length * 5.8 + 6;
       var c = [[10, 4], [-10 - w, 4], [-w / 2, -10], [-w / 2, 18], [12, 16], [-12 - w, 16]].filter(function (q) { var b = [x + q[0], y + q[1] - 10, x + q[0] + w, y + q[1] + 2]; return b[0] > 24 && b[2] < W - 24 && b[1] > minY - 30 && !boxes.some(function (z) { return b[0] < z[2] && b[2] > z[0] && b[1] < z[3] && b[3] > z[1]; }); })[0];
       if (!c) return ''; var b = [x + c[0], y + c[1] - 10, x + c[0] + w, y + c[1] + 2]; boxes.push(b);
@@ -5726,6 +5729,7 @@
         if (s.club) t = s.club + (t ? ' · ' + t : '');
         if (s.layup) t += ' (layup)';
         if (s.penStrokes && !s.ob) t += ' +' + s.penStrokes + (s.retee ? '' : ' pen');
+        GEO.shots.push({ n: s.n, cat: cat, col: col, name: RPN[cat] || 'Shot', a: [f1(cur[0]), f1(cur[1])], c: [f1(mx), f1(my)], b: [f1(e[0]), f1(e[1])], ob: !!s.ob, retee: !!s.retee, lie: endLie, pen: !!s.penStrokes, t: t.trim() });
         // v181 (Scott): the label sits beside the middle of the shot's line, joined to it by a short leader
         var qx = (cur[0] + 2 * mx + e[0]) / 4, qy = (cur[1] + 2 * my + e[1]) / 4, tx = e[0] - cur[0], ty = e[1] - cur[1], tl = Math.hypot(tx, ty) || 1;
         labQ.push({ x: qx, y: qy, nx: -ty / tl, ny: tx / tl, big: (s.hit && !s.ob && !s.retee ? s.hit + ' yd' : s.ob ? 'OB' : s.retee ? 'Hazard' : where || 'Penalty'), small: [s.club || '', s.hit && !s.ob && !s.retee && where ? '→ ' + where : '', s.layup ? '(layup)' : '', s.penStrokes ? '+' + s.penStrokes : ''].filter(Boolean).join(' '), col: col, pen: !!s.penStrokes, full: t.trim() });
@@ -5772,13 +5776,17 @@
             tx = fx > Wg / 2 ? fx - 14 - w : fx + 14, ty = Math.max(6, Math.min(Hg - 30 - hh, fy - hh / 2)); tx = Math.max(6, Math.min(Wg - 6 - w, tx));
             return '<g id="rparrlbl"><rect x="' + f1(tx) + '" y="' + f1(ty) + '" width="' + f1(w) + '" height="' + hh + '" rx="8" fill="#fff" fill-opacity=".96" stroke="' + pc2 + '" stroke-width="1.6"/>' +
               '<text x="' + f1(tx + 8) + '" y="' + f1(ty + 14) + '" font-size="12.5" font-weight="800" fill="#111">' + esc(big) + '</text><text x="' + f1(tx + 8) + '" y="' + f1(ty + 25) + '" font-size="9.5" font-weight="600" fill="#444">' + esc(small) + '</text></g>'; })(); } // v160 (Scott): the yardage of the shot onto the green
+      GEO.green = { ix: ix, iy: iy, IR: IR, PK: PK, rings: [3, 5, 10, 20, 30, 40, 60].filter(function (f) { return f < mft; }), arrive: null, putts: [] };
+      if (prev) { var gfa = prev.fromAng != null ? prev.fromAng : 270, gfp = pt(ix, iy, IR + 26, gfa);
+        GEO.green.arrive = { a: [f1(Math.max(20, Math.min(Wg - 20, gfp[0]))), f1(Math.max(20, Math.min(Hg - 22, gfp[1])))], col: RPC[prev.cat] || '#333', n: prev.n,
+          big: prev.hit != null && !prev.ob && !prev.retee ? prev.hit + ' yd' : (RPN[prev.cat] || 'Shot'), small: [(RPN[prev.cat] || 'Shot') + (prev.club ? ' · ' + prev.club : ''), SG.arrivalDepth(prev.dir, putts[0].start.dist) || ''].filter(Boolean).join(' · ') }; }
       var pp = s0, fin = '', st0 = [], en0 = [];
       putts.forEach(function (p, k) {
         var st = pp, holed = p.end.lie === 'holed', nr = h.rows[p.n] || {}, ed = nr.dir || p.dir || '';
         var e0 = holed ? [ix, iy] : pt(ix, iy, 14 + (Number(p.end.dist) || 0) * PK, p.ang != null && ed ? p.ang : SG.DIR_ANGLE[ed] != null ? SG.DIR_ANGLE[ed] : 90 - k * 35);
         G += '<path class="rpputt' + (holed ? ' holed' : ' missed') + '" data-n="' + p.n + '" d="M' + f1(st[0]) + ' ' + f1(st[1]) + ' L' + f1(e0[0]) + ' ' + f1(e0[1]) + '" stroke="#fff" stroke-width="3"' + (holed ? ' stroke-dasharray="6 4"' : '') + '/>';
         if (!holed) fin += '<g class="rpfinish" data-n="' + p.n + '" data-ft="' + p.end.dist + '"><circle cx="' + f1(e0[0]) + '" cy="' + f1(e0[1]) + '" r="5.5" fill="#fff" stroke="#333" stroke-width="1.2"/></g>';
-        st0.push(st); en0.push(e0); pp = e0;
+        st0.push(st); en0.push(e0); pp = e0; GEO.green.putts.push({ n: p.n, a: [f1(st[0]), f1(st[1])], b: [f1(e0[0]), f1(e0[1])], holed: holed, ft: p.start.dist, left: p.end.dist });
       });
       G += '<circle class="rpcup" cx="' + ix + '" cy="' + iy + '" r="4.5" fill="#000"/>' + fin;
       putts.forEach(function (p, k) { var st = st0[k];
@@ -5800,7 +5808,8 @@
     }
     G += (putts.length ? '' : '<circle class="rpcup" cx="' + ix + '" cy="' + iy + '" r="4.5" fill="#000"/>') + '</svg>';
     var vy = Math.floor(Math.min(0, minY - 18)); o = o.replace('__VB__', '0 ' + vy + ' ' + W + ' ' + (H - vy)); // grows upward to fit shots that went long
-    return { svg: o + '</svg>', green: G, nPutts: putts.length, A: A, yd: yd };
+    GEO.vy = vy;
+    return { svg: o + '</svg>', green: G, nPutts: putts.length, A: A, yd: yd, geo: GEO };
   }
   function replayHTML() {
     var r = round(), hi = view.replay, h = r.holes[hi], R = replaySVG(h, hi), A = R.A, n = r.holes.length;
@@ -5808,7 +5817,8 @@
     return '<div class="mapview" id="replayview" role="dialog" aria-label="Hole replay"><div class="rpsticky"><div class="maphead"><b>Hole ' + (hi + 1) + ' replay</b><button class="close" data-act="rpclose" aria-label="Close replay">✕ Close</button></div>' +
       '<div class="seg rpnav"><button data-act="rphole" data-v="' + (hi - 1) + '"' + (hi > 0 ? '' : ' disabled') + ' aria-label="Previous hole">‹ ' + (hi > 0 ? 'Hole ' + hi : 'Hole') + '</button><span class="rpinfo" id="rpinfo">Par ' + h.par + ' · ' + R.yd + ' yd · ' +
       (A.complete ? A.strokes + ' (' + toPar(A.strokes - h.par) + ')' : (A.shots || []).length + ' shots so far') + '</span><button data-act="rphole" data-v="' + (hi + 1) + '"' + (hi < n - 1 ? '' : ' disabled') + ' aria-label="Next hole">Hole ' + (hi + 2) + ' ›</button></div></div>' +
-      (!(A.shots || []).length ? '<p class="notice">No shots entered on this hole yet.</p>' : view.rpGreen ? '<div class="row"><button class="big" data-act="rpgreenback" id="rpgreenback">‹ Back to hole</button></div><h3>Hole ' + (hi + 1) + ' – on the green</h3>' + R.green + (R.nPutts ? '' : '<p class="notice">No putts on this hole.</p>') + '<p class="help">Drawn to true scale in feet (rings every few ft). White = putts: numbered ball = where each putt started, small white ball + ft = where a missed putt finished, dashed white line = the putt that went in; black dot = the cup. The coloured dashed line is the shot that arrived on the green.</p>' : '<p class="rptap" id="rptapnote">Tap the green for a closer look at the putts</p>' + R.svg) +
+      (!(A.shots || []).length ? '<p class="notice">No shots entered on this hole yet.</p>' : view.rpGreen ? '<div class="row"><button class="big" data-act="rpgreenback" id="rpgreenback">‹ Back to hole</button></div><h3>Hole ' + (hi + 1) + ' – on the green</h3>' + R.green + (R.nPutts ? '' : '<p class="notice">No putts on this hole.</p>') + '<p class="help">Drawn to true scale in feet (rings every few ft). White = putts: numbered ball = where each putt started, small white ball + ft = where a missed putt finished, dashed white line = the putt that went in; black dot = the cup. The coloured dashed line is the shot that arrived on the green.</p>' : '<div class="rpplayrow" style="display:flex;align-items:center;justify-content:center;gap:10px;margin:2px 0 6px"><button type="button" class="rpplay" id="rpplay" aria-pressed="false" data-geo="' + esc(JSON.stringify(R.geo)) + '" style="flex:none;min-height:40px;padding:6px 16px;border-radius:20px;border:0;background:#1f5f3a;color:#fff;font-size:15px;font-weight:700;box-shadow:0 1px 4px rgba(0,0,0,.25);cursor:pointer">▶ Play</button>' +
+        '<p class="rptap" id="rptapnote" style="margin:0;text-align:left">Tap the green for a closer look at the putts</p></div><div class="rpstage" id="rpstage" style="position:relative">' + R.svg + '</div>') +
       '<div class="legend" id="rplegend">' + ['tee', 'approach', 'short', 'bunker', 'putting'].map(function (k) { return '<span><i class="ln" style="background:' + RPC[k] + (k === 'putting' ? ';outline:1px solid #333' : '') + '"></i><i class="dot num" style="background:' + RPC[k] + (k === 'putting' ? ';color:#111;border:1px solid #333' : '') + '">1</i>' + RPN[k] + '</span>'; }).join('') +
       '<span>Putts are white; in the green close-up the black dot is the cup.</span><span><b style="color:#e0102a">✕</b>Penalty (label shows the penalty strokes); dashed line = OB, replayed from the same spot</span><span>Number = shot; label = distance left (yd off the green, ft on it) and lie. Tap the green to see the putts.</span></div>' +
       '<p class="help muted">A generic drawing, roughly to scale by hole length (straight hole, tee at the bottom, green at the top, pin at its set spot – centre if none). Positions come from your distances to the pin and the direction / lie entered, so they are approximate.</p></div>';
