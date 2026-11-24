@@ -35,21 +35,84 @@ workflows:
         script: bash native/check-phone-healthkit.sh
       - name: Version 1.0, next build number after the newest one in App Store Connect (iPhone app and watch app must match)
         script: |
-          # Codemagic's own counter restarts when a workflow changes, so ask App Store Connect for the newest build number
-          # and use one more than that (or Codemagic's counter, whichever is higher).
-          APP_ID=$(app-store-connect apps list --bundle-id-identifier com.strokewise.app --strict-match-identifier --json | python3 -c 'import sys,json; print(json.load(sys.stdin)[0]["id"])' || echo "")
-          LATEST=0
-          if [ -n "$APP_ID" ]; then
-            LATEST=$(app-store-connect get-latest-build-number "$APP_ID" --no-color 2>/dev/null | tail -1 | tr -cd '0-9' || echo 0)
+          set -euo pipefail
+          # Codemagic's own counter restarts when a workflow changes. Ask App Store Connect for the
+          # highest build number across every version (TestFlight and the App Store) and use one more
+          # than that, or Codemagic's counter, whichever is higher. Errors are not hidden: a silent
+          # fallback is how build 17 was uploaded twice.
+          APP_ID=$(app-store-connect apps list --bundle-id-identifier com.strokewise.app --strict-match-identifier --json \
+            | python3 -c '
+          import json, re, sys
+          raw = sys.stdin.read()
+          m = re.search(r"[\[{]", raw)
+          if not m:
+              sys.exit("could not find JSON in apps list output:\n" + raw[:500])
+          data = json.loads(raw[m.start():])
+          if isinstance(data, dict):
+              apps = data.get("data") or ([data] if data.get("id") else [])
+          else:
+              apps = data
+          if not apps:
+              sys.exit("no App Store Connect app found for com.strokewise.app")
+          print(apps[0]["id"])
+          ')
+          echo "App Store Connect app id: $APP_ID"
+
+          ALL_FLAG=--all-versions
+          if ! app-store-connect get-latest-testflight-build-number --help 2>&1 | grep -q -- --all-versions; then
+            ALL_FLAG=
+            echo "Note: this Codemagic CLI has no --all-versions; using the highest version only"
           fi
-          [ -z "$LATEST" ] && LATEST=0
-          NEXT=$(( LATEST > BUILD_NUMBER ? LATEST + 1 : BUILD_NUMBER + 1 ))
-          echo "Newest build in App Store Connect: $LATEST, Codemagic counter: $BUILD_NUMBER, using build $NEXT"
+
+          # The CLI prints the build number on stdout; logs go to stderr. Empty stdout means no builds yet.
+          latest_of() {
+            local out
+            out=$("$@" --platform IOS $ALL_FLAG)
+            if [ -z "$out" ]; then
+              echo 0
+              return 0
+            fi
+            if printf '%s\n' "$out" | grep -Eq '^[0-9]+$'; then
+              printf '%s\n' "$out"
+              return 0
+            fi
+            local n
+            n=$(printf '%s\n' "$out" | grep -E '^[0-9]+$' | tail -1 || true)
+            if [ -n "$n" ]; then
+              printf '%s\n' "$n"
+            else
+              echo "ERROR: could not parse a build number from:" >&2
+              printf '%s\n' "$out" >&2
+              return 1
+            fi
+          }
+
+          LATEST_TF=$(latest_of app-store-connect get-latest-testflight-build-number "$APP_ID")
+          LATEST_ALL=$(latest_of app-store-connect get-latest-build-number "$APP_ID")
+          LATEST=$LATEST_TF
+          if [ "$LATEST_ALL" -gt "$LATEST" ]; then
+            LATEST=$LATEST_ALL
+          fi
+          CM_NUM=${BUILD_NUMBER:-0}
+          if [ "$LATEST" -gt "$CM_NUM" ]; then
+            NEXT=$((LATEST + 1))
+          else
+            NEXT=$((CM_NUM + 1))
+          fi
+          echo "Newest TestFlight build: $LATEST_TF, newest across App Store + TestFlight: $LATEST_ALL, Codemagic counter: $CM_NUM, using build $NEXT"
+          if [ "$LATEST" -eq 0 ]; then
+            echo "ERROR: could not read the latest build number from App Store Connect (got 0). The Apple integration is named Strokewise ASC."
+            exit 1
+          fi
+          if [ "$NEXT" -le "$LATEST" ]; then
+            echo "ERROR: computed build $NEXT is not greater than the newest App Store Connect build $LATEST"
+            exit 1
+          fi
           cd ios/App
           agvtool new-marketing-version 1.0
-          agvtool new-version -all $NEXT
+          agvtool new-version -all "$NEXT"
           cd ../..
-          ruby native/add-watch-target.rb --set-version 1.0 $NEXT
+          ruby native/add-watch-target.rb --set-version 1.0 "$NEXT"
       - name: Project details for the log (what Xcode sees; nothing is changed here)
         script: |
           echo "objectVersion: $(grep -m1 objectVersion ios/App/App.xcodeproj/project.pbxproj)"
