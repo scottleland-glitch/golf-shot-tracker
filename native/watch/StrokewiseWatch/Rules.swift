@@ -22,6 +22,15 @@ enum Rules {
         if n.hasSuffix("right") { return "right" }
         return ""
     }
+    /// v253: the club the watch offers first for stroke k: Driver off the tee on a par 4 or 5, else the club whose carry is nearest
+    /// the distance to the pin; nothing on the green (putts have no club) or when the bag has no carries.
+    static func suggestClub(_ clubs: [ClubInfo], rows: [Row], k: Int, par: Int) -> String? {
+        if lieOf(rows, k) == "green" { return nil }
+        if k == 0 && par >= 4, let d = clubs.first(where: { $0.c.lowercased() == "driver" }) { return d.c }
+        guard let dist = distOf(rows, k), dist > 0 else { return nil }
+        let withY = clubs.filter { ($0.y ?? 0) > 0 }
+        return withY.min(by: { abs($0.y! - dist) < abs($1.y! - dist) })?.c
+    }
     static func isRetee(_ r: Row) -> Bool { r.loc == "hazard" && r.retee }
     static func isHoled(_ r: Row, _ k: Int) -> Bool { r.loc == "holed" || r.loc == "holedx" || (k != 0 && r.holeOut && !r.loc.isEmpty) }
     static func isPenalty(_ r: Row, _ k: Int) -> Bool { k > 0 && (r.pen || r.loc == "ob" || isRetee(r)) }
@@ -178,9 +187,11 @@ enum Rules {
         if let d = ev.dist, d < 1 || d > 999 { return "bad" }
         if fin == "in" {
             if k > 0 && h.rows[k].loc.isEmpty { return "bad" }
+            if let c = ev.club, c.count <= 24 { h.rows[k].club = c.trimmingCharacters(in: .whitespaces) }   // v253: the club of stroke k
             if let d = ev.dist, h.rows[k].dist == nil { h.rows[k].dist = d }
             finish(&h.rows, k, "in", nil); return ""
         }
+        if let c = ev.club, c.count <= 24 { h.rows[k].club = c.trimmingCharacters(in: .whitespaces) }   // v253: the club of stroke k
         finish(&h.rows, k, fin, ev.drop)
         if let p = ev.pin, !p.isEmpty, h.pin.isEmpty { h.pin = p }   // v233: the pin picked on the way onto the green
         let n = k + 1

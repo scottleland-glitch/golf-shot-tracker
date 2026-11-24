@@ -73,6 +73,39 @@ struct PinScreen: View {
     }
 }
 
+/// v253: pick the club for stroke k – the bag from the phone, longest first, carry beside each; the Crown scrolls, one tap picks.
+struct ClubScreen: View {
+    let hole: Int
+    let k: Int
+    @EnvironmentObject var store: WatchStore
+    @EnvironmentObject var nav: Nav
+    var body: some View {
+        let clubs = store.state?.clubs ?? []
+        let cur = ClubPick.current(store, hole: hole, k: k)
+        ScrollViewReader { sv in
+            List {
+                ForEach(clubs, id: \.c) { cl in
+                    Button { pick(cl.c) } label: {
+                        HStack {
+                            Text(Labels.club(cl.c)).font(.system(size: 17, weight: cl.c == cur ? .bold : .regular))
+                            Spacer()
+                            if let y = cl.y { Text("\(y)").font(.footnote).foregroundColor(.secondary) }
+                            if cl.c == cur { Image(systemName: "checkmark").foregroundColor(Theme.greenBright) }
+                        }
+                    }.id(cl.c)
+                }
+                Button { pick("") } label: { Text("No club").foregroundColor(.secondary) }
+            }
+            .onAppear { if let c = cur, !c.isEmpty { sv.scrollTo(c, anchor: .center) } }
+        }
+        .navigationTitle("Club")
+    }
+    private func pick(_ c: String) {
+        store.clubPicks[ClubPick.key(store, hole, k)] = c
+        if !nav.path.isEmpty { nav.path.removeLast() }
+    }
+}
+
 struct DirectionScreen: View {
     let draft: ShotDraft
     @EnvironmentObject var nav: Nav

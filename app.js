@@ -6945,6 +6945,9 @@
   window.STROKEWISE_APP = {
     rounds: function () { return rounds; },
     current: function () { return localStorage.getItem(CUR); },
+    // v253: the clubs for the watch's club list, longest first, with the carry for today's conditions when My Bag has one
+    clubs: function () { var b = bag(), L = BAG.pickerClubs(b);
+      return L.length ? L.map(function (c) { var y = c.carry > 0 ? (b.useCond ? BAG.clubCarry(c, b) : c.carry) : null; return y ? { c: c.code, y: Math.round(y) } : { c: c.code }; }) : SG.CLUBS.filter(function (c) { return !/^putter$/i.test(c); }).map(function (c) { return { c: c }; }); },
     commit: function (r) { // a watch event changed round r: save it exactly like a phone edit and redraw (not while someone is typing)
       if (typeof roGuard === 'function' && roGuard()) return;
       r.updated = new Date().toISOString();

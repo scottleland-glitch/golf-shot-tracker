@@ -2,6 +2,20 @@
 import Foundation
 
 enum Labels {
+    /// v253: a club code from My Bag in words: 7i → 7 iron, 3W → 3 wood, 4H → 4 hybrid, 52 → 52°; Driver, PW and the rest as they are.
+    static func club(_ c: String) -> String {
+        let u = c.uppercased()
+        if u.count >= 2, let n = Int(u.dropLast()) {
+            switch u.last! {
+            case "I": return "\(n) iron"
+            case "W": return "\(n) wood"
+            case "H": return "\(n) hybrid"
+            default: break
+            }
+        }
+        if Int(c) != nil && c.count == 2 { return c + "°" }
+        return c
+    }
     static func lie(_ loc: String) -> String {
         switch loc {
         case "tee": return "Tee"

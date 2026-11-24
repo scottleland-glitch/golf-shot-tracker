@@ -106,8 +106,8 @@ if let rd = FileManager.default.contents(atPath: realPath) {
     print("real app states decoded: \(objs.count)")
 }
 // playing-as number: rowStrokes of rows through k (penalties included). Equals k+1 when there is no penalty.
-func ev(_ type: String, hole: Int, k: Int? = nil, fin: String? = nil, dir: String? = nil, dist: Int? = nil, hz: String? = nil, drop: String? = nil) -> WatchEvent {
-    WatchEvent(id: "t", seq: 1, t: 0, roundId: "r1", type: type, hole: hole, k: k, fin: fin, dir: dir, dist: dist, hz: hz, drop: drop)
+func ev(_ type: String, hole: Int, k: Int? = nil, fin: String? = nil, dir: String? = nil, dist: Int? = nil, hz: String? = nil, drop: String? = nil, club: String? = nil) -> WatchEvent {
+    WatchEvent(id: "t", seq: 1, t: 0, roundId: "r1", type: type, hole: hole, k: k, fin: fin, dir: dir, dist: dist, hz: hz, drop: drop, club: club)
 }
 func play(_ events: [WatchEvent], start: [Row] = [Row(loc: "tee", dist: 400)]) -> [Row] {
     var holes: [Int: HoleState] = [0: HoleState(i: 0, par: 4, fin: false, complete: false, strokes: 1, rows: start)]
@@ -152,6 +152,27 @@ let twoOb = play([
 ])
 checkPlayingAs("second OB re-hit", twoOb, 2, 5)
 if fails == 0 { print("playingAs: tee=1, fairway shot 2=2, OB/hazard-drop/retee/unp/lost shot 2=(3), after OB approach=(4), two OBs shot 3=(5)") }
+
+// v253: the club the watch offers first, the club names, and the bag in the phone's state
+do {
+    let bag = [ClubInfo(c: "Driver", y: 250), ClubInfo(c: "7i", y: 150), ClubInfo(c: "8i", y: 140), ClubInfo(c: "PW", y: 120), ClubInfo(c: "56")]
+    let tee = [Row(loc: "tee", dist: 400)]
+    let app = [Row(loc: "tee", dist: 400), Row(loc: "fairway", dist: 146)]
+    let putt = [Row(loc: "tee", dist: 400), Row(loc: "green", dist: 20)]
+    var bad: [String] = []
+    if Rules.suggestClub(bag, rows: tee, k: 0, par: 4) != "Driver" { bad.append("tee par 4 → Driver") }
+    if Rules.suggestClub(bag, rows: [Row(loc: "tee", dist: 152)], k: 0, par: 3) != "7i" { bad.append("par 3 → nearest carry") }
+    if Rules.suggestClub(bag, rows: app, k: 1, par: 4) != "8i" { bad.append("146 → 8i") }
+    if Rules.suggestClub(bag, rows: putt, k: 1, par: 4) != nil { bad.append("green → none") }
+    if Rules.suggestClub([ClubInfo(c: "7i")], rows: app, k: 1, par: 4) != nil { bad.append("no carries → none") }
+    if Labels.club("7i") != "7 iron" || Labels.club("3W") != "3 wood" || Labels.club("4H") != "4 hybrid" || Labels.club("52") != "52°" || Labels.club("PW") != "PW" || Labels.club("Driver") != "Driver" { bad.append("club names") }
+    let st = try JSONDecoder().decode(PhoneState.self, from: Data(#"{"roundId":"r","clubs":[{"c":"Driver","y":250},{"c":"LW"}],"holes":[{"i":0,"rows":[{"loc":"tee","dist":400,"club":"Driver"}]}]}"#.utf8))
+    if st.clubs != [ClubInfo(c: "Driver", y: 250), ClubInfo(c: "LW")] || st.holes?.first?.rows.first?.club != "Driver" { bad.append("state decode clubs") }
+    var hs: [Int: HoleState] = [0: HoleState(i: 0, par: 4, rows: tee)]
+    _ = Rules.apply(ev("shot", hole: 0, k: 0, fin: "fairway", dist: 150, club: "Driver"), holes: &hs, pars: Array(repeating: 4, count: 18))
+    if hs[0]?.rows.first?.club != "Driver" { bad.append("club applied to stroke 0") }
+    if !bad.isEmpty { fails += 1; print("FAIL clubs: " + bad.joined(separator: "; ")) } else { print("clubs: Driver off the tee, nearest carry, none on the green, names, state decode, applied") }
+}
 
 print("swift rules: \(vectors.count) scenarios, \(steps) steps, \(fails) failures; state decode, event encode, disk round-trip ok")
 exit(fails == 0 ? 0 : 1)

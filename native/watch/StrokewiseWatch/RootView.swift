@@ -27,6 +27,7 @@ struct RootView: View {
                     case .lie(let d): LieScreen(draft: d)
                     case .moreLies(let d): MoreLiesScreen(draft: d)
                     case .pin(let d): PinScreen(draft: d)
+                    case .club(let h, let k): ClubScreen(hole: h, k: k)
                     case .direction(let d): DirectionScreen(draft: d)
                     case .hazard(let d): HazardScreen(draft: d)
                     case .distance(let d): DistanceScreen(draft: d)

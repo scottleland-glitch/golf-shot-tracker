@@ -136,5 +136,17 @@ function playingAs(rows, k) { return SG.rowStrokes(rows.slice(0, k + 1)); }
   assert.deepStrictEqual(rowsOf(e.r), [R('tee', 330), R('fairway', 25, { dir: 'right' })]);
   ok('Long on the fairway is dropped (Long left/right → Left/Right); Long in the rough stays; changing to Fairway clears Long'); }
 
+// ---- v253: club picked on the watch goes on the stroke it was hit with; the bag goes to the watch ----
+{ const a = run('club on tee shot', mk([R('tee', 400)]), [ev('shot', 0, { k: 0, fin: 'fairway', dist: 150, club: 'Driver' }), ev('shot', 0, { k: 1, fin: 'green', dist: 20, club: '7i' }), ev('shot', 0, { k: 2, fin: 'in' })]);
+  assert.deepStrictEqual(rowsOf(a.r), [R('tee', 400, { club: 'Driver' }), R('fairway', 150, { club: '7i' }), R('green', 20, { holeOut: true })]);
+  const b = run('club edit and clear', mk([R('tee', 400, { club: '3W', wedgeY: 1 }), R('fairway', 150)]), [ev('shot', 0, { k: 0, fin: 'fairway', dist: 150, club: 'Driver', edit: true }), ev('shot', 0, { k: 0, fin: 'fairway', dist: 150, club: '', edit: true })]);
+  assert.deepStrictEqual(rowsOf(b.r), [R('tee', 400), R('fairway', 150)]);
+  const c = run('no club leaves it', mk([R('tee', 400, { club: '3W' })]), [ev('shot', 0, { k: 0, fin: 'rough', dist: 150 })]);
+  assert.strictEqual(rowsOf(c.r)[0].club, '3W');
+  const st = W.buildState(a.r, [], { clubs: [{ c: 'Driver', y: 255 }, { c: '7i', y: 152.4 }, { c: 'Putter' }, { c: '' }, { c: 'LW' }] });
+  assert.deepStrictEqual(st.clubs, [{ c: 'Driver', y: 255 }, { c: '7i', y: 152 }, { c: 'LW' }]); assert.strictEqual(st.holes.find(h => h.i === 0).rows[0].club, 'Driver');
+  assert.deepStrictEqual(W.buildState(a.r, []).clubs, []);
+  ok('club: set on stroke k (tee shot too), edits change or clear it (and the old wedge details), no club leaves it alone; bag sent without putter'); }
+
 if (process.argv.includes('--write-vectors')) { fs.writeFileSync(path.join(__dirname, 'fixtures/watch-vectors.json'), JSON.stringify(VEC, null, 1) + '\n'); console.log('  wrote tests/fixtures/watch-vectors.json (' + VEC.length + ' scenarios)'); }
 console.log('watch-core: all passed');

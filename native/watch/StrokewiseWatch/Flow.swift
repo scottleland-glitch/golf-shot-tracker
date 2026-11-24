@@ -13,6 +13,7 @@ struct ShotDraft: Hashable {
     var dist: Int? = nil
     var mode = "next"             // next: distance after the shot · in: distance of the stroke that went in · set: a row's own distance
     var pin: String? = nil        // v233: picked on "Where's the pin?" (approach onto the green)
+    var club: String? = nil       // v253: the club of this stroke (nil = leave it, "" = no club)
 }
 
 /// v233 (Scott): an approach that finishes on the green asks for the pin position once per hole (Skip remembers the hole).
@@ -28,6 +29,21 @@ enum PinAsk {
     }
 }
 
+/// v253 (Scott): the club chip on the hole screen. Pre-picked (Driver off the tee on a par 4/5, else the nearest carry in My Bag);
+/// a club tapped on the list is kept for that stroke until the shot is sent.
+enum ClubPick {
+    static func key(_ store: WatchStore, _ hole: Int, _ k: Int) -> String { store.model.roundId + ":" + String(hole) + ":" + String(k) }
+    /// The club to show and send for stroke k, or nil when there is none to offer (on the green, or no bag and nothing picked).
+    static func current(_ store: WatchStore, hole: Int, k: Int) -> String? {
+        let h = store.model.hole(hole)
+        guard let row = h.rows[safe: k] else { return nil }
+        if Rules.lieOf(h.rows, k) == "green" { return nil }
+        if let p = store.clubPicks[key(store, hole, k)] { return p }
+        if !row.club.isEmpty { return row.club }
+        return Rules.suggestClub(store.state?.clubs ?? [], rows: h.rows, k: k, par: h.par)
+    }
+}
+
 enum Route: Hashable {
     case holes
     case holeEdit(Int)
@@ -35,6 +51,7 @@ enum Route: Hashable {
     case lie(ShotDraft)
     case moreLies(ShotDraft)
     case pin(ShotDraft)
+    case club(hole: Int, k: Int)   // v253: the club list (Digital Crown scrolls it)
     case direction(ShotDraft)
     case hazard(ShotDraft)
     case distance(ShotDraft)
@@ -77,7 +94,7 @@ extension ShotDraft {
     /// The event this draft turns into.
     func makeEvent(_ store: WatchStore) -> WatchEvent {
         if mode == "set" { return store.makeEvent("setdist", hole: hole, k: k, dist: dist, edit: edit) }
-        return store.makeEvent("shot", hole: hole, k: k, fin: fin, dir: dir, dist: dist, hz: hz, edit: edit, pin: pin)
+        return store.makeEvent("shot", hole: hole, k: k, fin: fin, dir: dir, dist: dist, hz: hz, edit: edit, pin: pin, club: club)
     }
 }
 

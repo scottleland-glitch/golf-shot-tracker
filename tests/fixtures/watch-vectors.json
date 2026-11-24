@@ -2818,5 +2818,282 @@
     ]
    }
   ]
+ },
+ {
+  "name": "club on tee shot",
+  "start": {
+   "par": 4,
+   "finished": false,
+   "rows": [
+    {
+     "loc": "tee",
+     "dist": 400,
+     "dir": "",
+     "pen": false
+    }
+   ]
+  },
+  "events": [
+   {
+    "seq": 1,
+    "t": 0,
+    "id": "e66",
+    "roundId": "r1",
+    "type": "shot",
+    "hole": 0,
+    "k": 0,
+    "fin": "fairway",
+    "dist": 150,
+    "club": "Driver"
+   },
+   {
+    "seq": 2,
+    "t": 0,
+    "id": "e67",
+    "roundId": "r1",
+    "type": "shot",
+    "hole": 0,
+    "k": 1,
+    "fin": "green",
+    "dist": 20,
+    "club": "7i"
+   },
+   {
+    "seq": 3,
+    "t": 0,
+    "id": "e68",
+    "roundId": "r1",
+    "type": "shot",
+    "hole": 0,
+    "k": 2,
+    "fin": "in"
+   }
+  ],
+  "expect": [
+   {
+    "ok": true,
+    "reason": "",
+    "hole": 0,
+    "finished": false,
+    "rows": [
+     {
+      "loc": "tee",
+      "dist": 400,
+      "dir": "",
+      "pen": false,
+      "club": "Driver"
+     },
+     {
+      "loc": "fairway",
+      "dist": 150,
+      "dir": "",
+      "pen": false
+     }
+    ]
+   },
+   {
+    "ok": true,
+    "reason": "",
+    "hole": 0,
+    "finished": false,
+    "rows": [
+     {
+      "loc": "tee",
+      "dist": 400,
+      "dir": "",
+      "pen": false,
+      "club": "Driver"
+     },
+     {
+      "loc": "fairway",
+      "dist": 150,
+      "dir": "",
+      "pen": false,
+      "club": "7i"
+     },
+     {
+      "loc": "green",
+      "dist": 20,
+      "dir": "",
+      "pen": false
+     }
+    ]
+   },
+   {
+    "ok": true,
+    "reason": "",
+    "hole": 0,
+    "finished": true,
+    "rows": [
+     {
+      "loc": "tee",
+      "dist": 400,
+      "dir": "",
+      "pen": false,
+      "club": "Driver"
+     },
+     {
+      "loc": "fairway",
+      "dist": 150,
+      "dir": "",
+      "pen": false,
+      "club": "7i"
+     },
+     {
+      "loc": "green",
+      "dist": 20,
+      "dir": "",
+      "pen": false,
+      "holeOut": true
+     }
+    ]
+   }
+  ]
+ },
+ {
+  "name": "club edit and clear",
+  "start": {
+   "par": 4,
+   "finished": false,
+   "rows": [
+    {
+     "loc": "tee",
+     "dist": 400,
+     "dir": "",
+     "pen": false,
+     "club": "3W",
+     "wedgeY": 1
+    },
+    {
+     "loc": "fairway",
+     "dist": 150,
+     "dir": "",
+     "pen": false
+    }
+   ]
+  },
+  "events": [
+   {
+    "seq": 1,
+    "t": 0,
+    "id": "e69",
+    "roundId": "r1",
+    "type": "shot",
+    "hole": 0,
+    "k": 0,
+    "fin": "fairway",
+    "dist": 150,
+    "club": "Driver",
+    "edit": true
+   },
+   {
+    "seq": 2,
+    "t": 0,
+    "id": "e70",
+    "roundId": "r1",
+    "type": "shot",
+    "hole": 0,
+    "k": 0,
+    "fin": "fairway",
+    "dist": 150,
+    "club": "",
+    "edit": true
+   }
+  ],
+  "expect": [
+   {
+    "ok": true,
+    "reason": "",
+    "hole": 0,
+    "finished": false,
+    "rows": [
+     {
+      "loc": "tee",
+      "dist": 400,
+      "dir": "",
+      "pen": false,
+      "club": "Driver"
+     },
+     {
+      "loc": "fairway",
+      "dist": 150,
+      "dir": "",
+      "pen": false
+     }
+    ]
+   },
+   {
+    "ok": true,
+    "reason": "",
+    "hole": 0,
+    "finished": false,
+    "rows": [
+     {
+      "loc": "tee",
+      "dist": 400,
+      "dir": "",
+      "pen": false
+     },
+     {
+      "loc": "fairway",
+      "dist": 150,
+      "dir": "",
+      "pen": false
+     }
+    ]
+   }
+  ]
+ },
+ {
+  "name": "no club leaves it",
+  "start": {
+   "par": 4,
+   "finished": false,
+   "rows": [
+    {
+     "loc": "tee",
+     "dist": 400,
+     "dir": "",
+     "pen": false,
+     "club": "3W"
+    }
+   ]
+  },
+  "events": [
+   {
+    "seq": 1,
+    "t": 0,
+    "id": "e71",
+    "roundId": "r1",
+    "type": "shot",
+    "hole": 0,
+    "k": 0,
+    "fin": "rough",
+    "dist": 150
+   }
+  ],
+  "expect": [
+   {
+    "ok": true,
+    "reason": "",
+    "hole": 0,
+    "finished": false,
+    "rows": [
+     {
+      "loc": "tee",
+      "dist": 400,
+      "dir": "",
+      "pen": false,
+      "club": "3W"
+     },
+     {
+      "loc": "rough",
+      "dist": 150,
+      "dir": "",
+      "pen": false
+     }
+    ]
+   }
+  ]
  }
 ]

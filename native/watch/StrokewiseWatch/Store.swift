@@ -23,6 +23,7 @@ final class WatchStore: ObservableObject {
     enum ExitPhase: Equatable { case ending, saved(workout: Bool, round: Bool) }
     /// The hole just holed out (shows the hole-finished screen, then moves on by itself).
     @Published var justFinished: Int? = nil
+    @Published var clubPicks: [String: String] = [:]   // v253: clubs tapped on the club list, by round:hole:stroke ("" = no club)
 
     private let persistence: Persistence
 
@@ -94,16 +95,17 @@ final class WatchStore: ObservableObject {
     // MARK: from the golfer
 
     func makeEvent(_ type: String, hole: Int, k: Int? = nil, fin: String? = nil, dir: String? = nil, dist: Int? = nil,
-                   hz: String? = nil, edit: Bool = false, pin: String? = nil) -> WatchEvent {
+                   hz: String? = nil, edit: Bool = false, pin: String? = nil, club: String? = nil) -> WatchEvent {
         snapshot.seq += 1
         return WatchEvent(id: UUID().uuidString, seq: snapshot.seq, t: Date().timeIntervalSince1970 * 1000, roundId: model.roundId,
-                          type: type, hole: hole, k: k, fin: fin, dir: dir, dist: dist, hz: hz, drop: nil, edit: edit ? true : nil, pin: pin)
+                          type: type, hole: hole, k: k, fin: fin, dir: dir, dist: dist, hz: hz, drop: nil, edit: edit ? true : nil, pin: pin, club: club)
     }
 
     /// A confirmed shot (or edit, delete, undo): kept on disk first, shown at once, then sent.
     func send(_ ev: WatchEvent) {
         guard !model.roundId.isEmpty else { return }
         snapshot.pending.append(Pending(event: ev, sent: false))
+        if ev.type == "shot", let k = ev.k { clubPicks.removeValue(forKey: model.roundId + ":" + String(ev.hole) + ":" + String(k)) }   // v253: the row has it now
         commit()
         rememberLiveRound()
         if ev.type == "shot" && ev.fin == "in" && ev.edit != true { justFinished = ev.hole }

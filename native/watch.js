@@ -73,7 +73,7 @@
     }, function (e) { launchBusy = false; log('watch app launch failed: ' + (e && e.message || e)); });
   }
   function push(force) {
-    var r = currentRound(), st = Core.buildState(r, loadAcks()), body = JSON.stringify(st), same = JSON.stringify(Object.assign({}, st, { ts: 0 }));
+    var r = currentRound(), st = Core.buildState(r, loadAcks(), { clubs: app() && app().clubs ? app().clubs() : [] }), body = JSON.stringify(st), same = JSON.stringify(Object.assign({}, st, { ts: 0 }));
     if (!force && same === lastPush) return Promise.resolve();
     lastPush = same;
     if (r) maybeLaunch(r, st);

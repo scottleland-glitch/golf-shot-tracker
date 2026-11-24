@@ -12,12 +12,13 @@ struct Row: Codable, Equatable {
     var holeOut: Bool = false
     var retee: Bool = false
     var lost: Bool = false
+    var club: String = ""         // v253: the club this stroke was hit with ("" = none)
 
-    init(loc: String = "", dist: Int? = nil, dir: String = "", pen: Bool = false, holeOut: Bool = false, retee: Bool = false, lost: Bool = false) {
-        self.loc = loc; self.dist = dist; self.dir = dir; self.pen = pen; self.holeOut = holeOut; self.retee = retee; self.lost = lost
+    init(loc: String = "", dist: Int? = nil, dir: String = "", pen: Bool = false, holeOut: Bool = false, retee: Bool = false, lost: Bool = false, club: String = "") {
+        self.loc = loc; self.dist = dist; self.dir = dir; self.pen = pen; self.holeOut = holeOut; self.retee = retee; self.lost = lost; self.club = club
     }
 
-    private enum CodingKeys: String, CodingKey { case loc, dist, dir, pen, holeOut, retee, lost }
+    private enum CodingKeys: String, CodingKey { case loc, dist, dir, pen, holeOut, retee, lost, club }
 
     // The phone sends dist as a number, or leaves it out; saved rounds can also have "" or "150" – all of those are read.
     init(from decoder: Decoder) throws {
@@ -32,6 +33,7 @@ struct Row: Codable, Equatable {
         holeOut = (try? c.decodeIfPresent(Bool.self, forKey: .holeOut)) ?? false
         retee = (try? c.decodeIfPresent(Bool.self, forKey: .retee)) ?? false
         lost = (try? c.decodeIfPresent(Bool.self, forKey: .lost)) ?? false
+        club = (try? c.decodeIfPresent(String.self, forKey: .club)) ?? ""
     }
 }
 
@@ -84,6 +86,13 @@ struct PhoneState: Codable, Equatable {
     var strokesDone: Int? = nil
     var parDone: Int? = nil
     var acks: [Ack]? = nil
+    var clubs: [ClubInfo]? = nil   // v253: the bag, longest first (c = club, y = carry in yards)
+}
+
+/// v253: one club from My Bag, as the phone sends it.
+struct ClubInfo: Codable, Equatable, Hashable {
+    var c: String
+    var y: Int? = nil
 }
 
 /// One thing the watch did. Applied to the round by the phone (native/watch-core.js) and, while waiting, on the watch too (Rules.swift).
@@ -102,4 +111,5 @@ struct WatchEvent: Codable, Equatable, Identifiable {
     var drop: String? = nil
     var edit: Bool? = nil
     var pin: String? = nil  // v233: shot only – the pin position picked on the way to the green (set when the hole has none)
+    var club: String? = nil // v253: shot only – the club of stroke k (nil = not changed, "" = cleared)
 }

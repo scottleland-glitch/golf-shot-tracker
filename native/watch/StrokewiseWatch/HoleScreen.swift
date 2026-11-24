@@ -110,7 +110,10 @@ struct HoleScreen: View {
         let row = h.rows[safe: k] ?? Row(loc: "tee")
         let dist = h.rows.isEmpty ? nil : Rules.distOf(h.rows, k)
         let unit = h.rows.isEmpty ? "yd" : Rules.unit(h.rows, k)
-        let draft = ShotDraft(hole: c, k: k, edit: false, base: 0)
+        var draft = ShotDraft(hole: c, k: k, edit: false, base: 0)
+        let club = h.rows.isEmpty ? nil : ClubPick.current(store, hole: c, k: k)
+        let showClub = !h.rows.isEmpty && Rules.lieOf(h.rows, k) != "green" && (club != nil || !(store.state?.clubs ?? []).isEmpty)
+        draft.club = club
         let lieText = k == 0 ? "Tee" : Labels.lie(row.loc)
         let shot = k + 1
         let playing = Rules.playingAs(h.rows, k)
@@ -150,6 +153,20 @@ struct HoleScreen: View {
                     nav.push(.distance(d0))
                 }.buttonStyle(TileStyle(fill: Theme.amber, small: true)).foregroundColor(.black)
                 HStack { Spacer(minLength: 0); thruText(m) }
+            }
+            // 5. v253: the club – pre-picked; tap for the list
+            if showClub {
+                Button { nav.push(.club(hole: c, k: k)) } label: {
+                    HStack(spacing: 4) {
+                        Text("Club").font(.system(size: 12, weight: .semibold)).foregroundColor(Theme.dim)
+                        Text(club.map { $0.isEmpty ? "None" : Labels.club($0) } ?? "Pick")
+                            .font(.system(size: 15, weight: .bold)).foregroundColor(.white).lineLimit(1).minimumScaleFactor(0.6)
+                        Spacer(minLength: 2)
+                        Image(systemName: "chevron.right").font(.system(size: 11, weight: .bold)).foregroundColor(Theme.dim)
+                    }.frame(maxWidth: .infinity, minHeight: 26)
+                }
+                .buttonStyle(TileStyle(small: true))
+                .accessibilityLabel("Club " + (club.map { $0.isEmpty ? "none" : Labels.club($0) } ?? "not picked") + ". Change club")
             }
             Text("Where did it finish?").font(.footnote).foregroundColor(.secondary)
             LieGrid(draft: draft)

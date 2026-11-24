@@ -4,7 +4,8 @@
  * One watch EVENT changes ONE hole of a round using the same row rules as the phone's hole entry (app.js setFinish, setHoleOut,
  * the Finished dropdown's Unplayable / Lost ball, the hazard Drop / Re-tee / Played-it choice, "insert after", "delete row"):
  *   { id, seq, t, roundId, type, hole, ... }
- *   shot   – k (the stroke just hit = its row), fin, dir, dist (the distance to the pin AFTER the shot = the next row), hz, edit, pin (v233: set when the hole has none)
+ *   shot   – k (the stroke just hit = its row), fin, dir, dist (the distance to the pin AFTER the shot = the next row), hz, edit, pin (v233: set when the hole has none),
+ *            club (v253: the club of stroke k; '' clears it)
  *            fin: fairway | rough | deep | bunker | green | trees | hazard | ob | unp | lost | in (in the hole)
  *            hz (hazard only): drop | retee | play     drop (unp only, optional): the lie it was dropped in
  *            For "in", dist (optional) is the distance of the stroke that went in (row k), when that row has none yet.
@@ -74,6 +75,13 @@
     if (autoFinish && a.complete) h.finished = true; else if (h.finished && !a.complete) h.finished = false;
   }
 
+  // v253: the club of a stroke, like the phone's Club box (a new club clears the wedge-matrix details of the old one)
+  function setClub(row, c) {
+    if ((row.club || '') === c) return;
+    if (c) row.club = c; else delete row.club;
+    ['wedgeY', 'wedgeF', 'wedgeAuto', 'wedgeOff', 'wedgeClock', 'wedgeLad'].forEach(function (f) { delete row[f]; });
+  }
+  function clubOf(row, ev) { if (typeof ev.club === 'string' && ev.club.length <= 24) setClub(row, ev.club.trim()); } // v253: the club picked on the watch (for stroke k)
   function applyShot(h, ev) {
     var SG = SGx(), rows = h.rows, k = ev.k, fin = ev.fin;
     if (FIN.indexOf(fin) < 0) return 'bad';
@@ -83,9 +91,11 @@
     var dist = num(ev.dist); if (dist !== dist) return 'bad'; // NaN
     if (fin === 'in') {
       if (k > 0 && !rows[k].loc) return 'bad';
+      clubOf(rows[k], ev);
       if (dist != null && blank(rows[k].dist)) rows[k].dist = dist;
       finish(h, k, 'in'); return '';
     }
+    clubOf(rows[k], ev);
     finish(h, k, fin, ev.drop);
     if (ev.pin && !SG.normPin(h.pin) && SG.normPin(ev.pin)) h.pin = SG.normPin(ev.pin); // v233: "Where's the pin?" on the watch (only when the hole has none)
     var nx = rows[k + 1];
@@ -167,6 +177,7 @@
     if (r.holeOut) o.holeOut = true;
     if (r.retee) o.retee = true;
     if (r.lost) o.lost = true;
+    if (r.club) o.club = String(r.club); // v253
     return o;
   }
   function holeOut1(h, i) {
@@ -174,6 +185,12 @@
     var o = { i: i, par: h.par || 4, fin: !!h.finished, complete: !!a.complete, strokes: a.liveStrokes, rows: h.rows.map(rowOut) }, pn = SGx().normPin(h.pin);
     if (pn) o.pin = pn; // v233: the watch asks for the pin only when the hole has none
     return o;
+  }
+  // v253: the bag for the watch's club list – [{ c: '7i', y: 152 }] (y = carry in yards, left out when not set); at most 20 clubs
+  function clubsOut(L) {
+    var out = []; (Array.isArray(L) ? L : []).forEach(function (x) { var c = x && String(x.c || '').trim(); if (!c || c.length > 24 || out.length >= 20 || /^putter$/i.test(c)) return;
+      var o = { c: c }, y = Math.round(Number(x.y)); if (y > 0 && y < 450) o.y = y; out.push(o); });
+    return out;
   }
   /** The compact picture of the round the watch shows. acks = [{ id, ok, why }]. */
   function buildState(round, acks, extra) {
@@ -187,7 +204,7 @@
     });
     return { v: VERSION, ts: Date.now(), roundId: round.id, course: round.course || '', tee: round.tee || '', player: round.player || '',
       upd: Date.parse(round.updated || round.date) || 0, over: done >= 18, hole: cur, pars: round.holes.map(function (h) { return h.par || 4; }), holes: holes, holesDone: done, strokesDone: strokes, parDone: par,
-      acks: (acks || []).slice(-ACK_SENT) };
+      acks: (acks || []).slice(-ACK_SENT), clubs: clubsOut(extra.clubs) };
   }
   function pushAck(acks, id, ok, why) { acks = (acks || []).filter(function (a) { return a.id !== id; }); acks.push(ok ? { id: id, ok: 1 } : { id: id, ok: 0, why: why || '' }); return acks.slice(-ACK_MAX); }
   function knows(acks, id) { return (acks || []).some(function (a) { return a.id === id; }); }

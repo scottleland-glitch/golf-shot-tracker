@@ -5,6 +5,10 @@ Renamed to **Pin High** (title, home-screen label, header, PDF). Storage keys (`
 Phone web app for tracking every golf shot and strokes gained against a selectable baseline (PGA Tour by default).
 Static files only: no backend, no build step. Data is stored on the phone (localStorage).
 
+## Club on the Apple Watch (v253)
+- The watch hole screen has a **Club** chip above "Where did it finish?". It is pre-picked: Driver off the tee on a par 4 or 5, otherwise the club in My Bag whose carry (for today's conditions when that's on) is nearest the distance to the pin. Tap it for the club list (Digital Crown scrolls, one tap picks, or No club). Putts from the green have no club.
+- The club goes with the shot and lands in that stroke's Club box on the phone (a changed club clears its old wedge-matrix details). The phone sends the bag to the watch with the round (native/watch-core.js `clubs`, `rows[].club`; Swift: `ClubInfo`, `Row.club`, `WatchEvent.club`, `Rules.suggestClub`, `ClubScreen`).
+
 ## Dispersion: everything stays on screen (v250)
 - The zoomed-in view fits every ball and the whole 8-of-10 ring (below the label), zooming out to at most half the usual size; a ball still outside that (a shank) is drawn pinned to the edge. Approach strategy's green also zooms to fit every ball (and where they slide from when you switch Aim), and its label is gone – it covered shots, and the line under the picture says the same.
 
