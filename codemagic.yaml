@@ -160,12 +160,15 @@ workflows:
           set -euo pipefail
           echo "IPA files:"
           ls -la build/ios/ipa/
-          if unzip -l build/ios/ipa/*.ipa | grep -qE "Payload/[^/]+\.app/Watch/.*\.app"; then
+          # Save the listing first: piping unzip into grep -q / head trips pipefail (SIGPIPE) even when the watch app is there.
+          LISTING=$(unzip -l build/ios/ipa/*.ipa)
+          WATCH_LINES=$(printf '%s\n' "$LISTING" | grep -E "Payload/[^/]+\.app/Watch/" || true)
+          if printf '%s\n' "$WATCH_LINES" | grep -qE "Payload/[^/]+\.app/Watch/[^/]+\.app/Info\.plist"; then
             echo "watch app found inside the iPhone app"
-            unzip -l build/ios/ipa/*.ipa | grep -E "Payload/[^/]+\.app/Watch/" | head -20
+            printf '%s\n' "$WATCH_LINES" | sed -n '1,30p'
           else
-            echo "The watch app is not inside the .ipa. Bundles in the IPA:"
-            unzip -l build/ios/ipa/*.ipa | grep -E "Payload/|\.app/|Watch" | head -80
+            echo "The watch app is not inside the .ipa (no Watch/*.app/Info.plist). Watch folder contents:"
+            printf '%s\n' "$WATCH_LINES"
             exit 1
           fi
           LATEST=${STROKEWISE_LATEST_ASC:-}
