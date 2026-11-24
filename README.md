@@ -5,6 +5,9 @@ Renamed to **Pin High** (title, home-screen label, header, PDF). Storage keys (`
 Phone web app for tracking every golf shot and strokes gained against a selectable baseline (PGA Tour by default).
 Static files only: no backend, no build step. Data is stored on the phone (localStorage).
 
+## Dispersion for a coach's athlete (v255)
+- A coach viewing an athlete in the app saw "No finished rounds yet" on Dispersion › Rounds / Pin location: the page picked the phone owner's name instead of the athlete's. It now always uses a name on the page (the athlete).
+
 ## Leave a hole out of stats (v254)
 - The scorecard has an **In stats** row: tap a hole's ✓ to make it ✗ (and back). The hole's score still counts in the round – score, to par, scoring average – but it is left out of strokes gained, putts, greens, fairways, My Game, Stats, Trends, the practice plan, the round takeaway and Dispersion. The round page says which holes are left out.
 - Stored as `nostats: true` on the hole. `SG.summarize` gives `S.statHoles` (the holes that count) and `S.offHoles`; per-18 stats scale by `statHoles`, and analysed holes carry `off: true`.

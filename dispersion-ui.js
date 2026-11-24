@@ -17,7 +17,9 @@
 
   D.ui = function (env) {
     var SG = env.SG, view = env.view, cache = { key: '', A: null }, anim = null, rafId = 0, gen = 0, gAnim = null, gRaf = 0, gGen = 0;
-    function S() { if (!view.disp) view.disp = { mode: 'view', pin: 'center' }; var s = view.disp, names = env.players(); if (!s.who || names.indexOf(s.who) < 0) s.who = env.me() || names[0] || ''; return s; }
+    function S() { if (!view.disp) view.disp = { mode: 'view', pin: 'center' }; var s = view.disp, names = env.players(), me = env.me();
+      // v255 (Scott: a coach looking at an athlete saw "No finished rounds yet"): the player must be one of the names on this page – the athlete, not the phone's owner
+      if (!s.who || names.indexOf(s.who) < 0) s.who = (names.indexOf(me) >= 0 ? me : names[0]) || me || ''; return s; }
     function mine(who) { return env.sessions().filter(function (x) { return env.same(x.player || env.me(), who); }); }
     // v247: sim = by club (env changes how far a club goes), rounds = by distance (club isn't always entered)
     function src() { var v = opts().src; return env.rounds && (v === 'rounds' || v === 'pins') ? v : 'sim'; } // v249: sim (by club) | rounds (by distance) | pins (by pin location)
