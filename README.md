@@ -5,6 +5,10 @@ Renamed to **Pin High** (title, home-screen label, header, PDF). Storage keys (`
 Phone web app for tracking every golf shot and strokes gained against a selectable baseline (PGA Tour by default).
 Static files only: no backend, no build step. Data is stored on the phone (localStorage).
 
+## Leave a hole out of stats (v254)
+- The scorecard has an **In stats** row: tap a hole's ✓ to make it ✗ (and back). The hole's score still counts in the round – score, to par, scoring average – but it is left out of strokes gained, putts, greens, fairways, My Game, Stats, Trends, the practice plan, the round takeaway and Dispersion. The round page says which holes are left out.
+- Stored as `nostats: true` on the hole. `SG.summarize` gives `S.statHoles` (the holes that count) and `S.offHoles`; per-18 stats scale by `statHoles`, and analysed holes carry `off: true`.
+
 ## Club on the Apple Watch (v253)
 - The watch hole screen has a **Club** chip above "Where did it finish?". It is pre-picked: Driver off the tee on a par 4 or 5, otherwise the club in My Bag whose carry (for today's conditions when that's on) is nearest the distance to the pin. Tap it for the club list (Digital Crown scrolls, one tap picks, or No club). Putts from the green have no club.
 - The club goes with the shot and lands in that stroke's Club box on the phone (a changed club clears its old wedge-matrix details). The phone sends the bag to the watch with the round (native/watch-core.js `clubs`, `rows[].club`; Swift: `ClubInfo`, `Row.club`, `WatchEvent.club`, `Rules.suggestClub`, `ClubScreen`).

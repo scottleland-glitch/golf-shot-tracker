@@ -8,6 +8,7 @@
 // build() is pure (tested in node: tests/insights.test.js); app.js draws it on Round stats.
 (function (root) {
   'use strict';
+  function nH(S) { return S.statHoles == null ? S.holesDone : S.statHoles; } // v254: holes that count in stats (older summaries: all)
   // Shots an area needs in the golfer's other rounds before it is "known" (roughly 4-6 rounds each). Last 20 rounds.
   var AREAS = [
     { k: 'tee', short: 'TEE', name: 'Off the tee', word: 'driving', in: 'off the tee', need: 50, unit: 'drives' },
@@ -29,7 +30,7 @@
   // Every scored shot of the finished holes, with its hole.
   function shotsOf(S) {
     var out = [];
-    S.holes.forEach(function (h, i) { if (!h.done) return; h.shots.forEach(function (s) { if (!s.layup) out.push(Object.assign({ hole: i + 1 }, s)); }); });
+    S.holes.forEach(function (h, i) { if (!h.done || h.off) return; h.shots.forEach(function (s) { if (!s.layup) out.push(Object.assign({ hole: i + 1 }, s)); }); });
     return out;
   }
   // How far from the hole a shot finished, in feet (null for a penalty / OB).
@@ -59,7 +60,7 @@
   function progress(history, SG, bl) {
     var list = history.slice(0, NORM_ROUNDS), out = {};
     var sums = list.map(function (r) { return SG.summarize(r, bl); }).filter(function (S) { return S.holesDone > 0; });
-    var holes = sum(sums, function (S) { return S.holesDone; });
+    var holes = sum(sums, function (S) { return nH(S); }); // v254: holes left out of stats don't count
     AREAS.forEach(function (a) {
       var n = sum(sums, function (S) { return S.cats[a.k].n; }), sg = sum(sums, function (S) { return S.cats[a.k].sg; });
       out[a.k] = { k: a.k, short: a.short, name: a.name, n: n, need: a.need, frac: Math.min(1, n / a.need), ready: n >= a.need,
@@ -84,7 +85,7 @@
     // Lag putting (works without directions): first putts from 25 ft and over that missed, how far they finished.
     var lags = putts.filter(function (s) { return s.start.dist >= 25 && s.end.lie === 'green'; });
     var lagAvg = lags.length ? sum(lags, function (s) { return s.end.dist; }) / lags.length : 0;
-    var three = 0; S.holes.forEach(function (h) { if (h.done && h.putts >= 3) three++; });
+    var three = 0; S.holes.forEach(function (h) { if (h.done && !h.off && h.putts >= 3) three++; });
     if (lags.length >= 3 && (lagAvg > 4.5 || three >= 2)) F.push({ area: 'putting', id: 'lag', title: 'Lag putting', lost: lost(putts.filter(function (s) { return s.start.dist >= 25; })) + (three >= 2 ? 0.01 : 0),
       text: 'Your ' + lags.length + ' long putts left ' + r1(lagAvg) + ' ft on average' + (three ? ', with ' + plural(three, 'three-putt') : '') + '.',
       drill: 'Putt to a 3-foot circle from 25, 35 and 45 ft. Aim to get 8 of 10 inside it.' });
@@ -216,7 +217,7 @@
   // S = this round's summary, hist = summaries of the other rounds (newest first), areas / F = build()'s areas and checks.
   function verdict(S, hist, areas, F, SG, bl, blName, P) {
     var rows = areas.map(function (a) {
-      var vals = hist.filter(function (H) { return H.holesDone >= MIN_HOLES && H.cats[a.k].n > 0; }).map(function (H) { return H.cats[a.k].sg / H.holesDone * S.holesDone; });
+      var vals = hist.filter(function (H) { return nH(H) >= MIN_HOLES && H.cats[a.k].n > 0; }).map(function (H) { return H.cats[a.k].sg / nH(H) * nH(S); });
       var v = P[a.k].ready ? areaVerdict(a.sg, vals) : { value: a.sg, rounds: vals.length, status: null, trend: null };
       v.k = a.k; v.name = a.name; v.word = a.word; v.known = v.status != null; v.frac = P[a.k].frac; v.delta = v.known ? a.sg - v.avg : a.sg;
       var tr = v.trend && v.trend.dir;
@@ -275,7 +276,7 @@
     var P = progress(history || [], SG, bl);
     if (S.holesDone < MIN_HOLES) return { ok: false, progress: P, reason: 'Finish ' + MIN_HOLES + ' holes for a round takeaway.' };
     var areas = AREAS.filter(function (a) { return S.cats[a.k].n > 0; }).map(function (a) {
-      var p = P[a.k], sg = S.cats[a.k].sg, norm = p.ready ? p.perHole * S.holesDone : 0;
+      var p = P[a.k], sg = S.cats[a.k].sg, norm = p.ready ? p.perHole * nH(S) : 0;
       return { k: a.k, name: a.name, word: a.word, in: a.in, sg: sg, n: S.cats[a.k].n, mine: p.ready, norm: norm, delta: sg - norm };
     });
     var worst = areas.slice().sort(function (x, y) { return x.delta - y.delta; })[0], best = areas.slice().sort(function (x, y) { return y.delta - x.delta; })[0];
@@ -359,7 +360,7 @@
       } else {
         var pts = shotsOf(S).filter(function (s) { return s.cat === 'putting' && s.end.lie === 'green'; });
         var sh = pts.filter(function (s) { return depth(s.dir) === 'short'; }).length, lg = pts.filter(function (s) { return depth(s.dir) === 'long'; }).length;
-        var one = 0, three = 0; S.holes.forEach(function (h) { if (h.done) { if (h.putts === 1) one++; if (h.putts >= 3) three++; } });
+        var one = 0, three = 0; S.holes.forEach(function (h) { if (h.done && !h.off) { if (h.putts === 1) one++; if (h.putts >= 3) three++; } });
         t.pic = sh + lg ? { kind: 'putts', short: sh, long: lg } : { kind: 'counts', one: one, three: three };
         t.text = t.text || S.putts + ' putts, ' + (one ? one : 'no') + ' one-putt' + (one === 1 ? '' : 's') + ', ' + (three ? three : 'no') + ' three-putt' + (three === 1 ? '' : 's') + '.';
       }
@@ -371,7 +372,7 @@
     var birdies = 0; S.holes.forEach(function (h, i) { if (h.done && h.strokes < Number(round.holes[i].par)) birdies++; });
     if (birdies) good.push(plural(birdies, 'birdie'));
     if (S.penalties === 0) good.push('no penalties');
-    var threes = 0; S.holes.forEach(function (h) { if (h.done && h.putts >= 3) threes++; });
+    var threes = 0; S.holes.forEach(function (h) { if (h.done && !h.off && h.putts >= 3) threes++; });
     if (threes === 0 && S.holesDone >= 9) good.push('no 3-putts');
     if (S.fwTotal >= 6 && S.fwHit / S.fwTotal >= 0.6) good.push(S.fwHit + ' of ' + S.fwTotal + ' fairways');
     if (S.girHoles >= 9 && S.gir / S.girHoles >= 0.5) good.push(S.gir + ' of ' + S.girHoles + ' greens');

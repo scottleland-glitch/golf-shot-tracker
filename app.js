@@ -1337,7 +1337,7 @@
   function statsRound(r, blSel) {
     var bl = blSel || blOf(r), S = SG.summarize(r, bl), D = scorecardData(r, S), tot = D.groups.length - 1;
     var sgOf = function (lbl) { var c = D.rows.filter(function (x) { return x.lbl === lbl; })[0].sums[tot]; return c.k === 'sg' ? c.v : 0; };
-    var first = S.puttList.filter(SG.firstPutt), p10 = SG.puttsInside10(S.puttList), girH = S.holes.filter(function (a) { return a && a.done && a.gir; });
+    var first = S.puttList.filter(SG.firstPutt), p10 = SG.puttsInside10(S.puttList), girH = S.holes.filter(function (a) { return a && a.done && !a.off && a.gir; });
     // v116: scores on finished par 3 / 4 / 5 holes, bucketed Eagle-or-better … Triple-or-worse
     var dist = { 3: [0, 0, 0, 0, 0, 0], 4: [0, 0, 0, 0, 0, 0], 5: [0, 0, 0, 0, 0, 0] }, parN = { 3: { n: 0, s: 0 }, 4: { n: 0, s: 0 }, 5: { n: 0, s: 0 } };
     S.holes.forEach(function (a, i) { var par = Number((r.holes[i] || {}).par); if (!a || !a.done || !dist[par]) return;
@@ -4560,7 +4560,7 @@
   // Each cell: { t: plain text, k: kind ('n' number/text, 'mark' score with shape, 'sg' strokes gained, 'yn' yes/no, 'dash' not a par 4/5, '' blank), ... }
   function scorecardData(r, S) {
     var n = r.holes.length, idx = r.holes.map(function (h, i) { return i; });
-    var H = idx.map(function (i) { return scHole(r.holes[i], S.holes[i]); });
+    var H = idx.map(function (i) { var d = scHole(r.holes[i], S.holes[i]); if (d && S.holes[i] && S.holes[i].off) d.off = true; return d; });
     var groups = [['OUT', 'out', idx.filter(function (i) { return i < 9; })]];
     if (n > 9) groups.push(['IN', 'in', idx.filter(function (i) { return i >= 9; })]);
     groups.push(['TOT', 'tot', idx]);
@@ -4581,8 +4581,8 @@
       function (L) { return N(L.length ? sum(L.map(function (d) { return d.strokes; })) : ''); });
     gname = 'sg';
     var sgRow = function (lbl, cls, get) {
-      R(lbl, 'ssg ' + cls, function (i, d) { var v = d ? get(d) : null; return v == null ? N('') : { t: fmtSG(v), k: 'sg', v: v }; },
-        function (L) { var v = L.map(get).filter(function (x) { return x != null; }); if (!v.length) return N(''); var s = sum(v); return { t: fmtSG(s), k: 'sg', v: s, big: true }; });
+      R(lbl, 'ssg ' + cls, function (i, d) { var v = d && !d.off ? get(d) : null; return d && d.off ? { t: '–', k: 'dash' } : v == null ? N('') : { t: fmtSG(v), k: 'sg', v: v }; },
+        function (L) { var v = L.filter(function (d) { return !d.off; }).map(get).filter(function (x) { return x != null; }); if (!v.length) return N(''); var s = sum(v); return { t: fmtSG(s), k: 'sg', v: s, big: true }; });
     };
     sgRow('Tot', 'sgtot', function (d) { return d.sg; }); sgRow('OTT', 'sgott', function (d) { return d.cat.tee; });
     sgRow('APP', 'sgapp', function (d) { return d.cat.approach; }); sgRow('ARG', 'sgarg', function (d) { return d.cat.short; });
@@ -4599,6 +4599,10 @@
     R('Up & down', 'sud', function (i, d) { return d ? YN(d.ud) : N(''); }, function (L) { return frac(L, function (d) { return d.ud; }); });
     R('Sandies', 'ssand', function (i, d) { return d ? YN(d.sandy) : N(''); }, function (L) { return frac(L, function (d) { return d.sandy; }); });
     R('Recovery', 'srec', function (i, d) { return d ? YN(d.rec) : N(''); }, function (L) { return frac(L, function (d) { return d.rec; }); });
+    // v254 (Scott): tap ✓ / ✗ to leave a blow-up hole out of stats (its score still counts in the round)
+    gname = 'incl';
+    R('In stats', 'sincl', function (i, d) { return d ? { t: d.off ? '✗' : '✓', k: 'inc', off: !!d.off } : N(''); },
+      function (L) { var on = L.filter(function (d) { return !d.off; }).length; return N(L.length ? on + '/' + L.length : ''); });
     return { n: n, idx: idx, groups: groups, rows: rows };
   }
   // the plain-text grid (row label, 18 holes, OUT / IN / TOT) – what both the screen and the PDF show
@@ -4612,10 +4616,11 @@
     };
     var inner = function (c) {
       return c.k === 'mark' ? '<span class="mk mk-' + c.mark + '" data-mark="' + c.mark + '">' + c.t + '</span>' : c.k === 'yn' ? (c.b ? SC_YES : SC_NO) :
-        c.k === 'dash' ? '<span class="scdash">–</span>' : esc(c.t);
+        c.k === 'dash' ? '<span class="scdash">–</span>' : c.k === 'inc' ? '<span class="scinc' + (c.off ? ' off' : '') + '">' + (c.off ? '✗' : '✓') + '</span>' : esc(c.t);
     };
     var cell = function (i, c, row) {
       var cls = (row.cls === 'sscore' ? (c.k === 'mark' ? 'done' : 'blank') : '') + (i === 8 || i === n - 1 ? ' g9' : '');
+      if (c.k === 'inc') return '<td class="' + cls + ' incl"><button class="hc" data-act="nostats" data-i="' + i + '" id="incl' + i + '" aria-pressed="' + !c.off + '" aria-label="Hole ' + (i + 1) + (c.off ? ' left out of stats. Tap to include' : ' in stats. Tap to leave out') + '"' + (CO.view || view.preview ? ' disabled' : '') + '>' + inner(c) + '</button></td>';
       return '<td class="' + cls + '"' + (c.k === 'sg' ? tint(c.v) : '') + '><button class="hc" data-act="goHole" data-i="' + i + '" aria-label="Hole ' + (i + 1) + '">' + inner(c) + '</button></td>';
     };
     var t = '<table class="scard sc1" id="scorecard"><tbody>', gname = '';
@@ -4630,7 +4635,7 @@
     return '<div class="label sclabel">Scorecard <span>· tap a hole to edit · swipe for more</span></div>' +
       '<div class="sc1card" id="sccard"><div class="scscroll" id="scscroll">' + t + '</div></div>' +
       '<div class="legend sclegend" id="card-legend"><span><span class="mk mk-eagle"></span>Eagle or better</span><span><span class="mk mk-birdie"></span>Birdie</span><span><span class="mk mk-par lgpar">–</span>Par (no mark)</span>' +
-      '<span><span class="mk mk-bogey"></span>Bogey</span><span><span class="mk mk-double"></span>Double bogey or worse</span></div>';
+      '<span><span class="mk mk-bogey"></span>Bogey</span><span><span class="mk mk-double"></span>Double bogey or worse</span><span><span class="scinc">✓</span>In stats – tap to leave a hole out</span></div>';
   }
   // v96 Round stats top box: Score · To par · Yards · Putts (was the big score + the TOTAL row under the scorecard)
   function rsTopHTML(r, S) {
@@ -4641,7 +4646,8 @@
     var parDone = sum(done.map(function (i) { return Number(r.holes[i].par) || 0; })), n = done.length, all = n && n === r.holes.length;
     return '<table class="rstop" id="rs-top"><tr><th>Score</th><th>To par</th><th>Yards</th><th>Putts</th></tr>' +
       '<tr><td class="big" id="rs-score">' + (n ? tScore : '–') + (n && !all ? '<small id="rs-thru">thru ' + n + '</small>' : '') + '</td><td class="big" id="rs-topar">' + (n ? toPar(tScore - parDone) : '–') +
-      '</td><td id="rs-yds">' + (tYds || '–') + '</td><td id="rs-putts">' + (n ? tPutts : '–') + '</td></tr></table>';
+      '</td><td id="rs-yds">' + (tYds || '–') + '</td><td id="rs-putts">' + (n ? tPutts : '–') + '</td></tr></table>' +
+      (S.offHoles && S.offHoles.length ? '<p class="rsoff" id="rsoff">Stats leave out hole' + (S.offHoles.length > 1 ? 's ' : ' ') + S.offHoles.join(', ') + ' · the score counts</p>' : '');
   }
   // ---------- v140 Round takeaway (insights.js) ----------
   // The golfer's other finished rounds played before this one, newest first: what was known about their game then.
@@ -6684,6 +6690,8 @@
       case 'rbback': if (entryHoleOn() && !backOverlay(backTarget())) return; if (backDepth() > rbBaseD) { history.back(); return; } rbClear(); view.part = null; view.holeFrom = null; goHole(view.entryHole != null ? view.entryHole : view.hole); return;
       case 'holeback': { var hf = view.holeFrom; view.holeFrom = null; view.screen = 'summary'; render(); // v154: back to Round stats, where you left it
         window.scrollTo(0, hf && hf.y ? hf.y : 0); return; }
+      case 'nostats': { if (roGuard()) return; var rn = round(), hn = rn && rn.holes[+b.getAttribute('data-i')]; if (!hn) return; // v254: leave a hole out of stats (score still counts)
+        if (hn.nostats) delete hn.nostats; else hn.nostats = true; save(); render(); toast('Hole ' + (+b.getAttribute('data-i') + 1) + (hn.nostats ? ' left out of stats – its score still counts' : ' back in stats')); return; }
       case 'goHole': view.holeFrom = view.screen === 'summary' ? { y: window.scrollY } : null; goHole(+b.getAttribute('data-i')); return; // v154: remember the way back
       case 'prev': goHole(view.hole - 1); return;
       case 'next': goHole(view.hole + 1, true); return;

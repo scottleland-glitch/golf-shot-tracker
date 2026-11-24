@@ -232,7 +232,7 @@
     var SGm = opts.SG, out = [], R = rng(4242), noDir = {};
     (rounds || []).forEach(function (r) {
       if (!r || !Array.isArray(r.holes) || (opts.play === 'tournament' && r.play !== 'tournament')) return;
-      r.holes.forEach(function (h) { var a; try { a = SGm.analyzeHole(h, opts.bl); } catch (e) { return; } if (!a || !a.shots) return; var pinK = a.pin || '';
+      r.holes.forEach(function (h) { if (h.nostats) return; /* v254: left out of stats */ var a; try { a = SGm.analyzeHole(h, opts.bl); } catch (e) { return; } if (!a || !a.shots) return; var pinK = a.pin || '';
         a.shots.forEach(function (x) {
           if (x.cat !== 'approach' || !x.start || (x.start.lie !== 'fairway' && x.start.lie !== 'tee') || x.pen === 'ob' || x.ob || x.penStrokes > 0) return;
           var b = bucket(x.start.dist); if (!b || b < BUCKET_MIN || b > BUCKET_MAX) return;

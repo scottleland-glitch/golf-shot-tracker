@@ -11,6 +11,7 @@
  */
 (function (root) {
   'use strict';
+  function nH(S) { return S.statHoles == null ? S.holesDone : S.statHoles; } // v254: holes that count in stats (older summaries: all)
   var DAY = 864e5, CFG = { recent: 10, putt5to10Min: 15, makeTarget: 0.8, minGain: 0.3, threeMin: 0.8, bestOf: 5, longMin: 15, streakMin: 3, avgMin: 1, addMin: 1.5, max: 6 };
   function r1(v) { return Math.round(v * 10) / 10; }
   function strokesWord(v) { var x = r1(v); return (x === 1 ? '1 stroke' : (x % 1 ? x.toFixed(1) : x) + ' strokes'); }
@@ -21,7 +22,7 @@
     var R = (ctx.rounds || []).map(function (r) { return { r: r, t: Date.parse(r.date), S: SG.summarize(r, bl) }; })
       .filter(function (x) { return x.S.holesDone > 0 && !isNaN(x.t); }).sort(function (a, b) { return b.t - a.t; });
     if (!R.length) return out;
-    var rec = R.slice(0, CFG.recent), holes = rec.reduce(function (t, x) { return t + x.S.holesDone; }, 0), per18 = function (n) { return holes ? n / holes * 18 : 0; };
+    var rec = R.slice(0, CFG.recent), holes = rec.reduce(function (t, x) { return t + nH(x.S); }, 0) /* v254: holes in stats */, per18 = function (n) { return holes ? n / holes * 18 : 0; };
     var putts = []; rec.forEach(function (x) { x.S.puttList.forEach(function (p) { putts.push(p); }); });
     // what if: 80 % from 5–10 ft
     var mid = putts.filter(function (p) { return p.ft >= 5 && p.ft <= 10; }), made = mid.filter(function (p) { return p.made; }).length;
@@ -32,9 +33,9 @@
     var n3 = rec.reduce(function (t, x) { return t + three(x); }, 0), a3 = per18(n3);
     if (rec.length >= 2 && a3 >= CFG.threeMin) out.push({ k: 'three', kick: 'What if', title: 'One fewer 3-putt a round = a stroke', sub: 'You average ' + r1(a3) + ' a round' + ' – last round ' + three(R[0]), btn: ['See putting', 'stats'] });
     // last round: anything it did best in your last 5+ rounds (18 holes, so the counts compare)
-    var full = R.filter(function (x) { return x.S.holesDone === 18; }), L = full[0];
+    var full = R.filter(function (x) { return nH(x.S) === 18; }), L = full[0]; // v254: a round with a hole left out of stats isn't compared
     if (L && L === R[0] && full.length > CFG.bestOf && now - L.t < 14 * DAY) {
-      var prev = full.slice(1, 1 + 3 * CFG.bestOf), upd = function (x) { var miss = x.S.holes.filter(function (a) { return a.done && !a.gir; }), u = miss.filter(function (a, i) { return a.strokes <= Number(x.r.holes[x.S.holes.indexOf(a)].par); }).length; return [u, miss.length]; };
+      var prev = full.slice(1, 1 + 3 * CFG.bestOf), upd = function (x) { var miss = x.S.holes.filter(function (a) { return a.done && !a.off && !a.gir; }), u = miss.filter(function (a, i) { return a.strokes <= Number(x.r.holes[x.S.holes.indexOf(a)].par); }).length; return [u, miss.length]; };
       var M = [['gir', 'Greens hit', function (x) { return x.S.gir; }, 1, '%n of 18 greens'], ['fw', 'Fairways hit', function (x) { return x.S.fwTotal >= 8 ? x.S.fwHit : null; }, 1, '%n of ' + L.S.fwTotal + ' fairways'],
         ['putts', 'Fewest putts', function (x) { return x.S.putts; }, -1, '%n putts'], ['ud', 'Up and down', function (x) { var u = upd(x); return u[1] >= 4 ? u[0] / u[1] : null; }, 1, upd(L)[0] + ' of ' + upd(L)[1]]];
       M.some(function (m) { var v = m[2](L); if (v == null) return false; var run = 0;

@@ -3460,3 +3460,9 @@ html body #toursheet .tourpic.wide { align-items: center; padding: 14px; } html 
 .dsppage .dsprgrid .dspcell span { font-size: 9.5px; }
 .dsppage .dsprgrid .dspgback, .dsppage .dsprgrid .dspgfront { font-size: 9.5px; }
 .dsppage .dsprgrid .dspnote { margin: 4px 2px 0; font-size: 11px; }
+/* v254: In stats row on the scorecard */
+html body .scard tr.sincl th { color: #1f6f4a; }
+html body .scard td.incl .hc { min-height: 30px; }
+html body .scinc { display: inline-grid; place-items: center; width: 22px; height: 22px; border-radius: 50%; background: rgba(47,107,63,.14); color: #1f6f4a; font-weight: 800; font-size: 13px; }
+html body .scinc.off { background: rgba(214,80,70,.16); color: #b8382d; }
+html body .rsoff { margin: 6px 2px 0; font-size: 12px; color: #8a3b30; }

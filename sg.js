@@ -544,13 +544,16 @@
     var order = ['Tee shots'].concat(APPR_BUCKETS.map(function (b) { return b.id; }), [SHORT_BUCKET, BUNKER_BUCKET,
       '0-5 ft', '5-15 ft', '15-30 ft', '30+ ft']);
     order.forEach(function (b) { S.buckets[b] = { sg: 0, n: 0, proxSum: 0, proxN: 0, proxEx: 0, proxFt: null }; });
-    S.scoreOnly = !!round.scoreOnly; S.puttHoles = 0;
+    S.scoreOnly = !!round.scoreOnly; S.puttHoles = 0; S.statHoles = 0; S.offHoles = [];
     (round.holes || []).forEach(function (h, hi) {
       var a = analyzeHole(h, baseline);
       S.holes.push(a);
+      // v254 (Scott): a hole ticked off "In stats" on the scorecard keeps its score in the round (strokes, to par, holes done)
+      // but nothing else – no strokes gained, putts, greens, fairways, misses. S.statHoles = the holes that do count (use it to scale stats).
+      if (h.nostats && a.done) { a.off = true; S.holesStarted++; S.holesDone++; S.strokes += a.strokes; S.par += Number(h.par) || 4; S.offHoles.push(hi + 1); return; }
       if (a.scoreOnly) { // v242: score, putts (when entered) and GIR from them – nothing else
         if (!a.complete) return; S.holesStarted++; if (!a.done) return;
-        S.holesDone++; S.strokes += a.strokes; S.par += Number(h.par) || 4;
+        S.holesDone++; S.statHoles++; S.strokes += a.strokes; S.par += Number(h.par) || 4;
         if (a.puttsKnown) { S.putts += a.putts; S.puttHoles++; S.girHoles++; if (a.gir) S.gir++; }
         return;
       }
@@ -570,7 +573,7 @@
           endFt: r.end.lie === 'holed' ? 0 : r.end.lie === 'green' ? r.end.dist : r.end.dist * 3, endDir: r.end.lie === 'holed' ? '' : (r.dir || ''), endLie: r.end.lie });
       });
       for (var q = S.puttList.length - pn; q < S.puttList.length; q++) S.puttList[q].holePutts = pn; // putts the hole ended with
-      S.holesDone++; S.strokes += a.strokes; S.par += Number(h.par); S.puttHoles++;
+      S.holesDone++; S.statHoles++; S.strokes += a.strokes; S.par += Number(h.par); S.puttHoles++;
       S.girHoles++; if (a.gir) S.gir++;
       if (a.fairway !== null) { S.fwTotal++; if (a.fairway) S.fwHit++; }
       a.shots.forEach(function (r) {
@@ -977,7 +980,7 @@
     YARDS: YARDS, OFF_GREEN: OFF_GREEN, FEET: FEET, PUTTS: PUTTS,
     // v150: the ONE place the app version lives – must equal the sw.js cache name ('golf-sg-' + VERSION). It sits in a cached file,
     // so Settings shows the version of the code actually running (config.js is network-first and could run ahead).
-    LONG_PAST_MAX_YD: LONG_PAST_MAX_YD, effectiveDir: effectiveDir, longPastLoc: longPastLoc, VERSION: 'v253' };
+    LONG_PAST_MAX_YD: LONG_PAST_MAX_YD, effectiveDir: effectiveDir, longPastLoc: longPastLoc, VERSION: 'v254' };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else root.SG = api;
 })(this);

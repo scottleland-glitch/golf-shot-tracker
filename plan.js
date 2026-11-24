@@ -20,6 +20,7 @@
  */
 (function (root) {
   'use strict';
+  function nH(S) { return S.statHoles == null ? S.holesDone : S.statHoles; } // v254: holes that count in stats (older summaries: all)
   var DAY = 864e5;
   var CFG = {
     halfLifeDays: 45, tourW: 4 / 3, /* v234 (Scott): a practice (or untagged) round counts 0.75 of a tournament round */ testWeeks: 6, testW: 0.6, defaultWeekMin: 120, minWeekMin: 30, carry: 0.5, /* v216: share of last week's shortfall that carries over */
@@ -65,8 +66,8 @@
     rounds.forEach(function (r, ri) {
       var S; try { S = SG.summarize(r, bl); } catch (e) { return; } if (!S || !S.holesDone) return;
       var t = Date.parse(r.date), age = Math.max(0, (now - t) / DAY), isTour = !!(MYGAME.playOf && MYGAME.playOf(r) === 'tournament'), w = Math.pow(0.5, age / CFG.halfLifeDays) * (isTour ? CFG.tourW : 1);
-      W += w * S.holesDone / 18; nR++; if (t < first) first = t;
-      S.holes.forEach(function (h) { (h.shots || []).forEach(function (s, i) { if (s.layup) return; var nx = h.shots[i + 1];
+      W += w * nH(S) / 18; nR++; if (t < first) first = t; /* v254: holes left out of stats don't count */
+      S.holes.forEach(function (h) { if (h.off) return; (h.shots || []).forEach(function (s, i) { if (s.layup) return; var nx = h.shots[i + 1];
         for (var j = 0; j < MYGAME.SPOKES.length; j++) if (MYGAME.SPOKES[j].test(s)) { var a = A[MYGAME.SPOKES[j].k]; a.sg += w * s.sg; a.n++; a.shots.push({ s: s, nx: nx, age: age, tour: isTour, w: w, rid: 'r' + ri, t: t });
           if (ri === lastI) { a.last.sg += s.sg; a.last.n++; } break; } }); });
     });

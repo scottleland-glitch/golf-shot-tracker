@@ -40,11 +40,11 @@ const ok = m => console.log('ok - ' + m);
       old: document.querySelectorAll('#card-front, #card-back').length }));
     assert.deepStrictEqual(one, { cards: 1, tables: 1, scards: 1, old: 0 }); ok('a single scorecard card (no Front 9 / Back 9 tables)');
     const T = await table(), lbl = T.map(r => r[0]);
-    assert.deepStrictEqual(lbl, ['Hole', 'Par', 'Length', 'Score', 'Tot', 'OTT', 'APP', 'ARG', 'BNK', 'Putt', 'Putts', 'GIR', 'Club', 'FIR', 'Drive dist', '1st putt', 'Last putt', 'Up & down', 'Sandies', 'Recovery']);
+    assert.deepStrictEqual(lbl, ['Hole', 'Par', 'Length', 'Score', 'Tot', 'OTT', 'APP', 'ARG', 'BNK', 'Putt', 'Putts', 'GIR', 'Club', 'FIR', 'Drive dist', '1st putt', 'Last putt', 'Up & down', 'Sandies', 'Recovery', 'In stats']); // v254: In stats
     assert.ok(!lbl.some(l => /scott/i.test(l)), 'no name row'); ok('row labels in order: ' + lbl.join(' · ') + ' (no player-name row)');
-    const row = l => T.find(r => r[0] === l).slice(1), col = i => Object.fromEntries(T.map(r => [r[0], r[1 + i]]));
+    const row = l => T.find(r => r[0] === l).slice(1), col = i => Object.fromEntries(T.filter(r => r[0] !== 'In stats').map(r => [r[0], r[1 + i]])); // v254: In stats checked in nostats-focused
     assert.deepStrictEqual(row('Hole'), [...Array(18)].map((x, i) => String(i + 1)).concat(['OUT', 'IN', 'TOT'])); ok('columns: holes 1-18, then OUT · IN · TOT');
-    assert.strictEqual(await P.locator('#scorecard th[scope="row"]').count(), 20); // v157: + BNK row
+    assert.strictEqual(await P.locator('#scorecard th[scope="row"]').count(), 21); // v254: + In stats // v157: + BNK row
 
     // ---------- 2. values ----------
     assert.deepStrictEqual(col(0), { Hole: '1', Par: '4', Length: '340', Score: '5', Tot: '-1.14', OTT: '-0.01', APP: '-0.61', ARG: '', BNK: '-0.41', Putt: '-0.11', /* v157: hole 1's short-game shot was from a greenside bunker */ Putts: '2', GIR: '✗', Club: 'DR', FIR: '✓',

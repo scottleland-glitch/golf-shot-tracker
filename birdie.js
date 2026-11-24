@@ -33,7 +33,7 @@
     var out = { chances: [], birdies: 0, holes: 0, missed: 0, putts: [], rounds: 0 };
     rounds.forEach(function (r) {
       var S = SGx.summarize(r, blOf ? blOf(r) : r.baseline); if (!S.holesDone) return; out.rounds++;
-      S.holes.forEach(function (a, hi) { var h = r.holes[hi]; if (!a.done) return; out.holes++; if (a.strokes <= Number(h.par) - 1) out.birdies++; });
+      S.holes.forEach(function (a, hi) { var h = r.holes[hi]; if (!a.done || a.off) return; out.holes++; /* v254 */ if (a.strokes <= Number(h.par) - 1) out.birdies++; });
       S.girMap.forEach(function (m) {
         var a = S.holes[m.hole - 1], o = {}; for (var k in m) o[k] = m[k];
         o.birdie = a.strokes <= m.par - 1; o.round = r.id; out.chances.push(o);

@@ -38,6 +38,7 @@
 //   feel(f): how the last 2 weeks felt (−1…+1) × a fifth of one extra hour's worth – a light nudge
 (function (root) {
   'use strict';
+  function nH(S) { return S.statHoles == null ? S.holesDone : S.statHoles; } // v254: holes that count in stats (older summaries: all)
   var DAY = 86400000, WEEK = 7 * DAY;
   var AREAS = [ // practice area → strokes gained area(s) from rounds (MYGAME spoke keys)
     { k: 'drive', name: 'Driving', spokes: ['drive'] },
@@ -82,9 +83,9 @@
       var t = Date.parse(r.date), i = isNaN(t) || t > now + DAY ? -1 : wk(t); if (i < 0) return;
       var S = SG.summarize(r, opts.bl); if (!S.holesDone) return;
       var w = W[i], rw = r.play === 'practice' ? CFG.practiceRound : 1; // v218: a practice round counts half
-      var so = !!S.scoreOnly; w.holes += so ? 0 : S.holesDone; w.wHoles += so ? 0 : S.holesDone * rw; w.rounds += so ? 0 : 1; /* v242: a score-only round counts in the score line only */ if (rw < 1) w.prRounds++; var s18 = SG.score18 ? SG.score18(S) : (S.holesDone === 18 ? S.strokes : null); if (s18 != null) { w.score.push(s18); w.scoreW.push(rw * S.holesDone / 18); } // v219: a 9 counts half, doubled
-      var R = { id: r.id, date: r.date, course: r.course || '', play: r.play || '', holes: S.holesDone, score: S.holesDone === 18 || (S.holesDone === 9 && S.holes.length === 9) ? S.strokes : null, sg: {}, n: {} }; R.s18 = s18; w.list.push(R); // v197: tap a week
-      S.holes.forEach(function (h) { if (!h.done) return; h.shots.forEach(function (s) { if (s.layup) return;
+      var so = !!S.scoreOnly; w.holes += so ? 0 : nH(S); w.wHoles += so ? 0 : nH(S) * rw; /* v254: nH(S) – holes left out of stats don't count */ w.rounds += so ? 0 : 1; /* v242: a score-only round counts in the score line only */ if (rw < 1) w.prRounds++; var s18 = SG.score18 ? SG.score18(S) : (S.holesDone === 18 ? S.strokes : null); if (s18 != null) { w.score.push(s18); w.scoreW.push(rw * S.holesDone / 18); } // v219: a 9 counts half, doubled
+      var R = { id: r.id, date: r.date, course: r.course || '', play: r.play || '', holes: nH(S), score: S.holesDone === 18 || (S.holesDone === 9 && S.holes.length === 9) ? S.strokes : null, sg: {}, n: {} }; R.s18 = s18; w.list.push(R); // v197: tap a week
+      S.holes.forEach(function (h) { if (!h.done || h.off) return; h.shots.forEach(function (s) { if (s.layup) return;
         for (var k = 0; k < SP.length; k++) if (SP[k].test(s)) { w.sg[SP[k].k] = (w.sg[SP[k].k] || 0) + s.sg * rw; w.n[SP[k].k] = (w.n[SP[k].k] || 0) + 1; R.sg[SP[k].k] = (R.sg[SP[k].k] || 0) + s.sg; R.n[SP[k].k] = (R.n[SP[k].k] || 0) + 1; break; } }); });
     });
     (logs || []).forEach(function (e) { var t = Date.parse(String(e.date).length <= 10 ? e.date + 'T12:00:00' : e.date), i = isNaN(t) || t > now + DAY ? -1 : wk(t); if (i < 0 || !(e.min > 0)) return;

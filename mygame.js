@@ -7,6 +7,7 @@
 // Pure (tested in node: tests/mygame.test.js); app.js draws the page and the Home card.
 (function (root) {
   'use strict';
+  function nH(S) { return S.statHoles == null ? S.holesDone : S.statHoles; } // v254: holes that count in stats (older summaries: all)
   var SPOKES = [
     { k: 'drive', name: 'Driving', need: 20, span: 3, test: function (s) { return s.cat === 'tee'; } },
     { k: 'irons', name: 'Irons 100+', need: 15, span: 5, test: function (s) { return s.cat === 'approach' && s.start.lie !== 'green' && s.start.dist > 100; } },
@@ -49,10 +50,10 @@
     var holes = 0, strokes18 = [], sgTot = 0, putts = 0, gir = 0, girHoles = 0;
     list.forEach(function (r) {
       var S = SG.summarize(r, bl); if (!S.holesDone) return;
-      holes += S.holesDone; sgTot += S.sgTotal; putts += S.putts; gir += S.gir; girHoles += S.girHoles;
+      holes += nH(S); sgTot += S.sgTotal; /* v254: holes left out of stats don't dilute the per-18 numbers */ putts += S.putts; gir += S.gir; girHoles += S.girHoles;
       var s18 = SG.score18 ? SG.score18(S) : (S.holesDone === 18 ? S.strokes : null); if (s18 != null) strokes18.push(s18); // v219: a 9-hole round counts, doubled
       S.holes.forEach(function (h) {
-        if (!h.done) return;
+        if (!h.done || h.off) return;
         h.shots.forEach(function (s) { if (s.layup) return; for (var i = 0; i < SPOKES.length; i++) if (SPOKES[i].test(s)) { acc[SPOKES[i].k].n++; acc[SPOKES[i].k].sg += s.sg; break; } });
       });
     });
@@ -517,8 +518,8 @@
   function kindAvg(list, SG, bl) {
     if (!list.length) return null;
     var a = { score: 0, toPar: 0, sg: 0, cats: {} }; CMP_AREAS.forEach(function (c) { a.cats[c[0]] = 0; });
-    list.forEach(function (r) { var S = SG.summarize(r, bl), k = 18 / S.holesDone; a.score += S.strokes * k; a.toPar += S.toPar * k; a.sg += S.sgTotal * k;
-      CMP_AREAS.forEach(function (c) { a.cats[c[0]] += ((S.cats[c[0]] || {}).sg || 0) * k; }); });
+    list.forEach(function (r) { var S = SG.summarize(r, bl), k = 18 / S.holesDone, ks = nH(S) ? 18 / nH(S) : 0; a.score += S.strokes * k; a.toPar += S.toPar * k; a.sg += S.sgTotal * ks; /* v254 */
+      CMP_AREAS.forEach(function (c) { a.cats[c[0]] += ((S.cats[c[0]] || {}).sg || 0) * ks; }); });
     var n = list.length; a.score /= n; a.toPar /= n; a.sg /= n; CMP_AREAS.forEach(function (c) { a.cats[c[0]] /= n; }); a.n = n; return a;
   }
   function kindCompare(rounds, SG, opts) {
