@@ -158,10 +158,15 @@ workflows:
       - name: Check the watch app is inside the iPhone app, and the IPA build number is new
         script: |
           set -euo pipefail
-          if unzip -l build/ios/ipa/*.ipa | grep -qE "Payload/App.app/Watch/.*\.app/"; then
+          echo "IPA files:"
+          ls -la build/ios/ipa/
+          if unzip -l build/ios/ipa/*.ipa | grep -qE "Payload/[^/]+\.app/Watch/.*\.app"; then
             echo "watch app found inside the iPhone app"
+            unzip -l build/ios/ipa/*.ipa | grep -E "Payload/[^/]+\.app/Watch/" | head -20
           else
-            echo "The watch app is not inside the .ipa"; exit 1
+            echo "The watch app is not inside the .ipa. Bundles in the IPA:"
+            unzip -l build/ios/ipa/*.ipa | grep -E "Payload/|\.app/|Watch" | head -80
+            exit 1
           fi
           LATEST=${STROKEWISE_LATEST_ASC:-}
           if [ -z "$LATEST" ] && [ -f /tmp/strokewise-latest-asc ]; then

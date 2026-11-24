@@ -5,6 +5,7 @@
 #
 #   ruby native/add-watch-target.rb                      add the watch target, embed it, link the bridge into AppDelegate
 #   ruby native/add-watch-target.rb --set-version 1.0 42 set MARKETING_VERSION / CURRENT_PROJECT_VERSION on every target
+#   ruby native/add-watch-target.rb --ensure-embed     make sure StrokeWise.app is copied into App.app/Watch
 #   ruby native/add-watch-target.rb --no-phone-healthkit  take the HealthKit entitlement off the iPhone app again (used by native/check-phone-healthkit.sh
 #                                                         when the iPhone app's signing profile has no HealthKit; the watch app is not auto-launched then)
 #
@@ -31,6 +32,39 @@ def set_versions(project, marketing, build)
   end
   project.save
   puts "versions set: #{marketing} (#{build}) on #{project.targets.map(&:name).join(', ')}"
+end
+
+# The watch target is named StrokewiseWatch but its product is StrokeWise.app. Copy it into
+# the iPhone app at App.app/Watch (or whatever the iPhone product is named). SKIP_INSTALL
+# must stay YES so the watch app is not exported as a second top-level app.
+def ensure_embed(project)
+  app = project.targets.find { |t| t.name == 'App' } or abort('App target not found')
+  watch = project.targets.find { |t| t.name == WATCH_NAME } or abort('StrokewiseWatch target not found')
+  watch.build_configurations.each do |c|
+    c.build_settings['SKIP_INSTALL'] = 'YES'
+  end
+  unless app.dependencies.any? { |d| d.target && d.target.name == WATCH_NAME }
+    app.add_dependency(watch)
+    puts 'added App → StrokewiseWatch target dependency'
+  end
+  embed = app.copy_files_build_phases.find { |ph| ph.name == 'Embed Watch Content' }
+  unless embed
+    embed = app.new_copy_files_build_phase('Embed Watch Content')
+    puts 'created Embed Watch Content phase'
+  end
+  embed.dst_subfolder_spec = '16' # Products Directory
+  embed.dst_path = '$(CONTENTS_FOLDER_PATH)/Watch'
+  already = embed.files.any? do |bf|
+    ref = bf.file_ref
+    ref && (ref == watch.product_reference || ref.path.to_s.include?('StrokeWise') || ref.path.to_s.include?(WATCH_NAME))
+  end
+  unless already
+    build_file = embed.add_file_reference(watch.product_reference)
+    build_file.settings = { 'ATTRIBUTES' => %w[CodeSignOnCopy RemoveHeadersOnCopy] }
+    puts 'embedded StrokeWise.app (StrokewiseWatch product) into the iPhone app Watch folder'
+  end
+  project.save
+  puts "watch embed ok: product StrokeWise.app → */Watch, SKIP_INSTALL=YES"
 end
 
 # AppDelegate: start WatchConnectivity as soon as the app launches (even in the background), before any web view exists.
@@ -89,8 +123,14 @@ if ARGV[0] == '--no-phone-healthkit'
   exit 0
 end
 
+if ARGV[0] == '--ensure-embed'
+  ensure_embed(project)
+  exit 0
+end
+
 if ARGV[0] == '--set-version'
   set_versions(project, ARGV[1] || '1.0', ARGV[2] || '1')
+  ensure_embed(project)
   exit 0
 end
 

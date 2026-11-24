@@ -30,30 +30,21 @@ stamp() {
   [[ "$next" =~ ^[0-9]+$ ]] || die "build number must be an integer, got '$next'"
   [ -f "$APP_PLIST" ] || die "iOS project is not set up yet (missing $APP_PLIST)"
 
-  # So agvtool can see a versioned project (Capacitor's template omits this).
-  ruby - "$next" "$marketing" <<'RUBY'
-require 'xcodeproj'
-next_build, marketing = ARGV
-project = Xcodeproj::Project.open(File.join(Dir.pwd, 'ios/App/App.xcodeproj'))
-(project.build_configurations + project.targets.flat_map { |t| t.build_configurations }).each do |c|
-  c.build_settings['VERSIONING_SYSTEM'] = 'apple-generic'
-  c.build_settings['CURRENT_PROJECT_VERSION'] = next_build
-  c.build_settings['MARKETING_VERSION'] = marketing
-end
-project.save
-puts "pbxproj: MARKETING_VERSION=#{marketing} CURRENT_PROJECT_VERSION=#{next_build} VERSIONING_SYSTEM=apple-generic on every target"
-RUBY
-
-  if command -v agvtool >/dev/null 2>&1; then
-    (
-      cd ios/App
-      agvtool new-marketing-version "$marketing" || true
-      agvtool new-version -all "$next" || true
-    )
+  # Versions come from --set-version and the Info.plist stamps below. Do not also
+  # run agvtool or rewrite the pbxproj with apple-generic (that extra save is new
+  # and can disturb the Embed Watch Content phase). --set-version also re-applies
+  # the embed so StrokeWise.app is copied into the iPhone app's Watch folder.
+  if [ ! -f native/add-watch-target.rb ] || [ ! -d ios/App/StrokewiseWatch ]; then
+    die "watch target files are missing; ios-setup.sh did not add the watch app"
   fi
-  if [ -f native/add-watch-target.rb ] && [ -d ios/App/StrokewiseWatch ]; then
-    ruby native/add-watch-target.rb --set-version "$marketing" "$next"
+  ruby native/add-watch-target.rb --set-version "$marketing" "$next"
+  if ! grep -q "Embed Watch Content" ios/App/App.xcodeproj/project.pbxproj; then
+    die "Embed Watch Content is missing from the Xcode project after stamping versions"
   fi
+  if ! grep -q StrokewiseWatch ios/App/App.xcodeproj/project.pbxproj; then
+    die "StrokewiseWatch target is missing from the Xcode project after stamping versions"
+  fi
+  echo "Embed Watch Content phase and StrokewiseWatch target are still in the project"
 
   echo "Writing literal versions into Info.plist files (these are what end up in the IPA):"
   set_plist_version "$APP_PLIST" CFBundleShortVersionString "$marketing"
@@ -81,26 +72,54 @@ plist_version() {
 check_ipa() {
   local latest="$1"
   local floor="${2:-17}"
-  local ipa
-  ipa=$(ls build/ios/ipa/*.ipa 2>/dev/null | head -1) || die "no IPA in build/ios/ipa"
+  local ipa="" f ipa_count=0
+  for f in build/ios/ipa/*.ipa; do
+    [ -f "$f" ] || continue
+    echo "  found IPA: $f"
+    ipa=$f
+    ipa_count=$((ipa_count + 1))
+  done
+  [ "$ipa_count" -gt 0 ] || die "no IPA in build/ios/ipa"
+  [ "$ipa_count" -eq 1 ] || die "expected one IPA in build/ios/ipa, found $ipa_count"
+
   local work
   work=$(mktemp -d)
   unzip -q "$ipa" -d "$work"
-  local app_plist
-  app_plist=$(find "$work/Payload" -maxdepth 2 -name Info.plist | head -1)
-  [ -n "$app_plist" ] || die "no Info.plist inside $ipa"
+  echo "Apps in the IPA payload:"
+  find "$work/Payload" -name '*.app' | sort | while IFS= read -r d; do
+    echo "  ${d#"$work/"}"
+  done
+
+  # iPhone app is Payload/<something>.app — often App.app, but Capacitor may name it Strokewise.app
+  local app_plist="" watch_plist=""
+  for f in "$work"/Payload/*.app/Info.plist; do
+    case "$f" in
+      */Watch/*|*/PlugIns/*|*/Frameworks/*) continue ;;
+    esac
+    [ -f "$f" ] || continue
+    app_plist=$f
+    break
+  done
+  [ -n "$app_plist" ] || die "no iPhone app Info.plist inside $ipa"
+
+  # Watch product is StrokeWise.app (target name is StrokewiseWatch), inside */Watch/
+  for f in "$work"/Payload/*.app/Watch/*.app/Info.plist; do
+    [ -f "$f" ] || continue
+    watch_plist=$f
+    break
+  done
+  if [ -z "$watch_plist" ]; then
+    echo "No watch app at Payload/<App>.app/Watch/*.app. Info.plist paths in the IPA:"
+    find "$work/Payload" -name Info.plist | sort
+    die "the watch app is not embedded in the IPA (looked for Payload/<App>.app/Watch/StrokeWise.app)"
+  fi
+
   local app_ver watch_ver
   app_ver=$(plist_version "$app_plist")
+  watch_ver=$(plist_version "$watch_plist")
   echo "IPA iPhone CFBundleVersion=$app_ver ($app_plist)"
-  local watch_plist
-  watch_plist=$(find "$work/Payload" -path '*/Watch/*.app/Info.plist' | head -1)
-  if [ -n "$watch_plist" ]; then
-    watch_ver=$(plist_version "$watch_plist")
-    echo "IPA watch CFBundleVersion=$watch_ver ($watch_plist)"
-    [ "$watch_ver" = "$app_ver" ] || die "watch CFBundleVersion $watch_ver does not match the iPhone app's $app_ver"
-  else
-    echo "IPA: no watch Info.plist found inside the payload"
-  fi
+  echo "IPA watch  CFBundleVersion=$watch_ver ($watch_plist)"
+  [ "$watch_ver" = "$app_ver" ] || die "watch CFBundleVersion $watch_ver does not match the iPhone app's $app_ver"
 
   [[ "$app_ver" =~ ^[0-9]+$ ]] || die "IPA CFBundleVersion '$app_ver' is not a plain integer"
   [[ "$latest" =~ ^[0-9]+$ ]] || latest=0
