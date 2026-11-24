@@ -36,11 +36,14 @@ workflows:
       - name: Version 1.0, next build number after the newest one in App Store Connect (iPhone app and watch app must match)
         script: |
           set -euo pipefail
-          # Codemagic's own counter restarts when a workflow changes. Ask App Store Connect for the
-          # highest build number across every version (TestFlight and the App Store) and use one more
-          # than that, or Codemagic's counter, whichever is higher. Errors are not hidden: a silent
-          # fallback is how build 17 was uploaded twice.
-          APP_ID=$(app-store-connect apps list --bundle-id-identifier com.strokewise.app --strict-match-identifier --json \
+          # Ask App Store Connect for the highest build number across every version, then stamp a
+          # literal CFBundleVersion into every Info.plist (agvtool alone does not stick in the
+          # Capacitor template). Floor is 17, the last build Apple already has. The IPA is checked
+          # before publish so a too-low number never gets uploaded again.
+          FLOOR=17
+          LATEST=$FLOOR
+          APP_ID=
+          if APP_ID=$(app-store-connect apps list --bundle-id-identifier com.strokewise.app --strict-match-identifier --json \
             | python3 -c '
           import json, re, sys
           raw = sys.stdin.read()
@@ -55,8 +58,12 @@ workflows:
           if not apps:
               sys.exit("no App Store Connect app found for com.strokewise.app")
           print(apps[0]["id"])
-          ')
-          echo "App Store Connect app id: $APP_ID"
+          '); then
+            echo "App Store Connect app id: $APP_ID"
+          else
+            echo "WARNING: could not look up the App Store Connect app id; will use floor $FLOOR"
+            APP_ID=
+          fi
 
           ALL_FLAG=--all-versions
           if ! app-store-connect get-latest-testflight-build-number --help 2>&1 | grep -q -- --all-versions; then
@@ -66,8 +73,16 @@ workflows:
 
           # The CLI prints the build number on stdout; logs go to stderr. Empty stdout means no builds yet.
           latest_of() {
-            local out
+            local out rc
+            set +e
             out=$("$@" --platform IOS $ALL_FLAG)
+            rc=$?
+            set -e
+            if [ $rc -ne 0 ]; then
+              echo "WARNING: $* failed (exit $rc)" >&2
+              echo 0
+              return 0
+            fi
             if [ -z "$out" ]; then
               echo 0
               return 0
@@ -81,57 +96,79 @@ workflows:
             if [ -n "$n" ]; then
               printf '%s\n' "$n"
             else
-              echo "ERROR: could not parse a build number from:" >&2
+              echo "WARNING: could not parse a build number from:" >&2
               printf '%s\n' "$out" >&2
-              return 1
+              echo 0
             fi
           }
 
-          LATEST_TF=$(latest_of app-store-connect get-latest-testflight-build-number "$APP_ID")
-          LATEST_ALL=$(latest_of app-store-connect get-latest-build-number "$APP_ID")
+          LATEST_TF=0
+          LATEST_ALL=0
+          if [ -n "$APP_ID" ]; then
+            LATEST_TF=$(latest_of app-store-connect get-latest-testflight-build-number "$APP_ID")
+            LATEST_ALL=$(latest_of app-store-connect get-latest-build-number "$APP_ID")
+          fi
           LATEST=$LATEST_TF
           if [ "$LATEST_ALL" -gt "$LATEST" ]; then
             LATEST=$LATEST_ALL
           fi
+          if [ "$LATEST" -lt "$FLOOR" ]; then
+            echo "Raising latest from $LATEST to known uploaded floor $FLOOR"
+            LATEST=$FLOOR
+          fi
           CM_NUM=${BUILD_NUMBER:-0}
-          if [ "$LATEST" -gt "$CM_NUM" ]; then
-            NEXT=$((LATEST + 1))
-          else
+          NEXT=$((LATEST + 1))
+          if [ $((CM_NUM + 1)) -gt "$NEXT" ]; then
             NEXT=$((CM_NUM + 1))
           fi
-          echo "Newest TestFlight build: $LATEST_TF, newest across App Store + TestFlight: $LATEST_ALL, Codemagic counter: $CM_NUM, using build $NEXT"
-          if [ "$LATEST" -eq 0 ]; then
-            echo "ERROR: could not read the latest build number from App Store Connect (got 0). The Apple integration is named Strokewise ASC."
-            exit 1
-          fi
+          echo "Newest TestFlight build: $LATEST_TF, newest across App Store + TestFlight: $LATEST_ALL, floor: $FLOOR, Codemagic counter: $CM_NUM, using build $NEXT"
           if [ "$NEXT" -le "$LATEST" ]; then
-            echo "ERROR: computed build $NEXT is not greater than the newest App Store Connect build $LATEST"
+            echo "ERROR: computed build $NEXT is not greater than $LATEST"
             exit 1
           fi
-          cd ios/App
-          agvtool new-marketing-version 1.0
-          agvtool new-version -all "$NEXT"
-          cd ../..
-          ruby native/add-watch-target.rb --set-version 1.0 "$NEXT"
+          printf '%s\n' "$LATEST" > /tmp/strokewise-latest-asc
+          if [ -n "${CM_ENV:-}" ]; then
+            echo "STROKEWISE_LATEST_ASC=$LATEST" >> "$CM_ENV"
+          fi
+          bash native/ios-build-number.sh stamp "$NEXT" 1.0
       - name: Project details for the log (what Xcode sees; nothing is changed here)
         script: |
           echo "objectVersion: $(grep -m1 objectVersion ios/App/App.xcodeproj/project.pbxproj)"
+          echo "Info.plist CFBundleVersion (iPhone): $(/usr/libexec/PlistBuddy -c 'Print :CFBundleVersion' ios/App/App/Info.plist)"
+          if [ -f ios/App/StrokewiseWatch/Info.plist ]; then
+            echo "Info.plist CFBundleVersion (watch): $(/usr/libexec/PlistBuddy -c 'Print :CFBundleVersion' ios/App/StrokewiseWatch/Info.plist)"
+          fi
           xcodebuild -project ios/App/App.xcodeproj -list 2>&1 | tail -50
           xcodebuild -project ios/App/App.xcodeproj -scheme App -showBuildSettings 2>&1 | grep -E "^ +(PRODUCT_BUNDLE_IDENTIFIER|CODE_SIGN_STYLE|PROVISIONING_PROFILE_SPECIFIER|DEVELOPMENT_TEAM|MARKETING_VERSION|CURRENT_PROJECT_VERSION) =|error|Error" | head -30 || true
       - name: Build the app (the watch app is built and embedded with it)
         script: |
-          if [ -d ios/App/App.xcworkspace ]; then
-            xcode-project build-ipa --workspace ios/App/App.xcworkspace --scheme App
-          else
-            xcode-project build-ipa --project ios/App/App.xcodeproj --scheme App
+          set -euo pipefail
+          NEXT=${STROKEWISE_BUILD_NUMBER:-}
+          if [ -z "$NEXT" ] && [ -f /tmp/strokewise-next-build-number ]; then
+            NEXT=$(cat /tmp/strokewise-next-build-number)
           fi
-      - name: Check the watch app is inside the iPhone app
+          [ -n "$NEXT" ] || { echo "ERROR: no stamped build number; the version step did not run"; exit 1; }
+          echo "Archiving with CURRENT_PROJECT_VERSION=$NEXT MARKETING_VERSION=1.0"
+          XCARGS="COMPILER_INDEX_STORE_ENABLE=NO CURRENT_PROJECT_VERSION=$NEXT MARKETING_VERSION=1.0"
+          if [ -d ios/App/App.xcworkspace ]; then
+            xcode-project build-ipa --workspace ios/App/App.xcworkspace --scheme App --archive-xcargs "$XCARGS"
+          else
+            xcode-project build-ipa --project ios/App/App.xcodeproj --scheme App --archive-xcargs "$XCARGS"
+          fi
+      - name: Check the watch app is inside the iPhone app, and the IPA build number is new
         script: |
+          set -euo pipefail
           if unzip -l build/ios/ipa/*.ipa | grep -qE "Payload/App.app/Watch/.*\.app/"; then
             echo "watch app found inside the iPhone app"
           else
             echo "The watch app is not inside the .ipa"; exit 1
           fi
+          LATEST=${STROKEWISE_LATEST_ASC:-}
+          if [ -z "$LATEST" ] && [ -f /tmp/strokewise-latest-asc ]; then
+            LATEST=$(cat /tmp/strokewise-latest-asc)
+          fi
+          LATEST=${LATEST:-17}
+          bash native/ios-build-number.sh check-ipa "$LATEST" 17
     artifacts:
       - build/ios/ipa/*.ipa
       - /tmp/xcodebuild_logs/*.log
