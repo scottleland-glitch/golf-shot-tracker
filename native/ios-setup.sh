@@ -17,6 +17,9 @@ PL=ios/App/App/Info.plist
 set_plist() { /usr/libexec/PlistBuddy -c "Set :$1 $2" "$PL" 2>/dev/null || /usr/libexec/PlistBuddy -c "Add :$1 $3 $2" "$PL"; }
 set_plist CFBundleDisplayName "Strokewise" string
 set_plist NSLocationWhenInUseUsageDescription "Finds golf courses near you." string
+# Photos: "Save to Photos" on a long-pressed picture (story picture) crashes the app without these messages.
+set_plist NSPhotoLibraryAddUsageDescription "Saves your round story pictures to Photos so you can post them." string
+set_plist NSPhotoLibraryUsageDescription "Saves your round story pictures to Photos so you can post them." string
 set_plist ITSAppUsesNonExemptEncryption false bool
 /usr/libexec/PlistBuddy -c "Delete :UISupportedInterfaceOrientations" "$PL" 2>/dev/null || true
 /usr/libexec/PlistBuddy -c "Add :UISupportedInterfaceOrientations array" "$PL"
