@@ -121,6 +121,12 @@ workflows:
           if [ $((CM_NUM + 1)) -gt "$NEXT" ]; then
             NEXT=$((CM_NUM + 1))
           fi
+          # Time-based number (UTC yy + day-of-year + HHMM, e.g. 263290531) always goes up, so a failed App Store Connect
+          # lookup can never reuse a number Apple already has ("attribute with a value that has already been used").
+          STAMP=$((10#$(date -u +%y%j%H%M)))
+          if [ "$STAMP" -gt "$NEXT" ]; then
+            NEXT=$STAMP
+          fi
           echo "Newest TestFlight build: $LATEST_TF, newest across App Store + TestFlight: $LATEST_ALL, floor: $FLOOR, Codemagic counter: $CM_NUM, using build $NEXT"
           if [ "$NEXT" -le "$LATEST" ]; then
             echo "ERROR: computed build $NEXT is not greater than $LATEST"
