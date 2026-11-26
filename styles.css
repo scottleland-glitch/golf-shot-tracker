@@ -3554,17 +3554,16 @@ html body .trfs .trfswhy { flex: none; margin: 4px 4px 0; font-size: 13px; line-
 html body .trfs .trfshint { flex: none; margin: 3px 0 0; text-align: center; font-size: 11.5px; color: #7a8794; }
 
 
-/* v260 (Scott): Dispersion › Pin location – distance groups on / off: short wedge white, long wedge yellow, mid approach red, long approach blue */
-.dsppgt { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin: 8px 0 4px; }
-.dsppgt .dsppg { display: flex; align-items: center; gap: 8px; min-height: 44px; padding: 4px 10px; border-radius: 12px; border: 1.5px solid rgba(31, 45, 56, .22); text-align: left;
-  background: rgba(255, 255, 255, .45); color: #6b7a86; font: 600 13px/1.2 -apple-system, system-ui, sans-serif; box-shadow: none; cursor: pointer; }
-.dsppgt .dsppg span { display: flex; flex-direction: column; min-width: 0; } .dsppgt .dsppg b { font-weight: 700; white-space: nowrap; } .dsppgt .dsppg em { font-style: normal; font-weight: 500; font-size: 11.5px; opacity: .8; }
-.dsppgt .dsppg i { width: 13px; height: 13px; border-radius: 50%; flex: none; opacity: .45; border: 1px solid rgba(0, 0, 0, .45); }
-.dsppgt .dsppg.g0 i { background: #fff; } .dsppgt .dsppg.g1 i { background: #f5c518; } .dsppgt .dsppg.g2 i { background: #e0313f; } .dsppgt .dsppg.g3 i { background: #1f73c9; }
+/* v261 (Scott): Dispersion › Pin location – a simple legend under the picture: colour = yardage (white 40–80, orange 80–120, red 120–160, blue 160–200); tap to show / hide */
+.dsppgt { display: grid; grid-template-columns: repeat(4, 1fr); gap: 5px; margin: 8px 0 4px; }
+.dsppgt .dsppg { display: flex; align-items: center; justify-content: center; gap: 6px; min-height: 44px; padding: 3px 4px; border-radius: 12px; border: 1.5px solid rgba(31, 45, 56, .22);
+  background: rgba(255, 255, 255, .45); color: #6b7a86; font: 600 13px/1.15 -apple-system, system-ui, sans-serif; box-shadow: none; cursor: pointer; }
+.dsppgt .dsppg span { display: flex; flex-direction: column; align-items: flex-start; min-width: 0; } .dsppgt .dsppg b { font-weight: 700; white-space: nowrap; } .dsppgt .dsppg em { font-style: normal; font-weight: 500; font-size: 11px; opacity: .8; white-space: nowrap; }
+.dsppgt .dsppg i { width: 13px; height: 13px; border-radius: 50%; flex: none; opacity: .4; border: 1px solid rgba(0, 0, 0, .45); }
+.dsppgt .dsppg.g0 i { background: #fff; } .dsppgt .dsppg.g1 i { background: #ff9a1f; } .dsppgt .dsppg.g2 i { background: #e0313f; } .dsppgt .dsppg.g3 i { background: #1f73c9; }
 .dsppgt .dsppg.on { background: #1f2d38; border-color: #1f2d38; color: #fff; } .dsppgt .dsppg.on i { opacity: 1; }
-.dsppgt .dsppg:disabled { opacity: .45; cursor: default; }
+.dsppgt .dsppg:disabled { opacity: .4; cursor: default; }
 .dspfs .dsppgt.fs { margin: 0 0 8px; }
-.dspfs .dsppgt.fs .dsppg { background: rgba(255, 255, 255, .1); border-color: rgba(255, 255, 255, .3); color: rgba(255, 255, 255, .7); }
-.dspfs .dsppgt.fs .dsppg.on { background: rgba(255, 255, 255, .2); border-color: #fff; color: #fff; }
-.dspfs .dsppgt.fs .dsppg.on.g1 { border-color: #f5c518; } .dspfs .dsppgt.fs .dsppg.on.g2 { border-color: #ff6b77; } .dspfs .dsppgt.fs .dsppg.on.g3 { border-color: #5aa8ff; }
+.dspfs .dsppgt.fs .dsppg { background: rgba(255, 255, 255, .08); border-color: rgba(255, 255, 255, .25); color: rgba(255, 255, 255, .6); }
+.dspfs .dsppgt.fs .dsppg.on { background: rgba(255, 255, 255, .18); border-color: rgba(255, 255, 255, .85); color: #fff; }
 @media (hover: hover) and (pointer: fine) { html body .trfs .trfshint::after { content: " · or press Esc"; } }

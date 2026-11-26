@@ -83,7 +83,8 @@ console.log('  ✓ engine');
     for (const [ms, n] of [[700, '20a-group1'], [1400, '20b-group1-ring'], [1600, '20c-group2']]) { await page.waitForTimeout(ms); await page.screenshot({ path: OUT + '/' + n + '.png' }); }
     await page.waitForTimeout(6000); await page.screenshot({ path: OUT + '/20-pin-fullscreen.png' });
     const gb = await page.$$eval('.dspfs .dsppgt.fs .dsppg', (e) => e.map((x) => x.textContent + (x.classList.contains('on') ? '*' : '')));
-    assert.strictEqual(gb.length, 4); assert.match(gb[0], /^Short wedge · \d+40–80 yd/); assert.match(gb[1], /^Long wedge · \d+80–120 yd/); assert.match(gb[2], /^Mid approach · \d+120–160 yd/); assert.match(gb[3], /^Long approach · \d+160–200 yd/);
+    assert.strictEqual(gb.length, 4); assert.match(gb[0], /^40–80\d+ shots?/); assert.match(gb[1], /^80–120/); assert.match(gb[2], /^120–160/); assert.match(gb[3], /^160–200/);
+    assert.deepStrictEqual(await page.$$eval('.dspfs .dsppgt.fs .dsppg', (e) => e.map((x) => x.getAttribute('aria-label').replace(/, \d+ shots?/, ''))), ['Short wedge 40–80 yards', 'Long wedge 80–120 yards', 'Mid approach 120–160 yards', 'Long approach 160–200 yards']);
     const first = await page.$('.dspfs .dsppg.on'); const fg = await first.getAttribute('data-fsgrp'); await first.click(); await page.waitForTimeout(300);
     assert.ok(await page.$('body > .dspfs #dspcv'), 'stays full screen'); assert.ok(!(await page.$('.dspfs .dsppg[data-fsgrp="' + fg + '"].on')), 'group off'); await page.screenshot({ path: OUT + '/22-group-off.png' });
     await page.click('.dspfs .dsppg[data-fsgrp="' + fg + '"]'); await page.waitForTimeout(300); assert.ok(await page.$('.dspfs .dsppg[data-fsgrp="' + fg + '"].on'), 'group back on');
