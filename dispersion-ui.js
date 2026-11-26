@@ -17,6 +17,7 @@
 
   D.ui = function (env) {
     var SG = env.SG, view = env.view, cache = { key: '', A: null }, anim = null, rafId = 0, gen = 0, gAnim = null, gRaf = 0, gGen = 0;
+    var fs = null, fsY = 0; // v259 (Scott): 'top' | 'green' = that picture is playing full screen
     function S() { if (!view.disp) view.disp = { mode: 'view', pin: 'center' }; var s = view.disp, names = env.players(), me = env.me();
       // v255 (Scott: a coach looking at an athlete saw "No finished rounds yet"): the player must be one of the names on this page – the athlete, not the phone's owner
       if (!s.who || names.indexOf(s.who) < 0) s.who = (names.indexOf(me) >= 0 ? me : names[0]) || me || ''; return s; }
@@ -29,7 +30,7 @@
       var f = D.courseFactor(env.tourFt(s.who, yd), P, yd, SG, env.baselineOf(s.who));
       return f ? { k: 'tour', f: f } : { k: 'sim', f: 1, noTour: true };
     }
-    var rcache = { key: '', P: null };
+    var rcache = { key: '', P: null }, bcache = { key: '', B: null };
     // v247 where the Approach strategy green aims the pattern: the flag, the most greens, or the fewest strokes
     function aimMode() { var m = S().aim; return m === 'gir' || m === 'sg' ? m : 'flag'; }
     function aimOf(pin, m) { return m === 'gir' ? pin.best.gir.aim : m === 'sg' ? pin.best.aim : { x: pin.x, y: pin.y }; }
@@ -45,6 +46,7 @@
         var grid = D.roundPinGrid(P), byPin = SRC === 'pins';
         if (byPin && (!s.rpin || !grid[s.rpin] || !grid[s.rpin].n)) s.rpin = (D.PINS.map(function (p) { return p.k; }).filter(function (k) { return grid[k].n; }).sort(function (a, b) { return grid[b].n - grid[a].n; })[0]) || null; // most-played pin first
         var A = byPin ? (s.rpin ? D.analyseRoundPin(P, s.rpin) : null) : s.ryd ? D.analyseRounds(P, s.ryd, P.noDir[s.ryd]) : null;
+        if (byPin && A && A.ok) { var bk = rk + '|' + s.rpin; if (bcache.key !== bk) { bcache.key = bk; bcache.B = D.roundPinBest(A, s.rpin, SG, bl); } A.best = bcache.B; } // v259 best aim from real finishes
         return { s: s, src: SRC, grid: grid, list: list, B: B, P: P, play: play, nRounds: R.length, A: A, byPin: byPin, bl: bl, blName: blName };
       }
       var C = D.clubs(list);
@@ -83,13 +85,20 @@
         return h + sessionsHTML(d) + '</div>';
       }
       var P = A.pins.filter(function (p) { return p.k === s.pin; })[0] || A.pins[4];
-      h += '<div class="frostcard bzcard dspplay"><div class="dspcvwrap"><canvas id="dspcv" aria-label="' + esc('Where ' + D.SHOW + ' balls from ' + s.yd + ' yd finish, ' + P.name + ' pin') + '"></canvas>' +
+      h += '<div class="frostcard bzcard dspplay"><div class="dspcvwrap" id="dspcvwrap">' + fsTop(esc(d.c.club) + ' · ' + s.yd + ' yd') + '<canvas id="dspcv" aria-label="' + esc('Where ' + D.SHOW + ' balls from ' + s.yd + ' yd finish, ' + P.name + ' pin') + '"></canvas>' +
+        fsInfo('<b>' + esc(P.name) + ' pin</b> · ' + Math.round(P.greenPct) + '% on the green · ' + Math.round(P.medFt) + '’ median · ' + sgTxt(P.sg)) +
         '<div class="dspcap sr" id="dspcap" aria-live="polite"><b>' + esc(P.name) + ' pin</b><span>' + Math.round(P.greenPct) + '% on the green · ' + Math.round(P.medFt) + '’ median · <em class="' + D.sgTone(P.sg) + '">' + sgTxt(P.sg) + '</em></span></div></div>' +
         '<div class="dspctl"><button class="dspgo" id="dspgo" data-act="dspplay">▶ Play</button><button class="dspgo alt" id="dspall" data-act="dspall">Play all 9 pins</button></div>' +
         '<p class="dsplegend"><span><span class="dspk w"></span>on the green</span><span><span class="dspk r"></span>missed</span><span><span class="dspk e"></span>8 of 10 shots</span></p>' +
         '<p class="muted dspsrc" id="dspsrc">' + D.SHOW + ' balls from your ' + A.n + ' sim shot' + (A.n === 1 ? '' : 's') + ' with ' + esc(d.c.club) + ' (' + s.yd + ' yd target) · landing spot (' + d.mode + ')' + (d.F.f > 1 ? ' · widened ×' + d.F.f.toFixed(2).replace(/0$/, '') : '') + '</p></div>';
       // v245 (Scott) Approach strategy: the green with the 9 pins in red / green – tap one and the 50 balls land on it
       var aimM = aimMode(), AIMS = [['flag', 'At the flag'], ['gir', 'Most greens'], ['sg', 'Best SG']];
+      var b = P.best, worth = b.gain >= 0.03;
+      var G2 = b.gir, line;
+      if (aimM === 'gir') line = '<b>' + esc(P.name) + ' · most greens:</b> aim ' + esc(D.aimText(G2.aim, P)) + ' – ' + Math.round(G2.greenPct) + '% on the green (' + Math.round(P.greenPct) + '% at the flag), ' + Math.round(G2.medFt) + '’ median, ' + sgTxt(G2.sg) + ' (' + sgTxt(P.sg) + ' at the flag).' +
+        (b.gain >= 0.03 && (Math.abs(G2.aim.x - b.aim.x) > 2 || Math.abs(G2.aim.y - b.aim.y) > 2) ? '<br><span class="muted">Best SG is a different spot: ' + esc(D.aimText(b.aim, P)) + ' (' + sgTxt(b.sg) + ').</span>' : '');
+      else if (aimM === 'sg') line = '<b>' + esc(P.name) + ' · best SG:</b> ' + (worth ? 'aim ' + esc(D.aimText(b.aim, P)) + ' – ' + sgTxt(b.sg) + ', saves ' + b.gain.toFixed(2) + ' a shot; ' + Math.round(b.res.greenPct) + '% on the green (' + Math.round(P.greenPct) + '% at the flag).' : 'fire at it – aiming elsewhere doesn’t help (' + sgTxt(P.sg) + ').');
+      else line = '<b>' + esc(P.name) + ' · ' + sgTxt(P.sg) + '</b> – ' + Math.round(P.greenPct) + '% on the green, ' + Math.round(P.medFt) + '’ median.<br>' + (worth ? 'Best aim: ' + esc(D.aimText(b.aim, P)) + ' – saves ' + b.gain.toFixed(2) + ' a shot. Most greens: ' + esc(D.aimText(G2.aim, P)) + ' (' + Math.round(G2.greenPct) + '%).' : 'Fire at it – aiming elsewhere doesn’t help.');
       h += '<div class="frostcard bzcard dspstrat" id="dspstrat"><h3 class="bzh">Approach strategy ' + tip('dspsg', 'How Approach strategy works') + '</h3>' +
         (d.C.length > 1 ? '<div class="dspyds dspyds2" role="group" aria-label="Club">' + d.C.map(function (c) { var on = c.key === s.club; // v247: pick a club without scrolling to the top
           return '<button class="dspyd dspclub' + (on ? ' sel' : '') + (c.n < D.MIN_SHOTS ? ' few' : '') + '" data-act="dspclub" data-v="' + esc(c.key) + '" aria-pressed="' + on + '"><b>' + esc(c.club) + '</b><span>' + Math.round(c.target) + ' yd</span></button>'; }).join('') + '</div>' : '') +
@@ -99,14 +108,8 @@
           var p = A.pins.filter(function (x) { return x.k === k; })[0], t = D.sgTone(p.sg), a = Math.min(1, Math.abs(p.sg || 0) / 0.3);
           return '<button class="dspcell ' + t + (k === s.pin ? ' sel' : '') + '" data-act="dsppin" data-v="' + k + '" style="--a:' + (0.25 + 0.75 * a).toFixed(2) + '" aria-pressed="' + (k === s.pin) + '" aria-label="' + esc(p.name + ' ' + sgTxt(p.sg)) + '"><b>' + sgTxt(p.sg) + '</b><span>' + Math.round(p.greenPct) + '% green</span></button>'; }).join(''); }).join('') + '<span class="dspgfront">Front · toward you</span></div>' +
         '<div class="dspaimrow"><span>Aim</span>' + seg('dspaim', aimM, AIMS) + '</div>' +
-        '<div class="dspgwrap" id="dspgwrap"><canvas id="dspgc" aria-label="' + esc(D.SHOW + ' balls landing around the ' + P.name + ' pin') + '"></canvas></div>' +
+        '<div class="dspgwrap" id="dspgwrap">' + fsTop(esc(P.name) + ' pin · ' + esc(d.c.club) + ' ' + s.yd + ' yd') + '<canvas id="dspgc" aria-label="' + esc(D.SHOW + ' balls landing around the ' + P.name + ' pin') + '"></canvas>' + fsInfo(line) + '</div>' +
         '<p class="dsplegend"><span><span class="dspk w"></span>on the green</span><span><span class="dspk r"></span>missed</span><span><span class="dspk e"></span>8 of 10 shots</span><span>◎ aim point</span></p>';
-      var b = P.best, worth = b.gain >= 0.03;
-      var G2 = b.gir, line;
-      if (aimM === 'gir') line = '<b>' + esc(P.name) + ' · most greens:</b> aim ' + esc(D.aimText(G2.aim, P)) + ' – ' + Math.round(G2.greenPct) + '% on the green (' + Math.round(P.greenPct) + '% at the flag), ' + Math.round(G2.medFt) + '’ median, ' + sgTxt(G2.sg) + ' (' + sgTxt(P.sg) + ' at the flag).' +
-        (b.gain >= 0.03 && (Math.abs(G2.aim.x - b.aim.x) > 2 || Math.abs(G2.aim.y - b.aim.y) > 2) ? '<br><span class="muted">Best SG is a different spot: ' + esc(D.aimText(b.aim, P)) + ' (' + sgTxt(b.sg) + ').</span>' : '');
-      else if (aimM === 'sg') line = '<b>' + esc(P.name) + ' · best SG:</b> ' + (worth ? 'aim ' + esc(D.aimText(b.aim, P)) + ' – ' + sgTxt(b.sg) + ', saves ' + b.gain.toFixed(2) + ' a shot; ' + Math.round(b.res.greenPct) + '% on the green (' + Math.round(P.greenPct) + '% at the flag).' : 'fire at it – aiming elsewhere doesn’t help (' + sgTxt(P.sg) + ').');
-      else line = '<b>' + esc(P.name) + ' · ' + sgTxt(P.sg) + '</b> – ' + Math.round(P.greenPct) + '% on the green, ' + Math.round(P.medFt) + '’ median.<br>' + (worth ? 'Best aim: ' + esc(D.aimText(b.aim, P)) + ' – saves ' + b.gain.toFixed(2) + ' a shot. Most greens: ' + esc(D.aimText(G2.aim, P)) + ' (' + Math.round(G2.greenPct) + '%).' : 'Fire at it – aiming elsewhere doesn’t help.');
       h += '<div class="dspbest" id="dspbest">' + line + '</div></div>';
       // the pattern
       h += '<div class="frostcard bzcard"><h3 class="bzh">Your ' + esc(d.c.club) + ' pattern ' + tip('dsppat', 'About your pattern') + '</h3>' +
@@ -129,15 +132,18 @@
         on = on && !d.byPin; return '<button class="dspyd' + (on ? ' sel' : '') + (b.n < 3 ? ' few' : '') + '" data-act="dspryd" data-v="' + b.yd + '" aria-pressed="' + on + '"><b>' + b.yd + '</b><span>' + b.n + '</span></button>'; }).join('') + '</div>';
       var nd = A && A.noDir ? ' · ' + A.noDir + ' without a direction left out' : '', pinName = d.byPin ? D.PIN_NAME[s.rpin] : '', where = d.byPin ? pinName.toLowerCase() + ' pins' : s.ryd + ' yd';
       if (!A || !A.ok) return h + '<div class="frostcard bzcard dspfew" id="dspfew"><p>' + (A ? A.n : 0) + ' approach' + ((A && A.n) === 1 ? '' : 'es') + (d.byPin ? ' to ' : ' from ') + where + nd + '. Needs 3+ to draw.</p></div>';
-      h += '<div class="frostcard bzcard dspplay"><div class="dspcvwrap"><canvas id="dspcv" aria-label="' + esc('Where your ' + A.n + ' approaches from ' + s.ryd + ' yd finished') + '"></canvas>' +
+      var bestL = d.byPin ? roundBestLine(A, pinName) : '';
+      h += '<div class="frostcard bzcard dspplay"><div class="dspcvwrap" id="dspcvwrap">' + fsTop(d.byPin ? esc(pinName) + ' pins · ' + A.n + ' shot' + (A.n === 1 ? '' : 's') : 'From ' + s.ryd + ' yd · ' + A.n + ' shot' + (A.n === 1 ? '' : 's')) +
+        '<canvas id="dspcv" aria-label="' + esc(d.byPin ? 'Where your ' + A.n + ' approaches to ' + pinName.toLowerCase() + ' pins finished' : 'Where your ' + A.n + ' approaches from ' + s.ryd + ' yd finished') + '"></canvas>' +
+        fsInfo(bestL || ('<b>' + (d.byPin ? esc(pinName) + ' pins' : 'From ' + s.ryd + ' yd') + '</b> · ' + Math.round(A.onPct) + '% on the green · ' + Math.round(A.medFt) + '’ median · ' + sgTxt(A.sg))) +
         '<div class="dspcap sr" id="dspcap" aria-live="polite"><b>' + (d.byPin ? esc(pinName) + ' pins' : 'From ' + s.ryd + ' yd') + '</b><span>' + Math.round(A.onPct) + '% on the green · ' + Math.round(A.medFt) + '’ median</span></div></div>' +
         '<div class="dspctl"><button class="dspgo" id="dspgo" data-act="dspplay">▶ Play</button></div>' +
-        (d.byPin ? '<p class="dsplegend"><span><span class="dspk w"></span>under 120 yd' + (A.groups ? ' · ' + A.groups[0] : '') + '</span><span><span class="dspk r"></span>120–169' + (A.groups ? ' · ' + A.groups[1] : '') + '</span><span><span class="dspk bl"></span>170+' + (A.groups ? ' · ' + A.groups[2] : '') + '</span>' + (A.ell ? '<span><span class="dspk e"></span>8 of 10 shots</span>' : '') + '</p><p class="muted dspnote">On or off the drawn green = where each ball really finished.</p>'
+        (d.byPin ? '<p class="dsplegend"><span><span class="dspk w"></span>under 120 yd' + (A.groups ? ' · ' + A.groups[0] : '') + '</span><span><span class="dspk r"></span>120–169' + (A.groups ? ' · ' + A.groups[1] : '') + '</span><span><span class="dspk bl"></span>170+' + (A.groups ? ' · ' + A.groups[2] : '') + '</span>' + (A.ell ? '<span><span class="dspk e"></span>8 of 10 shots</span>' : '') + (A.best && A.best.move ? '<span>◎ best aim</span>' : '') + '</p><p class="muted dspnote">On or off the drawn green = where each ball really finished.' + (A.best && A.best.move ? ' Then the pattern slides to the best aim (the dashed ring stays where they really went) and balls that miss the green there fade.' : '') + '</p>' + bestL
           : '<p class="dsplegend"><span><span class="dspk w"></span>on the green</span><span><span class="dspk r"></span>missed</span>' + (A.ell ? '<span><span class="dspk e"></span>8 of 10 shots</span>' : '') + '</p>') +
         '<p class="muted dspsrc" id="dspsrc">Your ' + A.n + ' approach' + (A.n === 1 ? '' : 'es') + (d.byPin ? ' to ' + esc(pinName.toLowerCase()) + ' pins, all distances' : ' from ' + (s.ryd - 5) + '–' + (s.ryd + 4) + ' yd') + ' (fairway or tee' + (d.play === 'tournament' ? ', tournaments' : '') + ') · where they finished' + nd + '</p></div>';
       var pct = function (v, l) { return '<div><b>' + v + '%</b><span>' + l + '</span></div>'; };
       h += '<div class="frostcard bzcard" id="dspactual"><h3 class="bzh">What happened ' + (d.byPin ? 'to ' + esc(where) : 'from ' + where) + ' ' + tip('dspact', 'About round dispersion') + '</h3>' +
-        tipBody('dspact', 'These are finishes, not landing spots: they include the bounce and roll, the green’s slope, the wind and where you chose to aim – so this is how you score from here, not your pure pattern (that’s what Club · sim is for). Each dot is placed by how far it finished from the pin and the direction you entered, spread inside that direction. Each dot is where the ball finished, measured from the pin (your target): how far away and the direction you entered. By distance: no green is drawn – white = it finished on the green, red = it missed, wherever it sits; rings every 15 feet. By pin location: the standard green with the flag where it was, balls coloured by how far out they were hit (white under 120, red 120–169, blue 170+); a dot is slid along its line just across the edge when the drawn green and the real result disagree – the numbers use the real spots.') +
+        tipBody('dspact', 'These are finishes, not landing spots: they include the bounce and roll, the green’s slope, the wind and where you chose to aim – so this is how you score from here, not your pure pattern (that’s what Club · sim is for). Each dot is placed by how far it finished from the pin and the direction you entered, spread inside that direction. Each dot is where the ball finished, measured from the pin (your target): how far away and the direction you entered. By distance: no green is drawn – white = it finished on the green, red = it missed, wherever it sits; rings every 15 feet. By pin location: the standard green with the flag where it was, balls coloured by how far out they were hit (white under 120, red 120–169, blue 170+); a dot is slid along its line just across the edge when the drawn green and the real result disagree – the numbers use the real spots. <b>Best aim</b> (by pin location, 5+ shots): your real finishes are treated as your pattern when firing at that flag and moved as a group around the standard green to the spot that loses the fewest strokes (a spot within 0.03 a shot of the flag counts as the flag). The change is added to what really happened. It assumes you were firing at the flag – if you were already playing away from it, the true gain is smaller. Tap the picture to play it full screen; swipe down to close.') +
         '<div class="dsptiles"><div><b>' + A.n + '</b><span>shots</span></div><div><b>' + Math.round(A.onPct) + '%</b><span>on the green</span></div><div><b>' + Math.round(A.medFt) + '’</b><span>median to the pin</span></div>' +
         '<div><b class="dspsgv"><em class="' + D.sgTone(A.sg) + '">' + sgTxt(A.sg) + '</em></b><span>SG a shot vs ' + esc(d.blName) + '</span></div></div>' +
         '<h4 class="dsph4">Where they went</h4><div class="dsptiles four">' + pct(A.short, 'short') + pct(A.long, 'long') + pct(A.left, 'left') + pct(A.right, 'right') + '</div>' +
@@ -157,6 +163,16 @@
     }
     function tip(k, label) { var on = !!(view.dspTip && view.dspTip[k]); return '<button type="button" class="infobtn tipbtn" data-act="dsptip" data-v="' + k + '" aria-expanded="' + on + '" aria-label="' + label + '"><span>i</span></button>'; }
     function tipBody(k, t) { return '<div class="infotext tippop"' + (view.dspTip && view.dspTip[k] ? '' : ' hidden') + '>' + t + '</div>'; }
+    // v259 (Scott): full screen pieces – hidden until the picture is full screen
+    function fsTop(title) { return '<div class="dspfstop"><span class="dspfsgrab"></span><span class="dspfsttl">' + title + '</span><button type="button" class="dspfsx" aria-label="Close full screen">✕</button></div>'; }
+    function fsInfo(body) { return '<div class="dspfsinfo">' + body + '</div><p class="dspfshint">Swipe down to close</p>'; }
+    // v259 (Scott): the best aim from real tournament / round finishes at this pin location, and what it changes
+    function roundBestLine(A, pinName) {
+      var B = A.best; if (!B) return A.n < D.ROUND_BEST_MIN ? '<p class="muted dspnote">Best aim shows from ' + D.ROUND_BEST_MIN + '+ shots to this pin.</p>' : '';
+      if (!B.move) return '<div class="dspbest" id="dsprbest"><b>' + esc(pinName) + ' · best aim:</b> fire at it – moving your pattern doesn’t help (' + sgTxt(B.sg) + ' a shot).</div>';
+      return '<div class="dspbest" id="dsprbest"><b>' + esc(pinName) + ' · best aim:</b> ' + esc(D.aimText(B.aim, D.pinOf(B.pin))) + ' – <em class="good">saves ' + B.gain.toFixed(2) + ' a shot</em><br>' +
+        'SG ' + sgTxt(B.sg) + ' → ' + sgTxt(B.sg2) + ' · greens ' + Math.round(B.onPct) + '% → ' + Math.round(B.onPct2) + '% · median ' + Math.round(B.medFt) + '’ → ' + Math.round(B.medFt2) + '’</div>';
+    }
     function addBtns() { if (ro()) return ''; return '<div class="dspadd"><label class="dspgo filebtn" for="dspfile">📂 Import CSV</label><input type="file" id="dspfile" accept=".csv,.txt,text/csv,text/plain" hidden><button class="dspgo alt" data-act="dspmanual">✎ Enter shots</button></div>'; }
     function sessionsHTML(d) {
       var L = d.list.slice().sort(function (a, b) { return String(b.date).localeCompare(String(a.date)); });
@@ -222,14 +238,15 @@
       if (a === 'dspyd') { s.yd = +v; anim = { play: true }; gAnim = null; keepScroll(); return; }
       if (a === 'dspclub') { s.club = v; anim = { play: true }; gAnim = null; keepScroll(); return; } // v247
       if (a === 'dspryd') { s.ryd = +v; anim = { play: true }; keepScroll(); return; }
-      if (a === 'dsprpin') { s.rpin = v; anim = { play: true }; keepScroll(); return; } // v249: grid and picture share the screen
+      if (a === 'dsprpin') { s.rpin = v; anim = { play: true }; openFs('top'); keepScroll(); return; } // v259: plays full screen // v249: grid and picture share the screen
       if (a === 'dspsrc') { setOpt('src', v === 'rounds' || v === 'pins' ? v : 'sim'); anim = null; gAnim = null; keepScroll(); return; }
       if (a === 'dsprplay') { setOpt('play', v === 'tournament' ? 'tournament' : 'all'); anim = null; keepScroll(); return; }
       if (a === 'dspaim') { var Ad = data().A; if (!Ad || !Ad.pins) return; var pp = Ad.pins.filter(function (x) { return x.k === s.pin; })[0] || Ad.pins[4], from = aimOf(pp, aimMode());
         s.aim = v === 'gir' || v === 'sg' ? v : 'flag'; gAnim = { play: true, move: true, from: from }; keepScroll(); return; } // the circle slides to the new aim point
-      if (a === 'dsppin') { s.pin = v; gAnim = { play: true }; keepScroll(); var gw = document.getElementById('dspgwrap'); if (gw && gw.getBoundingClientRect().bottom > window.innerHeight - 70 && gw.scrollIntoView) gw.scrollIntoView({ block: 'end', behavior: 'smooth' }); return; }
-      if (a === 'dspplay') { anim = { play: true }; mount(); return; }
-      if (a === 'dspall') { if (data().A && data().A.rounds) return; anim = { play: true, all: true }; mount(); return; }
+      if (a === 'dsppin') { s.pin = v; gAnim = { play: true }; openFs('green'); keepScroll(); return; } // v259: plays full screen
+      if (a === 'dspplay') { anim = { play: true }; openFs('top'); mount(); return; }
+      if (a === 'dspall') { if (data().A && data().A.rounds) return; anim = { play: true, all: true }; openFs('top'); mount(); return; }
+      if (a === 'dspfsclose') { closeFs(); return; }
       if (a === 'dspmode') { setOpt('mode', v); keepScroll(); return; }
       if (a === 'dspfac') { setOpt('factor', v); keepScroll(); return; }
       if (a === 'dspdel') { var x = env.sessions().filter(function (y) { return y.id === v; })[0]; if (!x || !window.confirm('Delete ' + (x.name || 'this session') + ' (' + x.shots.length + ' shots)?')) return; env.saveSessions(env.sessions().filter(function (y) { return y.id !== v; })); keepScroll(); return; }
@@ -313,7 +330,37 @@
     function ell(ctx, x, y, rx, ry, rotDeg) { ctx.beginPath(); ctx.ellipse(x, y, Math.max(0.1, rx), Math.max(0.1, ry), -(rotDeg || 0) * Math.PI / 180, 0, 2 * Math.PI); }
     // one pin's timeline. quick = start on the green view with short flights.
     function timeline(quick) { return quick ? { zoom: [0, 0], fly0: 0, flyGap: 0.9, flyDur: 0.65, ell: 0, ellDur: 0.5, end: 0 } : { zoom: [0, 0], fly0: 0.35, flyGap: 2.3, flyDur: 1.25, ell: 0, ellDur: 0.8, end: 0 }; }
-    function mount() { chipRows(); mountTop(); mountGreen(); }
+    function mount() { chipRows(); fsPlace(); mountTop(); mountGreen(); bindTapToFs(); }
+    // ---------- v259 (Scott): full screen – a tap plays the picture full screen; swipe down (or ✕, or Esc) closes it ----------
+    // The picture's box is moved to <body> while full screen (the frosted cards' backdrop-filter would trap position: fixed).
+    function fsId() { return fs === 'green' ? 'dspgwrap' : 'dspcvwrap'; }
+    function openFs(which) { if (!fs) fsY = window.scrollY || 0; fs = which; }
+    function closeFs() {
+      if (!fs) return; fs = null; [].forEach.call(document.querySelectorAll('body > .dspfs'), function (n) { n.parentNode.removeChild(n); });
+      document.body.classList.remove('dspfsopen'); anim = null; gAnim = null; gen++; gGen++; env.render(); window.scrollTo(0, fsY);
+    }
+    function fsPlace() {
+      var cur = fs ? document.getElementById(fsId()) : null;
+      [].forEach.call(document.querySelectorAll('body > .dspfs'), function (n) { if (n !== cur) n.parentNode.removeChild(n); }); // left over from an earlier render
+      if (!cur) { fs = null; document.body.classList.remove('dspfsopen'); return; }
+      document.body.classList.add('dspfsopen'); if (cur.parentNode !== document.body) { cur.classList.add('dspfs'); document.body.appendChild(cur); }
+      if (cur._fsb) return; cur._fsb = 1;
+      var x = cur.querySelector('.dspfsx'); if (x) x.addEventListener('click', function (ev) { ev.preventDefault(); ev.stopPropagation(); closeFs(); });
+      var y0 = null, dy = 0, t0 = 0;
+      cur.addEventListener('touchstart', function (ev) { if (ev.touches.length !== 1) { y0 = null; return; } y0 = ev.touches[0].clientY; dy = 0; t0 = Date.now(); cur.style.transition = 'none'; }, { passive: true });
+      cur.addEventListener('touchmove', function (ev) { if (y0 == null) return; dy = Math.max(0, ev.touches[0].clientY - y0); cur.style.transform = dy ? 'translateY(' + dy + 'px)' : ''; cur.style.opacity = String(1 - Math.min(0.5, dy / 700)); if (ev.cancelable) ev.preventDefault(); }, { passive: false });
+      var end = function () { if (y0 == null) return; var v = dy / Math.max(1, Date.now() - t0); y0 = null; cur.style.transition = 'transform .22s ease, opacity .22s ease';
+        if (dy > 110 || (dy > 40 && v > 0.5)) { cur.style.transform = 'translateY(100%)'; cur.style.opacity = '0'; setTimeout(closeFs, 210); } else { cur.style.transform = ''; cur.style.opacity = ''; } };
+      cur.addEventListener('touchend', end); cur.addEventListener('touchcancel', end);
+    }
+    // tap a picture (not full screen yet) to play it full screen
+    function bindTapToFs() {
+      [['dspcv', 'top'], ['dspgc', 'green']].forEach(function (q) { var c = document.getElementById(q[0]); if (!c || c._fst) return; c._fst = 1; c.style.cursor = 'zoom-in';
+        c.addEventListener('click', function () { if (fs) return; if (q[1] === 'top') anim = { play: true }; else gAnim = { play: true }; openFs(q[1]); mount(); }); });
+    }
+    document.addEventListener('keydown', function (ev) { if (fs && (ev.key === 'Escape' || ev.key === 'Esc')) closeFs(); });
+    var fsRz = 0; window.addEventListener('resize', function () { if (!fs) return; clearTimeout(fsRz); fsRz = setTimeout(function () { if (fs) { mountTop(); mountGreen(); } }, 150); });
+    function fsCanvas(cv, which) { return fs === which && cv.parentNode && cv.parentNode.classList.contains('dspfs'); }
     // v248: chip rows stay on one line; the chosen chip is scrolled into view and a » shows (and scrolls) when there are more to the right
     function chipRows() {
       [].forEach.call(document.querySelectorAll('.dsppage .dspyds'), function (row) {
@@ -327,7 +374,8 @@
     }
     function mountTop() {
       var cv = document.getElementById('dspcv'); if (!cv) return; var d = data(), A = d.A; if (!A || !A.ok) return;
-      var W = cv.clientWidth || 360, H = Math.round(W * (A.rounds && A.pin ? 0.86 : 1.12)), dpr = window.devicePixelRatio || 1; cv.width = W * dpr; cv.height = H * dpr; cv.style.height = H + 'px';
+      var FS = fsCanvas(cv, 'top'); if (FS) cv.style.height = '';
+      var W = cv.clientWidth || 360, H = FS ? (cv.clientHeight || window.innerHeight - 140) : Math.round(W * (A.rounds && A.pin ? 0.86 : 1.12)), dpr = window.devicePixelRatio || 1; cv.width = W * dpr; cv.height = H * dpr; if (!FS) cv.style.height = H + 'px';
       var ctx = cv.getContext('2d'); ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
       if (rafId) cancelAnimationFrame(rafId); rafId = 0; var my = ++gen;
       var s = S(), reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -353,16 +401,19 @@
     }
     // draw time t (s) of one pin's animation; returns the time it finishes
     function frame(ctx, W, H, A, pin, t, quick, d) {
-      var yd = A.yd, C = cams(W, H, yd, pin), n = A.show.length, _fit = (C.close = fitClose(W, H, A, pin, C.close, !(A.rounds && !A.pin))), T = timeline(quick), orig = { x: pin.x, y: pin.y - yd }, PG = A.rounds && A.pin; // PG: by pin location (v248)
+      var PG = A.rounds && A.pin, MV = PG && A.best && A.best.move ? A.best : null, mvx = MV ? MV.aim.x - pin.x : 0, mvy = MV ? MV.aim.y - pin.y : 0; // PG: by pin location (v248); MV: v259 slide to the best aim
+      var fitA = MV ? { show: A.show.concat(A.show.map(function (p) { return { dx: p.dx + mvx, dy: p.dy + mvy }; })), ell: A.ell } : A;
+      var yd = A.yd, C = cams(W, H, yd, pin), n = A.show.length, _fit = (C.close = fitClose(W, H, fitA, pin, C.close, !(A.rounds && !A.pin))), T = timeline(quick), orig = { x: pin.x, y: pin.y - yd };
       if (PG) C.wide = { cx: pin.x * 0.5, cy: pin.y + (-yd - 14 + 26) / 2, s: Math.min(H / (yd + 42), W / 60) }; // keep the whole green in view from the longest shot
       var spread = T.flyGap + (PG ? 0.6 : 0), last = T.fly0 + spread + T.flyDur, zoom0 = quick ? -1 : last + 0.15, zoomDur = 1.1, ellT = quick ? last + 0.1 : zoom0 + zoomDur + 0.05, end = ellT + T.ellDur;
       var cam = quick ? C.close : t < zoom0 ? C.wide : lerpCam(C.wide, C.close, Math.min(1, (t - zoom0) / zoomDur));
+      var mv0 = end + 0.7, mvDur = 1.4, mk = MV ? Math.max(0, Math.min(1, (t - mv0) / mvDur)) : 0, mz = mk < 0.5 ? 2 * mk * mk : 1 - Math.pow(-2 * mk + 2, 2) / 2, ox = mvx * mz, oy = mvy * mz;
       if (quick) orig = { x: pin.x, y: pin.y - 40 };
       var P = drawScene(ctx, W, H, cam, yd, pin, false, A.rounds && !PG ? 1 : 0), X = P.X, Y = P.Y, bs = Math.max(2.2, Math.min(4.2, 0.55 * cam.s));
       // tracers fade once the camera starts to move
       var trA = quick ? Math.max(0, 1 - Math.max(0, t - last) / 0.6) : t < zoom0 ? 1 : Math.max(0, 1 - (t - zoom0) / 0.6);
       for (var i = 0; i < n; i++) {
-        var p = A.show[i], lx = pin.x + p.dx, ly = pin.y + p.dy, t0 = T.fly0 + (PG ? T.flyGap * i / n + 0.3 * p.g : spread * i / n), u = (t - t0) / T.flyDur; if (u <= 0) continue;
+        var p = A.show[i], lx = pin.x + p.dx + ox, ly = pin.y + p.dy + oy, t0 = T.fly0 + (PG ? T.flyGap * i / n + 0.3 * p.g : spread * i / n), u = (t - t0) / T.flyDur; if (u <= 0) continue;
         if (PG && !quick) orig = { x: pin.x, y: pin.y - p.from }; var gc = PG ? GCOL[p.g] : null; // each group flies from its own distance, in its colour
         var on = p.on != null ? p.on : D.onGreen(lx, ly), k = Math.min(1, u), ex = orig.x + (lx - orig.x) * k, ey = orig.y + (ly - orig.y) * k, hgt = Math.sin(Math.PI * k) * (quick ? 4 : 9);
         if (trA > 0) { ctx.strokeStyle = gc ? gc.tr.replace('A', (0.55 * trA).toFixed(3)) : 'rgba(255,255,255,' + (0.22 * trA).toFixed(3) + ')'; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(X(orig.x), Y(orig.y));
@@ -370,19 +421,28 @@
         var bx = X(ex), by = Y(ey) - hgt * cam.s * 0.25; if (u >= 1) { bx = edgeClamp(bx, 7, W - 7); by = edgeClamp(by, 7, H - 7); } // pinned to the edge if still off screen
         if (u < 1) { ctx.fillStyle = 'rgba(0,0,0,.25)'; ctx.beginPath(); ctx.arc(X(ex), Y(ey), bs * 0.8, 0, 7); ctx.fill(); }
         if (gc) { ctx.fillStyle = gc.fill; ctx.strokeStyle = gc.edge; } else { ctx.fillStyle = u >= 1 ? (on ? '#fff' : COL.red) : '#fff'; ctx.strokeStyle = u >= 1 ? (on ? 'rgba(0,0,0,.45)' : '#7d1019') : 'rgba(0,0,0,.35)'; } ctx.lineWidth = 0.8;
-        ctx.beginPath(); ctx.arc(bx, by, bs * (u < 1 ? 1 + 0.35 * Math.sin(Math.PI * k) : 1), 0, 7); ctx.fill(); ctx.stroke();
+        var dim = MV && mk >= 1 && !D.onGreen(lx, ly); if (dim) ctx.globalAlpha = 0.38; // v259: after the slide, the balls that would miss the green fade
+        ctx.beginPath(); ctx.arc(bx, by, bs * (u < 1 ? 1 + 0.35 * Math.sin(Math.PI * k) : 1), 0, 7); ctx.fill(); ctx.stroke(); if (dim) ctx.globalAlpha = 1;
       }
       // the dispersion shape draws itself
-      if (t > ellT && A.ell) { var e = A.ell, pr = Math.min(1, (t - ellT) / T.ellDur), cx = X(pin.x + e.cx), cy = Y(pin.y + e.cy);
+      if (t > ellT && A.ell) { var e = A.ell, pr = Math.min(1, (t - ellT) / T.ellDur), cx = X(pin.x + e.cx + ox), cy = Y(pin.y + e.cy + oy);
+        if (mk > 0) { // v259: where they really went stays as a dashed ring, a line to the best aim
+          var gx = X(pin.x + e.cx), gy = Y(pin.y + e.cy); ctx.save(); ctx.strokeStyle = 'rgba(255,224,102,.75)'; ctx.lineWidth = 1.6; ctx.setLineDash([5, 4]); ctx.beginPath();
+          ctx.ellipse(gx, gy, e.rx * cam.s, e.ry * cam.s, -e.rot * Math.PI / 180, 0, 2 * Math.PI); ctx.stroke(); ctx.setLineDash([]); ctx.strokeStyle = 'rgba(255,255,255,.8)'; ctx.lineWidth = 1.4;
+          ctx.beginPath(); ctx.moveTo(X(pin.x), Y(pin.y)); ctx.lineTo(X(pin.x + ox), Y(pin.y + oy)); ctx.stroke(); ctx.restore(); }
         ctx.save(); ctx.strokeStyle = COL.ell; ctx.lineWidth = 2.2; ctx.shadowColor = 'rgba(0,0,0,.45)'; ctx.shadowBlur = 3; ctx.beginPath();
         ctx.ellipse(cx, cy, e.rx * cam.s, e.ry * cam.s, -e.rot * Math.PI / 180, 0, 2 * Math.PI * pr); ctx.stroke(); ctx.restore();
-        if (pr >= 1) { var pv = A.rounds ? { name: A.pin ? D.PIN_NAME[A.pin] + ' pins' : 'From ' + A.yd + ' yd', sg: A.sg, greenPct: A.onPct, medFt: A.medFt } : A.pins.filter(function (x) { return x.k === pin.k; })[0]; badge(ctx, W, pv, d); }
+        if (mk > 0) { var amx = X(pin.x + ox), amy = Y(pin.y + oy); ctx.save(); ctx.strokeStyle = '#fff'; ctx.lineWidth = 1.8; ctx.shadowColor = 'rgba(0,0,0,.5)'; ctx.shadowBlur = 2;
+          ctx.beginPath(); ctx.arc(amx, amy, 7, 0, 7); ctx.stroke(); ctx.beginPath(); ctx.arc(amx, amy, 2, 0, 7); ctx.stroke(); ctx.restore(); }
+        if (pr >= 1) { var pv = A.rounds ? { name: A.pin ? D.PIN_NAME[A.pin] + ' pins' : 'From ' + A.yd + ' yd', sg: A.sg, greenPct: A.onPct, medFt: A.medFt } : A.pins.filter(function (x) { return x.k === pin.k; })[0];
+          if (MV && mk >= 1) pv = { l1: 'Best aim: ' + D.aimText(MV.aim, pin).replace(/ of the flag$/, '') + ' · saves ' + MV.gain.toFixed(2), l2: 'SG ' + sgTxt(MV.sg) + ' → ' + sgTxt(MV.sg2) + ' · greens ' + Math.round(MV.onPct) + '% → ' + Math.round(MV.onPct2) + '%' };
+          badge(ctx, W, pv, d); }
       }
       if (t > ellT + T.ellDur && !A.ell && A.rounds) badge(ctx, W, { name: A.pin ? D.PIN_NAME[A.pin] + ' pins' : 'From ' + A.yd + ' yd', sg: A.sg, greenPct: A.onPct, medFt: A.medFt }, d); // v247: too few for a shape
-      return end;
+      return MV ? mv0 + mvDur + 0.1 : end;
     }
     function badge(ctx, W, P, d) {
-      var txt = P.name + ' · ' + sgTxt(P.sg), t2 = Math.round(P.greenPct) + '% on the green · ' + Math.round(P.medFt) + '’ median';
+      var txt = P.l1 || P.name + ' · ' + sgTxt(P.sg), t2 = P.l2 || Math.round(P.greenPct) + '% on the green · ' + Math.round(P.medFt) + '’ median';
       ctx.save(); ctx.font = '600 13px -apple-system, system-ui, sans-serif'; var w = Math.max(ctx.measureText(txt).width, (ctx.font = '400 11px -apple-system, system-ui, sans-serif', ctx.measureText(t2).width)) + 20;
       ctx.fillStyle = 'rgba(20,28,24,.72)'; rr(ctx, 10, 10, w, 40, 9); ctx.fill();
       ctx.fillStyle = '#fff'; ctx.font = '600 13px -apple-system, system-ui, sans-serif'; ctx.textAlign = 'left'; ctx.fillText(txt, 20, 28);
@@ -393,7 +453,8 @@
     function gCam(W, H) { return { cx: 0, cy: -3.5, s: Math.min(W / 48, H / 50) }; }
     function mountGreen() {
       var cv = document.getElementById('dspgc'); if (!cv) return; var d = data(), A = d.A; if (!A || !A.ok) return;
-      var W = cv.clientWidth || 360, H = Math.round(W * 0.95), dpr = window.devicePixelRatio || 1; cv.width = W * dpr; cv.height = H * dpr; cv.style.height = H + 'px';
+      var FS = fsCanvas(cv, 'green'); if (FS) cv.style.height = '';
+      var W = cv.clientWidth || 360, H = FS ? (cv.clientHeight || window.innerHeight - 140) : Math.round(W * 0.95), dpr = window.devicePixelRatio || 1; cv.width = W * dpr; cv.height = H * dpr; if (!FS) cv.style.height = H + 'px';
       var ctx = cv.getContext('2d'); ctx.setTransform(dpr, 0, 0, dpr, 0, 0); var cam = gCam(W, H);
       if (gRaf) cancelAnimationFrame(gRaf); gRaf = 0; var my = ++gGen, s = S(), pin = A.pins.filter(function (p) { return p.k === s.pin; })[0] || A.pins[4];
       var reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
