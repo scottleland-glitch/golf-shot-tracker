@@ -3466,3 +3466,12 @@ html body .scard td.incl .hc { min-height: 30px; }
 html body .scinc { display: inline-grid; place-items: center; width: 22px; height: 22px; border-radius: 50%; background: rgba(47,107,63,.14); color: #1f6f4a; font-weight: 800; font-size: 13px; }
 html body .scinc.off { background: rgba(214,80,70,.16); color: #b8382d; }
 html body .rsoff { margin: 6px 2px 0; font-size: 12px; color: #8a3b30; }
+
+/* v256: club table total rows + "how the strokes gained add up" on Round stats */
+.mapview.clubview .clubtab tr.clubfoot td { background: #f3f6f8; color: #3f4a54; }
+.mapview.clubview .clubtab tr#clubtotal td { border-top: 1.5px solid #cfd8de; }
+.tkbridge { margin: 10px 0; padding: 12px 14px; border-radius: 18px; }
+.tkbridge p { margin: 6px 0 8px; font-size: 14px; line-height: 1.4; }
+.tkbparts { display: flex; flex-direction: column; gap: 3px; font-size: 13.5px; }
+.tkbparts span { display: flex; justify-content: space-between; }
+.tkbparts .tkbtot { border-top: 1px solid rgba(0,0,0,.12); padding-top: 4px; margin-top: 2px; font-weight: 600; }

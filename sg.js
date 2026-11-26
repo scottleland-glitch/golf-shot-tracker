@@ -537,7 +537,7 @@
       fwHit: 0, fwTotal: 0, gir: 0, girHoles: 0,
       teeLeft: 0, teeRight: 0, apprLeft: 0, apprRight: 0, apprShort: 0, apprOver: 0, allLeft: 0, allRight: 0,
       apprMiss: [], girMap: [], teeMap: [], pinHoles: [], noPin: 0, proxList: [], puttList: [],
-      sgTotal: 0,
+      sgTotal: 0, expTotal: 0, layupSG: 0, // v256: expTotal = benchmark's expected strokes for the counted holes; layupSG = raw SG of layup tee shots (left out of sgTotal)
       cats: { tee: { sg: 0, n: 0 }, approach: { sg: 0, n: 0 }, short: { sg: 0, n: 0 }, bunker: { sg: 0, n: 0 }, putting: { sg: 0, n: 0 } },
       buckets: {}, holes: []
     };
@@ -574,10 +574,11 @@
       });
       for (var q = S.puttList.length - pn; q < S.puttList.length; q++) S.puttList[q].holePutts = pn; // putts the hole ended with
       S.holesDone++; S.statHoles++; S.strokes += a.strokes; S.par += Number(h.par); S.puttHoles++;
+      S.expTotal += a.shots[0].eStart; // v256: expTotal - strokes = sgTotal + layupSG (strokes gained telescopes)
       S.girHoles++; if (a.gir) S.gir++;
       if (a.fairway !== null) { S.fwTotal++; if (a.fairway) S.fwHit++; }
       a.shots.forEach(function (r) {
-        if (r.layup) { S.layups = (S.layups || 0) + 1; if (r.side === 'L') { S.allLeft++; S.teeLeft++; } if (r.side === 'R') { S.allRight++; S.teeRight++; } return; }
+        if (r.layup) { S.layups = (S.layups || 0) + 1; S.layupSG += r.sgRaw || 0; if (r.side === 'L') { S.allLeft++; S.teeLeft++; } if (r.side === 'R') { S.allRight++; S.teeRight++; } return; }
         S.sgTotal += r.sg;
         S.cats[r.cat].sg += r.sg; S.cats[r.cat].n++;
         var B = S.buckets[r.bucket]; B.sg += r.sg; B.n++;
