@@ -1,4 +1,5 @@
 // Offline support: cache the whole app on install, serve cache-first.
+// v263: Dispersion rounds – Choose: pick a whole tournament (e.g. a 54-hole event) in one tap, or any rounds; a right-angle guide from the flag to the aim point with each arm measured.
 // v262: Dispersion › Pin location – Aim: Actual / Most greens / Best SG for whichever yardage groups are shown, in full screen too; the shots slide to the aim.
 // v261: Dispersion › Pin location easier to read – no text on the picture, each group drops at once then the next, one yellow ring around what's shown, a colour = yardage legend to show / hide groups; a pin always shows every group.
 // v260: Trends – chart notes behind (i), tap a chart for full screen (sideways on a phone); Dispersion › Pin location – the green only, each distance group drops in turn with its yardage and its own ring, groups on / off. Same on the coach site.
@@ -145,7 +146,7 @@
 // v113: "Courses near me" (near.js). The course finder list (data/us-courses.json, ~1.0 MB, ~0.28 MB gzipped) is NOT in this cache:
 // the app downloads it on first use into its own cache 'pinhigh-courselist-v1', which a new version keeps (so no re-download).
 // GolfCore scorecards (through the Pin High relay, pinhigh-golfcore.pinhigh.workers.dev) go straight to the network; the app saves each picked course with the saved courses.
-const CACHE = 'golf-sg-v262';
+const CACHE = 'golf-sg-v263';
 const ASSETS = ['./', './img/home-bg.webp', './img/oriole.webp', './tour/entry.webp', './tour/score.webp', './tour/rounds.webp', './tour/stats.webp', './tour/review.webp', './tour/mygame.webp', './tour/practice.webp', './tour/improve.webp', './index.html', './styles.css', './sg.js', './trends.js', './plan.js', './funfacts.js', './weekahead.js', './birdie.js', './courses.js', './near.js', './bag.js', './wedges.js', './live.js', './sync.js', './share.js', './story.js', './insights.js', './mygame.js', './shortgame.js', './shortgame-ui.js', './dispersion.js', './dispersion-ui.js', './replay-anim.js', './app.js', './config.js', './vendor/jspdf.umd.min.js',
   './manifest.webmanifest', './icons/apple-touch-icon.png', './icons/icon-192.png',
   './icons/icon-512.png', './icons/icon-512-maskable.png'];
