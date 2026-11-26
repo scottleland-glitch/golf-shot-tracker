@@ -568,23 +568,27 @@
         return '<button type="button" class="dsppg g' + g + (on ? ' on' : '') + '" ' + (how === 'fs' ? 'data-fsgrp' : 'data-act="dsprgrp" data-v') + '="' + g + '" aria-pressed="' + on + '" aria-label="' + PG_NAME[g] + ' ' + PG_RANGE[g] + ' yards, ' + n + ' shot' + (n === 1 ? '' : 's') + '"' + (n ? '' : ' disabled') + '><i></i><span><b>' + PG_RANGE[g] + '</b><em>' + n + ' shot' + (n === 1 ? '' : 's') + '</em></span></button>'; }).join('') + '</div>'; }
     // v263 (Scott): a right-angle guide from the flag to the aim point – across at the flag's depth, then up / back to the aim – each arm
     // measured in small crisp type, end ticks and a corner mark, so the adjustment reads like a survey drawing. dx / dy in yards (right / long +).
-    function aimGuide(ctx, X, Y, pin, dx, dy) {
+    function aimGuide(ctx, X, Y, pin, dx, dy) { // v263: dashed arms with end ticks; each label sits off its arm on a thin leader line
       var ax = Math.abs(dx) >= 0.5, ay = Math.abs(dy) >= 0.5; if (!ax && !ay) return;
-      var x0 = X(pin.x), y0 = Y(pin.y), xc = X(pin.x + dx), yc = y0, x1 = xc, y1 = Y(pin.y + dy), T = 4, ink = 'rgba(255,255,255,.96)';
-      ctx.save(); ctx.lineCap = 'butt'; ctx.shadowColor = 'rgba(0,0,0,.55)'; ctx.shadowBlur = 2; ctx.strokeStyle = ink; ctx.lineWidth = 1.25;
-      ctx.beginPath(); ctx.moveTo(x0, y0); ctx.lineTo(xc, yc); ctx.lineTo(x1, y1); ctx.stroke();
-      ctx.lineWidth = 1; ctx.beginPath(); // end ticks across each arm
-      if (ax) { ctx.moveTo(x0, y0 - T); ctx.lineTo(x0, y0 + T); if (!ay) { ctx.moveTo(xc, yc - T); ctx.lineTo(xc, yc + T); } }
-      if (ay) { ctx.moveTo(x1 - T, y1); ctx.lineTo(x1 + T, y1); if (!ax) { ctx.moveTo(x0 - T, y0); ctx.lineTo(x0 + T, y0); } }
-      if (ax && ay) { var sx = x0 < xc ? -1 : 1, sy = y1 < yc ? -1 : 1, q = 6; ctx.moveTo(xc + sx * q, yc); ctx.lineTo(xc + sx * q, yc + sy * q); ctx.lineTo(xc, yc + sy * q); } // the right-angle mark
+      var x0 = X(pin.x), y0 = Y(pin.y), xc = X(pin.x + dx), yc = y0, x1 = xc, y1 = Y(pin.y + dy), T = 3.5, ink = 'rgba(255,255,255,.95)';
+      ctx.save(); ctx.lineCap = 'butt'; ctx.shadowColor = 'rgba(0,0,0,.55)'; ctx.shadowBlur = 2; ctx.strokeStyle = ink; ctx.lineWidth = 1.25; ctx.setLineDash([4, 3]);
+      ctx.beginPath(); ctx.moveTo(x0, y0); ctx.lineTo(xc, yc); ctx.lineTo(x1, y1); ctx.stroke(); ctx.setLineDash([]);
+      ctx.lineWidth = 1; ctx.beginPath(); // end ticks
+      if (ax) { ctx.moveTo(x0, y0 - T); ctx.lineTo(x0, y0 + T); }
+      if (ay) { ctx.moveTo(x1 - T, y1); ctx.lineTo(x1 + T, y1); } else { ctx.moveTo(xc, yc - T); ctx.lineTo(xc, yc + T); }
+      if (!ax) { ctx.moveTo(x0 - T, y0); ctx.lineTo(x0 + T, y0); }
       ctx.stroke(); ctx.restore();
-      var tag = function (txt, cx, cy, ax2, ay2) { ctx.save(); ctx.font = '600 10.5px ui-monospace, "SF Mono", Menlo, Consolas, monospace'; ctx.textBaseline = 'middle'; ctx.textAlign = 'left';
-        var w = ctx.measureText(txt).width, h = 15, px = cx - (ax2 === 'c' ? w / 2 + 5 : ax2 === 'r' ? w + 10 : 0), py = cy - (ay2 === 'c' ? h / 2 : ay2 === 'b' ? h : 0);
-        ctx.fillStyle = 'rgba(12,28,18,.78)'; roundRect(ctx, px, py, w + 10, h, 4); ctx.fill(); ctx.strokeStyle = 'rgba(255,255,255,.35)'; ctx.lineWidth = 0.75; ctx.stroke();
-        ctx.fillStyle = '#fff'; ctx.fillText(txt, px + 5, py + h / 2 + 0.5); ctx.restore(); };
-      var n = function (v) { return Math.round(Math.abs(v)) + ' yd'; };
-      if (ax) tag(n(dx) + (dx < 0 ? ' left' : ' right'), Math.abs(xc - x0) > 130 ? (x0 + xc) / 2 : xc + (xc > x0 ? -7 : 7), yc + 7, Math.abs(xc - x0) > 130 ? 'c' : xc > x0 ? 'r' : 'l', 't'); // under the arm, clear of the flag and the other arm
-      if (ay) tag(n(dy) + (dy < 0 ? ' short' : ' long'), x1 + (x1 < x0 ? -7 : 7), (yc + y1) / 2, x1 < x0 ? 'r' : 'l', 'c');
+      // a label: box at (bx, by) anchored h = 'l' | 'r' | 'c', joined by a thin line to the point (px, py) on its arm
+      var tag = function (txt, px, py, bx, by, h) { ctx.save(); ctx.font = '600 10.5px ui-monospace, "SF Mono", Menlo, Consolas, monospace'; ctx.textBaseline = 'middle'; ctx.textAlign = 'left';
+        var w = ctx.measureText(txt).width + 10, hh = 15, L = h === 'c' ? bx - w / 2 : h === 'r' ? bx - w : bx, top = by - hh / 2;
+        var ex = Math.max(L, Math.min(L + w, px)), ey = Math.max(top, Math.min(top + hh, py)); // where the leader meets the box
+        ctx.strokeStyle = 'rgba(255,255,255,.85)'; ctx.lineWidth = 0.75; ctx.shadowColor = 'rgba(0,0,0,.5)'; ctx.shadowBlur = 1.5; ctx.beginPath(); ctx.moveTo(px, py); ctx.lineTo(ex, ey); ctx.stroke();
+        ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(px, py, 1.6, 0, 7); ctx.fill(); ctx.shadowBlur = 0;
+        ctx.fillStyle = 'rgba(12,28,18,.8)'; roundRect(ctx, L, top, w, hh, 4); ctx.fill(); ctx.strokeStyle = 'rgba(255,255,255,.35)'; ctx.stroke();
+        ctx.fillStyle = '#fff'; ctx.fillText(txt, L + 5, by + 0.5); ctx.restore(); };
+      var n = function (v) { return Math.round(Math.abs(v)) + ' yd'; }, right = xc > x0, down = y1 > yc;
+      if (ax) { var mx = (x0 + xc) / 2; tag(n(dx) + (dx < 0 ? ' left' : ' right'), mx, yc, mx + (right ? 8 : -8), yc + 24, right ? 'r' : 'l'); } // below (the flag is above), on the side away from the other arm
+      if (ay) { var my = (yc + y1) / 2; tag(n(dy) + (dy < 0 ? ' short' : ' long'), x1, my, x1 + (right ? 26 : -26), my + (down ? 6 : -6), right ? 'l' : 'r'); }
     }
     function roundRect(ctx, x, y, w, h, r) { ctx.beginPath(); ctx.moveTo(x + r, y); ctx.arcTo(x + w, y, x + w, y + h, r); ctx.arcTo(x + w, y + h, x, y + h, r); ctx.arcTo(x, y + h, x, y, r); ctx.arcTo(x, y, x + w, y, r); ctx.closePath(); }
     function gCam(W, H) { return { cx: 0, cy: -3.5, s: Math.min(W / 48, H / 50) }; }
