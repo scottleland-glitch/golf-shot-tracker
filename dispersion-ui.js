@@ -556,8 +556,9 @@
       var e = shown.length >= 5 ? D.ellipse(shown.map(function (q) { return { dx: q.dx, dy: q.dy }; })) : null;
       if (e && (moved || from) && mk > 0) { ctx.save(); ctx.strokeStyle = 'rgba(255,224,102,.7)'; ctx.lineWidth = 1.6; ctx.setLineDash([5, 4]); ctx.beginPath(); // where they really went
         ctx.ellipse(X(pin.x + e.cx), Y(pin.y + e.cy), e.rx * cam.s, e.ry * cam.s, -e.rot * Math.PI / 180, 0, 2 * Math.PI); ctx.stroke(); ctx.restore(); }
-      if (Math.abs(ox) > 0.3 || Math.abs(oy) > 0.3) aimGuide(ctx, X, Y, pin, ox, oy); // v263
-      if (Math.abs(ox) > 0.3 || Math.abs(oy) > 0.3) { var amx = X(pin.x + ox), amy = Y(pin.y + oy); ctx.save(); ctx.strokeStyle = '#fff'; ctx.lineWidth = 1.8; ctx.shadowColor = 'rgba(0,0,0,.5)'; ctx.shadowBlur = 2; // the aim point
+      var c0 = e ? { x: pin.x + e.cx, y: pin.y + e.cy } : pin; // v263 (Scott): the guide runs from the middle of the actual (dashed) ring to the middle of the new one – the move, same yards as the line under it
+      if (Math.abs(ox) > 0.3 || Math.abs(oy) > 0.3) aimGuide(ctx, X, Y, c0, ox, oy);
+      if (Math.abs(ox) > 0.3 || Math.abs(oy) > 0.3) { var amx = X(c0.x + ox), amy = Y(c0.y + oy); ctx.save(); ctx.strokeStyle = '#fff'; ctx.lineWidth = 1.8; ctx.shadowColor = 'rgba(0,0,0,.5)'; ctx.shadowBlur = 2; // the aim point
         ctx.beginPath(); ctx.arc(amx, amy, 7, 0, 7); ctx.stroke(); ctx.beginPath(); ctx.arc(amx, amy, 2, 0, 7); ctx.stroke(); ctx.restore(); }
       if (e && t > ellT) { var pr = Math.min(1, (t - ellT) / ELL); ctx.save(); ctx.strokeStyle = COL.ell; ctx.lineWidth = 2.4; ctx.shadowColor = 'rgba(0,0,0,.5)'; ctx.shadowBlur = 3; ctx.beginPath();
         ctx.ellipse(X(pin.x + ox + e.cx), Y(pin.y + oy + e.cy), e.rx * cam.s, e.ry * cam.s, -e.rot * Math.PI / 180, 0, 2 * Math.PI * pr); ctx.stroke(); ctx.restore(); }
@@ -570,10 +571,11 @@
     // measured in small crisp type, end ticks and a corner mark, so the adjustment reads like a survey drawing. dx / dy in yards (right / long +).
     function aimGuide(ctx, X, Y, pin, dx, dy) { // v263: dashed arms with end ticks; each label sits off its arm on a thin leader line
       var ax = Math.abs(dx) >= 0.5, ay = Math.abs(dy) >= 0.5; if (!ax && !ay) return;
-      var x0 = X(pin.x), y0 = Y(pin.y), xc = X(pin.x + dx), yc = y0, x1 = xc, y1 = Y(pin.y + dy), T = 3.5, ink = 'rgba(255,255,255,.95)';
-      ctx.save(); ctx.lineCap = 'butt'; ctx.shadowColor = 'rgba(0,0,0,.55)'; ctx.shadowBlur = 2; ctx.strokeStyle = ink; ctx.lineWidth = 1.25; ctx.setLineDash([4, 3]);
-      ctx.beginPath(); ctx.moveTo(x0, y0); ctx.lineTo(xc, yc); ctx.lineTo(x1, y1); ctx.stroke(); ctx.setLineDash([]);
-      ctx.lineWidth = 1; ctx.beginPath(); // end ticks
+      // pin = where the guide starts (the flag, or the middle of the actual ring); v263: solid black, white labels
+      var x0 = X(pin.x), y0 = Y(pin.y), xc = X(pin.x + dx), yc = y0, x1 = xc, y1 = Y(pin.y + dy), T = 4, ink = '#0b0f0c';
+      ctx.save(); ctx.lineCap = 'butt'; ctx.shadowColor = 'rgba(255,255,255,.4)'; ctx.shadowBlur = 1.5; ctx.strokeStyle = ink; ctx.lineWidth = 1.5;
+      ctx.beginPath(); ctx.moveTo(x0, y0); ctx.lineTo(xc, yc); ctx.lineTo(x1, y1); ctx.stroke();
+      ctx.lineWidth = 1.25; ctx.beginPath(); // end ticks
       if (ax) { ctx.moveTo(x0, y0 - T); ctx.lineTo(x0, y0 + T); }
       if (ay) { ctx.moveTo(x1 - T, y1); ctx.lineTo(x1 + T, y1); } else { ctx.moveTo(xc, yc - T); ctx.lineTo(xc, yc + T); }
       if (!ax) { ctx.moveTo(x0 - T, y0); ctx.lineTo(x0 + T, y0); }
@@ -582,10 +584,10 @@
       var tag = function (txt, px, py, bx, by, h) { ctx.save(); ctx.font = '600 10.5px ui-monospace, "SF Mono", Menlo, Consolas, monospace'; ctx.textBaseline = 'middle'; ctx.textAlign = 'left';
         var w = ctx.measureText(txt).width + 10, hh = 15, L = h === 'c' ? bx - w / 2 : h === 'r' ? bx - w : bx, top = by - hh / 2;
         var ex = Math.max(L, Math.min(L + w, px)), ey = Math.max(top, Math.min(top + hh, py)); // where the leader meets the box
-        ctx.strokeStyle = 'rgba(255,255,255,.85)'; ctx.lineWidth = 0.75; ctx.shadowColor = 'rgba(0,0,0,.5)'; ctx.shadowBlur = 1.5; ctx.beginPath(); ctx.moveTo(px, py); ctx.lineTo(ex, ey); ctx.stroke();
-        ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(px, py, 1.6, 0, 7); ctx.fill(); ctx.shadowBlur = 0;
-        ctx.fillStyle = 'rgba(12,28,18,.8)'; roundRect(ctx, L, top, w, hh, 4); ctx.fill(); ctx.strokeStyle = 'rgba(255,255,255,.35)'; ctx.stroke();
-        ctx.fillStyle = '#fff'; ctx.fillText(txt, L + 5, by + 0.5); ctx.restore(); };
+        ctx.strokeStyle = '#0b0f0c'; ctx.lineWidth = 0.9; ctx.beginPath(); ctx.moveTo(px, py); ctx.lineTo(ex, ey); ctx.stroke();
+        ctx.fillStyle = '#0b0f0c'; ctx.beginPath(); ctx.arc(px, py, 1.9, 0, 7); ctx.fill();
+        ctx.fillStyle = 'rgba(255,255,255,.94)'; roundRect(ctx, L, top, w, hh, 3); ctx.fill(); ctx.strokeStyle = '#0b0f0c'; ctx.lineWidth = 0.9; ctx.stroke();
+        ctx.fillStyle = '#0b0f0c'; ctx.fillText(txt, L + 5, by + 0.5); ctx.restore(); };
       var n = function (v) { return Math.round(Math.abs(v)) + ' yd'; }, right = xc > x0, down = y1 > yc;
       if (ax) { var mx = (x0 + xc) / 2; tag(n(dx) + (dx < 0 ? ' left' : ' right'), mx, yc, mx + (right ? 8 : -8), yc + 24, right ? 'r' : 'l'); } // below (the flag is above), on the side away from the other arm
       if (ay) { var my = (yc + y1) / 2; tag(n(dy) + (dy < 0 ? ' short' : ' long'), x1, my, x1 + (right ? 26 : -26), my + (down ? 6 : -6), right ? 'l' : 'r'); }
@@ -633,8 +635,11 @@
       if (showE && A.ell) { var e = A.ell, pr = from ? 1 : Math.min(1, (t - ellT) / ellDur);
         ctx.save(); ctx.strokeStyle = COL.ell; ctx.lineWidth = 2.2; ctx.shadowColor = 'rgba(0,0,0,.45)'; ctx.shadowBlur = 3; ctx.beginPath();
         ctx.ellipse(X(ax + e.cx), Y(ay + e.cy), e.rx * cam.s, e.ry * cam.s, -e.rot * Math.PI / 180, 0, 2 * Math.PI * pr); ctx.stroke(); ctx.restore(); }
-      if (showE && (Math.abs(ax - pin.x) > 0.5 || Math.abs(ay - pin.y) > 0.5)) aimGuide(ctx, X, Y, pin, ax - pin.x, ay - pin.y); // v263
-      if (showE && (Math.abs(ax - pin.x) > 0.5 || Math.abs(ay - pin.y) > 0.5)) { var mx = X(ax), my = Y(ay); ctx.save(); ctx.strokeStyle = '#fff'; ctx.lineWidth = 1.8; ctx.shadowColor = 'rgba(0,0,0,.5)'; ctx.shadowBlur = 2;
+      if (showE && A.ell && (Math.abs(ax - pin.x) > 0.5 || Math.abs(ay - pin.y) > 0.5)) { var ge = A.ell; ctx.save(); ctx.strokeStyle = 'rgba(255,224,102,.7)'; ctx.lineWidth = 1.6; ctx.setLineDash([5, 4]); ctx.beginPath(); // v263 the pattern at the flag, dashed
+        ctx.ellipse(X(pin.x + ge.cx), Y(pin.y + ge.cy), ge.rx * cam.s, ge.ry * cam.s, -ge.rot * Math.PI / 180, 0, 2 * Math.PI); ctx.stroke(); ctx.restore(); }
+      var gc0 = A.ell ? { x: pin.x + A.ell.cx, y: pin.y + A.ell.cy } : pin; // v263: from the middle of the pattern at the flag to the middle of the moved pattern
+      if (showE && (Math.abs(ax - pin.x) > 0.5 || Math.abs(ay - pin.y) > 0.5)) aimGuide(ctx, X, Y, gc0, ax - pin.x, ay - pin.y);
+      if (showE && (Math.abs(ax - pin.x) > 0.5 || Math.abs(ay - pin.y) > 0.5)) { var mx = X(gc0.x + ax - pin.x), my = Y(gc0.y + ay - pin.y); ctx.save(); ctx.strokeStyle = '#fff'; ctx.lineWidth = 1.8; ctx.shadowColor = 'rgba(0,0,0,.5)'; ctx.shadowBlur = 2;
         ctx.beginPath(); ctx.arc(mx, my, 7, 0, 7); ctx.stroke(); ctx.beginPath(); ctx.arc(mx, my, 2, 0, 7); ctx.stroke(); ctx.restore(); }
       // v250 (Scott: the label covered shots): no label on this picture – the line under it says the same
       return end;
