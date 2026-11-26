@@ -264,7 +264,22 @@
     var L = P.filter(function (p) { return p.pin === k; }).sort(function (a, b) { return distGroup(a.from) - distGroup(b.from) || a.from - b.from; }), A = summRounds(L), pin = pinOf(k);
     A.pin = k; A.yd = L.length ? Math.round(Math.max.apply(null, L.map(function (p) { return p.from; }))) : 150; A.groups = [0, 0, 0];
     if (A.ok) A.show = L.map(function (p) { var g = distGroup(p.from), f = fitToGreen(p, pin); A.groups[g]++; return Object.assign({}, p, { dx: f.dx, dy: f.dy, g: g }); });
+    if (A.ok && A.show.length >= 5) A.ell = ellipse(A.show); // v259: the ring matches the balls as drawn (it slides to the best aim)
     return A;
+  }
+  // v259 (Scott): the best aim from REAL finishes at one pin location. The shots to that pin (as drawn: A.show, measured from the flag, slid to
+  // agree with the real on / off the green) are taken as the player's pattern when firing at the flag. The pattern is moved as a group around
+  // the standard green to the aim that loses the fewest strokes (same search and tie rule as the sim's Best aim: within 0.03 a shot of the
+  // best counts as a tie, a tie goes to the flag). Gains are model differences added to what really happened, so the "at the flag" numbers
+  // stay the real ones: { aim, gain, move, sg / onPct / medFt (real), sg2 / onPct2 / medFt2 (aiming there) }. Needs 5+ shots.
+  var ROUND_BEST_MIN = 5;
+  function roundPinBest(A, k, SG, bl) {
+    if (!A || !A.ok || !A.show || A.show.length < ROUND_BEST_MIN) return null;
+    var pin = pinOf(k), P = A.show.map(function (p) { return { dx: p.dx, dy: p.dy }; }), yd = Math.round(median(A.show.map(function (p) { return p.from; }))) || 150;
+    var b = bestAim(pattern(P, Math.max(SG_N, P.length), 977 + P.length, 1), pin, yd, SG, bl), move = Math.abs(b.aim.x - pin.x) > 0.5 || Math.abs(b.aim.y - pin.y) > 0.5;
+    var gain = move ? b.gain : 0, dG = move ? b.res.greenPct - b.atPin.greenPct : 0, dF = move ? b.res.medFt - b.atPin.medFt : 0;
+    return { aim: move ? b.aim : { x: pin.x, y: pin.y }, gain: gain, move: move, pin: k,
+      sg: A.sg, onPct: A.onPct, medFt: A.medFt, sg2: A.sg + gain, onPct2: Math.max(0, Math.min(100, A.onPct + dG)), medFt2: Math.max(0, A.medFt + dF) };
   }
   // the 3 × 3 grid: { k: { n, onPct, sg, medFt } } plus noPin = shots on holes with no pin location set
   function roundPinGrid(P) { var o = {}; PINS.forEach(function (pin) { var L = P.filter(function (p) { return p.pin === pin.k; }); o[pin.k] = L.length ? { n: L.length, onPct: 100 * L.filter(function (p) { return p.on; }).length / L.length,
@@ -281,7 +296,7 @@
   var api = { GREEN: GREEN, PINS: PINS, PIN_ROWS: PIN_ROWS, PIN_NAME: PIN_NAME, pinOf: pinOf, MIN_SHOTS: MIN_SHOTS, SHOW: SHOW, CONF: CONF,
     num: num, parseOffline: parseOffline, bucket: bucket, parseCSV: parseCSV, guessMap: guessMap, toShots: toShots, clubGroups: clubGroups, median: median,
     validSessions: validSessions, mergeSessions: mergeSessions, buckets: buckets, points: points, stats: stats, ellipse: ellipse, pattern: pattern, rng: rng,
-    onGreen: onGreen, inEll: inEll, laneHalf: laneHalf, lieAt: lieAt, play: play, bestAim: bestAim, aimText: aimText, analyse: analyse, analysePts: analysePts, courseFactor: courseFactor, clubKey: clubKey, clubs: clubs, clubPoints: clubPoints, analyseClub: analyseClub, roundPoints: roundPoints, roundBuckets: roundBuckets, analyseRounds: analyseRounds, analyseRoundPin: analyseRoundPin, distGroup: distGroup, fitToGreen: fitToGreen, roundPinGrid: roundPinGrid, sgTone: sgTone };
+    onGreen: onGreen, inEll: inEll, laneHalf: laneHalf, lieAt: lieAt, play: play, bestAim: bestAim, aimText: aimText, analyse: analyse, analysePts: analysePts, courseFactor: courseFactor, clubKey: clubKey, clubs: clubs, clubPoints: clubPoints, analyseClub: analyseClub, roundPoints: roundPoints, roundBuckets: roundBuckets, analyseRounds: analyseRounds, analyseRoundPin: analyseRoundPin, distGroup: distGroup, fitToGreen: fitToGreen, roundPinGrid: roundPinGrid, roundPinBest: roundPinBest, ROUND_BEST_MIN: ROUND_BEST_MIN, sgTone: sgTone };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else root.DISP = api;
 })(this);
