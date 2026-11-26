@@ -135,10 +135,10 @@
       var bestL = d.byPin ? roundBestLine(A, pinName) : '';
       h += '<div class="frostcard bzcard dspplay"><div class="dspcvwrap" id="dspcvwrap">' + fsTop(d.byPin ? esc(pinName) + ' pins · ' + A.n + ' shot' + (A.n === 1 ? '' : 's') : 'From ' + s.ryd + ' yd · ' + A.n + ' shot' + (A.n === 1 ? '' : 's')) +
         '<canvas id="dspcv" aria-label="' + esc(d.byPin ? 'Where your ' + A.n + ' approaches to ' + pinName.toLowerCase() + ' pins finished' : 'Where your ' + A.n + ' approaches from ' + s.ryd + ' yd finished') + '"></canvas>' +
-        fsInfo(bestL || ('<b>' + (d.byPin ? esc(pinName) + ' pins' : 'From ' + s.ryd + ' yd') + '</b> · ' + Math.round(A.onPct) + '% on the green · ' + Math.round(A.medFt) + '’ median · ' + sgTxt(A.sg))) +
+        fsInfo((d.byPin ? pgToggles(A, 'fs') : '') + (bestL || ('<b>' + (d.byPin ? esc(pinName) + ' pins' : 'From ' + s.ryd + ' yd') + '</b> · ' + Math.round(A.onPct) + '% on the green · ' + Math.round(A.medFt) + '’ median · ' + sgTxt(A.sg)))) +
         '<div class="dspcap sr" id="dspcap" aria-live="polite"><b>' + (d.byPin ? esc(pinName) + ' pins' : 'From ' + s.ryd + ' yd') + '</b><span>' + Math.round(A.onPct) + '% on the green · ' + Math.round(A.medFt) + '’ median</span></div></div>' +
         '<div class="dspctl"><button class="dspgo" id="dspgo" data-act="dspplay">▶ Play</button></div>' +
-        (d.byPin ? '<p class="dsplegend"><span><span class="dspk w"></span>under 120 yd' + (A.groups ? ' · ' + A.groups[0] : '') + '</span><span><span class="dspk r"></span>120–169' + (A.groups ? ' · ' + A.groups[1] : '') + '</span><span><span class="dspk bl"></span>170+' + (A.groups ? ' · ' + A.groups[2] : '') + '</span>' + (A.ell ? '<span><span class="dspk e"></span>8 of 10 shots</span>' : '') + (A.best && A.best.move ? '<span>◎ best aim</span>' : '') + '</p><p class="muted dspnote">On or off the drawn green = where each ball really finished.' + (A.best && A.best.move ? ' Then the pattern slides to the best aim (the dashed ring stays where they really went) and balls that miss the green there fade.' : '') + '</p>' + bestL
+        (d.byPin ? pgToggles(A, 'act') + '<p class="muted dspnote">On or off the drawn green = where each ball really finished. Each ring holds 8 of 10 shots in that group (3+ shots).</p>' + bestL
           : '<p class="dsplegend"><span><span class="dspk w"></span>on the green</span><span><span class="dspk r"></span>missed</span>' + (A.ell ? '<span><span class="dspk e"></span>8 of 10 shots</span>' : '') + '</p>') +
         '<p class="muted dspsrc" id="dspsrc">Your ' + A.n + ' approach' + (A.n === 1 ? '' : 'es') + (d.byPin ? ' to ' + esc(pinName.toLowerCase()) + ' pins, all distances' : ' from ' + (s.ryd - 5) + '–' + (s.ryd + 4) + ' yd') + ' (fairway or tee' + (d.play === 'tournament' ? ', tournaments' : '') + ') · where they finished' + nd + '</p></div>';
       var pct = function (v, l) { return '<div><b>' + v + '%</b><span>' + l + '</span></div>'; };
@@ -238,6 +238,7 @@
       if (a === 'dspyd') { s.yd = +v; anim = { play: true }; gAnim = null; keepScroll(); return; }
       if (a === 'dspclub') { s.club = v; anim = { play: true }; gAnim = null; keepScroll(); return; } // v247
       if (a === 'dspryd') { s.ryd = +v; anim = { play: true }; keepScroll(); return; }
+      if (a === 'dsprgrp') { pgToggle(+v); return; } // v260: a distance group on / off
       if (a === 'dsprpin') { s.rpin = v; anim = { play: true }; openFs('top'); keepScroll(); return; } // v259: plays full screen // v249: grid and picture share the screen
       if (a === 'dspsrc') { setOpt('src', v === 'rounds' || v === 'pins' ? v : 'sim'); anim = null; gAnim = null; keepScroll(); return; }
       if (a === 'dsprplay') { setOpt('play', v === 'tournament' ? 'tournament' : 'all'); anim = null; keepScroll(); return; }
@@ -335,6 +336,7 @@
     // The picture's box is moved to <body> while full screen (the frosted cards' backdrop-filter would trap position: fixed).
     function fsId() { return fs === 'green' ? 'dspgwrap' : 'dspcvwrap'; }
     function openFs(which) { if (!fs) fsY = window.scrollY || 0; fs = which; }
+    function pgToggle(g) { var s = S(), o = (s.rgoff || [false, false, false]).slice(); o[g] = !o[g]; s.rgoff = o; anim = null; keepScroll(); } // redraws, finished
     function closeFs() {
       if (!fs) return; fs = null; [].forEach.call(document.querySelectorAll('body > .dspfs'), function (n) { n.parentNode.removeChild(n); });
       document.body.classList.remove('dspfsopen'); anim = null; gAnim = null; gen++; gGen++; env.render(); window.scrollTo(0, fsY);
@@ -346,6 +348,7 @@
       document.body.classList.add('dspfsopen'); if (cur.parentNode !== document.body) { cur.classList.add('dspfs'); document.body.appendChild(cur); }
       if (cur._fsb) return; cur._fsb = 1;
       var x = cur.querySelector('.dspfsx'); if (x) x.addEventListener('click', function (ev) { ev.preventDefault(); ev.stopPropagation(); closeFs(); });
+      [].forEach.call(cur.querySelectorAll('[data-fsgrp]'), function (bt) { bt.addEventListener('click', function (ev) { ev.preventDefault(); ev.stopPropagation(); pgToggle(+bt.getAttribute('data-fsgrp')); }); }); // v260
       var y0 = null, dy = 0, t0 = 0;
       cur.addEventListener('touchstart', function (ev) { if (ev.touches.length !== 1) { y0 = null; return; } y0 = ev.touches[0].clientY; dy = 0; t0 = Date.now(); cur.style.transition = 'none'; }, { passive: true });
       cur.addEventListener('touchmove', function (ev) { if (y0 == null) return; dy = Math.max(0, ev.touches[0].clientY - y0); cur.style.transform = dy ? 'translateY(' + dy + 'px)' : ''; cur.style.opacity = String(1 - Math.min(0.5, dy / 700)); if (ev.cancelable) ev.preventDefault(); }, { passive: false });
@@ -380,6 +383,13 @@
       if (rafId) cancelAnimationFrame(rafId); rafId = 0; var my = ++gen;
       var s = S(), reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
       if (A.rounds) s = { pin: A.pin || 'center' }; // v247: round finishes around the pin, drawn at the centre; v248 a pin location's shots at that pin on the green
+      if (A.rounds && A.pin) { // v260 (Scott): pin location = the green only, one distance group at a time, balls drop and hop like the sim's
+        var pin0 = D.pinOf(A.pin), vis = pgVis(), cam0 = fitClose(W, H, { show: A.show.filter(function (p) { return vis[p.g]; }), ell: null }, pin0, gCam(W, H), true, 30 + 24 * pgGroups(A, vis).length);
+        if (!anim || !anim.play || reduce) { pgFrame(ctx, W, H, cam0, A, pin0, 1e9, vis); anim = null; return; } anim = null; var tp0 = performance.now();
+        var pstep = function (now) { if (my !== gen) return; if (!document.getElementById('dspcv') || view.screen !== 'disp') { rafId = 0; return; }
+          var t = (now - tp0) / 1000, end = pgFrame(ctx, W, H, cam0, A, pin0, t, vis); if (t > end) { rafId = 0; return; } rafId = requestAnimationFrame(pstep); };
+        rafId = requestAnimationFrame(pstep); return;
+      }
       var order = anim && anim.all && !A.rounds ? D.PINS.map(function (p) { return p.k; }) : [s.pin];
       if (!anim || !anim.play || reduce) { frame(ctx, W, H, A, D.pinOf(s.pin), 1e9, true, d); anim = null; return; }
       var st = { i: 0, t0: performance.now(), quick: !!anim.quick, order: order }; anim = null;
@@ -450,6 +460,46 @@
     }
     function rr(ctx, x, y, w, h, r) { ctx.beginPath(); ctx.moveTo(x + r, y); ctx.arcTo(x + w, y, x + w, y + h, r); ctx.arcTo(x + w, y + h, x, y + h, r); ctx.arcTo(x, y + h, x, y, r); ctx.arcTo(x, y, x + w, y, r); ctx.closePath(); }
     // ---------- Approach strategy: the green, 9 pins, balls dropping in on the chosen one ----------
+    // ---------- v260 (Scott): Pin location – zoomed on the green. Each distance group in turn: its yardage appears at the top in the balls'
+    // colour (white under 120, red 120–169, blue 170+), its balls drop onto the green and hop, then its own 8-of-10 ring. Buttons turn groups on / off.
+    var PG_NAME = ['Under 120 yd', '120–169 yd', '170+ yd'];
+    function pgVis() { var o = S().rgoff || []; return [!o[0], !o[1], !o[2]]; }
+    function pgGroups(A, vis) { return [0, 1, 2].filter(function (g) { return vis[g] && A.show.some(function (p) { return p.g === g; }); }).map(function (g) {
+      var L = A.show.filter(function (p) { return p.g === g; }), F = L.map(function (p) { return Math.round(p.from); }), lo = Math.min.apply(null, F), hi = Math.max.apply(null, F);
+      return { g: g, L: L, ell: L.length >= 3 ? D.ellipse(L.map(function (p) { return { dx: p.dx, dy: p.dy }; })) : null, txt: (lo === hi ? lo : lo + '–' + hi) + ' yd · ' + L.length + ' shot' + (L.length === 1 ? '' : 's') }; }); }
+    function pgFrame(ctx, W, H, cam, A, pin, t, vis) {
+      var P = drawScene(ctx, W, H, cam, A.yd, pin, true), X = P.X, Y = P.Y, bs = Math.max(2.6, Math.min(5, 0.6 * cam.s)), G = pgGroups(A, vis);
+      var LBL = 0.55, FALL = 0.32, SPREAD = 0.8, HOP = [[0.2, 10], [0.14, 3.5]], settle = FALL + SPREAD + HOP[0][0] + HOP[1][0], ELL = 0.5, GAP = 0.25, per = LBL + settle + ELL + GAP;
+      G.forEach(function (gr, k) {
+        var tg = t - k * per, n = gr.L.length, gc = GCOL[gr.g]; if (tg < 0) return;
+        gr.L.forEach(function (q, i) {
+          var lx = pin.x + q.dx, ly = pin.y + q.dy, u = tg - LBL - SPREAD * i / Math.max(1, n); if (u <= 0) return;
+          var bx = edgeClamp(X(lx), 7, W - 7), by = edgeClamp(Y(ly), 7, H - 7), lift = 0, sc = 1;
+          if (u < FALL) { var f = u / FALL; lift = (1 - f) * (1 - f) * 40; sc = 1 + 0.9 * (1 - f); ctx.fillStyle = 'rgba(0,0,0,' + (0.12 + 0.2 * f).toFixed(2) + ')'; ctx.beginPath(); ctx.arc(bx, by, bs * (0.6 + 0.5 * f), 0, 7); ctx.fill(); }
+          else { var a = u - FALL; for (var j = 0; j < HOP.length; j++) { if (a < HOP[j][0]) { var z = a / HOP[j][0]; lift = 4 * z * (1 - z) * HOP[j][1]; break; } a -= HOP[j][0]; }
+            if (lift > 0.3) { ctx.fillStyle = 'rgba(0,0,0,.22)'; ctx.beginPath(); ctx.arc(bx, by, bs * 0.8, 0, 7); ctx.fill(); } }
+          ctx.fillStyle = gc.fill; ctx.strokeStyle = gc.edge; ctx.lineWidth = 0.9; ctx.beginPath(); ctx.arc(bx, by - lift, bs * sc, 0, 7); ctx.fill(); ctx.stroke();
+        });
+        var te = tg - LBL - settle; if (gr.ell && te > 0) { var e = gr.ell, pr = Math.min(1, te / ELL);
+          ctx.save(); ctx.strokeStyle = gc.fill; ctx.lineWidth = 2.4; ctx.shadowColor = 'rgba(0,0,0,.55)'; ctx.shadowBlur = 3; ctx.beginPath();
+          ctx.ellipse(X(pin.x + e.cx), Y(pin.y + e.cy), e.rx * cam.s, e.ry * cam.s, -e.rot * Math.PI / 180, 0, 2 * Math.PI * pr); ctx.stroke(); ctx.restore(); }
+      });
+      // the flag on top of the balls
+      var fx = X(pin.x), fy = Y(pin.y), fh = 26; ctx.fillStyle = '#111'; ctx.beginPath(); ctx.arc(fx, fy, 2.4, 0, 7); ctx.fill();
+      ctx.strokeStyle = '#fff'; ctx.lineWidth = 1.6; ctx.beginPath(); ctx.moveTo(fx, fy); ctx.lineTo(fx, fy - fh); ctx.stroke();
+      ctx.fillStyle = COL.red; ctx.strokeStyle = 'rgba(0,0,0,.4)'; ctx.lineWidth = 0.8; ctx.beginPath(); ctx.moveTo(fx, fy - fh); ctx.lineTo(fx + 14, fy - fh + 5); ctx.lineTo(fx, fy - fh + 10); ctx.closePath(); ctx.fill(); ctx.stroke();
+      // the yardage of each group at the top, in its balls' colour – the one dropping now is big, then it joins the list
+      var big = Math.max(18, Math.min(30, W / 15)), sm = Math.max(14, Math.min(18, W / 24)), y = 10;
+      G.forEach(function (gr, k) { var tg = t - k * per; if (tg < 0) return; var gc = GCOL[gr.g], cur = tg < per - GAP && k <= G.length - 1 && t < G.length * per - GAP, a = Math.min(1, tg / 0.25);
+        var fs = cur ? big : sm, label = gr.txt; ctx.save(); ctx.globalAlpha = a; ctx.font = '700 ' + fs + 'px -apple-system, system-ui, sans-serif'; ctx.textBaseline = 'top'; ctx.textAlign = 'left';
+        var w = ctx.measureText(label).width, x = Math.max(8, (W - w) / 2); ctx.fillStyle = 'rgba(0,0,0,.42)'; roundRect(ctx, x - 8, y - 4, w + 16, fs + 9, 8); ctx.fill();
+        ctx.fillStyle = gc.fill; ctx.fillText(label, x, y); ctx.restore(); y += fs + 12; });
+      return G.length * per;
+    }
+    function pgToggles(A, how) { var vis = pgVis();
+      return '<div class="dsppgt' + (how === 'fs' ? ' fs' : '') + '" role="group" aria-label="Distance groups">' + [0, 1, 2].map(function (g) { var n = A.groups ? A.groups[g] : 0, on = vis[g] && n > 0;
+        return '<button type="button" class="dsppg g' + g + (on ? ' on' : '') + '" ' + (how === 'fs' ? 'data-fsgrp' : 'data-act="dsprgrp" data-v') + '="' + g + '" aria-pressed="' + on + '"' + (n ? '' : ' disabled') + '><i></i>' + PG_NAME[g] + ' · ' + n + '</button>'; }).join('') + '</div>'; }
+    function roundRect(ctx, x, y, w, h, r) { ctx.beginPath(); ctx.moveTo(x + r, y); ctx.arcTo(x + w, y, x + w, y + h, r); ctx.arcTo(x + w, y + h, x, y + h, r); ctx.arcTo(x, y + h, x, y, r); ctx.arcTo(x, y, x + w, y, r); ctx.closePath(); }
     function gCam(W, H) { return { cx: 0, cy: -3.5, s: Math.min(W / 48, H / 50) }; }
     function mountGreen() {
       var cv = document.getElementById('dspgc'); if (!cv) return; var d = data(), A = d.A; if (!A || !A.ok) return;

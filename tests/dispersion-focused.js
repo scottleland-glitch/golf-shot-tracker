@@ -74,11 +74,18 @@ console.log('  ✓ engine');
     assert.strictEqual(await page.$('#dsprgrid'), null, 'no grid in Rounds'); await page.click('[data-act="dspsrc"][data-v="pins"]'); await page.waitForSelector('#dsprgrid'); assert.strictEqual(await page.$('#dspyds'), null, 'no distance chips in Pin location');
     assert.ok(await page.$('#dsprgrid'), 'pin grid'); assert.strictEqual(await page.$$eval('#dsprgrid .dspcell', e => e.length), 9); assert.match(await page.textContent('#dsprgrid'), /without a pin location/);
     const cell = await page.$('#dsprgrid .dspcell[data-act="dsprpin"]'); const ck = await cell.getAttribute('data-v'); await cell.click(); await page.waitForTimeout(300);
-    assert.ok(await page.$('#dsprgrid .dspcell.sel[data-v="' + ck + '"]')); assert.match(await page.textContent('#dspsrc, #dspfew'), / to .* pins/); await shot('18-rounds-pin', true);
+    assert.ok(await page.$('#dsprgrid .dspcell.sel[data-v="' + ck + '"]')); assert.match(await page.textContent('#dspsrc, #dspfew'), / to .* pins/); await shot('18-rounds-pin');
     // v259 a pin tap plays full screen; swipe down closes it
     assert.ok(await page.$('body > .dspfs #dspcv'), 'pin tap -> picture full screen'); assert.ok(await page.evaluate(() => document.body.classList.contains('dspfsopen')));
     const fsr = await page.evaluate(() => { const r = document.getElementById('dspcv').getBoundingClientRect(); return [r.width, r.height, innerWidth, innerHeight]; }); assert.ok(fsr[0] === fsr[2] && fsr[1] > fsr[3] * 0.6, 'fills the screen: ' + fsr);
-    await page.waitForTimeout(9000); await page.screenshot({ path: OUT + '/20-pin-fullscreen.png' });
+    // v260 the green only: groups drop in one at a time, then group buttons
+    for (const [ms, n] of [[700, '20a-group1'], [1400, '20b-group1-ring'], [1600, '20c-group2']]) { await page.waitForTimeout(ms); await page.screenshot({ path: OUT + '/' + n + '.png' }); }
+    await page.waitForTimeout(6000); await page.screenshot({ path: OUT + '/20-pin-fullscreen.png' });
+    const gb = await page.$$eval('.dspfs .dsppgt.fs .dsppg', (e) => e.map((x) => x.textContent + (x.classList.contains('on') ? '*' : '')));
+    assert.strictEqual(gb.length, 3); assert.match(gb[0], /^Under 120 yd · \d+/); assert.match(gb[1], /^120–169 yd/); assert.match(gb[2], /^170\+ yd/);
+    const first = await page.$('.dspfs .dsppg.on'); const fg = await first.getAttribute('data-fsgrp'); await first.click(); await page.waitForTimeout(300);
+    assert.ok(await page.$('body > .dspfs #dspcv'), 'stays full screen'); assert.ok(!(await page.$('.dspfs .dsppg[data-fsgrp="' + fg + '"].on')), 'group off'); await page.screenshot({ path: OUT + '/22-group-off.png' });
+    await page.click('.dspfs .dsppg[data-fsgrp="' + fg + '"]'); await page.waitForTimeout(300); assert.ok(await page.$('.dspfs .dsppg[data-fsgrp="' + fg + '"].on'), 'group back on');
     await page.evaluate(() => { const w = document.querySelector('.dspfs'), T = (y) => new Touch({ identifier: 1, target: w, clientX: 200, clientY: y });
       w.dispatchEvent(new TouchEvent('touchstart', { touches: [T(200)], bubbles: true })); w.dispatchEvent(new TouchEvent('touchmove', { touches: [T(420)], bubbles: true, cancelable: true })); w.dispatchEvent(new TouchEvent('touchend', { touches: [], bubbles: true })); });
     await page.waitForTimeout(500); assert.strictEqual(await page.$('.dspfs'), null, 'swipe down closes'); assert.ok(await page.$('#dsprgrid #dspcv, .dspplay #dspcv'), 'picture back on the page');

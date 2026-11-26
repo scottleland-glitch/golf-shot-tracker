@@ -277,9 +277,10 @@
     if (!A || !A.ok || !A.show || A.show.length < ROUND_BEST_MIN) return null;
     var pin = pinOf(k), P = A.show.map(function (p) { return { dx: p.dx, dy: p.dy }; }), yd = Math.round(median(A.show.map(function (p) { return p.from; }))) || 150;
     var b = bestAim(pattern(P, Math.max(SG_N, P.length), 977 + P.length, 1), pin, yd, SG, bl), move = Math.abs(b.aim.x - pin.x) > 0.5 || Math.abs(b.aim.y - pin.y) > 0.5;
-    var gain = move ? b.gain : 0, dG = move ? b.res.greenPct - b.atPin.greenPct : 0, dF = move ? b.res.medFt - b.atPin.medFt : 0;
-    return { aim: move ? b.aim : { x: pin.x, y: pin.y }, gain: gain, move: move, pin: k,
-      sg: A.sg, onPct: A.onPct, medFt: A.medFt, sg2: A.sg + gain, onPct2: Math.max(0, Math.min(100, A.onPct + dG)), medFt2: Math.max(0, A.medFt + dF) };
+    var one = function (aim, res, kind) { var mv = Math.abs(aim.x - pin.x) > 0.5 || Math.abs(aim.y - pin.y) > 0.5, gain = mv ? res.sg - b.atPin.sg : 0, dG = mv ? res.greenPct - b.atPin.greenPct : 0, dF = mv ? res.medFt - b.atPin.medFt : 0;
+      return { kind: kind, aim: mv ? aim : { x: pin.x, y: pin.y }, gain: gain, move: mv, pin: k,
+        sg: A.sg, onPct: A.onPct, medFt: A.medFt, sg2: A.sg + gain, onPct2: Math.max(0, Math.min(100, A.onPct + dG)), medFt2: Math.max(0, A.medFt + dF) }; };
+    var o = one(b.aim, b.res, 'sg'); o.gir = one(b.gir.aim, b.gir, 'gir'); return o; // v260: the most-greens aim too (Aim: Actual / Most greens / Best SG)
   }
   // the 3 × 3 grid: { k: { n, onPct, sg, medFt } } plus noPin = shots on holes with no pin location set
   function roundPinGrid(P) { var o = {}; PINS.forEach(function (pin) { var L = P.filter(function (p) { return p.pin === pin.k; }); o[pin.k] = L.length ? { n: L.length, onPct: 100 * L.filter(function (p) { return p.on; }).length / L.length,
