@@ -23,6 +23,7 @@ assert.deepStrictEqual(D.clubGroups(TS).map(x => x.club + ':' + x.target), ['8 I
   const A9 = D.analyseRoundPin(L, 'frontright'), B9 = D.roundPinBest(A9, 'frontright', SG, 'scm');
   assert.ok(B9.move && B9.aim.x < 7 && B9.aim.y > -9.5 && B9.gain > 0.03 && B9.sg2 > B9.sg && B9.onPct2 > B9.onPct, 'best aim from real finishes: ' + JSON.stringify(B9));
   assert.strictEqual(D.roundPinBest(D.analyseRoundPin(L.slice(0, 4), 'frontright'), 'frontright', SG, 'scm'), null, 'needs 5+ shots'); }
+assert.deepStrictEqual([35, 79, 80, 119, 120, 159, 160, 215].map(D.distGroup), [0, 0, 1, 1, 2, 2, 3, 3], 'v260 groups: short wedge <80, long wedge 80–119, mid 120–159, long 160+');
 console.log('  ✓ engine');
 (async () => {
   const srv = process.env.NO_SERVER ? null : spawn('python3', ['-m', 'http.server', '8797', '--bind', '127.0.0.1'], { cwd: REPO, stdio: 'ignore' }); await new Promise(r => setTimeout(r, 1500));
@@ -82,7 +83,7 @@ console.log('  ✓ engine');
     for (const [ms, n] of [[700, '20a-group1'], [1400, '20b-group1-ring'], [1600, '20c-group2']]) { await page.waitForTimeout(ms); await page.screenshot({ path: OUT + '/' + n + '.png' }); }
     await page.waitForTimeout(6000); await page.screenshot({ path: OUT + '/20-pin-fullscreen.png' });
     const gb = await page.$$eval('.dspfs .dsppgt.fs .dsppg', (e) => e.map((x) => x.textContent + (x.classList.contains('on') ? '*' : '')));
-    assert.strictEqual(gb.length, 3); assert.match(gb[0], /^Under 120 yd · \d+/); assert.match(gb[1], /^120–169 yd/); assert.match(gb[2], /^170\+ yd/);
+    assert.strictEqual(gb.length, 4); assert.match(gb[0], /^Short wedge · \d+40–80 yd/); assert.match(gb[1], /^Long wedge · \d+80–120 yd/); assert.match(gb[2], /^Mid approach · \d+120–160 yd/); assert.match(gb[3], /^Long approach · \d+160–200 yd/);
     const first = await page.$('.dspfs .dsppg.on'); const fg = await first.getAttribute('data-fsgrp'); await first.click(); await page.waitForTimeout(300);
     assert.ok(await page.$('body > .dspfs #dspcv'), 'stays full screen'); assert.ok(!(await page.$('.dspfs .dsppg[data-fsgrp="' + fg + '"].on')), 'group off'); await page.screenshot({ path: OUT + '/22-group-off.png' });
     await page.click('.dspfs .dsppg[data-fsgrp="' + fg + '"]'); await page.waitForTimeout(300); assert.ok(await page.$('.dspfs .dsppg[data-fsgrp="' + fg + '"].on'), 'group back on');
