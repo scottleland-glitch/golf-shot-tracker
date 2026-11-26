@@ -2872,24 +2872,22 @@
     var pr = practiceOn(who); // v209: practice off → Trends from rounds alone
     return TRENDS.build(all, pr ? practiceOf(who) : [], SG, MYGAME, { bl: bl, weeks: 26, tests: tests, roundsOnly: !pr });
   }
-  // v197: the rounds behind one week's dot – score for the total, that area's strokes gained for an area
+  // v197: tap a dot; v258 (Scott): a dot is one round – its date, course, tournament or not, and its number
   function trWeekHTML(TD, A, total) {
-    var T = view.trTap; if (!T || T.k !== A.k) return ''; var list = (TD.rounds[T.i] || []), sp = total ? null : (TRENDS.AREAS.filter(function (a) { return a.k === A.k; })[0] || {}).spokes || [];
-    var dd = function (t) { return new Date(t).toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' }); }, sgf = function (v) { return Math.abs(v) < 0.05 ? '0.0' : (v > 0 ? '+' : '−') + Math.abs(v).toFixed(1); };
-    var rows = list.map(function (r) { var val;
-      if (total) val = r.score != null ? String(r.score) : r.holes + ' holes – not in the score';
-      else { var n = 0, g = 0; sp.forEach(function (k) { if (r.n[k]) { n += r.n[k]; g += r.sg[k]; } }); val = n ? sgf(g / r.holes * 18) + (r.holes < 18 ? ' (' + r.holes + ' holes, per 18)' : '') : 'no ' + A.name.toLowerCase() + ' shots'; }
-      return '<li><span>' + esc(dd(r.date)) + ' · ' + esc(r.course || 'Round') + '</span><b>' + esc(val) + '</b></li>'; }).join('');
-    var avg = A.y[T.i], head = 'Week of ' + new Date(TD.weeks[T.i]).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) + (avg != null ? ' · ' + (list.length > 1 ? 'average ' : '') + (total ? Math.round(avg * 10) / 10 : sgf(avg)) : '');
-    return '<div class="trwk" id="trwk"><div class="trwkh"><b>' + esc(head) + '</b><button class="txt" data-act="trwk" data-v="" aria-label="Close">✕</button></div><ul>' + (rows || '<li><span>No rounds this week</span></li>') + '</ul></div>';
+    var T = view.trTap; if (!T || T.k !== A.k) return ''; var p = (A.pts || []).filter(function (q) { return q.id === T.id; })[0]; if (!p) return '';
+    var sgf = function (v) { return Math.abs(v) < 0.05 ? '0.0' : (v > 0 ? '+' : '−') + Math.abs(v).toFixed(1); };
+    var val = total ? String(Math.round(p.v * 10) / 10) + (p.holes < 18 ? ' (' + p.holes + ' holes, as 18)' : '') : sgf(p.v) + (p.holes < 18 ? ' (' + p.holes + ' holes, per 18)' : '');
+    var head = new Date(p.t).toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' }) + ' · ' + (p.course || 'Round');
+    return '<div class="trwk" id="trwk"><div class="trwkh"><b>' + esc(head) + '</b><button class="txt" data-act="trwk" data-v="" aria-label="Close">✕</button></div><ul>' +
+      '<li><span>' + (p.tour ? 'Tournament' : 'Round') + '</span><b>' + esc(val) + '</b></li><li><span>Average of the last 3 rounds then</span><b>' + esc(total ? String(Math.round(p.avg * 10) / 10) : sgf(p.avg)) + '</b></li></ul></div>';
   }
   var TR_ZOOM = [['8', '8 weeks', 8], ['13', '3 months', 13], ['26', '6 months', 26]];
   function trendsHTML() {
-    var who = view.trWho || mgWho(), TD = trendsData(who), np = TR_NP = !practiceOn(who), z = TR_ZOOM.filter(function (x) { return x[0] === view.trZoom; })[0] || TR_ZOOM[0];
+    var who = view.trWho || mgWho(), TD = trendsData(who), np = TR_NP = !practiceOn(who), nowSet = TRD_NOW = TD.now, z = TR_ZOOM.filter(function (x) { return x[0] === view.trZoom; })[0] || TR_ZOOM[0];
     var h = '<div class="frostpage theme-sky mygamepage trendspage" id="trendspage"><div class="topbar frost"><button class="txt frostbtn" data-act="trback" id="trback">‹ ' + (view.trFrom === 'practice' ? 'Practice' : view.trFrom === 'home' ? 'Home' : 'My Game') + '</button><div class="title"><b>Trends</b><span>' + esc(who || '') + '</span></div><span class="tbsp"></span></div>';
     // v218 (Scott): one dashed line, 3 weeks out – no band, no confidence
-    h += '<p class="trlede" id="trlede">Solid: the average of your last 3 rounds' + (np ? '' : ', practice underneath') + '. Dashed: where you\'re heading over the next ' + TRENDS.CFG.ahead + ' weeks. Filled dots are tournaments' + (np ? ', open dots other rounds' : ', open dots practice rounds') + '.</p>';
-    h += '<p class="trpatience" id="trpatience">The dashed line starts after ' + TRENDS.CFG.minRounds + ' rounds. Tap a week to see its rounds.</p>';
+    h += '<p class="trlede" id="trlede">Each dot is a round – <span class="trkey tour"></span>tournament, <span class="trkey"></span>other. Solid: the average of your last 3 rounds. Dashed: where you\'re heading over the next ' + TRENDS.CFG.ahead + ' weeks.' + (np ? '' : ' Practice underneath holds steady on playing days <span class="trkey golf"></span> – playing is practice.') + '</p>';
+    h += '<p class="trpatience" id="trpatience">The dashed line starts after ' + TRENDS.CFG.minRounds + ' rounds. Tap a dot to see the round.</p>';
     h += '<div class="stseg mgseg trzoom" id="trzoom" role="group" aria-label="Zoom">' + TR_ZOOM.map(function (x) { var on = x === z; return '<button class="' + (on ? 'sel' : '') + '" data-act="trzoom" data-v="' + x[0] + '" aria-pressed="' + on + '">' + x[1] + '</button>'; }).join('') + '</div>';
     var end = TD.now + TRENDS.CFG.ahead * 7 * 864e5, endTxt = new Date(end).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
     var card = function (A, total) {
@@ -2906,13 +2904,13 @@
         trendChartSVG(A, TD.weeks, z[2], total) + trWeekHTML(TD, A, total) + '<p class="trfoot trwhy"><b>Why:</b> ' + esc(trWhy(A, total)) + '</p></div>';
     };
     h += card(TD.total, true) + TD.areas.map(function (A) { return card(A, false); }).join('');
-    h += '<p class="help muted trnote">The line starts from your recent rounds (tournaments count fully, ' + (np ? 'other' : 'practice') + ' rounds half) and leans toward your last short game test' + (np ? '' : ', then bends with your practice over the last 2 weeks – more so in an area where you\'re losing strokes') + '. Any one round can land well either side.</p>';
+    h += '<p class="help muted trnote">The dashed line starts from the average of your last 3 rounds and leans toward your last short game test' + (np ? '' : ', then bends with your practice over the last 2 weeks against your normal week – playing days count as practice, and it counts more in an area where you\'re losing strokes') + '. Any one round can land well either side.</p>';
     return h + '</div>';
   }
   // v218: the "Why" under each line, in plain words
   function trWhy(A, total) {
     var P = [], sgf = function (v) { return (v >= 0 ? '+' : '−') + Math.abs(v).toFixed(1); }, end = A.fc[A.fc.length - 1], from = total ? A.formScore : A.form, d = total ? from - end : end - from;
-    P.push(total ? 'recent rounds ≈ ' + Math.round(from * 10) / 10 : 'recent rounds ' + sgf(from));
+    P.push(total ? 'last 3 rounds ≈ ' + Math.round(from * 10) / 10 : 'last 3 rounds ' + sgf(from));
     if (A.test) { var age = Math.round((Date.now() - A.test.t) / 864e5 / 7); P.push('test ' + sgf(A.test.v) + (age >= 1 ? ', ' + age + ' wk old' : ', this week') + ' (counts ' + Math.round(A.gammaNow * 100) + '%)'); }
     if (A.usePr) { var m = Math.round(A.dX * 60 / 5) * 5; P.push(Math.abs(m) < 10 ? 'practice about normal' : 'practice ' + (m > 0 ? 'up ' : 'down ') + Math.abs(m) + ' min/week');
       if (Math.abs(m) >= 10 && A.room > 1.15) P.push('a weak spot, so it counts more'); }
@@ -2920,6 +2918,7 @@
     var lead = Math.abs(d) < (total ? 0.5 : 0.1) ? 'Holding steady – ' : d > 0 ? 'Improving – ' : 'Slipping – ';
     return lead + P.join(' · ');
   }
+  var TRD_NOW = 0; // v258: the Trends page's "now" (TD.now) for the chart
   var TR_NP = false; // v209: practice off → no practice panel under the chart
   // v240 (Scott): trend lines go through every point with soft corners – no pointy elbows, but every swing kept. A monotone cubic
   // (Fritsch–Carlson tangents, never overshoots a point, flat stays flat) with short handles (CORNER = 0.2 of each gap, a plain smooth
@@ -2934,50 +2933,57 @@
     for (i = 0; i < n - 1; i++) { var hc = d[i] * c; o += 'C' + f(pts[i][0] + hc) + ' ' + f(pts[i][1] + t[i] * hc) + ' ' + f(pts[i + 1][0] - hc) + ' ' + f(pts[i + 1][1] - t[i + 1] * hc) + ' ' + f(pts[i + 1][0]) + ' ' + f(pts[i + 1][1]); }
     return o;
   }
+  // v258 (Scott): the chart runs on real dates – every round is its own dot on its day (gold = tournament, open = other rounds), the solid
+  // line is the average of the last 3 rounds at each round, "today" is today, and the dashed line starts where the solid one ends.
+  // Practice underneath is a smooth daily line (hours a week) that holds flat on playing days (small gold ticks).
   function trendChartSVG(A, weeks, Z, total) {
-    var np = TR_NP, early = !A.ok, FC = A.fc || [], UP = [], DN = [], LO = [], HI = [];
-    var N0 = A.y.length, H0 = Math.max(0, N0 - Z), FW = FC.length, N = Math.max(2, (N0 - H0) + FW), CW = 340, PH = 92, GAP = 18, T = 8, LX = 30, RX = 44, B = 22, H = T + PH * 2 + GAP + B, BOT = T + PH * 2 + GAP; if (np) { H = T + PH + B; BOT = T + PH; }
-    var x = function (i) { return LX + (i - H0) * (CW - LX - RX) / (N - 1); }, hw = (CW - LX - RX) / (N - 1) / 2, last = N0 - 1, xt = x(last);
-    var yv = A.y.slice(H0).filter(function (v) { return v != null; }).concat(FC, [A.normY * (total ? -1 : 1)]), lo = Math.min.apply(null, yv), hi = Math.max.apply(null, yv), pad = Math.max(0.3, (hi - lo) * 0.12);
+    var np = TR_NP, early = !A.ok, FC = A.fc || [], DAYM = 864e5, now = TRD_NOW || Date.now();
+    var N0 = weeks.length, H0 = Math.max(0, N0 - Z), t0 = weeks[H0], t1 = now + FC.length * 7 * DAYM + (FC.length ? 0 : 7 * DAYM);
+    var CW = 340, PH = 92, GAP = 18, T = 8, LX = 30, RX = 14, B = 22, H = T + PH * 2 + GAP + B, BOT = T + PH * 2 + GAP; if (np) { H = T + PH + B; BOT = T + PH; }
+    var x = function (t) { return LX + (t - t0) * (CW - LX - RX) / (t1 - t0); }, xt = x(now), f1 = function (v) { return v.toFixed(1); };
+    var pts = (A.pts || []).filter(function (p) { return p.t >= t0 && p.t <= now + DAYM; });
+    var yv = pts.map(function (p) { return p.v; }).concat(pts.map(function (p) { return p.avg; }), FC, A.normY == null ? [] : [A.normY * (total ? -1 : 1)]);
+    if (!yv.length) yv = total ? [70, 80] : [-1, 1];
+    var lo = Math.min.apply(null, yv), hi = Math.max.apply(null, yv), pad = Math.max(0.3, (hi - lo) * 0.12);
     if (!total) { lo = Math.min(lo, -0.5); hi = Math.max(hi, 0.5); } lo -= pad; hi += pad;
-    var ys = function (v) { return T + (hi - v) * PH / (hi - lo); }, px = A.x.slice(H0), pHi = Math.max(0.5, Math.max.apply(null, px)) * 1.12, yp = function (v) { return T + PH + GAP + (pHi - v) * PH / pHi; };
-    var f1 = function (v) { return v.toFixed(1); };
-    var normY = total ? -A.normY : A.normY, sm = (A.ry || A.fy || A.sy).map(function (v) { return v == null ? null : total ? -v : v; }); // v218: the solid line is your form; v240: the average of your last 3 rounds
-    var o = '<svg class="trchart" viewBox="0 0 ' + CW + ' ' + H + '" role="img" aria-label="' + esc(A.name) + ': rounds and practice by week, and the forecast">';
+    var ys = function (v) { return T + (hi - v) * PH / (hi - lo); };
+    var PD = (A.pd || []).filter(function (p) { return p.t >= t0 - DAYM; }), pHi = Math.max(0.5, Math.max.apply(null, PD.map(function (p) { return p.h; }).concat([A.normX || 0]))) * 1.12, yp = function (v) { return T + PH + GAP + (pHi - v) * PH / pHi; };
+    var normY = total ? -A.normY : A.normY;
+    var o = '<svg class="trchart" viewBox="0 0 ' + CW + ' ' + H + '" role="img" aria-label="' + esc(A.name) + ': every round, the average of the last 3, practice, and where it\'s heading">';
     if (!early) o += '<rect x="' + f1(xt) + '" y="' + (T - 2) + '" width="' + f1(CW - RX - xt + 4) + '" height="' + (BOT - T + 4) + '" class="trfuture"/>';
-    // scale: whole strokes (half strokes when the range is small); the score in steps of 2 or 5
     var stp = total ? (hi - lo > 12 ? 5 : 2) : (hi - lo > 2.5 ? 1 : 0.5);
     for (var g = Math.ceil(lo / stp) * stp; g <= hi + 1e-9; g += stp) { var gy = f1(ys(g)), zero = !total && Math.abs(g) < 1e-9;
       o += '<line x1="' + LX + '" x2="' + (CW - RX) + '" y1="' + gy + '" y2="' + gy + '" class="' + (zero ? 'trzero' : 'trgrid2') + '"/><text x="' + (LX - 4) + '" y="' + f1(ys(g) + 3.5) + '" text-anchor="end" class="trax">' + (total ? g : g > 0 ? '+' + (stp < 1 ? g.toFixed(1) : g) : g < 0 ? '−' + (stp < 1 ? (-g).toFixed(1) : -g) : '0') + '</text>'; }
-    o += '<line x1="' + LX + '" x2="' + f1(xt) + '" y1="' + f1(ys(normY)) + '" y2="' + f1(ys(normY)) + '" class="trnorm"/>';
-    var hist = []; for (var i = H0; i <= last; i++) if (sm[i] != null) hist.push([x(i), ys(sm[i])]); if (hist.length > 1) o += '<path d="' + monoPath(hist) + '" class="trsg"/>';
-    for (var j = H0; j <= last; j++) if (A.y[j] != null) o += '<circle cx="' + f1(x(j)) + '" cy="' + f1(ys(A.y[j])) + '" r="' + (A.prWeek && A.prWeek[j] ? '2.6' : '2.4') + '" class="trdot' + (A.prWeek && A.prWeek[j] ? ' pr' : '') + '"/>'; // v218: open = practice rounds only
-    // v197 (Scott): tap a week's dot to see its rounds
-    var sel = view.trTap && view.trTap.k === A.k ? view.trTap.i : -1;
-    if (sel >= H0 && sel <= last && A.y[sel] != null) o += '<circle cx="' + f1(x(sel)) + '" cy="' + f1(ys(A.y[sel])) + '" r="5.5" class="trsel"/>';
-    for (var j2 = H0; j2 <= last; j2++) if (A.y[j2] != null) o += '<circle cx="' + f1(x(j2)) + '" cy="' + f1(ys(A.y[j2])) + '" r="11" class="trhit" data-act="trwk" data-v="' + A.k + '|' + j2 + '" role="button" aria-label="Week of ' + esc(new Date(weeks[j2]).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })) + '"/>';
-    // v195: lessons – a marker through both panels, the change named on big ones
-    (A.lessons || []).forEach(function (Ls, i) { if (!Ls || !Ls.length || i < H0 || i > last) return; var bigL = Ls.filter(function (l) { return l.change === 'big'; })[0], lx = f1(x(i));
-      o += '<line x1="' + lx + '" x2="' + lx + '" y1="' + (T - 2) + '" y2="' + BOT + '" class="trles' + (bigL ? ' big' : '') + '"/><text x="' + lx + '" y="' + (T + PH - 3) + '" text-anchor="middle" class="trlestx">' + esc(bigL ? bigL.what || 'Big change' : 'Lesson') + '</text>'; });
-    if (early) { o += '<text x="' + (LX + 2) + '" y="' + (T + 10) + '" class="trpl">' + (total ? 'Score · lower is better' : 'Strokes gained / round') + '</text>'; }
-    if (!early) {
-    // v218: one dashed line from where you are now, 3 weeks out
-    // v240: the dashed line carries on from where the solid line (last 3 rounds) ends
-    var st = [xt, ys(sm[last] != null ? sm[last] : total ? A.formScore : A.form)], M = [st].concat(A.fc.map(function (v, k) { return [x(last + k + 1), ys(v)]; })), eP = M[M.length - 1];
-    o += '<path d="' + monoPath(M) + '" class="trmid"/><circle cx="' + f1(eP[0]) + '" cy="' + f1(eP[1]) + '" r="4" class="trend"/>';
+    if (normY != null && isFinite(normY)) o += '<line x1="' + LX + '" x2="' + f1(xt) + '" y1="' + f1(ys(normY)) + '" y2="' + f1(ys(normY)) + '" class="trnorm"/>';
+    // lessons – a marker through both panels on the lesson's day
+    var lesDone = {}; (A.lessons || []).forEach(function (Ls, i) { (Ls || []).forEach(function (L) { var lt = L.t || weeks[i]; if (lesDone[L.id] || lt < t0 || lt > now + DAYM) return; lesDone[L.id] = 1; var lx = f1(x(lt));
+      o += '<line x1="' + lx + '" x2="' + lx + '" y1="' + (T - 2) + '" y2="' + BOT + '" class="trles' + (L.change === 'big' ? ' big' : '') + '"/><text x="' + f1(x(lt) - 3) + '" y="' + (T + PH - 3) + '" text-anchor="end" class="trlestx">' + esc(L.change === 'big' ? L.what || 'Big change' : 'Lesson') + '</text>'; }); });
+    // the solid line: the average of the last 3 rounds, at each round
+    var hist = pts.map(function (p) { return [x(p.t), ys(p.avg)]; }); if (hist.length > 1) o += '<path d="' + monoPath(hist) + '" class="trsg"/>';
+    if (!early && pts.length) {
+      var st = [xt, ys(pts[pts.length - 1].avg)], M = [st].concat(FC.map(function (v, k) { return [x(now + (k + 1) * 7 * DAYM), ys(v)]; })), eP = M[M.length - 1];
+      if (hist.length) o += '<path d="M' + f1(hist[hist.length - 1][0]) + ' ' + f1(hist[hist.length - 1][1]) + ' L' + f1(st[0]) + ' ' + f1(st[1]) + '" class="trsg"/>';
+      o += '<path d="' + monoPath(M) + '" class="trmid"/><circle cx="' + f1(eP[0]) + '" cy="' + f1(eP[1]) + '" r="4" class="trend"/>';
     }
+    // every round: gold = tournament, open = other rounds; tap for the round
+    var sel = view.trTap && view.trTap.k === A.k ? view.trTap.id : null;
+    pts.forEach(function (p) { o += '<circle cx="' + f1(x(p.t)) + '" cy="' + f1(ys(p.v)) + '" r="' + (p.tour ? 4.6 : 4.2) + '" class="trdot2' + (p.tour ? ' tour' : '') + (sel === p.id ? ' on' : '') + '"/>'; });
+    pts.forEach(function (p) { o += '<circle cx="' + f1(x(p.t)) + '" cy="' + f1(ys(p.v)) + '" r="11" class="trhit" data-act="trwk" data-v="' + A.k + '|' + esc(p.id) + '" role="button" aria-label="' + esc(new Date(p.t).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) + ' ' + (p.course || 'round')) + '"/>'; });
     o += '<line x1="' + f1(xt) + '" x2="' + f1(xt) + '" y1="' + (T - 4) + '" y2="' + BOT + '" class="trtoday"/><text x="' + f1(xt + 3) + '" y="' + (T + 7) + '" class="trax">today</text>';
-    if (!early) o += '<text x="' + (LX + 2) + '" y="' + (T + 10) + '" class="trpl">' + (total ? 'Score · lower is better' : 'Strokes gained / round') + '</text>';
-    // practice panel
+    o += '<text x="' + (LX + 2) + '" y="' + (T + 10) + '" class="trpl">' + (total ? 'Score · lower is better' : 'Strokes gained / round') + '</text>';
+    // practice: a smooth daily line, flat on playing days
     if (!np) { o += '<line x1="' + LX + '" x2="' + (CW - RX) + '" y1="' + f1(yp(0)) + '" y2="' + f1(yp(0)) + '" class="trbase"/>';
-    [1, 2, 3, 5].forEach(function (v) { if (v < pHi && (pHi < 4 || v !== 1)) o += '<text x="' + (LX - 4) + '" y="' + f1(yp(v) + 3.5) + '" text-anchor="end" class="trax">' + v + 'h</text>'; });
-    o += '<line x1="' + LX + '" x2="' + f1(xt) + '" y1="' + f1(yp(A.normX)) + '" y2="' + f1(yp(A.normX)) + '" class="trnormp"/>';
-    var ph = []; for (var k = H0; k <= last; k++) ph.push([x(k), yp(A.sx[k])]); o += '<path d="' + monoPath(ph) + '" class="trpr"/>';
-    for (var q = H0; q <= last; q++) o += '<circle cx="' + f1(x(q)) + '" cy="' + f1(yp(A.x[q])) + '" r="2.4" class="trdotp"/>';
-    o += '<text x="' + (LX + 2) + '" y="' + (T + PH + GAP + 10) + '" class="trpl pr">Practice / week</text>'; }
-    var lab = function (t) { return new Date(t).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }); }, step = Math.max(1, Math.round((N0 - H0) / 4));
-    for (var w = H0; w < last - 1; w += step) o += '<text x="' + f1(x(w)) + '" y="' + (H - 6) + '" text-anchor="middle" class="trax">' + lab(weeks[w]) + '</text>';
-    o += '<text x="' + f1(xt) + '" y="' + (H - 6) + '" text-anchor="middle" class="trax now">' + lab(weeks[last]) + '</text>';
+      [1, 2, 3, 5, 8].forEach(function (v) { if (v < pHi && (pHi < 4 || v !== 1) && (pHi < 7 || v !== 3)) o += '<text x="' + (LX - 4) + '" y="' + f1(yp(v) + 3.5) + '" text-anchor="end" class="trax">' + v + 'h</text>'; });
+      if (A.normX) o += '<line x1="' + LX + '" x2="' + f1(xt) + '" y1="' + f1(yp(A.normX)) + '" y2="' + f1(yp(A.normX)) + '" class="trnormp"/>';
+      PD.forEach(function (p) { if (p.golf && p.t >= t0) o += '<rect x="' + f1(x(p.t) - 1.6) + '" y="' + f1(yp(0) - 5) + '" width="3.2" height="5" rx="1" class="trgolf"/>'; });
+      var PV = PD.filter(function (p) { return p.t >= t0; }), ph = PV.map(function (p, i) { var L = PV.slice(Math.max(0, i - 2), i + 3); return [x(p.t), yp(L.reduce(function (a, q) { return a + q.h; }, 0) / L.length)]; }); // drawn with a light 5-day smoothing
+      if (ph.length > 1 && PV.some(function (p) { return p.h > 0.01; })) o += '<path d="' + monoPath(ph, 0.3) + '" class="trpr"/>';
+      else o += '<text x="' + f1((LX + xt) / 2) + '" y="' + f1(yp(0) - PH / 2) + '" text-anchor="middle" class="trax">No ' + esc(total ? '' : A.name.toLowerCase() + ' ') + 'practice logged yet</text>';
+      o += '<text x="' + (LX + 2) + '" y="' + (T + PH + GAP + 10) + '" class="trpl pr">Practice / week</text>'; }
+    var lab = function (t) { return new Date(t).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }); }, span = now - t0, n = 3;
+    for (var k = 0; k < n; k++) { var lt = t0 + span * k / n; if (Math.abs(x(lt) - xt) < 44) continue; o += '<text x="' + f1(x(lt)) + '" y="' + (H - 6) + '" text-anchor="' + (k ? 'middle' : 'start') + '" class="trax">' + lab(lt) + '</text>'; }
+    o += '<text x="' + f1(xt) + '" y="' + (H - 6) + '" text-anchor="middle" class="trax now">' + lab(now) + '</text>';
+    if (FC.length && x(t1) - xt > 60) o += '<text x="' + (CW - RX) + '" y="' + (H - 6) + '" text-anchor="end" class="trax">' + lab(t1) + '</text>';
     return o + '</svg>';
   }
   // ---------- v216 (Scott): practice by day – the recap from This week, Recent practice one line per day, edit and delete ----------
@@ -6592,7 +6598,7 @@
       case 'gotrends': view.trFrom = view.screen === 'practice' ? 'practice' : !practiceOn() && view.screen !== 'mygame' ? 'home' : 'mygame'; /* v209: a tab when practice is off */ view.trWho = mgWho(); view.trTap = null; view.screen = 'trends'; render(); window.scrollTo(0, 0); return;
       case 'trback': view.screen = view.trFrom === 'practice' ? 'practice' : view.trFrom === 'home' ? 'home' : 'mygame'; render(); window.scrollTo(0, 0); return;
       case 'trzoom': view.trZoom = v; render(); return;
-      case 'trwk': { var tq = String(v || '').split('|'); view.trTap = !v || (view.trTap && view.trTap.k === tq[0] && view.trTap.i === +tq[1]) ? null : { k: tq[0], i: +tq[1] }; render(); return; } // v197
+      case 'trwk': { var tq = String(v || '').split('|'), tid = tq.slice(1).join('|'); view.trTap = !v || (view.trTap && view.trTap.k === tq[0] && view.trTap.id === tid) ? null : { k: tq[0], id: tid }; render(); return; } // v197; v258: one round
       case 'mgstats': { var sw = mgWho(); view.screen = 'stats'; view.stSel = null; view.stPlayer = sw; view.stOpen = {}; view.stPmB = 'all'; view.pdf = null; render(); window.scrollTo(0, 0); return; }
       case 'prplan': toast('Practice plan – coming soon'); return;
       case 'mgnav': view.mgMenu = view.mgMenu === 'nav' ? null : 'nav'; render(); return; // v191

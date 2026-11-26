@@ -3496,3 +3496,9 @@ html body .mapview.proxview .proxtap { margin: 2px 0 10px; font-size: 12.5px; co
 html body .mapview.proxview .dot.dotx { background: #fff; border: 2px solid #6d7a86; position: relative; }
 html body .mapview.proxview #proxstats { grid-template-columns: repeat(3, 1fr); }
 html body #toast { z-index: 300; } /* v257: also above full-screen maps (tap a dot) */
+/* v258: Trends on real dates – a dot per round (gold = tournament), playing days under the practice line */
+html body .trchart .trdot2 { fill: #fff; stroke: #17301f; stroke-width: 1.6; } html body .trchart .trdot2.tour { fill: #c99a2a; stroke: #fff; stroke-width: 1.4; }
+html body .trchart .trdot2.on { stroke: #17301f; stroke-width: 2.6; }
+html body .trchart .trgolf { fill: #c99a2a; opacity: .6; }
+html body .trkey { display: inline-block; width: 9px; height: 9px; border-radius: 50%; border: 1.5px solid #17301f; background: #fff; vertical-align: -1px; margin: 0 3px 0 2px; }
+html body .trkey.tour { background: #c99a2a; border-color: #c99a2a; } html body .trkey.golf { width: 4px; height: 7px; border-radius: 1px; border: 0; background: #c99a2a; opacity: .7; }

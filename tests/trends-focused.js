@@ -28,14 +28,14 @@ const ARC = require('/home/claude/golf-app/tests/fixtures/arcade-78.js');
   const lag = await page.$('#trendspage .trcard2[data-k="putt"]:not(.trnone)'); assert.ok(lag, 'putting has a trend'); assert.strictEqual(await lag.$$eval('.trmid', e => e.length), 1, 'one dashed line'); assert.ok(await lag.$('.trend'), 'end dot');
   assert.strictEqual(await page.$$eval('#trendspage .trband, #trendspage .trwhat, #trendspage .trconf, #trendspage .trprmid, #trendspage .trdip', e => e.length), 0, 'no band, no ± practice lines, no confidence, no dips');
   assert.match(await page.textContent('#trendspage .trcard2[data-k="putt"] .trh span'), /^[+−]\d\.\d|^0\.0/); assert.match(await page.textContent('#trendspage .trcard2[data-k="total"] .trh span'), /^≈ \d+ by \w{3} \d+$/);
-  assert.match(await page.textContent('#trendspage .trcard2[data-k="putt"] .trwhy'), /^Why: (Holding steady|Improving|Slipping) – recent rounds [+−]\d\.\d · practice/);
-  assert.ok(await page.$('#trendspage .trcard2[data-k="total"] .trdot.pr'), 'open dots for practice-round weeks');
+  assert.match(await page.textContent('#trendspage .trcard2[data-k="putt"] .trwhy'), /^Why: (Holding steady|Improving|Slipping) – last 3 rounds [+−]\d\.\d · practice/);
+  assert.ok(await page.$('#trendspage .trcard2[data-k="total"] .trdot2:not(.tour)'), 'v258: a dot per round, open for non-tournament rounds');
   ok('Trends: total first, six areas, one dashed line each with a Why line, no band or confidence');
   // v197: tap a week's dot → its rounds (the weekly number is their average)
   await page.locator('#trendspage .trcard2[data-k="total"] .trhit').last().dispatchEvent('click'); await page.waitForSelector('#trwk');
   const wk = await page.$$eval('#trwk li', e => e.map(x => [x.querySelector('span').textContent, x.querySelector('b') && x.querySelector('b').textContent]));
-  assert.ok(wk.length >= 1 && wk.every(r => /^\w{3}, \w{3} \d+ · /.test(r[0]) && /^\d+$/.test(r[1])), JSON.stringify(wk)); assert.match(await page.textContent('#trwk .trwkh b'), /^Week of \w{3} \d+ · (average )?[\d.]+$/);
-  assert.ok(await page.$('#trendspage .trcard2[data-k="total"] .trsel'), 'the dot is ringed');
+  assert.ok(wk.length === 2 && /^(Tournament|Round)$/.test(wk[0][0]) && /^\d+/.test(wk[0][1]) && /^Average of the last 3 rounds then$/.test(wk[1][0]), JSON.stringify(wk)); assert.match(await page.textContent('#trwk .trwkh b'), /^\w{3}, \w{3} \d+ · /); // v258: one round
+  assert.ok(await page.$('#trendspage .trcard2[data-k="total"] .trdot2.on'), 'the dot is ringed');
   await page.locator('#trendspage .trcard2[data-k="putt"] .trhit').last().dispatchEvent('click'); assert.strictEqual(await page.$$eval('#trwk', e => e.length), 1, 'one week open at a time');
   assert.match(await page.textContent('#trwk li b'), /^[+−]\d\.\d|^0\.0/, 'an area shows strokes gained');
   await page.click('#trwk .trwkh .txt'); assert.strictEqual(await page.$('#trwk'), null); ok('tap a week: its rounds, scores / strokes gained, closes');

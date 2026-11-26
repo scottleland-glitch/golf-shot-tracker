@@ -84,7 +84,7 @@
       var S = SG.summarize(r, opts.bl); if (!S.holesDone) return;
       var w = W[i], rw = r.play === 'practice' ? CFG.practiceRound : 1; // v218: a practice round counts half
       var so = !!S.scoreOnly; w.holes += so ? 0 : nH(S); w.wHoles += so ? 0 : nH(S) * rw; /* v254: nH(S) – holes left out of stats don't count */ w.rounds += so ? 0 : 1; /* v242: a score-only round counts in the score line only */ if (rw < 1) w.prRounds++; var s18 = SG.score18 ? SG.score18(S) : (S.holesDone === 18 ? S.strokes : null); if (s18 != null) { w.score.push(s18); w.scoreW.push(rw * S.holesDone / 18); } // v219: a 9 counts half, doubled
-      var R = { id: r.id, date: r.date, course: r.course || '', play: r.play || '', holes: nH(S), score: S.holesDone === 18 || (S.holesDone === 9 && S.holes.length === 9) ? S.strokes : null, sg: {}, n: {} }; R.s18 = s18; w.list.push(R); // v197: tap a week
+      var R = { id: r.id, date: r.date, course: r.course || '', play: r.play || '', holes: nH(S), score: S.holesDone === 18 || (S.holesDone === 9 && S.holes.length === 9) ? S.strokes : null, sg: {}, n: {} }; R.s18 = s18; R.t = t; R.tour = r.play === 'tournament'; w.list.push(R); // v197: tap a week
       S.holes.forEach(function (h) { if (!h.done || h.off) return; h.shots.forEach(function (s) { if (s.layup) return;
         for (var k = 0; k < SP.length; k++) if (SP[k].test(s)) { w.sg[SP[k].k] = (w.sg[SP[k].k] || 0) + s.sg * rw; w.n[SP[k].k] = (w.n[SP[k].k] || 0) + 1; R.sg[SP[k].k] = (R.sg[SP[k].k] || 0) + s.sg; R.n[SP[k].k] = (R.n[SP[k].k] || 0) + 1; break; } }); });
     });
@@ -93,7 +93,7 @@
       w.prac[sp] = (w.prac[sp] || 0) + h; w.pracAll += h; w.eff[sp] = (w.eff[sp] || 0) + h * q; w.effAll += h * q;
       (w.days[sp] = w.days[sp] || {})[String(e.date).slice(0, 10)] = 1; (w.days._all = w.days._all || {})[String(e.date).slice(0, 10)] = 1;
       if (FEEL[e.feel] != null) { var F = w.feel[sp] = w.feel[sp] || [0, 0]; F[0] += FEEL[e.feel] * h; F[1] += h; }
-      if (e.kind === 'lesson') { if (e.change === 'big') w.big[sp] = e.what || 'big change'; if (!w.lessons.some(function (L) { return L.id === (e.lesson || e.id) && L.spoke === sp; })) w.lessons.push({ id: e.lesson || e.id, spoke: sp, change: e.change === 'big' ? 'big' : 'tune', what: e.what || '', coach: e.coach || '' }); }
+      if (e.kind === 'lesson') { if (e.change === 'big') w.big[sp] = e.what || 'big change'; if (!w.lessons.some(function (L) { return L.id === (e.lesson || e.id) && L.spoke === sp; })) w.lessons.push({ id: e.lesson || e.id, spoke: sp, change: e.change === 'big' ? 'big' : 'tune', what: e.what || '', coach: e.coach || '', t: t }); }
     });
     // spacing: the same hours over more days count a little more
     W.forEach(function (w) { w.list.sort(function (a, b) { return Date.parse(a.date) - Date.parse(b.date); }); Object.keys(w.eff).forEach(function (sp) { var d = Object.keys(w.days[sp] || {}).length; w.eff[sp] *= CFG.spaceW[Math.min(d, 3) - 1] || 1; });
@@ -117,11 +117,13 @@
     var fy = y.map(function (_, i) { var seen = false; for (var j = 0; j <= i; j++) if (y[j] != null) seen = true; return seen ? ewmaR(y, wt, i) : null; });
     var out = { fy: fy, weeks: n, dataWeeks: have, rounds: cnt, weighted: E, need: CFG.minRounds, practised: first >= 0, ok: false, normY: normY, normX: normX, sdY: sdY, sy: sy, sx: sx, lessons: opt.lessons || [], dips: [] };
     if (cnt < CFG.minRounds) { out.reason = 'not enough rounds'; return out; }
-    var form = ewmaR(y, wt, last), test = opt.test || null, now = opt.now == null ? Date.now() : +opt.now;
+    var form = opt.form != null ? opt.form : ewmaR(y, wt, last), test = opt.test || null, // v258: the caller passes the last-3-rounds average, so the dashed line starts where the solid one ends
+        now = opt.now == null ? Date.now() : +opt.now;
     var gam = function (f) { return test ? gammaAt((now - test.t) / DAY + 7 * f) : 0; };
     var level = function (f) { var g = gam(f); return (1 - g) * form + g * (test ? test.v : 0); };
     // practice: the last 2 weeks against your normal week
-    var usePr = first >= 0 && !opt.roundsOnly, nowX = usePr ? mean([x[last], x[last - 1]]) : 0, dX = usePr ? nowX - normX : 0;
+    if (opt.normX != null) normX = opt.normX; // v258: from the daily practice line (playing days held flat)
+    var usePr = first >= 0 && !opt.roundsOnly, nowX = usePr ? (opt.nowX != null ? opt.nowX : mean([x[last], x[last - 1]])) : 0, dX = usePr ? nowX - normX : 0;
     // b: a starting value, and your own history (practice 2 weeks before vs the round) taking over as the pairs build up
     var xs = [], ys = [], ws = []; if (usePr) for (var i = Math.max(first + 2, 2); i < n; i++) if (y[i] != null) { xs.push(x[i - 2]); ys.push(y[i]); ws.push(wt[i]); }
     var m = xs.length, own = m >= 3 && sd(xs) > 1e-9 ? wslope(xs, ys, ws) : null, b0 = opt.total ? CFG.b0Total : CFG.b0, bMax = opt.total ? CFG.bMaxTotal : CFG.bMax;
@@ -142,27 +144,57 @@
   // a week without rounds keeps the value it had. val(round) → the round's number, or null when it has none (no shots in that area).
   function lastRounds(W, val) { var seen = []; return W.map(function (w) { w.list.forEach(function (R) { var v = val(R); if (v != null) seen.push(v); });
     var L = seen.slice(-CFG.lineRounds); return L.length ? L.reduce(function (a, b) { return a + b; }, 0) / L.length : null; }); }
+  // v258 (Scott): practice as a smooth daily line (hours a week) – each day's practice counts half as much 3 days later, the same
+  // fading average as the Practice page (v238). Days with a round (and a day between two round days) hold it flat: playing is
+  // practice, so a tournament stretch doesn't read as a drop. A half-finished week can't look like a drop either.
+  var PD = { half: 3, recent: 14 };
+  function isoDay(t) { var d = new Date(t); return d.getFullYear() + '-' + ('0' + (d.getMonth() + 1)).slice(-2) + '-' + ('0' + d.getDate()).slice(-2); }
+  function dailyPractice(logs, golfDays, keep, from, now) {
+    var A = Math.pow(0.5, 1 / PD.half), byDay = {}, first = null, out = [];
+    (logs || []).forEach(function (e) { if (!(e.min > 0) || !keep(e)) return; var t = Date.parse(String(e.date).length <= 10 ? e.date + 'T12:00:00' : e.date); if (isNaN(t) || t > now + DAY) return;
+      var k = isoDay(t); byDay[k] = (byDay[k] || 0) + e.min / 60; if (first == null || t < first) first = t; });
+    if (first == null) return { line: [], first: null };
+    var t0 = Math.min(from, first), d = new Date(t0); d.setHours(12, 0, 0, 0); var e = 0, k = 0, days = [];
+    for (var t = d.getTime(); t <= now + 1; t += DAY) days.push(t);
+    var golf = days.map(function (t) { return !!golfDays[isoDay(t)]; });
+    days.forEach(function (t, i) { var g = golf[i] || (i > 0 && i < days.length - 1 && golf[i - 1] && golf[i + 1]), h = byDay[isoDay(t)] || 0;
+      if (t >= first - DAY / 2 && !(g && k)) { e = e * A + h * (1 - A); k++; }
+      var v = k ? e / (1 - Math.pow(A, Math.max(k, 3))) * 7 : 0; if (t >= from) out.push({ t: t, h: v, golf: g }); });
+    return { line: out, first: first };
+  }
+  function pdLevels(P, now) { if (!P.first) return { now: null, norm: null };
+    var on = P.line.filter(function (p) { return p.t >= P.first; }), rec = on.filter(function (p) { return p.t > now - PD.recent * DAY; });
+    var avg = function (L) { return L.length ? L.reduce(function (s, p) { return s + p.h; }, 0) / L.length : null; }; return { now: avg(rec), norm: avg(on) }; }
+  // v258: every round as its own point (its date, its number, tournament or not) and the average of the last 3 rounds at each one
+  function roundPoints(W, val) { var pts = [], seen = []; W.forEach(function (w) { w.list.forEach(function (R) { var v = val(R); if (v == null) return; seen.push(v);
+    var L = seen.slice(-CFG.lineRounds); pts.push({ t: R.t, v: v, avg: L.reduce(function (a, b) { return a + b; }, 0) / L.length, tour: !!R.tour, id: R.id, course: R.course, holes: R.holes, score: R.score }); }); }); return pts; }
   // ---- everything for the Trends page ----
   // tests: [{ date, area: { putt, chip, bunker, wedges } }] – strokes per round for that area from a short game test
   function build(rounds, logs, SG, MYGAME, opts) {
     opts = opts || {}; var now = opts.now == null ? Date.now() : +opts.now, W = weekSeries(rounds, logs, SG, MYGAME, Object.assign({}, opts, { now: now }));
     var lastTest = (opts.tests || []).filter(function (t) { return !isNaN(Date.parse(t.date)) && Date.parse(t.date) <= now + DAY; }).sort(function (a, b) { return Date.parse(b.date) - Date.parse(a.date); })[0];
+    var golfDays = {}; W.forEach(function (w) { w.list.forEach(function (R) { if (!isNaN(R.t)) golfDays[isoDay(R.t)] = 1; }); });
+    var from = W[0].start, pd = function (keep) { return dailyPractice(opts.roundsOnly ? [] : logs, golfDays, keep, from, now); };
     var areas = AREAS.map(function (A) {
       var y = W.map(function (w) { var n = 0, s = 0; A.spokes.forEach(function (k) { if (w.n[k]) { n += w.n[k]; s += w.sg[k]; } }); return n && w.wHoles ? s / w.wHoles * 18 : null; });
       var x = W.map(function (w) { return A.spokes.reduce(function (s, k) { return s + (w.prac[k] || 0); }, 0); });
       var tv = lastTest && lastTest.area && lastTest.area[A.k] != null ? { t: Date.parse(lastTest.date), v: lastTest.area[A.k] } : null;
       var feel = W.map(function (w) { var a = 0, h = 0; A.spokes.forEach(function (k) { if (w.feel[k]) { a += w.feel[k][0]; h += w.feel[k][1]; } }); return h ? a / h : null; });
       var les = W.map(function (w) { return w.lessons.filter(function (L) { return A.spokes.indexOf(L.spoke) >= 0; }); });
-      var ry = lastRounds(W, function (R) { var n = 0, g = 0; A.spokes.forEach(function (k) { if (R.n[k]) { n += R.n[k]; g += R.sg[k]; } }); return n && R.holes ? g / R.holes * 18 : null; });
-      return Object.assign({ k: A.k, name: A.name, y: y, x: x, ry: ry, prWeek: W.map(function (w) { return w.rounds > 0 && w.prRounds === w.rounds; }) }, analyse(y, x, { test: tv, now: now, feel: feel, lessons: les, wt: W.map(function (w) { return w.wHoles / 18; }), cnt: y.map(function (v, i) { return v == null ? 0 : W[i].rounds; }), roundsOnly: !!opts.roundsOnly }));
+      var rv = function (R) { var n = 0, g = 0; A.spokes.forEach(function (k) { if (R.n[k]) { n += R.n[k]; g += R.sg[k]; } }); return n && R.holes ? g / R.holes * 18 : null; };
+      var ry = lastRounds(W, rv), pts = roundPoints(W, rv), P = pd(function (e) { return A.spokes.indexOf(e.spoke) >= 0; }), lv = pdLevels(P, now);
+      return Object.assign({ k: A.k, name: A.name, y: y, x: x, ry: ry, pts: pts, pd: P.line, prWeek: W.map(function (w) { return w.rounds > 0 && w.prRounds === w.rounds; }) }, analyse(y, x, { test: tv, now: now, feel: feel, lessons: les, wt: W.map(function (w) { return w.wHoles / 18; }), cnt: y.map(function (v, i) { return v == null ? 0 : W[i].rounds; }), roundsOnly: !!opts.roundsOnly,
+        form: pts.length ? pts[pts.length - 1].avg : null, nowX: lv.now, normX: lv.norm }));
     });
     // total practice vs score (18-hole rounds; lower score is better, so the maths uses −score)
     var sc = W.map(function (w) { return w.score.length ? wmean(w.score, w.scoreW) : null; });
     var tLes = W.map(function (w) { var seen = {}; return w.lessons.filter(function (L) { if (seen[L.id]) return false; seen[L.id] = 1; return true; }); });
     var tFeel = W.map(function (w) { var a = 0, h = 0; Object.keys(w.feel).forEach(function (k) { a += w.feel[k][0]; h += w.feel[k][1]; }); return h ? a / h : null; });
+    var tPts = roundPoints(W, function (R) { return R.s18 == null ? null : R.s18; }), tP = pd(function () { return true; }), tLv = pdLevels(tP, now);
     var tot = analyse(sc.map(function (v) { return v == null ? null : -v; }), W.map(function (w) { return w.pracAll; }), { now: now, total: true, roundsOnly: !!opts.roundsOnly, feel: tFeel, lessons: tLes,
+      form: tPts.length ? -tPts[tPts.length - 1].avg : null, nowX: tLv.now, normX: tLv.norm,
       wt: W.map(function (w) { return w.scoreW.reduce(function (a, b) { return a + b; }, 0); }), cnt: W.map(function (w) { return w.score.length; }) });
-    var total = Object.assign({ k: 'total', name: 'Total practice vs score', y: sc, ry: lastRounds(W, function (R) { return R.s18 == null ? null : -R.s18; }), x: W.map(function (w) { return w.pracAll; }), lowerBetter: true, prWeek: W.map(function (w) { return w.score.length > 0 && w.prRounds === w.rounds; }) }, tot);
+    var total = Object.assign({ k: 'total', name: 'Total practice vs score', y: sc, ry: lastRounds(W, function (R) { return R.s18 == null ? null : -R.s18; }), x: W.map(function (w) { return w.pracAll; }), pts: tPts, pd: tP.line, lowerBetter: true, prWeek: W.map(function (w) { return w.score.length > 0 && w.prRounds === w.rounds; }) }, tot);
     if (total.ok) { total.fc = total.fc.map(function (v) { return -v; }); total.formScore = -total.form; total.levelScore = -total.level0; }
     if (total.normY != null) total.normScore = -total.normY;
     // weakest end of the line first; areas without enough rounds last
@@ -173,6 +205,6 @@
   // the strength of a link in words
   function linkWord(r) { var a = Math.abs(r || 0); return a >= 0.7 ? 'Strong' : a >= 0.4 ? 'Moderate' : a >= 0.2 ? 'Weak' : 'No clear'; }
 
-  var api = { AREAS: AREAS, CFG: CFG, FEEL: FEEL, gammaAt: gammaAt, build: build, analyse: analyse, weekSeries: weekSeries, spearman: spearman, pearson: pearson, slope: slope, linkWord: linkWord, monday: monday };
+  var api = { AREAS: AREAS, CFG: CFG, PD: PD, dailyPractice: dailyPractice, roundPoints: roundPoints, FEEL: FEEL, gammaAt: gammaAt, build: build, analyse: analyse, weekSeries: weekSeries, spearman: spearman, pearson: pearson, slope: slope, linkWord: linkWord, monday: monday };
   if (typeof module !== 'undefined' && module.exports) module.exports = api; else root.TRENDS = api;
 })(typeof self !== 'undefined' ? self : this);

@@ -5,6 +5,12 @@ Renamed to **Pin High** (title, home-screen label, header, PDF). Storage keys (`
 Phone web app for tracking every golf shot and strokes gained against a selectable baseline (PGA Tour by default).
 Static files only: no backend, no build step. Data is stored on the phone (localStorage).
 
+## Trends on real dates (v258)
+- Every round is its own dot on its own day – gold for a tournament, open for other rounds – and tapping one shows the date, course, its number and the last-3 average then. "Today" is drawn on today's date, not the Monday of the week.
+- The dashed line now starts from the average of the last 3 rounds (where the solid line ends). Before, it started from a long weighted average, so older rounds could pull the forecast a stroke or more away from recent play.
+- Practice is a smooth daily line (hours a week; each day's practice halves after 3 days, like the Practice page). Days with a round, and a day between two round days, hold it flat – playing is practice – and a half-finished week can no longer read as a drop. The practice comparison behind the forecast uses the same line (last 14 days against the normal level since practice began).
+- trends.js: `dailyPractice`, `roundPoints`; each card carries `pts` (rounds) and `pd` (daily practice); `analyse` takes `form`, `nowX`, `normX` from the caller.
+
 ## Proximity by distance, tidied (v257)
 - Distance buttons are now **All · Under 120 · 120–169 · 170+**, the same groups and colours (white, red, blue) as the Dispersion map. The busiest group opens first. One exact yardage is in the **One distance…** list (only yardages with shots).
 - All: each dot and line is coloured by its group, with one dashed benchmark ring per group; where the dot sits shows on or off the green. A single group: blue = hit, red = missed, as before.
