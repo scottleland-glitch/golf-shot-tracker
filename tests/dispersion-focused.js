@@ -107,6 +107,16 @@ console.log('  ✓ engine');
     assert.strictEqual(await page.$('#dspall'), null, 'no 9 pins for rounds'); assert.strictEqual(await page.$('#dspgrid'), null); await page.waitForTimeout(300); await shot('14-rounds', true);
     await page.click('#dspgo'); await page.waitForTimeout(5200); await page.screenshot({ path: OUT + '/15-rounds-anim.png' }); await closeFs(); 
     await page.click('[data-act="dsprplay"][data-v="tournament"]'); assert.strictEqual(await page.textContent('[data-act="dsprplay"].sel'), 'Tournaments'); assert.ok(+(await page.textContent('.dspyd.sel span')) <= 2, 'only the tournament round');
+    // v263 Choose: a tournament in one tap, or any rounds
+    await page.click('[data-act="dsprplay"][data-v="pick"]'); await page.waitForSelector('#dsppick'); assert.strictEqual(await page.textContent('[data-act="dsprplay"].sel'), 'Choose');
+    assert.deepStrictEqual(await page.$$eval('.dspev', (e) => e.map((x) => x.textContent)), ['🏆 Arcade CreekOct 18 · 1 round · 18 holes']); assert.ok(await page.$('.dspev.sel'), 'latest tournament picked first');
+    assert.strictEqual(await page.$$eval('.dsprd.sel', (e) => e.length), 1); assert.match(await page.textContent('#dsppick'), /Rounds · 1 picked/);
+    await page.click('.dsprd:not(.sel)'); assert.strictEqual(await page.$$eval('.dsprd.sel', (e) => e.length), 2); assert.ok(!(await page.$('.dspev.sel')), 'no longer just the tournament'); assert.match(await page.textContent('#dsppick'), /Rounds · 2 picked/);
+    await page.click('.dspev'); assert.strictEqual(await page.$$eval('.dsprd.sel', (e) => e.length), 1); await shot('26-choose-rounds', true);
+    // events: back-to-back tournament days are one event (a 54-hole tournament), a gap starts another
+    const ev = await page.evaluate(() => { const R = (d, c, p) => ({ id: d, date: '2026-' + d + 'T17:00:00.000Z', course: c, play: p || 'tournament', holes: Array(18).fill({}) });
+      return window.DISP.ui({ SG: window.SG, view: {} }).events([R('09-12', 'Red Hawk'), R('09-13', 'Red Hawk'), R('09-14', 'Wolf Run'), R('09-20', 'Wolf Run', 'practice'), R('10-03', 'Lakeridge'), R('10-04', 'Lakeridge')]); });
+    assert.deepStrictEqual(ev.map((e) => [e.name, e.n, e.holes]), [['Lakeridge', 2, 36], ['Red Hawk / Wolf Run', 3, 54]]); assert.match(ev[1].when, /^Sep 12–14$/);
     await page.click('[data-act="dsprplay"][data-v="all"]'); await page.click('[data-act="dspsrc"][data-v="sim"]'); await page.waitForSelector('#dspgrid, #dspfew');
     // import a GCQuad-style CSV
     const csv = 'Club,Ball Speed (mph),Carry (yds),Total (yds),Offline (yds)\n' + Array.from({ length: 12 }, (_, i) => '7 Iron,124,' + (158 + (i % 5)) + ',' + (166 + (i % 5)) + ',' + (i % 3) + '.5 ' + (i % 2 ? 'L' : 'R')).join('\n') + '\nAverage,124,160,168,0.2 R\n';

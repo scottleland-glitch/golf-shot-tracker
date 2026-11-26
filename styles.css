@@ -3573,3 +3573,17 @@ html body .trfs .trfshint { flex: none; margin: 3px 0 0; text-align: center; fon
 .dspfs .dspfsaim { display: flex; gap: 4px; margin: 0 0 8px; padding: 3px; border-radius: 12px; background: rgba(255, 255, 255, .12); }
 .dspfs .dspfsaim button { flex: 1; min-height: 36px; border: 0; border-radius: 9px; background: transparent; color: #fff; font: 600 14px -apple-system, system-ui, sans-serif; box-shadow: none; cursor: pointer; }
 .dspfs .dspfsaim button.sel { background: #fff; color: #17301f; }
+
+/* v263 (Scott): Dispersion › rounds – Choose: a whole tournament in one tap, or any rounds */
+.dsppick { padding-top: 10px; }
+.dsppick .dsph4 { margin: 2px 2px 8px; }
+.dspevs { display: flex; flex-direction: column; gap: 6px; margin: 0 0 12px; }
+.dspev { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; width: 100%; min-height: 48px; padding: 8px 12px; border-radius: 12px; border: 1.5px solid rgba(31, 45, 56, .2); background: rgba(255, 255, 255, .5); color: #1f2d38; text-align: left; box-shadow: none; cursor: pointer; font: 600 14px/1.25 -apple-system, system-ui, sans-serif; }
+.dspev span { font-weight: 500; font-size: 12.5px; color: #5b6b78; }
+.dspev.sel { background: #1f2d38; border-color: #1f2d38; color: #fff; } .dspev.sel span { color: rgba(255, 255, 255, .78); }
+.dsprds { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+.dsprd { display: grid; grid-template-columns: 20px auto 1fr; align-items: center; gap: 6px; min-height: 44px; padding: 4px 8px; border-radius: 12px; border: 1.5px solid rgba(31, 45, 56, .18); background: rgba(255, 255, 255, .45); color: #1f2d38; text-align: left; box-shadow: none; cursor: pointer; font: 600 13px/1.2 -apple-system, system-ui, sans-serif; }
+.dsprd i { display: inline-flex; width: 18px; height: 18px; border-radius: 5px; border: 1.5px solid rgba(31, 45, 56, .4); align-items: center; justify-content: center; font-style: normal; font-size: 12px; }
+.dsprd span { font-weight: 500; font-size: 12px; color: #5b6b78; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.dsprd.sel { border-color: #1f2d38; background: rgba(255, 255, 255, .85); } .dsprd.sel i { background: #1f2d38; border-color: #1f2d38; color: #fff; }
+.dsppick .dspmore { display: block; margin: 8px auto 0; }
