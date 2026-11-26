@@ -254,7 +254,8 @@
   // v248 (Scott): shots grouped by distance in – under 120 / 120–169 / 170+ – and played in that order, each from its own distance.
   // The picture draws the standard green with the flag at that pin location; a dot is slid along its line from the pin just across the
   // green's edge when the real result (on / off the green) and the drawn green disagree. Stats use the real spots.
-  function distGroup(yd) { return yd < 120 ? 0 : yd < 170 ? 1 : 2; }
+  // v260 (Scott: highlight wedge play): short wedge 40–80 (under 80), long wedge 80–120, mid approach 120–160, long approach 160–200 (160+)
+  function distGroup(yd) { return yd < 80 ? 0 : yd < 120 ? 1 : yd < 160 ? 2 : 3; }
   function fitToGreen(p, pin, G) {
     G = G || GREEN; var x = pin.x + p.dx, y = pin.y + p.dy, inG = onGreen(x, y, G), r = Math.sqrt(p.dx * p.dx + p.dy * p.dy); if (inG === !!p.on || r < 0.01) return { dx: p.dx, dy: p.dy };
     var ux = p.dx / r, uy = p.dy / r, lo = 0, hi = 60; for (var i = 0; i < 30; i++) { var m = (lo + hi) / 2; if (onGreen(pin.x + ux * m, pin.y + uy * m, G)) lo = m; else hi = m; } // lo = edge distance on this line
@@ -262,7 +263,7 @@
   }
   function analyseRoundPin(P, k) {
     var L = P.filter(function (p) { return p.pin === k; }).sort(function (a, b) { return distGroup(a.from) - distGroup(b.from) || a.from - b.from; }), A = summRounds(L), pin = pinOf(k);
-    A.pin = k; A.yd = L.length ? Math.round(Math.max.apply(null, L.map(function (p) { return p.from; }))) : 150; A.groups = [0, 0, 0];
+    A.pin = k; A.yd = L.length ? Math.round(Math.max.apply(null, L.map(function (p) { return p.from; }))) : 150; A.groups = [0, 0, 0, 0];
     if (A.ok) A.show = L.map(function (p) { var g = distGroup(p.from), f = fitToGreen(p, pin); A.groups[g]++; return Object.assign({}, p, { dx: f.dx, dy: f.dy, g: g }); });
     if (A.ok && A.show.length >= 5) A.ell = ellipse(A.show); // v259: the ring matches the balls as drawn (it slides to the best aim)
     return A;
@@ -277,9 +278,10 @@
     if (!A || !A.ok || !A.show || A.show.length < ROUND_BEST_MIN) return null;
     var pin = pinOf(k), P = A.show.map(function (p) { return { dx: p.dx, dy: p.dy }; }), yd = Math.round(median(A.show.map(function (p) { return p.from; }))) || 150;
     var b = bestAim(pattern(P, Math.max(SG_N, P.length), 977 + P.length, 1), pin, yd, SG, bl), move = Math.abs(b.aim.x - pin.x) > 0.5 || Math.abs(b.aim.y - pin.y) > 0.5;
-    var gain = move ? b.gain : 0, dG = move ? b.res.greenPct - b.atPin.greenPct : 0, dF = move ? b.res.medFt - b.atPin.medFt : 0;
-    return { aim: move ? b.aim : { x: pin.x, y: pin.y }, gain: gain, move: move, pin: k,
-      sg: A.sg, onPct: A.onPct, medFt: A.medFt, sg2: A.sg + gain, onPct2: Math.max(0, Math.min(100, A.onPct + dG)), medFt2: Math.max(0, A.medFt + dF) };
+    var one = function (aim, res, kind) { var mv = Math.abs(aim.x - pin.x) > 0.5 || Math.abs(aim.y - pin.y) > 0.5, gain = mv ? res.sg - b.atPin.sg : 0, dG = mv ? res.greenPct - b.atPin.greenPct : 0, dF = mv ? res.medFt - b.atPin.medFt : 0;
+      return { kind: kind, aim: mv ? aim : { x: pin.x, y: pin.y }, gain: gain, move: mv, pin: k,
+        sg: A.sg, onPct: A.onPct, medFt: A.medFt, sg2: A.sg + gain, onPct2: Math.max(0, Math.min(100, A.onPct + dG)), medFt2: Math.max(0, A.medFt + dF) }; };
+    var o = one(b.aim, b.res, 'sg'); o.gir = one(b.gir.aim, b.gir, 'gir'); return o; // v260: the most-greens aim too (Aim: Actual / Most greens / Best SG)
   }
   // the 3 × 3 grid: { k: { n, onPct, sg, medFt } } plus noPin = shots on holes with no pin location set
   function roundPinGrid(P) { var o = {}; PINS.forEach(function (pin) { var L = P.filter(function (p) { return p.pin === pin.k; }); o[pin.k] = L.length ? { n: L.length, onPct: 100 * L.filter(function (p) { return p.on; }).length / L.length,

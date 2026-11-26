@@ -2886,9 +2886,13 @@
     var who = view.trWho || mgWho(), TD = trendsData(who), np = TR_NP = !practiceOn(who), nowSet = TRD_NOW = TD.now, z = TR_ZOOM.filter(function (x) { return x[0] === view.trZoom; })[0] || TR_ZOOM[0];
     var h = '<div class="frostpage theme-sky mygamepage trendspage" id="trendspage"><div class="topbar frost"><button class="txt frostbtn" data-act="trback" id="trback">‹ ' + (view.trFrom === 'practice' ? 'Practice' : view.trFrom === 'home' ? 'Home' : 'My Game') + '</button><div class="title"><b>Trends</b><span>' + esc(who || '') + '</span></div><span class="tbsp"></span></div>';
     // v218 (Scott): one dashed line, 3 weeks out – no band, no confidence
-    h += '<p class="trlede" id="trlede">Each dot is a round – <span class="trkey tour"></span>tournament, <span class="trkey"></span>other. Solid: the average of your last 3 rounds. Dashed: where you\'re heading over the next ' + TRENDS.CFG.ahead + ' weeks.' + (np ? '' : ' Practice underneath holds steady on playing days <span class="trkey golf"></span> – playing is practice.') + '</p>';
-    h += '<p class="trpatience" id="trpatience">The dashed line starts after ' + TRENDS.CFG.minRounds + ' rounds. Tap a dot to see the round.</p>';
-    h += '<div class="stseg mgseg trzoom" id="trzoom" role="group" aria-label="Zoom">' + TR_ZOOM.map(function (x) { var on = x === z; return '<button class="' + (on ? 'sel' : '') + '" data-act="trzoom" data-v="' + x[0] + '" aria-pressed="' + on + '">' + x[1] + '</button>'; }).join('') + '</div>';
+    // v260 (Scott): the text about the charts sits behind (i); a tap on a chart opens it full screen (sideways on a phone)
+    var trInfoTxt = '<p class="trlede" id="trlede">Each dot is a round – <span class="trkey tour"></span>tournament, <span class="trkey"></span>other. Solid: the average of your last 3 rounds. Dashed: where you\'re heading over the next ' + TRENDS.CFG.ahead + ' weeks.' + (np ? '' : ' Practice underneath holds steady on playing days <span class="trkey golf"></span> – playing is practice.') + '</p>' +
+      '<p class="trpatience" id="trpatience">The dashed line starts after ' + TRENDS.CFG.minRounds + ' rounds. Tap a dot to see the round. Tap a chart to see it full screen – on a phone it turns sideways.</p>' +
+      '<p class="help muted trnote">The dashed line starts from the average of your last 3 rounds and leans toward your last short game test' + (np ? '' : ', then bends with your practice over the last 2 weeks against your normal week – playing days count as practice, and it counts more in an area where you\'re losing strokes') + '. Any one round can land well either side.</p>';
+    h += '<div class="trtoprow"><div class="stseg mgseg trzoom" id="trzoom" role="group" aria-label="Zoom">' + TR_ZOOM.map(function (x) { var on = x === z; return '<button class="' + (on ? 'sel' : '') + '" data-act="trzoom" data-v="' + x[0] + '" aria-pressed="' + on + '">' + x[1] + '</button>'; }).join('') + '</div>' +
+      '<button type="button" class="infobtn trinfobtn" id="trinfobtn" data-act="trinfo" aria-expanded="' + !!view.trInfo + '" aria-controls="trinfo" aria-label="About these charts"><span>i</span></button></div>' +
+      '<div class="infotext trinfo" id="trinfo"' + (view.trInfo ? '' : ' hidden') + '>' + trInfoTxt + '</div>';
     var end = TD.now + TRENDS.CFG.ahead * 7 * 864e5, endTxt = new Date(end).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
     var card = function (A, total) {
       var nm = total ? 'Score' : A.name;
@@ -2896,16 +2900,33 @@
         var left = Math.max(1, A.need - Math.floor(A.rounds + 1e-9));
         if (A.dataWeeks < 1) return '<div class="trcard2 frost trnone" data-k="' + A.k + '"><b>' + esc(nm) + '</b><span>' + esc(total ? 'Play a few rounds to start this trend' : 'Needs a few rounds with ' + A.name.toLowerCase() + ' shots') + '</span></div>';
         return '<div class="trcard2 frost trearly" data-k="' + A.k + '"><div class="trh"><b>' + esc(nm) + '</b><span class="trsoon">' + Math.min(A.rounds, A.need) + ' of ' + A.need + ' rounds</span></div>' +
-          trendChartSVG(A, TD.weeks, z[2], total) + trWeekHTML(TD, A, total) +
+          trTap(A, trendChartSVG(A, TD.weeks, z[2], total)) + (view.trFs === A.k ? '' : trWeekHTML(TD, A, total)) +
           '<p class="trfoot">' + (left === 1 ? '1 more round' : left + ' more rounds') + ' until the dashed line.</p></div>';
       }
       var f = function (v) { return total ? String(Math.round(v)) : (Math.abs(v) < 0.05 ? '0.0' : (v > 0 ? '+' : '−') + Math.abs(v).toFixed(1)); }, last = A.fc.length - 1;
       return '<div class="trcard2 frost" data-k="' + A.k + '"><div class="trh"><b>' + esc(nm) + '</b><span>' + (total ? '≈ ' : '') + esc(f(A.fc[last])) + ' by ' + esc(endTxt) + '</span></div>' +
-        trendChartSVG(A, TD.weeks, z[2], total) + trWeekHTML(TD, A, total) + '<p class="trfoot trwhy"><b>Why:</b> ' + esc(trWhy(A, total)) + '</p></div>';
+        trTap(A, trendChartSVG(A, TD.weeks, z[2], total)) + (view.trFs === A.k ? '' : trWeekHTML(TD, A, total)) + '<p class="trfoot trwhy"><b>Why:</b> ' + esc(trWhy(A, total)) + '</p></div>';
     };
     h += card(TD.total, true) + TD.areas.map(function (A) { return card(A, false); }).join('');
-    h += '<p class="help muted trnote">The dashed line starts from the average of your last 3 rounds and leans toward your last short game test' + (np ? '' : ', then bends with your practice over the last 2 weeks against your normal week – playing days count as practice, and it counts more in an area where you\'re losing strokes') + '. Any one round can land well either side.</p>';
+    if (view.trFs) h += trFsHTML(TD, z, endTxt);
     return h + '</div>';
+  }
+  // v260 (Scott): a tap on a chart opens it full screen. On a phone held upright the chart is drawn sideways (turn the phone) and wider, so
+  // the weeks spread out; "Upright" puts it back. Swipe down (or ✕, or Esc) closes it. Dots still open the round.
+  function trTap(A, svg) { return '<div class="trtap" data-act="trfs" data-v="' + esc(A.k) + '" role="button" aria-label="' + esc((A.k === 'total' ? 'Score' : A.name) + ' – full screen') + '">' + svg + '</div>'; }
+  function trFsRot() { var iw = window.innerWidth || 390, ih = window.innerHeight || 844; return ih > iw && view.trFsRot !== false; }
+  function trFsHTML(TD, z, endTxt) {
+    var k = view.trFs, total = TD.total && TD.total.k === k, A = total ? TD.total : TD.areas.filter(function (x) { return x.k === k; })[0];
+    if (!A || (!A.ok && A.dataWeeks < 1)) { view.trFs = null; return ''; }
+    var iw = window.innerWidth || 390, ih = window.innerHeight || 844, port = ih > iw, rot = trFsRot(), bw = rot ? ih : iw, bh = rot ? iw : ih;
+    var H0 = TR_NP ? 122 : 232, cw = port && !rot ? 340 : Math.max(340, Math.round(H0 * (bw - 28) / Math.max(110, bh - (A.ok ? 112 : 84))), Math.round((bw - 28) / 2.2)); // never more than 2.2× (a big screen)
+    var nm = total ? 'Score' : A.name, last = (A.fc || []).length - 1, f = function (v) { return total ? String(Math.round(v)) : (Math.abs(v) < 0.05 ? '0.0' : (v > 0 ? '+' : '−') + Math.abs(v).toFixed(1)); };
+    return '<div class="trfs' + (rot ? ' rot' : '') + '" id="trfs" role="dialog" aria-modal="true" aria-label="' + esc(nm + ' chart, full screen') + '"><div class="trfsin">' +
+      '<div class="trfstop"><b>' + esc(nm) + '</b><span>' + (A.ok && last >= 0 ? esc((total ? '≈ ' : '') + f(A.fc[last]) + ' by ' + endTxt) : '') + '</span>' +
+      (port ? '<button type="button" class="trfsbtn" id="trfsrot" data-act="trfsrot">' + (rot ? '↺ Upright' : '↻ Sideways') + '</button>' : '') +
+      '<button type="button" class="trfsbtn trfsx" id="trfsx" data-act="trfs" data-v="" aria-label="Close full screen">✕</button></div>' +
+      '<div class="trfschart">' + trendChartSVG(A, TD.weeks, z[2], total, cw) + '</div>' + trWeekHTML(TD, A, total) +
+      (A.ok ? '<p class="trfswhy"><b>Why:</b> ' + esc(trWhy(A, total)) + '</p>' : '') + '<p class="trfshint">Swipe down to close</p></div></div>';
   }
   // v218: the "Why" under each line, in plain words
   function trWhy(A, total) {
@@ -2920,6 +2941,19 @@
   }
   var TRD_NOW = 0; // v258: the Trends page's "now" (TD.now) for the chart
   var TR_NP = false; // v209: practice off → no practice panel under the chart
+  // v260: full screen chart – close with a swipe down (down as you hold the phone: sideways when the chart is), Esc; redraw on rotate
+  (function () {
+    var y0 = null, x0 = 0, d = 0, t0 = 0, el = null, rot = false, rz = 0, close = function () { view.trFs = null; view.trFsRot = null; render(); };
+    document.addEventListener('touchstart', function (ev) { el = ev.target && ev.target.closest ? ev.target.closest('#trfs') : null; if (!el || ev.touches.length !== 1) { y0 = null; return; }
+      y0 = ev.touches[0].clientY; x0 = ev.touches[0].clientX; d = 0; t0 = Date.now(); rot = el.classList.contains('rot'); el.style.transition = 'none'; }, { passive: true });
+    document.addEventListener('touchmove', function (ev) { if (y0 == null || !el) return; var t = ev.touches[0]; d = Math.max(0, rot ? x0 - t.clientX : t.clientY - y0);
+      el.style.transform = d ? (rot ? 'translateX(' + (-d) + 'px)' : 'translateY(' + d + 'px)') : ''; el.style.opacity = String(1 - Math.min(0.5, d / 700)); if (ev.cancelable) ev.preventDefault(); }, { passive: false });
+    var end = function () { if (y0 == null || !el) return; var v = d / Math.max(1, Date.now() - t0), e = el; y0 = null; e.style.transition = 'transform .2s ease, opacity .2s ease';
+      if (d > 100 || (d > 40 && v > 0.5)) { e.style.transform = rot ? 'translateX(-100%)' : 'translateY(100%)'; e.style.opacity = '0'; setTimeout(close, 190); } else { e.style.transform = ''; e.style.opacity = ''; } };
+    document.addEventListener('touchend', end); document.addEventListener('touchcancel', end);
+    document.addEventListener('keydown', function (ev) { if ((ev.key === 'Escape' || ev.key === 'Esc') && view.trFs && document.getElementById('trfs')) close(); });
+    window.addEventListener('resize', function () { if (!view.trFs || !document.getElementById('trfs')) return; clearTimeout(rz); rz = setTimeout(render, 120); });
+  })();
   // v240 (Scott): trend lines go through every point with soft corners – no pointy elbows, but every swing kept. A monotone cubic
   // (Fritsch–Carlson tangents, never overshoots a point, flat stays flat) with short handles (CORNER = 0.2 of each gap, a plain smooth
   // curve would be 1/3), so the line runs almost straight between points and only rounds off the turns.
@@ -2936,10 +2970,10 @@
   // v258 (Scott): the chart runs on real dates – every round is its own dot on its day (gold = tournament, open = other rounds), the solid
   // line is the average of the last 3 rounds at each round, "today" is today, and the dashed line starts where the solid one ends.
   // Practice underneath is a smooth daily line (hours a week) that holds flat on playing days (small gold ticks).
-  function trendChartSVG(A, weeks, Z, total) {
+  function trendChartSVG(A, weeks, Z, total, cw) {
     var np = TR_NP, early = !A.ok, FC = A.fc || [], DAYM = 864e5, now = TRD_NOW || Date.now();
     var N0 = weeks.length, H0 = Math.max(0, N0 - Z), t0 = weeks[H0], t1 = now + FC.length * 7 * DAYM + (FC.length ? 0 : 7 * DAYM);
-    var CW = 340, PH = 92, GAP = 18, T = 8, LX = 30, RX = 14, B = 22, H = T + PH * 2 + GAP + B, BOT = T + PH * 2 + GAP; if (np) { H = T + PH + B; BOT = T + PH; }
+    var CW = cw || 340, PH = 92, GAP = 18, T = 8, LX = 30, RX = 14, B = 22, H = T + PH * 2 + GAP + B, BOT = T + PH * 2 + GAP; if (np) { H = T + PH + B; BOT = T + PH; }
     var x = function (t) { return LX + (t - t0) * (CW - LX - RX) / (t1 - t0); }, xt = x(now), f1 = function (v) { return v.toFixed(1); };
     var pts = (A.pts || []).filter(function (p) { return p.t >= t0 && p.t <= now + DAYM; });
     var yv = pts.map(function (p) { return p.v; }).concat(pts.map(function (p) { return p.avg; }), FC, A.normY == null ? [] : [A.normY * (total ? -1 : 1)]);
@@ -6595,9 +6629,12 @@
       case 'setlog': case 'setrecs': { var mw = view.screen === 'practice' || view.screen === 'trends' ? mgWho() : playerName(), on1 = v === '1', what = act === 'setlog' ? 'log' : 'recs';
         setMode(mw, nextMode(modeOf(mw), what, on1)); if (view.screen === 'practice' && !practiceOn(mgWho())) view.screen = 'home';
         toast(what === 'log' ? (on1 ? 'Practice logging on' : 'Practice logging off – just stats') : (on1 ? 'Practice recommendations on' : 'Practice recommendations off')); render(); return; }
-      case 'gotrends': view.trFrom = view.screen === 'practice' ? 'practice' : !practiceOn() && view.screen !== 'mygame' ? 'home' : 'mygame'; /* v209: a tab when practice is off */ view.trWho = mgWho(); view.trTap = null; view.screen = 'trends'; render(); window.scrollTo(0, 0); return;
+      case 'gotrends': view.trFs = null; view.trFrom = view.screen === 'practice' ? 'practice' : !practiceOn() && view.screen !== 'mygame' ? 'home' : 'mygame'; /* v209: a tab when practice is off */ view.trWho = mgWho(); view.trTap = null; view.screen = 'trends'; render(); window.scrollTo(0, 0); return;
       case 'trback': view.screen = view.trFrom === 'practice' ? 'practice' : view.trFrom === 'home' ? 'home' : 'mygame'; render(); window.scrollTo(0, 0); return;
       case 'trzoom': view.trZoom = v; render(); return;
+      case 'trinfo': view.trInfo = !view.trInfo; render(); return; // v260
+      case 'trfs': view.trFs = v || null; view.trFsRot = null; render(); return; // v260: full screen chart (v = '' closes)
+      case 'trfsrot': view.trFsRot = trFsRot() ? false : true; render(); return;
       case 'trwk': { var tq = String(v || '').split('|'), tid = tq.slice(1).join('|'); view.trTap = !v || (view.trTap && view.trTap.k === tq[0] && view.trTap.id === tid) ? null : { k: tq[0], id: tid }; render(); return; } // v197; v258: one round
       case 'mgstats': { var sw = mgWho(); view.screen = 'stats'; view.stSel = null; view.stPlayer = sw; view.stOpen = {}; view.stPmB = 'all'; view.pdf = null; render(); window.scrollTo(0, 0); return; }
       case 'prplan': toast('Practice plan – coming soon'); return;
