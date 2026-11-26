@@ -88,6 +88,14 @@ console.log('  ✓ engine');
     const first = await page.$('.dspfs .dsppg.on'); const fg = await first.getAttribute('data-fsgrp'); await first.click(); await page.waitForTimeout(300);
     assert.ok(await page.$('body > .dspfs #dspcv'), 'stays full screen'); assert.ok(!(await page.$('.dspfs .dsppg[data-fsgrp="' + fg + '"].on')), 'group off'); await page.screenshot({ path: OUT + '/22-group-off.png' });
     await page.click('.dspfs .dsppg[data-fsgrp="' + fg + '"]'); await page.waitForTimeout(300); assert.ok(await page.$('.dspfs .dsppg[data-fsgrp="' + fg + '"].on'), 'group back on');
+    // v262 Aim for the groups shown – full screen buttons, the line says what it means
+    assert.deepStrictEqual(await page.$$eval('.dspfs .dspfsaim button', (e) => e.map((x) => x.textContent)), ['Actual', 'Most greens', 'Best SG']); assert.strictEqual(await page.textContent('.dspfs .dspfsaim .sel'), 'Actual');
+    assert.match(await page.textContent('#dsprbest'), /actual:.*Best SG: (aim|no adjustment)/);
+    await page.click('.dspfs [data-fsaim="sg"]'); await page.waitForTimeout(400); await page.screenshot({ path: OUT + '/23-aim-sliding.png' }); await page.waitForTimeout(900); await page.screenshot({ path: OUT + '/24-aim-sg.png' });
+    assert.ok(await page.$('body > .dspfs #dspcv'), 'stays full screen'); assert.match(await page.textContent('#dsprbest'), /best SG: (aim .* (saves|costs) 0\.\d\d a shot|no adjustment)/);
+    const all = await page.textContent('#dsprbest'); await page.click('.dspfs .dsppg.g3.on'); await page.waitForTimeout(300); const fewer = await page.textContent('#dsprbest');
+    assert.notStrictEqual(fewer, all, 'aim follows the groups shown'); assert.match(fewer, /of \d+ shots/); await page.screenshot({ path: OUT + '/25-aim-subset.png' }); await page.click('.dspfs .dsppg.g3');
+    await page.click('.dspfs [data-fsaim="gir"]'); await page.waitForTimeout(1100); assert.match(await page.textContent('#dsprbest'), /most greens:/); await page.click('.dspfs [data-fsaim="flag"]'); await page.waitForTimeout(1100);
     await page.evaluate(() => { const w = document.querySelector('.dspfs'), T = (y) => new Touch({ identifier: 1, target: w, clientX: 200, clientY: y });
       w.dispatchEvent(new TouchEvent('touchstart', { touches: [T(200)], bubbles: true })); w.dispatchEvent(new TouchEvent('touchmove', { touches: [T(420)], bubbles: true, cancelable: true })); w.dispatchEvent(new TouchEvent('touchend', { touches: [], bubbles: true })); });
     await page.waitForTimeout(500); assert.strictEqual(await page.$('.dspfs'), null, 'swipe down closes'); assert.ok(await page.$('#dsprgrid #dspcv, .dspplay #dspcv'), 'picture back on the page');

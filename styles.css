@@ -3567,3 +3567,9 @@ html body .trfs .trfshint { flex: none; margin: 3px 0 0; text-align: center; fon
 .dspfs .dsppgt.fs .dsppg { background: rgba(255, 255, 255, .08); border-color: rgba(255, 255, 255, .25); color: rgba(255, 255, 255, .6); }
 .dspfs .dsppgt.fs .dsppg.on { background: rgba(255, 255, 255, .18); border-color: rgba(255, 255, 255, .85); color: #fff; }
 @media (hover: hover) and (pointer: fine) { html body .trfs .trfshint::after { content: " · or press Esc"; } }
+
+/* v260 (Scott): v262 Dispersion › Pin location – Aim (Actual / Most greens / Best SG) for the groups shown, also inside the full screen picture */
+.dspplay > .dspaimrow { margin: 0 0 8px; }
+.dspfs .dspfsaim { display: flex; gap: 4px; margin: 0 0 8px; padding: 3px; border-radius: 12px; background: rgba(255, 255, 255, .12); }
+.dspfs .dspfsaim button { flex: 1; min-height: 36px; border: 0; border-radius: 9px; background: transparent; color: #fff; font: 600 14px -apple-system, system-ui, sans-serif; box-shadow: none; cursor: pointer; }
+.dspfs .dspfsaim button.sel { background: #fff; color: #17301f; }
