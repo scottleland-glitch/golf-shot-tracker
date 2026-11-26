@@ -556,7 +556,7 @@
       var e = shown.length >= 5 ? D.ellipse(shown.map(function (q) { return { dx: q.dx, dy: q.dy }; })) : null;
       if (e && (moved || from) && mk > 0) { ctx.save(); ctx.strokeStyle = 'rgba(255,224,102,.7)'; ctx.lineWidth = 1.6; ctx.setLineDash([5, 4]); ctx.beginPath(); // where they really went
         ctx.ellipse(X(pin.x + e.cx), Y(pin.y + e.cy), e.rx * cam.s, e.ry * cam.s, -e.rot * Math.PI / 180, 0, 2 * Math.PI); ctx.stroke(); ctx.restore(); }
-      var c0 = e ? { x: pin.x + e.cx, y: pin.y + e.cy } : pin; // v263 (Scott): the guide runs from the middle of the actual (dashed) ring to the middle of the new one – the move, same yards as the line under it
+      var c0 = pin; // v264 (Scott: "you had it right the first time"): ◎ = where to aim (the flag + the move); the guide runs from the flag. The ring sits off it by the player's usual miss
       if (Math.abs(ox) > 0.3 || Math.abs(oy) > 0.3) aimGuide(ctx, X, Y, c0, ox, oy);
       if (Math.abs(ox) > 0.3 || Math.abs(oy) > 0.3) { var amx = X(c0.x + ox), amy = Y(c0.y + oy); ctx.save(); ctx.strokeStyle = '#fff'; ctx.lineWidth = 1.8; ctx.shadowColor = 'rgba(0,0,0,.5)'; ctx.shadowBlur = 2; // the aim point
         ctx.beginPath(); ctx.arc(amx, amy, 7, 0, 7); ctx.stroke(); ctx.beginPath(); ctx.arc(amx, amy, 2, 0, 7); ctx.stroke(); ctx.restore(); }
@@ -637,7 +637,7 @@
         ctx.ellipse(X(ax + e.cx), Y(ay + e.cy), e.rx * cam.s, e.ry * cam.s, -e.rot * Math.PI / 180, 0, 2 * Math.PI * pr); ctx.stroke(); ctx.restore(); }
       if (showE && A.ell && (Math.abs(ax - pin.x) > 0.5 || Math.abs(ay - pin.y) > 0.5)) { var ge = A.ell; ctx.save(); ctx.strokeStyle = 'rgba(255,224,102,.7)'; ctx.lineWidth = 1.6; ctx.setLineDash([5, 4]); ctx.beginPath(); // v263 the pattern at the flag, dashed
         ctx.ellipse(X(pin.x + ge.cx), Y(pin.y + ge.cy), ge.rx * cam.s, ge.ry * cam.s, -ge.rot * Math.PI / 180, 0, 2 * Math.PI); ctx.stroke(); ctx.restore(); }
-      var gc0 = A.ell ? { x: pin.x + A.ell.cx, y: pin.y + A.ell.cy } : pin; // v263: from the middle of the pattern at the flag to the middle of the moved pattern
+      var gc0 = pin; // v264: ◎ = where to aim, the guide from the flag
       if (showE && (Math.abs(ax - pin.x) > 0.5 || Math.abs(ay - pin.y) > 0.5)) aimGuide(ctx, X, Y, gc0, ax - pin.x, ay - pin.y);
       if (showE && (Math.abs(ax - pin.x) > 0.5 || Math.abs(ay - pin.y) > 0.5)) { var mx = X(gc0.x + ax - pin.x), my = Y(gc0.y + ay - pin.y); ctx.save(); ctx.strokeStyle = '#fff'; ctx.lineWidth = 1.8; ctx.shadowColor = 'rgba(0,0,0,.5)'; ctx.shadowBlur = 2;
         ctx.beginPath(); ctx.arc(mx, my, 7, 0, 7); ctx.stroke(); ctx.beginPath(); ctx.arc(mx, my, 2, 0, 7); ctx.stroke(); ctx.restore(); }
