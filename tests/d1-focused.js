@@ -18,12 +18,12 @@ const BASE = 'http://127.0.0.1:8786/', OUT = '/workspace/golf-app/screenshots/';
   await page.reload(); await goHist(page); await page.click('#histlist [data-act="open"] >> nth=0');
   await (await xt(page, 'prox')).click('[data-act="map"][data-v="prox"]'); await page.click('[data-act="mapscope"][data-v="all"]'); await page.waitForSelector('#proxrail');
   const ring = () => page.evaluate(() => { const g = document.getElementById('d1ring'); if (!g) return null; const svg = g.ownerSVGElement;
-    return { r: +g.querySelector('circle').getAttribute('r'), t: g.querySelector('text').textContent, last: svg.lastElementChild === g, legend: !!document.querySelector('.legend .ln.dash') && /D1 women avg/.test(document.querySelector('#mapview').textContent), note: ((document.getElementById('d1note') || {}).textContent || '') + ' ' + ((document.getElementById('benchsrc') || {}).textContent || '') }; }); // v124: source line moved to #benchsrc
+    return { r: +g.querySelector('circle').getAttribute('r'), t: (g.querySelector('text') || {}).textContent || null, leg: (document.getElementById('benchleg') || {}).textContent || '', last: svg.lastElementChild === g, legend: !!document.querySelector('#benchsel .ln.dash') && /average from here/.test(document.querySelector('#mapview').textContent) /* v257: picker + average under the map */, note: ((document.getElementById('d1note') || {}).textContent || '') + ' ' + ((document.getElementById('benchsrc') || {}).textContent || '') }; }); // v124: source line moved to #benchsrc
   for (const [yd, ft, est] of [['80', 22, false], ['150', 44, false], ['40', 15, false], ['190', 60, true], ['200', 64, true]]) {
-    await page.click('[data-act="proxb"][data-v="' + yd + '"]'); await page.waitForSelector('#heattog');
+    await page.selectOption('#proxyd', yd); await page.waitForSelector('#heattog'); // v257: one distance from the list
     const K = 117 / (ft + 10);
     for (const v of ['dots', 'grad']) { await page.click('[data-act="heat"][data-v="' + v + '"]'); const r = await ring();
-      assert.ok(r, yd + ' ' + v + ' ring'); assert.ok(Math.abs(r.r - ft * K) < 0.1, yd + ' radius ' + r.r); assert.strictEqual(r.t, 'D1 women avg ' + ft + '\u2019' + (est ? ' est.' : ''));
+      assert.ok(r, yd + ' ' + v + ' ring'); assert.ok(Math.abs(r.r - ft * K) < 0.1, yd + ' radius ' + r.r); assert.strictEqual(r.t, null, 'v257: no label on the ring – it is named under the map'); assert.strictEqual(r.leg, 'average from here: ' + ft + ' ft');
       assert.ok(r.last, yd + ' ' + v + ' ring on top');
       const g = await page.evaluate(() => { const s = document.getElementById('proxmap'), vb = s.viewBox.baseVal, c = s.querySelector('#d1ring circle'), cx = +c.getAttribute('cx'), cy = +c.getAttribute('cy'), r = +c.getAttribute('r');
         const green = [...s.querySelectorAll('circle')].find(e => e.getAttribute('fill') === '#3da33d'); const gr = +green.getAttribute('r');
@@ -35,9 +35,9 @@ const BASE = 'http://127.0.0.1:8786/', OUT = '/workspace/golf-app/screenshots/';
       if (yd === '150' || yd === '80' || yd === '40') { await page.locator('#mapview svg#proxmap').scrollIntoViewIfNeeded(); await page.screenshot({ path: OUT + 'prox-zoom10-' + yd + '-' + v + '.png' }); } }
     console.log(yd, 'ok');
   }
-  await page.click('[data-act="proxb"][data-v="all"]'); assert.strictEqual(await ring(), null, 'no ring for All'); assert.deepStrictEqual(await page.$eval('#proxrings', e => [+e.dataset.rft, +e.dataset.step]), [90, 15]);
+  await page.click('[data-act="proxg"][data-v="all"]'); assert.strictEqual(await ring(), null, 'no ring for All'); assert.deepStrictEqual(await page.$eval('#proxrings', e => [+e.dataset.rft, +e.dataset.step]), [90, 15]);
   // clamped hits: label ends with ›
-  await page.click('[data-act="proxb"][data-v="40"]'); await page.click('[data-act="heat"][data-v="dots"]');
+  await page.selectOption('#proxyd', '40'); await page.click('[data-act="heat"][data-v="dots"]');
   const cl = await page.evaluate(() => { const L = [['long',38],['right',12],['left',30],['short',24],['longleft',60]].map((d, i) => ({ hit: true, ft: d[1], proxFt: d[1], dir: d[0], hole: i + 1, from: 40, yd: 40 }));
     const host = document.getElementById('proxmap'); host.outerHTML = window.__golf.proxSVG(L, 40); const s = document.getElementById('proxmap'), R = +s.querySelector('#proxrings').dataset.rft, K = 117 / R;
     const hits = [...s.querySelectorAll('.xdot[data-kind="hit"]')].map(e => ({ ft: +e.dataset.hd, cl: !!e.dataset.clamped, d: Math.hypot(+e.getAttribute('cx') - 150, +e.getAttribute('cy') - 250) }));

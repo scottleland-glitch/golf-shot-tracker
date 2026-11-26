@@ -5095,7 +5095,7 @@
   function mapHTML() {
     var kind = view.map, D = mapData(kind), list = D.list, all = view.mapScope === 'all';
     var out = '<div class="mapview' + (kind === 'club' ? ' clubview' : kind === 'prox' ? ' clubview proxview' : ' clubview lightmap') + '" id="mapview" role="dialog" aria-label="' + (kind === 'gir' ? 'GIR map' : kind === 'fw' ? 'Fairway map' : kind === 'pin' ? 'Pin location map' : kind === 'prox' ? 'Proximity map' : kind === 'putt' ? 'Putting map' : kind === 'club' ? 'Club performance' : kind === 'pmiss' ? '1st putts made map' : 'Approach miss map') + '">' +
-      '<div class="maphead"><b>' + (kind === 'gir' ? 'Greens in regulation' : kind === 'fw' ? 'Tee shots – fairways' : kind === 'pin' ? 'Pin location' : kind === 'prox' ? 'Proximity by distance' : kind === 'putt' ? 'Putting' : kind === 'club' ? 'Club performance' : kind === 'pmiss' ? '1st putts made inside 10 ft' : 'Approach misses') + '</b><button class="close" data-act="mapclose" aria-label="Close map">✕ Close</button></div>' +
+      '<div class="maphead"><b>' + (kind === 'gir' ? 'Greens in regulation' : kind === 'fw' ? 'Tee shots – fairways' : kind === 'pin' ? 'Pin location' : kind === 'prox' ? 'Proximity by distance' : kind === 'putt' ? 'Putting' : kind === 'club' ? 'Club performance' : kind === 'pmiss' ? '1st putts made inside 10 ft' : 'Approach misses') + '</b><button class="close' + (kind === 'prox' ? ' xonly' : '') + '" data-act="mapclose" aria-label="Close map">' + (kind === 'prox' ? '✕' : '✕ Close') + '</button></div>' +
       '<div class="seg"><button data-act="mapscope" data-v="round" class="' + (all ? '' : 'sel') + '">This round</button>' +
       '<button data-act="mapscope" data-v="all" class="' + (all ? 'sel' : '') + '">All rounds (' + savedRounds().length + ')</button></div>';
     if (kind === 'pin') out += pinMapHTML(all);
@@ -6047,23 +6047,32 @@
   // buttons are enabled; a selection with no shots in this scope falls back to All.
   // Proximity data for the selected yardage + starting-lie filter. Button counts (current scope) decide
   // which yardage / lie buttons are enabled; a selection with no shots falls back to All.
+  // v257 (Scott): distance groups like the Dispersion map – under 120 white, 120–169 red, 170+ blue
+  var PROX_G = [{ id: 'u120', name: 'Under 120', lo: 0, hi: 120, mid: 80, color: '#ffffff', edge: '#3d4650', halo: '#26313a' },
+    { id: 'm120', name: '120–169', lo: 120, hi: 170, mid: 145, color: '#e0313f', edge: '#7d1019', halo: '#fff' },
+    { id: 'l170', name: '170+', lo: 170, hi: 1e9, mid: 185, color: '#1f73c9', edge: '#0d3d6e', halo: '#fff' }];
+  function proxGOf(yd) { for (var i = 0; i < PROX_G.length; i++) if (yd >= PROX_G[i].lo && yd < PROX_G[i].hi) return PROX_G[i]; return PROX_G[0]; }
   function proxData() {
     var all = [], n = 0;
     (view.mapScope === 'all' ? savedRounds() : [round()]).forEach(function (r) { n++; SG.summarize(r, 'pga').proxList.forEach(function (m) { all.push(m); }); });
     if (view.proxGroup) all = all.filter(function (m) { return SG.reportGroup(m.from) === view.proxGroup; });
-    var lie = view.proxLie || 'all', b = view.proxB || '~auto', auto = b === '~auto', counts, inB, lieCounts;
+    var lie = view.proxLie || 'all', b = view.proxB || '~auto', auto = b === '~auto', counts, inB, lieCounts, gCounts, gsel;
     var byLie = function (L) { return lie === 'all' ? L : L.filter(function (m) { return m.fromGroup === lie; }); };
     var calc = function () {
       counts = {}; SG.PROX_BUCKETS.forEach(function (x) { counts[x.id] = byLie(all).filter(function (m) { return SG.inBucket(x.id, m.from); }).length; });
-      // Default (nothing tapped yet): the busiest yardage, so the map opens uncluttered. Ties -> the shorter yardage.
-      if (auto) { b = 'all'; var mx = 0; SG.PROX_BUCKETS.slice(1).forEach(function (x) { if (counts[x.id] > mx) { mx = counts[x.id]; b = x.id; } }); }
+      gCounts = {}; PROX_G.forEach(function (g) { gCounts[g.id] = byLie(all).filter(function (m) { return SG.inBucket('all', m.from) && proxGOf(m.from) === g; }).length; });
+      // v257: default (nothing tapped yet) = the busiest distance group, so the map opens uncluttered; a group tapped = that group
+      gsel = null;
+      if (auto) { b = 'all'; var mx = 0; PROX_G.forEach(function (g) { if (gCounts[g.id] > mx) { mx = gCounts[g.id]; gsel = g; } }); }
+      else if (b === 'all' && view.proxG) gsel = PROX_G.filter(function (g) { return g.id === view.proxG && gCounts[g.id]; })[0] || null;
+      if (view.proxGroup) gsel = null;
       if (!counts[b]) b = 'all';
-      inB = view.proxGroup ? all.slice() : all.filter(function (m) { return SG.inBucket(b, m.from); });
+      inB = view.proxGroup ? all.slice() : all.filter(function (m) { return SG.inBucket(b, m.from) && (!gsel || proxGOf(m.from) === gsel); });
       lieCounts = { all: inB.length }; SG.PROX_LIES.forEach(function (l) { lieCounts[l.id] = inB.filter(function (m) { return m.fromGroup === l.id; }).length; });
     };
     calc(); if (lie !== 'all' && !lieCounts[lie]) { lie = 'all'; calc(); }
     if (view.proxGroup) counts.all = all.length;
-    return { list: byLie(inB), inB: inB, rounds: n, bucket: b, auto: auto && b !== 'all', lie: lie, counts: counts, lieCounts: lieCounts, outside: byLie(all).length - counts.all };
+    return { list: byLie(inB), inB: inB, rounds: n, bucket: b, auto: auto && !!gsel, lie: lie, counts: counts, lieCounts: lieCounts, outside: byLie(all).length - counts.all, grp: gsel, gCounts: gCounts };
   }
   // green drawn 60 yd across (90 ft radius) at K px per ft, so shots, rings and the D1 benchmark ring share one scale
   var PX = { cx: 150, cy: 250, K: 1.3, Rg: 117, W: 300, H: 620, Z: 476 }; // Rg = 90 ft * K; Z = top of the lie strip
@@ -6137,11 +6146,11 @@
       range: b.range, lo: b.lo, hi: b.hi, ft: (b.lo + b.hi) / 2, est: b.est, tag: b.tag }; }
   function d1Bench(yd) { var B = proxBench(yd, 'd1w'); return B ? { from: B.from, lo: B.lo, hi: B.hi, ft: B.ft, est: B.est } : null; } // kept for the D1 tests / older callers
   // the ring keeps its old id (#d1ring) so the heat layer keeps it on top; data-bench says which benchmark it is
-  function benchRing(bucket, id) { var B = proxBench(bucket, id); if (!B) return '';
+  function benchRing(bucket, id, noLab) { var B = proxBench(bucket, id); if (!B) return ''; // v257: noLab – the page names it under the map
     var r = B.ft * PX.K, ty = Math.max(14, PX.cy - r - 5), lab = B.name + ' avg ' + Math.round(B.ft) + '\u2019' + (B.est ? ' est.' : '');
-    return '<g id="d1ring" class="benchring" data-bench="' + B.id + '" data-ft="' + B.ft + '" data-est="' + (B.est ? 1 : 0) + '"><circle class="d1halo" cx="' + PX.cx + '" cy="' + PX.cy + '" r="' + f1(r) + '" fill="none" stroke="#fff" stroke-opacity=".7" stroke-width="5"/>' +
+    return '<g id="d1ring" class="benchring" data-lab="' + esc(lab) + '" data-bench="' + B.id + '" data-ft="' + B.ft + '" data-est="' + (B.est ? 1 : 0) + '"><circle class="d1halo" cx="' + PX.cx + '" cy="' + PX.cy + '" r="' + f1(r) + '" fill="none" stroke="#fff" stroke-opacity=".7" stroke-width="5"/>' +
       '<circle cx="' + PX.cx + '" cy="' + PX.cy + '" r="' + f1(r) + '" class="d1line" fill="none" stroke="#e00016" stroke-width="2.6" stroke-dasharray="9 6"/>' +
-      '<text class="d1lab" x="' + PX.cx + '" y="' + f1(ty) + '" text-anchor="middle" font-size="11" font-weight="900" fill="#c00012" stroke="#fff" stroke-width="3" paint-order="stroke">' + lab + '</text></g>'; }
+      (noLab ? '' : '<text class="d1lab" x="' + PX.cx + '" y="' + f1(ty) + '" text-anchor="middle" font-size="11" font-weight="900" fill="#c00012" stroke="#fff" stroke-width="3" paint-order="stroke">' + lab + '</text>') + '</g>'; }
   // Zoom: a selected yardage shows the benchmark ring + 10 ft as the green radius; a distance group uses the ring at its midpoint;
   // All 40-200 (or a benchmark with no data) keeps the 60-yd green (90 ft). The green is always PX.Rg px across, so K (px per ft) changes per distance.
   function grpMid(group) { var g = String(group).replace(' yd', '').split(/[-+]/), lo = +g[0], hi = g[1] ? +g[1] : lo + 20; return (lo + hi) / 2; } // '130-160' -> 145, '200+' -> 210
@@ -6194,7 +6203,7 @@
     };
     list.forEach(function (m, i) {
       // PDF report version (view.proxReport): line colour = SG distance group (SG.REPORT_GROUPS); marker = result
-      var RG = view.proxReport ? (SG.REPORT_GROUPS.filter(function (g) { return g.id === SG.reportGroup(m.from); })[0] || { color: '#555', halo: '#fff' }) : null;
+      var RG = view.proxReport ? (SG.REPORT_GROUPS.filter(function (g) { return g.id === SG.reportGroup(m.from); })[0] || { color: '#555', halo: '#fff' }) : opts.groups ? proxGOf(m.from) : null; // v257: All on the page = coloured by distance group
       var col = RG ? RG.color : m.hit ? '#1e6fd9' : '#e0102a', q, kind, clamped = false, label, label2 = '';
       if (m.hit) {
         if (m.holed) { var jh = seen.h = (seen.h || 0) + 1; q = [PX.cx - 14 + (jh - 1) * 14, PX.cy + 14]; kind = 'holed'; label = ''; }
@@ -6212,15 +6221,17 @@
         kind = 'miss'; label = m.lie === 'ob' ? 'OB' : Math.round(m.yd) + ' yd' + (clamped ? ' ›' : ''); label2 = m.lie === 'ob' ? '' : (LN[m.lie] || m.lie);
       }
       var x = f1(q[0]), y = f1(q[1]), st = startAt(m), ox = st[0], oy = st[1];
-      if (kind !== 'missnodir') tr += (RG ? '<path d="' + flight(ox, oy, q[0], q[1], i) + '" fill="none" stroke="' + RG.halo + '" stroke-width="5.5" stroke-opacity=".8"/>' : '') +
-        '<path class="tracer"' + (RG ? ' data-group="' + SG.reportGroup(m.from) + '"' : '') + ' data-start="' + st[2] + '" data-sx="' + f1(ox) + '" data-sy="' + f1(oy) + '" data-ex="' + x + '" data-ey="' + y + '" d="' + flight(ox, oy, q[0], q[1], i) + '" fill="none" stroke="' + col + '" stroke-width="' + (RG ? 3 : 2.5) + '" stroke-opacity="' + (RG ? 1 : 0.75) + '"/>';
+      if (kind !== 'missnodir') tr += (RG && !opts.groups ? '<path d="' + flight(ox, oy, q[0], q[1], i) + '" fill="none" stroke="' + RG.halo + '" stroke-width="5.5" stroke-opacity=".8"/>' : '') +
+        '<path class="tracer"' + (RG ? ' data-group="' + SG.reportGroup(m.from) + '"' : '') + ' data-start="' + st[2] + '" data-sx="' + f1(ox) + '" data-sy="' + f1(oy) + '" data-ex="' + x + '" data-ey="' + y + '" d="' + flight(ox, oy, q[0], q[1], i) + '" fill="none" stroke="' + col + '" stroke-width="' + (RG && !opts.groups ? 3 : 2.5) + '" stroke-opacity="' + (RG ? 1 : 0.75) + '"/>';
       starts += '<circle class="xstart" data-start="' + st[2] + '" data-hole="' + m.hole + '" cx="' + f1(ox) + '" cy="' + f1(oy) + '" r="4" fill="#fff" stroke="' + col + '" stroke-width="2"/>';
-      var attrs = ' class="xdot" data-hd="' + (kind === 'holed' ? 0 : /^miss/.test(kind) ? (m.yd || 0) : (m.proxFt || 0)) + '" data-hu="' + (/^miss/.test(kind) ? 'yd' : 'ft') + '" data-kind="' + kind + '" data-hole="' + m.hole + '" data-from="' + m.from + '"' + (clamped ? ' data-clamped="1"' : '');
+      var tapT = opts.page ? (m.hit ? (m.holed ? 'Holed' : Math.round(m.ft) + ' ft from the hole') : m.lie === 'ob' ? 'OB' : Math.round(m.yd) + ' yd left' + (LN[m.lie] ? ' · ' + LN[m.lie] : '')) + ' · hole ' + m.hole + ' · from ' + Math.round(m.from) + ' yd' : '';
+      var attrs = (tapT ? ' data-act="proxdot" data-t="' + esc(tapT) + '" role="button" aria-label="' + esc(tapT) + '"' : '') + ' class="xdot" data-hd="' + (kind === 'holed' ? 0 : /^miss/.test(kind) ? (m.yd || 0) : (m.proxFt || 0)) + '" data-hu="' + (/^miss/.test(kind) ? 'yd' : 'ft') + '" data-kind="' + kind + '" data-hole="' + m.hole + '" data-from="' + m.from + '"' + (clamped ? ' data-clamped="1"' : '');
       if (kind === 'holed') dots += '<path' + attrs + ' d="M' + x + ' ' + (y - 10) + ' l3 6.5 7 .8 -5.3 4.8 1.5 7 -6.2 -3.6 -6.2 3.6 1.5 -7 -5.3 -4.8 7 -.8z" fill="#ffd23f" stroke="#1e6fd9" stroke-width="2"/>';
       else if (kind === 'hitnodir' || kind === 'missnodir') dots += '<g' + attrs + ' data-x="' + x + '" data-y="' + y + '"><path d="M' + x + ' ' + (y - 10) + ' l10 10 -10 10 -10 -10z" fill="' + (RG && !m.hit ? '#fff' : col) + '" stroke="' + (RG && !m.hit ? col : '#000') + '" stroke-width="' + (RG && !m.hit ? 3.5 : 2) + '"/><text x="' + x + '" y="' + (+y + 4.5) + '" text-anchor="middle" font-size="12" font-weight="900" fill="' + (RG && (!m.hit || RG.halo === '#000') ? '#000' : '#fff') + '">?</text></g>';
+      else if (opts.groups) dots += '<circle' + attrs + ' cx="' + x + '" cy="' + y + '" r="6.5" fill="' + col + '" stroke="' + RG.edge + '" stroke-width="2"/>'; // v257: like Dispersion – the colour is the distance group; on or off the green is where it sits
       else if (RG && !m.hit) dots += '<g' + attrs + '><circle cx="' + x + '" cy="' + y + '" r="7.5" fill="#fff" stroke="' + col + '" stroke-width="3.5"/><path d="M' + f1(q[0] - 3.5) + ' ' + f1(q[1] - 3.5) + ' l7 7 m0 -7 l-7 7" stroke="#000" stroke-width="2.2"/></g>';
       else dots += '<circle' + attrs + ' cx="' + x + '" cy="' + y + '" r="6.5" fill="' + col + '" stroke="#000" stroke-width="2"/>';
-      if (label) pend.push([q[0], q[1], label, label2, RG ? '#000' : m.hit ? '#0b3d91' : '#9b0016']);
+      if (label && !(opts.page && (!m.hit || opts.groups))) pend.push([q[0], q[1], label, label2, RG ? '#000' : m.hit ? '#0b3d91' : '#9b0016']); // v257: on the page a miss's yards + lie show when its dot is tapped
       boxes.push([q[0] - 8, q[1] - 10, q[0] + 8, q[1] + 10]);
     });
     pend.forEach(function (p) { labels += lbl(p[0], p[1], p[2], p[3], p[4]); });
@@ -6232,18 +6243,22 @@
       '<text class="pdir" x="6" y="' + (Y0 + 16) + '" font-size="13" font-weight="800">◀ LEFT</text><text class="pdir" x="' + (PX.W - 6) + '" y="' + (Y0 + 16) + '" text-anchor="end" font-size="13" font-weight="800">RIGHT ▶</text>' +
       (nd ? '<text class="pdir pnodir" x="' + (PX.W - 8) + '" y="34" text-anchor="end" font-size="11" font-weight="800">missed, no direction ↓</text>' : '');
     if (opts.nobench) out += '<text class="nobenchlab" id="nobenchlab" x="' + PX.cx + '" y="' + (PX.cy - PX.Rg + 17) + '" text-anchor="middle" font-size="10" fill="#3f4c58" stroke="#fff" stroke-width="2.5" paint-order="stroke">' + esc(opts.nobench) + '</text>';
-    return out + benchRing(bucket, BID) + '</svg>';
+    if (opts.groups) out += PROX_G.map(function (g) { var B = proxBench(g.mid, BID); if (!B || !list.some(function (m) { return proxGOf(m.from) === g; })) return '';
+      var r = f1(B.ft * PX.K); return '<g class="grpring" data-g="' + g.id + '"><circle cx="' + PX.cx + '" cy="' + PX.cy + '" r="' + r + '" fill="none" stroke="' + g.halo + '" stroke-opacity=".55" stroke-width="4.5"/>' +
+        '<circle cx="' + PX.cx + '" cy="' + PX.cy + '" r="' + r + '" fill="none" stroke="' + g.color + '" stroke-width="2.2" stroke-dasharray="8 6"/></g>'; }).join(''); // v257: one benchmark ring per group
+    return out + benchRing(bucket, BID, opts.page) + '</svg>';
   }
   function proxBenchId() { var r = round() || savedRounds()[0]; return view.proxReport ? myBench(r && r.player) : view.proxBench || blOf(r); } // v177: the report uses the player's benchmark (was always D1 women) // the PDF report keeps D1 women, as before // v124: picked on the page, else the open round's SG baseline
   function proxHTML(all) {
     var D = proxData(), L = D.list, P = SG.proxStats(L), miss = L.filter(function (m) { return !m.hit; });
-    // v121: distance chips in a 6-across grid (like the Club performance chips): All first, then 200 down to 40 (farther first, like the map)
-    var rail = SG.PROX_BUCKETS.slice(1).reverse().map(function (b) {
-      var c = D.counts[b.id];
-      return '<button class="ybtn' + (b.id === D.bucket ? ' sel' : '') + '" data-act="proxb" data-v="' + b.id + '" data-n="' + c + '"' + (c ? '' : ' disabled') +
-        ' aria-pressed="' + (b.id === D.bucket) + '" aria-label="' + b.yd + ' yards, ' + c + ' shot' + (c === 1 ? '' : 's') + '"><b>' + b.yd + '</b><small>' + (c || '–') + '</small></button>';
-    }).join('');
-    var bname = view.proxGroup ? view.proxGroup + ' yd group' : D.bucket === 'all' ? 'All 40–200 yd' : D.bucket + ' yd (' + (Number(D.bucket) - 5) + '–' + (Number(D.bucket) + 4) + ')';
+    // v257 (Scott): All + three distance groups (like the Dispersion map); one yardage from the list beside them
+    var G = D.grp, rail = PROX_G.map(function (g) { var c = D.gCounts[g.id], on = G === g;
+      return '<button class="ybtn ygrp' + (on ? ' sel' : '') + '" data-act="proxg" data-v="' + g.id + '" data-n="' + c + '"' + (c ? '' : ' disabled') + ' aria-pressed="' + on + '" aria-label="' + g.name + ' yards, ' + c + ' shot' + (c === 1 ? '' : 's') + '">' +
+        '<b><i class="gsw" style="background:' + g.color + ';border-color:' + g.edge + '"></i>' + g.name + '</b><small>' + c + '</small></button>'; }).join('');
+    var ydSel = '<select id="proxyd" class="proxyd' + (D.bucket !== 'all' ? ' sel' : '') + '" data-f="proxyd" aria-label="One distance"><option value="">One distance…</option>' +
+      SG.PROX_BUCKETS.slice(1).reverse().filter(function (x) { return D.counts[x.id]; }).map(function (x) { return '<option value="' + x.id + '"' + (x.id === D.bucket ? ' selected' : '') + '>' + x.yd + ' yd · ' + D.counts[x.id] + '</option>'; }).join('') + '</select>';
+    var bname = view.proxGroup ? view.proxGroup + ' yd group' : G ? G.name + ' yd' : D.bucket === 'all' ? 'All 40–200 yd' : D.bucket + ' yd';
+    var allG = !view.proxGroup && !G && D.bucket === 'all' && !view.proxReport; // All on the page: coloured by distance group
     var scope = all ? ' in ' + D.rounds + ' round' + (D.rounds === 1 ? '' : 's') : ' this round';
     var LIE_NM = { all: 'All lies' }, LIE_SH = { all: 'All' }; SG.PROX_LIES.forEach(function (l) { LIE_NM[l.id] = l.name; LIE_SH[l.id] = l.name; });
     var chips = ['all'].concat(SG.PROX_LIES.map(function (l) { return l.id; })).map(function (id) {
@@ -6258,12 +6273,12 @@
     var warnHTML = warns.map(function (w) { return '<p class="warnmsg" data-lie="' + w.id + '">⚠ ' + esc(w.text) + '</p>'; }).join('');
     // v124: the red ring follows a benchmark – the round's SG baseline by default (All rounds: the open round's), or the one picked
     // in the small selector on this page (this view only; the round's saved baseline is not changed)
-    var BID = proxBenchId(), BNM = benchName(BID), hasB = benchHasData(BID), B1 = !view.proxGroup ? proxBench(D.bucket, BID) : null;
+    var BID = proxBenchId(), BNM = benchName(BID), hasB = benchHasData(BID), B1 = !view.proxGroup ? proxBench(G ? G.mid : D.bucket, BID) : null;
     var bsel = '<label class="benchsel" id="benchsel"><i class="ln dash" aria-hidden="true"></i><select id="proxbench" data-f="proxbench" aria-label="Benchmark ring">' + SG.BASELINES.map(function (b) {
       var has = benchHasData(b.id); return '<option value="' + b.id + '"' + (b.id === BID ? ' selected' : '') + (has ? '' : ' data-nodata="1" class="nodata"') + '>' + benchName(b.id) + (has ? '' : ' (no data)') + '</option>'; }).join('') + '</select></label>';
     var dflt = !view.proxBench || view.proxBench === blOf(round());
     // no ring: the benchmark has no numbers at all, or none for this distance (no extrapolating). All 40–200 never has a ring.
-    var nob = !hasB ? 'No proximity benchmark for ' + BNM + ' yet' : !B1 && !view.proxGroup && D.bucket !== 'all' ? BNM + ': no data at this distance' : '';
+    var nob = !hasB ? 'No proximity benchmark for ' + BNM + ' yet' : !B1 && !view.proxGroup && (G || D.bucket !== 'all') ? BNM + ': no data at this distance' : '';
     var EB = PROX_BENCH[BID] || {}, srcLine = hasB ? '<p id="benchsrc"><b>' + esc(BNM) + '</b>: ' + esc(EB.source || '') + '. ' + esc(EB.caveat || '') + '</p>' : '';
     // the explanations that used to sit on the page now live behind small ⓘ buttons
     var tipTiles = '<b>Shots</b>: approaches in the map below. <b>Greens hit</b>: how many reached the green in regulation. <b>Avg prox · hit</b>: average first-putt distance on the greens you hit. ' +
@@ -6287,20 +6302,21 @@
       '. Change it with the small selector next to Distance. ' + (nob ? nob + ' \u2013 no ring, and the green shows 60 yd across (90 ft). ' : '') + (function () { var no = SG.BASELINES.filter(function (b) { return !benchHasData(b.id); }).map(function (b) { return benchName(b.id); }); return no.length ? 'No proximity numbers yet for: ' + no.join(', ') + '.' : 'The benchmarks use different definitions and years \u2013 compare against one, not across them.'; })() + '</p>';
     return '<div class="mapsum clubsum proxsum" id="mapsum"><span><b>' + P.n + '</b> approach' + (P.n === 1 ? '' : 'es') + ' from <b id="proxsel">' + bname + '</b>' + (D.lie === 'all' ? '' : ', <b id="proxliesel">' + LIE_NM[D.lie] + '</b>') + scope + '</span>' +
       tipBtn('proxtiles', 'i', 'About these numbers') + '</div>' + tipText('proxtiles', tipTiles) +
-      (D.auto ? '<p class="proxnote" id="proxauto">Showing your most-played distance – tap another or All.</p>' : '') +
-      '<div class="quickview clubqv proxqv" id="proxstats">' +
-      clubQV('shots', 'Shots', P.n, P.n === 1 ? 'approach' : 'approaches') +
+      '<div class="quickview clubqv proxqv" id="proxstats">' + /* v257: the shot count is in the line above */
       clubQV('gir', 'Greens hit', P.n ? P.hits + ' / ' + P.n : '–', P.n ? Math.round(P.hitPct) + '%' : '&nbsp;') +
       clubQV('proxhit', 'Avg prox', fmtFt(P.avgHitFt), 'greens hit') + clubQV('proxall', 'Avg prox', fmtFt(P.avgAllFt), 'all shots') + '</div>' +
       '<div id="proxwarn">' + warnHTML + '</div>' +
-      '<div class="proxhrow"><h3 class="clubh3">Distance (yd)' + tipBtn('proxdist', 'i', 'About the distance buttons') + '</h3>' + bsel + '</div>' + tipText('proxdist', tipDist) +
-      '<div class="proxrail" id="proxrail" role="group" aria-label="Approach yardage">' +
-      '<button class="yall' + (D.bucket === 'all' ? ' sel' : '') + '" data-act="proxb" data-v="all" data-n="' + D.counts.all + '" aria-pressed="' + (D.bucket === 'all') + '" aria-label="All 40 to 200 yards, ' + D.counts.all + ' shot' + (D.counts.all === 1 ? '' : 's') + '"><b>All</b><small>' + D.counts.all + '</small></button>' + rail + '</div>' +
+      '<div class="proxhrow"><h3 class="clubh3">Distance (yd)' + tipBtn('proxdist', 'i', 'About the distance buttons') + '</h3>' + ydSel + '</div>' + tipText('proxdist', tipDist) +
+      '<div class="proxrail proxgrp" id="proxrail" role="group" aria-label="Approach distance">' +
+      '<button class="yall' + (allG ? ' sel' : '') + '" data-act="proxg" data-v="all" data-n="' + D.counts.all + '" aria-pressed="' + allG + '" aria-label="All 40 to 200 yards, ' + D.counts.all + ' shot' + (D.counts.all === 1 ? '' : 's') + '"><b>All</b><small>' + D.counts.all + '</small></button>' + rail + '</div>' +
       '<div class="proxctl"><p class="proxlbl">Hit from</p><span class="heatslot" id="heatslot"></span></div><div class="liechips" id="liechips" role="group" aria-label="Starting lie">' + chips + '</div>' +
-      '<div class="proxwrap">' + proxSVG(L, view.proxGroup ? grpMid(view.proxGroup) : D.bucket, null, { bench: BID, crop: !view.proxReport, nobench: nob }) + '</div>' +
-      '<div class="legend proxleg"><span><i class="dot" style="background:#1e6fd9"></i>Hit green</span><span><i class="dot" style="background:#e0102a"></i>Missed</span>' +
-      (B1 ? '<span id="benchleg"><i class="ln dash"></i>' + esc(BNM) + ' avg' + (all && dflt ? ' (this round\u2019s benchmark)' : '') + '</span>' : nob ? '<span class="nobench" id="nobench">' + esc(nob) + '</span>' : '') +
+      '<div class="proxwrap">' + proxSVG(L, view.proxGroup ? grpMid(view.proxGroup) : G ? G.mid : D.bucket, null, { bench: BID, crop: !view.proxReport, nobench: allG ? '' : nob, groups: allG, page: !view.proxReport }) + '</div>' +
+      '<div class="legend proxleg">' + (allG ? PROX_G.filter(function (g) { return D.gCounts[g.id]; }).map(function (g) { return '<span><i class="dot" style="background:' + g.color + ';border:1px solid ' + g.edge + '"></i>' + g.name + '</span>'; }).join('') +
+        '' :
+        '<span><i class="dot" style="background:#1e6fd9"></i>Hit green</span><span><i class="dot" style="background:#e0102a"></i>Missed</span>') +
       tipBtn('proxkey', 'i', 'How to read the map') + '</div>' + tipText('proxkey', tipKey) +
+      '<div class="proxbrow">' + bsel + (B1 || allG ? '<span id="benchleg">' + (allG ? 'average – one ring per group' : 'average from here: ' + Math.round(B1.ft) + ' ft') + '</span>' : nob ? '<span class="nobench" id="nobench">' + esc(nob) + '</span>' : '') + '</div>' +
+      '<p class="proxtap" id="proxtap">Tap a dot for its distance, lie and hole.</p>' +
       '<h3>By lie – ' + bname + '</h3>' + lieTab +
       '<h3>Misses by direction</h3>' + dirTable(miss).replace('(not plotted)', '(drawn as ?)').replace('class="dirtab"', 'class="dirtab clubtab"');
   }
@@ -6626,7 +6642,9 @@
       case 'pinclose': view.pinOpen = false; render(); return;
       case 'pinset': h.pin = SG.normPin(v); save(); render(); return;
       case 'pinclear': h.pin = ''; save(); render(); return;
-      case 'proxb': { var mv0 = document.getElementById('mapview'), st0 = mv0 ? mv0.scrollTop : 0; view.proxB = v; render(); var mv1 = document.getElementById('mapview'); if (mv1) mv1.scrollTop = st0; return; }
+      case 'proxg': { var mvg = document.getElementById('mapview'), stg = mvg ? mvg.scrollTop : 0; view.proxB = 'all'; view.proxG = v === 'all' ? null : v; render(); var mvg2 = document.getElementById('mapview'); if (mvg2) mvg2.scrollTop = stg; return; } // v257
+      case 'proxdot': toast(b.getAttribute('data-t') || ''); return; // v257: a dot's distance, lie and hole
+      case 'proxb': { var mv0 = document.getElementById('mapview'), st0 = mv0 ? mv0.scrollTop : 0; view.proxB = v; view.proxG = null; render(); var mv1 = document.getElementById('mapview'); if (mv1) mv1.scrollTop = st0; return; }
       case 'proxlie': { var mvl = document.getElementById('mapview'), stl = mvl ? mvl.scrollTop : 0; view.proxLie = v; render(); var mvl2 = document.getElementById('mapview'); if (mvl2) mvl2.scrollTop = stl; return; }
       case 'tkknow': view.tkKnow = !view.tkKnow; render(); return;
       case 'stx': view.stx = view.stx || {}; view.stx[b.getAttribute('data-v')] = !view.stx[b.getAttribute('data-v')]; render(); return;
@@ -6777,6 +6795,7 @@
       rd.readAsText(f); ev.target.value = ''; return;
     }
     var t = ev.target, f = t.getAttribute('data-f'); if (!f) return;
+    if (f === 'proxyd') { var mvy = document.getElementById('mapview'), sty = mvy ? mvy.scrollTop : 0; view.proxB = t.value || '~auto'; view.proxG = null; render(); var mvy2 = document.getElementById('mapview'); if (mvy2) mvy2.scrollTop = sty; return; } // v257: one distance
     if (f === 'proxbench') { var mvb = document.getElementById('mapview'), stb = mvb ? mvb.scrollTop : 0; view.proxBench = t.value; render(); var mvb2 = document.getElementById('mapview'); if (mvb2) mvb2.scrollTop = stb; return; } // v124: this view only
     if (f === 'baseline' && t.id === 'mgbl') { var mw = mgWho(), old = myBench(mw); setMyBench(mw, t.value); // v177: the player's benchmark, everywhere
       var odd = savedRounds().filter(function (r) { return samePlayer(r.player || playerName(), mw) && blOf(r) !== t.value; });

@@ -29,7 +29,7 @@ const OUT = '/workspace/golf-app/screenshots/', PORT = 8833, BASE = 'http://127.
   assert.deepStrictEqual(top.td, ['78', '+6', '5531', '31'], 'completed round: no "thru" under the score');
   assert.ok(/topbar|rsactions/.test(top.prev) && top.firstTable && top.r <= 390, JSON.stringify(top));
   assert.strictEqual(await page.$('.big-score'), null, 'big score header gone'); assert.strictEqual(await page.$('#card-total'), null, 'old TOTAL row gone');
-  const txt = await page.evaluate(() => document.querySelector('.roundpage').innerText);
+  const txt = (await page.evaluate(() => document.querySelector('.roundpage').innerText)).split('\n').filter(l => !/^Strokes gained compares/.test(l)).join('\n'); // v256: the strokes-gained explanation says "vs par" on purpose
   assert.ok(!/vs par/i.test(txt) && !/holes? done/i.test(txt) && !/blank\s*=/i.test(txt) && !/\bTOTAL\b/.test(txt), 'no "vs par" / "holes done" / "Blank =" / TOTAL text');
   console.log('  top box: Score 78 · To par +6 · Yards 5531 · Putts 31');
   // ---- Quick view
@@ -70,7 +70,7 @@ const OUT = '/workspace/golf-app/screenshots/', PORT = 8833, BASE = 'http://127.
     localStorage.setItem('golfsg.rounds.v1', JSON.stringify([r])); });
   await page.reload(); if (await page.$('#tbplus')) await page.click('#navbtn'); await page.click('[data-act="history"]');
   await page.click('#histlist [data-act="open"][data-id="arc16"]'); await page.waitForSelector('#rs-top');
-  assert.match(await page.textContent('#rs-score'), /^\d+thru 16$/); assert.ok(!/vs par|holes? done/i.test(await page.evaluate(() => document.querySelector('.roundpage').innerText)));
+  assert.match(await page.textContent('#rs-score'), /^\d+thru 16$/); assert.ok(!/vs par|holes? done/i.test((await page.evaluate(() => document.querySelector('.roundpage').innerText)).split('\n').filter(l => !/^Strokes gained compares/.test(l)).join('\n')));
   assert.strictEqual(await page.$$eval('#stattiles .stxb', x => x.length), 0, 'a different round starts collapsed again');
   console.log('  unfinished round shows "thru 16"');
   assert.deepStrictEqual(errors, []); console.log('ROUND STATS QUICK OK'); await b.close(); srv.kill();

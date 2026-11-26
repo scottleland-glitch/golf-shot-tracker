@@ -19,24 +19,24 @@ const PORT = 8871, BASE = 'http://127.0.0.1:' + PORT + '/', OUT = '/workspace/go
     // page chrome = Club performance
     assert.ok(await P.$('#mapview.clubview.proxview'), 'prox page uses the compact page class');
     const head = await P.evaluate(() => { const cs = s => getComputedStyle(document.querySelector(s)); return { t: [cs('#mapview .maphead b').fontSize, cs('#mapview .maphead b').fontWeight], c: [cs('#mapview .maphead .close').fontSize, cs('#mapview .maphead .close').minHeight], s: cs('#mapview > .seg button').minHeight, bc: cs('#mapview > button.big[data-act="mapclose"]').fontWeight }; });
-    assert.deepStrictEqual(head, { t: ['16px', '500'], c: ['13px', '32px'], s: '30px', bc: '400' }, JSON.stringify(head));
+    assert.deepStrictEqual(head, { t: ['16px', '500'], c: ['13px', '0px'], s: '30px', bc: '400' }, JSON.stringify(head)); // v257: a round ✕ here
     console.log('✓ same header, Close buttons and small This round / All rounds switch as Club performance');
     assert.strictEqual(await P.getAttribute('#d1ring', 'data-bench'), 'pga', 'PGA Tour round: PGA Tour ring'); await P.selectOption('#proxbench', 'd1w'); await P.waitForSelector('#d1ring');
-    // tiles: 4 in one row, light type
+    // v257: three small tiles (the shot count is in the line above); pick 150 from the One distance list first
+    await P.selectOption('#proxyd', '150');
     const tiles = await P.$$eval('#proxstats .qv', qs => qs.map(q => { const r = q.getBoundingClientRect(), b = q.querySelector('b'); return [q.dataset.q, q.querySelector('.qvl').textContent, b.textContent, q.querySelector('small').textContent, Math.round(r.top), Math.round(r.height), getComputedStyle(b).fontSize, getComputedStyle(b).fontWeight]; }));
-    assert.deepStrictEqual(tiles.map(t => t.slice(0, 4)), [['shots', 'Shots', '5', 'approaches'], ['gir', 'Greens hit', '5 / 5', '100%'], ['proxhit', 'Avg prox', '20 ft', 'greens hit'], ['proxall', 'Avg prox', '20 ft', 'all shots']]);
+    assert.deepStrictEqual(tiles.map(t => t.slice(0, 4)), [['gir', 'Greens hit', '5 / 5', '100%'], ['proxhit', 'Avg prox', '20 ft', 'greens hit'], ['proxall', 'Avg prox', '20 ft', 'all shots']]);
     assert.ok(tiles.every(t => t[4] === tiles[0][4] && t[5] < 80 && t[6] === '15px' && t[7] === '400'), 'one row of small tiles ' + JSON.stringify(tiles));
-    console.log('✓ four small tiles in one row: 5 shots, 5 / 5 greens (100%), 20 ft / 20 ft');
-    // distance chips: All + 200…40, 6 across, thin borders, pale blue when picked
-    const ch = await P.$$eval('#proxrail button', bs => bs.map(x => { const r = x.getBoundingClientRect(), c = getComputedStyle(x); return [x.dataset.v, Math.round(r.top), Math.round(r.width), Math.round(r.height), c.borderTopWidth, c.backgroundColor, c.borderTopColor, x.disabled]; }));
-    assert.deepStrictEqual(ch.map(c => c[0]), ['all', '200', '190', '180', '170', '160', '150', '140', '130', '120', '110', '100', '90', '80', '70', '60', '50', '40']);
-    const rowsY = [...new Set(ch.map(c => c[1]))]; assert.strictEqual(rowsY.length, 2, '2 rows of 9'); rowsY.forEach(y => assert.strictEqual(ch.filter(c => c[1] === y).length, 9));
-    assert.ok(ch.every(c => c[3] <= 40 && c[2] < 64 && c[4] === '1px'), 'small chips, 1px borders');
-    const sel = ch.filter(c => c[0] === '150')[0]; assert.strictEqual(sel[5], 'rgba(31, 115, 201, 0.12)'); assert.strictEqual(sel[6], 'rgb(31, 115, 201)');
-    assert.deepStrictEqual(ch.filter(c => c[7]).map(c => c[0]), ['190', '70', '60', '50', '40']); assert.strictEqual(await P.locator('#proxrail .ybtn').count(), 17);
-    const lie = await P.$$eval('#liechips .liebtn', bs => bs.map(x => [x.dataset.v, Math.round(x.getBoundingClientRect().top), x.classList.contains('sel'), getComputedStyle(x).fontWeight]));
+    assert.match(await P.textContent('#mapsum'), /^5 approaches from 150 yd this round/);
+    console.log('✓ three small tiles in one row: 5 / 5 greens (100%), 20 ft / 20 ft; 5 approaches in the line above');
+    // v257: distance groups like Dispersion – All, Under 120, 120–169, 170+ in one row; one yardage from the list
+    const ch = await P.$$eval('#proxrail button', bs => bs.map(x => [x.dataset.v, Math.round(x.getBoundingClientRect().top), +x.dataset.n, x.disabled]));
+    assert.deepStrictEqual(ch.map(c => c[0]), ['all', 'u120', 'm120', 'l170']); assert.strictEqual(new Set(ch.map(c => c[1])).size, 1, 'one row');
+    assert.strictEqual(ch[1][2] + ch[2][2] + ch[3][2], ch[0][2], 'groups add up to All');
+    const opts = await P.$$eval('#proxyd option', os => os.map(o => o.value)); assert.strictEqual(opts[0], ''); assert.ok(opts.includes('150') && !opts.includes('190'), 'only yardages with shots ' + opts);
+    const lie = await P.$$eval('#liechips .liebtn', bs => bs.filter(x => x.offsetParent).map(x => [x.dataset.v, Math.round(x.getBoundingClientRect().top), x.classList.contains('sel'), getComputedStyle(x).fontWeight]));
     assert.strictEqual(new Set(lie.map(l => l[1])).size, 1, 'lie chips in one row'); assert.deepStrictEqual(lie.filter(l => l[2]).map(l => l[0]), ['all']); assert.ok(lie.every(l => l[3] === '400'));
-    console.log('✓ distance chips All + 200…40 in 2 rows of 9 (thin borders, 150 pale blue); lie chips in one row of 6');
+    console.log('✓ All + 3 distance groups in one row; One distance list; lie chips with shots in one row');
     // explanations behind ⓘ; nothing long left on the page
     for (const k of ['proxtiles', 'proxdist', 'proxkey']) {
       assert.ok(await P.locator('#tip-' + k).isHidden(), k + ' hidden'); await P.click('[data-act="info"][data-v="' + k + '"]'); assert.ok(await P.locator('#tip-' + k).isVisible(), k + ' opens');
@@ -60,16 +60,16 @@ const PORT = 8871, BASE = 'http://127.0.0.1:' + PORT + '/', OUT = '/workspace/go
     await P.locator('#mapview').evaluate(e => e.scrollTop = 0); await P.screenshot({ path: OUT + 'prox-vibrant-v122.png' });
     // rail logic unchanged: All, one distance, a lie filter
     await P.click('#proxrail [data-v="all"]'); assert.strictEqual(await P.locator('#proxmap .tracer').count(), 18); assert.match(await P.getAttribute('#proxrail .yall', 'class'), /sel/); assert.strictEqual(await P.locator('#proxauto').count(), 0);
-    const reds = await P.$$eval('#proxmap .tracer', t => t.filter(e => e.getAttribute('stroke') === '#e0102a').length); assert.strictEqual(reds, 6);
-    await P.click('#proxrail [data-v="180"]'); assert.strictEqual(await P.locator('#proxmap .tracer').count(), 1); assert.match(await P.textContent('#mapsum'), /^1 approach from 180 yd/);
+    const reds = await P.$$eval('#proxmap .xdot', t => t.filter(e => /^miss/.test(e.dataset.kind)).length); assert.strictEqual(reds, 6); // v257: All is coloured by distance group; misses by where they sit
+    await P.selectOption('#proxyd', '180'); assert.strictEqual(await P.locator('#proxmap .tracer').count(), 1); assert.match(await P.textContent('#mapsum'), /^1 approach from 180 yd/);
     await P.click('#proxrail [data-v="all"]'); await P.click('#liechips [data-v="rough"]'); assert.match(await P.textContent('#mapsum'), /All 40–200 yd, Rough this round/); assert.strictEqual(await P.locator('#proxmap .tracer').count(), 5);
     await P.click('#liechips [data-v="all"]');
     console.log('✓ distance logic unchanged: All = 18 tracers (6 red misses, 1 ace), 180 = 1, Rough = 5');
     // All rounds
     await P.click('[data-act="mapscope"][data-v="all"]'); await P.waitForSelector('#proxrail'); assert.match(await P.textContent('#mapsum'), /in 2 rounds/);
-    assert.strictEqual(await P.textContent('#proxstats [data-q="shots"] b'), '36'); await P.click('#proxrail [data-v="150"]');
+    assert.match(await P.textContent('#mapsum'), /^36 approaches/); await P.selectOption('#proxyd', '150');
     // (All rounds opens on Gradient, same as before v121 – its hot-spot tags are the shared heat look, left as is)
-    assert.strictEqual(await P.textContent('#proxstats [data-q="shots"] b'), '10'); await P.locator('#mapview').evaluate(e => e.scrollTop = 0); await P.screenshot({ path: OUT + 'prox-all-vibrant-v122.png' });
+    assert.match(await P.textContent('#mapsum'), /^10 approaches/); await P.locator('#mapview').evaluate(e => e.scrollTop = 0); await P.screenshot({ path: OUT + 'prox-all-vibrant-v122.png' });
     console.log('✓ All rounds: All stays picked (36 approaches), 10 from 150 yd');
     // shared maps untouched: the round-page GIR map and the plain proximity SVG keep their v120 look outside the Proximity page
     await P.click('[data-act="mapclose"]'); const raw = await P.evaluate(() => { const d = document.createElement('div'); d.innerHTML = window.__golf.proxSVG([], 150); document.body.appendChild(d);

@@ -5,6 +5,12 @@ Renamed to **Pin High** (title, home-screen label, header, PDF). Storage keys (`
 Phone web app for tracking every golf shot and strokes gained against a selectable baseline (PGA Tour by default).
 Static files only: no backend, no build step. Data is stored on the phone (localStorage).
 
+## Proximity by distance, tidied (v257)
+- Distance buttons are now **All · Under 120 · 120–169 · 170+**, the same groups and colours (white, red, blue) as the Dispersion map. The busiest group opens first. One exact yardage is in the **One distance…** list (only yardages with shots).
+- All: each dot and line is coloured by its group, with one dashed benchmark ring per group; where the dot sits shows on or off the green. A single group: blue = hit, red = missed, as before.
+- Miss labels and the benchmark label are off the map – tap any dot for its distance, lie, hole and where it was hit from. The benchmark picker sits under the map with the average it draws.
+- Three number boxes (the shot count is in the headline), a soft amber warning, round ✕, lie buttons with no shots hidden, lighter lines. The PDF report is unchanged.
+
 ## Dispersion for a coach's athlete (v255)
 - A coach viewing an athlete in the app saw "No finished rounds yet" on Dispersion › Rounds / Pin location: the page picked the phone owner's name instead of the athlete's. It now always uses a name on the page (the athlete).
 
