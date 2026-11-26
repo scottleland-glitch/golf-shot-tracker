@@ -138,7 +138,7 @@
         fsInfo((d.byPin ? pgToggles(A, 'fs') : '') + (bestL || ('<b>' + (d.byPin ? esc(pinName) + ' pins' : 'From ' + s.ryd + ' yd') + '</b> · ' + Math.round(A.onPct) + '% on the green · ' + Math.round(A.medFt) + '’ median · ' + sgTxt(A.sg)))) +
         '<div class="dspcap sr" id="dspcap" aria-live="polite"><b>' + (d.byPin ? esc(pinName) + ' pins' : 'From ' + s.ryd + ' yd') + '</b><span>' + Math.round(A.onPct) + '% on the green · ' + Math.round(A.medFt) + '’ median</span></div></div>' +
         '<div class="dspctl"><button class="dspgo" id="dspgo" data-act="dspplay">▶ Play</button></div>' +
-        (d.byPin ? pgToggles(A, 'act') + '<p class="muted dspnote">On or off the drawn green = where each ball really finished. Each ring holds 8 of 10 shots in that group (5+ shots).</p>' + bestL
+        (d.byPin ? pgToggles(A, 'act') + '<p class="muted dspnote">On or off the drawn green = where each ball really finished. The yellow ring holds 8 of 10 of the shots shown (5+). Tap a yardage to show or hide it.</p>' + bestL
           : '<p class="dsplegend"><span><span class="dspk w"></span>on the green</span><span><span class="dspk r"></span>missed</span>' + (A.ell ? '<span><span class="dspk e"></span>8 of 10 shots</span>' : '') + '</p>') +
         '<p class="muted dspsrc" id="dspsrc">Your ' + A.n + ' approach' + (A.n === 1 ? '' : 'es') + (d.byPin ? ' to ' + esc(pinName.toLowerCase()) + ' pins, all distances' : ' from ' + (s.ryd - 5) + '–' + (s.ryd + 4) + ' yd') + ' (fairway or tee' + (d.play === 'tournament' ? ', tournaments' : '') + ') · where they finished' + nd + '</p></div>';
       var pct = function (v, l) { return '<div><b>' + v + '%</b><span>' + l + '</span></div>'; };
@@ -239,7 +239,7 @@
       if (a === 'dspclub') { s.club = v; anim = { play: true }; gAnim = null; keepScroll(); return; } // v247
       if (a === 'dspryd') { s.ryd = +v; anim = { play: true }; keepScroll(); return; }
       if (a === 'dsprgrp') { pgToggle(+v); return; } // v260: a distance group on / off
-      if (a === 'dsprpin') { s.rpin = v; anim = { play: true }; openFs('top'); keepScroll(); return; } // v259: plays full screen // v249: grid and picture share the screen
+      if (a === 'dsprpin') { s.rpin = v; s.rgoff = null; /* v261: a pin always drops every group */ anim = { play: true }; openFs('top'); keepScroll(); return; } // v259: plays full screen // v249: grid and picture share the screen
       if (a === 'dspsrc') { setOpt('src', v === 'rounds' || v === 'pins' ? v : 'sim'); anim = null; gAnim = null; keepScroll(); return; }
       if (a === 'dsprplay') { setOpt('play', v === 'tournament' ? 'tournament' : 'all'); anim = null; keepScroll(); return; }
       if (a === 'dspaim') { var Ad = data().A; if (!Ad || !Ad.pins) return; var pp = Ad.pins.filter(function (x) { return x.k === s.pin; })[0] || Ad.pins[4], from = aimOf(pp, aimMode());
@@ -278,8 +278,8 @@
     // ---------- the animation ----------
     // world = green frame in yards (x right, y away). Camera { cx, cy, s (px per yd) }.
     // v248 distance groups by pin location: under 120 white, 120–169 red, 170+ blue (ball and tracer the same colour)
-    // v260: four groups – short wedge white, long wedge yellow, mid approach red, long approach blue
-    var GCOL = [{ fill: '#fff', edge: 'rgba(0,0,0,.5)', tr: 'rgba(255,255,255,A)' }, { fill: '#f5c518', edge: '#7a5d00', tr: 'rgba(245,197,24,A)' }, { fill: '#e0313f', edge: '#7d1019', tr: 'rgba(224,49,63,A)' }, { fill: '#1f73c9', edge: '#0d3d6e', tr: 'rgba(31,115,201,A)' }];
+    // v260: four groups – short wedge white, long wedge orange (v261: the ring is yellow), mid approach red, long approach blue
+    var GCOL = [{ fill: '#fff', edge: 'rgba(0,0,0,.5)', tr: 'rgba(255,255,255,A)' }, { fill: '#ff9a1f', edge: '#8a4a00', tr: 'rgba(255,154,31,A)' }, { fill: '#e0313f', edge: '#7d1019', tr: 'rgba(224,49,63,A)' }, { fill: '#1f73c9', edge: '#0d3d6e', tr: 'rgba(31,115,201,A)' }];
     var COL = { rough: '#2f6e35', rough2: '#2a6530', fw: '#4f9a45', fw2: '#58a34d', green: '#5cb85c', collar: '#4aa64b', edge: '#2e7d32', sand: '#efe2b8', sandEdge: '#cdbb86', red: '#e0313f', ell: '#ffe066' };
     function cams(W, H, yd, pin) {
       var wide = { cx: 0, cy: (-yd - 14 + 24) / 2, s: Math.min(H / (yd + 38), W / 60) };
@@ -385,7 +385,7 @@
       var s = S(), reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
       if (A.rounds) s = { pin: A.pin || 'center' }; // v247: round finishes around the pin, drawn at the centre; v248 a pin location's shots at that pin on the green
       if (A.rounds && A.pin) { // v260 (Scott): pin location = the green only, one distance group at a time, balls drop and hop like the sim's
-        var pin0 = D.pinOf(A.pin), vis = pgVis(), band = 18 + 32 * pgGroups(A, vis).length, H2 = Math.max(120, H - band), cam0 = fitClose(W, H2, { show: A.show.filter(function (p) { return vis[p.g]; }), ell: null }, pin0, gCam(W, H2), true, 10);
+        var pin0 = D.pinOf(A.pin), vis = pgVis(), band = 0, H2 = H, vshow = A.show.filter(function (p) { return vis[p.g]; }), cam0 = fitClose(W, H2, { show: vshow, ell: vshow.length >= 5 ? D.ellipse(vshow.map(function (p) { return { dx: p.dx, dy: p.dy }; })) : null }, pin0, gCam(W, H2), true, 14); // the ring on screen too
         cam0 = { cx: cam0.cx, cy: cam0.cy + band / 2 / cam0.s, s: cam0.s }; // the green sits below the band of yardage labels
         if (!anim || !anim.play || reduce) { pgFrame(ctx, W, H, cam0, A, pin0, 1e9, vis); anim = null; return; } anim = null; var tp0 = performance.now();
         var pstep = function (now) { if (my !== gen) return; if (!document.getElementById('dspcv') || view.screen !== 'disp') { rafId = 0; return; }
@@ -469,38 +469,36 @@
     function pgGroups(A, vis) { return PG_ALL.filter(function (g) { return vis[g] && A.show.some(function (p) { return p.g === g; }); }).map(function (g) {
       var L = A.show.filter(function (p) { return p.g === g; }), F = L.map(function (p) { return Math.round(p.from); }), lo = Math.min.apply(null, F), hi = Math.max.apply(null, F);
       return { g: g, L: L, ell: L.length >= 5 ? D.ellipse(L.map(function (p) { return { dx: p.dx, dy: p.dy }; })) : null, txt: (lo === hi ? lo : lo + '–' + hi) + ' yd · ' + L.length + ' shot' + (L.length === 1 ? '' : 's') }; }); }
+    // v261 (Scott: easier to read): no text on the picture. Each group's balls drop together (like the sim), the next group right after,
+    // then one 8-of-10 ring around every shot being shown (5+ shots). The legend under the picture says which colour is which yardage.
     function pgFrame(ctx, W, H, cam, A, pin, t, vis) {
       var P = drawScene(ctx, W, H, cam, A.yd, pin, true), X = P.X, Y = P.Y, bs = Math.max(2.6, Math.min(5, 0.6 * cam.s)), G = pgGroups(A, vis);
-      var LBL = 0.55, FALL = 0.32, SPREAD = 0.8, HOP = [[0.2, 10], [0.14, 3.5]], settle = FALL + SPREAD + HOP[0][0] + HOP[1][0], ELL = 0.5, GAP = 0.25, per = LBL + settle + ELL + GAP;
+      var FALL = 0.32, SPREAD = 0.22, HOP = [[0.2, 10], [0.14, 3.5]], NEXT = 0.45, settle = FALL + SPREAD + HOP[0][0] + HOP[1][0], ELL = 0.55;
+      var shown = [], ellT = G.length ? (G.length - 1) * NEXT + settle + 0.05 : 0;
       G.forEach(function (gr, k) {
-        var tg = t - k * per, n = gr.L.length, gc = GCOL[gr.g]; if (tg < 0) return;
-        gr.L.forEach(function (q, i) {
-          var lx = pin.x + q.dx, ly = pin.y + q.dy, u = tg - LBL - SPREAD * i / Math.max(1, n); if (u <= 0) return;
+        var tg = t - k * NEXT, n = gr.L.length, gc = GCOL[gr.g];
+        gr.L.forEach(function (q, i) { shown.push(q);
+          var lx = pin.x + q.dx, ly = pin.y + q.dy, u = tg - SPREAD * i / Math.max(1, n); if (u <= 0) return;
           var bx = edgeClamp(X(lx), 7, W - 7), by = edgeClamp(Y(ly), 7, H - 7), lift = 0, sc = 1;
           if (u < FALL) { var f = u / FALL; lift = (1 - f) * (1 - f) * 40; sc = 1 + 0.9 * (1 - f); ctx.fillStyle = 'rgba(0,0,0,' + (0.12 + 0.2 * f).toFixed(2) + ')'; ctx.beginPath(); ctx.arc(bx, by, bs * (0.6 + 0.5 * f), 0, 7); ctx.fill(); }
           else { var a = u - FALL; for (var j = 0; j < HOP.length; j++) { if (a < HOP[j][0]) { var z = a / HOP[j][0]; lift = 4 * z * (1 - z) * HOP[j][1]; break; } a -= HOP[j][0]; }
             if (lift > 0.3) { ctx.fillStyle = 'rgba(0,0,0,.22)'; ctx.beginPath(); ctx.arc(bx, by, bs * 0.8, 0, 7); ctx.fill(); } }
           ctx.fillStyle = gc.fill; ctx.strokeStyle = gc.edge; ctx.lineWidth = 0.9; ctx.beginPath(); ctx.arc(bx, by - lift, bs * sc, 0, 7); ctx.fill(); ctx.stroke();
         });
-        var te = tg - LBL - settle; if (gr.ell && te > 0) { var e = gr.ell, pr = Math.min(1, te / ELL);
-          ctx.save(); ctx.strokeStyle = gc.fill; ctx.lineWidth = 2.4; ctx.shadowColor = 'rgba(0,0,0,.55)'; ctx.shadowBlur = 3; ctx.beginPath();
-          ctx.ellipse(X(pin.x + e.cx), Y(pin.y + e.cy), e.rx * cam.s, e.ry * cam.s, -e.rot * Math.PI / 180, 0, 2 * Math.PI * pr); ctx.stroke(); ctx.restore(); }
       });
       // the flag on top of the balls
       var fx = X(pin.x), fy = Y(pin.y), fh = 26; ctx.fillStyle = '#111'; ctx.beginPath(); ctx.arc(fx, fy, 2.4, 0, 7); ctx.fill();
       ctx.strokeStyle = '#fff'; ctx.lineWidth = 1.6; ctx.beginPath(); ctx.moveTo(fx, fy); ctx.lineTo(fx, fy - fh); ctx.stroke();
       ctx.fillStyle = COL.red; ctx.strokeStyle = 'rgba(0,0,0,.4)'; ctx.lineWidth = 0.8; ctx.beginPath(); ctx.moveTo(fx, fy - fh); ctx.lineTo(fx + 14, fy - fh + 5); ctx.lineTo(fx, fy - fh + 10); ctx.closePath(); ctx.fill(); ctx.stroke();
-      // the yardage of each group at the top, in its balls' colour – the one dropping now is big, then it joins the list
-      var big = Math.max(18, Math.min(30, W / 15)), sm = Math.max(14, Math.min(18, W / 24)), y = 10;
-      G.forEach(function (gr, k) { var tg = t - k * per; if (tg < 0) return; var gc = GCOL[gr.g], cur = tg < per - GAP && k <= G.length - 1 && t < G.length * per - GAP, a = Math.min(1, tg / 0.25);
-        var fs = cur ? big : sm, label = PG_NAME[gr.g] + ' · ' + gr.txt; ctx.save(); ctx.globalAlpha = a; ctx.font = '700 ' + fs + 'px -apple-system, system-ui, sans-serif'; ctx.textBaseline = 'top'; ctx.textAlign = 'left';
-        var w = ctx.measureText(label).width; if (w > W - 28) { fs = Math.floor(fs * (W - 28) / w); ctx.font = '700 ' + fs + 'px -apple-system, system-ui, sans-serif'; w = ctx.measureText(label).width; } var x = Math.max(8, (W - w) / 2); /* fits the width */ ctx.fillStyle = 'rgba(0,0,0,.42)'; roundRect(ctx, x - 8, y - 4, w + 16, fs + 9, 8); ctx.fill();
-        ctx.fillStyle = gc.fill; ctx.fillText(label, x, y); ctx.restore(); y += fs + 12; });
-      return G.length * per;
+      // one ring around everything shown
+      var e = shown.length >= 5 ? D.ellipse(shown.map(function (q) { return { dx: q.dx, dy: q.dy }; })) : null;
+      if (e && t > ellT) { var pr = Math.min(1, (t - ellT) / ELL); ctx.save(); ctx.strokeStyle = COL.ell; ctx.lineWidth = 2.4; ctx.shadowColor = 'rgba(0,0,0,.5)'; ctx.shadowBlur = 3; ctx.beginPath();
+        ctx.ellipse(X(pin.x + e.cx), Y(pin.y + e.cy), e.rx * cam.s, e.ry * cam.s, -e.rot * Math.PI / 180, 0, 2 * Math.PI * pr); ctx.stroke(); ctx.restore(); }
+      return ellT + ELL + 0.05;
     }
     function pgToggles(A, how) { var vis = pgVis();
-      return '<div class="dsppgt' + (how === 'fs' ? ' fs' : '') + '" role="group" aria-label="Distance groups">' + PG_ALL.map(function (g) { var n = A.groups ? A.groups[g] : 0, on = vis[g] && n > 0;
-        return '<button type="button" class="dsppg g' + g + (on ? ' on' : '') + '" ' + (how === 'fs' ? 'data-fsgrp' : 'data-act="dsprgrp" data-v') + '="' + g + '" aria-pressed="' + on + '"' + (n ? '' : ' disabled') + '><i></i><span><b>' + PG_NAME[g] + ' · ' + n + '</b><em>' + PG_RANGE[g] + ' yd</em></span></button>'; }).join('') + '</div>'; }
+      return '<div class="dsppgt' + (how === 'fs' ? ' fs' : '') + '" role="group" aria-label="Yardage by colour – tap to show or hide">' + PG_ALL.map(function (g) { var n = A.groups ? A.groups[g] : 0, on = vis[g] && n > 0;
+        return '<button type="button" class="dsppg g' + g + (on ? ' on' : '') + '" ' + (how === 'fs' ? 'data-fsgrp' : 'data-act="dsprgrp" data-v') + '="' + g + '" aria-pressed="' + on + '" aria-label="' + PG_NAME[g] + ' ' + PG_RANGE[g] + ' yards, ' + n + ' shot' + (n === 1 ? '' : 's') + '"' + (n ? '' : ' disabled') + '><i></i><span><b>' + PG_RANGE[g] + '</b><em>' + n + ' shot' + (n === 1 ? '' : 's') + '</em></span></button>'; }).join('') + '</div>'; }
     function roundRect(ctx, x, y, w, h, r) { ctx.beginPath(); ctx.moveTo(x + r, y); ctx.arcTo(x + w, y, x + w, y + h, r); ctx.arcTo(x + w, y + h, x, y + h, r); ctx.arcTo(x, y + h, x, y, r); ctx.arcTo(x, y, x + w, y, r); ctx.closePath(); }
     function gCam(W, H) { return { cx: 0, cy: -3.5, s: Math.min(W / 48, H / 50) }; }
     function mountGreen() {
