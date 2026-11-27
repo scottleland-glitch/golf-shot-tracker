@@ -179,7 +179,9 @@
   // own shots – 14 tee shots out of 70 puts 20% on Driving. It is built from the rounds each time (kind 'tour') and never saved, so it
   // follows a round that is edited or deleted, and an empty practice week during a tournament no longer reads as a drop.
   // Score-only rounds have no shots: split like the benchmark group's practice.
-  var TOUR_MIN = 150;
+  // v269 (Scott): plus the 90-min warm-up and pre-round practice on top – 30 putting (15 short, 15 lag), 30 chipping, 20 irons, 10 driver.
+  // Same for a 9-hole round. A warm-up logged on a tournament day is this, so it isn't counted twice in the fading lines.
+  var TOUR_MIN = 150, WARM = { short: 15, lag: 15, chip: 30, irons: 20, drive: 10 }, WARM_MIN = 90;
   function tourPractice(rounds, SG, bl) {
     var out = [];
     (rounds || []).forEach(function (r) { if (!r || r.play !== 'tournament') return; var t = Date.parse(r.date); if (isNaN(t)) return;
@@ -189,7 +191,7 @@
         for (var i = 0; i < SPOKES.length; i++) if (SPOKES[i].test(s)) { n[SPOKES[i].k]++; tot++; break; } }); });
       if (!tot) { SPOKES.forEach(function (s) { n[s.k] = PRAC_SPLIT[s.k]; }); tot = 1; }
       var d = new Date(t), day = d.getFullYear() + '-' + ('0' + (d.getMonth() + 1)).slice(-2) + '-' + ('0' + d.getDate()).slice(-2) + 'T12:00:00', all = TOUR_MIN * Math.min(36, S.holesDone) / 18;
-      SPOKES.forEach(function (s) { var m = Math.round(all * n[s.k] / tot * 10) / 10; if (m > 0) out.push({ id: 'tour-' + r.id + '-' + s.k, date: day, player: String(r.player || ''), spoke: s.k, focus: 'Tournament round', min: m, kind: 'tour', round: String(r.id) }); }); });
+      SPOKES.forEach(function (s) { var m = Math.round((all * n[s.k] / tot + (WARM[s.k] || 0)) * 10) / 10; if (m > 0) out.push({ id: 'tour-' + r.id + '-' + s.k, date: day, player: String(r.player || ''), spoke: s.k, focus: 'Tournament round', min: m, kind: 'tour', round: String(r.id) }); }); });
     return out;
   }
   // Minutes per spoke (and per focus) in a [from, to) window; sessions = distinct days.
@@ -571,7 +573,7 @@
 
   var FOCUS_HINT = { Mechanics: 'takeaway, swing plane, weight transfer…' };
   var API = { TAU: TAU, TAU_ACUTE: TAU_ACUTE, PRAC_BENCH: PRAC_BENCH, PRAC_SPLIT: PRAC_SPLIT, CLUB_AVG_H: CLUB_AVG_H, practiceBench: practiceBench, practiceLevel: practiceLevel, practiceLevelSVG: practiceLevelSVG, practiceWindows: practiceWindows, practiceLevelText: practiceLevelText,
-    STRONG: STRONG, FOCUS: FOCUS, FOCUS_HINT: FOCUS_HINT, validPractice: validPractice, mergePractice: mergePractice, tourPractice: tourPractice, TOUR_MIN: TOUR_MIN, tourHatchDefs: tourHatchDefs, practiceShape: practiceShape, practiceBuild: practiceBuild, practiceSVG: practiceSVG,
+    STRONG: STRONG, FOCUS: FOCUS, FOCUS_HINT: FOCUS_HINT, validPractice: validPractice, mergePractice: mergePractice, tourPractice: tourPractice, TOUR_MIN: TOUR_MIN, WARM_MIN: WARM_MIN, tourHatchDefs: tourHatchDefs, practiceShape: practiceShape, practiceBuild: practiceBuild, practiceSVG: practiceSVG,
     practiceVsGame: practiceVsGame, drillFocus: drillFocus, hm: hm,
     SEASON_BENCH: SEASON_BENCH, seasonBuild: seasonBuild, seasonSVG: seasonSVG, playWeeksBuild: playWeeksBuild, playWeeksSVG: playWeeksSVG, playWeeksAxis: playWeeksAxis, ROUND_H: ROUND_H,     PLAY_KINDS: PLAY_KINDS, playOf: playOf, playTally: playTally, playingBuild: playingBuild, kindCompare: kindCompare, holesText: holesText, MIN_EACH: MIN_EACH, CMP_AREAS: CMP_AREAS,
     SPOKES: SPOKES, PERIODS: PERIODS, MIN_ROUNDS: MIN_ROUNDS, period: period, roundPeriod: roundPeriod, ROUND_COUNTS: ROUND_COUNTS, USUAL_N: USUAL_N, USUAL_MIN: USUAL_MIN, windows: windows, shape: shape, build: build, radarSVG: radarSVG, radius: radius, fmt: fmt, RING: RING };
