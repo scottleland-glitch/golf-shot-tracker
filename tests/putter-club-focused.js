@@ -30,15 +30,17 @@ const PORT = 8893, OUT = process.argv[2] || '/tmp/putter-club'; require('fs').mk
     assert.deepStrictEqual(rows.slice(0, 9).map((r) => r[0]), ['p3 p3top', 'p3', 'p3', 'p3 p3bot', 'p3 p3top', 'p3', 'p3 p3bot', '', ''], 'a box round hole 1 (4 putts) and hole 2 (3 putts)');
     assert.match(await page.textContent('#clubshots tr.p3top td:first-child'), /4 putts/);
     assert.ok(rows.slice(7).every((r) => r[0] === ''), 'no box on 1- and 2-putt holes');
-    // the picture: FIRST putts only, no lines – where each finished (hole 1: 6 ft short, hole 2: 3 ft long, both 3+ putt holes = red), the 16 holed
-    // first putts one ball in the cup, rings scaled to the furthest leave (6 ft); the averages are first putts only
+    // the picture: first putts only, no lines – white = where each started (18), black = where it finished (the 2 with a direction), a red 3 ft ring,
+    // red outline on holes 1 and 2 (3+ putts), rings scaled to the longest first putt (30 ft); the averages are first putts only
     assert.match(await page.textContent('#clubdisp .cch'), /First putts/); assert.match(await page.textContent('#clubdisp .ccv'), /n = 18/);
     assert.strictEqual(await page.$$eval('#clubmap line.cputt', (e) => e.length), 0, 'no lines');
-    assert.deepStrictEqual(await page.$$eval('#clubmap circle.cdot.fp', (e) => e.map((c) => [c.dataset.hole, c.dataset.ft, c.classList.contains('p3')])), [['1', '6', true], ['2', '3', true]], 'the two leaves with a direction');
-    assert.match(await page.textContent('#clubnodir'), /\+ 16 with no direction/, 'the 1-ft leaves with no direction are counted, not piled up');
-    const cy = await page.$$eval('#clubmap circle.cdot.fp', (e) => e.map((c) => +c.getAttribute('cy'))); assert.ok(cy[0] > 200 && cy[1] < 200, 'short below the hole, long above ' + cy);
-    const rings = await page.$$eval('#clubmap .cring', (e) => e.map((x) => +x.dataset.ft)); assert.strictEqual(Math.max(...rings), 6, 'scaled to the furthest leave ' + rings);
-    assert.strictEqual(await page.$('#clubholed'), null, 'no first putt holed in this round');
+    const st = await page.$$eval('#clubmap circle.cdot.fps', (e) => e.map((c) => [c.dataset.hole, c.getAttribute('fill'), c.classList.contains('p3')]));
+    assert.strictEqual(st.length, 18); assert.ok(st.every((x) => x[1] === '#fff')); assert.deepStrictEqual(st.filter((x) => x[2]).map((x) => x[0]), ['1', '2']);
+    assert.deepStrictEqual(await page.$$eval('#clubmap circle.cdot.fp', (e) => e.map((c) => [c.dataset.hole, c.getAttribute('fill'), c.classList.contains('p3')])), [['1', '#1b2329', true], ['2', '#1b2329', true]], 'black finishes');
+    assert.strictEqual(await page.getAttribute('#clubring3', 'stroke'), '#d0213a'); const r3 = +(await page.getAttribute('#clubring3', 'r'));
+    const rings = await page.$$eval('#clubmap .cring', (e) => e.map((x) => [+x.dataset.ft, +x.getAttribute('r')])); const top = rings[rings.length - 1];
+    assert.strictEqual(top[0], 30, 'scaled to the longest first putt ' + JSON.stringify(rings)); assert.ok(Math.abs(r3 - top[1] * 3 / 30) < 0.2, '3 ft ring to scale');
+    assert.match(await page.textContent('#clubnodir'), /\+ 16 finishes with no direction/);
     assert.match(await page.textContent('#clubcells'), /2 ft short/);
     await page.locator('#clubdisp').scrollIntoViewIfNeeded(); await page.locator('#clubdisp').screenshot({ path: OUT + '/putter-picture.png' });
     await page.evaluate(() => document.getElementById('clubshots').scrollIntoView({ block: 'start' })); await page.waitForTimeout(200); await page.screenshot({ path: OUT + '/putter-list.png' });
