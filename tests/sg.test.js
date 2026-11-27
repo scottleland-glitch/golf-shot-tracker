@@ -756,7 +756,7 @@ test('club + layup: club kept on shots, layup tee shot excluded from SG entirely
   const rows = [R(400, 'tee', '', { club: '3W' }), R(160, 'fairway', '', { club: '7i' }), R(20, 'green', 'right'), R(2, 'holed')];
   const h = { par: 4, finished: true, rows }, lay = { par: 4, finished: true, rows: rows.map((r, i) => i ? r : Object.assign({}, r, { layup: true })) };
   const a = SG.analyzeHole(h, 'pga'), b = SG.analyzeHole(lay, 'pga');
-  assert.deepStrictEqual(a.shots.map(s => s.club), ['3W', '7i', '', '']);
+  assert.deepStrictEqual(a.shots.map(s => s.club), ['3W', '7i', 'Putter', 'Putter']); // v266: putts are the putter's
   assert.ok(!a.shots[0].layup && b.shots[0].layup && b.shots[0].sg === 0 && Math.abs(b.shots[0].sgRaw - a.shots[0].sg) < 1e-9);
   const mk = hole => ({ id: 'x', date: '2026-10-10', baseline: 'pga', holes: [hole].concat(Array.from({ length: 17 }, () => ({ par: 4, rows: [R('', 'tee')] }))) });
   const Sa = SG.summarize(mk(h), 'pga'), Sb = SG.summarize(mk(lay), 'pga');
