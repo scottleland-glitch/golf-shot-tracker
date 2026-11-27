@@ -149,15 +149,15 @@
   // practice, so a tournament stretch doesn't read as a drop. A half-finished week can't look like a drop either.
   var PD = { half: 3, recent: 14 };
   function isoDay(t) { var d = new Date(t); return d.getFullYear() + '-' + ('0' + (d.getMonth() + 1)).slice(-2) + '-' + ('0' + d.getDate()).slice(-2); }
-  function dailyPractice(logs, golfDays, keep, from, now) {
+  function dailyPractice(logs, golfDays, keep, from, now, tourDays) { // v269: tourDays – tournament days count their credit (not held), but a day between two round days is still held
     var A = Math.pow(0.5, 1 / PD.half), byDay = {}, first = null, out = [];
     (logs || []).forEach(function (e) { if (!(e.min > 0) || !keep(e)) return; var t = Date.parse(String(e.date).length <= 10 ? e.date + 'T12:00:00' : e.date); if (isNaN(t) || t > now + DAY) return;
       var k = isoDay(t); byDay[k] = (byDay[k] || 0) + e.min / 60; if (first == null || t < first) first = t; });
     if (first == null) return { line: [], first: null };
     var t0 = Math.min(from, first), d = new Date(t0); d.setHours(12, 0, 0, 0); var e = 0, k = 0, days = [];
     for (var t = d.getTime(); t <= now + 1; t += DAY) days.push(t);
-    var golf = days.map(function (t) { return !!golfDays[isoDay(t)]; });
-    days.forEach(function (t, i) { var g = golf[i] || (i > 0 && i < days.length - 1 && golf[i - 1] && golf[i + 1]), h = byDay[isoDay(t)] || 0;
+    var golf = days.map(function (t) { return !!golfDays[isoDay(t)]; }), play = days.map(function (t, i) { return golf[i] || !!(tourDays && tourDays[isoDay(t)]); });
+    days.forEach(function (t, i) { var g = golf[i] || (!play[i] && i > 0 && i < days.length - 1 && play[i - 1] && play[i + 1]), h = byDay[isoDay(t)] || 0;
       if (t >= first - DAY / 2 && !(g && k)) { e = e * A + h * (1 - A); k++; }
       var v = k ? e / (1 - Math.pow(A, Math.max(k, 3))) * 7 : 0; if (t >= from) out.push({ t: t, h: v, golf: g }); });
     return { line: out, first: first };
@@ -171,10 +171,20 @@
   // ---- everything for the Trends page ----
   // tests: [{ date, area: { putt, chip, bunker, wedges } }] – strokes per round for that area from a short game test
   function build(rounds, logs, SG, MYGAME, opts) {
-    opts = opts || {}; var now = opts.now == null ? Date.now() : +opts.now, W = weekSeries(rounds, logs, SG, MYGAME, Object.assign({}, opts, { now: now }));
+    opts = opts || {}; var now = opts.now == null ? Date.now() : +opts.now;
+    // v269 (Scott): each tournament round counts as 2.5 h of practice, split by its shots (MYGAME.tourPractice) – in the weekly practice,
+    // the daily line and the forecast, so a tournament week doesn't read as no practice. Other round days still hold the line flat.
+    var own = logs || [], tourL = opts.roundsOnly || !MYGAME.tourPractice ? [] : MYGAME.tourPractice(rounds, SG, opts.bl);
+    logs = own.concat(tourL);
+    var W = weekSeries(rounds, logs, SG, MYGAME, Object.assign({}, opts, { now: now }));
     var lastTest = (opts.tests || []).filter(function (t) { return !isNaN(Date.parse(t.date)) && Date.parse(t.date) <= now + DAY; }).sort(function (a, b) { return Date.parse(b.date) - Date.parse(a.date); })[0];
-    var golfDays = {}; W.forEach(function (w) { w.list.forEach(function (R) { if (!isNaN(R.t)) golfDays[isoDay(R.t)] = 1; }); });
-    var from = W[0].start, pd = function (keep) { return dailyPractice(opts.roundsOnly ? [] : logs, golfDays, keep, from, now); };
+    var golfDays = {}, tourDays = {}; W.forEach(function (w) { w.list.forEach(function (R) { if (isNaN(R.t)) return; if (R.tour && tourL.length) tourDays[isoDay(R.t)] = 1; else golfDays[isoDay(R.t)] = 1; }); });
+    // on a tournament day the round counts in place of anything logged that day (a warm-up), as the hold did before
+    var dayOf = function (e) { return isoDay(Date.parse(String(e.date).length <= 10 ? e.date + 'T12:00:00' : e.date)); }, own2 = tourL.length ? own.filter(function (e) { return !tourDays[dayOf(e)]; }) : own, logs2 = own2.concat(tourL);
+    var from = W[0].start, pd = function (keep) { var P = dailyPractice(opts.roundsOnly ? [] : logs2, golfDays, keep, from, now, tourDays);
+      if (tourL.length && P.line.length) { var O = dailyPractice(own2, golfDays, keep, from, now, tourDays), hp = {}; O.line.forEach(function (q) { hp[q.t] = q.h; });
+        P.line.forEach(function (q) { q.hp = Math.min(q.h, hp[q.t] || 0); if (tourDays[isoDay(q.t)]) q.tour = true; }); } // hp = your own practice; h − hp = tournament rounds
+      return P; };
     var areas = AREAS.map(function (A) {
       var y = W.map(function (w) { var n = 0, s = 0; A.spokes.forEach(function (k) { if (w.n[k]) { n += w.n[k]; s += w.sg[k]; } }); return n && w.wHoles ? s / w.wHoles * 18 : null; });
       var x = W.map(function (w) { return A.spokes.reduce(function (s, k) { return s + (w.prac[k] || 0); }, 0); });
