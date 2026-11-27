@@ -2894,7 +2894,10 @@ html body .rsmenu .playpick { margin: 0; }
 /* stat rows that open a map in one tap */
 html body .stxgo .stxgo-c { font-style: normal; font-size: 20px; line-height: 1; color: #6b7b88; margin-left: 8px; }
 /* replay: pinned header, the hole fits the screen */
-html body #replayview .rpsticky { position: sticky; top: 0; z-index: 3; margin: calc(-1 * (env(safe-area-inset-top) + 8px)) -12px 8px; padding: calc(env(safe-area-inset-top) + 8px) 12px 8px; background: rgba(225, 238, 232, .94); -webkit-backdrop-filter: blur(16px); backdrop-filter: blur(16px); }
+/* v265 (Scott: "the Play button is hidden"): the view has no top padding of its own; the pinned header carries the notch space – a negative
+   margin let the sticky header sit over the first ~67 px under it on an iPhone (the ▶ Play row) */
+html body #replayview { padding-top: 0; }
+html body #replayview .rpsticky { position: sticky; top: 0; z-index: 3; margin: 0 -12px 8px; padding: calc(env(safe-area-inset-top) + 8px) 12px 8px; background: rgba(225, 238, 232, .94); -webkit-backdrop-filter: blur(16px); backdrop-filter: blur(16px); }
 html body #replayview #replaymap { max-height: calc(100vh - env(safe-area-inset-top) - 150px - var(--rbh, 0px)); width: auto; max-width: 100%; margin: 0 auto; }
 html body .rsmenu .rsmi .rsic { flex: 0 0 36px; width: 36px; height: 36px; padding: 7px; border-radius: 11px; background: #1f5d3a; fill: none; stroke: #fff; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; box-sizing: border-box; }
 html body .rsmenu #storybtn .rsic { background: linear-gradient(135deg, #d8a23a, #c4553e); }

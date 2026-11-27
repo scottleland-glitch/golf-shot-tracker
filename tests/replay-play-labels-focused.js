@@ -20,6 +20,12 @@ const PORT = 8889, OUT = process.argv[2] || '/tmp/replay-play'; fs.mkdirSync(OUT
     });
     await page.reload(); if (await page.$('#tbplus')) await page.click('#navbtn'); await page.click('[data-act="history"]'); await page.click('#histlist [data-act="open"][data-id="rr"]');
     await page.click('#sumreplay'); await page.waitForSelector('#replaymap');
+    // v265: on a notched iPhone the pinned header must not cover the ▶ Play row (env(safe-area-inset-top) is 0 here, so stand in 59 px for it)
+    const notch = async () => page.evaluate(() => { const css = [...document.styleSheets].flatMap((sh) => { try { return [...sh.cssRules]; } catch (e) { return []; } }).map((r) => r.cssText).filter((t) => /#replayview( |\.rpsticky| \.rpsticky)|\.mapview \{/.test(t) && /safe-area-inset-top/.test(t)).map((t) => t.replace(/env\(safe-area-inset-top\)/g, '59px')).join('\n');
+      let st = document.getElementById('notchcss'); if (!st) { st = document.createElement('style'); st.id = 'notchcss'; document.head.appendChild(st); } st.textContent = css;
+      const v = document.getElementById('replayview'), hb = v.querySelector('.rpsticky').getBoundingClientRect().bottom, pb = document.getElementById('rpplay').getBoundingClientRect(); return [v.scrollTop, hb, pb.top, pb.bottom]; });
+    const nm = await notch(); assert.ok(nm[0] === 0 && nm[2] >= nm[1] - 0.5, 'Play row below the pinned header with a notch: ' + nm); await page.screenshot({ path: OUT + '/00-open-notch.png' });
+    await page.evaluate(() => { const n = document.getElementById('notchcss'); if (n) n.remove(); });
     // the geometry carries the static map's tags for every shot, the putts and the shot onto the green
     const G = JSON.parse(await page.getAttribute('#rpplay', 'data-geo'));
     assert.ok(G.shots.length >= 2 && G.shots.every((s) => s.lab && s.lab.big && s.lab.w > 20), 'every shot has its tag: ' + JSON.stringify(G.shots.map((s) => s.lab)));
