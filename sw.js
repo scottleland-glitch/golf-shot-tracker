@@ -1,4 +1,5 @@
 // Offline support: cache the whole app on install, serve cache-first.
+// v267: Club performance – the putter: From in feet then Finished (no Hit), a picture of every putt start → finish scaled to the longest, red box round 3+ putt holes; holed shots are one ball in the cup with a count.
 // v266: Club performance – Hit column (yd; ft for putts) in each club's shot list; putts count as the Putter (unless another club was picked), with Putter tiles; Bias / the finish picture only count shots that could reach the pin (bag carry + 15 yd).
 // v265: Hole replay ▶ Play – the static map's distance tags fade in as each shot's trace passes halfway (shots, the shot onto the green, putts).
 // v264: Dispersion aim guide – ◎ back on the aim point (the flag + the move) with the guide from the flag; the ring sits off it by your usual miss.
@@ -149,7 +150,7 @@
 // v113: "Courses near me" (near.js). The course finder list (data/us-courses.json, ~1.0 MB, ~0.28 MB gzipped) is NOT in this cache:
 // the app downloads it on first use into its own cache 'pinhigh-courselist-v1', which a new version keeps (so no re-download).
 // GolfCore scorecards (through the Pin High relay, pinhigh-golfcore.pinhigh.workers.dev) go straight to the network; the app saves each picked course with the saved courses.
-const CACHE = 'golf-sg-v266';
+const CACHE = 'golf-sg-v267';
 const ASSETS = ['./', './img/home-bg.webp', './img/oriole.webp', './tour/entry.webp', './tour/score.webp', './tour/rounds.webp', './tour/stats.webp', './tour/review.webp', './tour/mygame.webp', './tour/practice.webp', './tour/improve.webp', './index.html', './styles.css', './sg.js', './trends.js', './plan.js', './funfacts.js', './weekahead.js', './birdie.js', './courses.js', './near.js', './bag.js', './wedges.js', './live.js', './sync.js', './share.js', './story.js', './insights.js', './mygame.js', './shortgame.js', './shortgame-ui.js', './dispersion.js', './dispersion-ui.js', './replay-anim.js', './app.js', './config.js', './vendor/jspdf.umd.min.js',
   './manifest.webmanifest', './icons/apple-touch-icon.png', './icons/icon-192.png',
   './icons/icon-512.png', './icons/icon-512-maskable.png'];
