@@ -1,5 +1,5 @@
 // Offline support: cache the whole app on install, serve cache-first.
-// v266: Club performance – Hit column (yd; ft for putts) in each club's shot list; putts count as the Putter (unless another club was picked), with Putter tiles.
+// v266: Club performance – Hit column (yd; ft for putts) in each club's shot list; putts count as the Putter (unless another club was picked), with Putter tiles; Bias / the finish picture only count shots that could reach the pin (bag carry + 15 yd).
 // v265: Hole replay ▶ Play – the static map's distance tags fade in as each shot's trace passes halfway (shots, the shot onto the green, putts).
 // v264: Dispersion aim guide – ◎ back on the aim point (the flag + the move) with the guide from the flag; the ring sits off it by your usual miss.
 // v263: Dispersion rounds – Choose: pick a whole tournament (e.g. a 54-hole event) in one tap, or any rounds; a right-angle guide from the flag to the aim point with each arm measured.
