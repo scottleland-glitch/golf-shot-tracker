@@ -33,13 +33,18 @@ const PORT = 8893, OUT = process.argv[2] || '/tmp/putter-club'; require('fs').mk
     // the picture: first putts only, no lines – white = where each started (18), black = where it finished (the 2 with a direction), a red 3 ft ring,
     // red outline on holes 1 and 2 (3+ putts), rings scaled to the longest first putt (30 ft); the averages are first putts only
     assert.match(await page.textContent('#clubdisp .cch'), /First putts/); assert.match(await page.textContent('#clubdisp .ccv'), /n = 18/);
-    assert.deepStrictEqual(await page.$$eval('#clubmap line.cputt', (e) => e.map((l) => l.dataset.hole)), ['1'], 'a line only for the leave outside 3 ft (hole 1: 6 ft; hole 2 left 3 ft)');
+    assert.deepStrictEqual(await page.$$eval('#clubmap path.cputt', (e) => e.map((l) => l.dataset.hole)), ['1'], 'a line only for the leave outside 3 ft (hole 1: 6 ft; hole 2 left 3 ft)');
     const st = await page.$$eval('#clubmap circle.cdot.fps', (e) => e.map((c) => [c.dataset.hole, c.getAttribute('fill'), c.classList.contains('p3')]));
     assert.strictEqual(st.length, 18); assert.ok(st.every((x) => x[1] === '#fff')); assert.deepStrictEqual(st.filter((x) => x[2]).map((x) => x[0]), ['1', '2']);
     assert.deepStrictEqual(await page.$$eval('#clubmap circle.cdot.fp', (e) => e.map((c) => [c.dataset.hole, c.getAttribute('fill'), c.classList.contains('p3')])), [['1', '#1b2329', true], ['2', '#1b2329', true]], 'black finishes');
     assert.strictEqual(await page.getAttribute('#clubring3', 'stroke'), '#d0213a'); const r3 = +(await page.getAttribute('#clubring3', 'r'));
     const rings = await page.$$eval('#clubmap .cring', (e) => e.map((x) => [+x.dataset.ft, +x.getAttribute('r')])); const top = rings[rings.length - 1];
-    assert.strictEqual(top[0], 30, 'scaled to the longest first putt ' + JSON.stringify(rings)); assert.ok(Math.abs(r3 - top[1] * 3 / 30) < 0.2, '3 ft ring to scale');
+    assert.strictEqual(top[0], 30, 'out to the longest first putt ' + JSON.stringify(rings)); assert.ok(Math.abs(r3 - top[1] * Math.sqrt(3 / 30)) < 0.3, 'v268: square-root scale – 3 ft is drawn ' + Math.round(r3 / top[1] * 100) + '% out');
+    // v268: no line runs through another ball
+    const clear = await page.evaluate(() => { const D = [...document.querySelectorAll('#clubmap circle.cdot')].map((c) => [+c.getAttribute('cx'), +c.getAttribute('cy')]);
+      return [...document.querySelectorAll('#clubmap path.cputt')].every((pth) => { const L = pth.getTotalLength(), a = pth.getPointAtLength(0), b = pth.getPointAtLength(L);
+        for (let t = 0.1 * L; t < 0.9 * L; t += 2) { const q = pth.getPointAtLength(t); if (D.some((d) => Math.hypot(d[0] - a.x, d[1] - a.y) > 1 && Math.hypot(d[0] - b.x, d[1] - b.y) > 1 && Math.hypot(d[0] - q.x, d[1] - q.y) < 5)) return false; } return true; }); });
+    assert.ok(clear, 'lines bend round the other balls');
     assert.match(await page.textContent('#clubnodir'), /\+ 16 finishes with no direction/);
     assert.match(await page.textContent('#clubcells'), /2 ft short/);
     await page.locator('#clubdisp').scrollIntoViewIfNeeded(); await page.locator('#clubdisp').screenshot({ path: OUT + '/putter-picture.png' });

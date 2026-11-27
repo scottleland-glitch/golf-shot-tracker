@@ -27,6 +27,18 @@ const PORT = 8891;
     assert.match(await page.textContent('#clubbias'), /4H finishes 8 yd short on average/, 'only the 200-yd shots count');
     assert.match(await page.textContent('#clubrank tr[data-v="4H"]'), /⚠ 8 yd short/);
     assert.match(await page.textContent('#tip-clubdisp'), /9 shot\(s\) from beyond 4H’s reach/);
+    // v268 (Scott): a 9i that finished 104 yd right in the fairway (a punch-out from trouble) is left out of the picture – it was blowing it out to 350 ft
+    await page.evaluate(() => { const R = (d, l, dir, club) => Object.assign({ dist: d, loc: l, dir: dir || '', pen: false }, club ? { club } : {});
+      const holes = Array.from({ length: 18 }, (_, i) => i === 0 ? { par: 5, finished: true, rows: [R(520, 'tee', '', 'Driver'), R(140, 'recovery', 'right', '9i'), R(104, 'fairway', 'right', '56'), R(9, 'green', 'long'), R(1, 'holed')] }
+        : { par: 4, finished: true, rows: [R(420, 'tee', '', 'Driver'), R(135, 'fairway', '', '9i'), R(14, 'green', i % 2 ? 'right' : 'long'), R(2, 'green', 'short'), R(1, 'holed')] });
+      const bg = JSON.parse(localStorage.getItem('golfsg.bag.v1')); bg.clubs.push({ code: '9i', cat: 'ir', carry: 150 }); localStorage.setItem('golfsg.bag.v1', JSON.stringify(bg)); // in reach – so only the far finish leaves it out
+      const rs = JSON.parse(localStorage.getItem('golfsg.rounds.v1')); rs.push({ v: 3, dv: 2, id: 'rp', date: '2026-10-11T17:00:00.000Z', course: 'Punch', baseline: 'pga', player: 'Scott', holes }); localStorage.setItem('golfsg.rounds.v1', JSON.stringify(rs)); });
+    await page.reload(); if (await page.$('#tbplus')) await page.click('#navbtn'); await page.click('[data-act="history"]'); await page.click('#histlist [data-act="open"][data-id="rp"]');
+    if (!(await page.$('[data-stx="club"].open')) && await page.$('[data-act="stx"][data-v="club"]')) await page.click('[data-act="stx"][data-v="club"]');
+    await page.click('[data-act="map"][data-v="club"]'); await page.waitForSelector('#clubbtns'); await page.click('#clubbtns [data-v="9i"]');
+    const rings = await page.$$eval('#clubmap .cring', (e) => e.map((x) => +x.dataset.ft)); assert.ok(Math.max(...rings) <= 60, 'the punch-out no longer blows the picture out: ' + rings);
+    assert.match(await page.textContent('#tip-clubdisp'), /1 shot\(s\) that finished more than 30 yd off the green/);
+    assert.match(await page.textContent('#clubshots'), /104 yd right/, 'still in the shot list');
     assert.deepStrictEqual(errors, []); console.log('CLUB REACH OK');
   } finally { await b.close(); srv.kill(); }
 })().catch((e) => { console.error(e); process.exit(1); });
