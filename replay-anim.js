@@ -1,4 +1,4 @@
-// v251 (Scott) Hole replay ▶ Play: the static replay map, then on Play every shot flies in the Dispersion look
+// v251 (Scott) Hole replay ▶ Play (v265: the static map's distance tags fade in as each trace passes halfway): the static replay map, then on Play every shot flies in the Dispersion look
 // (white ball arcing with its shadow and tracer, hops where it lands). Tee and fairway shots play on the whole hole;
 // the camera zooms to the green for the approach and the short game, then the true-scale green for the putts.
 // Self-contained: replayHTML() puts the hole's geometry on the #rpplay button (data-geo), this file does the rest,
@@ -105,6 +105,26 @@
     if (t2) { ctx.font = '500 11px ' + FONT; ctx.fillStyle = 'rgba(255,255,255,.86)'; ctx.fillText(t2, 20, 43); }
     ctx.restore();
   }
+  // v265 (Scott): the static replay's distance tags, fading in once a shot's trace is half done. The tag keeps its screen size; it sits off
+  // its line in the same direction as on the static map, joined by the same leader and dot. lab: { x, y (on the line), bx, by, w, hh (the
+  // tag on the static map), big, small, col, pen }. X / Y map the drawing to the screen; skipped while its line is off screen.
+  function tag(ctx, w, h, X, Y, s, lab, a, ink) {
+    if (!lab || a <= 0) return; var px = X(lab.x), py = Y(lab.y); if (px < -20 || px > w + 20 || py < -20 || py > h + 20) return;
+    ctx.save(); ctx.globalAlpha = Math.min(1, a);
+    ctx.font = '800 12px ' + FONT; var bw = ctx.measureText(lab.big || '').width; ctx.font = '600 9.5px ' + FONT; var sw = lab.small ? ctx.measureText(lab.small).width : 0;
+    var W2 = Math.max(bw, sw) + 16, H2 = lab.small ? 30 : 20, dx = lab.bx + lab.w / 2 - lab.x, dy = lab.by + lab.hh / 2 - lab.y, dl = Math.hypot(dx, dy) || 1;
+    var reach = Math.abs(dx / dl) * W2 / 2 + Math.abs(dy / dl) * H2 / 2, Ls = clamp(dl * s, 16 + reach, 46 + reach), cx = px + dx / dl * Ls, cy = py + dy / dl * Ls;
+    var bx = clamp(cx - W2 / 2, 4, w - 4 - W2), by = clamp(cy - H2 / 2, 4, h - 4 - H2);
+    var ex = clamp(px, bx, bx + W2), ey = clamp(py, by, by + H2); // where the leader meets the tag
+    var el = Math.hypot(ex - px, ey - py) || 1, sx = lab.nodot ? px + (ex - px) / el * Math.min(11, el) : px, sy = lab.nodot ? py + (ey - py) / el * Math.min(11, el) : py; // nodot: from the edge of a numbered marker
+    ctx.strokeStyle = '#fff'; ctx.lineWidth = 1.6; ctx.beginPath(); ctx.moveTo(sx, sy); ctx.lineTo(ex, ey); ctx.stroke();
+    if (!lab.nodot) { ctx.fillStyle = '#fff'; ctx.strokeStyle = ink; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(px, py, 3, 0, 7); ctx.fill(); ctx.stroke(); }
+    ctx.fillStyle = 'rgba(255,255,255,.96)'; ctx.strokeStyle = ink; ctx.lineWidth = 1.6; rr(ctx, bx, by, W2, H2, 8); ctx.fill(); ctx.stroke();
+    ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic'; ctx.font = '800 12px ' + FONT; ctx.fillStyle = lab.pen ? '#c00' : '#111'; ctx.fillText(lab.big || '', bx + 8, by + 14);
+    if (lab.small) { ctx.font = '600 9.5px ' + FONT; ctx.fillStyle = lab.holed ? '#1f7a44' : '#444'; ctx.fillText(lab.small, bx + 8, by + 25); }
+    ctx.restore();
+  }
+  var LBL_AT = 0.5, LBL_IN = 0.22; // a tag shows when its trace is half done, fading in over 0.22 s
   // the hole at time t: finished shots as lines on the ground, the one in the air with its tracer
   function holeFrame(ctx, w, h, G, L, t) {
     var cam = camAt(L, t), P = hole(ctx, w, h, cam, G), X = P.X, Y = P.Y, sx = function (p) { return [X(p[0]), Y(p[1])]; }, zoom = cam.s / L.s0, bs = clamp(3.1 + (zoom - 1) * 0.45, 3.1, 5.6), cur = null, ballsAt = [];
@@ -135,6 +155,7 @@
     });
     flag(ctx, pinX, pinY, clamp(2.4 * cam.s * 7, 14, 30));
     nums.forEach(function (o) { var a = sx(o.s.a); num(ctx, a[0], a[1], o.s.n, o.s.col, o.s.col === '#fff' ? '#111' : '#fff', clamp(6 + zoom * 0.7, 7, 10)); });
+    nums.forEach(function (o) { var u = t - o.t0 - LBL_AT * o.dur; if (u > 0) tag(ctx, w, h, X, Y, cam.s, o.s.lab, u / LBL_IN, o.s.col === '#fff' ? '#555' : o.s.col); }); // v265
     if (cur && (!L.sw || t < L.sw.t0)) badge(ctx, w, 'Shot ' + cur.s.n + ' · ' + cur.s.name, cur.s.t, cur.s.col);
   }
   // the true-scale green with the putts rolling
@@ -146,13 +167,14 @@
     ctx.save(); ctx.strokeStyle = 'rgba(255,255,255,.5)'; ctx.setLineDash([3, 3]); ctx.lineWidth = 1; ctx.fillStyle = 'rgba(255,255,255,.9)'; ctx.font = '700 10px ' + FONT; ctx.textAlign = 'left';
     gr.rings.forEach(function (f) { var rp = f * gr.PK * s; ctx.beginPath(); ctx.arc(X(gr.ix), Y(gr.iy), rp, 0, 7); ctx.stroke(); ctx.fillText(f + ' ft', X(gr.ix) + 3, Y(gr.iy) - rp - 2); }); ctx.restore();
     ctx.fillStyle = 'rgba(255,255,255,.9)'; ctx.font = '800 10px ' + FONT; ctx.textAlign = 'center'; ctx.fillText('▼ front of green', X(gr.ix), Math.min(h - 6, Y(gr.iy + gr.IR + 22)));
-    var cupX = X(gr.ix), cupY = Y(gr.iy), bs = clamp(0.034 * gr.IR * s, 4, 7), cur = null;
+    var cupX = X(gr.ix), cupY = Y(gr.iy), bs = clamp(0.034 * gr.IR * s, 4, 7), cur = null, labs = [];
     ctx.fillStyle = '#111'; ctx.beginPath(); ctx.arc(cupX, cupY, bs * 0.95, 0, 7); ctx.fill();
     // the shot that came onto the green
     var ar = gr.arrive, s0 = [X(gr.putts[0].a[0]), Y(gr.putts[0].a[1])];
     if (ar && L.arr) { var ap = clamp((t - L.arr.t0) / L.arr.dur, 0, 1), fa = [X(ar.a[0]), Y(ar.a[1])], c = [(fa[0] + s0[0]) / 2 + (fa[1] - s0[1]) * 0.15, (fa[1] + s0[1]) / 2 + (s0[0] - fa[0]) * 0.15];
       ctx.save(); ctx.strokeStyle = ar.col; ctx.lineWidth = 3; ctx.setLineDash([7, 4]); ctx.beginPath(); ctx.moveTo(fa[0], fa[1]); for (var q = 1; q <= 24; q++) { var p = bez(fa, c, s0, ap * q / 24); ctx.lineTo(p[0], p[1]); } ctx.stroke(); ctx.restore();
       num(ctx, clamp(fa[0], 12, w - 12), clamp(fa[1], 12, h - 12), ar.n, ar.col, '#fff', 9);
+      var arT = t - L.arr.t0 - LBL_AT * L.arr.dur; if (ar.lab && arT > 0) labs.push([{ x: ar.lab.x, y: ar.lab.y, bx: ar.lab.bx, by: ar.lab.by, w: ar.lab.w, hh: ar.lab.hh, big: ar.big, small: ar.small, nodot: 1 }, arT / LBL_IN, ar.col]); // v265: shown after the balls
       if (t < (L.P[0] ? L.P[0].t0 : 1e9)) cur = { t1: 'Shot ' + ar.n + ' · ' + ar.big, t2: ar.small, col: ar.col }; }
     var rest = s0, done = [];
     L.P.forEach(function (o) {
@@ -160,6 +182,7 @@
       var k = easeOut(u / o.dur), pos = [a[0] + (b[0] - a[0]) * k, a[1] + (b[1] - a[1]) * k];
       ctx.save(); ctx.strokeStyle = 'rgba(255,255,255,.92)'; ctx.lineWidth = 3; if (p.holed && u >= o.dur) ctx.setLineDash([6, 4]); ctx.beginPath(); ctx.moveTo(a[0], a[1]); ctx.lineTo(pos[0], pos[1]); ctx.stroke(); ctx.restore();
       done.push({ a: a, n: p.n }); rest = p.holed && u >= o.dur ? null : pos;
+      var pT = u - LBL_AT * o.dur; if (p.lab && pT > 0) labs.push([p.lab, pT / LBL_IN, '#222']); // v265
       if (p.holed && u >= o.dur) { var sh = clamp(1 - (u - o.dur) / 0.2, 0, 1); if (sh > 0) ball(ctx, cupX + (pos[0] - cupX) * sh, cupY + (pos[1] - cupY) * sh, bs * (0.4 + 0.6 * sh), 0); }
       if (!p.holed && u >= o.dur) { ctx.fillStyle = '#fff'; ctx.strokeStyle = '#333'; ctx.lineWidth = 1.2; ctx.beginPath(); ctx.arc(b[0], b[1], bs * 0.75, 0, 7); ctx.fill(); ctx.stroke(); }
       cur = { t1: 'Putt ' + p.n + ' · ' + p.ft + ' ft', t2: p.holed ? (u >= o.dur ? '→ holed!' : '') : u >= o.dur ? '→ ' + p.left + ' ft left' : '', col: '#fff' };
@@ -167,6 +190,7 @@
     if (rest) ball(ctx, rest[0], rest[1], bs, 0);
     flag(ctx, cupX, cupY, clamp(0.17 * gr.IR * s, 18, 34));
     done.forEach(function (d) { num(ctx, d.a[0], d.a[1], d.n, '#fff', '#111', 9.5); });
+    labs.forEach(function (q) { tag(ctx, w, h, X, Y, s, q[0], q[1], q[2]); });
     if (cur) badge(ctx, w, cur.t1, cur.t2, cur.col);
   }
   function frame(R, t) {

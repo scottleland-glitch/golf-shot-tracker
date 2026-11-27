@@ -5822,11 +5822,13 @@
       var c = cand.filter(function (c) { var b = [c[0], c[1], c[0] + w, c[1] + hh]; return b[1] > minY - 30 && !boxes.some(function (z) { return b[0] < z[2] && b[2] > z[0] && b[1] < z[3] && b[3] > z[1]; }); })[0] || cand[0];
       boxes.push([c[0], c[1], c[0] + w, c[1] + hh]);
       var lx = Math.max(c[0] + 6, Math.min(c[0] + w - 6, q.x)), ly = q.y < c[1] ? c[1] : q.y > c[1] + hh ? c[1] + hh : c[1] + hh / 2, lx2 = q.y >= c[1] && q.y <= c[1] + hh ? (q.x < c[0] ? c[0] : c[0] + w) : lx;
+      q.box = { x: f1(q.x), y: f1(q.y), bx: f1(c[0]), by: f1(c[1]), w: f1(w), hh: hh }; // v265: the ▶ Play animation puts the same tag here
       return '<g class="rplbl" data-t="' + esc(q.full) + '"><line x1="' + f1(q.x) + '" y1="' + f1(q.y) + '" x2="' + f1(lx2) + '" y2="' + f1(ly) + '" stroke="#fff" stroke-width="1.6"/><circle cx="' + f1(q.x) + '" cy="' + f1(q.y) + '" r="3" fill="#fff" stroke="' + q.col + '" stroke-width="2"/>' +
         '<rect x="' + f1(c[0]) + '" y="' + f1(c[1]) + '" width="' + f1(w) + '" height="' + hh + '" rx="8" fill="#fff" fill-opacity=".96" stroke="' + q.col + '" stroke-width="1.6"/>' +
         '<text x="' + f1(c[0] + 8) + '" y="' + f1(c[1] + 14) + '" font-size="12" font-weight="800" fill="' + (q.pen ? '#c00' : '#111') + '">' + esc(q.big) + '</text>' +
         (q.small ? '<text x="' + f1(c[0] + 8) + '" y="' + f1(c[1] + 25) + '" font-size="9.5" font-weight="600" fill="#444">' + esc(q.small) + '</text>' : '') + '</g>'; };
     labQ.forEach(function (q) { labs += tag(q); });
+    labQ.forEach(function (q, i) { var g = GEO.shots[i]; if (g && q.box) { q.box.big = q.big; q.box.small = q.small; q.box.col = q.col; q.box.pen = q.pen; g.lab = q.box; } }); // v265
     o += tr + '<line x1="' + f1(pin[0]) + '" y1="' + f1(pin[1]) + '" x2="' + f1(pin[0]) + '" y2="' + f1(pin[1] - 18) + '" stroke="#000" stroke-width="2"/><path d="M' + f1(pin[0]) + ' ' + f1(pin[1] - 18) + ' l10 3.5 l-10 3.5z" fill="#d0213a"/><circle cx="' + f1(pin[0]) + '" cy="' + f1(pin[1]) + '" r="3" fill="#000"/>' + ends + marks + labs;
     // tap target over the green (opens the enlarged green view)
     o += '<g class="rpgreen" data-act="rpgreen" role="button" aria-label="Open enlarged green"><circle cx="' + cx + '" cy="' + gY + '" r="' + (GR + 22) + '" fill="#fff" fill-opacity="0"/></g>' +
@@ -5838,20 +5840,20 @@
     [3, 5, 10, 20, 30, 40, 60].filter(function (f) { return f < mft; }).forEach(function (f) { G += '<circle cx="' + ix + '" cy="' + iy + '" r="' + f1(f * PK) + '" fill="none" stroke="#fff" stroke-opacity=".75" stroke-dasharray="3 3"/><text x="' + f1(ix + 3) + '" y="' + f1(iy - f * PK - 2) + '" font-size="9" fill="#fff" font-weight="800">' + f + ' ft</text>'; });
     G += '<text x="' + ix + '" y="' + (Hg - 8) + '" text-anchor="middle" font-size="10" fill="#fff" font-weight="800">▼ front of green</text>';
     if (putts.length) {
-      var prev = shots[i0 - 1], sd0 = prev ? prev.dir : '', s0 = pt(ix, iy, (Number(putts[0].start.dist) || 0) * PK, prev && prev.ang != null ? prev.ang : sd0 ? SG.DIR_ANGLE[sd0] : 270);
+      var arrLab = null, prev = shots[i0 - 1], sd0 = prev ? prev.dir : '', s0 = pt(ix, iy, (Number(putts[0].start.dist) || 0) * PK, prev && prev.ang != null ? prev.ang : sd0 ? SG.DIR_ANGLE[sd0] : 270);
       if (prev) { // v157 (Scott): the shot onto the green comes in from where it was played – pin-high right = 3 o'clock, not always the front
         var fa = prev.fromAng != null ? prev.fromAng : 270, fp = pt(ix, iy, IR + 26, fa), pc2 = RPC[prev.cat] || '#333', fx = Math.max(20, Math.min(Wg - 20, fp[0])), fy = Math.max(20, Math.min(Hg - 22, fp[1]));
         G += '<path id="rparrive" d="M' + f1(fx) + ' ' + fy + ' Q' + f1((fx + s0[0]) / 2 + (fy - s0[1]) * 0.15) + ' ' + f1((fy + s0[1]) / 2 + (s0[0] - fx) * 0.15) + ' ' + f1(s0[0]) + ' ' + f1(s0[1]) + '" fill="none" stroke="' + pc2 + '" stroke-width="3" stroke-dasharray="7 4"/>' +
           '<circle cx="' + f1(fx) + '" cy="' + fy + '" r="9" fill="' + pc2 + '" stroke="#fff" stroke-width="2"/><text x="' + f1(fx) + '" y="' + (fy + 4) + '" text-anchor="middle" font-size="10" font-weight="900" fill="#fff">' + prev.n + '</text>' +
           (function () { var big = prev.hit != null && !prev.ob && !prev.retee ? prev.hit + ' yd' : (RPN[prev.cat] || 'Shot'), dep = SG.arrivalDepth(prev.dir, putts[0].start.dist),
             small = [(RPN[prev.cat] || 'Shot') + (prev.club ? ' · ' + prev.club : ''), dep || ''].filter(Boolean).join(' · '), w = Math.max(big.length * 7.6, small.length * 5.8) + 16, hh = 30, // v181: a tag like the others
-            tx = fx > Wg / 2 ? fx - 14 - w : fx + 14, ty = Math.max(6, Math.min(Hg - 30 - hh, fy - hh / 2)); tx = Math.max(6, Math.min(Wg - 6 - w, tx));
+            tx = fx > Wg / 2 ? fx - 14 - w : fx + 14, ty = Math.max(6, Math.min(Hg - 30 - hh, fy - hh / 2)); tx = Math.max(6, Math.min(Wg - 6 - w, tx)); arrLab = { x: f1(fx), y: f1(fy), bx: f1(tx), by: f1(ty), w: f1(w), hh: hh };
             return '<g id="rparrlbl"><rect x="' + f1(tx) + '" y="' + f1(ty) + '" width="' + f1(w) + '" height="' + hh + '" rx="8" fill="#fff" fill-opacity=".96" stroke="' + pc2 + '" stroke-width="1.6"/>' +
               '<text x="' + f1(tx + 8) + '" y="' + f1(ty + 14) + '" font-size="12.5" font-weight="800" fill="#111">' + esc(big) + '</text><text x="' + f1(tx + 8) + '" y="' + f1(ty + 25) + '" font-size="9.5" font-weight="600" fill="#444">' + esc(small) + '</text></g>'; })(); } // v160 (Scott): the yardage of the shot onto the green
       GEO.green = { ix: ix, iy: iy, IR: IR, PK: PK, rings: [3, 5, 10, 20, 30, 40, 60].filter(function (f) { return f < mft; }), arrive: null, putts: [] };
       if (prev) { var gfa = prev.fromAng != null ? prev.fromAng : 270, gfp = pt(ix, iy, IR + 26, gfa);
         GEO.green.arrive = { a: [f1(Math.max(20, Math.min(Wg - 20, gfp[0]))), f1(Math.max(20, Math.min(Hg - 22, gfp[1])))], col: RPC[prev.cat] || '#333', n: prev.n,
-          big: prev.hit != null && !prev.ob && !prev.retee ? prev.hit + ' yd' : (RPN[prev.cat] || 'Shot'), small: [(RPN[prev.cat] || 'Shot') + (prev.club ? ' · ' + prev.club : ''), SG.arrivalDepth(prev.dir, putts[0].start.dist) || ''].filter(Boolean).join(' · ') }; }
+          big: prev.hit != null && !prev.ob && !prev.retee ? prev.hit + ' yd' : (RPN[prev.cat] || 'Shot'), small: [(RPN[prev.cat] || 'Shot') + (prev.club ? ' · ' + prev.club : ''), SG.arrivalDepth(prev.dir, putts[0].start.dist) || ''].filter(Boolean).join(' · '), lab: arrLab }; }
       var pp = s0, fin = '', st0 = [], en0 = [];
       putts.forEach(function (p, k) {
         var st = pp, holed = p.end.lie === 'holed', nr = h.rows[p.n] || {}, ed = nr.dir || p.dir || '';
@@ -5873,6 +5875,7 @@
         cand = cand.map(function (c) { return [Math.max(6, Math.min(Wg - 6 - w, c[0])), Math.max(6, Math.min(Hg - 24 - hh, c[1]))]; });
         var c = cand.filter(function (c) { var b = [c[0], c[1], c[0] + w, c[1] + hh]; return !gb.some(function (z) { return b[0] < z[2] && b[2] > z[0] && b[1] < z[3] && b[3] > z[1]; }); })[0] || cand[0];
         gb.push([c[0], c[1], c[0] + w, c[1] + hh]);
+        if (GEO.green.putts[k]) GEO.green.putts[k].lab = { x: f1(qx), y: f1(qy), bx: f1(c[0]), by: f1(c[1]), w: f1(w), hh: hh, big: big, small: small, holed: p.end.lie === 'holed' }; // v265
         var lx = Math.max(c[0] + 6, Math.min(c[0] + w - 6, qx)), ly = qy < c[1] ? c[1] : qy > c[1] + hh ? c[1] + hh : c[1] + hh / 2, lx2 = qy >= c[1] && qy <= c[1] + hh ? (qx < c[0] ? c[0] : c[0] + w) : lx;
         G += '<g class="rpputtlbl" data-n="' + p.n + '"><line x1="' + f1(qx) + '" y1="' + f1(qy) + '" x2="' + f1(lx2) + '" y2="' + f1(ly) + '" stroke="#fff" stroke-width="1.6"/><circle cx="' + f1(qx) + '" cy="' + f1(qy) + '" r="3" fill="#fff" stroke="#222" stroke-width="1.5"/>' +
           '<rect x="' + f1(c[0]) + '" y="' + f1(c[1]) + '" width="' + f1(w) + '" height="' + hh + '" rx="8" fill="#fff" fill-opacity=".96" stroke="#222" stroke-width="1.4"/>' +
