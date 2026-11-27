@@ -5459,28 +5459,32 @@
   var DIR_LG = { long: 1, longleft: 1, longright: 1, short: -1, shortleft: -1, shortright: -1, left: 0, right: 0 };
   var DIR_LR = { left: -1, longleft: -1, shortleft: -1, right: 1, longright: 1, shortright: 1, long: 0, short: 0 };
   function clubShots(all) {
-    var out = [];
+    // v266 (Scott: "a 196 club from 250 should not be included"): short / long (Bias, the finish picture) only counts shots that could reach the
+    // pin – within the club's bag carry + REACH_ROLL yd, from 30 yd and in, or from the green; a club with no carry: only the hole's regulation approach
+    var out = [], CAR = {}; (bag().clubs || []).forEach(function (c) { if (c && c.code && Number(c.carry) > 0) CAR[String(c.code).toLowerCase()] = Number(c.carry); });
     (all ? savedRounds() : [round()]).forEach(function (r) { r.holes.forEach(function (h, hi) {
       if (!h.rows || h.nostats) return; var a = SG.analyzeHole(h, blOf(r)); if (!a.complete) return; // v256: the round's own benchmark (was PGA Tour), so clubs add up to Round stats
       a.shots.forEach(function (s) { if (!s.club) return;
         var holed = s.end.lie === 'holed', ob = s.ob, yd = holed ? 0 : s.end.lie === 'green' ? s.end.dist / 3 : s.end.dist, d = s.dir || '';
-        var c = Math.SQRT1_2, diag = DIR_LG[d] && DIR_LR[d];
+        var c = Math.SQRT1_2, diag = DIR_LG[d] && DIR_LR[d], car = CAR[String(s.club).toLowerCase()];
+        var reach = s.start.lie === 'green' || s.start.dist <= 30 || (car ? s.start.dist <= car + REACH_ROLL : !!(a.appr && a.appr.shot === s.n));
         out.push({ r: r, hole: hi + 1, s: s, club: s.club, holed: holed, ob: ob, yd: yd, dir: d, green: holed || s.end.lie === 'green',
-          tee: s.cat === 'tee', lg: ob || !d || s.cat === 'tee' ? null : DIR_LG[d] * yd * (diag ? c : 1), lr: ob || !d || s.cat === 'tee' ? null : DIR_LR[d] * yd * (diag ? c : 1), sg: s.sg, layup: !!s.layup, cat: s.cat, par: Number(h.par),
+          tee: s.cat === 'tee', reach: reach, lg: ob || !d || s.cat === 'tee' || !reach ? null : DIR_LG[d] * yd * (diag ? c : 1), lr: ob || !d || s.cat === 'tee' || !reach ? null : DIR_LR[d] * yd * (diag ? c : 1), sg: s.sg, layup: !!s.layup, cat: s.cat, par: Number(h.par),
           reg: !!(a.appr && a.appr.shot === s.n), gir: !!(a.appr && a.appr.shot === s.n && a.appr.gir), proxFt: a.appr && a.appr.shot === s.n ? a.appr.proxFt : null }); // v118: the hole's regulation approach (Proximity / GIR rule)
       });
     }); });
     return out;
   }
+  var REACH_ROLL = 15; // v266: yards of run-out on top of the bag carry that still count as able to reach the green
   function clubStats(list) {
     var dl = list.filter(function (x) { return x.lg != null; }), n = list.length, avg = function (k) { return dl.length ? dl.reduce(function (a, x) { return a + x[k]; }, 0) / dl.length : null; };
     var lg = avg('lg'), lr = avg('lr');
     return { n: n, lg: lg, lr: lr, nDir: dl.length, green: list.filter(function (x) { return x.green; }).length, ob: list.filter(function (x) { return x.ob; }).length,
       sg: list.reduce(function (a, x) { return a + (x.layup ? 0 : x.sg); }, 0), sgN: list.filter(function (x) { return !x.layup; }).length,
-      bias: lg != null && Math.abs(lg) > 5 ? (lg > 0 ? 'long' : 'short') : '' };
+      bias: lg != null && Math.abs(lg) > 5 ? (lg > 0 ? 'long' : 'short') : '', far: list.filter(function (x) { return !x.tee && !x.ob && !x.reach; }).length };
   }
   function clubSVG(list) {
-    var C = 180, CY = 200, pts = list.filter(function (x) { return !x.ob && !x.tee && (x.dir || x.holed); }), mx = Math.max(20, Math.max.apply(null, pts.map(function (x) { return x.yd * 3; }).concat([0])));
+    var C = 180, CY = 200, pts = list.filter(function (x) { return !x.ob && !x.tee && x.reach && (x.dir || x.holed); }), mx = Math.max(20, Math.max.apply(null, pts.map(function (x) { return x.yd * 3; }).concat([0])));
     // v120: the scale is in FEET – rings every 10 ft up to 60 ft; bigger spreads use 20 ft rings (to 120 ft), then 50 ft, so it never gets crowded. K = px per foot.
     var step = mx <= 60 ? 10 : mx <= 120 ? 20 : 50, max = Math.ceil(mx / step) * step, K = 160 / max, G = Math.max(6, 30 * K);
     var o = '<svg id="clubmap" viewBox="0 0 360 400" role="img" aria-label="Where shots with this club finished"><rect width="360" height="400" fill="#f6f8f4"/>' +
@@ -5619,6 +5623,11 @@
         clubQV('prox', 'Proximity', fmtProx(pAvg), P.length ? 'avg to the pin' : 'no approaches', fromY != null ? 'from ' + fromY + ' yd avg' : null);
       tips.push('<b>GIR</b> and <b>Proximity</b> use only the hole’s real approach – the shot that could reach the green in regulation (a par-3 tee shot, the 2nd on a par 4, the 2nd or 3rd on a par 5) – when it was hit with ' + esc(cur) + '. Not tee shots on par 4/5, layups, chips from 30 yd and in or shots from the green. Proximity = distance to the pin after the shot (first-putt length on the green; yards × 3 off it; OB left out). <b>SG approach</b> = every ' + esc(cur) + ' shot in the Approach category vs ' + bmk + '.' +
         (tees.length ? ' ' + pl(tees.length, 'tee shot') + ' on par 4/5 with ' + esc(cur) + ' are in the shot list but not in these tiles.' : ''));
+    } else if (kind === 'putter') { // v266: putts are the putter's by default now
+      var PT = list.filter(function (x) { return x.s.start.lie === 'green'; }), mk = PT.filter(function (x) { return x.holed; }).length, ftAvg = PT.length ? PT.reduce(function (t, x) { return t + x.s.start.dist; }, 0) / PT.length : null;
+      tilesH = sgAll + clubQV('n', 'Putts', PT.length, all ? 'all rounds' : 'this round', list.length > PT.length ? (list.length - PT.length) + ' from off the green' : null) +
+        clubQV('made', 'Holed', PT.length ? pctOf(mk, PT.length) + '%' : '–', mk + ' / ' + PT.length + ' putts', ftAvg != null ? Math.round(ftAvg) + ' ft avg' : null);
+      tips.push('<b>Strokes gained</b> = every putter shot vs ' + bmk + '. A shot from the green counts as the putter unless you picked another club. <b>Holed</b> = putts that went in.');
     } else {
       tilesH = sgAll + clubQV('n', 'Shots', st.n, all ? 'all rounds' : 'this round', null) +
         clubQV('green', 'On the green', st.n ? Math.round(st.green / st.n * 100) + '%' : '–', st.green + ' / ' + st.n + ' shots', null);
@@ -5632,15 +5641,17 @@
     if (tees.length < list.length) {
       o += '<div class="clubcard" id="clubdisp"><div class="cch"><span>Finish vs the pin' + tipBtn('clubdisp', 'i', 'About this picture') + '</span><span class="ccv">n = ' + (list.length - tees.length) + '</span></div>' +
         tipText('clubdisp', 'Rings = feet from the hole (every 10 ft; 20 ft rings when shots finish further than 60 ft away); the light green circle is about the size of a green (30 ft); points use the distance left and direction you entered on the next shot. White = finished on the green, red = off the green, yellow = holed.' + (tees.length ? ' Tee shots on par 4/5 are judged by the fairway, not the pin, so they are not drawn here.' : '') +
-          (st.ob ? ' ' + st.ob + ' OB shot(s) not drawn.' : '') + (st.n - st.nDir - st.ob - tees.length > 0 ? ' ' + (st.n - st.nDir - st.ob - tees.length) + ' shot(s) with no direction are not drawn / not in the averages.' : '')) +
+          (st.ob ? ' ' + st.ob + ' OB shot(s) not drawn.' : '') + (st.far ? ' ' + st.far + ' shot(s) from beyond ' + esc(cur) + '’s reach (bag carry + ' + REACH_ROLL + ' yd, or not the hole’s regulation approach when the bag has no carry for it) are not drawn / not in the averages or Bias.' : '') + (st.n - st.nDir - st.ob - tees.length - st.far > 0 ? ' ' + (st.n - st.nDir - st.ob - tees.length - st.far) + ' shot(s) with no direction are not drawn / not in the averages.' : '')) +
         clubSVG(list) + '<div class="stat-grid" id="clubcells">' + stat('Avg short / long', fmtD(st.lg, 'long', 'short')) + stat('Avg left / right', fmtD(st.lr, 'right', 'left')) + '</div></div>';
     }
     if (tees.length) o += '<span id="clubtee" hidden data-n="' + tees.length + '">' + pl(tees.length, 'tee shot') + ' on par 4/5</span>';
-    o += '<h3>Shots with ' + esc(cur) + '</h3><table id="clubshots" class="clubtab"><tr><th>Hole</th><th>From</th><th>Finished</th><th class="num">SG</th></tr>' + list.map(function (x) {
+    // v266 (Scott): Hit (how far it went – yards, feet for a putt) as the 2nd column
+    var hitTxt = function (x) { var s = x.s; if (x.ob || s.retee) return '–'; if (s.start.lie === 'green') return Math.round(Math.max(0, s.start.dist - (s.end.lie === 'green' ? s.end.dist : 0))) + ' ft'; return s.hit != null ? s.hit + ' yd' : '–'; };
+    o += '<h3>Shots with ' + esc(cur) + '</h3><table id="clubshots" class="clubtab"><tr><th>Hole</th><th class="num">Hit</th><th>From</th><th>Finished</th><th class="num">SG</th></tr>' + list.map(function (x) {
       var fin = x.holed ? 'holed' : x.ob ? 'OB' : (x.s.end.lie === 'green' ? Math.round(x.s.end.dist) + ' ft' : Math.round(x.s.end.dist) + ' yd') + (x.dir ? ' ' + SG.DIR_NAME[x.dir].toLowerCase() : '') + (x.s.end.lie !== 'green' ? ' · ' + (LIE_NAME[x.s.end.lie] || x.s.end.lie) : ' · green');
-      return '<tr><td>' + (all ? localDate(x.r.date).slice(5) + ' #' : '#') + x.hole + '</td><td>' + Math.round(x.s.start.dist) + ' yd ' + (LIE_NAME[x.s.start.lie] || (x.s.start.lie === 'tee' ? 'tee' : x.s.start.lie)) + '</td><td>' + esc(fin) + '</td><td class="num ' + sgCls(x.sg) + '">' + (x.layup ? 'layup' : fmtSG(x.sg)) + '</td></tr>'; }).join('') + '</table>';
+      return '<tr><td>' + (all ? localDate(x.r.date).slice(5) + ' #' : '#') + x.hole + '</td><td class="num hitc">' + hitTxt(x) + '</td><td>' + Math.round(x.s.start.dist) + ' yd ' + (LIE_NAME[x.s.start.lie] || (x.s.start.lie === 'tee' ? 'tee' : x.s.start.lie)) + '</td><td>' + esc(fin) + '</td><td class="num ' + sgCls(x.sg) + '">' + (x.layup ? 'layup' : fmtSG(x.sg)) + '</td></tr>'; }).join('') + '</table>';
     var rank = used.map(function (c) { var s2 = clubStats(by[c]); return { c: c, s: s2 }; }).filter(function (x) { return x.s.sgN; }).sort(function (a, b) { return b.s.sg / b.s.sgN - a.s.sg / a.s.sgN; });
-    o += '<h3 class="clubh3">Strokes gained by club' + tipBtn('clubrank', 'i', 'About this table') + '</h3>' + tipText('clubrank', 'Best club per shot at the top (vs ' + bmk + ', the same numbers as Round stats). Layup tee shots are not in SG. Shots with no club picked (usually putts) are in the last rows, so the table adds up to the round’s total. Bias ⚠ = finishes more than 5 yd short or long on average (from the distance + direction of the next shot; straight left/right counts as pin high). Tap a row to see that club.') + '<table id="clubrank" class="clubtab"><tr><th>#</th><th>Club</th><th class="num">Shots</th><th class="num">SG/shot</th><th class="num">Total</th><th>Bias</th></tr>' + rank.map(function (x, i) {
+    o += '<h3 class="clubh3">Strokes gained by club' + tipBtn('clubrank', 'i', 'About this table') + '</h3>' + tipText('clubrank', 'Best club per shot at the top (vs ' + bmk + ', the same numbers as Round stats). Layup tee shots are not in SG. Putts count as the putter unless you picked another club; shots with no club picked are in the last rows, so the table adds up to the round’s total. Bias ⚠ = finishes more than 5 yd short or long on average (from the distance + direction of the next shot; straight left/right counts as pin high) – only shots that could reach the pin: within the club’s bag carry + ' + REACH_ROLL + ' yd (or the hole’s regulation approach if the bag has no carry), from 30 yd in or from the green. Tap a row to see that club.') + '<table id="clubrank" class="clubtab"><tr><th>#</th><th>Club</th><th class="num">Shots</th><th class="num">SG/shot</th><th class="num">Total</th><th>Bias</th></tr>' + rank.map(function (x, i) {
       return '<tr data-act="clubsel" data-v="' + esc(x.c) + '" class="' + (x.c === cur ? 'cur' : '') + '"><td>' + (i + 1) + '</td><td><b>' + esc(x.c) + '</b></td><td class="num">' + x.s.sgN + '</td><td class="num ' + sgCls(x.s.sg) + '">' + fmtSG(x.s.sg / x.s.sgN) + '</td><td class="num ' + sgCls(x.s.sg) + '">' + fmtSG(x.s.sg) + '</td><td>' + (x.s.bias ? '⚠ ' + Math.round(Math.abs(x.s.lg)) + ' yd ' + x.s.bias : '') + '</td></tr>'; }).join('') + clubFootHTML(all, rank) + '</table>';
     return o;
   }

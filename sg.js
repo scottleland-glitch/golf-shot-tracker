@@ -423,7 +423,7 @@
       out.push({
         n: i + 1, start: start, end: end, pen: pen, penStrokes: penStrokes,
         side: s.side || dirSide(hd), dir: hd, ob: !!s.ob, retee: !!s.retee, loc: s.loc || (pen === 'ob' ? 'ob' : s.lie), hk: s.hk, eStart: eStart, eEnd: eEnd, sg: sg,
-        cat: cat, bucket: bucket, hit: hit, club: clubOf(raw[i]), ang: ang, fromAng: prevAng,
+        cat: cat, bucket: bucket, hit: hit, club: clubOf(raw[i]) || (start.lie === 'green' ? 'Putter' : '') /* v266 (Scott): a shot from the green is a putt – Putter unless another club was picked */, ang: ang, fromAng: prevAng,
         rd: start.lie === 'green' && raw[i] && /^(up|flat|down)-(l|s|r)$/.test(raw[i].rd) ? raw[i].rd : '' // v202: the putt's read (slope-break), '' = not entered
       });
       if (pen !== 'ob' && end.lie !== 'holed') prevAng = aroundPin ? ang : 270;
@@ -981,7 +981,7 @@
     YARDS: YARDS, OFF_GREEN: OFF_GREEN, FEET: FEET, PUTTS: PUTTS,
     // v150: the ONE place the app version lives – must equal the sw.js cache name ('golf-sg-' + VERSION). It sits in a cached file,
     // so Settings shows the version of the code actually running (config.js is network-first and could run ahead).
-    LONG_PAST_MAX_YD: LONG_PAST_MAX_YD, effectiveDir: effectiveDir, longPastLoc: longPastLoc, VERSION: 'v265' };
+    LONG_PAST_MAX_YD: LONG_PAST_MAX_YD, effectiveDir: effectiveDir, longPastLoc: longPastLoc, VERSION: 'v266' };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else root.SG = api;
 })(this);

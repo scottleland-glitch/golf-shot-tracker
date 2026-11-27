@@ -101,9 +101,9 @@ const ok = m => console.log('OK  ' + m);
     // ranking table + tap a row still works
     await P.click('#clubrank tr[data-v="Driver"]'); assert.strictEqual(await P.textContent('#clubcur'), 'Driver');
     // ---------- empty state ----------
-    await open('cd3'); await P.waitForSelector('#clubnone'); assert.match(await P.textContent('#clubnone'), /^No clubs entered yet this round/);
-    assert.strictEqual(await P.isVisible('#tip-clubnone'), false); await P.click('#mapview [data-act="info"][data-v="clubnone"]'); assert.match(await P.textContent('#tip-clubnone'), /Pick a club under each shot/);
-    await P.click('#mapview [data-act="info"][data-v="clubnone"]'); await P.locator('#mapview').evaluate(e => e.scrollTop = 0); await P.screenshot({ path: OUT + 'club-empty-v118.png' });
+    // v266: a round with no clubs picked still has its putts – they count as the putter (the empty state needs a round with no putts either)
+    await open('cd3'); await P.waitForSelector('#clubbtns'); assert.deepStrictEqual(await P.$$eval('#clubbtns button:not([disabled])', (e) => e.map((x) => x.dataset.v)), ['Putter']);
+    assert.strictEqual(await P.getAttribute('#clubqv', 'data-kind'), 'putter'); assert.deepStrictEqual(await P.$$eval('#clubqv .qv', (q) => q.map((x) => x.dataset.q)), ['sg', 'n', 'made']); assert.match(await P.textContent('#clubshots tr:nth-child(2) td:nth-child(2)'), /^\d+ ft$/);
     ok('empty state: "No clubs entered yet this round" + ⓘ with how to add clubs');
     // ---------- 20+ drives: middle half shaded ----------
     await P.evaluate(() => { const R = (d, l, club) => Object.assign({ dist: d, loc: l, dir: '', pen: false }, club ? { club } : {}); const holes = [];

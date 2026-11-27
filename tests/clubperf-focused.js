@@ -23,11 +23,11 @@ const BASE = process.env.BASE_URL || 'http://127.0.0.1:8775/', OUT = '/workspace
     localStorage.setItem('golfsg.rounds.v1', JSON.stringify([mk('c1', 7, 0), mk('c2', 8, 3)]));
   });
   await page.reload(); await goHist(page); await page.click('#histlist [data-act="open"][data-id="c2"]');
-  assert.match(await (await xt(page, 'club')).textContent('[data-act="map"][data-v="club"]'), /3 clubs|4 clubs/);
+  assert.match(await (await xt(page, 'club')).textContent('[data-act="map"][data-v="club"]'), /4 clubs|5 clubs/ /* v266: + Putter */);
   await (await xt(page, 'club')).locator('[data-act="map"][data-v="club"]').scrollIntoViewIfNeeded(); await page.screenshot({ path: OUT + 'club-tile.png' });
   await (await xt(page, 'club')).click('[data-act="map"][data-v="club"]'); await page.waitForSelector('#clubbtns');
-  assert.strictEqual(await page.locator('#clubbtns button').count(), 17);
-  const en = await page.$$eval('#clubbtns button:not([disabled])', e => e.map(x => x.dataset.v)); assert.deepStrictEqual(en, ['Driver', '7i', '9i', '56']);
+  assert.strictEqual(await page.locator('#clubbtns button').count(), 18); // v266: + Putter
+  const en = await page.$$eval('#clubbtns button:not([disabled])', e => e.map(x => x.dataset.v)); assert.deepStrictEqual(en, ['Driver', '7i', '9i', '56', 'Putter']);
   // 7i: bias short flagged
   await page.click('#clubbtns [data-v="56"]'); await page.click('#clubbtns [data-v="9i"]');
   const n9 = await page.locator('#clubshots tr').count() - 1; assert.ok(n9 >= 8, 'shot list ' + n9);
@@ -37,7 +37,8 @@ const BASE = process.env.BASE_URL || 'http://127.0.0.1:8775/', OUT = '/workspace
   await page.click('#clubbtns [data-v="Driver"]'); assert.match(await page.textContent('#clubtee'), /tee shots on par 4\/5/); assert.strictEqual(await page.$('#clubmap'), null);
   // ranking
   const rank = await page.$$eval('#clubrank tr[data-act]', t => t.map(r => [r.dataset.v, +r.children[3].textContent.replace('−', '-')]));
-  assert.ok(rank.length >= 3 && rank.every((x, i) => !i || rank[i - 1][1] >= x[1]), 'ranked by SG/shot ' + JSON.stringify(rank));
+  assert.ok(rank.length >= 3 && rank.every((x, i) => !i || rank[i - 1][1] >= x[1]), 'ranked by SG/shot ' + JSON.stringify(rank)); assert.ok(rank.some((x) => x[0] === 'Putter'), 'v266: putts count as the putter');
+  assert.deepStrictEqual(await page.$$eval('#clubshots tr:first-child th', (t) => t.map((x) => x.textContent)), ['Hole', 'Hit', 'From', 'Finished', 'SG']);
   // All rounds: 7i bias + heat map (many shots)
   await page.click('[data-act="mapscope"][data-v="all"]'); await page.click('#clubbtns [data-v="7i"]');
   const ns = await page.locator('#clubshots tr').count() - 1;
