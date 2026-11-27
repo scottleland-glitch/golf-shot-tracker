@@ -33,7 +33,7 @@ const PORT = 8893, OUT = process.argv[2] || '/tmp/putter-club'; require('fs').mk
     // the picture: first putts only, no lines – white = where each started (18), black = where it finished (the 2 with a direction), a red 3 ft ring,
     // red outline on holes 1 and 2 (3+ putts), rings scaled to the longest first putt (30 ft); the averages are first putts only
     assert.match(await page.textContent('#clubdisp .cch'), /First putts/); assert.match(await page.textContent('#clubdisp .ccv'), /n = 18/);
-    assert.strictEqual(await page.$$eval('#clubmap line.cputt', (e) => e.length), 0, 'no lines');
+    assert.deepStrictEqual(await page.$$eval('#clubmap line.cputt', (e) => e.map((l) => l.dataset.hole)), ['1'], 'a line only for the leave outside 3 ft (hole 1: 6 ft; hole 2 left 3 ft)');
     const st = await page.$$eval('#clubmap circle.cdot.fps', (e) => e.map((c) => [c.dataset.hole, c.getAttribute('fill'), c.classList.contains('p3')]));
     assert.strictEqual(st.length, 18); assert.ok(st.every((x) => x[1] === '#fff')); assert.deepStrictEqual(st.filter((x) => x[2]).map((x) => x[0]), ['1', '2']);
     assert.deepStrictEqual(await page.$$eval('#clubmap circle.cdot.fp', (e) => e.map((c) => [c.dataset.hole, c.getAttribute('fill'), c.classList.contains('p3')])), [['1', '#1b2329', true], ['2', '#1b2329', true]], 'black finishes');
