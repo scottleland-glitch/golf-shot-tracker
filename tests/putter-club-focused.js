@@ -30,12 +30,16 @@ const PORT = 8893, OUT = process.argv[2] || '/tmp/putter-club'; require('fs').mk
     assert.deepStrictEqual(rows.slice(0, 9).map((r) => r[0]), ['p3 p3top', 'p3', 'p3', 'p3 p3bot', 'p3 p3top', 'p3', 'p3 p3bot', '', ''], 'a box round hole 1 (4 putts) and hole 2 (3 putts)');
     assert.match(await page.textContent('#clubshots tr.p3top td:first-child'), /4 putts/);
     assert.ok(rows.slice(7).every((r) => r[0] === ''), 'no box on 1- and 2-putt holes');
-    // the picture: one line per putt, scaled to the longest (30 ft), hole 1's in red, holed ones end in the cup
-    assert.strictEqual(await page.$$eval('#clubmap line.cputt', (e) => e.length), rows.length);
-    assert.strictEqual(await page.$$eval('#clubmap line.cputt.p3', (e) => e.length), 7);
-    const rings = await page.$$eval('#clubmap .cring', (e) => e.map((x) => +x.dataset.ft)); assert.strictEqual(Math.max(...rings), 30, 'scaled to the longest putt ' + rings);
-    assert.ok(await page.$$eval('#clubmap line.cputt.holed', (e) => e.every((l) => l.getAttribute('x2') === '180' && l.getAttribute('y2') === '196')), 'holed putts end in the cup');
-    assert.match(await page.textContent('#clubmap'), /18 holed/);
+    // the picture: FIRST putts only, no lines – where each finished (hole 1: 6 ft short, hole 2: 3 ft long, both 3+ putt holes = red), the 16 holed
+    // first putts one ball in the cup, rings scaled to the furthest leave (6 ft); the averages are first putts only
+    assert.match(await page.textContent('#clubdisp .cch'), /First putts/); assert.match(await page.textContent('#clubdisp .ccv'), /n = 18/);
+    assert.strictEqual(await page.$$eval('#clubmap line.cputt', (e) => e.length), 0, 'no lines');
+    assert.deepStrictEqual(await page.$$eval('#clubmap circle.cdot.fp', (e) => e.map((c) => [c.dataset.hole, c.dataset.ft, c.classList.contains('p3')])), [['1', '6', true], ['2', '3', true]], 'the two leaves with a direction');
+    assert.match(await page.textContent('#clubnodir'), /\+ 16 with no direction/, 'the 1-ft leaves with no direction are counted, not piled up');
+    const cy = await page.$$eval('#clubmap circle.cdot.fp', (e) => e.map((c) => +c.getAttribute('cy'))); assert.ok(cy[0] > 200 && cy[1] < 200, 'short below the hole, long above ' + cy);
+    const rings = await page.$$eval('#clubmap .cring', (e) => e.map((x) => +x.dataset.ft)); assert.strictEqual(Math.max(...rings), 6, 'scaled to the furthest leave ' + rings);
+    assert.strictEqual(await page.$('#clubholed'), null, 'no first putt holed in this round');
+    assert.match(await page.textContent('#clubcells'), /2 ft short/);
     await page.locator('#clubdisp').scrollIntoViewIfNeeded(); await page.locator('#clubdisp').screenshot({ path: OUT + '/putter-picture.png' });
     await page.evaluate(() => document.getElementById('clubshots').scrollIntoView({ block: 'start' })); await page.waitForTimeout(200); await page.screenshot({ path: OUT + '/putter-list.png' });
     // other clubs: the yellow holed balls are one ball with a count, not a row

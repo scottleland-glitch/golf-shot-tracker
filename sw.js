@@ -1,5 +1,5 @@
 // Offline support: cache the whole app on install, serve cache-first.
-// v267: Club performance – the putter: From in feet then Finished (no Hit), a picture of every putt start → finish scaled to the longest, red box round 3+ putt holes; holed shots are one ball in the cup with a count.
+// v267: Club performance – the putter: From in feet then Finished (no Hit), a picture of where each first putt finished (scaled to the furthest leave), red box round 3+ putt holes; holed shots are one ball in the cup with a count.
 // v266: Club performance – Hit column (yd; ft for putts) in each club's shot list; putts count as the Putter (unless another club was picked), with Putter tiles; Bias / the finish picture only count shots that could reach the pin (bag carry + 15 yd).
 // v265: Hole replay ▶ Play – the static map's distance tags fade in as each shot's trace passes halfway (shots, the shot onto the green, putts).
 // v264: Dispersion aim guide – ◎ back on the aim point (the flag + the move) with the guide from the flag; the ring sits off it by your usual miss.

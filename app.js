@@ -5506,29 +5506,30 @@
     if (nHoled) o += '<g id="clubholed"><circle class="cdot holed" data-n="' + nHoled + '" cx="' + C + '" cy="' + CY + '" r="6" fill="#ffd23f" stroke="#2b3944" stroke-width="1"/>' + (nHoled > 1 ? '<text x="' + (C + 10) + '" y="' + (CY + 16) + '" font-size="12" font-weight="700" fill="#2b3944" stroke="#f6f8f4" stroke-width="3" paint-order="stroke">' + nHoled + ' holed</text>' : '') + '</g>';
     return o + '</svg>';
   }
-  // v267 (Scott): the putter's picture – every putt as a line from where it started to where it finished (into the cup when holed), around the
-  // hole, scaled to the longest putt. Putts on a hole with 3 or more putts are red. Start = where the ball lay (the previous shot's finish angle).
+  // v267 (Scott: "just show first putts – that's what is actionable"): the putter's picture is where each FIRST putt finished around the hole
+  // (no lines), scaled to the furthest finish; holed first putts are one ball in the cup with a count; red = a hole where you took 3+ putts.
+  function firstPutts(list) { var seen = {}; return list.filter(function (x) { if (x.s.start.lie !== 'green' || x.ob) return false; var k = x.r.id + '|' + x.hole; if (seen[k]) return false; seen[k] = 1; return true; }); }
   function putterSVG(list, three) {
-    var C = 180, CY = 196, P = list.filter(function (x) { return x.s.start.lie === 'green' && !x.ob; }), mx = Math.max(10, Math.max.apply(null, P.map(function (x) { return Number(x.s.start.dist) || 0; }).concat([0])));
-    var step = mx <= 20 ? 5 : mx <= 60 ? 10 : 20, max = Math.ceil(mx / step) * step, K = 165 / max;
-    var o = '<svg id="clubmap" class="puttmap" viewBox="0 0 360 400" role="img" aria-label="Every putt from where it started to where it finished"><rect width="360" height="400" fill="#f6f8f4"/>' +
+    var C = 180, CY = 200, P = firstPutts(list), left = P.filter(function (x) { return !x.holed && x.dir; }), noDir = P.filter(function (x) { return !x.holed && !x.dir; }).length; // no direction = can't be placed
+    var mx = Math.max(6, Math.max.apply(null, left.map(function (x) { return Number(x.s.end.dist) || 0; }).concat([0])));
+    var step = mx <= 10 ? 2 : mx <= 20 ? 5 : 10, max = Math.ceil(mx / step) * step, K = 160 / max;
+    var o = '<svg id="clubmap" class="puttmap" viewBox="0 0 360 400" role="img" aria-label="Where your first putts finished"><rect width="360" height="400" fill="#f6f8f4"/>' +
       '<circle cx="' + C + '" cy="' + CY + '" r="' + f1(max * K) + '" fill="#e3f0dc" stroke="#8fae86" stroke-width="1.5"/><g id="clubrings">';
     for (var f = step; f <= max; f += step) o += '<circle class="cring" data-ft="' + f + '" cx="' + C + '" cy="' + CY + '" r="' + f1(f * K) + '" fill="none" stroke="#7f9a86" stroke-width="1.2"' + (f < max ? ' stroke-dasharray="5 4"' : '') + '/>' +
       '<text class="cringl" x="' + f1(C + f * K * 0.707 + 4) + '" y="' + f1(CY + f * K * 0.707 + 13) + '" font-size="11" fill="#3f5246" stroke="#f6f8f4" stroke-width="3" stroke-linejoin="round" paint-order="stroke">' + f + ' ft</text>';
-    o += '</g><text x="180" y="14" text-anchor="middle" font-size="11" fill="#4b5866">BACK OF GREEN ↑</text><text x="180" y="394" text-anchor="middle" font-size="11" fill="#4b5866">FRONT ↓ (toward the fairway)</text>';
-    var lines = '', balls = '', starts = '';
-    P.forEach(function (x) {
-      var s = x.s, r3 = three[x.r.id + '|' + x.hole], a0 = s.fromAng != null ? s.fromAng : 270, st = pt(C, CY, Math.min(Number(s.start.dist) || 0, max) * K, a0);
-      var en = x.holed ? [C, CY] : pt(C, CY, Math.min(Number(s.end.dist) || 0, max) * K, s.ang != null ? s.ang : a0), col = r3 ? '#d0213a' : '#2b3944';
-      lines += '<line class="cputt' + (r3 ? ' p3' : '') + (x.holed ? ' holed' : '') + '" data-hole="' + x.hole + '" data-ft="' + s.start.dist + '" x1="' + f1(st[0]) + '" y1="' + f1(st[1]) + '" x2="' + f1(en[0]) + '" y2="' + f1(en[1]) + '" stroke="' + col + '" stroke-opacity="' + (r3 ? 0.9 : 0.55) + '" stroke-width="' + (r3 ? 2 : 1.4) + '"/>';
-      starts += '<circle cx="' + f1(st[0]) + '" cy="' + f1(st[1]) + '" r="2.6" fill="' + col + '"/>';
-      if (!x.holed) balls += '<circle class="cdot" data-hole="' + x.hole + '" cx="' + f1(en[0]) + '" cy="' + f1(en[1]) + '" r="4.5" fill="#fff" stroke="' + col + '" stroke-width="' + (r3 ? 1.8 : 1) + '"/>';
-    });
-    var made = P.filter(function (x) { return x.holed; }).length;
-    o += lines + starts + balls + '<circle cx="' + C + '" cy="' + CY + '" r="4" fill="#2b3944"/><line x1="' + C + '" y1="' + CY + '" x2="' + C + '" y2="' + (CY - 22) + '" stroke="#2b3944" stroke-width="1"/><path d="M' + C + ' ' + (CY - 22) + ' l11 4 l-11 4z" fill="#c4574f"/>' +
-      (made ? '<text x="' + (C + 9) + '" y="' + (CY + 15) + '" font-size="11.5" font-weight="700" fill="#2b3944" stroke="#f6f8f4" stroke-width="3" paint-order="stroke">' + made + ' holed</text>' : '');
+    o += '</g><text x="180" y="16" text-anchor="middle" font-size="11" fill="#4b5866">LONG ↑ (past the hole)</text><text x="180" y="394" text-anchor="middle" font-size="11" fill="#4b5866">SHORT ↓</text>' +
+      '<text x="6" y="' + (CY - 6) + '" font-size="11" fill="#4b5866">L</text><text x="354" y="' + (CY - 6) + '" text-anchor="end" font-size="11" fill="#4b5866">R</text>';
+    // the golfer's view of each first putt: Dir of the next putt says where it finished (long / short / left / right of the hole)
+    o += '<line x1="' + C + '" y1="' + CY + '" x2="' + C + '" y2="' + (CY - 22) + '" stroke="#2b3944" stroke-width="1"/><path d="M' + C + ' ' + (CY - 22) + ' l11 4 l-11 4z" fill="#c4574f"/><circle cx="' + C + '" cy="' + CY + '" r="3.5" fill="#2b3944"/>';
+    var seen = {}, made = P.filter(function (x) { return x.holed; }).length;
+    left.forEach(function (x) { var r3 = three[x.r.id + '|' + x.hole], d = x.dir, ft = Number(x.s.end.dist) || 0, kk = (d || '-') + Math.round(ft), j = seen[kk] = (seen[kk] || 0) + 1;
+      var p = pt(C, CY, Math.max(4, Math.min(ft, max) * K), SG.DIR_ANGLE[d] + (j - 1) * 9);
+      o += '<circle class="cdot fp' + (r3 ? ' p3' : '') + '" data-hole="' + x.hole + '" data-ft="' + ft + '" cx="' + f1(p[0]) + '" cy="' + f1(p[1]) + '" r="5.5" fill="' + (r3 ? '#d0213a' : '#fff') + '" stroke="#2b3944" stroke-width="1"/>'; });
+    if (noDir) o += '<text id="clubnodir" x="8" y="378" font-size="11" fill="#4b5866">+ ' + noDir + ' with no direction (not drawn)</text>';
+    if (made) o += '<g id="clubholed"><circle class="cdot holed" data-n="' + made + '" cx="' + C + '" cy="' + CY + '" r="6" fill="#ffd23f" stroke="#2b3944" stroke-width="1"/><text x="' + (C + 10) + '" y="' + (CY + 16) + '" font-size="12" font-weight="700" fill="#2b3944" stroke="#f6f8f4" stroke-width="3" paint-order="stroke">' + made + ' holed</text></g>';
     return o + '</svg>';
   }
+
   // v118: tee shots on par 4 / 5 with this club, from the same list the fairway map uses (S.teeMap: finished holes; layups left out of the %)
   function clubTees(all, club) {
     var L = [];
@@ -5666,10 +5667,11 @@
     // v267: holes with 3 or more putts (a red box round their putts in the list, red lines in the putter's picture)
     var three = {}, pc = {}; list.forEach(function (x) { if (x.s.start.lie === 'green') { var k = x.r.id + '|' + x.hole; pc[k] = (pc[k] || 0) + 1; } }); Object.keys(pc).forEach(function (k) { if (pc[k] >= 3) three[k] = pc[k]; });
     if (tees.length < list.length) {
-      o += '<div class="clubcard" id="clubdisp"><div class="cch"><span>' + (kind === 'putter' ? 'Your putts' : 'Finish vs the pin') + tipBtn('clubdisp', 'i', 'About this picture') + '</span><span class="ccv">n = ' + (list.length - tees.length) + '</span></div>' +
-        tipText('clubdisp', kind === 'putter' ? 'Each line is a putt, from where it started to where it finished (into the cup when holed), drawn around the hole with the back of the green at the top. Rings = feet from the hole, scaled to the longest putt. Red = a hole where you took 3 or more putts. Where a putt started comes from the direction you entered for the shot before it (straight below the hole when there was none).' : 'Rings = feet from the hole (every 10 ft; 20 ft rings when shots finish further than 60 ft away); the light green circle is about the size of a green (30 ft); points use the distance left and direction you entered on the next shot. White = finished on the green, red = off the green, yellow = holed.' + (tees.length ? ' Tee shots on par 4/5 are judged by the fairway, not the pin, so they are not drawn here.' : '') +
+      var FP = kind === 'putter' ? firstPutts(list) : null, stP = FP ? clubStats(FP) : st; // v267: the putter's picture and averages are first putts only
+      o += '<div class="clubcard" id="clubdisp"><div class="cch"><span>' + (kind === 'putter' ? 'First putts' : 'Finish vs the pin') + tipBtn('clubdisp', 'i', 'About this picture') + '</span><span class="ccv">n = ' + (FP ? FP.length : list.length - tees.length) + '</span></div>' +
+        tipText('clubdisp', kind === 'putter' ? 'Where each first putt finished around the hole – the leave that sets up your next putt. Long ↑ = past the hole, short ↓ = came up short, as you looked at it. Rings = feet from the hole, scaled to the furthest leave; holed first putts are the ball in the cup with a count. Red = a hole where you took 3 or more putts. The averages under it are first putts only.' : 'Rings = feet from the hole (every 10 ft; 20 ft rings when shots finish further than 60 ft away); the light green circle is about the size of a green (30 ft); points use the distance left and direction you entered on the next shot. White = finished on the green, red = off the green, yellow = holed.' + (tees.length ? ' Tee shots on par 4/5 are judged by the fairway, not the pin, so they are not drawn here.' : '') +
           (st.ob ? ' ' + st.ob + ' OB shot(s) not drawn.' : '') + (st.far ? ' ' + st.far + ' shot(s) from beyond ' + esc(cur) + '’s reach (bag carry + ' + REACH_ROLL + ' yd, or not the hole’s regulation approach when the bag has no carry for it) are not drawn / not in the averages or Bias.' : '') + (st.n - st.nDir - st.ob - tees.length - st.far > 0 ? ' ' + (st.n - st.nDir - st.ob - tees.length - st.far) + ' shot(s) with no direction are not drawn / not in the averages.' : '')) +
-        (kind === 'putter' ? putterSVG(list, three) : clubSVG(list)) + '<div class="stat-grid" id="clubcells">' + stat('Avg short / long', fmtD(st.lg, 'long', 'short')) + stat('Avg left / right', fmtD(st.lr, 'right', 'left')) + '</div></div>';
+        (kind === 'putter' ? putterSVG(list, three) : clubSVG(list)) + '<div class="stat-grid" id="clubcells">' + stat('Avg short / long', fmtD(stP.lg, 'long', 'short')) + stat('Avg left / right', fmtD(stP.lr, 'right', 'left')) + '</div></div>';
     }
     if (tees.length) o += '<span id="clubtee" hidden data-n="' + tees.length + '">' + pl(tees.length, 'tee shot') + ' on par 4/5</span>';
     // v266 (Scott): Hit (how far it went – yards, feet for a putt) as the 2nd column
