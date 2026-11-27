@@ -41,7 +41,9 @@ const toMin = (x) => { let m = 0; x.replace(/(\d+)\s*h/, (q, h) => { m += 60 * h
       const head = await page.textContent('#prpages .prpage[data-p="30d"] .prh'), lede = await page.textContent('#prpages .prpage[data-p="30d"] .prlede2'); return { gap, head, lede }; };
     // 1a) typical week entered today, logs for 50 days → the 30 days are all logged: the two numbers agree, no typical-week note
     await go(logs(50)); let X = await both(); const gw = X.gap.reduce((s, x) => s + toMin(x), 0);
-    assert.ok(Math.abs(toMin(X.head) - gw) <= 5, X.head + ' vs ' + gw + ' min'); assert.doesNotMatch(X.lede, /typical week/);
+    // v269: My Practice also counts tournament rounds (2.5 h each, said in the line); Your game and your training is your own practice only
+    const tm = /Includes (.+?) a week from tournament rounds/.exec(X.lede), tw = tm ? toMin(tm[1]) : 0;
+    assert.ok(Math.abs(toMin(X.head) - tw - gw) <= 5, X.head + ' − ' + tw + ' vs ' + gw + ' min'); assert.doesNotMatch(X.lede, /typical week/);
     assert.ok(X.gap.every(x => /^(\d+h( \d+m)?|[1-5]?\dm)$/.test(x)), X.gap.join()); // 67 min → 1h 7m
     ok('all logged: My Practice 30 days ' + X.head + ' = Your game and your training ' + gw + ' min a week; rows like 1h 7m');
     // 1b) first log 22 days ago → the days before it use the typical week, and the line says so

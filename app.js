@@ -24,6 +24,8 @@
   var PRK = 'golfsg.practice.v1';
   function practice() { if (typeof CO !== 'undefined' && CO && CO.ctx) return MYGAME.validPractice(CO.ctx.practice || []); try { return MYGAME.validPractice(JSON.parse(localStorage.getItem(PRK) || '[]')); } catch (e) { return []; } }
   function savePractice(list) { if (typeof roGuard === 'function' && roGuard()) return; localStorage.setItem(PRK, JSON.stringify(list)); backupDirty(3000); }
+  // v269 (Scott): tournament rounds as practice (2.5 h each, split by the round's shots) – built from the rounds, never saved
+  function tourPracOf(who) { return MYGAME.tourPractice ? MYGAME.tourPractice(finishedRoundsOf(who), SG) : []; }
   function practiceOf(who) { return practice().filter(function (e) { return samePlayer(e.player || playerName(), who); }); }
   // v166 short game tests (shortgame.js): [{ id, date, player, baseline, cond, done, shots }] – per player, in the backups
   var SGK = 'golfsg.sgtests.v1';
@@ -2579,10 +2581,10 @@
   var PRG = [['putt', 'Putting', ['lag', 'short']], ['short', 'Short game', ['chip', 'bunker']], ['wedge', 'Wedges', ['wedges']], ['irons', 'Irons', ['irons']], ['woods', 'Woods', ['drive']]];
   function pgOf(k) { for (var i = 0; i < PRG.length; i++) if (PRG[i][2].indexOf(k) >= 0) return i; return 3; }
   function pgEmpty() { return PRG.map(function () { return 0; }); }
-  function prLegend() {
+  function prLegend(tour) {
     var item = function (g, gi) { return '<span><i class="pg' + gi + '"></i>' + g[1] + '</span>'; };
     return '<div class="pglegend"><div class="pglegrow">' + PRG.slice(0, 3).map(function (g, i) { return item(g, i); }).join('') +
-      '</div><div class="pglegrow">' + PRG.slice(3).map(function (g, i) { return item(g, i + 3); }).join('') + '</div></div>';
+      '</div><div class="pglegrow">' + PRG.slice(3).map(function (g, i) { return item(g, i + 3); }).join('') + (tour ? '<span class="pgtourkey"><i class="pgtour"></i>Tournament rounds</span>' : '') + '</div></div>';
   }
   function hmS(min) { min = Math.round(min); var h = Math.floor(min / 60), m = min % 60; return h ? h + 'h' + (m ? ' ' + m + 'm' : '') : m + 'm'; } // short: "1h 5m"
   // Light 3-day centered average for drawing only; first and last days stay exact so the right edge matches the real fading average.
@@ -2612,17 +2614,19 @@
     return d;
   }
   function weekDaysSVG(L, W, tall) { var VH = tall ? 380 : 172; // v207: taller in full screen
-    var DAY = 864e5, days = [0, 1, 2, 3, 4, 5, 6].map(function (i) { return { t: W.start + i * DAY, g: pgEmpty(), tot: 0 }; });
-    L.forEach(function (e) { var t = Date.parse(e.date); if (t < W.start || t > W.end || !(e.min > 0)) return; var d = days[Math.min(6, Math.floor((t - W.start) / DAY))]; d.g[pgOf(e.spoke)] += e.min; d.tot += e.min; });
+    var DAY = 864e5, days = [0, 1, 2, 3, 4, 5, 6].map(function (i) { return { t: W.start + i * DAY, g: pgEmpty(), tot: 0, tr: 0 }; });
+    L.forEach(function (e) { var t = Date.parse(e.date); if (t < W.start || t > W.end || !(e.min > 0)) return; var d = days[Math.min(6, Math.floor((t - W.start) / DAY))]; if (e.kind === 'tour') d.tr += e.min; else d.g[pgOf(e.spoke)] += e.min; d.tot += e.min; });
+    var hid = 'wkhatch' + (++TR_HATCH); // v269: tournament rounds stack on top in gold stripes
     var mx = Math.max(30, Math.max.apply(null, days.map(function (d) { return d.tot; }))), step = mx > 150 ? 60 : 30, top = Math.ceil(mx / step) * step;
     var VW = 340, X0 = 34, X1 = 332, Y0 = 18, Y1 = VH - 22, bw = (X1 - X0) / 7, y = function (m) { return Y1 - m / top * (Y1 - Y0); }, today = new Date(); today.setHours(0, 0, 0, 0);
-    var o = '<svg class="wkchart" viewBox="0 0 ' + VW + ' ' + VH + '" role="img" aria-label="Practice each day this week, by group">';
+    var o = '<svg class="wkchart" viewBox="0 0 ' + VW + ' ' + VH + '" role="img" aria-label="Practice each day this week, by group' + (days.some(function (d) { return d.tr; }) ? ', with tournament rounds' : '') + '">' + MYGAME.tourHatchDefs(hid);
     for (var t = 0; t <= top; t += step) o += '<line x1="' + X0 + '" x2="' + X1 + '" y1="' + y(t).toFixed(1) + '" y2="' + y(t).toFixed(1) + '" class="wkgrid"/><text x="' + (X0 - 4) + '" y="' + (y(t) + 3.5).toFixed(1) + '" class="wkax" text-anchor="end">' + (t >= 60 ? t / 60 + 'h' : t + 'm') + '</text>';
     days.forEach(function (d, i) { var x = X0 + i * bw + bw * 0.18, w = bw * 0.64, acc = 0;
       d.g.forEach(function (m, gi) { if (!m) return; var a = y(acc), b2 = y(acc + m); o += '<rect x="' + x.toFixed(1) + '" y="' + b2.toFixed(1) + '" width="' + w.toFixed(1) + '" height="' + Math.max(1, a - b2).toFixed(1) + '" class="pg' + gi + '"/>'; acc += m; });
+      if (d.tr) { var ta = y(acc), tb = y(acc + d.tr); o += '<rect x="' + x.toFixed(1) + '" y="' + tb.toFixed(1) + '" width="' + w.toFixed(1) + '" height="' + Math.max(1, ta - tb).toFixed(1) + '" fill="url(#' + hid + ')" class="pgtourbar"/>'; }
       if (d.tot) o += '<text x="' + (x + w / 2).toFixed(1) + '" y="' + (y(d.tot) - 4).toFixed(1) + '" class="wkdtot" text-anchor="middle">' + hmS(d.tot) + '</text>';
       o += '<text x="' + (x + w / 2).toFixed(1) + '" y="' + (VH - 6) + '" class="wkax' + (d.t === today.getTime() ? ' now' : '') + '" text-anchor="middle">' + ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'][i] + '</text>';
-      if (d.tot) o += '<rect class="wkhit" x="' + (X0 + i * bw).toFixed(1) + '" y="0" width="' + bw.toFixed(1) + '" height="' + VH + '" data-act="wkday" data-v="' + d.t + '" role="button" aria-label="' + ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'][i] + ': ' + hmS(d.tot) + ' – see the practice"><title>See ' + ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'][i] + '</title></rect>'; }); // v216: tap a day for its recap
+      if (d.tot > d.tr) o += '<rect class="wkhit" x="' + (X0 + i * bw).toFixed(1) + '" y="0" width="' + bw.toFixed(1) + '" height="' + VH + '" data-act="wkday" data-v="' + d.t + '" role="button" aria-label="' + ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'][i] + ': ' + hmS(d.tot) + ' – see the practice"><title>See ' + ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'][i] + '</title></rect>'; }); // v216: tap a day for its recap
     return o + '<line x1="' + X0 + '" x2="' + X1 + '" y1="' + Y1 + '" y2="' + Y1 + '" class="wkbase"/></svg>';
   }
   // v236 (Scott): the rolling chart fits the practice there is – it starts a few days before the first log and widens as
@@ -2651,18 +2655,21 @@
     var A = Math.pow(0.5, 1 / 3), from = start, t;
     if (R.first) { var f0 = R.first > addD(start, -30) ? R.first : addD(start, -30); if (f0 < from) from = f0; }
     var raw = {}, order = []; t = from;
-    while (t <= today) { raw[t] = { g: pgEmpty(), tot: 0, tour: false, les: false, golf: false }; order.push(t); t = addD(t, 1); }
-    L.forEach(function (e) { var d = iso(Date.parse(e.date)), r = raw[d]; if (!r || !(e.min > 0)) return; r.g[pgOf(e.spoke)] += e.min; r.tot += e.min; if (e.kind === 'lesson') r.les = true; });
-    finishedRoundsOf(who).forEach(function (r) { var pl = MYGAME.playOf(r); if (!pl) return; var d = iso(Date.parse(r.date)), x = raw[d]; if (!x) return; x.golf = true; if (pl === 'tournament') x.tour = true; });
-    order.forEach(function (d, i) { if (i && i < order.length - 1 && !raw[d].golf && raw[order[i - 1]].golf && raw[order[i + 1]].golf) raw[d].bridge = raw[order[i - 1]].tour && raw[order[i + 1]].tour ? 'tour' : true; });
+    while (t <= today) { raw[t] = { g: pgEmpty(), tot: 0, tr: 0, tour: false, les: false, golf: false }; order.push(t); t = addD(t, 1); }
+    // v269 (Scott): tournament rounds count as practice (2.5 h each) – drawn as a gold striped band on top, and those days no longer hold the line flat
+    var hasTr = false;
+    L.forEach(function (e) { var d = iso(Date.parse(e.date)), r = raw[d]; if (!r || !(e.min > 0)) return; if (e.kind === 'tour') { r.tr += e.min; hasTr = true; } else r.g[pgOf(e.spoke)] += e.min; r.tot += e.min; if (e.kind === 'lesson') r.les = true; });
+    finishedRoundsOf(who).forEach(function (r) { var pl = MYGAME.playOf(r); if (!pl) return; var d = iso(Date.parse(r.date)), x = raw[d]; if (!x) return; if (pl === 'tournament') { x.tour = true; if (!hasTr) x.golf = true; } else x.golf = true; });
+    var onC = function (x) { return x.golf || x.tour; }; // v269: a day between two round days (tournament ones too) still holds the line
+    order.forEach(function (d, i) { if (i && i < order.length - 1 && !onC(raw[d]) && onC(raw[order[i - 1]]) && onC(raw[order[i + 1]])) raw[d].bridge = raw[order[i - 1]].tour && raw[order[i + 1]].tour ? 'tour' : true; });
     order.forEach(function (d) { if (raw[d].bridge) { raw[d].golf = true; if (raw[d].bridge === 'tour') raw[d].tour = true; } });
-    var eg = pgEmpty(), kd = R.first && R.first < from ? 99 : 0, fade = {};
+    var eg = pgEmpty(), et = 0, kd = R.first && R.first < from ? 99 : 0, fade = {}, fadeT = {};
     order.forEach(function (d) { var r = raw[d];
-      if (R.first && d >= R.first && !(r.golf && kd)) { eg = eg.map(function (v, i) { return v * A + r.g[i] * (1 - A); }); kd++; }
-      var nrm = 1 - Math.pow(A, Math.max(kd, 3)); fade[d] = kd ? eg.map(function (v) { return v / nrm * 7; }) : pgEmpty(); });
+      if (R.first && d >= R.first && !(r.golf && kd)) { eg = eg.map(function (v, i) { return v * A + (r.tr ? 0 : r.g[i]) * (1 - A); }); et = et * A + r.tr * (1 - A); kd++; } // a warm-up logged on a tournament day: the round counts instead
+      var nrm = 1 - Math.pow(A, Math.max(kd, 3)); fade[d] = kd ? eg.map(function (v) { return v / nrm * 7; }) : pgEmpty(); fadeT[d] = kd ? et / nrm * 7 : 0; });
     var days = []; t = start;
-    while (t <= today) { var rec = raw[t], g = fade[t] || pgEmpty();
-      days.push({ t: atNoon(t), d: t, g: g, tot: g.reduce(function (a, b) { return a + b; }, 0), tour: rec.tour, les: rec.les, golf: rec.golf });
+    while (t <= today) { var rec = raw[t], g = fade[t] || pgEmpty(), tr = fadeT[t] || 0;
+      days.push({ t: atNoon(t), d: t, g: g, tr: tr, tot: g.reduce(function (a, b) { return a + b; }, 0) + tr, tour: rec.tour, les: rec.les, golf: rec.golf });
       t = addD(t, 1);
     }
     var N = days.length, tgt = nr ? 0 : (weekTgt != null ? weekTgt : P.budget), mx = Math.max(60, tgt, Math.max.apply(null, days.map(function (d) { return d.tot; }))), step = mx > 420 ? 120 : 60, top = Math.ceil(mx / step) * step;
@@ -2681,7 +2688,10 @@
       var zero = gPts[0].map(function (p) { return { i: p.i, v: 0 }; });
       PRG.forEach(function (g, gi) { var topv = stack[gi], bot = gi ? stack[gi - 1] : zero; if (gS[gi].every(function (v) { return v === 0; })) return;
         o += '<path d="' + pgPtsPath(topv, xs, y, 'M') + pgPtsPath(bot.slice().reverse(), xs, y, 'L') + 'Z" class="pg' + gi + ' band"/>'; });
-      o += '<path d="' + pgPtsPath(stack[stack.length - 1], xs, y, 'M') + '" class="wktotal"/>';
+      var topS = stack[stack.length - 1];
+      if (shown.some(function (d) { return d.tr > 0.5; })) { var hid = 'mohatch' + (++TR_HATCH), tP = pgMonoSample(pgSmooth3(shown.map(function (d) { return d.tr; }), held), 8), tS = tP.map(function (p, j) { return { i: p.i, v: topS[j].v + p.v }; });
+        o += MYGAME.tourHatchDefs(hid) + '<path d="' + pgPtsPath(tS, xs, y, 'M') + pgPtsPath(topS.slice().reverse(), xs, y, 'L') + 'Z" fill="url(#' + hid + ')" class="pgtourband"/>'; topS = tS; }
+      o += '<path d="' + pgPtsPath(topS, xs, y, 'M') + '" class="wktotal"/>';
     }
     if (tgt > 0) o += '<line x1="' + X0 + '" x2="' + X1 + '" y1="' + y(tgt).toFixed(1) + '" y2="' + y(tgt).toFixed(1) + '" class="wktgtline"/><text x="' + X1 + '" y="' + (y(tgt) - 4).toFixed(1) + '" class="wkax wktgtlab" text-anchor="end">target ' + hmS(tgt) + '</text>';
     days.forEach(function (d, i) { if (d.les) o += '<line x1="' + x(i).toFixed(1) + '" x2="' + x(i).toFixed(1) + '" y1="' + Y0 + '" y2="' + Y1 + '" class="wkles"/>'; });
@@ -2721,26 +2731,27 @@
       ' – back to even by ' + by + (G.every(function (g) { return g.why === 'coach'; }) ? '.' : ' unless your rounds still show it.');
   }
   function weekCardHTML(who, P, nr) {
-    var off = view.wkOff || 0, L = practiceOf(who), W = PLAN.week(P, L, Date.now(), off), page = view.wkPage || 0;
+    var off = view.wkOff || 0, L = practiceOf(who).concat(tourPracOf(who)), W = PLAN.week(P, L, Date.now(), off), page = view.wkPage || 0; // v269: + tournament rounds
     var lab = off === 0 ? 'This week' : off === 1 ? 'Last week' : 'Week of ' + new Date(W.start).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
     var dots = []; for (var i = 5; i >= 0; i--) { var w = PLAN.week(P, L, Date.now(), i), q = w.target ? w.done / w.target : 0; dots.push('<i class="' + (q >= 1 ? 'full' : q >= 0.7 ? 'half' : '') + (i === off ? ' cur' : '') + '" title="' + (i === 0 ? 'This week' : i + ' weeks ago') + ': ' + MYGAME.hm(w.done) + '"></i>'); }
-    if (nr) { W.rows = W.rows.map(function (r) { return { k: r.k, name: r.name, done: r.done, target: 0 }; }); dots = []; } // v215: just what was done
+    if (nr) { W.rows = W.rows.map(function (r) { return { k: r.k, name: r.name, done: r.done, tour: r.tour, target: 0 }; }); dots = []; } // v215: just what was done
     var mx = Math.max.apply(null, W.rows.map(function (r) { return Math.max(r.target, r.done); }).concat([10]));
     var nav = '<span class="wknav"><button class="txt" data-act="wkoff" data-k="1" aria-label="Earlier week"' + (off >= 25 ? ' disabled' : '') + '>‹</button><b>' + esc(lab) + '</b><button class="txt" data-act="wkoff" data-k="-1" aria-label="Later week"' + (off ? '' : ' disabled') + '>›</button></span>';
-    var legend = prLegend();
+    var r0 = pgRange(L, view.wkSpan || 0).start, tourShown = L.some(function (e) { if (e.kind !== 'tour') return false; var t = Date.parse(e.date); return (t >= W.start && t <= W.end) || pgIso(t) >= pgAddD(r0, -30); }); // v269: the key only when a chart shows tournament credit
+    var legend = prLegend(tourShown);
     var p1 = '<div class="wkpage" data-p="0"><div class="wkdots" aria-hidden="true">' + dots.join('') + '</div><div class="wkbars">';
     W.rows.forEach(function (r) { var got = !nr && r.done >= r.target;
       // v240 (Scott): no black target marks – the bar is the target (its length), filling up with what's done
-      var tw = nr ? 100 : r.target / mx * 100, fw = nr ? r.done / mx * 100 : r.target ? r.done / r.target * 100 : 0;
-      p1 += '<div class="wkrow' + (got ? ' got' : '') + '" data-k="' + r.k + '"><span class="wkname">' + esc(r.name) + '</span><span class="wkcell"><span class="wkbar" style="width:' + tw.toFixed(1) + '%"><i class="wkfill" style="width:' + Math.min(100, fw).toFixed(1) + '%"></i></span></span>' +
+      var tw = nr ? 100 : r.target / mx * 100, sc = nr ? 100 / mx : r.target ? 100 / r.target : 0, fw = Math.min(100, (r.done - (r.tour || 0)) * sc), tf = Math.min(100 - fw, (r.tour || 0) * sc); // v269: tournament part in gold stripes
+      p1 += '<div class="wkrow' + (got ? ' got' : '') + '" data-k="' + r.k + '"><span class="wkname">' + esc(r.name) + '</span><span class="wkcell"><span class="wkbar" style="width:' + tw.toFixed(1) + '%"><i class="wkfill" style="width:' + fw.toFixed(1) + '%"></i>' + (tf > 0.05 ? '<i class="wkfill wktf" style="left:' + fw.toFixed(1) + '%;width:' + tf.toFixed(1) + '%"></i>' : '') + '</span></span>' +
         '<span class="wkval">' + (got ? '✓ ' : '') + (nr ? (r.done ? hmS(r.done) : '–') : hmS(r.done) + '<small> of ' + hmS(r.target) + '</small>') + '</span></div>'; });
-    p1 += '</div>' + (nr ? '' : '<p class="plintro wknote" id="wkbal">' + esc(balanceLine(P)) + '</p>') + '</div>';
+    p1 += '</div>' + (W.tour ? '<p class="plintro wknote wktournote" id="wktour"><i class="pgtour"></i>' + esc(hmS(W.tour)) + ' from tournament rounds – 2.5 h a round split by its shots, plus a 1.5 h warm-up.</p>' : '') + (nr ? '' : '<p class="plintro wknote" id="wkbal">' + esc(balanceLine(P)) + '</p>') + '</div>';
     var p2 = '<div class="wkpage" data-p="1"><p class="wkpt">Each day, by group</p>' + weekDaysSVG(L, W, !!view.wkFull) + legend + '</div>';
     var R3 = pgRange(L, view.wkSpan || 0); // v236: the chart fits the practice logged so far (up to 90 days); v238: fading average
     // v237: Fit (default) / 30 / 60 / 90 days
     var spans = '<div class="prchips wkspans" role="group" aria-label="How far back">' + [[0, 'Fit'], [30, '30d'], [60, '60d'], [90, '90d']].map(function (q) { var on = (view.wkSpan || 0) === q[0];
       return '<button class="prchip' + (on ? ' on' : '') + '" data-act="wkspan" data-v="' + q[0] + '" aria-pressed="' + on + '"' + (q[0] ? ' aria-label="Last ' + q[0] + ' days"' : ' aria-label="Fit to your practice"') + '>' + q[1] + '</button>'; }).join('') + '</div>';
-    var p3 = '<div class="wkpage" data-p="2"><p class="wkpt">' + esc(R3.label) + ' · fading average</p>' + spans + monthsSVG(L, who, P, !!view.wkFull, nr, W.target, R3) + legend + '<p class="plintro wknote">Recent days count more · 🏆 tournament day · <span class="leskey"></span> lesson' + (nr ? '' : ' · dashed = weekly target') + '</p></div>';
+    var p3 = '<div class="wkpage" data-p="2"><p class="wkpt">' + esc(R3.label) + ' · fading average</p>' + spans + monthsSVG(L, who, P, !!view.wkFull, nr, W.target, R3) + legend + '<p class="plintro wknote">Recent days count more · 🏆 tournament day' + (tourShown ? ' (counts 4 h)' : '') + ' · <span class="leskey"></span> lesson' + (nr ? '' : ' · dashed = weekly target') + '</p></div>';
     var full = !!view.wkFull; // v207 (Scott): tap the card → full screen; swipe down, ✕ or Back to close; left / right still swipe
     return '<div class="card frost weekcard' + (full ? ' isfull' : '') + '" id="weekcard"' + (full ? ' role="dialog" aria-modal="true" aria-label="This week, full screen"' : ' data-act="wkfull" role="button" tabindex="0" aria-label="This week – tap for full screen"') + '>' +
       (full ? '<div class="wkgrab" aria-hidden="true"></div><button class="wkx" data-act="wkclose" id="wkclose" aria-label="Close">✕</button>' : '') + '<div class="planhead">' + nav + '<small id="wktot">' + hmS(W.done) + (nr ? ' logged' : ' of ' + hmS(W.target)) + '</small></div>' +
@@ -2970,6 +2981,7 @@
   // v258 (Scott): the chart runs on real dates – every round is its own dot on its day (gold = tournament, open = other rounds), the solid
   // line is the average of the last 3 rounds at each round, "today" is today, and the dashed line starts where the solid one ends.
   // Practice underneath is a smooth daily line (hours a week) that holds flat on playing days (small gold ticks).
+  var TR_HATCH = 0;
   function trendChartSVG(A, weeks, Z, total, cw) {
     var np = TR_NP, early = !A.ok, FC = A.fc || [], DAYM = 864e5, now = TRD_NOW || Date.now();
     var N0 = weeks.length, H0 = Math.max(0, N0 - Z), t0 = weeks[H0], t1 = now + FC.length * 7 * DAYM + (FC.length ? 0 : 7 * DAYM);
@@ -3011,6 +3023,12 @@
       if (A.normX) o += '<line x1="' + LX + '" x2="' + f1(xt) + '" y1="' + f1(yp(A.normX)) + '" y2="' + f1(yp(A.normX)) + '" class="trnormp"/>';
       PD.forEach(function (p) { if (p.golf && p.t >= t0) o += '<rect x="' + f1(x(p.t) - 1.6) + '" y="' + f1(yp(0) - 5) + '" width="3.2" height="5" rx="1" class="trgolf"/>'; });
       var PV = PD.filter(function (p) { return p.t >= t0; }), ph = PV.map(function (p, i) { var L = PV.slice(Math.max(0, i - 2), i + 3); return [x(p.t), yp(L.reduce(function (a, q) { return a + q.h; }, 0) / L.length)]; }); // drawn with a light 5-day smoothing
+      // v269 (Scott): tournament rounds count as practice (2.5 h each) – that part of the line is filled in gold stripes
+      var sm = function (f) { return PV.map(function (p, i) { var L = PV.slice(Math.max(0, i - 2), i + 3); return L.reduce(function (a, q) { return a + f(q); }, 0) / L.length; }); };
+      if (ph.length > 1 && PV.some(function (p) { return p.hp != null && p.h - p.hp > 0.01; })) { var hpS = sm(function (q) { return q.hp == null ? q.h : q.hp; }), hid = 'trhatch' + (++TR_HATCH);
+        var hS = sm(function (q) { return q.h; }), lo2 = PV.map(function (p, i) { return [x(p.t), yp(Math.min(hpS[i], hS[i]))]; }).reverse();
+        o += MYGAME.tourHatchDefs(hid) + '<path d="' + monoPath(ph, 0.3) + monoPath(lo2, 0.3).replace(/^M/, 'L') + 'Z" fill="url(#' + hid + ')" class="trtour"/>';
+        o += '<g class="trtourkey"><rect x="' + (LX + 96) + '" y="' + (T + PH + GAP + 3) + '" width="9" height="8" rx="1.5" fill="url(#' + hid + ')" stroke="#b8861b" stroke-width=".8"/><text x="' + (LX + 108) + '" y="' + (T + PH + GAP + 10) + '" class="trpl trtourtx">Tournament rounds</text></g>'; }
       if (ph.length > 1 && PV.some(function (p) { return p.h > 0.01; })) o += '<path d="' + monoPath(ph, 0.3) + '" class="trpr"/>';
       else o += '<text x="' + f1((LX + xt) / 2) + '" y="' + f1(yp(0) - PH / 2) + '" text-anchor="middle" class="trax">No ' + esc(total ? '' : A.name.toLowerCase() + ' ') + 'practice logged yet</text>';
       o += '<text x="' + (LX + 2) + '" y="' + (T + PH + GAP + 10) + '" class="trpl pr">Practice / week</text>'; }
@@ -3088,11 +3106,11 @@
     return false;
   }
   function practiceCardHTML(who, D, part) { // v194: part 'spider' = the My Practice card (My Game); 'rest' = Strokes lost vs practice + Recent practice (Practice page)
-    var logs = practiceOf(who), PB = MYGAME.practiceBuild(logs, { period: D.period }), P = PB.period;
+    var logs = practiceOf(who), PB = MYGAME.practiceBuild(logs, { period: D.period }), P = PB.period, logsT = logs.concat(tourPracOf(who)); // v269: the spider counts tournament rounds; strokes lost vs practice stays your own practice
     // v155: the chart is your practice LEVEL (builds with each session, fades without practice) against your benchmark group's average
-    var LT = MYGAME.practiceLevelText(logs, { period: P, bl: D.baseline, typical: typicalOf(who) }), ago = P.id === '30d' ? '30 days ago' : P.id === '3m' ? '3 months ago' : P.id === '1y' ? 'a year ago' : '';
+    var LT = MYGAME.practiceLevelText(logsT, { period: P, bl: D.baseline, typical: typicalOf(who) }), ago = P.id === '30d' ? '30 days ago' : P.id === '3m' ? '3 months ago' : P.id === '1y' ? 'a year ago' : '';
     // v211 (Scott): three time frames – this week first, swipe for the last 30 days and the last 3 months; tap for full screen
-    var PW = MYGAME.practiceWindows(logs, { bl: D.baseline, typical: typicalOf(who) }), pg = Math.min(2, view.prPage || 0), full = !!view.prFull, bw = LT.level.bench.who;
+    var PW = MYGAME.practiceWindows(logsT, { bl: D.baseline, typical: typicalOf(who) }), pg = Math.min(2, view.prPage || 0), full = !!view.prFull, bw = LT.level.bench.who;
     var short = function (t) { return t.replace(/ h /, 'h ').replace(/ min/, 'm').replace(/^(\d+) h$/, '$1h'); };
     var o = '<div class="mgchart prchart frost' + (full ? ' isfull' : '') + '" id="prcard"' + (full ? ' role="dialog" aria-modal="true" aria-label="My Practice, full screen"' : '') + '>' +
       (full ? '<div class="wkgrab" aria-hidden="true"></div><button class="wkx" data-act="prclose" id="prclose" aria-label="Close">✕</button>' : '') +
@@ -3103,12 +3121,14 @@
       if (W.id === 'week') svg = svg.replace(/(<text class="plv"[^>]*>)([^<]*)\/wk</g, function (m0, t, v) { return t + v + '<'; }); // this week: real minutes, not a rate
       svg = svg.replace(/(<text class="plv"[^>]*>)([^<]*)</g, function (m0, t, v) { return t + short(v) + '<'; });
       o += '<div class="wkpage prpage" data-p="' + W.id + '"><small class="prper">' + esc(W.label) + '</small><h2' + (i === 0 ? ' id="prhead"' : '') + ' class="prh">' + esc(W.head) + '</h2>' +
-        '<p class="prlede2"' + (i === 0 ? ' id="prlede"' : '') + '>' + esc(W.lede) + (W.typicalUntil ? ' <span class="prtyp">Includes your typical week before ' + (W.typicalFirst ? 'your first log (' : '') + esc(new Date(W.typicalUntil).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })) + (W.typicalFirst ? ').' : ', when you entered it.') + '</span>' : '') + '</p>' + svg +
-        '<div class="mglegend"><span><i class="lpc"></i>' + esc(W.label) + '</span>' + (W.prev ? '<span><i class="lp"></i>' + esc(W.prevName) + '</span>' : '') +
+        '<p class="prlede2"' + (i === 0 ? ' id="prlede"' : '') + '>' + esc(W.lede) + (W.typicalUntil ? ' <span class="prtyp">Includes your typical week before ' + (W.typicalFirst ? 'your first log (' : '') + esc(new Date(W.typicalUntil).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })) + (W.typicalFirst ? ').' : ', when you entered it.') + '</span>' : '') +
+        (W.cur.tw >= 1 ? ' <span class="prtyp prtour">Includes ' + esc(MYGAME.hm(W.cur.tw)) + (W.id === 'week' ? '' : ' a week') + ' from tournament rounds.</span>' : '') + '</p>' + svg +
+        '<div class="mglegend"><span><i class="lpc"></i>' + esc(W.label) + '</span>' + (W.cur.tw >= 1 ? '<span><i class="ltour"></i>Tournament rounds</span>' : '') + (W.prev ? '<span><i class="lp"></i>' + esc(W.prevName) + '</span>' : '') +
         '<span><i class="lb"></i>' + esc(bw.charAt(0).toUpperCase() + bw.slice(1)) + ' a week</span></div></div>'; });
     o += '</div><div class="wkpdots prdots" aria-hidden="true">' + [0, 1, 2].map(function (i) { return '<i class="' + (i === pg ? 'on' : '') + '"></i>'; }).join('') + '</div>' +
       '<details class="prhow" id="prhow"' + (full ? ' open' : '') + '><summary>How these work</summary><p>This week is real minutes, Monday to today. The 30-day and 3-month pages are your average a week. The grey shape is the period before, so you can see what changed.</p>' +
       '<p>Before you entered your typical week, it fills in the 30-day and 3-month pages (less anything you’d already logged), so a new start doesn’t look empty. This week is your real logs only.</p>' +
+      '<p>Each tournament round counts as 2.5 h of practice (a 9-hole round half that), split across the skills by that round’s shots, plus 1.5 h of warm-up and pre-round practice: 30 min putting, 30 min chipping, 20 min irons and 10 min driver. It shows in gold stripes, so you can tell it from the time you logged. Strokes lost vs practice time uses only your own practice.</p>' +
       '<p>The dashed ring is what ' + esc(bw) + ' practise in a week, about ' + LT.level.bench.h + ' h, split 40% full swing and 60% short game and putting. The average club golfer practises about ' + LT.clubH + ' h a week.</p></details>';
     o += '</div>';
     if (part === 'spider') return o; if (part === 'rest') o = '';

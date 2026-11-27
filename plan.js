@@ -318,11 +318,11 @@
   }
   // v205: a week's practice against each area's target (Monday to Sunday); off = 0 this week, 1 last week…
   function week(P, logs, now, off) {
-    var d = new Date(now); d.setHours(0, 0, 0, 0); d.setDate(d.getDate() - ((d.getDay() + 6) % 7) - 7 * (off || 0)); var a = d.getTime(), b = a + 7 * DAY, did = {}, tot = 0;
-    (logs || []).forEach(function (e) { var t = Date.parse(e.date); if (t >= a && t < b && e.min > 0) { did[e.spoke] = (did[e.spoke] || 0) + e.min; tot += e.min; } });
-    var rows = Object.keys(P.weekMin).map(function (k) { return { k: k, name: (P.areas[k] || {}).name || k, target: Math.max(5, Math.round(P.weekMin[k] / 5) * 5), done: did[k] || 0 }; })
+    var d = new Date(now); d.setHours(0, 0, 0, 0); d.setDate(d.getDate() - ((d.getDay() + 6) % 7) - 7 * (off || 0)); var a = d.getTime(), b = a + 7 * DAY, did = {}, tw = {}, tot = 0, tt = 0;
+    (logs || []).forEach(function (e) { var t = Date.parse(e.date); if (t >= a && t < b && e.min > 0) { did[e.spoke] = (did[e.spoke] || 0) + e.min; tot += e.min; if (e.kind === 'tour') { tw[e.spoke] = (tw[e.spoke] || 0) + e.min; tt += e.min; } } }); // v269: tour = tournament rounds counted as practice
+    var rows = Object.keys(P.weekMin).map(function (k) { return { k: k, name: (P.areas[k] || {}).name || k, target: Math.max(5, Math.round(P.weekMin[k] / 5) * 5), done: did[k] || 0, tour: tw[k] || 0 }; })
       .sort(function (x, y) { return y.target - x.target; });
-    return { start: a, end: b - 1, rows: rows, done: tot, target: rows.reduce(function (t, r) { return t + r.target; }, 0) };
+    return { start: a, end: b - 1, rows: rows, done: tot, tour: tt, target: rows.reduce(function (t, r) { return t + r.target; }, 0) };
   }
   var api = { CFG: CFG, GROUPS: GROUPS, build: build, session: session, week: week, roundFindings: roundFindings, areaNeeds: areaNeeds, GENERIC: GENERIC };
   if (typeof module !== 'undefined' && module.exports) module.exports = api; else root.PLAN = api;

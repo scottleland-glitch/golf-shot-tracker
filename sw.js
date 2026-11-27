@@ -151,7 +151,8 @@
 // v113: "Courses near me" (near.js). The course finder list (data/us-courses.json, ~1.0 MB, ~0.28 MB gzipped) is NOT in this cache:
 // the app downloads it on first use into its own cache 'pinhigh-courselist-v1', which a new version keeps (so no re-download).
 // GolfCore scorecards (through the Pin High relay, pinhigh-golfcore.pinhigh.workers.dev) go straight to the network; the app saves each picked course with the saved courses.
-const CACHE = 'golf-sg-v268';
+// v269: tournament rounds count as practice – 2.5 h a round split by its shots + a 1.5 h warm-up, in gold stripes on My Practice, the Practice tab charts and the Trends practice line (feeds the forecast).
+const CACHE = 'golf-sg-v269';
 const ASSETS = ['./', './img/home-bg.webp', './img/oriole.webp', './tour/entry.webp', './tour/score.webp', './tour/rounds.webp', './tour/stats.webp', './tour/review.webp', './tour/mygame.webp', './tour/practice.webp', './tour/improve.webp', './index.html', './styles.css', './sg.js', './trends.js', './plan.js', './funfacts.js', './weekahead.js', './birdie.js', './courses.js', './near.js', './bag.js', './wedges.js', './live.js', './sync.js', './share.js', './story.js', './insights.js', './mygame.js', './shortgame.js', './shortgame-ui.js', './dispersion.js', './dispersion-ui.js', './replay-anim.js', './app.js', './config.js', './vendor/jspdf.umd.min.js',
   './manifest.webmanifest', './icons/apple-touch-icon.png', './icons/icon-192.png',
   './icons/icon-512.png', './icons/icon-512-maskable.png'];

@@ -50,7 +50,7 @@ const ROOT = __dirname + '/../';
   // v206: swipe – the days of the week stacked by group, then 3 months (rolling 7 days; Irons + Woods)
   assert.strictEqual(await page.$$eval('#wkpages .wkpage', e => e.length), 3); assert.strictEqual(await page.$$eval('#weekcard .wkpdots i', e => e.length), 3);
   assert.ok((await page.$$eval('#wkpages .wkpage[data-p="1"] rect[class^="pg"]', e => e.length)) >= 1, 'today stacked by group'); assert.ok(await page.$('#wkpages .wkpage[data-p="2"] path.band'), '3-month bands');
-  assert.deepStrictEqual(await page.$$eval('#wkpages .wkpage[data-p="1"] .pglegend span', e => e.map(x => x.textContent)), ['Putting', 'Short game', 'Wedges', 'Irons', 'Woods']);
+  assert.deepStrictEqual(await page.$$eval('#wkpages .wkpage[data-p="1"] .pglegend span', e => e.map(x => x.textContent)), ['Putting', 'Short game', 'Wedges', 'Irons', 'Woods', 'Tournament rounds']); // v269: recent tournament rounds count as practice
   const ov = await page.evaluate(() => { const c = document.getElementById('weekcard').getBoundingClientRect(); return [...document.querySelectorAll('#weekcard .wkval, #weekcard .planhead > *')].filter(e => { const r = e.getBoundingClientRect(); return r.width && (r.right > c.right + 1 || r.left < c.left - 1); }).length; });
   await page.evaluate(() => { const c = document.getElementById('wkpages'); c.scrollLeft = 2 * c.clientWidth; }); await page.waitForTimeout(300);
   assert.strictEqual(await page.$$eval('#weekcard .wkpdots i', e => e.findIndex(x => x.classList.contains('on'))), 2, 'dots follow the swipe');
