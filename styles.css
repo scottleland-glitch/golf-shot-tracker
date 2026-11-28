@@ -3512,7 +3512,8 @@ body.dspfsopen { overflow: hidden; }
 .dspfstop, .dspfsinfo, .dspfshint { display: none; }
 .dspfs { position: fixed; top: 0; right: 0; bottom: 0; left: 0; z-index: 2000; display: flex; flex-direction: column; margin: 0; border-radius: 0; overflow: hidden; background: #1d4a23;
   touch-action: none; overscroll-behavior: contain; -webkit-user-select: none; user-select: none;
-  padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left); animation: dspfsin .24s ease-out; }
+  padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left); }
+.dspfs.dspfsin { animation: dspfsin .24s ease-out; } /* v270: only when it opens, not on every redraw */
 @keyframes dspfsin { from { transform: translateY(48px); opacity: 0; } to { transform: none; opacity: 1; } }
 .dspfs .dspfstop { display: flex; align-items: center; gap: 10px; position: relative; flex: none; padding: 12px 12px 8px 16px; color: #fff; }
 .dspfs .dspfsgrab { position: absolute; left: 50%; top: 5px; width: 40px; height: 5px; margin-left: -20px; border-radius: 3px; background: rgba(255, 255, 255, .45); }

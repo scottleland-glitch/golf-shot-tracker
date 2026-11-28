@@ -91,7 +91,10 @@ console.log('  ✓ engine');
     // v262 Aim for the groups shown – full screen buttons, the line says what it means
     assert.deepStrictEqual(await page.$$eval('.dspfs .dspfsaim button', (e) => e.map((x) => x.textContent)), ['Actual', 'Most greens', 'Best SG']); assert.strictEqual(await page.textContent('.dspfs .dspfsaim .sel'), 'Actual');
     assert.match(await page.textContent('#dsprbest'), /actual:.*Best SG: (aim|no adjustment)/);
-    await page.click('.dspfs [data-fsaim="sg"]'); await page.waitForTimeout(400); await page.screenshot({ path: OUT + '/23-aim-sliding.png' }); await page.waitForTimeout(900); await page.screenshot({ path: OUT + '/24-aim-sg.png' });
+    await page.click('.dspfs [data-fsaim="sg"]');
+    // v270 (Scott): an option change redraws without replaying the slide-in (it flashed the page behind)
+    assert.deepStrictEqual(await page.$eval('body > .dspfs', n => [n.classList.contains('dspfsin'), getComputedStyle(n).animationName, getComputedStyle(n).opacity]), [false, 'none', '1']);
+    await page.waitForTimeout(400); await page.screenshot({ path: OUT + '/23-aim-sliding.png' }); await page.waitForTimeout(900); await page.screenshot({ path: OUT + '/24-aim-sg.png' });
     assert.ok(await page.$('body > .dspfs #dspcv'), 'stays full screen'); assert.match(await page.textContent('#dsprbest'), /best SG: (aim .* (saves|costs) 0\.\d\d a shot|no adjustment)/);
     const all = await page.textContent('#dsprbest'); await page.click('.dspfs .dsppg.g3.on'); await page.waitForTimeout(300); const fewer = await page.textContent('#dsprbest');
     assert.notStrictEqual(fewer, all, 'aim follows the groups shown'); assert.match(fewer, /of \d+ shots/); await page.screenshot({ path: OUT + '/25-aim-subset.png' }); await page.click('.dspfs .dsppg.g3');
