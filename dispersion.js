@@ -229,22 +229,24 @@
   // Shots with no direction (and not holed) can't be placed and are counted in noDir; OB and penalty shots are left out.
   // opts: { play: 'all' | 'tournament', SG, bl }. Returns [{ yd (10-yd bucket of the start), from, dx, dy, on, sg, dir, holed }]
   function roundPoints(rounds, opts) {
-    var SGm = opts.SG, out = [], R = rng(4242), noDir = {};
+    var SGm = opts.SG, out = [], R = rng(4242), noDir = {}, why = { holes: 0, inGrid: 0, lie: 0, range: 0, noDir: 0, wild: 0, pen: 0, none: 0, nostats: 0 }; // v274: holes with a pin location – in the grid, or why not (by hole)
     (rounds || []).forEach(function (r) {
       if (!r || !Array.isArray(r.holes) || (opts.play === 'tournament' && r.play !== 'tournament')) return;
-      r.holes.forEach(function (h) { if (h.nostats) return; /* v254: left out of stats */ var a; try { a = SGm.analyzeHole(h, opts.bl); } catch (e) { return; } if (!a || !a.shots) return; var pinK = a.pin || '';
+      r.holes.forEach(function (h) { var hp = !!(h && h.pin); if (hp) why.holes++; if (h.nostats) { if (hp) why.nostats++; return; } /* v254: left out of stats */ var a; try { a = SGm.analyzeHole(h, opts.bl); } catch (e) { a = null; } if (!a || !a.shots) { if (hp) why.none++; return; } var pinK = a.pin || '', appr = 0, used = 0, first = '';
         a.shots.forEach(function (x) {
-          if (x.cat !== 'approach' || !x.start || (x.start.lie !== 'fairway' && x.start.lie !== 'tee') || x.pen === 'ob' || x.ob || x.penStrokes > 0) return;
-          var b = bucket(x.start.dist); if (!b || b < BUCKET_MIN || b > BUCKET_MAX) return;
+          if (x.cat !== 'approach' || !x.start) return; appr++; var tw = function (k) { if (!first) first = k; };
+          if (x.start.lie !== 'fairway' && x.start.lie !== 'tee') return tw('lie');
+          if (x.pen === 'ob' || x.ob || x.penStrokes > 0) return tw('pen');
+          var b = bucket(x.start.dist); if (!b || b < BUCKET_MIN || b > BUCKET_MAX) return tw('range');
           var holed = x.end.lie === 'holed', d = holed ? 0 : (x.end.lie === 'green' ? x.end.dist / 3 : x.end.dist);
-          if (!holed && !x.dir) { noDir[b] = (noDir[b] || 0) + 1; return; }
-          if (d > 60) return; // a shank or a lay-up well short isn't part of the pattern around the pin
+          if (!holed && !x.dir) { noDir[b] = (noDir[b] || 0) + 1; return tw('noDir'); }
+          if (d > 60) return tw('wild'); // a shank or a lay-up well short isn't part of the pattern around the pin
           var ang = holed ? 0 : ((x.ang == null ? 270 : x.ang) + (R() - 0.5) * 40) * Math.PI / 180;
           out.push({ yd: b, from: x.start.dist, dx: d * Math.cos(ang), dy: d * Math.sin(ang), on: holed || x.end.lie === 'green', sg: x.sg, dir: holed ? '' : x.dir, holed: holed,
-            ft: holed ? 0 : x.end.lie === 'green' ? x.end.dist : x.end.dist * 3, play: r.play === 'tournament' ? 'tournament' : 'practice', pin: pinK }); // v248 pin = the hole's pin location (⛳), '' if not set
-        }); });
+            ft: holed ? 0 : x.end.lie === 'green' ? x.end.dist : x.end.dist * 3, play: r.play === 'tournament' ? 'tournament' : 'practice', pin: pinK }); used++; // v248 pin = the hole's pin location (⛳), '' if not set
+        }); if (pinK) { if (used) why.inGrid++; else why[appr ? first : 'none']++; } });
     });
-    out.noDir = noDir; return out;
+    out.noDir = noDir; out.why = why; return out;
   }
   function roundBuckets(P) { var o = {}; P.forEach(function (p) { (o[p.yd] = o[p.yd] || { yd: p.yd, n: 0 }).n++; }); return Object.keys(o).map(function (k) { return o[k]; }).sort(function (a, b) { return a.yd - b.yd; }); }
   // what actually happened from one distance: { n, onPct, medFt, sg (per shot), short, long, left, right (% of shots that way), ell, show, stats }

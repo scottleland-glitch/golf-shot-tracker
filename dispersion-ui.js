@@ -163,9 +163,9 @@
       if (d.byPin) h += pinGridHTML(d); else h += '<div class="dspyds" id="dspyds" role="group" aria-label="Distance">' + d.B.map(function (b) { var on = b.yd === s.ryd;
         on = on && !d.byPin; return '<button class="dspyd' + (on ? ' sel' : '') + (b.n < 3 ? ' few' : '') + '" data-act="dspryd" data-v="' + b.yd + '" aria-pressed="' + on + '"><b>' + b.yd + '</b><span>' + b.n + '</span></button>'; }).join('') + '</div>';
       // v273 (Scott: the website broke after choosing rounds): the rounds picked may have no pin locations (⛳) – say so instead of failing
-      if (d.byPin && !s.rpin) return h + '<div class="frostcard bzcard dspfew" id="dspnopin"><p>' + (d.play === 'pick' ? 'The rounds picked don’t' : d.play === 'tournament' ? 'Your tournament rounds don’t' : 'Your rounds don’t') + ' have any approaches with a pin location (⛳ on the hole) yet. ' + (d.play === 'pick' ? 'Pick other rounds, or tap Rounds to see them by distance.' : 'Tap Rounds to see them by distance.') + '</p></div>';
+      if (d.byPin && !s.rpin) return h + '<div class="frostcard bzcard dspfew" id="dspnopin"><p>' + (d.play === 'pick' ? 'The rounds picked don’t' : d.play === 'tournament' ? 'Your tournament rounds don’t' : 'Your rounds don’t') + ' have any approaches with a pin location (⛳ on the hole) yet. ' + (d.play === 'pick' ? 'Pick other rounds, or tap Rounds to see them by distance.' : 'Tap Rounds to see them by distance.') + '</p></div>' + whyHTML(d);
       var nd = A && A.noDir ? ' · ' + A.noDir + ' without a direction left out' : '', pinName = d.byPin ? D.PIN_NAME[s.rpin] || 'These' : '', where = d.byPin ? pinName.toLowerCase() + ' pins' : s.ryd + ' yd';
-      if (!A || !A.ok) return h + '<div class="frostcard bzcard dspfew" id="dspfew"><p>' + (A ? A.n : 0) + ' approach' + ((A && A.n) === 1 ? '' : 'es') + (d.byPin ? ' to ' : ' from ') + where + nd + '. Needs 3+ to draw.</p></div>';
+      if (!A || !A.ok) return h + '<div class="frostcard bzcard dspfew" id="dspfew"><p>' + (A ? A.n : 0) + ' approach' + ((A && A.n) === 1 ? '' : 'es') + (d.byPin ? ' to ' : ' from ') + where + nd + '. Needs 3+ to draw.</p></div>' + (d.byPin ? whyHTML(d) : '');
       var bestL = d.byPin ? pgLine(A, pinName) : '';
       var rAim = d.byPin ? '<div class="dspaimrow" id="dspraimrow"><span>Aim</span>' + seg('dspraim', raimMode(), RAIMS) + '</div>' : '';
       var fsAim = d.byPin ? '<div class="dspfsaim" role="group" aria-label="Aim">' + RAIMS.map(function (it) { var on = it[0] === raimMode(); return '<button type="button" class="' + (on ? 'sel' : '') + '" data-fsaim="' + it[0] + '" aria-pressed="' + on + '">' + it[1] + '</button>'; }).join('') + '</div>' : '';
@@ -177,6 +177,7 @@
         (d.byPin ? rAim + pgToggles(A, 'act') + '<p class="muted dspnote">On or off the drawn green = where each ball really finished. The yellow ring holds 8 of 10 of the shots shown (5+). Tap a yardage to show or hide it. Aim moves the shots shown as a group: Most greens to the spot that hits the most greens, Best SG to the one that loses the fewest strokes (the dashed ring = where they really went; it assumes you were firing at the flag).</p>' + bestL
           : '<p class="dsplegend"><span><span class="dspk w"></span>on the green</span><span><span class="dspk r"></span>missed</span>' + (A.ell ? '<span><span class="dspk e"></span>8 of 10 shots</span>' : '') + '</p>') +
         '<p class="muted dspsrc" id="dspsrc">Your ' + A.n + ' approach' + (A.n === 1 ? '' : 'es') + (d.byPin ? ' to ' + esc(pinName.toLowerCase()) + ' pins, all distances' : ' from ' + (s.ryd - 5) + '–' + (s.ryd + 4) + ' yd') + ' (fairway or tee' + (d.play === 'tournament' ? ', tournaments' : d.play === 'pick' ? ', ' + d.nRounds + ' picked round' + (d.nRounds === 1 ? '' : 's') : '') + ') · where they finished' + nd + '</p></div>';
+      if (d.byPin) h += whyHTML(d);
       var pct = function (v, l) { return '<div><b>' + v + '%</b><span>' + l + '</span></div>'; };
       h += '<div class="frostcard bzcard" id="dspactual"><h3 class="bzh">What happened ' + (d.byPin ? 'to ' + esc(where) : 'from ' + where) + ' ' + tip('dspact', 'About round dispersion') + '</h3>' +
         tipBody('dspact', 'These are finishes, not landing spots: they include the bounce and roll, the green’s slope, the wind and where you chose to aim – so this is how you score from here, not your pure pattern (that’s what Club · sim is for). Each dot is placed by how far it finished from the pin and the direction you entered, spread inside that direction. Each dot is where the ball finished, measured from the pin (your target): how far away and the direction you entered. By distance: no green is drawn – white = it finished on the green, red = it missed, wherever it sits; rings every 15 feet. By pin location: the standard green with the flag where it was, balls coloured by how far out they were hit (white under 120, red 120–169, blue 170+); a dot is slid along its line just across the edge when the drawn green and the real result disagree – the numbers use the real spots. <b>Best aim</b> (by pin location, 5+ shots): your real finishes are treated as your pattern when firing at that flag and moved as a group around the standard green to the spot that loses the fewest strokes (a spot within 0.03 a shot of the flag counts as the flag). The change is added to what really happened. It assumes you were firing at the flag – if you were already playing away from it, the true gain is smaller. Tap the picture to play it full screen; swipe down to close.') +
@@ -186,6 +187,19 @@
         (A.n >= 5 ? '<p class="dspsub">Middle 8 of 10: ' + Math.round(A.width) + ' yd wide, ' + Math.round(A.length) + ' yd deep · centre ' + (Math.abs(A.depth) < 1 ? 'pin high' : yd1(A.depth) + ' yd ' + (A.depth < 0 ? 'short' : 'long')) + ', ' + (Math.abs(A.side) < 1 ? 'on line' : yd1(A.side) + ' yd ' + (A.side < 0 ? 'left' : 'right')) + '</p>' : '') + '</div>';
       return h;
     }
+    // v274 (Scott: "53 pins but the grid only shows 48"): how the holes with a pin location add up to the shots in the grid
+    function whyHTML(d) { var G = d.grid, h = '';
+      var W = (d.P && d.P.why) || null, inG = D.PINS.reduce(function (t, p) { return t + (G[p.k].n || 0); }, 0), pl = function (n, one, many) { return n + ' ' + (n === 1 ? one : many); };
+      if (W && W.holes) { var parts = [];
+        if (W.lie) parts.push(pl(W.lie, 'hole', 'holes') + ' approached from the rough, a bunker or trouble');
+        if (W.range) parts.push(pl(W.range, 'hole', 'holes') + ' approached from inside 45 yd or past 255 yd');
+        if (W.noDir) parts.push(pl(W.noDir, 'miss', 'misses') + ' without a direction entered');
+        if (W.wild) parts.push(pl(W.wild, 'approach', 'approaches') + ' that finished 60+ yd from the pin');
+        if (W.pen) parts.push(pl(W.pen, 'approach', 'approaches') + ' with a penalty');
+        if (W.none) parts.push(pl(W.none, 'hole', 'holes') + ' with no approach shot (e.g. a chip after the tee shot)');
+        if (W.nostats) parts.push(pl(W.nostats, 'hole', 'holes') + ' left out of stats');
+        h += '<p class="muted dspnote dspwhy" id="dspwhy"><b>' + pl(W.holes, 'hole', 'holes') + ' with a pin location (⛳)</b> · ' + W.inGrid + ' in the grid (an approach from the fairway or tee, 45–255 yd)' + (inG > W.inGrid ? ', ' + inG + ' shots as some holes had two' : '') + '.' + (parts.length ? ' The other ' + (W.holes - W.inGrid) + ': ' + parts.join(' · ') + '.' : '') + '</p>'; }
+      return h ? '<div class="frostcard bzcard dspwhycard">' + h + '</div>' : ''; }
     // v248 (Scott): the 3 × 3 pin grid for rounds – every approach to each pin location (the ⛳ set on the hole), all distances. Tap a pin to see those shots.
     function pinGridHTML(d) {
       var G = d.grid, s = d.s, h = '<div class="frostcard bzcard dsprgrid" id="dsprgrid"><p class="dspsub dsprgh">All distances · tap a pin ' + tip('dsprpin', 'About the pin grid') + '</p>' +

@@ -17,6 +17,13 @@ const noPin = ROUNDS[ROUNDS.length - 1].id;
     await page.reload(); await page.waitForSelector('#home'); if (await page.$('#namesheet')) await page.click('[data-act="nameskip"]');
     await page.click('#tbplus'); await page.click('.sheet-item[data-act="dspadd"]'); await page.waitForSelector('#disp');
     await page.click('[data-act="dspsrc"][data-v="pins"]'); await page.waitForSelector('#dsprgrid');
+    // v274 (Scott: "53 pins but the grid only shows 48"): the note under the grid adds the holes up
+    { const D = require(REPO + '/dispersion.js'), SG = require(REPO + '/sg.js'), P = D.roundPoints(ROUNDS, { play: 'all', SG, bl: 'd1w' }), W = P.why, G = D.roundPinGrid(P);
+      assert.strictEqual(W.inGrid + W.lie + W.range + W.noDir + W.wild + W.pen + W.none + W.nostats, W.holes, 'every hole with a pin is in the grid or has a reason');
+      assert.strictEqual(W.holes, ROUNDS.reduce((t, r) => t + r.holes.filter(h => h.pin).length, 0));
+      await page.waitForSelector('#dspwhy'); const why = await page.textContent('#dspwhy'), sum = D.PINS.reduce((t, p) => t + G[p.k].n, 0), shown = await page.$$eval('.dspcell:not(.none) span', e => e.reduce((t, x) => t + parseInt(x.textContent, 10), 0));
+      assert.match(why, new RegExp('^' + W.holes + ' holes with a pin location \\(⛳\\) · ' + W.inGrid + ' in the grid')); assert.match(why, /The other \d+: .*approached from the rough, a bunker or trouble/);
+      assert.strictEqual(shown, sum, 'the cells add up to the grid count'); ok('grid note: ' + why); }
     await page.click('[data-act="dsprplay"][data-v="pick"]'); await page.waitForSelector('#dsppick');
     // pick the no-pin round, then take the others off one by one (the last one can't come off)
     if (!(await page.$eval('.dsprd[data-v="' + noPin + '"]', e => e.classList.contains('sel')))) await page.click('.dsprd[data-v="' + noPin + '"]');
