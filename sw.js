@@ -156,7 +156,8 @@
 // v271: ‹ back to all rounds on Round stats; tournament rounds = 2.5 h, 30 min a group, striped in each group's colour, own practice holds flat through tournaments.
 // v272: tournament days fill practice at your 2-week average – no stripes (but on the My Practice spider), a dot for each tournament day.
 // v273: Dispersion › Pin location with rounds picked that have no pin locations says so instead of breaking; a choice that can't be drawn starts the page fresh.
-const CACHE = 'golf-sg-v273';
+// v274: Pin location grid says how the holes with a pin location add up to the shots in it.
+const CACHE = 'golf-sg-v274';
 const ASSETS = ['./', './img/home-bg.webp', './img/oriole.webp', './tour/entry.webp', './tour/score.webp', './tour/rounds.webp', './tour/stats.webp', './tour/review.webp', './tour/mygame.webp', './tour/practice.webp', './tour/improve.webp', './index.html', './styles.css', './sg.js', './trends.js', './plan.js', './funfacts.js', './weekahead.js', './birdie.js', './courses.js', './near.js', './bag.js', './wedges.js', './live.js', './sync.js', './share.js', './story.js', './insights.js', './mygame.js', './shortgame.js', './shortgame-ui.js', './dispersion.js', './dispersion-ui.js', './replay-anim.js', './app.js', './config.js', './vendor/jspdf.umd.min.js',
   './manifest.webmanifest', './icons/apple-touch-icon.png', './icons/icon-192.png',
   './icons/icon-512.png', './icons/icon-512-maskable.png'];
