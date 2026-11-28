@@ -162,7 +162,9 @@
         ' Every approach from the fairway or a tee shows here by distance, placed by how far it finished from the pin and the direction you entered.</p></div>';
       if (d.byPin) h += pinGridHTML(d); else h += '<div class="dspyds" id="dspyds" role="group" aria-label="Distance">' + d.B.map(function (b) { var on = b.yd === s.ryd;
         on = on && !d.byPin; return '<button class="dspyd' + (on ? ' sel' : '') + (b.n < 3 ? ' few' : '') + '" data-act="dspryd" data-v="' + b.yd + '" aria-pressed="' + on + '"><b>' + b.yd + '</b><span>' + b.n + '</span></button>'; }).join('') + '</div>';
-      var nd = A && A.noDir ? ' · ' + A.noDir + ' without a direction left out' : '', pinName = d.byPin ? D.PIN_NAME[s.rpin] : '', where = d.byPin ? pinName.toLowerCase() + ' pins' : s.ryd + ' yd';
+      // v273 (Scott: the website broke after choosing rounds): the rounds picked may have no pin locations (⛳) – say so instead of failing
+      if (d.byPin && !s.rpin) return h + '<div class="frostcard bzcard dspfew" id="dspnopin"><p>' + (d.play === 'pick' ? 'The rounds picked don’t' : d.play === 'tournament' ? 'Your tournament rounds don’t' : 'Your rounds don’t') + ' have any approaches with a pin location (⛳ on the hole) yet. ' + (d.play === 'pick' ? 'Pick other rounds, or tap Rounds to see them by distance.' : 'Tap Rounds to see them by distance.') + '</p></div>';
+      var nd = A && A.noDir ? ' · ' + A.noDir + ' without a direction left out' : '', pinName = d.byPin ? D.PIN_NAME[s.rpin] || 'These' : '', where = d.byPin ? pinName.toLowerCase() + ' pins' : s.ryd + ' yd';
       if (!A || !A.ok) return h + '<div class="frostcard bzcard dspfew" id="dspfew"><p>' + (A ? A.n : 0) + ' approach' + ((A && A.n) === 1 ? '' : 'es') + (d.byPin ? ' to ' : ' from ') + where + nd + '. Needs 3+ to draw.</p></div>';
       var bestL = d.byPin ? pgLine(A, pinName) : '';
       var rAim = d.byPin ? '<div class="dspaimrow" id="dspraimrow"><span>Aim</span>' + seg('dspraim', raimMode(), RAIMS) + '</div>' : '';
