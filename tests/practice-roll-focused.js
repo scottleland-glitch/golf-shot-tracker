@@ -95,23 +95,24 @@ function dayOffset(n) {
     assert.strictEqual(D.n, 14, 'v236: fits 2 weeks (first log 8 days ago), got ' + D.n);
     assert.match(D.aria, /fading average/);
     // expected fading average (half-life 3 days, averaged over the days logged, at least 3), from the first log 8 days ago;
-    // v269: the tournament day (3 days ago) counts 2.5 h + 1.5 h warm-up of tournament credit (its own striped band) in place of its 40 min of irons (a warm-up)
+    // v271: your own practice holds flat on the tournament day (3 days ago – its 40 min of irons is a warm-up, part of the round), and the
+    // round adds 2.5 h, 30 min per group, as each group's colour striped
     const A = Math.pow(0.5, 1 / 3), byAgo = {}; plan.forEach(x => { (byAgo[x.ago] = byAgo[x.ago] || [0, 0, 0, 0, 0])[{ lag: 0, chip: 1, wedges: 2, irons: 3, drive: 4 }[x.spoke]] += x.min; });
     let eg = [0, 0, 0, 0, 0], et = 0, kd = 0;
-    for (let a = 8; a >= 0; a--) { const m = a === 3 ? [0, 0, 0, 0, 0] : byAgo[a] || [0, 0, 0, 0, 0]; eg = eg.map((v, i) => v * A + m[i] * (1 - A)); et = et * A + (a === 3 ? 240 : 0) * (1 - A); kd++; }
-    const nrm = 1 - Math.pow(A, Math.max(kd, 3)), exp = eg.map(v => v / nrm * 7), expT = et / nrm * 7;
+    for (let a = 8; a >= 0; a--) { if (a !== 3) { const m = byAgo[a] || [0, 0, 0, 0, 0]; eg = eg.map((v, i) => v * A + m[i] * (1 - A)); } et = et * A + (a === 3 ? 30 : 0) * (1 - A); kd++; }
+    const nrm = 1 - Math.pow(A, Math.max(kd, 3)), exp = eg.map(v => v / nrm * 7), expT = et / nrm * 7 * 5;
     assert.deepStrictEqual(D.g, exp.map(Math.round), 'Putting, Short game, Wedges, Irons, Woods: ' + D.g + ' vs ' + exp.map(Math.round));
     assert.ok(Math.abs(D.last - Math.round(exp.reduce((a, b) => a + b, 0) + expT)) <= 1, 'fading average ending today, with the tournament round: ' + D.last);
-    assert.strictEqual(D.g[3], 0, 'irons logged only on the tournament day are left out (the round counts instead)');
-    assert.strictEqual(D.tband, 1, 'tournament credit drawn as one striped band');
+    assert.strictEqual(D.g[3], 0, 'irons logged only on the tournament day are left out (part of the round)');
+    assert.strictEqual(D.tband, 5, 'tournament credit: one striped band per group, in its colour');
     assert.ok(D.g[0] > 0 && D.g[4] > D.g[0], 'drive→Woods, lag→Putting');
-    assert.strictEqual(D.bands, 4, 'four groups with practice (no irons outside the tournament day)');
-    assert.strictEqual(D.hold, 0, 'nothing held in the window – the tournament day counts its credit, the practice round 20 days ago is outside it');
+    assert.strictEqual(D.bands - D.tband, 4, 'four groups with practice of your own (no irons outside the tournament day)');
+    assert.strictEqual(D.hold, 1, 'the tournament day holds your own practice – the practice round 20 days ago is outside the window');
     assert.ok(D.last > 40, 'today alone is 40 min; the curve does not drop to today\'s practice');
     assert.strictEqual(D.trophies, 1, 'trophy on the tournament day');
     assert.strictEqual(D.lessons, 1, 'lesson marker on the lesson day');
     assert.strictEqual(D.shades, 0, 'no shaded blocks on held days');
-    ok('fading average ' + D.last + ' min a week (' + D.g + '); tournament day counts 4 h in stripes, no shading; markers on the day');
+    ok('fading average ' + D.last + ' min a week (' + D.g + '); tournament day: own practice held, 2.5 h striped by group, no shading; markers on the day');
 
     const colors = await page.evaluate(() => {
       const bg = sel => getComputedStyle(document.querySelector(sel)).backgroundColor;

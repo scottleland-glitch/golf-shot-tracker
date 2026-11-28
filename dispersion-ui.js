@@ -393,10 +393,10 @@
       document.body.classList.remove('dspfsopen'); anim = null; gAnim = null; gen++; gGen++; env.render(); window.scrollTo(0, fsY);
     }
     function fsPlace() {
-      var cur = fs ? document.getElementById(fsId()) : null;
+      var cur = fs ? document.getElementById(fsId()) : null, was = !!document.querySelector('body > .dspfs'); // v270: already open → no slide-in (an option change re-renders it; replaying the slide flashed the page)
       [].forEach.call(document.querySelectorAll('body > .dspfs'), function (n) { if (n !== cur) n.parentNode.removeChild(n); }); // left over from an earlier render
       if (!cur) { fs = null; document.body.classList.remove('dspfsopen'); return; }
-      document.body.classList.add('dspfsopen'); if (cur.parentNode !== document.body) { cur.classList.add('dspfs'); document.body.appendChild(cur); }
+      document.body.classList.add('dspfsopen'); if (cur.parentNode !== document.body) { cur.classList.add('dspfs'); if (!was) cur.classList.add('dspfsin'); document.body.appendChild(cur); }
       if (cur._fsb) return; cur._fsb = 1;
       var x = cur.querySelector('.dspfsx'); if (x) x.addEventListener('click', function (ev) { ev.preventDefault(); ev.stopPropagation(); closeFs(); });
       [].forEach.call(cur.querySelectorAll('[data-fsaim]'), function (bt) { bt.addEventListener('click', function (ev) { ev.preventDefault(); ev.stopPropagation(); pgAimSet(bt.getAttribute('data-fsaim')); }); }); // v262

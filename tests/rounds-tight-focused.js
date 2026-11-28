@@ -76,6 +76,10 @@ const rnd = (id, player, date, extra, more) => { const r = Object.assign(ARC.rou
   assert(/Haggin Oaks/.test(await P.textContent('#app')), 'opened the tapped round');
   const back = (await P.textContent('#editround')).trim();
   assert.strictEqual(back, 'Edit round'); // v191: Rounds is in ☰
+  // v271 (Scott): ‹ back to all rounds right in the top bar – no trip through ☰
+  assert.strictEqual(await P.getAttribute('#rsrounds', 'aria-label'), 'All rounds'); assert.ok((await P.$eval('#rsrounds', e => e.getBoundingClientRect().left)) < (await P.$eval('#editround', e => e.getBoundingClientRect().left)), '‹ is the first button');
+  await P.click('#rsrounds'); await P.waitForSelector('#histlist'); assert.strictEqual(await P.$('#rsmenu'), null); await P.click('.hrow[data-id="t1"] .hist'); await P.waitForSelector('#editround');
+  await P.screenshot({ path: (process.argv[2] || '/tmp') + '/rounds-back.png' });
   await (async (P) => { if (!(await P.$('.topbar [data-act="history"]')) && await P.$('#rsmenubtn')) await P.click('#rsmenubtn'); return P.click('.topbar [data-act="history"], #rsmenu [data-act="history"]'); })(P) /* v191: in ☰ on Round stats */; await P.waitForSelector('#histlist');
   console.log('  tap: row opens its stats, back button says ‹ Rounds');
 

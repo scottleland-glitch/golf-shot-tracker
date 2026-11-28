@@ -3512,7 +3512,8 @@ body.dspfsopen { overflow: hidden; }
 .dspfstop, .dspfsinfo, .dspfshint { display: none; }
 .dspfs { position: fixed; top: 0; right: 0; bottom: 0; left: 0; z-index: 2000; display: flex; flex-direction: column; margin: 0; border-radius: 0; overflow: hidden; background: #1d4a23;
   touch-action: none; overscroll-behavior: contain; -webkit-user-select: none; user-select: none;
-  padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left); animation: dspfsin .24s ease-out; }
+  padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left); }
+.dspfs.dspfsin { animation: dspfsin .24s ease-out; } /* v270: only when it opens, not on every redraw */
 @keyframes dspfsin { from { transform: translateY(48px); opacity: 0; } to { transform: none; opacity: 1; } }
 .dspfs .dspfstop { display: flex; align-items: center; gap: 10px; position: relative; flex: none; padding: 12px 12px 8px 16px; color: #fff; }
 .dspfs .dspfsgrab { position: absolute; left: 50%; top: 5px; width: 40px; height: 5px; margin-left: -20px; border-radius: 3px; background: rgba(255, 255, 255, .45); }
@@ -3598,12 +3599,15 @@ html body .clubtab tr.p3 td:last-child { box-shadow: inset -2px 0 0 #d0213a; }
 html body .clubtab tr.p3top td { border-top: 2px solid #d0213a; }
 html body .clubtab tr.p3bot td { border-bottom: 2px solid #d0213a; }
 html body .clubtab .p3tag { display: block; font-size: 10px; font-weight: 600; color: #b3121f; line-height: 1.1; white-space: nowrap; }
-/* v269 (Scott): tournament rounds counted as practice – gold diagonal stripes on every practice chart */
-html body .wkfill.wktf { background: repeating-linear-gradient(45deg, #c99a2a 0 2.6px, #f7e9c4 2.6px 5.2px); border-radius: 0 7px 7px 0; }
-html body .wkrow.got .wkfill.wktf { background: repeating-linear-gradient(45deg, #b8861b 0 2.6px, #f3dfa8 2.6px 5.2px); }
-html body .pgtour, html body .mglegend .ltour { display: inline-block; background: repeating-linear-gradient(45deg, #c99a2a 0 2px, #f7e9c4 2px 4px); box-shadow: inset 0 0 0 1px #b8861b; }
+/* v269/v271 (Scott): tournament rounds counted as practice – diagonal stripes in each chart's own colour */
+html body .wkfill.wktf { background: repeating-linear-gradient(45deg, #6fae86 0 2.8px, #cfe6d7 2.8px 5.6px); border-radius: 0 7px 7px 0; }
+html body .wkrow.got .wkfill.wktf { background: repeating-linear-gradient(45deg, #1f6f4a 0 2.8px, #a9cbb8 2.8px 5.6px); }
+html body .pgtour { display: inline-block; background: repeating-linear-gradient(45deg, #6b7a70 0 2px, #e3e8e4 2px 4px); box-shadow: inset 0 0 0 1px #6b7a70; }
+html body .mglegend .ltour { display: inline-block; background: repeating-linear-gradient(45deg, #2f6fc9 0 2px, #c9d9f1 2px 4px); box-shadow: inset 0 0 0 1px #2f6fc9; border-radius: 3px; }
+html body .pglegend .pgtour { border-radius: 3px; }
 html body .wktournote .pgtour { width: 12px; height: 10px; border-radius: 2px; margin-right: 6px; vertical-align: -1px; }
-html body .prtour { color: #8a6412; }
-html body .trchart .trtour { stroke: none; opacity: .95; } html body .trchart .trtourtx { fill: #8a6412; }
-html body .wkchart .pgtourband, html body .wkchart .pgtourbar { stroke: #b8861b; stroke-width: .6; }
-html body .mglegend .ltour { border-radius: 3px; }
+html body .prtour { color: #2f5f9e; }
+html body .trchart .trtour { stroke: none; opacity: .9; } html body .trchart .trtourtx { fill: #2f5f9e; }
+/* v271 (Scott): ‹ back to all rounds on Round stats */
+html body .topbar .rsroundsbtn { width: 40px !important; min-width: 40px; max-width: 40px; height: 40px !important; min-height: 40px !important; padding: 0 !important; border-radius: 50% !important; flex: none; display: flex; align-items: center; justify-content: center; }
+html body .topbar .rsroundsbtn svg { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width: 2.4; stroke-linecap: round; stroke-linejoin: round; }
