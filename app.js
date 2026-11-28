@@ -234,7 +234,7 @@
     else if (view.screen === 'practice') el.innerHTML = practicePageHTML(); // v194
     else if (view.screen === 'trends') el.innerHTML = trendsHTML(); // v194
     else if (view.screen === 'sgtest') el.innerHTML = SGTUI.html(); // v166
-    else if (view.screen === 'disp') el.innerHTML = DISPUI.html(); // v245
+    else if (view.screen === 'disp') { var dh; try { dh = DISPUI.html(); } catch (e) { if (window.console) console.error(e); try { localStorage.removeItem('golfsg.simopts.v1'); } catch (e2) {} view.disp = null; dh = DISPUI.html(); } el.innerHTML = dh; } // v245; v273: a choice that can't be drawn starts the page fresh instead of breaking
     else if (view.screen === 'profile') { view.screen = 'archive'; el.innerHTML = archiveHTML(); } // v102: old Profile → Settings
     else if (view.screen === 'wedges') el.innerHTML = wedgesHTML();
     else if (view.screen === 'birdie') { view.bzD = null; el.innerHTML = birdieHTML(); }
