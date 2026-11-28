@@ -175,23 +175,17 @@
     var added = 0; validPractice(incoming).forEach(function (e) { if (!have[e.id]) { have[e.id] = 1; out.push(e); added++; } });
     return { practice: out, added: added };
   }
-  // v269 (Scott): a tournament round counts as 2.5 h of practice (a 9-hole round half that), split across the skills by that round's
-  // own shots – 14 tee shots out of 70 puts 20% on Driving. It is built from the rounds each time (kind 'tour') and never saved, so it
-  // follows a round that is edited or deleted, and an empty practice week during a tournament no longer reads as a drop.
-  // Score-only rounds have no shots: split like the benchmark group's practice.
-  // v269 (Scott): plus the 90-min warm-up and pre-round practice on top – 30 putting (15 short, 15 lag), 30 chipping, 20 irons, 10 driver.
-  // Same for a 9-hole round. A warm-up logged on a tournament day is this, so it isn't counted twice in the fading lines.
-  var TOUR_MIN = 150, WARM = { short: 15, lag: 15, chip: 30, irons: 20, drive: 10 }, WARM_MIN = 90;
+  // v269/v271 (Scott): a tournament round counts as 2.5 h of practice (a 9-hole round half that), split equally across the five
+  // practice groups – 30 min each of Putting (15 short, 15 lag), Short game (15 chipping, 15 bunker), Wedges, Irons and Woods.
+  // It is built from the rounds each time (kind 'tour') and never saved, so it follows a round that is edited or deleted, and an
+  // empty practice week during a tournament no longer reads as a drop. A warm-up logged on a tournament day is part of it.
+  var TOUR_MIN = 150, TOUR_SPLIT = { short: 0.1, lag: 0.1, chip: 0.1, bunker: 0.1, wedges: 0.2, irons: 0.2, drive: 0.2 };
   function tourPractice(rounds, SG, bl) {
     var out = [];
     (rounds || []).forEach(function (r) { if (!r || r.play !== 'tournament') return; var t = Date.parse(r.date); if (isNaN(t)) return;
-      var S = SG.summarize(r, bl); if (!S || !S.holesDone) return; var n = {}, tot = 0;
-      SPOKES.forEach(function (s) { n[s.k] = 0; });
-      if (!r.scoreOnly) S.holes.forEach(function (h) { if (!h.done || h.off) return; (h.shots || []).forEach(function (s) { if (s.layup) return;
-        for (var i = 0; i < SPOKES.length; i++) if (SPOKES[i].test(s)) { n[SPOKES[i].k]++; tot++; break; } }); });
-      if (!tot) { SPOKES.forEach(function (s) { n[s.k] = PRAC_SPLIT[s.k]; }); tot = 1; }
+      var S = SG.summarize(r, bl); if (!S || !S.holesDone) return;
       var d = new Date(t), day = d.getFullYear() + '-' + ('0' + (d.getMonth() + 1)).slice(-2) + '-' + ('0' + d.getDate()).slice(-2) + 'T12:00:00', all = TOUR_MIN * Math.min(36, S.holesDone) / 18;
-      SPOKES.forEach(function (s) { var m = Math.round((all * n[s.k] / tot + (WARM[s.k] || 0)) * 10) / 10; if (m > 0) out.push({ id: 'tour-' + r.id + '-' + s.k, date: day, player: String(r.player || ''), spoke: s.k, focus: 'Tournament round', min: m, kind: 'tour', round: String(r.id) }); }); });
+      SPOKES.forEach(function (s) { var m = Math.round(all * (TOUR_SPLIT[s.k] || 0) * 10) / 10; if (m > 0) out.push({ id: 'tour-' + r.id + '-' + s.k, date: day, player: String(r.player || ''), spoke: s.k, focus: 'Tournament round', min: m, kind: 'tour', round: String(r.id) }); }); });
     return out;
   }
   // Minutes per spoke (and per focus) in a [from, to) window; sessions = distinct days.
@@ -271,9 +265,11 @@
     var wk = spokes.reduce(function (x, s) { return x + s.wk; }, 0);
     return { wk: wk, frac: wk / (B.h * 60), bench: B, spokes: spokes };
   }
-  // v269: gold diagonal stripes = tournament rounds counted as practice (the same look on every practice chart)
+  // v269: diagonal stripes = tournament rounds counted as practice (the same look on every practice chart)
   var HATCH_N = 0;
-  function tourHatchDefs(id) { return '<defs><pattern id="' + id + '" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect width="6" height="6" fill="#f7e9c4"/><rect width="2.6" height="6" fill="#c99a2a"/></pattern></defs>'; }
+  // v271 (Scott): the stripes keep each chart's own colour (stripes of the colour over a pale tint of it)
+  function tint(c, k) { var n = parseInt(String(c).slice(1), 16), r = n >> 16, g = n >> 8 & 255, b = n & 255, f = function (v) { return Math.round(v + (255 - v) * k); }; return '#' + ((1 << 24) + (f(r) << 16) + (f(g) << 8) + f(b)).toString(16).slice(1); }
+  function tourHatchDefs(id, col) { col = col || '#c99a2a'; return '<defs><pattern id="' + id + '" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect width="6" height="6" fill="' + tint(col, 0.62) + '"/><rect width="2.8" height="6" fill="' + col + '"/></pattern></defs>'; }
   // Level radar: the outer ring is the benchmark group's average for that skill; rings at 25 / 50 / 75 / 100 %.
   // Radius = sqrt(share of the benchmark) so early practice is visible (4% draws at 20% of the radius) while the ring still means 100%.
   function practiceLevelSVG(cur, prev, opts) {
@@ -287,12 +283,12 @@
     var rs = function (L) { return L.spokes.map(function (s) { return Math.max(R * 0.03, R * Math.sqrt(Math.min(CAP, s.frac))); }); };
     if (prev && prev.wk >= 1) o += '<polygon class="pprev" points="' + poly(rs(prev)) + '" fill="rgba(138,154,143,.22)" stroke="#8a9a8f" stroke-width="2"/>';
     if (cur.wk >= 1) { var cr = rs(cur);
-      // v269 (Scott): tournament rounds counted as practice – the whole shape is drawn in gold stripes, your own practice in blue on top
+      // v269 (Scott): tournament rounds counted as practice – the whole shape is drawn in blue stripes, your own practice solid blue on top
       if (cur.tw >= 1) { var hid = 'tourhatch' + (++HATCH_N), pr = cur.spokes.map(function (s) { return Math.max(R * 0.03, R * Math.sqrt(Math.min(CAP, s.target ? Math.max(0, s.wk - (s.tw || 0)) / s.target : 0))); });
-        o += tourHatchDefs(hid) + '<polygon class="ptour" points="' + poly(cr) + '" fill="url(#' + hid + ')" stroke="#b8861b" stroke-width="2" stroke-dasharray="5 3"/>';
+        o += tourHatchDefs(hid, '#2f6fc9') + '<polygon class="ptour" points="' + poly(cr) + '" fill="url(#' + hid + ')" fill-opacity=".55" stroke="#2f6fc9" stroke-width="2" stroke-dasharray="5 3"/>';
         if (cur.wk - cur.tw >= 1) o += '<polygon class="pcur" points="' + poly(pr) + '" fill="rgba(47,111,201,.32)" stroke="#2f6fc9" stroke-width="2.5"/>'; }
       else o += '<polygon class="pcur" points="' + poly(cr) + '" fill="rgba(47,111,201,.25)" stroke="#2f6fc9" stroke-width="2.5"/>';
-      cur.spokes.forEach(function (s, i) { if (s.wk < 1) return; var q = pt(i, cr[i]); o += '<circle cx="' + q[0] + '" cy="' + q[1] + '" r="4" fill="' + (cur.tw >= 1 && s.tw >= s.wk - 0.5 ? '#b8861b' : '#2f6fc9') + '"/>'; }); }
+      cur.spokes.forEach(function (s, i) { if (s.wk < 1) return; var q = pt(i, cr[i]); o += '<circle cx="' + q[0] + '" cy="' + q[1] + '" r="4" fill="#2f6fc9"/>'; }); }
     cur.spokes.forEach(function (s, i) {
       var q = pt(i, R + 20), anchor = Math.abs(q[0]) < 10 ? 'middle' : q[0] > 0 ? 'start' : 'end';
       o += '<text x="' + q[0] + '" y="' + (q[1] - 2) + '" text-anchor="' + anchor + '" font-size="12.5" font-weight="600" fill="#17301f">' + esc(s.name) + '</text>';
@@ -573,7 +569,7 @@
 
   var FOCUS_HINT = { Mechanics: 'takeaway, swing plane, weight transfer…' };
   var API = { TAU: TAU, TAU_ACUTE: TAU_ACUTE, PRAC_BENCH: PRAC_BENCH, PRAC_SPLIT: PRAC_SPLIT, CLUB_AVG_H: CLUB_AVG_H, practiceBench: practiceBench, practiceLevel: practiceLevel, practiceLevelSVG: practiceLevelSVG, practiceWindows: practiceWindows, practiceLevelText: practiceLevelText,
-    STRONG: STRONG, FOCUS: FOCUS, FOCUS_HINT: FOCUS_HINT, validPractice: validPractice, mergePractice: mergePractice, tourPractice: tourPractice, TOUR_MIN: TOUR_MIN, WARM_MIN: WARM_MIN, tourHatchDefs: tourHatchDefs, practiceShape: practiceShape, practiceBuild: practiceBuild, practiceSVG: practiceSVG,
+    STRONG: STRONG, FOCUS: FOCUS, FOCUS_HINT: FOCUS_HINT, validPractice: validPractice, mergePractice: mergePractice, tourPractice: tourPractice, TOUR_MIN: TOUR_MIN, tourHatchDefs: tourHatchDefs, practiceShape: practiceShape, practiceBuild: practiceBuild, practiceSVG: practiceSVG,
     practiceVsGame: practiceVsGame, drillFocus: drillFocus, hm: hm,
     SEASON_BENCH: SEASON_BENCH, seasonBuild: seasonBuild, seasonSVG: seasonSVG, playWeeksBuild: playWeeksBuild, playWeeksSVG: playWeeksSVG, playWeeksAxis: playWeeksAxis, ROUND_H: ROUND_H,     PLAY_KINDS: PLAY_KINDS, playOf: playOf, playTally: playTally, playingBuild: playingBuild, kindCompare: kindCompare, holesText: holesText, MIN_EACH: MIN_EACH, CMP_AREAS: CMP_AREAS,
     SPOKES: SPOKES, PERIODS: PERIODS, MIN_ROUNDS: MIN_ROUNDS, period: period, roundPeriod: roundPeriod, ROUND_COUNTS: ROUND_COUNTS, USUAL_N: USUAL_N, USUAL_MIN: USUAL_MIN, windows: windows, shape: shape, build: build, radarSVG: radarSVG, radius: radius, fmt: fmt, RING: RING };

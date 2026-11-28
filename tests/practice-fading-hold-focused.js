@@ -36,7 +36,7 @@ const round = (id, ago, play) => Object.assign(ARC.round(), { id, player: 'Scott
         return { head: p.querySelector('.wkpt').textContent, note: p.querySelector('.wknote').textContent, from: s.getAttribute('data-from'), n: +s.getAttribute('data-n'),
           tots: s.getAttribute('data-tots').split(',').map(Number), hold: +s.getAttribute('data-hold'), pts,
           shades: [].map.call(s.querySelectorAll('rect.wkhold'), r => ({ from: r.getAttribute('data-from'), to: r.getAttribute('data-to'), x: +r.getAttribute('x'), w: +r.getAttribute('width') })),
-          trophies: s.querySelectorAll('.wktour').length, band: s.querySelectorAll('path.pgtourband').length, fill: (() => { const r = s.querySelector('rect.wkhold'); return r ? getComputedStyle(r).fill : null; })() }; });
+          trophies: s.querySelectorAll('.wktour').length, own: s.getAttribute('data-own').split(',').map(Number), band: s.querySelectorAll('path.pgtourband').length, fill: (() => { const r = s.querySelector('rect.wkhold'); return r ? getComputedStyle(r).fill : null; })() }; });
     };
     const idx = (D, ago) => D.n - 1 - ago;
     const xAt = (D, i) => 34 + i / (D.n - 1) * 298;
@@ -50,17 +50,17 @@ const round = (id, ago, play) => Object.assign(ARC.round(), { id, player: 'Scott
     assert.strictEqual(D.head, 'Last 5 weeks · fading average');
     assert.doesNotMatch(D.note, /shaded/);
     assert.strictEqual(D.shades.length, 0, 'no shaded blocks');
-    // v269 (Scott): tournament rounds count as practice (2.5 h each) – those days build the line instead of holding it;
-    // the practice round and the rest day between the two tournament days still hold it
-    assert.strictEqual(D.hold, 2, 'practice round + the day between the two tournament days are held');
+    // v271 (Scott): your own practice holds flat through the trip (practice round, both tournament days and the day between), and each
+    // tournament round adds 2.5 h – 30 min per group, in that group's colour, striped
+    assert.strictEqual(D.hold, 4, 'practice round, two tournament days and the day between hold your own practice');
     assert.strictEqual(D.trophies, 1, 'one trophy for the tournament stretch (the day between two tournament days joins it)');
-    assert.strictEqual(D.band, 1, 'the tournament credit is a gold striped band');
-    ok('San Diego trip: 2 held days, one 🏆, a striped tournament band, no shaded blocks');
-    const pre = D.tots[idx(D, 13)], trip = [12, 11, 10, 9].map(a => D.tots[idx(D, a)]);
+    assert.strictEqual(D.band, 5, 'the tournament credit is striped in each of the five group colours');
+    ok('San Diego trip: 4 held days, one 🏆, striped tournament credit per group, no shaded blocks');
+    const pre = D.tots[idx(D, 13)], trip = [12, 11, 10, 9].map(a => D.tots[idx(D, a)]), own = [12, 11, 10, 9].map(a => D.own[idx(D, a)]);
     assert.ok(pre > 60, 'a real level before the trip: ' + pre);
+    assert.ok(own.every(v => Math.abs(v - pre) <= 1), 'your own practice doesn\'t drop during the trip: ' + own + ' vs ' + pre);
     assert.strictEqual(trip[0], pre, 'the practice round holds it at the level before');
-    assert.ok(trip[1] > pre && trip[3] > trip[2], 'each tournament day builds it: ' + trip + ' vs ' + pre);
-    assert.strictEqual(trip[2], trip[1], 'the day between the tournament days is held');
+    assert.ok(trip[1] > pre && trip[3] > trip[2] && trip[2] >= trip[1] - 1, 'each tournament day builds it, the day between holds: ' + trip + ' vs ' + pre);
     const noWarm = await open(P.filter(e => e.min !== 120), R);
     assert.deepStrictEqual(noWarm.tots, D.tots, 'a warm-up logged on a tournament day doesn\'t add to the round');
     assert.notStrictEqual(D.tots[idx(D, 8)], trip[3], 'practice moves the curve the day after');
