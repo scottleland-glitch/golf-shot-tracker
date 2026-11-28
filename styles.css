@@ -3611,3 +3611,6 @@ html body .trchart .trtour { stroke: none; opacity: .9; } html body .trchart .tr
 /* v271 (Scott): ‹ back to all rounds on Round stats */
 html body .topbar .rsroundsbtn { width: 40px !important; min-width: 40px; max-width: 40px; height: 40px !important; min-height: 40px !important; padding: 0 !important; border-radius: 50% !important; flex: none; display: flex; align-items: center; justify-content: center; }
 html body .topbar .rsroundsbtn svg { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width: 2.4; stroke-linecap: round; stroke-linejoin: round; }
+/* v272 (Scott): a dot for each tournament day on the practice charts (like the round ticks on Trends) */
+html body .wkchart .wktdot { fill: #c99a2a; stroke: #fff; stroke-width: 1; }
+html body .tdkey { display: inline-block; width: 7px; height: 7px; border-radius: 50%; background: #c99a2a; vertical-align: 1px; margin-right: 2px; }

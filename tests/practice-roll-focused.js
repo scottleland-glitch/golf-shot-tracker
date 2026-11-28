@@ -75,7 +75,7 @@ function dayOffset(n) {
     assert.strictEqual(await page.$$eval('#wkpages .wkpage', e => e.length), 3);
     const legend1 = await page.$$eval('#wkpages .wkpage[data-p="1"] .pglegend span', e => e.map(x => x.textContent));
     const legend2 = await page.$$eval('#wkpages .wkpage[data-p="2"] .pglegend span', e => e.map(x => x.textContent));
-    assert.deepStrictEqual(legend1, ['Putting', 'Short game', 'Wedges', 'Irons', 'Woods', 'Tournament rounds']); // v269: + the striped tournament credit
+    assert.deepStrictEqual(legend1, ['Putting', 'Short game', 'Wedges', 'Irons', 'Woods']); // v272: no tournament key – tournament days fill in the normal colours
     assert.deepStrictEqual(legend2, legend1);
     // v236: the chart fits the practice logged (first log 8 days ago + 3 days' lead-in, at least 2 weeks)
     assert.strictEqual(await page.textContent('#wkpages .wkpage[data-p="2"] .wkpt'), 'Last 2 weeks · fading average');
@@ -88,31 +88,31 @@ function dayOffset(n) {
     const D = await page.$eval('#wkpages .wkpage[data-p="2"] svg', s => ({
       roll: s.getAttribute('data-roll'), n: +s.getAttribute('data-n'), last: +s.getAttribute('data-last'),
       g: s.getAttribute('data-g').split(',').map(Number),
-      trophies: s.querySelectorAll('.wktour').length, lessons: s.querySelectorAll('.wkles').length,
+      trophies: s.querySelectorAll('.wktdot').length, lessons: s.querySelectorAll('.wkles').length,
       bands: s.querySelectorAll('path.band').length, tband: s.querySelectorAll('path.pgtourband').length, aria: s.getAttribute('aria-label'), hold: +s.getAttribute('data-hold'), shades: s.querySelectorAll('rect.wkhold').length
     }));
     assert.strictEqual(D.roll, 'fade');
     assert.strictEqual(D.n, 14, 'v236: fits 2 weeks (first log 8 days ago), got ' + D.n);
     assert.match(D.aria, /fading average/);
     // expected fading average (half-life 3 days, averaged over the days logged, at least 3), from the first log 8 days ago;
-    // v271: your own practice holds flat on the tournament day (3 days ago – its 40 min of irons is a warm-up, part of the round), and the
-    // round adds 2.5 h, 30 min per group, as each group's colour striped
+    // v272 (Scott): the tournament day (3 days ago) fills at the average of the 14 days before it, skill by skill, topped up past what was
+    // logged that day (40 min irons) – lag 110/14, chip 20/14, wedges 30/14 – and isn't held
     const A = Math.pow(0.5, 1 / 3), byAgo = {}; plan.forEach(x => { (byAgo[x.ago] = byAgo[x.ago] || [0, 0, 0, 0, 0])[{ lag: 0, chip: 1, wedges: 2, irons: 3, drive: 4 }[x.spoke]] += x.min; });
-    let eg = [0, 0, 0, 0, 0], et = 0, kd = 0;
-    for (let a = 8; a >= 0; a--) { if (a !== 3) { const m = byAgo[a] || [0, 0, 0, 0, 0]; eg = eg.map((v, i) => v * A + m[i] * (1 - A)); } et = et * A + (a === 3 ? 30 : 0) * (1 - A); kd++; }
-    const nrm = 1 - Math.pow(A, Math.max(kd, 3)), exp = eg.map(v => v / nrm * 7), expT = et / nrm * 7 * 5;
+    const r1 = v => Math.round(v * 10) / 10; byAgo[3] = [r1(110 / 14), r1(20 / 14), r1(30 / 14), 40, 0];
+    let eg = [0, 0, 0, 0, 0], kd = 0;
+    for (let a = 8; a >= 0; a--) { const m = byAgo[a] || [0, 0, 0, 0, 0]; eg = eg.map((v, i) => v * A + m[i] * (1 - A)); kd++; }
+    const nrm = 1 - Math.pow(A, Math.max(kd, 3)), exp = eg.map(v => v / nrm * 7);
     assert.deepStrictEqual(D.g, exp.map(Math.round), 'Putting, Short game, Wedges, Irons, Woods: ' + D.g + ' vs ' + exp.map(Math.round));
-    assert.ok(Math.abs(D.last - Math.round(exp.reduce((a, b) => a + b, 0) + expT)) <= 1, 'fading average ending today, with the tournament round: ' + D.last);
-    assert.strictEqual(D.g[3], 0, 'irons logged only on the tournament day are left out (part of the round)');
-    assert.strictEqual(D.tband, 5, 'tournament credit: one striped band per group, in its colour');
+    assert.strictEqual(D.last, Math.round(exp.reduce((a, b) => a + b, 0)), 'fading average ending today');
+    assert.strictEqual(D.tband, 0, 'no stripes');
     assert.ok(D.g[0] > 0 && D.g[4] > D.g[0], 'drive→Woods, lag→Putting');
-    assert.strictEqual(D.bands - D.tband, 4, 'four groups with practice of your own (no irons outside the tournament day)');
-    assert.strictEqual(D.hold, 1, 'the tournament day holds your own practice – the practice round 20 days ago is outside the window');
+    assert.strictEqual(D.bands, 5, 'five groups (irons from the tournament day)');
+    assert.strictEqual(D.hold, 0, 'nothing held – the tournament day fills at the 2-week average; the practice round 20 days ago is outside the window');
     assert.ok(D.last > 40, 'today alone is 40 min; the curve does not drop to today\'s practice');
-    assert.strictEqual(D.trophies, 1, 'trophy on the tournament day');
+    assert.strictEqual(D.trophies, 1, 'a dot on the tournament day');
     assert.strictEqual(D.lessons, 1, 'lesson marker on the lesson day');
     assert.strictEqual(D.shades, 0, 'no shaded blocks on held days');
-    ok('fading average ' + D.last + ' min a week (' + D.g + '); tournament day: own practice held, 2.5 h striped by group, no shading; markers on the day');
+    ok('fading average ' + D.last + ' min a week (' + D.g + '); tournament day at the 2-week average with a dot, no stripes or shading; markers on the day');
 
     const colors = await page.evaluate(() => {
       const bg = sel => getComputedStyle(document.querySelector(sel)).backgroundColor;
